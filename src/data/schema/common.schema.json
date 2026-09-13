@@ -883,7 +883,8 @@
                   "enum": [
                     "previousTarget",
                     "self",
-                    "objective"
+                    "objective",
+                    "controlledObjective"
                   ]
                 },
                 "inches": {
@@ -902,6 +903,7 @@
           "enum": [
             "selectedToShoot",
             "selectedToFight",
+            "notYetFought",
             "targetedByAttack",
             "chargedThisTurn",
             "justDestroyed",

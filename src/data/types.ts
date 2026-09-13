@@ -142,8 +142,8 @@ export type AbilityRef = Id | AbilityDescriptor
 export interface TargetSpec {
   role: 'unit' | 'model'
   owner: 'friendly' | 'enemy'
-  filter?: { keyword?: Keyword; notKeyword?: Keyword; within?: { of: 'previousTarget' | 'self' | 'objective'; inches: number } }
-  state?: 'selectedToShoot' | 'selectedToFight' | 'targetedByAttack' | 'chargedThisTurn' | 'justDestroyed'
+  filter?: { keyword?: Keyword; notKeyword?: Keyword; within?: { of: 'previousTarget' | 'self' | 'objective' | 'controlledObjective'; inches: number } }
+  state?: 'selectedToShoot' | 'selectedToFight' | 'notYetFought' | 'targetedByAttack' | 'chargedThisTurn' | 'justDestroyed'
     | 'inEngagement' | 'belowHalf' | 'battleShocked' | 'justMoved'
   count?: number
 }

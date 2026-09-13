@@ -3,7 +3,7 @@
     "id": "ork.s.get-stuck-in",
     "faction": "ork",
     "name": "Get Stuck In",
-    "text": "Use during the Fight phase, before you pick the next unit to fight. For the rest of the phase, one ORKS unit from your army treats its Pile-in and Consolidation moves as up to 6\" rather than 3\".",
+    "text": "Use during the Fight phase, before you pick the next unit to fight. For the rest of the phase, one ORKS unit from your army that has not yet been selected to fight this phase treats its Pile-in and Consolidation moves as up to 6\" rather than 3\".",
     "cost": 1,
     "category": "battleTactic",
     "phases": ["fight"],
@@ -11,7 +11,7 @@
     "who": "either",
     "condition": { "phase": "fight" },
     "targets": [
-      { "role": "unit", "owner": "friendly", "filter": { "keyword": "ORKS" } }
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "ORKS" }, "state": "notYetFought" }
     ],
     "code": "getStuckInDistance",
     "limit": "oncePerPhase"

@@ -28,7 +28,7 @@
     "phases": ["fight"],
     "window": "fight.attacksResolved",
     "who": "either",
-    "targets": [{ "role": "unit", "owner": "friendly", "state": "inEngagement", "count": 1 }],
+    "targets": [{ "role": "unit", "owner": "friendly", "state": "notYetFought", "count": 1 }],
     "code": "counterOffensive",
     "params": {
       "combatPatrol": { "legal": true, "note": "usable by any CP unit in Engagement Range that has not yet fought" }
@@ -38,20 +38,23 @@
     "id": "core.s.epic-challenge",
     "faction": "core",
     "name": "Epic Challenge",
-    "text": "Use when one of your Character units, attached to a bodyguard unit, is selected to fight while in Engagement Range of an enemy attached unit. Pick one Character model in your unit; until the end of the phase its melee attacks gain the Precision ability.",
+    "text": "Use when one of your Character units is selected to fight while within Engagement Range of one or more enemy units that have a leader attached. Pick one Character model in that unit; until the end of the phase its melee attacks gain the Precision ability.",
     "cost": 1,
     "category": "epicDeed",
     "phases": ["fight"],
     "window": "fight.unitSelected",
     "who": "either",
-    "condition": { "leaderAttached": true },
-    "targets": [{ "role": "model", "owner": "friendly", "filter": { "keyword": "CHARACTER" }, "count": 1 }],
+    "targets": [
+      { "role": "unit", "owner": "enemy", "state": "inEngagement", "count": 1 },
+      { "role": "model", "owner": "friendly", "filter": { "keyword": "CHARACTER" }, "count": 1 }
+    ],
     "effect": { "grantWeaponAbility": { "ability": "PRECISION" }, "when": { "weaponType": "melee" } },
+    "code": "epicChallenge",
     "duration": "untilEndOfPhase",
     "params": {
       "combatPatrol": {
         "legal": true,
-        "note": "usable by any Character while attached: Captain Octavius, Librarian Tantus, Warboss Gordrang"
+        "note": "usable by any CHARACTER unit (Captain Octavius, Librarian Tantus, Warboss Gordrang) fighting an enemy attached unit"
       }
     }
   },
@@ -100,14 +103,15 @@
     "id": "core.s.tank-shock",
     "faction": "core",
     "name": "Tank Shock",
-    "text": "Use after one of your VEHICLE units finishes a Charge move. Pick an enemy unit in Engagement Range and one of your VEHICLE models in Engagement Range of it. Roll a number of dice equal to that model's Toughness, up to a maximum of 6; the enemy unit suffers a mortal wound for each 5+.",
+    "text": "Use after one of your VEHICLE units finishes a Charge move. Pick an enemy unit within Engagement Range of it and one of your VEHICLE models within Engagement Range of that enemy unit. Roll a number of dice equal to that model's Toughness; the enemy unit suffers a mortal wound for each 5+, to a maximum of 6 mortal wounds.",
     "cost": 1,
     "category": "strategicPloy",
     "phases": ["charge"],
     "window": "charge.moveEnded",
     "who": "active",
     "targets": [
-      { "role": "unit", "owner": "enemy", "state": "inEngagement", "count": 1 },
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "VEHICLE" }, "state": "chargedThisTurn", "count": 1 },
+      { "role": "unit", "owner": "enemy", "filter": { "within": { "of": "previousTarget", "inches": 1 } }, "count": 1 },
       {
         "role": "model",
         "owner": "friendly",
@@ -118,11 +122,11 @@
     "code": "tankShockMortalWounds",
     "params": {
       "threshold": 5,
-      "maxDice": 6,
+      "maxMortalWounds": 6,
       "diceEqualToStat": "T",
       "combatPatrol": {
         "legal": true,
-        "note": "usable only by Ork VEHICLE units: Deffkoptas (T6) and Deff Dread (T9, capped at 6 dice)"
+        "note": "usable only by Ork VEHICLE units: Deffkoptas roll 6 dice, Deff Dread rolls 9 dice; both capped at 6 mortal wounds"
       }
     }
   },

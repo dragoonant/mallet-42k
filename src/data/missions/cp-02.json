@@ -1,7 +1,7 @@
 {
   "id": "mission.cp-02",
   "name": "Archeotech Recovery",
-  "text": "Five markers dot a hazardous dig site; three sit in no man's land and are progressively rendered dangerous as the battle wears on, while the last one left standing pays out a final bonus.",
+  "text": "Five markers dot a hazardous dig site; three sit in no man's land and are removed one by one from round 4 as their power cells fail, while the last one left standing pays out a final bonus.",
   "format": "combatPatrol",
   "board": { "w": 44, "h": 30 },
   "deploymentZones": {

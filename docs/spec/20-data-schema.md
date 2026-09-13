@@ -155,7 +155,7 @@ Unit-level state in the engine (`wounds`, `battleShocked`, `moved`, `advanced`) 
 | `who` | `active \| reactive \| either` | whose turn it may be used in |
 | `condition` | Condition | use-time gating (e.g. the target unit must have been selected as a target) |
 | `when` | Condition | application-time gating per triggered attack/roll, same semantics as `AbilityDescriptor.when` |
-| `targets` | TargetSpec[] | `{role: unit\|model, owner: friendly\|enemy, filter:{keyword?, notKeyword?, within?:{of, inches}}, state?: selectedToShoot\|targetedByAttack\|chargedThisTurn\|justDestroyed\|inEngagement\|belowHalf, count?:int}` |
+| `targets` | TargetSpec[] | `{role: unit\|model, owner: friendly\|enemy, filter:{keyword?, notKeyword?, within?:{of: previousTarget\|self\|objective\|controlledObjective, inches}}, state?: selectedToShoot\|targetedByAttack\|chargedThisTurn\|justDestroyed\|inEngagement\|belowHalf\|notYetFought, count?:int}`; `within.of: controlledObjective` restricts to a marker the active player currently controls (vs. `objective` = any marker in range) |
 | `effect` | Effect \| Effect[] | applied to `targets[0]` unless `scope` says otherwise |
 | `scope`, `duration`, `limit` | as abilities | default `limit: oncePerPhase` (core: one use per stratagem per phase) |
 | `code` | hook name | escape hatch |

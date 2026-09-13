@@ -31,7 +31,7 @@
     "who": "either",
     "condition": { "phase": "fight" },
     "targets": [
-      { "role": "unit", "owner": "friendly", "filter": { "keyword": "TERMINATOR" } }
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "TERMINATOR" }, "state": "notYetFought" }
     ],
     "effect": [
       { "when": { "targetKeyword": ["MONSTER", "VEHICLE"] }, "reroll": "all" },
@@ -39,7 +39,8 @@
     ],
     "scope": { "who": "self" },
     "duration": "untilEndOfPhase",
-    "limit": "oncePerPhase"
+    "limit": "oncePerPhase",
+    "code": "veteranInstincts"
   },
   {
     "id": "sm.s.duty-and-honour",
@@ -53,7 +54,7 @@
     "who": "active",
     "condition": { "phase": "command" },
     "targets": [
-      { "role": "unit", "owner": "friendly", "filter": { "keyword": "ADEPTUS ASTARTES", "within": { "of": "objective", "inches": 3 } } }
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "ADEPTUS ASTARTES", "within": { "of": "controlledObjective", "inches": 3 } } }
     ],
     "code": "dutyAndHonour",
     "limit": "oncePerPhase"

@@ -1,7 +1,7 @@
 {
   "id": "mission.cp-01",
   "name": "Clash of Patrols",
-  "text": "Two forces meet across open ground with four markers scattered between the deployment zones; both sides race to secure them while the Attacker can recover intel from a marker they hold.",
+  "text": "Two forces meet across open ground with four markers scattered between the deployment zones; both sides race to secure them, and from the second round the player whose turn it is may recover intel from a marker they hold for a Command Point while their Warlord is on the field.",
   "format": "combatPatrol",
   "board": { "w": 44, "h": 30 },
   "deploymentZones": {

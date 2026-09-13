@@ -1,7 +1,7 @@
 {
   "id": "mission.cp-04",
   "name": "Scorched Earth",
-  "text": "Deployment wedges into opposing triangles around four markers; from round 2 a player may raze an uncontested marker they hold, though never the one closest to the enemy's own approach.",
+  "text": "Deployment wedges into opposing triangles around four markers; from round 2 a player may raze an uncontested marker they hold, though never the one nearest their own deployment zone (A for the Attacker, B for the Defender).",
   "format": "combatPatrol",
   "board": { "w": 44, "h": 30 },
   "deploymentZones": {
