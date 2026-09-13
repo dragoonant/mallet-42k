@@ -41,7 +41,7 @@ export function baseEdgePoints(m: Footprint, n = EDGE_SAMPLES): Vec2[] {
   return pts
 }
 
-function pointToSegment(p: Vec2, a: Vec2, b: Vec2): number {
+export function pointToSegment(p: Vec2, a: Vec2, b: Vec2): number {
   const abx = b.x - a.x, abz = b.z - a.z
   const l2 = abx * abx + abz * abz
   let t = l2 === 0 ? 0 : ((p.x - a.x) * abx + (p.z - a.z) * abz) / l2

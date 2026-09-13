@@ -1,7 +1,8 @@
 // Enhancements (20-data §7, CP-1.4). Owner: W1-F. createGame already attaches the enhancement's ability to the warlord
 // (state.abilities entry with source 'enhancement' and bearerModelId = the warlord model; Unit.enhancementId set;
-// Tellyporta-style `choice` pairs Unit.deepStrikeWith). What remains is scope handling in hooks-impl (`bearer` = only
-// that model's weapons/rolls, `self` = the whole attached unit).
+// Tellyporta-style `choice` pairs Unit.deepStrikeWith). Scope handling lives in hooks-impl: `bearer` = only that
+// model's weapons/rolls, `self` = the whole attached unit (leader + bodyguard).
+import { leaderService } from './leaders'
 import type { GameState, ModelId, PlayerId, RuntimeAbility, UnitId } from './types'
 
 export interface EnhancementService {
@@ -15,12 +16,15 @@ export const enhancementService: EnhancementService = {
     const wl = state.units[state.players[player].warlordUnitId]
     return wl && wl.models.length > 0 ? wl.models[0] : null
   },
-  // TODO(W1-F): scope 'self' should also cover the bodyguard unit of an attached leader
   abilitiesFor(state, unitId) {
     const unit = state.units[unitId]
     if (!unit) return []
-    const ids = new Set(unit.models)
-    if (unit.attachedLeaderId) for (const m of state.units[unit.attachedLeaderId]?.models ?? []) ids.add(m)
-    return Object.values(state.abilities).filter((a) => a.source === 'enhancement' && a.bearerModelId !== null && ids.has(a.bearerModelId))
+    const own = new Set(unit.models)
+    const combined = new Set(leaderService.halves(state, unitId).flatMap((id) => state.units[id]?.models ?? []))
+    return Object.values(state.abilities).filter((a) => {
+      if (a.source !== 'enhancement' || a.bearerModelId === null) return false
+      const who = a.scope?.who ?? 'bearer'
+      return who === 'bearer' ? own.has(a.bearerModelId) : combined.has(a.bearerModelId)
+    })
   },
 }
