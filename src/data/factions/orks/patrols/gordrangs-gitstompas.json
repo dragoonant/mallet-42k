@@ -1,0 +1,64 @@
+{
+  "id": "ork.cp.gordrangs-gitstompas",
+  "faction": "ork",
+  "name": "Gordrang's Gitstompas",
+  "units": [
+    {
+      "ref": "warboss",
+      "datasheet": "ork.warboss-gordrang",
+      "size": 1,
+      "enhancement": "ork.e.grizzled-skarboy"
+    },
+    {
+      "ref": "boyz-a",
+      "datasheet": "ork.boyz",
+      "size": 10
+    },
+    {
+      "ref": "boyz-b",
+      "datasheet": "ork.boyz",
+      "size": 10,
+      "wargear": [
+        { "modelId": "boss-nob", "count": 1, "weapons": ["ork.w.slugga", "ork.w.power-klaw"] },
+        { "modelId": "boy-heavy", "count": 1, "weapons": ["ork.w.rokkit-launcha", "ork.w.close-combat-weapon"] }
+      ]
+    },
+    {
+      "ref": "deffkoptas",
+      "datasheet": "ork.deffkoptas",
+      "size": 3
+    },
+    {
+      "ref": "deff-dread",
+      "datasheet": "ork.deff-dread",
+      "size": 1
+    }
+  ],
+  "stratagems": ["ork.s.get-stuck-in", "ork.s.brutal-but-kunnin", "ork.s.krump-da-gitz"],
+  "enhancements": [
+    { "id": "ork.e.grizzled-skarboy", "default": true },
+    { "id": "ork.e.tellyporta", "default": false }
+  ],
+  "secondaries": [
+    {
+      "id": "ork.sec.stomp-em",
+      "name": "Stomp 'Em",
+      "text": "From round 2, at the start of each round pick a surviving enemy unit; at the end of that round, score 3 victory points if it was destroyed by a melee attack from an ORKS model.",
+      "default": true,
+      "scoring": [
+        { "id": "stomp-em-pick", "when": "round.start", "rounds": { "from": 2, "to": 5 }, "rule": "custom", "pointsPer": 0, "cap": 0, "code": "stompEmPick" },
+        { "id": "stomp-em-score", "when": "round.end", "rounds": { "from": 2, "to": 5 }, "rule": "custom", "pointsPer": 3, "cap": 3, "code": "stompEmScore" }
+      ]
+    },
+    {
+      "id": "ork.sec.proper-lootin",
+      "name": "Proper Lootin'",
+      "text": "At the end of your Command phase, for each objective marker you control that is outside your deployment zone and not yet looted by your army, if at least one ORKS unit is within range of it and none of those units is in Engagement Range, roll 1D6: 2-4 loots it for 3 victory points, 5+ loots it for 5 victory points, 1 does not loot it (you may try again on a later turn).",
+      "default": false,
+      "scoring": [
+        { "id": "proper-lootin", "when": "command.end", "rounds": { "from": 1, "to": 5 }, "who": "active", "rule": "custom", "pointsPer": 5, "cap": 20, "code": "properLootin", "params": { "rollTiers": { "2-4": 3, "5-6": 5 } } }
+      ]
+    }
+  ],
+  "warlord": "warboss"
+}

@@ -1,0 +1,50 @@
+[
+  {
+    "id": "ork.boyz",
+    "faction": "ork",
+    "name": "Boyz",
+    "keywords": ["INFANTRY", "BATTLELINE", "MOB", "BOYZ"],
+    "factionKeywords": ["ORKS"],
+    "stats": { "M": 6, "T": 5, "Sv": 5, "W": 1, "Ld": 7, "OC": 2 },
+    "composition": [
+      {
+        "modelId": "boss-nob",
+        "name": "Boss Nob",
+        "min": 1, "max": 1, "default": 1,
+        "champion": true,
+        "base": { "shape": "round", "mm": 32 },
+        "statsOverride": { "W": 2 },
+        "weapons": { "default": ["ork.w.slugga", "ork.w.big-choppa"] },
+        "figure": { "archetype": "heavy", "kit": "ork-boy", "parts": { "head": "ork.head.boss-nob" } }
+      },
+      {
+        "modelId": "boy-choppa",
+        "name": "Boy (slugga & choppa)",
+        "min": 5, "max": 5, "default": 5,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["ork.w.slugga", "ork.w.choppa"] },
+        "figure": { "archetype": "infantry", "kit": "ork-boy" }
+      },
+      {
+        "modelId": "boy-shoota",
+        "name": "Boy (shoota)",
+        "min": 3, "max": 3, "default": 3,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["ork.w.shoota", "ork.w.close-combat-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "ork-boy" }
+      },
+      {
+        "modelId": "boy-heavy",
+        "name": "Boy (heavy weapon)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["ork.w.big-shoota", "ork.w.close-combat-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "ork-boy" }
+      }
+    ],
+    "abilities": ["ork.a.waaagh"],
+    "coreAbilities": [],
+    "points": [ { "models": 10, "points": 0 } ],
+    "figure": { "archetype": "infantry", "kit": "ork-boy" }
+  }
+]

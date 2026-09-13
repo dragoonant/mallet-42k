@@ -1,0 +1,23 @@
+{
+  "id": "ork",
+  "name": "Orks",
+  "factionKeyword": "ORKS",
+  "armyRule": "ork.a.waaagh",
+  "detachments": [
+    {
+      "id": "ork.d.combat-patrol",
+      "name": "Combat Patrol",
+      "rule": "ork.a.waaagh",
+      "stratagems": ["ork.s.get-stuck-in", "ork.s.brutal-but-kunnin", "ork.s.krump-da-gitz"],
+      "enhancements": ["ork.e.grizzled-skarboy", "ork.e.tellyporta"]
+    }
+  ],
+  "paintScheme": {
+    "primary": "#4b6b2f",
+    "secondary": "#8b2e2e",
+    "trim": "#d4af37",
+    "metal": "#8c8c8c",
+    "decal": "#f5f1e6"
+  },
+  "combatPatrols": ["ork.cp.gordrangs-gitstompas"]
+}

@@ -1,0 +1,57 @@
+{
+  "id": "mission.cp-05",
+  "name": "Sweeping Raid",
+  "text": "Four markers run in a line from one home strip to the other; holding your own supply marker can earn extra Command Points, and whoever still holds ground closest to the enemy's edge is rewarded at the final bell.",
+  "format": "combatPatrol",
+  "board": { "w": 44, "h": 30 },
+  "deploymentZones": {
+    "A": [
+      { "x": -22, "z": -15 },
+      { "x": -12, "z": -15 },
+      { "x": -12, "z": 15 },
+      { "x": -22, "z": 15 }
+    ],
+    "B": [
+      { "x": 12, "z": -15 },
+      { "x": 22, "z": -15 },
+      { "x": 22, "z": 15 },
+      { "x": 12, "z": 15 }
+    ]
+  },
+  "objectives": [
+    { "id": "a", "x": -16, "z": -6, "home": "A" },
+    { "id": "b", "x": -3, "z": 9 },
+    { "id": "c", "x": 3, "z": -9 },
+    { "id": "d", "x": 16, "z": 6, "home": "B" }
+  ],
+  "rounds": 5,
+  "firstTurn": "roll",
+  "scoring": [
+    { "id": "priority-targets", "when": "command.end", "rounds": { "from": 2, "to": 4 }, "who": "active", "rule": "holdObjectives", "pointsPer": 5, "cap": 15 },
+    {
+      "id": "sweeping-raid-endgame",
+      "when": "battle.end",
+      "rounds": { "from": 5, "to": 5 },
+      "who": "both",
+      "rule": "custom",
+      "code": "sweepingRaidEndgameBonus",
+      "pointsPer": 0,
+      "cap": 15,
+      "params": {
+        "attacker": [
+          { "objectiveId": "c", "points": 5 },
+          { "objectiveId": "d", "points": 10 }
+        ],
+        "defender": [
+          { "objectiveId": "b", "points": 5 },
+          { "objectiveId": "a", "points": 10 }
+        ]
+      }
+    }
+  ],
+  "rules": [
+    { "id": "supply-lines", "code": "supplyLines", "window": "command.start", "params": { "rollThreshold": 4, "cpBonus": 1 } }
+  ],
+  "victory": { "tie": "draw" },
+  "terrainLayouts": ["terrain.cp-01"]
+}

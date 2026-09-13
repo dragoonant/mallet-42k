@@ -1,0 +1,25 @@
+[
+  {
+    "id": "ork.deff-dread",
+    "faction": "ork",
+    "name": "Deff Dread",
+    "keywords": ["VEHICLE", "WALKER", "DEFF DREAD"],
+    "factionKeywords": ["ORKS"],
+    "stats": { "M": 8, "T": 9, "Sv": 2, "W": 8, "Ld": 7, "OC": 3 },
+    "invuln": 6,
+    "composition": [
+      {
+        "modelId": "deff-dread",
+        "name": "Deff Dread",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 60 },
+        "weapons": { "default": ["ork.w.rokkit-launcha", "ork.w.dread-klaw"] },
+        "figure": { "archetype": "monster", "kit": "ork-deff-dread" }
+      }
+    ],
+    "abilities": ["ork.a.waaagh", "ork.a.piston-driven-brutality"],
+    "coreAbilities": [ { "ability": "DEADLY_DEMISE", "value": 1 } ],
+    "points": [ { "models": 1, "points": 0 } ],
+    "figure": { "archetype": "monster", "kit": "ork-deff-dread" }
+  }
+]

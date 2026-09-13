@@ -1,0 +1,55 @@
+{
+  "id": "mission.cp-04",
+  "name": "Scorched Earth",
+  "text": "Deployment wedges into opposing triangles around four markers; from round 2 a player may raze an uncontested marker they hold, though never the one closest to the enemy's own approach.",
+  "format": "combatPatrol",
+  "board": { "w": 44, "h": 30 },
+  "deploymentZones": {
+    "A": [
+      { "x": -22, "z": 15 },
+      { "x": -22, "z": -15 },
+      { "x": 0, "z": -15 }
+    ],
+    "B": [
+      { "x": 22, "z": -15 },
+      { "x": 22, "z": 15 },
+      { "x": 0, "z": 15 }
+    ]
+  },
+  "objectives": [
+    { "id": "north", "x": 0, "z": 6 },
+    { "id": "south", "x": 0, "z": -6 },
+    { "id": "site-a", "x": -10, "z": 4 },
+    { "id": "site-b", "x": 10, "z": -4 }
+  ],
+  "rounds": 5,
+  "firstTurn": "roll",
+  "scoring": [
+    { "id": "raze-hold1-r2-4", "when": "command.end", "rounds": { "from": 2, "to": 4 }, "who": "active", "rule": "holdObjectives", "pointsPer": 5, "cap": 20, "params": { "min": 1, "capGroup": "raze-and-ruin" } },
+    { "id": "raze-hold1-r5-first", "when": "command.end", "rounds": { "from": 5, "to": 5 }, "who": "first", "rule": "holdObjectives", "pointsPer": 5, "cap": 20, "params": { "min": 1, "capGroup": "raze-and-ruin" } },
+    { "id": "raze-hold1-r5-second", "when": "turn.end", "rounds": { "from": 5, "to": 5 }, "who": "second", "rule": "holdObjectives", "pointsPer": 5, "cap": 20, "params": { "min": 1, "capGroup": "raze-and-ruin" } },
+    { "id": "raze-holdmore-r2-4", "when": "command.end", "rounds": { "from": 2, "to": 4 }, "who": "active", "rule": "holdMore", "pointsPer": 5, "cap": 20, "params": { "capGroup": "raze-and-ruin" } },
+    { "id": "raze-holdmore-r5-first", "when": "command.end", "rounds": { "from": 5, "to": 5 }, "who": "first", "rule": "holdMore", "pointsPer": 5, "cap": 20, "params": { "capGroup": "raze-and-ruin" } },
+    { "id": "raze-holdmore-r5-second", "when": "turn.end", "rounds": { "from": 5, "to": 5 }, "who": "second", "rule": "holdMore", "pointsPer": 5, "cap": 20, "params": { "capGroup": "raze-and-ruin" } },
+    { "id": "raze-razed-r2-4", "when": "command.end", "rounds": { "from": 2, "to": 4 }, "who": "active", "rule": "razedThisTurn", "pointsPer": 10, "cap": 20, "params": { "capGroup": "raze-and-ruin" } },
+    { "id": "raze-razed-r5-first", "when": "command.end", "rounds": { "from": 5, "to": 5 }, "who": "first", "rule": "razedThisTurn", "pointsPer": 10, "cap": 20, "params": { "capGroup": "raze-and-ruin" } },
+    { "id": "raze-razed-r5-second", "when": "turn.end", "rounds": { "from": 5, "to": 5 }, "who": "second", "rule": "razedThisTurn", "pointsPer": 10, "cap": 20, "params": { "capGroup": "raze-and-ruin" } }
+  ],
+  "rules": [
+    {
+      "id": "raze-and-ruin",
+      "code": "razeAndRuin",
+      "window": "command.start",
+      "params": {
+        "roundFrom": 2,
+        "minMarkersRemaining": 2,
+        "noEnemyWithinInches": 3,
+        "forbiddenForAttacker": ["site-a"],
+        "forbiddenForDefender": ["site-b"],
+        "chooseOptionTopic": "razeObjective"
+      }
+    }
+  ],
+  "victory": { "tie": "draw" },
+  "terrainLayouts": ["terrain.cp-01"]
+}

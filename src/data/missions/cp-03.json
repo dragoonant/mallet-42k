@@ -1,0 +1,42 @@
+{
+  "id": "mission.cp-03",
+  "name": "Forward Outpost",
+  "text": "Each side holds a marker inside its own deployment strip while two more sit in no man's land; parking a unit on the enemy's home marker jams their command net for the rest of the battle.",
+  "format": "combatPatrol",
+  "board": { "w": 44, "h": 30 },
+  "deploymentZones": {
+    "A": [
+      { "x": -22, "z": -15 },
+      { "x": -12, "z": -15 },
+      { "x": -12, "z": 15 },
+      { "x": -22, "z": 15 }
+    ],
+    "B": [
+      { "x": 12, "z": -15 },
+      { "x": 22, "z": -15 },
+      { "x": 22, "z": 15 },
+      { "x": 12, "z": 15 }
+    ]
+  },
+  "objectives": [
+    { "id": "north", "x": 0, "z": 8 },
+    { "id": "south", "x": 0, "z": -8 },
+    { "id": "attacker-home", "x": -16, "z": 0, "home": "A" },
+    { "id": "defender-home", "x": 16, "z": 0, "home": "B" }
+  ],
+  "rounds": 5,
+  "firstTurn": "roll",
+  "scoring": [
+    { "id": "vital-ground-nml-r2-4", "when": "command.end", "rounds": { "from": 2, "to": 4 }, "who": "active", "rule": "holdObjectives", "pointsPer": 5, "cap": 15, "params": { "objectiveIds": ["north", "south"], "capGroup": "vital-ground" } },
+    { "id": "vital-ground-nml-r5-first", "when": "command.end", "rounds": { "from": 5, "to": 5 }, "who": "first", "rule": "holdObjectives", "pointsPer": 5, "cap": 15, "params": { "objectiveIds": ["north", "south"], "capGroup": "vital-ground" } },
+    { "id": "vital-ground-nml-r5-second", "when": "turn.end", "rounds": { "from": 5, "to": 5 }, "who": "second", "rule": "holdObjectives", "pointsPer": 5, "cap": 15, "params": { "objectiveIds": ["north", "south"], "capGroup": "vital-ground" } },
+    { "id": "vital-ground-enemy-dz-r2-4", "when": "command.end", "rounds": { "from": 2, "to": 4 }, "who": "active", "rule": "holdEnemyHome", "pointsPer": 10, "cap": 15, "params": { "capGroup": "vital-ground" } },
+    { "id": "vital-ground-enemy-dz-r5-first", "when": "command.end", "rounds": { "from": 5, "to": 5 }, "who": "first", "rule": "holdEnemyHome", "pointsPer": 10, "cap": 15, "params": { "capGroup": "vital-ground" } },
+    { "id": "vital-ground-enemy-dz-r5-second", "when": "turn.end", "rounds": { "from": 5, "to": 5 }, "who": "second", "rule": "holdEnemyHome", "pointsPer": 10, "cap": 15, "params": { "capGroup": "vital-ground" } }
+  ],
+  "rules": [
+    { "id": "sabotage-comms", "code": "sabotageComms", "window": "turn.end" }
+  ],
+  "victory": { "tie": "draw" },
+  "terrainLayouts": ["terrain.cp-01"]
+}

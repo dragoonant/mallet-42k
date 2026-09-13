@@ -1,0 +1,35 @@
+[
+  {
+    "id": "sm.a.oath-of-moment",
+    "name": "Oath of Moment",
+    "text": "Pick one enemy unit at the start of your Command phase; until your next Command phase, attacks by models with this ability against it may re-roll the hit roll, whatever that roll was.",
+    "trigger": "hitRoll",
+    "when": { "oathTarget": true },
+    "effect": { "reroll": "all" },
+    "code": "oathOfMomentPick",
+    "params": { "pickWindow": "command.start" }
+  },
+  {
+    "id": "sm.a.fury-of-the-first",
+    "name": "Fury of the First",
+    "text": "Attacks by this unit against the Oath target get +1 to hit.",
+    "trigger": "hitRoll",
+    "when": { "oathTarget": true },
+    "effect": { "modifyRoll": { "roll": "hit", "value": 1 } }
+  },
+  {
+    "id": "sm.a.unstoppable-valour",
+    "name": "Unstoppable Valour",
+    "text": "This model's unit shrugs off a poor charge roll and rolls it again.",
+    "trigger": "chargeRoll",
+    "effect": { "reroll": "all" }
+  },
+  {
+    "id": "sm.a.veil-of-time",
+    "name": "Veil of Time",
+    "text": "This model glimpses moments before they happen; every weapon carried by the unit it leads strikes with [SUSTAINED HITS 1].",
+    "trigger": "always",
+    "effect": { "grantWeaponAbility": { "ability": "SUSTAINED_HITS", "value": 1 } },
+    "scope": { "who": "self" }
+  }
+]

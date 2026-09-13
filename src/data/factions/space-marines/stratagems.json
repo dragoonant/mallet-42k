@@ -1,0 +1,61 @@
+[
+  {
+    "id": "sm.s.gene-wrought-resilience",
+    "faction": "sm",
+    "name": "Gene-wrought Resilience",
+    "text": "Use when one of your Astartes units is chosen as a target in the opponent's Shooting phase or either player's Fight phase. Until the phase ends, attacks against it whose Strength exceeds the unit's Toughness suffer -1 to wound.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["shooting", "fight"],
+    "window": ["shooting.targetsDeclared", "fight.targetsDeclared"],
+    "who": "either",
+    "condition": { "any": [ { "phase": "shooting", "ownTurn": false }, { "phase": "fight" } ] },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "ADEPTUS ASTARTES" }, "state": "targetedByAttack", "count": 1 }
+    ],
+    "when": { "strengthVsToughness": "gt" },
+    "effect": { "modifyRoll": { "roll": "wound", "value": -1 } },
+    "scope": { "who": "attacker" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "sm.s.veteran-instincts",
+    "faction": "sm",
+    "name": "Veteran Instincts",
+    "text": "Use in the Fight phase for one of your Terminator units not yet selected to fight this phase. Until the phase ends, each attack it makes re-rolls a wound roll of 1; an attack against a Monster or Vehicle unit may re-roll any wound roll instead.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["fight"],
+    "window": ["fight.start", "fight.attacksResolved"],
+    "who": "either",
+    "condition": { "phase": "fight" },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "TERMINATOR" } }
+    ],
+    "effect": [
+      { "when": { "targetKeyword": ["MONSTER", "VEHICLE"] }, "reroll": "all" },
+      { "reroll": "ones" }
+    ],
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "sm.s.duty-and-honour",
+    "faction": "sm",
+    "name": "Duty and Honour",
+    "text": "Use at the end of your Command phase for one Adeptus Astartes unit within range of an objective marker you control. That marker stays under your control, even with no models in range of it, until your opponent's Level of Control there is greater than yours at the start or end of any turn.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["command"],
+    "window": "command.end",
+    "who": "active",
+    "condition": { "phase": "command" },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "ADEPTUS ASTARTES", "within": { "of": "objective", "inches": 3 } } }
+    ],
+    "code": "dutyAndHonour",
+    "limit": "oncePerPhase"
+  }
+]

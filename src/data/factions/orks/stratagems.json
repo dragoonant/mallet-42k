@@ -1,0 +1,58 @@
+[
+  {
+    "id": "ork.s.get-stuck-in",
+    "faction": "ork",
+    "name": "Get Stuck In",
+    "text": "Use during the Fight phase, before you pick the next unit to fight. For the rest of the phase, one ORKS unit from your army treats its Pile-in and Consolidation moves as up to 6\" rather than 3\".",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["fight"],
+    "window": ["fight.start", "fight.attacksResolved"],
+    "who": "either",
+    "condition": { "phase": "fight" },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "ORKS" } }
+    ],
+    "code": "getStuckInDistance",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "ork.s.brutal-but-kunnin",
+    "faction": "ork",
+    "name": "Brutal but Kunnin'",
+    "text": "Use at the start of your Charge phase. For the rest of the phase, one ORKS INFANTRY unit from your army may declare a charge even though it Fell Back earlier this turn.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["charge"],
+    "window": "charge.start",
+    "who": "active",
+    "condition": { "phase": "charge" },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "INFANTRY" } }
+    ],
+    "effect": { "chargeAfterFallBack": true },
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "ork.s.krump-da-gitz",
+    "faction": "ork",
+    "name": "Krump da Gitz!",
+    "text": "Use once an enemy unit finishes shooting during the opponent's Shooting phase, if it targeted one of your ORKS units. That unit immediately makes a Normal move of up to D6\", moving as near as it can to the enemy unit that shot at it.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["shooting"],
+    "window": "shooting.attacksResolved",
+    "who": "reactive",
+    "condition": { "phase": "shooting", "ownTurn": false },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "ORKS" }, "state": "targetedByAttack" }
+    ],
+    "effect": { "move": { "distance": "D6", "kind": "surge" } },
+    "params": { "asCloseAsPossibleTo": "target" },
+    "scope": { "who": "self" },
+    "duration": "instant",
+    "limit": "oncePerPhase"
+  }
+]

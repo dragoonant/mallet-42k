@@ -1,0 +1,59 @@
+{
+  "id": "mission.cp-06",
+  "name": "Display of Might",
+  "text": "Two of the four markers are symbolic sites that a Character can personally claim by lingering near them turn after turn, on top of the usual contest for numbers of markers held.",
+  "format": "combatPatrol",
+  "board": { "w": 44, "h": 30 },
+  "deploymentZones": {
+    "A": [
+      { "x": -22, "z": -15 },
+      { "x": -12, "z": -15 },
+      { "x": -12, "z": 15 },
+      { "x": -22, "z": 15 }
+    ],
+    "B": [
+      { "x": 12, "z": -15 },
+      { "x": 22, "z": -15 },
+      { "x": 22, "z": 15 },
+      { "x": 12, "z": 15 }
+    ]
+  },
+  "objectives": [
+    { "id": "north", "x": 0, "z": 8 },
+    { "id": "south", "x": 0, "z": -8 },
+    { "id": "attacker-home", "x": -14, "z": 0, "home": "A" },
+    { "id": "defender-home", "x": 14, "z": 0, "home": "B" }
+  ],
+  "rounds": 5,
+  "firstTurn": "roll",
+  "scoring": [
+    { "id": "symbolic-hold1-r2-4", "when": "command.end", "rounds": { "from": 2, "to": 4 }, "who": "active", "rule": "holdObjectives", "pointsPer": 5, "cap": 20, "params": { "min": 1, "capGroup": "symbolic-sites" } },
+    { "id": "symbolic-hold1-r5-first", "when": "command.end", "rounds": { "from": 5, "to": 5 }, "who": "first", "rule": "holdObjectives", "pointsPer": 5, "cap": 20, "params": { "min": 1, "capGroup": "symbolic-sites" } },
+    { "id": "symbolic-hold1-r5-second", "when": "turn.end", "rounds": { "from": 5, "to": 5 }, "who": "second", "rule": "holdObjectives", "pointsPer": 5, "cap": 20, "params": { "min": 1, "capGroup": "symbolic-sites" } },
+    { "id": "symbolic-hold2-r2-4", "when": "command.end", "rounds": { "from": 2, "to": 4 }, "who": "active", "rule": "holdObjectives", "pointsPer": 5, "cap": 20, "params": { "min": 2, "capGroup": "symbolic-sites" } },
+    { "id": "symbolic-hold2-r5-first", "when": "command.end", "rounds": { "from": 5, "to": 5 }, "who": "first", "rule": "holdObjectives", "pointsPer": 5, "cap": 20, "params": { "min": 2, "capGroup": "symbolic-sites" } },
+    { "id": "symbolic-hold2-r5-second", "when": "turn.end", "rounds": { "from": 5, "to": 5 }, "who": "second", "rule": "holdObjectives", "pointsPer": 5, "cap": 20, "params": { "min": 2, "capGroup": "symbolic-sites" } },
+    { "id": "symbolic-claimed-r2-4", "when": "command.end", "rounds": { "from": 2, "to": 4 }, "who": "active", "rule": "claimedSite", "pointsPer": 5, "cap": 20, "params": { "capGroup": "symbolic-sites" } },
+    { "id": "symbolic-claimed-r5-first", "when": "command.end", "rounds": { "from": 5, "to": 5 }, "who": "first", "rule": "claimedSite", "pointsPer": 5, "cap": 20, "params": { "capGroup": "symbolic-sites" } },
+    { "id": "symbolic-claimed-r5-second", "when": "turn.end", "rounds": { "from": 5, "to": 5 }, "who": "second", "rule": "claimedSite", "pointsPer": 5, "cap": 20, "params": { "capGroup": "symbolic-sites" } },
+    { "id": "symbolic-claimed-consecutive-r2-4", "when": "command.end", "rounds": { "from": 2, "to": 4 }, "who": "active", "rule": "claimedSiteConsecutive", "pointsPer": 5, "cap": 20, "params": { "turns": 2, "capGroup": "symbolic-sites" } },
+    { "id": "symbolic-claimed-consecutive-r5-first", "when": "command.end", "rounds": { "from": 5, "to": 5 }, "who": "first", "rule": "claimedSiteConsecutive", "pointsPer": 5, "cap": 20, "params": { "turns": 2, "capGroup": "symbolic-sites" } },
+    { "id": "symbolic-claimed-consecutive-r5-second", "when": "turn.end", "rounds": { "from": 5, "to": 5 }, "who": "second", "rule": "claimedSiteConsecutive", "pointsPer": 5, "cap": 20, "params": { "turns": 2, "capGroup": "symbolic-sites" } }
+  ],
+  "rules": [
+    {
+      "id": "break-their-spirit",
+      "code": "breakTheirSpirit",
+      "window": "command.battleShock",
+      "params": { "maxRangeFromWarlordInches": 6, "restrictsStratagem": "core.s.insane-bravery" }
+    },
+    {
+      "id": "claim-sites",
+      "code": "claimSites",
+      "window": "command.end",
+      "params": { "siteObjectiveIds": ["north", "south"] }
+    }
+  ],
+  "victory": { "tie": "draw" },
+  "terrainLayouts": ["terrain.cp-01"]
+}

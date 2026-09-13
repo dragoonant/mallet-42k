@@ -1,0 +1,38 @@
+[
+  {
+    "id": "ork.a.waaagh",
+    "name": "Waaagh!",
+    "text": "Once per battle, at the start of any battle round, you may call a Waaagh!. Until the start of the next battle round, every model with this ability may charge in a turn its unit Advanced, fights with +1 Strength and +1 Attack on its melee weapons (not weapons with extra attacks), and gains a 5+ invulnerable save.",
+    "trigger": "always",
+    "effect": [
+      { "when": { "weaponType": "melee" }, "modifyStat": { "stat": "S", "value": 1 } },
+      { "when": { "weaponType": "melee", "not": { "weaponAbility": "EXTRA_ATTACKS" } }, "modifyStat": { "stat": "A", "value": 1 } },
+      { "invuln": 5 },
+      { "chargeAfterAdvance": true }
+    ],
+    "scope": { "who": "self" },
+    "duration": "untilEndOfRound",
+    "limit": "oncePerBattle",
+    "code": "waaaghCall",
+    "params": { "pickWindow": "round.start" }
+  },
+  {
+    "id": "ork.a.dead-ard",
+    "name": "Dead 'ard",
+    "text": "For as long as a Waaagh! is in effect, this model gains a 4+ Feel No Pain save.",
+    "trigger": "feelNoPainRoll",
+    "effect": { "feelNoPain": 4 },
+    "scope": { "who": "bearer" },
+    "duration": "untilEndOfRound",
+    "code": "deadArdFeelNoPain",
+    "params": { "linkedAbility": "ork.a.waaagh" }
+  },
+  {
+    "id": "ork.a.piston-driven-brutality",
+    "name": "Piston-driven Brutality",
+    "text": "When the Fight phase begins, make every enemy unit within Engagement Range of a model with this ability take a Battle-shock test.",
+    "trigger": "phaseStart",
+    "when": { "phase": "fight" },
+    "code": "pistonDrivenBrutality"
+  }
+]

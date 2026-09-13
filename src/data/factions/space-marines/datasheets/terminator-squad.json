@@ -1,0 +1,42 @@
+[
+  {
+    "id": "sm.terminator-squad",
+    "faction": "sm",
+    "name": "Terminator Squad",
+    "keywords": ["INFANTRY", "IMPERIUM", "TERMINATOR", "TERMINATOR SQUAD"],
+    "factionKeywords": ["ADEPTUS ASTARTES"],
+    "stats": { "M": 5, "T": 5, "Sv": 2, "W": 3, "Ld": 6, "OC": 1 },
+    "invuln": 4,
+    "composition": [
+      {
+        "modelId": "sergeant",
+        "name": "Terminator Sergeant",
+        "min": 1, "max": 1, "default": 1,
+        "champion": true,
+        "base": { "shape": "round", "mm": 40 },
+        "weapons": { "default": ["sm.w.storm-bolter", "sm.w.power-weapon"] },
+        "figure": { "archetype": "heavy", "kit": "sm-terminator", "parts": { "head": "sm.head.terminator-sergeant" } }
+      },
+      {
+        "modelId": "gunner",
+        "name": "Terminator Gunner",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 40 },
+        "weapons": { "default": ["sm.w.assault-cannon", "sm.w.power-fist"] },
+        "figure": { "archetype": "heavy", "kit": "sm-terminator" }
+      },
+      {
+        "modelId": "terminator",
+        "name": "Terminator",
+        "min": 3, "max": 3, "default": 3,
+        "base": { "shape": "round", "mm": 40 },
+        "weapons": { "default": ["sm.w.storm-bolter", "sm.w.power-fist"] },
+        "figure": { "archetype": "heavy", "kit": "sm-terminator" }
+      }
+    ],
+    "abilities": ["sm.a.oath-of-moment", "sm.a.fury-of-the-first"],
+    "coreAbilities": [ { "ability": "DEEP_STRIKE" } ],
+    "points": [ { "models": 5, "points": 0 } ],
+    "figure": { "archetype": "heavy", "kit": "sm-terminator" }
+  }
+]

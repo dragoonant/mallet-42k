@@ -1,0 +1,33 @@
+[
+  {
+    "id": "ork.deffkoptas",
+    "faction": "ork",
+    "name": "Deffkoptas",
+    "keywords": ["VEHICLE", "FLY", "DEFFKOPTAS"],
+    "factionKeywords": ["ORKS"],
+    "stats": { "M": 12, "T": 6, "Sv": 4, "W": 4, "Ld": 7, "OC": 2 },
+    "invuln": 6,
+    "composition": [
+      {
+        "modelId": "kopta-blasta",
+        "name": "Deffkopta (kustom mega-blasta)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "oval", "mm": 75, "mm2": 42 },
+        "weapons": { "default": ["ork.w.slugga", "ork.w.kustom-mega-blasta", "ork.w.spinnin-blades"] },
+        "figure": { "archetype": "vehicle", "kit": "ork-deffkopta" }
+      },
+      {
+        "modelId": "kopta-rokkits",
+        "name": "Deffkopta (kopta rokkits)",
+        "min": 2, "max": 2, "default": 2,
+        "base": { "shape": "oval", "mm": 75, "mm2": 42 },
+        "weapons": { "default": ["ork.w.slugga", "ork.w.kopta-rokkits", "ork.w.spinnin-blades"] },
+        "figure": { "archetype": "vehicle", "kit": "ork-deffkopta" }
+      }
+    ],
+    "abilities": ["ork.a.waaagh"],
+    "coreAbilities": [ { "ability": "DEEP_STRIKE" } ],
+    "points": [ { "models": 3, "points": 0 } ],
+    "figure": { "archetype": "vehicle", "kit": "ork-deffkopta" }
+  }
+]

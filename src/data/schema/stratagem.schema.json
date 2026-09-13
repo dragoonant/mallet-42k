@@ -15,7 +15,7 @@
           "$ref": "common.schema.json#/$defs/Id"
         },
         "faction": {
-          "oneOf": [
+          "anyOf": [
             {
               "$ref": "common.schema.json#/$defs/Id"
             },

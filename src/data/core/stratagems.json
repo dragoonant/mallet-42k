@@ -1,0 +1,239 @@
+[
+  {
+    "id": "core.s.command-reroll",
+    "faction": "core",
+    "name": "Command Re-roll",
+    "text": "Use after a friendly unit or model makes an Advance, Charge, Desperate Escape, or Hazardous roll, or a hit, wound, save, damage, or attacks-count roll. Re-roll it; for a multi-die roll, re-roll a single die of your choice instead of the whole roll.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["any"],
+    "window": "any.rollMade",
+    "who": "either",
+    "targets": [{ "role": "unit", "owner": "friendly", "count": 1 }],
+    "effect": { "reroll": "oneDie" },
+    "params": {
+      "combatPatrol": {
+        "legal": true,
+        "note": "usable by any CP unit; Forward Outpost's Sabotage Enemy Comms rule can lock a player out of it for the rest of the battle"
+      }
+    }
+  },
+  {
+    "id": "core.s.counter-offensive",
+    "faction": "core",
+    "name": "Counter-offensive",
+    "text": "Use right after an enemy unit finishes fighting. Pick one of your units in Engagement Range that has not fought this phase; it fights next, ahead of the normal alternation of unit selection.",
+    "cost": 2,
+    "category": "strategicPloy",
+    "phases": ["fight"],
+    "window": "fight.attacksResolved",
+    "who": "either",
+    "targets": [{ "role": "unit", "owner": "friendly", "state": "inEngagement", "count": 1 }],
+    "code": "counterOffensive",
+    "params": {
+      "combatPatrol": { "legal": true, "note": "usable by any CP unit in Engagement Range that has not yet fought" }
+    }
+  },
+  {
+    "id": "core.s.epic-challenge",
+    "faction": "core",
+    "name": "Epic Challenge",
+    "text": "Use when one of your Character units, attached to a bodyguard unit, is selected to fight while in Engagement Range of an enemy attached unit. Pick one Character model in your unit; until the end of the phase its melee attacks gain the Precision ability.",
+    "cost": 1,
+    "category": "epicDeed",
+    "phases": ["fight"],
+    "window": "fight.unitSelected",
+    "who": "either",
+    "condition": { "leaderAttached": true },
+    "targets": [{ "role": "model", "owner": "friendly", "filter": { "keyword": "CHARACTER" }, "count": 1 }],
+    "effect": { "grantWeaponAbility": { "ability": "PRECISION" }, "when": { "weaponType": "melee" } },
+    "duration": "untilEndOfPhase",
+    "params": {
+      "combatPatrol": {
+        "legal": true,
+        "note": "usable by any Character while attached: Captain Octavius, Librarian Tantus, Warboss Gordrang"
+      }
+    }
+  },
+  {
+    "id": "core.s.insane-bravery",
+    "faction": "core",
+    "name": "Insane Bravery",
+    "text": "Use before one of your units takes a Battle-shock test. That test is automatically passed.",
+    "cost": 1,
+    "category": "epicDeed",
+    "phases": ["command"],
+    "window": "command.battleShock",
+    "who": "active",
+    "targets": [{ "role": "unit", "owner": "friendly", "count": 1 }],
+    "effect": { "autoResult": { "roll": "battleShock", "outcome": "pass" } },
+    "limit": "oncePerBattle",
+    "params": {
+      "combatPatrol": {
+        "legal": true,
+        "note": "Display of Might's Break Their Spirit rule restricts the target to a unit within 6\" of its Warlord"
+      }
+    }
+  },
+  {
+    "id": "core.s.grenade",
+    "faction": "core",
+    "name": "Grenade",
+    "text": "Use in your Shooting phase, before a unit shoots. Pick one GRENADES model, in a unit that has not been selected to shoot and has not Advanced or Fallen Back this turn, and an enemy unit within 8 inches of and visible to it that is not within Engagement Range of any of your units. Roll six dice; that enemy unit suffers a mortal wound for each 4+ rolled.",
+    "cost": 1,
+    "category": "wargear",
+    "phases": ["shooting"],
+    "window": "shooting.start",
+    "who": "active",
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "GRENADES" }, "count": 1 },
+      { "role": "unit", "owner": "enemy", "filter": { "within": { "of": "previousTarget", "inches": 8 } }, "count": 1 }
+    ],
+    "code": "grenadeMortalWounds",
+    "params": {
+      "dice": 6,
+      "threshold": 4,
+      "combatPatrol": { "legal": false, "note": "no unit in either CP roster has the GRENADES keyword" }
+    }
+  },
+  {
+    "id": "core.s.tank-shock",
+    "faction": "core",
+    "name": "Tank Shock",
+    "text": "Use after one of your VEHICLE units finishes a Charge move. Pick an enemy unit in Engagement Range and one of your VEHICLE models in Engagement Range of it. Roll a number of dice equal to that model's Toughness, up to a maximum of 6; the enemy unit suffers a mortal wound for each 5+.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["charge"],
+    "window": "charge.moveEnded",
+    "who": "active",
+    "targets": [
+      { "role": "unit", "owner": "enemy", "state": "inEngagement", "count": 1 },
+      {
+        "role": "model",
+        "owner": "friendly",
+        "filter": { "keyword": "VEHICLE", "within": { "of": "previousTarget", "inches": 1 } },
+        "count": 1
+      }
+    ],
+    "code": "tankShockMortalWounds",
+    "params": {
+      "threshold": 5,
+      "maxDice": 6,
+      "diceEqualToStat": "T",
+      "combatPatrol": {
+        "legal": true,
+        "note": "usable only by Ork VEHICLE units: Deffkoptas (T6) and Deff Dread (T9, capped at 6 dice)"
+      }
+    }
+  },
+  {
+    "id": "core.s.rapid-ingress",
+    "faction": "core",
+    "name": "Rapid Ingress",
+    "text": "Use at the end of the opponent's Movement phase. Pick one of your units in Reserves; it arrives now, as though this were your Reinforcements step (Deep Strike placement still applies if the unit has that ability).",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["movement"],
+    "window": "movement.end",
+    "who": "reactive",
+    "targets": [{ "role": "unit", "owner": "friendly", "count": 1 }],
+    "code": "rapidIngressArrival",
+    "params": {
+      "combatPatrol": {
+        "legal": true,
+        "note": "cannot bring a unit on in a round it could not normally arrive in (Combat Patrol: never round 1, R-5.14)"
+      }
+    }
+  },
+  {
+    "id": "core.s.fire-overwatch",
+    "faction": "core",
+    "name": "Fire Overwatch",
+    "text": "Use when an enemy unit is set up on the battlefield, or starts or ends a Normal, Advance or Fall Back move, or starts or ends a Charge move. Pick one of your units within 24 inches of it that would be eligible to shoot in your Shooting phase; if the enemy unit is visible to it, that unit shoots as though it were your Shooting phase, except every attack hits only on an unmodified 6.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["movement", "charge"],
+    "window": [
+      "movement.moveStarted",
+      "movement.unitMoved",
+      "movement.reinforcements",
+      "charge.moveStarted",
+      "charge.moveEnded"
+    ],
+    "who": "reactive",
+    "targets": [
+      { "role": "unit", "owner": "enemy", "state": "justMoved", "count": 1 },
+      { "role": "unit", "owner": "friendly", "filter": { "within": { "of": "previousTarget", "inches": 24 } }, "count": 1 }
+    ],
+    "code": "fireOverwatch",
+    "limit": "oncePerTurn",
+    "params": {
+      "hitOn": "unmodified6",
+      "notAgainstKeyword": "TITANIC",
+      "combatPatrol": { "legal": true, "note": "usable by any CP unit eligible to shoot" }
+    }
+  },
+  {
+    "id": "core.s.go-to-ground",
+    "faction": "core",
+    "name": "Go to Ground",
+    "text": "Use when one of your Infantry units is chosen as the target of a ranged attack. Until the end of the phase that unit has a 6+ invulnerable save and Benefit of Cover.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["shooting"],
+    "window": "shooting.targetsDeclared",
+    "who": "reactive",
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "INFANTRY" }, "state": "targetedByAttack", "count": 1 }
+    ],
+    "effect": { "invuln": 6 },
+    "code": "grantBenefitOfCover",
+    "duration": "untilEndOfPhase",
+    "params": {
+      "combatPatrol": { "legal": true, "note": "usable by any INFANTRY unit; most units in both CP rosters qualify" }
+    }
+  },
+  {
+    "id": "core.s.smokescreen",
+    "faction": "core",
+    "name": "Smokescreen",
+    "text": "Use when one of your SMOKE units is chosen as the target of a ranged attack. Until the end of the phase that unit has Benefit of Cover and the Stealth ability.",
+    "cost": 1,
+    "category": "wargear",
+    "phases": ["shooting"],
+    "window": "shooting.targetsDeclared",
+    "who": "reactive",
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "SMOKE" }, "state": "targetedByAttack", "count": 1 }
+    ],
+    "effect": { "stealth": true },
+    "code": "grantBenefitOfCover",
+    "duration": "untilEndOfPhase",
+    "params": {
+      "combatPatrol": { "legal": false, "note": "no unit in either CP roster has the SMOKE keyword" }
+    }
+  },
+  {
+    "id": "core.s.heroic-intervention",
+    "faction": "core",
+    "name": "Heroic Intervention",
+    "text": "Use right after an enemy unit finishes a Charge move. Pick one of your units within 6 inches of it that is not in Engagement Range, has not Advanced or Fallen Back this turn, and would otherwise be eligible to declare a charge; it declares and resolves a charge against only that enemy unit, as though it were your Charge phase, but gains no Fights First bonus for it.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["charge"],
+    "window": "charge.moveEnded",
+    "who": "reactive",
+    "targets": [
+      { "role": "unit", "owner": "enemy", "state": "justMoved", "count": 1 },
+      { "role": "unit", "owner": "friendly", "filter": { "within": { "of": "previousTarget", "inches": 6 } }, "count": 1 }
+    ],
+    "code": "heroicInterventionCharge",
+    "params": {
+      "fightsFirst": false,
+      "combatPatrol": {
+        "legal": true,
+        "note": "a VEHICLE may only use it if it also has the WALKER keyword (Deff Dread)"
+      }
+    }
+  }
+]

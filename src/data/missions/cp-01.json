@@ -1,0 +1,44 @@
+{
+  "id": "mission.cp-01",
+  "name": "Clash of Patrols",
+  "text": "Two forces meet across open ground with four markers scattered between the deployment zones; both sides race to secure them while the Attacker can recover intel from a marker they hold.",
+  "format": "combatPatrol",
+  "board": { "w": 44, "h": 30 },
+  "deploymentZones": {
+    "A": [
+      { "x": -22, "z": -15 },
+      { "x": 22, "z": -15 },
+      { "x": 22, "z": -10 },
+      { "x": -22, "z": -10 }
+    ],
+    "B": [
+      { "x": -22, "z": 10 },
+      { "x": 22, "z": 10 },
+      { "x": 22, "z": 15 },
+      { "x": -22, "z": 15 }
+    ]
+  },
+  "objectives": [
+    { "id": "west", "x": -10, "z": 0 },
+    { "id": "east", "x": 10, "z": 0 },
+    { "id": "north", "x": 0, "z": 6 },
+    { "id": "south", "x": 0, "z": -6 }
+  ],
+  "rounds": 5,
+  "firstTurn": "roll",
+  "scoring": [
+    { "id": "take-and-hold-r2-4", "when": "command.end", "rounds": { "from": 2, "to": 4 }, "who": "active", "rule": "holdObjectives", "pointsPer": 5, "cap": 15 },
+    { "id": "take-and-hold-r5-first", "when": "command.end", "rounds": { "from": 5, "to": 5 }, "who": "first", "rule": "holdObjectives", "pointsPer": 5, "cap": 15 },
+    { "id": "take-and-hold-r5-second", "when": "turn.end", "rounds": { "from": 5, "to": 5 }, "who": "second", "rule": "holdObjectives", "pointsPer": 5, "cap": 15 }
+  ],
+  "rules": [
+    {
+      "id": "retrieve-intelligence",
+      "code": "retrieveIntelligence",
+      "window": "command.start",
+      "params": { "roundFrom": 2, "chooseOptionTopic": "recoverObjective", "cpBonusIfWarlordOnBoard": 1 }
+    }
+  ],
+  "victory": { "tie": "draw" },
+  "terrainLayouts": ["terrain.cp-01"]
+}

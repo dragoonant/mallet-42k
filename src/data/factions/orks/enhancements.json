@@ -1,0 +1,36 @@
+[
+  {
+    "id": "ork.e.grizzled-skarboy",
+    "faction": "ork",
+    "name": "Grizzled Skarboy",
+    "text": "Ranged attacks allocated to the bearer deal only half their printed Damage, rounded up.",
+    "cost": 0,
+    "restriction": { "keyword": ["WARBOSS"] },
+    "effect": {
+      "id": "ork.e.grizzled-skarboy.effect",
+      "name": "Grizzled Skarboy",
+      "text": "Halve the Damage characteristic (rounding up) of each ranged attack allocated to the bearer.",
+      "trigger": "damageApplied",
+      "when": { "weaponType": "ranged" },
+      "effect": { "halveDamage": true },
+      "scope": { "who": "bearer" }
+    }
+  },
+  {
+    "id": "ork.e.tellyporta",
+    "faction": "ork",
+    "name": "Tellyporta",
+    "text": "At Declare Battle Formations, pick one friendly BOYZ unit. The bearer and that unit both gain the Deep Strike ability; if used, they must arrive from Reserves in the same turn and be set up within 3 inches of each other.",
+    "cost": 0,
+    "restriction": { "keyword": ["WARBOSS"] },
+    "choice": { "unitKeyword": "BOYZ" },
+    "effect": {
+      "id": "ork.e.tellyporta.effect",
+      "name": "Tellyporta",
+      "text": "The bearer and the chosen BOYZ unit both gain Deep Strike and must arrive from Reserves together, set up within 3 inches of each other.",
+      "trigger": "deployment",
+      "scope": { "who": "bearer" },
+      "code": "tellyportaGrant"
+    }
+  }
+]

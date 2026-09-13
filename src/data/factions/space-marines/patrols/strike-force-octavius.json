@@ -1,0 +1,54 @@
+{
+  "id": "sm.cp.strike-force-octavius",
+  "faction": "sm",
+  "name": "Strike Force Octavius",
+  "units": [
+    {
+      "ref": "captain-octavius",
+      "datasheet": "sm.captain-octavius",
+      "size": 1,
+      "enhancement": "sm.e.champion-duellist"
+    },
+    {
+      "ref": "librarian-tantus",
+      "datasheet": "sm.librarian-tantus",
+      "size": 1
+    },
+    {
+      "ref": "terminator-squad",
+      "datasheet": "sm.terminator-squad",
+      "size": 5
+    },
+    {
+      "ref": "infernus-squad",
+      "datasheet": "sm.infernus-squad",
+      "size": 5
+    }
+  ],
+  "stratagems": ["sm.s.gene-wrought-resilience", "sm.s.veteran-instincts", "sm.s.duty-and-honour"],
+  "enhancements": [
+    { "id": "sm.e.champion-duellist", "default": true },
+    { "id": "sm.e.oathsworn-determination", "default": false }
+  ],
+  "secondaries": [
+    {
+      "id": "sm.sec.wrath-of-the-emperor",
+      "name": "Wrath of the Emperor",
+      "text": "At the end of every phase, in either player's turn, score 2 victory points if your Captain model destroyed at least one enemy model during that phase. Only kills credited to the Captain's own attacks count, not kills by other models in its unit.",
+      "default": true,
+      "scoring": [
+        { "id": "wrath-of-the-emperor", "when": "phase.end", "rounds": { "from": 1, "to": 5 }, "who": "both", "rule": "custom", "pointsPer": 2, "cap": 2, "code": "wrathOfTheEmperor" }
+      ]
+    },
+    {
+      "id": "sm.sec.shock-tactics",
+      "name": "Shock Tactics",
+      "text": "At the end of every turn (yours or your opponent's), score 5 victory points if you hold at least one marker your opponent held when that turn began.",
+      "default": false,
+      "scoring": [
+        { "id": "shock-tactics", "when": "turn.end", "rounds": { "from": 1, "to": 5 }, "who": "both", "rule": "custom", "pointsPer": 5, "cap": 5, "code": "shockTactics" }
+      ]
+    }
+  ],
+  "warlord": "captain-octavius"
+}

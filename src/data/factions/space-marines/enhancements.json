@@ -1,0 +1,37 @@
+[
+  {
+    "id": "sm.e.champion-duellist",
+    "faction": "sm",
+    "name": "Champion Duellist",
+    "text": "Every melee weapon this model carries counts as having [PRECISION] and [LETHAL HITS].",
+    "cost": 0,
+    "restriction": { "keyword": ["CAPTAIN"] },
+    "effect": {
+      "id": "sm.e.champion-duellist.effect",
+      "name": "Champion Duellist",
+      "text": "Every melee weapon this model carries counts as having [PRECISION] and [LETHAL HITS].",
+      "trigger": "always",
+      "effect": [
+        { "when": { "weaponType": "melee" }, "grantWeaponAbility": { "ability": "PRECISION" } },
+        { "when": { "weaponType": "melee" }, "grantWeaponAbility": { "ability": "LETHAL_HITS" } }
+      ],
+      "scope": { "who": "bearer" }
+    }
+  },
+  {
+    "id": "sm.e.oathsworn-determination",
+    "faction": "sm",
+    "name": "Oathsworn Determination",
+    "text": "Every model in the bearer's unit (an attached unit included) gets +1 to its Objective Control characteristic.",
+    "cost": 0,
+    "restriction": { "keyword": ["CAPTAIN"] },
+    "effect": {
+      "id": "sm.e.oathsworn-determination.effect",
+      "name": "Oathsworn Determination",
+      "text": "Every model in the bearer's unit gets +1 OC.",
+      "trigger": "always",
+      "effect": { "modifyStat": { "stat": "OC", "value": 1 } },
+      "scope": { "who": "self" }
+    }
+  }
+]

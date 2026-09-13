@@ -1,0 +1,53 @@
+{
+  "id": "mission.cp-02",
+  "name": "Archeotech Recovery",
+  "text": "Five markers dot a hazardous dig site; three sit in no man's land and are progressively rendered dangerous as the battle wears on, while the last one left standing pays out a final bonus.",
+  "format": "combatPatrol",
+  "board": { "w": 44, "h": 30 },
+  "deploymentZones": {
+    "A": [
+      { "x": -22, "z": -15 },
+      { "x": -12, "z": -15 },
+      { "x": -12, "z": 15 },
+      { "x": -22, "z": 15 }
+    ],
+    "B": [
+      { "x": 12, "z": -15 },
+      { "x": 22, "z": -15 },
+      { "x": 22, "z": 15 },
+      { "x": 12, "z": 15 }
+    ]
+  },
+  "objectives": [
+    { "id": "center", "x": 0, "z": 0 },
+    { "id": "nw", "x": -8, "z": 8 },
+    { "id": "se", "x": 8, "z": -8 },
+    { "id": "attacker-home", "x": -16, "z": -8, "home": "A" },
+    { "id": "defender-home", "x": 16, "z": 8, "home": "B" }
+  ],
+  "rounds": 5,
+  "firstTurn": "roll",
+  "scoring": [
+    { "id": "recover-archeotech", "when": "command.end", "rounds": { "from": 2, "to": 5 }, "who": "active", "rule": "holdObjectives", "pointsPer": 5, "cap": 15 },
+    {
+      "id": "recover-archeotech-last-marker",
+      "when": "battle.end",
+      "rounds": { "from": 5, "to": 5 },
+      "who": "both",
+      "rule": "holdNamed",
+      "pointsPer": 10,
+      "cap": 10,
+      "params": { "objectiveIdsFromCustom": "lastNmlObjectiveId" }
+    }
+  ],
+  "rules": [
+    {
+      "id": "irradiated-power-cells",
+      "code": "irradiatedPowerCells",
+      "window": "round.start",
+      "params": { "rounds": [3, 4, 5], "nmlObjectiveIds": ["center", "nw", "se"] }
+    }
+  ],
+  "victory": { "tie": "draw" },
+  "terrainLayouts": ["terrain.cp-01"]
+}
