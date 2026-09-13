@@ -1,0 +1,22 @@
+[
+  {
+    "id": "sm.s.gene-wrought-resilience",
+    "faction": "sm",
+    "name": "Gene-wrought Resilience",
+    "text": "Use when one of your Astartes units is chosen as a target in the opponent's Shooting phase or either player's Fight phase. Until the phase ends, attacks against it whose Strength exceeds the unit's Toughness suffer -1 to wound.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["shooting", "fight"],
+    "window": ["shooting.targetsDeclared", "fight.targetsDeclared"],
+    "who": "either",
+    "condition": { "any": [ { "phase": "shooting", "ownTurn": false }, { "phase": "fight" } ] },
+    "when": { "strengthVsToughness": "gt" },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "ADEPTUS ASTARTES" }, "state": "targetedByAttack", "count": 1 }
+    ],
+    "effect": { "modifyRoll": { "roll": "wound", "value": -1 } },
+    "scope": { "who": "attacker" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  }
+]

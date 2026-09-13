@@ -9,6 +9,7 @@ export interface EventBase { seq: number; round: number; turn: PlayerId; phase: 
 // game
 export interface GameCreated extends EventBase { type: 'GameCreated'; seed: string; engineVersion: string; dataVersion: string }
 export interface RoundStarted extends EventBase { type: 'RoundStarted' }
+export interface RoundEnded extends EventBase { type: 'RoundEnded' }
 export interface TurnStarted extends EventBase { type: 'TurnStarted' }
 export interface PhaseStarted extends EventBase { type: 'PhaseStarted' }
 export interface PhaseEnded extends EventBase { type: 'PhaseEnded' }
@@ -26,6 +27,7 @@ export interface OathTargetChosen extends EventBase { type: 'OathTargetChosen'; 
 export interface WaaaghCalled extends EventBase { type: 'WaaaghCalled' }
 
 // movement
+export interface MoveDeclared extends EventBase { type: 'MoveDeclared'; unitId: UnitId; moveType: MoveType }
 export interface UnitMoved extends EventBase {
   type: 'UnitMoved'
   unitId: UnitId
@@ -54,8 +56,9 @@ export interface AttackAllocated extends EventBase { type: 'AttackAllocated'; at
 export interface SaveRolled extends EventBase { type: 'SaveRolled'; attack: AttackRollContext; modelId: ModelId; kind: 'armour' | 'invuln' | 'none'; die: number; final: number; needed: number; saved: boolean }
 export interface DamageApplied extends EventBase { type: 'DamageApplied'; unitId: UnitId; modelId: ModelId; amount: number; mortal: boolean; woundsRemaining: number; source: AttackRollContext | { abilityId: Id } | { stratagemId: StratagemId } }
 export interface FeelNoPainRolled extends EventBase { type: 'FeelNoPainRolled'; unitId: UnitId; modelId: ModelId; die: number; needed: number; ignored: boolean }
-export interface ModelDestroyed extends EventBase { type: 'ModelDestroyed'; unitId: UnitId; modelId: ModelId; byPlayer: PlayerId | null; byUnitId: UnitId | null; kind: AttackKind | 'mortal' | 'other' }
-export interface UnitDestroyed extends EventBase { type: 'UnitDestroyed'; unitId: UnitId; byPlayer: PlayerId | null; byUnitId: UnitId | null; kind: AttackKind | 'mortal' | 'other' }
+// byModelId: the attacking model for ranged/melee kills; null for mortal wounds, Deadly Demise, coherency culls
+export interface ModelDestroyed extends EventBase { type: 'ModelDestroyed'; unitId: UnitId; modelId: ModelId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: ModelId | null; kind: AttackKind | 'mortal' | 'other' }
+export interface UnitDestroyed extends EventBase { type: 'UnitDestroyed'; unitId: UnitId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: ModelId | null; kind: AttackKind | 'mortal' | 'other' }
 export interface HazardousTested extends EventBase { type: 'HazardousTested'; unitId: UnitId; weaponId: WeaponId; die: number; failed: boolean; modelId: ModelId | null }
 export interface DeadlyDemiseRolled extends EventBase { type: 'DeadlyDemiseRolled'; unitId: UnitId; modelId: ModelId; die: number; exploded: boolean; affected: UnitId[] }
 export interface AttackSequenceEnded extends EventBase { type: 'AttackSequenceEnded'; unitId: UnitId; kind: AttackKind }
@@ -92,9 +95,9 @@ export interface ActionRejected extends EventBase { type: 'ActionRejected'; reje
 export interface DecisionRequested extends EventBase { type: 'DecisionRequested'; pending: PendingDecision }
 
 export type GameEvent =
-  | GameCreated | RoundStarted | TurnStarted | PhaseStarted | PhaseEnded | GameEnded | SidesChosen | FirstTurnChosen | UnitDeployed
+  | GameCreated | RoundStarted | RoundEnded | TurnStarted | PhaseStarted | PhaseEnded | GameEnded | SidesChosen | FirstTurnChosen | UnitDeployed
   | CpChanged | BattleShockTested | BattleShocked | BattleShockRecovered | OathTargetChosen | WaaaghCalled
-  | UnitMoved | UnitAdvanced | UnitFellBack | UnitRemainedStationary | DesperateEscapeRolled | ReinforcementsArrived | UnitLostInReserves | CoherencyCulled
+  | MoveDeclared | UnitMoved | UnitAdvanced | UnitFellBack | UnitRemainedStationary | DesperateEscapeRolled | ReinforcementsArrived | UnitLostInReserves | CoherencyCulled
   | AttackSequenceStarted | TargetsDeclared | HitRolled | WoundRolled | AttackAllocated | SaveRolled | DamageApplied | FeelNoPainRolled
   | ModelDestroyed | UnitDestroyed | HazardousTested | DeadlyDemiseRolled | AttackSequenceEnded | LeaderDetached
   | ChargeDeclared | ChargeRolled | ChargeFailed | ChargeMoved | PiledIn | Consolidated | FightUnitSelected

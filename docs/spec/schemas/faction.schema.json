@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mallet42k.dev/schemas/faction.schema.json",
+  "title": "Faction",
+  "type": "object", "additionalProperties": false,
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/Id" },
+    "name": { "type": "string", "maxLength": 60 },
+    "factionKeyword": { "$ref": "common.schema.json#/$defs/Keyword" },
+    "armyRule": { "$ref": "common.schema.json#/$defs/Id" },
+    "detachments": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/Id" },
+          "name": { "type": "string", "maxLength": 60 },
+          "rule": { "$ref": "common.schema.json#/$defs/Id" },
+          "stratagems": { "$ref": "common.schema.json#/$defs/IdList" },
+          "enhancements": { "$ref": "common.schema.json#/$defs/IdList" }
+        },
+        "required": ["id", "name", "rule", "stratagems", "enhancements"]
+      }
+    },
+    "paintScheme": { "$ref": "common.schema.json#/$defs/PaintScheme" },
+    "combatPatrols": { "$ref": "common.schema.json#/$defs/IdList" }
+  },
+  "required": ["id", "name", "factionKeyword", "armyRule", "detachments", "paintScheme", "combatPatrols"]
+}

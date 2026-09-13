@@ -1,0 +1,27 @@
+[
+  {
+    "id": "sm.a.oath-of-moment",
+    "name": "Oath of Moment",
+    "text": "Pick one enemy unit at the start of your Command phase; until your next Command phase, attacks by models with this ability against it may re-roll the hit roll.",
+    "trigger": "hitRoll",
+    "when": { "oathTarget": true },
+    "effect": { "reroll": "fails" },
+    "code": "oathOfMomentPick",
+    "params": { "pickWindow": "command.start" }
+  },
+  {
+    "id": "sm.a.fury-of-the-first",
+    "name": "Fury of the First",
+    "text": "Attacks by this unit against the Oath target get +1 to hit.",
+    "trigger": "hitRoll",
+    "when": { "oathTarget": true },
+    "effect": { "modifyRoll": { "roll": "hit", "value": 1 } }
+  },
+  {
+    "id": "sm.a.unstoppable-valour",
+    "name": "Unstoppable Valour",
+    "text": "Charge rolls made for this model's unit may be re-rolled.",
+    "trigger": "chargeRoll",
+    "effect": { "reroll": "all" }
+  }
+]

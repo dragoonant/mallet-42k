@@ -25,7 +25,8 @@ export class SeededRng implements Rng {
   static fromSerialized(serialized: string): SeededRng { void serialized; throw new Error('not implemented') }
 }
 
-// fixed sequence for tests; throws when exhausted
+// fixed sequence for tests; throws when exhausted. serialize() encodes the remaining queue (prefix 'scripted:') so
+// restoreRng can rebuild it and step stays a pure function of state.
 export class ScriptedRng implements Rng {
   constructor(dice: number[]) {
     void dice

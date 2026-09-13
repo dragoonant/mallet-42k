@@ -15,13 +15,14 @@ export type Phase = 'command' | 'movement' | 'shooting' | 'charge' | 'fight' | '
 
 export type TimingWindowId =
   | 'deployment.unit'
+  | 'round.start'
   | 'command.start' | 'command.battleShock' | 'command.end'
-  | 'movement.start' | 'movement.unitMoved' | 'movement.reinforcements' | 'movement.end'
+  | 'movement.start' | 'movement.moveStarted' | 'movement.unitMoved' | 'movement.reinforcements' | 'movement.end'
   | 'shooting.start' | 'shooting.targetsDeclared' | 'shooting.attacksResolved'
-  | 'charge.start' | 'charge.declared' | 'charge.rolled' | 'charge.moveEnded'
-  | 'fight.start' | 'fight.unitSelected' | 'fight.attacksResolved'
+  | 'charge.start' | 'charge.declared' | 'charge.rolled' | 'charge.moveStarted' | 'charge.moveEnded'
+  | 'fight.start' | 'fight.unitSelected' | 'fight.targetsDeclared' | 'fight.attacksResolved'
   | 'any.unitDestroyed' | 'any.rollMade'
-  | 'turn.end' | 'phase.end'
+  | 'phase.end' | 'turn.end' | 'round.end' | 'battle.end'
 
 export interface Stats { M: number; T: number; Sv: RollTarget; W: number; Ld: RollTarget; OC: number }
 export type PartialStats = Partial<Stats>
@@ -52,7 +53,8 @@ export interface Condition {
   ownTurn?: boolean
   attackerKeyword?: Keyword
   attackerNotKeyword?: Keyword
-  targetKeyword?: Keyword
+  // array = any of
+  targetKeyword?: Keyword | Keyword[]
   targetNotKeyword?: Keyword
   weaponType?: 'ranged' | 'melee'
   weaponAbility?: WeaponAbilityName
@@ -77,6 +79,8 @@ export interface Condition {
 }
 
 export interface Effect {
+  // per-entry gate, AND-ed with the descriptor's `when` (lets one descriptor carry differently conditioned effects)
+  when?: Condition
   reroll?: 'ones' | 'fails' | 'all' | 'oneDie'
   modifyRoll?: { roll: RollName; value: number }
   modifyStat?: { stat: StatName; value: number }
@@ -94,7 +98,8 @@ export interface Effect {
   halveDamage?: true
   cp?: number
   vp?: number
-  move?: { distance: DiceExpr; kind: 'normal' | 'consolidate' | 'advance' }
+  // surge = out-of-phase move under R-5.9 limits (not Battle-shocked, not in ER, once per phase)
+  move?: { distance: DiceExpr; kind: 'normal' | 'consolidate' | 'advance' | 'surge' }
   fightsFirst?: true
   fightsLast?: true
   shootAfterAdvance?: true
@@ -106,8 +111,10 @@ export interface Effect {
 }
 export type EffectList = Effect | Effect[]
 
-export interface Scope { who: 'self' | 'target' | 'attacker' | 'friendly' | 'enemy'; within?: number; keyword?: Keyword }
-export type Duration = 'instant' | 'untilEndOfPhase' | 'untilEndOfTurn' | 'untilNextTurn' | 'battle'
+// bearer = the single model carrying the ability (enhancement default); self = the whole unit (attached unit included)
+export interface Scope { who: 'self' | 'bearer' | 'target' | 'attacker' | 'friendly' | 'enemy'; within?: number; keyword?: Keyword }
+// untilEndOfRound = until the start of the next battle round (engine expires.kind 'roundEnd')
+export type Duration = 'instant' | 'untilEndOfPhase' | 'untilEndOfTurn' | 'untilNextTurn' | 'untilEndOfRound' | 'battle'
 export type Limit = 'oncePerBattle' | 'oncePerRound' | 'oncePerTurn' | 'oncePerPhase'
 
 export type Trigger =
@@ -150,15 +157,23 @@ export interface FigureSpec { archetype: Archetype; kit: Id; parts?: Partial<Rec
 
 export interface ScoringRule {
   id: string
+  // round.start / round.end / battle.end are valid here (Stomp 'Em, Bag the Big 'Un, end-of-battle VP)
   when: TimingWindowId
   rounds: { from: number; to: number }
-  who?: 'active' | 'opponent' | 'both'
-  rule: 'holdObjectives' | 'holdMore' | 'holdHome' | 'unitsInEnemyZone' | 'destroyedUnits' | 'custom'
+  // first/second = the player who had the first/second turn of the round (round-5 split, 11-combat-patrol CP-2.1)
+  who?: 'active' | 'opponent' | 'both' | 'first' | 'second'
+  rule:
+    | 'holdObjectives' | 'holdMore' | 'holdHome' | 'holdEnemyHome' | 'holdNamed' | 'unitsInEnemyZone'
+    | 'destroyedUnits' | 'razedThisTurn' | 'claimedSite' | 'claimedSiteConsecutive' | 'custom'
   pointsPer: number
   cap: number
+  // holdNamed: { objectiveIds: string[] }; claimedSiteConsecutive: { turns: number }
   params?: Record<string, unknown>
   code?: string
 }
+
+// mission-specific rule (not scoring): a code hook run at `window`; `code` must exist in the hook registry
+export interface MissionRule { id: string; code: string; window: TimingWindowId; params?: Record<string, unknown> }
 
 // weapon.schema.json
 export interface WeaponData {
@@ -240,6 +255,8 @@ export interface EnhancementData {
   cost: number
   restriction: { keyword?: Keyword[]; notKeyword?: Keyword[] }
   effect: AbilityRef
+  // when present the player must name one friendly unit with this keyword at setup (PlayerSetup.enhancementChoice); e.g. Tellyporta → BOYZ
+  choice?: { unitKeyword: Keyword }
 }
 
 // faction.schema.json
@@ -289,6 +306,7 @@ export interface MissionData {
   rounds: number
   firstTurn: 'roll' | 'attackerChoice'
   scoring: ScoringRule[]
+  rules?: MissionRule[]
   victory: { tie: 'draw' | 'fewerDestroyed'; maxVp?: number }
   terrainLayouts: Id[]
 }

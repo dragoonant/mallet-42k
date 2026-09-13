@@ -13,13 +13,16 @@ export interface DeployUnitAction extends ActionBase {
   toReserves?: boolean
 }
 export interface ChooseUnitToActivateAction extends ActionBase { type: 'chooseUnitToActivate'; unitId: UnitId }
+// answers declareMove; the engine rolls the Advance die here and opens `movement.moveStarted`
+export interface DeclareMoveAction extends ActionBase { type: 'declareMove'; unitId: UnitId; moveType: MoveType }
+// answers moveUnit; move type comes from the preceding declareMove
 export interface MoveUnitAction extends ActionBase {
   type: 'moveUnit'
   unitId: UnitId
-  moveType: MoveType
   placements: ModelPlacement[]
 }
-export interface WeaponTarget { modelId: ModelId; weaponId: WeaponId; targetUnitId: UnitId; profileGroup?: Id }
+// attacks: melee only; repeated (modelId, weaponId) entries split one weapon; the sum per (model, weapon) must equal its A
+export interface WeaponTarget { modelId: ModelId; weaponId: WeaponId; targetUnitId: UnitId; profileGroup?: Id; attacks?: number }
 export interface DeclareTargetsAction extends ActionBase {
   type: 'declareTargets'
   unitId: UnitId
@@ -45,7 +48,7 @@ export interface CommandRerollAction extends ActionBase { type: 'commandReroll';
 export interface ResignAction extends ActionBase { type: 'resign' }
 
 export type Action =
-  | DeployUnitAction | ChooseUnitToActivateAction | MoveUnitAction | DeclareTargetsAction | AllocateAttackAction
+  | DeployUnitAction | ChooseUnitToActivateAction | DeclareMoveAction | MoveUnitAction | DeclareTargetsAction | AllocateAttackAction
   | DeclareChargeAction | ChargeMoveAction | PileInAction | ConsolidateAction | ChooseFightUnitAction
   | ChooseOptionAction | ConfirmAction | PassAction | UseStratagemAction | CommandRerollAction | ResignAction
 

@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mallet42k.dev/schemas/combat-patrol.schema.json",
+  "title": "Combat Patrol fixed force",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/Id"
+    },
+    "faction": {
+      "$ref": "common.schema.json#/$defs/Id"
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 60
+    },
+    "detachment": {
+      "$ref": "common.schema.json#/$defs/Id",
+      "description": "optional; Combat Patrol has no detachment rule"
+    },
+    "units": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "ref": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$"
+          },
+          "datasheet": {
+            "$ref": "common.schema.json#/$defs/Id"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "wargear": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "modelId": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9-]+$"
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "weapons": {
+                  "$ref": "common.schema.json#/$defs/IdList"
+                }
+              },
+              "required": [
+                "modelId",
+                "count",
+                "weapons"
+              ]
+            }
+          },
+          "attachTo": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$"
+          },
+          "enhancement": {
+            "$ref": "common.schema.json#/$defs/Id"
+          }
+        },
+        "required": [
+          "ref",
+          "datasheet",
+          "size"
+        ]
+      }
+    },
+    "stratagems": {
+      "$ref": "common.schema.json#/$defs/IdList"
+    },
+    "enhancements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/Id"
+          },
+          "default": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "default"
+        ]
+      }
+    },
+    "secondaries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "text": {
+            "$ref": "common.schema.json#/$defs/Text"
+          },
+          "default": {
+            "type": "boolean"
+          },
+          "scoring": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "common.schema.json#/$defs/ScoringRule"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "text",
+          "default",
+          "scoring"
+        ]
+      }
+    },
+    "warlord": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$"
+    }
+  },
+  "required": [
+    "id",
+    "faction",
+    "name",
+    "units",
+    "stratagems",
+    "enhancements",
+    "secondaries",
+    "warlord"
+  ]
+}

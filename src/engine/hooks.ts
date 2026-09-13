@@ -60,7 +60,7 @@ export interface AttacksAllocatedHookContext extends HookContextBase { hook: 'on
 export interface AttackCountHookContext extends HookContextBase { hook: 'onAttackCount'; attack: AttackContext; attacks: number }
 export interface AttackRollHookContext extends HookContextBase { hook: 'onHitRoll' | 'onWoundRoll' | 'onSaveRoll' | 'onDamageRoll' | 'onFeelNoPainRoll'; attack: AttackContext; roll: RollContext }
 export interface DamageHookContext extends HookContextBase { hook: 'onDamage'; attack: AttackContext | null; targetUnitId: UnitId; targetModelId: ModelId; damage: number; mortal: boolean }
-export interface DestroyedHookContext extends HookContextBase { hook: 'onModelDestroyed' | 'onUnitDestroyed'; destroyedUnitId: UnitId; destroyedModelId: ModelId | null; byUnitId: UnitId | null; kind: AttackKind | 'mortal' | 'other' }
+export interface DestroyedHookContext extends HookContextBase { hook: 'onModelDestroyed' | 'onUnitDestroyed'; destroyedUnitId: UnitId; destroyedModelId: ModelId | null; byUnitId: UnitId | null; byModelId: ModelId | null; kind: AttackKind | 'mortal' | 'other' }
 export interface DeploymentHookContext extends HookContextBase { hook: 'onDeployment' | 'onReinforcements'; deployingUnitId: UnitId }
 export interface ObjectiveHookContext extends HookContextBase { hook: 'onObjectiveControl'; objectiveId: ObjectiveId; levels: Record<PlayerId, number> }
 export interface StatQueryHookContext extends HookContextBase { hook: 'onStatQuery'; queryUnitId: UnitId; queryModelId: ModelId | null; weapon: RuntimeWeapon | null; stat: NonNullable<Effect['modifyStat']>['stat'] }
@@ -160,6 +160,7 @@ export const TRIGGER_HOOK: Record<Trigger, HookName> = {
 
 // which hooks each Effect key is evaluated at, independent of the descriptor's trigger (e.g. `always` + invuln)
 export const EFFECT_HOOKS: Record<keyof Effect, HookName[]> = {
+  when: [],
   reroll: ['onHitRoll', 'onWoundRoll', 'onSaveRoll', 'onDamageRoll', 'onChargeRoll', 'onAdvanceRoll', 'onBattleShockTest'],
   modifyRoll: ['onHitRoll', 'onWoundRoll', 'onSaveRoll', 'onDamageRoll', 'onChargeRoll', 'onAdvanceRoll', 'onBattleShockTest'],
   modifyStat: ['onStatQuery'],

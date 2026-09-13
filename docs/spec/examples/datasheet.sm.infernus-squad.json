@@ -1,0 +1,33 @@
+[
+  {
+    "id": "sm.infernus-squad",
+    "faction": "sm",
+    "name": "Infernus Squad",
+    "keywords": ["INFANTRY", "IMPERIUM", "TACTICUS", "INFERNUS SQUAD"],
+    "factionKeywords": ["ADEPTUS ASTARTES"],
+    "stats": { "M": 6, "T": 4, "Sv": 3, "W": 2, "Ld": 6, "OC": 1 },
+    "composition": [
+      {
+        "modelId": "sergeant",
+        "name": "Infernus Sergeant",
+        "min": 1, "max": 1, "default": 1,
+        "champion": true,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["sm.w.bolt-pistol", "sm.w.pyreblaster", "sm.w.close-combat-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "sm-tacticus", "parts": { "head": "sm.head.sergeant" } }
+      },
+      {
+        "modelId": "marine",
+        "name": "Infernus Marine",
+        "min": 4, "max": 4, "default": 4,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["sm.w.bolt-pistol", "sm.w.pyreblaster", "sm.w.close-combat-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "sm-tacticus" }
+      }
+    ],
+    "abilities": ["sm.a.oath-of-moment"],
+    "coreAbilities": [],
+    "points": [ { "models": 5, "points": 0 } ],
+    "figure": { "archetype": "infantry", "kit": "sm-tacticus" }
+  }
+]

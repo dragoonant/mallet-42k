@@ -27,8 +27,10 @@ export function createGame(setup: GameSetup, seed: string): StepResult {
   throw new Error('not implemented')
 }
 
-// pure reducer; never throws for illegal actions, only EngineInvariantError on corrupt state
-export function step(state: GameState, action: Action, rng: Rng): StepResult {
+// pure reducer; never throws for illegal actions, only EngineInvariantError on corrupt state.
+// The RNG is restored from state.rng (restoreRng); `rng` is an optional test override (e.g. ScriptedRng) whose
+// serialize() output is written back to state.rng, so a game stays replayable from the action log alone.
+export function step(state: GameState, action: Action, rng?: Rng): StepResult {
   void state; void action; void rng
   throw new Error('not implemented')
 }

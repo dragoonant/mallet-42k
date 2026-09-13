@@ -2,7 +2,7 @@
 import type {
   AbilityDescriptor, CoreAbility, DiceExpr, EffectList, Id, Keyword, MissionData, Polygon, RollTarget,
   Scope, Stats, StratagemData, TerrainKind, TerrainTrait, TimingWindowId, Vec2, WallData, FloorData,
-  WeaponAbility, ScoringRule,
+  WeaponAbility, ScoringRule, MissionRule,
 } from '../data/types'
 import type { Action } from './actions'
 
@@ -26,9 +26,9 @@ export type Phase = 'setup' | 'deployment' | 'command' | 'movement' | 'shooting'
 
 export type SetupStep = 'rollOffSides' | 'chooseSides' | 'deploy' | 'rollOffFirstTurn' | 'preBattle'
 export type CommandStep = 'command' | 'battleShock' | 'scoring'
-export type MovementStep = 'move' | 'reinforcements'
+export type MovementStep = 'select' | 'declare' | 'move' | 'reinforcements'
 export type ShootingStep = 'selectUnit' | 'declareTargets' | 'resolve' | 'hazardous'
-export type ChargeStep = 'declare' | 'roll' | 'move'
+export type ChargeStep = 'declare' | 'roll' | 'overwatch' | 'move'
 export type FightStep = 'fightsFirst' | 'remaining'
 export type FightSubStep = 'select' | 'pileIn' | 'declareTargets' | 'attacks' | 'consolidate'
 export type PhaseStep = SetupStep | CommandStep | MovementStep | ShootingStep | ChargeStep | FightStep | 'none'
@@ -57,7 +57,11 @@ export interface RuntimeWeapon {
   profileGroup: Id | null
 }
 
-export interface RuntimeAbility extends AbilityDescriptor { source: 'datasheet' | 'leader' | 'enhancement' | 'core' | 'stratagem' }
+export interface RuntimeAbility extends AbilityDescriptor {
+  source: 'datasheet' | 'leader' | 'enhancement' | 'core' | 'stratagem'
+  // set when scope.who === 'bearer' (enhancements): the one model the effect applies to
+  bearerModelId: ModelId | null
+}
 
 export interface RuntimeModelProfile {
   modelId: string
@@ -110,15 +114,18 @@ export interface Objective {
   securedBy: PlayerId | null
   stickyBy: PlayerId | null
   claimedBy: { player: PlayerId; modelId: ModelId; sinceTurn: number } | null
+  // snapshot taken at the start of every turn (R-12.3); Shock Tactics, Duty and Honour
+  controllerAtTurnStart: PlayerId | null
   removed: boolean
   used: boolean
-  looted: boolean
+  // Proper Lootin' is per army: players who have already looted this marker
+  lootedBy: PlayerId[]
   tag: string | null
 }
 
 // ---------- units and models ----------
+// "has lost wounds" (R-6.13 allocation) is derived: woundsRemaining < W — no flag, no reset
 export interface ModelFlags {
-  woundedThisPhase: boolean
   allocatedThisPhase: boolean
   inBaseContactWithEnemy: boolean
   desperateEscapeTested: boolean
@@ -180,8 +187,10 @@ export interface Unit {
   effects: ActiveEffect[]
   enhancementId: Id | null
   isWarlord: boolean
+  // set from PlayerSetup.enhancementChoice (Tellyporta): both units must arrive together within 3"
   deepStrikeWith: UnitId | null
-  destroyedBy: { player: PlayerId; kind: AttackKind | 'mortal' | 'other'; round: number; unitId: UnitId | null } | null
+  // modelId: the attacking model for ranged/melee kills; null for mortal wounds, Deadly Demise, culls
+  destroyedBy: { player: PlayerId; kind: AttackKind | 'mortal' | 'other'; round: number; unitId: UnitId | null; modelId: ModelId | null } | null
 }
 
 // ---------- players ----------
@@ -206,11 +215,14 @@ export interface Player {
   waaagh: { used: boolean; activeRound: number | null }
   commandRerollLocked: boolean
   battleReadyVp: number
+  // secondary bookkeeping; reserved keys: killsThisPhase: Record<ModelId, number> (reset at phase end; Wrath of the Emperor),
+  // stompTargetUnitId, bagTargetModelId
   secondaryState: Record<string, unknown>
 }
 
 // ---------- in-flight sequences ----------
-export interface DeclaredTarget { modelId: ModelId; weaponId: WeaponId; targetUnitId: UnitId; profileGroup: Id | null }
+// attacks: melee only — number of this weapon's attacks sent at targetUnitId (a model may split, R-9.7)
+export interface DeclaredTarget { modelId: ModelId; weaponId: WeaponId; targetUnitId: UnitId; profileGroup: Id | null; attacks: number | null }
 
 export interface AttackGroup {
   weaponId: WeaponId
@@ -299,7 +311,7 @@ export interface DiceRoll {
 
 // ---------- decisions ----------
 export type DecisionKind =
-  | 'deployUnit' | 'chooseUnitToActivate' | 'moveUnit' | 'declareTargets' | 'allocateAttack'
+  | 'deployUnit' | 'chooseUnitToActivate' | 'declareMove' | 'moveUnit' | 'declareTargets' | 'allocateAttack'
   | 'declareCharge' | 'chargeMove' | 'pileIn' | 'consolidate' | 'chooseFightUnit'
   | 'stratagemWindow' | 'reactionWindow' | 'chooseOption' | 'commandReroll' | 'confirm'
 
@@ -312,6 +324,8 @@ export interface MoveConstraints {
   mustEndOutsideEngagement: boolean
   mustEndInEngagementWith: UnitId[]
   mustEndCloserTo: 'target' | 'closestEnemy' | 'objective' | null
+  // surge moves (Krump da Gitz): every model ends as close as it can to that unit
+  asCloseAsPossibleTo: UnitId | null
   region: Polygon | null
   minDistanceFromEnemies: number
   coherency: boolean
@@ -335,9 +349,16 @@ export interface ChooseUnitToActivateDecision extends DecisionBase {
   context: { phase: Phase; eligible: UnitId[] }
   options: DecisionOption[]
 }
+// step 1 of a move: pick the move type; opens `movement.moveStarted` (Fire Overwatch) before any placement
+export interface DeclareMoveDecision extends DecisionBase {
+  kind: 'declareMove'
+  context: { unitId: UnitId; allowed: MoveType[] }
+  options: DecisionOption[]
+}
+// step 2: placements for the declared move type (advance roll already made)
 export interface MoveUnitDecision extends DecisionBase {
   kind: 'moveUnit'
-  context: { unitId: UnitId; allowed: MoveType[]; advanceRoll: number | null; moveType: MoveType | null }
+  context: { unitId: UnitId; moveType: MoveType; advanceRoll: number | null }
   constraints: MoveConstraints
 }
 export interface DeclareTargetsDecision extends DecisionBase {
@@ -346,7 +367,8 @@ export interface DeclareTargetsDecision extends DecisionBase {
     unitId: UnitId
     attackKind: AttackKind
     overwatch: boolean
-    weapons: { modelId: ModelId; weaponId: WeaponId; profileGroup: Id | null; legalTargets: UnitId[] }[]
+    // attacks: melee attack count per (model, weapon) (random A rolled before declaration); null for ranged
+    weapons: { modelId: ModelId; weaponId: WeaponId; profileGroup: Id | null; legalTargets: UnitId[]; attacks: number | null }[]
     engagedWith: UnitId[]
   }
 }
@@ -386,15 +408,17 @@ export interface StratagemWindowDecision extends DecisionBase {
 }
 export interface ReactionWindowDecision extends DecisionBase {
   kind: 'reactionWindow'
-  context: { enemyUnitId: UnitId; reaction: 'overwatch' | 'heroicIntervention' | 'tankShock'; eligibleUnits: UnitId[] }
+  // options are `useStratagem` actions (CP cost and limits enforced as for any stratagem) plus pass; see 10-rules R-11.5
+  context: { enemyUnitId: UnitId | null; reaction: 'overwatch' | 'heroicIntervention' | 'rapidIngress' | 'counterOffensive'; eligibleUnits: UnitId[] }
   options: DecisionOption[]
 }
 export type ChooseOptionTopic =
   | 'chooseSide' | 'battleShockOrder' | 'desperateEscapeCasualty' | 'coherencyCull' | 'saveType'
   | 'meleeWeapon' | 'weaponProfile' | 'oathTarget' | 'waaagh' | 'razeObjective' | 'recoverObjective'
-  | 'reserveArrival' | 'leaderAttach' | 'hazardousCasualty' | 'twinLinkedReroll' | 'abilityChoice' | 'other'
+  | 'reserveArrival' | 'leaderAttach' | 'hazardousCasualty' | 'rerollOffer' | 'abilityChoice' | 'stompTarget' | 'bagTarget' | 'other'
 export interface ChooseOptionDecision extends DecisionBase {
   kind: 'chooseOption'
+  // rerollOffer: data = { rollId, dieIndexes: number[] } (R-6.24); options = one per re-rollable die + keep
   context: { topic: ChooseOptionTopic; unitId: UnitId | null; abilityId: Id | null; data: Record<string, unknown> }
   options: DecisionOption[]
 }
@@ -410,7 +434,7 @@ export interface ConfirmDecision extends DecisionBase {
 }
 
 export type PendingDecision =
-  | DeployUnitDecision | ChooseUnitToActivateDecision | MoveUnitDecision | DeclareTargetsDecision
+  | DeployUnitDecision | ChooseUnitToActivateDecision | DeclareMoveDecision | MoveUnitDecision | DeclareTargetsDecision
   | AllocateAttackDecision | DeclareChargeDecision | ChargeMoveDecision | PileInDecision | ConsolidateDecision
   | ChooseFightUnitDecision | StratagemWindowDecision | ReactionWindowDecision | ChooseOptionDecision
   | CommandRerollDecision | ConfirmDecision
@@ -437,6 +461,8 @@ export interface PlayerSetup {
   faction: Id
   patrolId: Id
   enhancementId: Id
+  // required when the enhancement data has `choice` (Tellyporta: one BOYZ unit of this player); createGame throws EngineInvariantError otherwise
+  enhancementChoice?: { unitRef: string }
   secondaryId: Id
   attachments: { leaderRef: string; bodyguardRef: string }[]
   reserves: string[]
@@ -452,14 +478,17 @@ export interface GameSetup {
   dataVersion: string
 }
 
+// tabled: neither player has a model on the battlefield nor one that can still arrive → battle ends at once on VP (R-12.6)
 export interface GameResult { winner: PlayerId | 'draw'; reason: 'vp' | 'resign' | 'tabled'; vp: Record<PlayerId, number> }
 
 export interface MissionState {
   id: Id
   data: MissionData
   scoring: ScoringRule[]
+  rules: MissionRule[]
   secondaries: Record<PlayerId, ScoringRule[]>
   scored: { ruleId: string; player: PlayerId; round: number; turn: PlayerId; amount: number }[]
+  // keys per mission listed in 11-combat-patrol §2.6
   custom: Record<string, unknown>
 }
 
