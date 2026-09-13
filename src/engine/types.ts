@@ -278,6 +278,8 @@ export interface FightState {
 export interface PhaseState {
   activated: UnitId[]
   windowsOpened: { window: TimingWindowId; player: PlayerId; key: string }[]
+  // progress markers for re-entrant sequences (EngineContext.once); reset when a phase is entered (W1-A)
+  marks: string[]
   attack: AttackSequenceState | null
   charge: ChargeState | null
   fight: FightState | null

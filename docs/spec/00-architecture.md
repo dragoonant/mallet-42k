@@ -34,7 +34,7 @@ interface StepResult {
 
 | Function | Purpose |
 |---|---|
-| `createGame(setup: GameSetup, seed: string): StepResult` | builds initial state; first `pending` is a deployment decision. Validates the setup (patrol/enhancement/secondary ids, `attachments`, `enhancementChoice.unitRef` present iff the enhancement data has `choice`, keyword matches, same player) and throws `EngineInvariantError` on failure — setup comes from the UI/sim, not from a Decider |
+| `createGame(setup: GameSetup, seed: string, bundle?: DataBundle): StepResult` | builds initial state; first `pending` is a deployment decision. The engine never imports data: `bundle` (or one registered once via `registerDataBundle`) supplies it; `replay`/`load` take the same optional argument. Validates the setup (patrol/enhancement/secondary ids, `attachments`, `enhancementChoice.unitRef` present iff the enhancement data has `choice`, keyword matches, same player) and throws `EngineInvariantError` on failure — setup comes from the UI/sim, not from a Decider |
 | `step(state, action, rng?)` | pure reducer; never throws for illegal actions (see §8); throws only on programmer error (corrupt state). The RNG is restored from `state.rng`; `rng` is an optional test override (§6) |
 | `legalActions(state, pending): Action[] \| null` | enumerates answers when `pending.options` is finite; `null` for continuous decisions (moves) |
 | `validate(state, action): Rejection \| null` | same checks `step` performs, no mutation |

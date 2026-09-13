@@ -191,6 +191,10 @@ export const EFFECT_HOOKS: Record<keyof Effect, HookName[]> = {
 
 // hooks a descriptor must be registered at: its trigger's hook plus every hook its effect keys need
 export function hooksForDescriptor(descriptor: AbilityDescriptor): HookName[] {
-  void descriptor
-  throw new Error('not implemented')
+  const out = new Set<HookName>([TRIGGER_HOOK[descriptor.trigger]])
+  const effects = descriptor.effect === undefined ? [] : Array.isArray(descriptor.effect) ? descriptor.effect : [descriptor.effect]
+  for (const e of effects) {
+    for (const key of Object.keys(e) as (keyof Effect)[]) for (const h of EFFECT_HOOKS[key] ?? []) out.add(h)
+  }
+  return [...out]
 }
