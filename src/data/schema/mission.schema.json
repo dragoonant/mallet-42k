@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mallet42k.dev/schemas/mission.schema.json",
+  "title": "Mission",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/Id"
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 60
+    },
+    "text": {
+      "$ref": "common.schema.json#/$defs/Text"
+    },
+    "format": {
+      "enum": [
+        "combatPatrol",
+        "incursion",
+        "strikeForce"
+      ]
+    },
+    "board": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "w": {
+          "type": "number",
+          "minimum": 1
+        },
+        "h": {
+          "type": "number",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "w",
+        "h"
+      ]
+    },
+    "deploymentZones": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "A": {
+          "$ref": "common.schema.json#/$defs/Polygon"
+        },
+        "B": {
+          "$ref": "common.schema.json#/$defs/Polygon"
+        }
+      },
+      "required": [
+        "A",
+        "B"
+      ]
+    },
+    "objectives": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$"
+          },
+          "x": {
+            "type": "number"
+          },
+          "z": {
+            "type": "number"
+          },
+          "home": {
+            "enum": [
+              "A",
+              "B"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "x",
+          "z"
+        ]
+      }
+    },
+    "objectiveRange": {
+      "type": "number",
+      "minimum": 0,
+      "default": 3
+    },
+    "objectiveMarkerRadius": {
+      "type": "number",
+      "minimum": 0,
+      "default": 0.79
+    },
+    "rounds": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 5
+    },
+    "firstTurn": {
+      "enum": [
+        "roll",
+        "attackerChoice"
+      ]
+    },
+    "scoring": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "common.schema.json#/$defs/ScoringRule"
+      }
+    },
+    "victory": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tie": {
+          "enum": [
+            "draw",
+            "fewerDestroyed"
+          ]
+        },
+        "maxVp": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "tie"
+      ]
+    },
+    "terrainLayouts": {
+      "$ref": "common.schema.json#/$defs/IdList"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "format",
+    "board",
+    "deploymentZones",
+    "objectives",
+    "rounds",
+    "firstTurn",
+    "scoring",
+    "victory",
+    "terrainLayouts"
+  ]
+}

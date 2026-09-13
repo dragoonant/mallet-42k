@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mallet42k.dev/schemas/terrain-layout.schema.json",
+  "title": "Terrain layout",
+  "type": "object", "additionalProperties": false,
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/Id" },
+    "name": { "type": "string", "maxLength": 60 },
+    "board": {
+      "type": "object", "additionalProperties": false,
+      "properties": { "w": { "type": "number", "minimum": 1 }, "h": { "type": "number", "minimum": 1 } },
+      "required": ["w", "h"]
+    },
+    "pieces": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Piece" }
+    }
+  },
+  "required": ["id", "board", "pieces"],
+  "$defs": {
+    "Piece": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "kind": { "enum": ["ruin", "crate", "barricade", "crater", "wall", "forest"] },
+        "pos": { "$ref": "common.schema.json#/$defs/Vec2" },
+        "rot": { "type": "number" },
+        "footprint": { "$ref": "common.schema.json#/$defs/Polygon" },
+        "height": { "type": "number", "minimum": 0 },
+        "traits": {
+          "type": "array", "uniqueItems": true,
+          "items": { "enum": ["obscuring", "cover", "breachable", "scalable", "difficult", "impassable", "unstable"] }
+        },
+        "walls": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "properties": {
+              "a": { "$ref": "common.schema.json#/$defs/Vec2" },
+              "b": { "$ref": "common.schema.json#/$defs/Vec2" },
+              "height": { "type": "number", "minimum": 0 },
+              "thickness": { "type": "number", "minimum": 0, "default": 0.25 },
+              "gaps": {
+                "type": "array",
+                "items": {
+                  "type": "object", "additionalProperties": false,
+                  "properties": {
+                    "from": { "type": "number", "minimum": 0, "maximum": 1 },
+                    "to": { "type": "number", "minimum": 0, "maximum": 1 },
+                    "bottom": { "type": "number", "minimum": 0 },
+                    "top": { "type": "number", "minimum": 0 }
+                  },
+                  "required": ["from", "to"]
+                }
+              }
+            },
+            "required": ["a", "b", "height"]
+          }
+        },
+        "floors": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "properties": {
+              "polygon": { "$ref": "common.schema.json#/$defs/Polygon" },
+              "height": { "type": "number", "minimum": 0 }
+            },
+            "required": ["polygon", "height"]
+          }
+        },
+        "visual": { "$ref": "common.schema.json#/$defs/Id" }
+      },
+      "required": ["id", "kind", "pos", "rot", "footprint", "height", "traits"]
+    }
+  }
+}

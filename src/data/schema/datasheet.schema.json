@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mallet42k.dev/schemas/datasheet.schema.json",
+  "title": "Datasheet file: array of datasheets",
+  "type": "array",
+  "items": { "$ref": "#/$defs/Datasheet" },
+  "$defs": {
+    "WargearOption": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "replace": { "$ref": "common.schema.json#/$defs/IdList" },
+        "with": { "$ref": "common.schema.json#/$defs/IdList" },
+        "max": { "oneOf": [ { "type": "integer", "minimum": 1 }, { "const": "any" } ] },
+        "perModels": { "type": "integer", "minimum": 1 }
+      },
+      "required": ["replace", "with"]
+    },
+    "Composition": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "modelId": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "name": { "type": "string", "maxLength": 60 },
+        "min": { "type": "integer", "minimum": 0 },
+        "max": { "type": "integer", "minimum": 1 },
+        "default": { "type": "integer", "minimum": 0 },
+        "champion": { "type": "boolean" },
+        "base": { "$ref": "common.schema.json#/$defs/Base" },
+        "statsOverride": { "$ref": "common.schema.json#/$defs/PartialStats" },
+        "weapons": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "default": { "$ref": "common.schema.json#/$defs/IdList" },
+            "options": { "type": "array", "items": { "$ref": "#/$defs/WargearOption" } }
+          },
+          "required": ["default"]
+        },
+        "figure": { "$ref": "common.schema.json#/$defs/FigureSpec" }
+      },
+      "required": ["modelId", "name", "min", "max", "default", "base", "weapons"]
+    },
+    "Datasheet": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "common.schema.json#/$defs/Id" },
+        "faction": { "$ref": "common.schema.json#/$defs/Id" },
+        "name": { "type": "string", "maxLength": 60 },
+        "keywords": { "$ref": "common.schema.json#/$defs/KeywordList" },
+        "factionKeywords": { "$ref": "common.schema.json#/$defs/KeywordList" },
+        "stats": { "$ref": "common.schema.json#/$defs/Stats" },
+        "invuln": { "$ref": "common.schema.json#/$defs/RollTarget" },
+        "composition": { "type": "array", "items": { "$ref": "#/$defs/Composition" }, "minItems": 1 },
+        "abilities": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/AbilityRef" } },
+        "coreAbilities": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/CoreAbility" } },
+        "leader": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "attachTo": { "$ref": "common.schema.json#/$defs/IdList" },
+            "effects": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/AbilityRef" } }
+          },
+          "required": ["attachTo", "effects"]
+        },
+        "damaged": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "threshold": { "type": "integer", "minimum": 1 },
+            "effect": { "$ref": "common.schema.json#/$defs/EffectList" }
+          },
+          "required": ["threshold", "effect"]
+        },
+        "points": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "properties": { "models": { "type": "integer", "minimum": 1 }, "points": { "type": "integer", "minimum": 0 } },
+            "required": ["models", "points"]
+          }
+        },
+        "figure": { "$ref": "common.schema.json#/$defs/FigureSpec" }
+      },
+      "required": ["id", "faction", "name", "keywords", "factionKeywords", "stats", "composition", "abilities", "coreAbilities", "points", "figure"]
+    }
+  }
+}

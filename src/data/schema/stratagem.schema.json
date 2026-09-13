@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mallet42k.dev/schemas/stratagem.schema.json",
+  "title": "Stratagem file: array of stratagems",
+  "type": "array",
+  "items": {
+    "$ref": "#/$defs/Stratagem"
+  },
+  "$defs": {
+    "Stratagem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/Id"
+        },
+        "faction": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/Id"
+            },
+            {
+              "const": "core"
+            }
+          ]
+        },
+        "detachment": {
+          "$ref": "common.schema.json#/$defs/Id"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "text": {
+          "$ref": "common.schema.json#/$defs/Text"
+        },
+        "cost": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "category": {
+          "enum": [
+            "battleTactic",
+            "strategicPloy",
+            "wargear",
+            "epicDeed"
+          ]
+        },
+        "phases": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/Phase"
+          },
+          "minItems": 1
+        },
+        "window": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/TimingWindowId"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "common.schema.json#/$defs/TimingWindowId"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          ]
+        },
+        "who": {
+          "enum": [
+            "active",
+            "reactive",
+            "either"
+          ]
+        },
+        "condition": {
+          "$ref": "common.schema.json#/$defs/Condition"
+        },
+        "when": {
+          "$ref": "common.schema.json#/$defs/Condition",
+          "description": "application-time gate evaluated per triggered attack/roll (like AbilityDescriptor.when); `condition` is evaluated once at use time"
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/TargetSpec"
+          }
+        },
+        "effect": {
+          "$ref": "common.schema.json#/$defs/EffectList"
+        },
+        "scope": {
+          "$ref": "common.schema.json#/$defs/Scope"
+        },
+        "duration": {
+          "$ref": "common.schema.json#/$defs/Duration"
+        },
+        "limit": {
+          "$ref": "common.schema.json#/$defs/Limit"
+        },
+        "code": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9]*$"
+        },
+        "params": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "faction",
+        "name",
+        "text",
+        "cost",
+        "category",
+        "phases",
+        "window",
+        "who",
+        "targets"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "effect"
+          ]
+        },
+        {
+          "required": [
+            "code"
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mallet42k.dev/schemas/enhancement.schema.json",
+  "title": "Enhancement file: array of enhancements",
+  "type": "array",
+  "items": { "$ref": "#/$defs/Enhancement" },
+  "$defs": {
+    "Enhancement": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "common.schema.json#/$defs/Id" },
+        "faction": { "$ref": "common.schema.json#/$defs/Id" },
+        "detachment": { "$ref": "common.schema.json#/$defs/Id" },
+        "name": { "type": "string", "maxLength": 60 },
+        "text": { "$ref": "common.schema.json#/$defs/Text" },
+        "cost": { "type": "integer", "minimum": 0 },
+        "restriction": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "keyword": { "$ref": "common.schema.json#/$defs/KeywordList" },
+            "notKeyword": { "$ref": "common.schema.json#/$defs/KeywordList" }
+          }
+        },
+        "effect": { "$ref": "common.schema.json#/$defs/AbilityRef" }
+      },
+      "required": ["id", "faction", "name", "text", "cost", "restriction", "effect"]
+    }
+  }
+}

@@ -1,0 +1,1051 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mallet42k.dev/schemas/common.schema.json",
+  "title": "Shared primitives",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*(\\.[a-z0-9-]+)*$"
+    },
+    "IdList": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Id"
+      },
+      "uniqueItems": true
+    },
+    "Keyword": {
+      "type": "string",
+      "pattern": "^[A-Z0-9][A-Z0-9 '\\-]*$"
+    },
+    "KeywordList": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Keyword"
+      },
+      "uniqueItems": true
+    },
+    "Hex": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$"
+    },
+    "Text": {
+      "type": "string",
+      "maxLength": 400
+    },
+    "DiceExpr": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 0
+        },
+        {
+          "type": "string",
+          "pattern": "^(\\d+)?(D3|D6)?([+-]\\d+)?$",
+          "minLength": 1
+        }
+      ]
+    },
+    "RollTarget": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 7
+    },
+    "Vec2": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "z": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "z"
+      ]
+    },
+    "Polygon": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Vec2"
+      },
+      "minItems": 3
+    },
+    "Phase": {
+      "enum": [
+        "command",
+        "movement",
+        "shooting",
+        "charge",
+        "fight",
+        "any"
+      ]
+    },
+    "TimingWindowId": {
+      "enum": [
+        "deployment.unit",
+        "command.start",
+        "command.battleShock",
+        "command.end",
+        "movement.start",
+        "movement.unitMoved",
+        "movement.reinforcements",
+        "movement.end",
+        "shooting.start",
+        "shooting.targetsDeclared",
+        "shooting.attacksResolved",
+        "charge.start",
+        "charge.declared",
+        "charge.rolled",
+        "charge.moveEnded",
+        "fight.start",
+        "fight.unitSelected",
+        "fight.attacksResolved",
+        "any.unitDestroyed",
+        "any.rollMade",
+        "turn.end",
+        "phase.end"
+      ]
+    },
+    "Stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "M": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "T": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "Sv": {
+          "$ref": "#/$defs/RollTarget"
+        },
+        "W": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "Ld": {
+          "$ref": "#/$defs/RollTarget"
+        },
+        "OC": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "M",
+        "T",
+        "Sv",
+        "W",
+        "Ld",
+        "OC"
+      ]
+    },
+    "PartialStats": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "M": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "T": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "Sv": {
+          "$ref": "#/$defs/RollTarget"
+        },
+        "W": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "Ld": {
+          "$ref": "#/$defs/RollTarget"
+        },
+        "OC": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "Base": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "shape": {
+          "enum": [
+            "round",
+            "oval"
+          ]
+        },
+        "mm": {
+          "type": "number",
+          "minimum": 20
+        },
+        "mm2": {
+          "type": "number",
+          "minimum": 20
+        }
+      },
+      "required": [
+        "shape",
+        "mm"
+      ]
+    },
+    "StatName": {
+      "enum": [
+        "A",
+        "S",
+        "AP",
+        "D",
+        "M",
+        "T",
+        "Sv",
+        "W",
+        "Ld",
+        "OC",
+        "BS",
+        "WS",
+        "range"
+      ]
+    },
+    "RollName": {
+      "enum": [
+        "hit",
+        "wound",
+        "save",
+        "charge",
+        "advance",
+        "battleShock",
+        "damage",
+        "feelNoPain"
+      ]
+    },
+    "RangeBound": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "gte": {
+          "type": "integer"
+        },
+        "lte": {
+          "type": "integer"
+        },
+        "unmodified": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "phase": {
+          "$ref": "#/$defs/Phase"
+        },
+        "ownTurn": {
+          "type": "boolean"
+        },
+        "attackerKeyword": {
+          "$ref": "#/$defs/Keyword"
+        },
+        "attackerNotKeyword": {
+          "$ref": "#/$defs/Keyword"
+        },
+        "targetKeyword": {
+          "$ref": "#/$defs/Keyword"
+        },
+        "targetNotKeyword": {
+          "$ref": "#/$defs/Keyword"
+        },
+        "weaponType": {
+          "enum": [
+            "ranged",
+            "melee"
+          ]
+        },
+        "weaponAbility": {
+          "$ref": "#/$defs/WeaponAbilityName"
+        },
+        "weaponId": {
+          "$ref": "#/$defs/Id"
+        },
+        "range": {
+          "oneOf": [
+            {
+              "const": "half"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "within": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "within"
+              ]
+            }
+          ]
+        },
+        "targetInCover": {
+          "type": "boolean"
+        },
+        "targetOnObjective": {
+          "type": "boolean"
+        },
+        "unitOnObjective": {
+          "type": "boolean"
+        },
+        "unitBelowHalf": {
+          "type": "boolean"
+        },
+        "unitStationary": {
+          "type": "boolean"
+        },
+        "unitAdvanced": {
+          "type": "boolean"
+        },
+        "unitFellBack": {
+          "type": "boolean"
+        },
+        "unitCharged": {
+          "type": "boolean"
+        },
+        "unitBattleShocked": {
+          "type": "boolean"
+        },
+        "leaderAttached": {
+          "type": "boolean"
+        },
+        "roll": {
+          "$ref": "#/$defs/RangeBound"
+        },
+        "round": {
+          "$ref": "#/$defs/RangeBound"
+        },
+        "oathTarget": {
+          "type": "boolean"
+        },
+        "any": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "minItems": 1
+        },
+        "not": {
+          "$ref": "#/$defs/Condition"
+        },
+        "strengthVsToughness": {
+          "enum": [
+            "gt",
+            "gte",
+            "eq",
+            "lte",
+            "lt",
+            "double",
+            "half"
+          ]
+        }
+      }
+    },
+    "Effect": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "reroll": {
+          "enum": [
+            "ones",
+            "fails",
+            "all",
+            "oneDie"
+          ]
+        },
+        "modifyRoll": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "roll": {
+              "$ref": "#/$defs/RollName"
+            },
+            "value": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "roll",
+            "value"
+          ]
+        },
+        "modifyStat": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "stat": {
+              "$ref": "#/$defs/StatName"
+            },
+            "value": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "stat",
+            "value"
+          ]
+        },
+        "setStat": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "stat": {
+              "$ref": "#/$defs/StatName"
+            },
+            "value": {
+              "$ref": "#/$defs/DiceExpr"
+            }
+          },
+          "required": [
+            "stat",
+            "value"
+          ]
+        },
+        "invuln": {
+          "$ref": "#/$defs/RollTarget"
+        },
+        "feelNoPain": {
+          "$ref": "#/$defs/RollTarget"
+        },
+        "ignoreCover": {
+          "const": true
+        },
+        "ignoreModifiers": {
+          "enum": [
+            "hit",
+            "wound",
+            "all"
+          ]
+        },
+        "autoResult": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "roll": {
+              "$ref": "#/$defs/RollName"
+            },
+            "outcome": {
+              "enum": [
+                "pass",
+                "fail"
+              ]
+            }
+          },
+          "required": [
+            "roll",
+            "outcome"
+          ]
+        },
+        "grantWeaponAbility": {
+          "$ref": "#/$defs/WeaponAbility"
+        },
+        "grantKeyword": {
+          "$ref": "#/$defs/Keyword"
+        },
+        "extraAttacks": {
+          "$ref": "#/$defs/DiceExpr"
+        },
+        "mortalWounds": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "count": {
+              "$ref": "#/$defs/DiceExpr"
+            },
+            "on": {
+              "enum": [
+                "unmodified6",
+                "always"
+              ]
+            }
+          },
+          "required": [
+            "count"
+          ]
+        },
+        "damageReduction": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "halveDamage": {
+          "const": true
+        },
+        "cp": {
+          "type": "integer"
+        },
+        "vp": {
+          "type": "integer"
+        },
+        "move": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "distance": {
+              "$ref": "#/$defs/DiceExpr"
+            },
+            "kind": {
+              "enum": [
+                "normal",
+                "consolidate",
+                "advance"
+              ]
+            }
+          },
+          "required": [
+            "distance",
+            "kind"
+          ]
+        },
+        "fightsFirst": {
+          "const": true
+        },
+        "fightsLast": {
+          "const": true
+        },
+        "shootAfterAdvance": {
+          "const": true
+        },
+        "shootAfterFallBack": {
+          "const": true
+        },
+        "chargeAfterAdvance": {
+          "const": true
+        },
+        "chargeAfterFallBack": {
+          "const": true
+        },
+        "stealth": {
+          "const": true
+        },
+        "lethalOn": {
+          "$ref": "#/$defs/RollTarget"
+        }
+      }
+    },
+    "EffectList": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Effect"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Effect"
+          },
+          "minItems": 1
+        }
+      ]
+    },
+    "Scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "who": {
+          "enum": [
+            "self",
+            "target",
+            "attacker",
+            "friendly",
+            "enemy"
+          ]
+        },
+        "within": {
+          "type": "number",
+          "minimum": 0
+        },
+        "keyword": {
+          "$ref": "#/$defs/Keyword"
+        }
+      },
+      "required": [
+        "who"
+      ]
+    },
+    "Duration": {
+      "enum": [
+        "instant",
+        "untilEndOfPhase",
+        "untilEndOfTurn",
+        "untilNextTurn",
+        "battle"
+      ]
+    },
+    "Limit": {
+      "enum": [
+        "oncePerBattle",
+        "oncePerRound",
+        "oncePerTurn",
+        "oncePerPhase"
+      ]
+    },
+    "Trigger": {
+      "enum": [
+        "always",
+        "phaseStart",
+        "phaseEnd",
+        "turnStart",
+        "turnEnd",
+        "commandPhase",
+        "battleShockTest",
+        "advanceRoll",
+        "chargeRoll",
+        "unitMoved",
+        "unitSelectedToShoot",
+        "unitSelectedToFight",
+        "targetsDeclared",
+        "attacksAllocated",
+        "hitRoll",
+        "woundRoll",
+        "saveRoll",
+        "damageRoll",
+        "feelNoPainRoll",
+        "damageApplied",
+        "modelDestroyed",
+        "unitDestroyed",
+        "deployment",
+        "reinforcements",
+        "objectiveControl"
+      ]
+    },
+    "AbilityDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "text": {
+          "$ref": "#/$defs/Text"
+        },
+        "trigger": {
+          "$ref": "#/$defs/Trigger"
+        },
+        "when": {
+          "$ref": "#/$defs/Condition"
+        },
+        "effect": {
+          "$ref": "#/$defs/EffectList"
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "duration": {
+          "$ref": "#/$defs/Duration"
+        },
+        "limit": {
+          "$ref": "#/$defs/Limit"
+        },
+        "code": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9]*$"
+        },
+        "params": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "text",
+        "trigger"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "effect"
+          ]
+        },
+        {
+          "required": [
+            "code"
+          ]
+        }
+      ]
+    },
+    "AbilityRef": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Id"
+        },
+        {
+          "$ref": "#/$defs/AbilityDescriptor"
+        }
+      ]
+    },
+    "WeaponAbilityName": {
+      "enum": [
+        "ASSAULT",
+        "HEAVY",
+        "RAPID_FIRE",
+        "TORRENT",
+        "BLAST",
+        "SUSTAINED_HITS",
+        "LETHAL_HITS",
+        "DEVASTATING_WOUNDS",
+        "ANTI",
+        "TWIN_LINKED",
+        "LANCE",
+        "MELTA",
+        "IGNORES_COVER",
+        "INDIRECT_FIRE",
+        "PISTOL",
+        "HAZARDOUS",
+        "PRECISION",
+        "EXTRA_ATTACKS",
+        "ONE_SHOT",
+        "PSYCHIC",
+        "CUSTOM"
+      ]
+    },
+    "WeaponAbility": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ability": {
+          "$ref": "#/$defs/WeaponAbilityName"
+        },
+        "value": {
+          "$ref": "#/$defs/DiceExpr"
+        },
+        "keyword": {
+          "$ref": "#/$defs/Keyword"
+        },
+        "ref": {
+          "$ref": "#/$defs/Id"
+        }
+      },
+      "required": [
+        "ability"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "ability": {
+                "enum": [
+                  "RAPID_FIRE",
+                  "SUSTAINED_HITS",
+                  "MELTA"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "value"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "ability": {
+                "const": "ANTI"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "keyword",
+              "value"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "ability": {
+                "const": "CUSTOM"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "ref"
+            ]
+          }
+        }
+      ]
+    },
+    "CoreAbilityName": {
+      "enum": [
+        "DEEP_STRIKE",
+        "SCOUTS",
+        "INFILTRATORS",
+        "LONE_OPERATIVE",
+        "LEADER",
+        "STEALTH",
+        "DEADLY_DEMISE",
+        "FIRING_DECK",
+        "FEEL_NO_PAIN",
+        "FIGHTS_FIRST"
+      ]
+    },
+    "CoreAbility": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ability": {
+          "$ref": "#/$defs/CoreAbilityName"
+        },
+        "value": {
+          "$ref": "#/$defs/DiceExpr"
+        }
+      },
+      "required": [
+        "ability"
+      ]
+    },
+    "TargetSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "enum": [
+            "unit",
+            "model"
+          ]
+        },
+        "owner": {
+          "enum": [
+            "friendly",
+            "enemy"
+          ]
+        },
+        "filter": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "keyword": {
+              "$ref": "#/$defs/Keyword"
+            },
+            "notKeyword": {
+              "$ref": "#/$defs/Keyword"
+            },
+            "within": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "of": {
+                  "enum": [
+                    "previousTarget",
+                    "self",
+                    "objective"
+                  ]
+                },
+                "inches": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "of",
+                "inches"
+              ]
+            }
+          }
+        },
+        "state": {
+          "enum": [
+            "selectedToShoot",
+            "selectedToFight",
+            "targetedByAttack",
+            "chargedThisTurn",
+            "justDestroyed",
+            "inEngagement",
+            "belowHalf",
+            "battleShocked",
+            "justMoved"
+          ]
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "role",
+        "owner"
+      ]
+    },
+    "PaintScheme": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "primary": {
+          "$ref": "#/$defs/Hex"
+        },
+        "secondary": {
+          "$ref": "#/$defs/Hex"
+        },
+        "trim": {
+          "$ref": "#/$defs/Hex"
+        },
+        "metal": {
+          "$ref": "#/$defs/Hex"
+        },
+        "decal": {
+          "$ref": "#/$defs/Hex"
+        }
+      },
+      "required": [
+        "primary",
+        "secondary",
+        "trim",
+        "metal",
+        "decal"
+      ]
+    },
+    "Archetype": {
+      "enum": [
+        "infantry",
+        "heavy",
+        "monster",
+        "vehicle"
+      ]
+    },
+    "Slot": {
+      "enum": [
+        "head",
+        "torso",
+        "backpack",
+        "armL",
+        "armR",
+        "weaponL",
+        "weaponR",
+        "pauldronL",
+        "pauldronR",
+        "base",
+        "shoulderMountL",
+        "shoulderMountR",
+        "hull",
+        "turret",
+        "sponsonL",
+        "sponsonR"
+      ]
+    },
+    "FigureSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "archetype": {
+          "$ref": "#/$defs/Archetype"
+        },
+        "kit": {
+          "$ref": "#/$defs/Id"
+        },
+        "parts": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/Slot"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/Id"
+          }
+        },
+        "scale": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 10
+        }
+      },
+      "required": [
+        "archetype",
+        "kit"
+      ]
+    },
+    "ScoringRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "when": {
+          "$ref": "#/$defs/TimingWindowId"
+        },
+        "rounds": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "from": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "to": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": [
+            "from",
+            "to"
+          ]
+        },
+        "who": {
+          "enum": [
+            "active",
+            "opponent",
+            "both"
+          ]
+        },
+        "rule": {
+          "enum": [
+            "holdObjectives",
+            "holdMore",
+            "holdHome",
+            "unitsInEnemyZone",
+            "destroyedUnits",
+            "custom"
+          ]
+        },
+        "pointsPer": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cap": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "params": {
+          "type": "object"
+        },
+        "code": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9]*$"
+        }
+      },
+      "required": [
+        "id",
+        "when",
+        "rounds",
+        "rule",
+        "pointsPer",
+        "cap"
+      ]
+    }
+  }
+}
