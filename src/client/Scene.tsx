@@ -13,24 +13,24 @@ export function Scene() {
       style={{ position: 'absolute', inset: 0 }}
     >
       <color attach="background" args={['#0a0a10']} />
-      <hemisphereLight intensity={0.6} groundColor="#1a1a20" />
+      <hemisphereLight intensity={1.0} groundColor="#2a2a34" />
       <directionalLight position={[20, 30, 10]} intensity={1.1} />
 
       {/* Battlefield surface, laid flat in the XZ plane so Y stays "up". */}
       <mesh rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[BOARD_WIDTH_IN, BOARD_DEPTH_IN]} />
-        <meshStandardMaterial color="#20222a" />
+        <meshStandardMaterial color="#3a3e4c" />
       </mesh>
 
       <Grid
         args={[BOARD_WIDTH_IN, BOARD_DEPTH_IN]}
         position={[0, 0.01, 0]}
         cellSize={GRID_STEP_IN}
-        cellThickness={0.6}
-        cellColor="#3d4050"
+        cellThickness={1.2}
+        cellColor="#8a90a8"
         sectionSize={GRID_STEP_IN}
-        sectionThickness={0.6}
-        sectionColor="#4d5064"
+        sectionThickness={1.6}
+        sectionColor="#b8bed4"
         fadeDistance={120}
         fadeStrength={1}
         infiniteGrid={false}
