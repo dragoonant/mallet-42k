@@ -20,11 +20,21 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Data schemas | `src/data/schema/*.schema.json` (copied from `docs/spec/schemas`, JSON Schema 2020-12, `$id` `https://mallet42k.dev/schemas/<name>.schema.json`) + `index.ts` exporting `schemas` map for ajv. TimingWindowId has 28 windows (`round.start/end`, `battle.end`, `movement.moveStarted`, `charge.moveStarted`, `fight.targetsDeclared` added); `Scope.who: bearer`; `Duration: untilEndOfRound`; `Effect.when`, `Effect.move.kind: surge`; `ScoringRule.who: first/second` + rule values `holdEnemyHome/holdNamed/razedThisTurn/claimedSite/claimedSiteConsecutive`; `mission.rules[]` (`MissionRule`); `enhancement.choice` |
 | Spec status | Adversarial review round 1 applied (all critical/major + minor items): windows outside turns, kill attribution by model, checklist prefixes unified (`CORE`…`SIM`, `alias` rows, `CORE-001..017` + coverage-gap IDs added), Fire Overwatch retimed to `moveStarted` windows with `declareMove` split, `fight.targetsDeclared`, re-roll offer policy R-6.24, reaction-window policy R-11.5, mission data mapping 11 §2.6, RNG authority (`state.rng`), `Objective.controllerAtTurnStart`/`lootedBy`, `GameResult.reason: tabled` defined |
 
+## Data (M2 — verified, commit 9b278e8)
+
+| Area | State |
+|---|---|
+| Files | `src/data/{core,missions,terrain,factions/space-marines,factions/orks}` — 28 JSON files; loader `src/data/index.ts` (`loadBundle()`); `tests/data` green; `npm run validate:data` clean (ajv, `tools/validate-data.ts`) |
+| Verification | W2-finish 2026-09-13: Orks ok, Space Marines ok, core/missions/terrain ok after fixes. Values checked against `docs/spec/11-combat-patrol.md` and Wahapedia. Terrain `cp-01.json` recomputed so every piece is >1" from every objective in all six missions (min clearance 1.414"). |
+| Schema additions | `TargetSpec.state: notYetFought`; `TargetSpec.filter.within.of: controlledObjective` (in `src/data/schema/common.schema.json`, `docs/spec/schemas/common.schema.json`, `src/data/types.ts`, `20-data-schema.md` §6) |
+| Code hooks the engine must implement (`src/engine/code-hooks.ts`, grep `"code"` in `src/data`) | `breakTheirSpirit claimSites counterOffensive deadArdFeelNoPain dutyAndHonour epicChallenge fireOverwatch getStuckInDistance grantBenefitOfCover grenadeMortalWounds heroicInterventionCharge irradiatedPowerCells oathOfMomentPick pistonDrivenBrutality properLootin rapidIngressArrival razeAndRuin retrieveIntelligence sabotageComms shockTactics stompEmPick stompEmScore supplyLines sweepingRaidEndgameBonus tankShockMortalWounds tellyportaGrant veteranInstincts waaaghCall wrathOfTheEmperor` (29) |
+| Hook-enforcement notes (schema cannot express) | `epicChallenge`: enemy unit (`targets[0]`) must have a leader attached. `tankShockMortalWounds`: VEHICLE model (`targets[2]`) must belong to the charging unit (`targets[0]`). `counterOffensive`: also require Engagement Range (target only encodes `notYetFought`). `veteranInstincts`: re-rolls apply to wound rolls only (1s; any vs MONSTER/VEHICLE). `dutyAndHonour`: objective must be controlled by the active player. |
+| Known doc drift | `docs/spec/11-combat-patrol.md` §3 terrain table shows old footprints (data is authoritative); §2.6 names `stompEmPick` as a rule id but data encodes it as `custom` + `code`. |
+
 ## Not yet built
 
 - `src/engine` logic — only contracts/stubs exist; W1 modules implement against them (see `docs/spec/00-architecture.md`)
-- `tools/validate-data` (ajv wiring for `src/data/schema`) — W2
-- Combat Patrol data (`src/data`), AI (`src/ai`), figure assets (`src/assets`) — all placeholders only
+- AI (`src/ai`), figure assets (`src/assets`) — placeholders only (Combat Patrol data is done, see Data)
 
 ## Notes for the next agent
 
