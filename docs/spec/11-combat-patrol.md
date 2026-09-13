@@ -72,7 +72,7 @@ Notes: markers with |x| > 12 (missions 2, 3, 5, 6) or in a DZ strip are "in a de
 | 5 | `supplyLines` @ `command.start` | `holdObjectives` 5/marker cap 15 rounds 2–4 only; `battle.end`: `holdNamed` per player (Attacker C 5 / D 10; Defender B 5 / A 10) | — |
 | 6 | `breakTheirSpirit` (always; gates Insane Bravery), `claimSites` @ `command.end` | standard schedule: `holdObjectives` (≥1) 5, `holdObjectives` (≥2) 5, `claimedSite` 5, `claimedSiteConsecutive` 5 `{params.turns: 2}`, cap 20 | `Objective.claimedBy` |
 
-Secondaries use the same shape: Wrath of the Emperor = `custom` code `wrathOfTheEmperor` @ `phase.end` (reads `Player.secondaryState.killsThisPhase[captainModelId]`); Shock Tactics = `custom` @ `turn.end` (uses `Objective.controllerAtTurnStart`); Stomp 'Em = rule `stompEmPick` @ `round.start` (rounds 2–5, `chooseOption` topic `stompTarget`) + `custom` scoring @ `round.end`; Proper Lootin' = `custom` @ `command.end` (`Objective.lootedBy`); Bag the Big 'Un = `bagPick` @ `round.start` (round 1, topic `bagTarget`) + `custom` @ `battle.end` (`Unit.destroyedBy.modelId` vs the BEASTBOSS model); Krumpin' Spree = `custom` @ `turn.end`.
+Secondaries use the same shape: Wrath of the Emperor = `custom` code `wrathOfTheEmperor` @ `phase.end` (reads `Player.secondaryState.killsThisPhase[captainModelId]`); Shock Tactics = `custom` @ `turn.end` (uses `Objective.controllerAtTurnStart`); Stomp 'Em = rule `custom` code `stompEmPick` @ `round.start` (rounds 2–5, `chooseOption` topic `stompTarget`) + `custom` scoring @ `round.end`; Proper Lootin' = `custom` @ `command.end` (`Objective.lootedBy`); Bag the Big 'Un = `bagPick` @ `round.start` (round 1, topic `bagTarget`) + `custom` @ `battle.end` (`Unit.destroyedBy.modelId` vs the BEASTBOSS model); Krumpin' Spree = `custom` @ `turn.end`.
 
 ## 3. Terrain guidance and default layout
 
@@ -83,12 +83,12 @@ Secondaries use the same shape: Wrath of the Emperor = `custom` code `wrathOfThe
 
 | Piece | Category | Footprint (x, z) polygon / centre | Height | Notes |
 |---|---|---|---|---|
-| ruin-L1 | RUINS | L-shape: (−9,1) (−3,1) (−3,3) (−7,3) (−7,7) (−9,7) | 6" walls, floor at 3" | walls on the outer L edges; open interior |
-| ruin-L2 | RUINS | rotate ruin-L1 by 180° | 6" | |
-| ruin-S1 | RUINS | rect (−19,−13) to (−13,−9) | 4" | in Attacker DZ corner |
-| ruin-S2 | RUINS | rect (13,9) to (19,13) | 4" | |
-| container-1 | HILL (stand-on) | rect (2,−12) to (8,−9) | 3" | |
-| container-2 | HILL | rect (−8,9) to (−2,12) | 3" | |
+| ruin-L1 | RUINS | L-shape: (−8,0) (−2,0) (−2,2) (−6,2) (−6,6) (−8,6) | 6" walls, floor at 3" | walls on the outer L edges; open interior |
+| ruin-L2 | RUINS | rotate ruin-L1 by 180°: (8,0) (2,0) (2,−2) (6,−2) (6,−6) (8,−6) | 6" | |
+| ruin-S1 | RUINS | rect (−19,−14) to (−13,−10) | 4" | in Attacker DZ corner |
+| ruin-S2 | RUINS | rect (13,10) to (19,14) | 4" | |
+| container-1 | HILL (stand-on) | rect (4,−13) to (10,−10) | 3" | |
+| container-2 | HILL | rect (−10,10) to (−4,13) | 3" | |
 | crater-1 | CRATER | circle centre (10,4) r 2.5 | 0.5" | |
 | crater-2 | CRATER | circle centre (−10,−4) r 2.5 | 0.5" | |
 | barricade-1 | BARRICADE | segment (14,−3)→(18,−3), thickness 0.5 | 1.5" | |
