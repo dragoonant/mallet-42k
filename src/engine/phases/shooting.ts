@@ -22,6 +22,8 @@
 // R-6.3's Big Guns Never Tire -1 to hit ("if the unit was in ER when targets were selected") is a snapshot taken by
 // `attack.begin` the instant this module calls it from `handle`'s `declareTargets` case — see attack.ts's module
 // header — so it survives the engaging enemy dying or moving away mid-volley (SHOOT-005-timing).
+import { filterValid, optionActions, passAction } from './legal'
+import type { WeaponTarget } from '../actions'
 import { distance, EPS } from '../geometry'
 import { hookService } from '../hooks-impl'
 import { leaderService } from '../leaders'
@@ -285,8 +287,38 @@ function doResolve(ctx: EngineContext): 'pending' | 'selectUnit' {
 
 const ATTACK_CHOOSE_TOPICS = new Set(['saveType', 'hazardousCasualty', 'rerollOffer'])
 
+
+// ---------- legal-action candidates (W1-G): one declaration per target unit (every weapon able to hit it), plus pass ----------
+function shootingLegalActions(state: GameState, pending: PendingDecision): Action[] | null {
+  if (pending.kind !== 'declareTargets') return optionActions(pending)
+  const { unitId, weapons } = pending.context
+  const bigGuns = state.units[unitId] ? isBigGunsUnit(state, unitId) : false
+  const all = [...new Set(weapons.flatMap((w) => w.legalTargets))]
+  const candidates: Action[] = []
+  for (const target of all) {
+    const byModel = new Map<ModelId, typeof weapons>()
+    for (const w of weapons) if (w.legalTargets.includes(target)) byModel.set(w.modelId, [...(byModel.get(w.modelId) ?? []), w])
+    const targets: WeaponTarget[] = []
+    for (const [modelId, entries] of byModel) {
+      const isPistol = (e: (typeof weapons)[number]): boolean => weaponService.hasAbility(weaponService.effectiveWeapon(state, e.modelId, e.weaponId), 'PISTOL')
+      const others = entries.filter((e) => !isPistol(e))
+      const chosen = bigGuns ? entries : others.length > 0 ? others : entries.filter(isPistol)
+      const groups = new Set<string>()
+      for (const e of chosen) {
+        if (e.profileGroup) { if (groups.has(e.profileGroup)) continue; groups.add(e.profileGroup) }
+        targets.push({ modelId, weaponId: e.weaponId, targetUnitId: target, ...(e.profileGroup ? { profileGroup: e.profileGroup } : {}) })
+      }
+    }
+    if (targets.length > 0) candidates.push({ type: 'declareTargets', player: pending.player, decisionId: pending.id, unitId, targets })
+  }
+  const out = filterValid(candidates, (a) => validateDeclareTargets(state, a, pending), 6)
+  if (pending.canPass) out.push(passAction(pending))
+  return out
+}
+
 export const shootingModule: PhaseModule = {
   name: 'shooting',
+  legalActions(state, pending) { return shootingLegalActions(state, pending) },
   enter(ctx) {
     ctx.state.step = 'selectUnit'
     ctx.state.phaseState.activated = []

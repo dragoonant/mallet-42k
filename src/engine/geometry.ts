@@ -28,7 +28,20 @@ export type Footprint = Pick<Model, 'pos' | 'facing' | 'base'>
 export function isRound(base: ModelBase): boolean { return base.shape === 'round' || base.radius2 === undefined }
 
 // sampled outline of the base in world XZ (oval: major axis along `facing`)
+// pure-function memo (W1-G perf: oval gap tests rebuild the same outline thousands of times per charge search); the
+// returned array is shared — callers only read it
+const edgeCache = new Map<string, Vec2[]>()
 export function baseEdgePoints(m: Footprint, n = EDGE_SAMPLES): Vec2[] {
+  const key = `${m.pos.x},${m.pos.z},${m.facing},${m.base.radius},${isRound(m.base) ? '' : m.base.radius2},${n}`
+  const hit = edgeCache.get(key)
+  if (hit) return hit
+  const pts = computeBaseEdgePoints(m, n)
+  if (edgeCache.size >= 4096) edgeCache.clear()
+  edgeCache.set(key, pts)
+  return pts
+}
+
+function computeBaseEdgePoints(m: Footprint, n: number): Vec2[] {
   const pts: Vec2[] = []
   const r1 = m.base.radius
   const r2 = isRound(m.base) ? r1 : (m.base.radius2 as number)

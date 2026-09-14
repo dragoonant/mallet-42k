@@ -26,6 +26,7 @@
 //   spell this out).
 // - Heroic Intervention's own move never re-opens a Fire Overwatch window (Overwatch already excludes
 //   `charge.moveEnded`; re-triggering a reaction mid-reaction is treated as out of scope for Combat Patrol).
+import { optionActions, repairCoherency } from './legal'
 import { rollSum } from '../dice'
 import {
   EPS, ENGAGEMENT_H, COHERENCY_H, anyWithinEngagementRange, basesOverlap, checkPlacements, dist2D, distance,
@@ -208,6 +209,8 @@ function tryChargePlacement(state: GameState, geo: ChargeGeometry, m: Model, can
   const overlapBlockers: Footprint[] = [...placed.map((pl) => ({ pos: pl.to, facing: pl.facing, base: pl.model.base })), ...geo.otherFriendly]
   if (overlapBlockers.some((b) => basesOverlap(fp, b))) return null
   const allTargets = geo.targetGroups.flat()
+  // W1-G: ending on top of an enemy model (e.g. contact with one oval target model while clipping its neighbour)
+  if ([...allTargets, ...geo.nonTargets].some((b) => basesOverlap(fp, b))) return null
   if (!geo.fly && (pathEntersEngagement(fp, path, geo.nonTargets) || pathCrossesModels(fp, path, [...geo.nonTargets, ...allTargets]))) return null
   if (terrainService.crossesImpassable(state, m, path) || !terrainService.canEndAt(state, m, to).ok) return null
   return { model: m, from: m.pos, to, facing: m.facing, path, distance: travel }
@@ -241,10 +244,10 @@ function ringApproachPath(m: Model, target: Model, point: Vec3, maxDistance: num
 // coherency range of an already-placed teammate are tried first (closest-travel among those) so a large unit wraps
 // the ring as one contiguous, coherent arc instead of jumping to an isolated free point on the far side of a small
 // target; only once every such candidate is exhausted does the sweep fall back to the closest-travel point overall.
-function ringSearch(state: GameState, geo: ChargeGeometry, m: Model, target: Model, maxDistance: number, placed: ResolvedPlacement[], steps = 48): ResolvedPlacement | null {
+function ringSearch(state: GameState, geo: ChargeGeometry, m: Model, target: Model, maxDistance: number, placed: ResolvedPlacement[], steps = 48, stopGap = ENGAGEMENT_H - 0.01): ResolvedPlacement | null {
   const candidates: { point: Vec3; path: Path; travel: number; near: boolean }[] = []
   for (let i = 0; i < steps; i++) {
-    const point = ringPoint(target, m, (2 * Math.PI * i) / steps, ENGAGEMENT_H - 0.01)
+    const point = ringPoint(target, m, (2 * Math.PI * i) / steps, stopGap)
     if (dist2D(m.pos, point) > maxDistance + 1e-3) continue // a detour can only be longer than the straight line
     const routed = ringApproachPath(m, target, point, maxDistance)
     if (!routed) continue
@@ -278,7 +281,7 @@ function tryApproachFriend(state: GameState, geo: ChargeGeometry, m: Model, plac
 // nearest declared target, then a ring sweep around any target if that point is blocked by its own teammates, then
 // walking toward a placed friend to preserve coherency; a model that cannot legally improve its position by any of
 // these stays put — not every model needs to reach (CHARGE-010).
-function planChargeMove(state: GameState, geo: ChargeGeometry, maxDistance: number): ResolvedPlacement[] {
+function planChargeMove(state: GameState, geo: ChargeGeometry, maxDistance: number, stopGap = ENGAGEMENT_H - 0.01): ResolvedPlacement[] {
   const allTargets = geo.targetGroups.flat()
   const stay = (m: Model): ResolvedPlacement => ({ model: m, from: m.pos, to: m.pos, facing: m.facing, path: [m.pos, m.pos], distance: 0 })
   if (allTargets.length === 0) return geo.models.map(stay)
@@ -289,7 +292,7 @@ function planChargeMove(state: GameState, geo: ChargeGeometry, maxDistance: numb
     // `checkPlacements` applies afterward can never push the real gap back out past the threshold
     let best: { point: Vec3; travel: number; path: Path } | null = null
     for (const t of allTargets) {
-      const c = contactCandidateWithDetour(geo, m, t, ENGAGEMENT_H - 0.01, maxDistance)
+      const c = contactCandidateWithDetour(geo, m, t, stopGap, maxDistance)
       if (!best || c.travel < best.travel) best = c
     }
     let placement = best ? tryChargePlacement(state, geo, m, best, maxDistance, placed) : null
@@ -300,7 +303,7 @@ function planChargeMove(state: GameState, geo: ChargeGeometry, maxDistance: numb
     if (!placement && best && best.travel <= maxDistance + 1e-3) {
       const byDistance = [...allTargets].sort((a, b) => horizontalGap(m, a) - horizontalGap(m, b))
       for (const t of byDistance) {
-        placement = ringSearch(state, geo, m, t, maxDistance, placed)
+        placement = ringSearch(state, geo, m, t, maxDistance, placed, 48, stopGap)
         if (placement) break
       }
     }
@@ -341,12 +344,61 @@ function checkChargeArrangement(state: GameState, geo: ChargeGeometry, targetUni
   return result
 }
 
-function chargeFeasible(state: GameState, unitId: UnitId, targetUnitIds: UnitId[], maxDistance: number): boolean {
+// the full R-8.4/R-8.5 legality of a submitted charge move (shared by validate(), feasibility and legalActions)
+function chargeMoveRejection(state: GameState, geo: ChargeGeometry, targetUnitIds: UnitId[], roll: number, placements: ModelPlacement[]): Rejection | null {
+  const check = checkChargeArrangement(state, geo, targetUnitIds, roll, placements)
+  if (check.rejection) return check.rejection
+  for (const r of check.resolved) {
+    if (r.distance <= EPS) continue
+    if (!closerToAnyTarget(r.model, r.from, r.to, geo.targetGroups)) {
+      return { code: 'E_OUT_OF_RANGE', reason: `${r.model.id} must end closer to a charged unit than it started`, details: { modelId: r.model.id } }
+    }
+    const fp: Footprint = { pos: r.to, facing: r.facing, base: r.model.base }
+    const alreadyInContact = geo.targetGroups.flat().some((t) => inBaseContact(fp, t))
+    const blockers: Footprint[] = [
+      ...check.resolved.filter((o) => o.model.id !== r.model.id).map((o) => ({ pos: o.to, facing: o.facing, base: o.model.base })),
+      ...geo.otherFriendly,
+    ]
+    if (!alreadyInContact && couldReachBaseContact(state, geo, r.model, roll, blockers)) {
+      return { code: 'E_OUT_OF_RANGE', reason: `${r.model.id} could end in base contact with a charged unit and must`, details: { modelId: r.model.id } }
+    }
+  }
+  return null
+}
+
+// candidate charge-move arrangements, tried lazily in order: the planner aiming for base contact, a near-contact gap,
+// and the Engagement Range edge, each as planned and then with a coherency repair pass; the first `limit` that pass
+// the full validation are returned. Feasibility (R-8.4, charge fails if no legal move) and legalActions share this,
+// so a charge the engine lets through always has at least one legal chargeMove answer.
+function legalChargeMoves(state: GameState, unitId: UnitId, targetUnitIds: UnitId[], roll: number, limit = 1): ModelPlacement[][] {
   const geo = chargeGeometry(state, unitId, targetUnitIds)
-  if (geo.models.length === 0) return false
-  const resolved = planChargeMove(state, geo, maxDistance)
-  const placements: ModelPlacement[] = resolved.map((r) => ({ modelId: r.model.id, pos: r.to, facing: r.facing, path: r.path }))
-  return checkChargeArrangement(state, geo, targetUnitIds, maxDistance, placements).rejection === null
+  if (geo.models.length === 0) return []
+  const out: ModelPlacement[][] = []
+  const tried = new Set<string>()
+  const consider = (placements: ModelPlacement[]): boolean => {
+    const key = JSON.stringify(placements)
+    if (tried.has(key)) return false
+    tried.add(key)
+    if (chargeMoveRejection(state, geo, targetUnitIds, roll, placements) === null) out.push(placements)
+    return out.length >= limit
+  }
+  for (const gap of [ENGAGEMENT_H - 0.01, 0.004, 0.3]) {
+    const resolved = planChargeMove(state, geo, roll, gap)
+    const placements: ModelPlacement[] = resolved.filter((r) => r.distance > EPS).map((r) => ({ modelId: r.model.id, pos: r.to, facing: r.facing, path: r.path }))
+    if (consider(placements)) return out
+    const repaired = repairCoherency(geo.models, placements, {
+      allowance: () => roll - 0.02,
+      blockers: [...geo.otherFriendly, ...geo.targetGroups.flat(), ...geo.nonTargets],
+      ok: (m, to) => closerToAnyTarget(m, m.pos, to, geo.targetGroups) && !anyWithinEngagementRange({ pos: to, facing: m.facing, base: m.base }, geo.nonTargets)
+        && terrainService.canEndAt(state, m, to).ok && !terrainService.crossesImpassable(state, m, [m.pos, to]),
+    })
+    if (consider(repaired)) return out
+  }
+  return out
+}
+
+function chargeFeasible(state: GameState, unitId: UnitId, targetUnitIds: UnitId[], maxDistance: number): boolean {
+  return legalChargeMoves(state, unitId, targetUnitIds, maxDistance, 1).length > 0
 }
 
 // R-8.5: `model` ends closer (plain distance) to at least one charged unit than it started
@@ -461,6 +513,9 @@ function doChargeRoll(ctx: EngineContext, charge: ChargeState): 'pending' | 'ok'
   let roll = ctx.rollOnce(`charge:${unitId}`, { purpose: 'charge', player: unit.player, sides: 6, count: 2, mode: 'sum', unitId, commandRerollable: true })
   if (roll === null) return 'pending'
   let total = rollSum(roll)
+  // R-1.6: a die that was already re-rolled (e.g. by a Command Re-roll answered before this re-entry) is never
+  // re-rolled again, so neither the automatic re-roll nor the offer applies to it
+  if (!charge.rerolled && (roll.rerolled ?? []).length > 0) charge.rerolled = true
   if (!charge.rerolled) {
     const feasibleNow = chargeFeasible(s, unitId, charge.targetUnitIds, total)
     const kinds = collectChargeRerollKinds(ctx, charge, roll, total)
@@ -610,8 +665,24 @@ function driveCharge(ctx: EngineContext): 'pending' | 'progress' {
   return 'progress'
 }
 
+
+// ---------- legal-action candidates (W1-G) ----------
+function chargeLegalActions(state: GameState, pending: PendingDecision): Action[] | null {
+  if (pending.kind === 'declareCharge') {
+    return pending.context.candidateTargets.map((t) => ({ type: 'declareCharge', player: pending.player, decisionId: pending.id, unitId: pending.context.unitId, targetUnitIds: [t] }) as Action)
+  }
+  if (pending.kind === 'chargeMove') {
+    const { unitId, targetUnitIds, roll } = pending.context
+    if (!state.units[unitId]) return []
+    return legalChargeMoves(state, unitId, targetUnitIds, roll, 2)
+      .map((placements) => ({ type: 'chargeMove', player: pending.player, decisionId: pending.id, unitId, placements }) as Action)
+  }
+  return optionActions(pending)
+}
+
 export const chargeModule: PhaseModule = {
   name: 'charge',
+  legalActions(state, pending) { return chargeLegalActions(state, pending) },
   enter(ctx) {
     ctx.state.step = 'declare'
     ctx.state.phaseState.activated = []
@@ -652,24 +723,7 @@ export const chargeModule: PhaseModule = {
       if (action.type !== 'chargeMove') return optionCheck(pending, action)
       if (action.unitId !== pending.context.unitId) return { code: 'E_INVALID_TARGET', reason: 'chargeMove is for the wrong unit', details: { expected: pending.context.unitId } }
       const geo = chargeGeometry(state, action.unitId, pending.context.targetUnitIds)
-      const check = checkChargeArrangement(state, geo, pending.context.targetUnitIds, pending.context.roll, action.placements)
-      if (check.rejection) return check.rejection
-      for (const r of check.resolved) {
-        if (r.distance <= EPS) continue
-        if (!closerToAnyTarget(r.model, r.from, r.to, geo.targetGroups)) {
-          return { code: 'E_OUT_OF_RANGE', reason: `${r.model.id} must end closer to a charged unit than it started`, details: { modelId: r.model.id } }
-        }
-        const fp: Footprint = { pos: r.to, facing: r.facing, base: r.model.base }
-        const alreadyInContact = geo.targetGroups.flat().some((t) => inBaseContact(fp, t))
-        const blockers: Footprint[] = [
-          ...check.resolved.filter((o) => o.model.id !== r.model.id).map((o) => ({ pos: o.to, facing: o.facing, base: o.model.base })),
-          ...geo.otherFriendly,
-        ]
-        if (!alreadyInContact && couldReachBaseContact(state, geo, r.model, pending.context.roll, blockers)) {
-          return { code: 'E_OUT_OF_RANGE', reason: `${r.model.id} could end in base contact with a charged unit and must`, details: { modelId: r.model.id } }
-        }
-      }
-      return null
+      return chargeMoveRejection(state, geo, pending.context.targetUnitIds, pending.context.roll, action.placements)
     }
     return optionCheck(pending, action)
   },

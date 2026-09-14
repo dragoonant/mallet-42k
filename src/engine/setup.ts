@@ -260,10 +260,28 @@ export const setupModule: PhaseModule = {
       const unitId = pending.context.unitIds[0]
       if (!unitId) return []
       const models = comboModels(state, state.units[unitId])
-      const placements = autoDeployPlacements(models, pending.constraints.region ?? deploymentZone(state, pending.player), boardModelsOf(state, pending.player), boardModelsOf(state, otherPlayer(pending.player)))
-      if (!placements) return []
-      const action: Action = { type: 'deployUnit', player: pending.player, decisionId: pending.id, unitId, placements }
-      return [action]
+      const zone = pending.constraints.region ?? deploymentZone(state, pending.player)
+      const mk = (placements: ModelPlacement[]): DeployUnitAction => ({ type: 'deployUnit', player: pending.player, decisionId: pending.id, unitId, placements })
+      const placements = autoDeployPlacements(models, zone, boardModelsOf(state, pending.player), boardModelsOf(state, otherPlayer(pending.player)))
+      if (placements) {
+        const action = mk(placements)
+        if (resolveDeploy(state, action, pending).rejection === null) return [action]
+      }
+      // W1-G: the raster scan can wrap a unit across a row gap left by earlier drops (out of coherency) — fall back to
+      // a compact square block slid across the zone, accepting the first one the real validation accepts
+      if (models.length === 0) return []
+      const rad = Math.max(...models.map((m) => Math.max(m.base.radius, m.base.radius2 ?? 0)))
+      const spacing = 2 * rad + 0.2
+      const cols = Math.ceil(Math.sqrt(models.length))
+      const minX = Math.min(...zone.map((p) => p.x)), maxX = Math.max(...zone.map((p) => p.x))
+      const minZ = Math.min(...zone.map((p) => p.z)), maxZ = Math.max(...zone.map((p) => p.z))
+      for (let z0 = minZ + rad + 0.1; z0 < maxZ; z0 += 1) {
+        for (let x0 = minX + rad + 0.1; x0 < maxX; x0 += 1) {
+          const action = mk(models.map((m, i) => ({ modelId: m.id, pos: { x: x0 + (i % cols) * spacing, y: 0, z: z0 + Math.floor(i / cols) * spacing } })))
+          if (resolveDeploy(state, action, pending).rejection === null) return [action]
+        }
+      }
+      return []
     }
     if (pending.kind === 'moveUnit') {
       // Scouts moves are optional and not exercised by current data; offer "stay put" so generic Deciders can pass

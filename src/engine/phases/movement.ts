@@ -21,6 +21,8 @@
 //
 // Transports (R-5.17–R-5.20): no Combat Patrol datasheet has one, so embark/disembark are implemented in
 // transports.ts as bookkeeping + legality predicates only — not wired into an interactive decision here. See issues.
+import { centroid, filterValid, formationPlacements, optionActions, repairCoherency, translatePlacements, unitVector } from './legal'
+import { dist2D } from '../geometry'
 import { rollSum } from '../dice'
 import {
   EPS, anyWithinEngagementRange, checkPlacements, emptyMoveConstraints, horizontalGap, isCoherent,
@@ -141,6 +143,22 @@ function resolveMove(state: GameState, unitId: UnitId, moveType: MoveType, place
 }
 
 // the per-model path rules checkPlacements leaves to the caller (R-5.2, R-5.5, R-5.7, R-5.8)
+// W1-G [interp R-2.6]: a unit that is ALREADY out of coherency (casualties mid-turn, e.g. Fire Overwatch at
+// movement.moveStarted) and moves no model at all may end its move as it stands — otherwise a declared Normal/Advance
+// move could have no legal answer at all. The end-of-turn coherency cull (R-2.6) resolves it. Any placement that
+// actually moves a model still has to end coherent.
+function moveRejection(state: GameState, unitId: UnitId, moveType: MoveType, placements: ModelPlacement[]): Rejection | null {
+  const r = resolveMove(state, unitId, moveType, placements)
+  if (r.rejection?.code !== 'E_COHERENCY') return r.rejection
+  const models = unitModelsForCoherency(state, unitId)
+  const stays = placements.every((p) => {
+    const m = models.find((x) => x.id === p.modelId)
+    return m !== undefined && Math.hypot(p.pos.x - m.pos.x, p.pos.y - m.pos.y, p.pos.z - m.pos.z) <= 1e-3
+  })
+  if (!stays || isCoherent(models)) return r.rejection
+  return resolveMove(state, unitId, moveType, placements, { skipCoherency: true }).rejection
+}
+
 function checkPaths(state: GameState, moveType: MoveType, result: { rejection: null; resolved: ResolvedPlacement[] }, enemies: Footprint[], otherFriendly: Model[], flyOf: (m: Model) => boolean):
   { rejection: Rejection } | { rejection: null; resolved: ResolvedPlacement[] } {
   const isBig = (unitId: UnitId): boolean => hasKeyword(state, unitId, 'MONSTER') || hasKeyword(state, unitId, 'VEHICLE')
@@ -647,8 +665,83 @@ function doMove(ctx: EngineContext): 'pending' | 'select' {
   return 'select'
 }
 
+
+// ---------- legal-action candidates (W1-G: generic Deciders need >=1 concrete answer for continuous decisions) ----------
+function moveUnitCandidates(state: GameState, pending: Extract<PendingDecision, { kind: 'moveUnit' }>): Action[] {
+  const unitId = pending.context.unitId
+  const unit = state.units[unitId]
+  if (!unit) return []
+  const models = unitModelsForCoherency(state, unitId)
+  if (models.length === 0) return []
+  const { perModel } = moveAllowance(state, unitId)
+  const allow = Math.max(0, Math.min(...models.map((m) => perModel[m.id] ?? 0)) - 0.02)
+  const c = centroid(models)
+  const enemies = enemyModelsOnBoard(state, unit.player)
+  const dirs: { x: number; z: number }[] = []
+  const objs = Object.values(state.objectives).filter((o) => !o.removed).sort((a, b) => dist2D(c, a.pos) - dist2D(c, b.pos))
+  if (objs[0]) { const v = unitVector(c, objs[0].pos); if (v) dirs.push(v) }
+  if (enemies.length > 0) {
+    const e = [...enemies].sort((a, b) => dist2D(c, a.pos) - dist2D(c, b.pos))[0]
+    const v = unitVector(c, e.pos)
+    if (v) { dirs.push(v); dirs.push({ x: -v.x, z: -v.z }) }
+  }
+  for (let i = 0; i < 16; i++) dirs.push({ x: Math.cos((2 * Math.PI * i) / 16), z: Math.sin((2 * Math.PI * i) / 16) })
+  const mk = (placements: ModelPlacement[]): Action => ({ type: 'moveUnit', player: pending.player, decisionId: pending.id, unitId, placements })
+  const candidates: Action[] = []
+  for (const frac of [1, 0.6, 0.3]) for (const d of dirs) candidates.push(mk(translatePlacements(models, d.x * allow * frac, d.z * allow * frac)))
+  candidates.push(mk([]))
+  // regroup candidates for a unit that starts out of coherency (rigid translations can never end coherent)
+  const allowOf = (m: Model): number => Math.max(0, (perModel[m.id] ?? 0) - 0.05)
+  const repairOpts = {
+    allowance: allowOf,
+    blockers: [...friendlyOthers(state, unitId), ...enemies],
+    ok: (m: Model, to: Vec3): boolean => !anyWithinEngagementRange({ pos: to, facing: m.facing, base: m.base }, enemies)
+      && terrainService.canEndAt(state, m, to).ok && !terrainService.crossesImpassable(state, m, [m.pos, to]),
+  }
+  candidates.push(mk(repairCoherency(models, [], repairOpts)))
+  for (const d of dirs.slice(0, 11)) candidates.push(mk(repairCoherency(models, translatePlacements(models, d.x * allow * 0.3, d.z * allow * 0.3), repairOpts)))
+  for (const frac of [0.5, 0.25, 0]) {
+    for (const d of dirs.slice(0, 11)) {
+      const f = formationPlacements(models, { x: c.x + d.x * allow * frac, z: c.z + d.z * allow * frac }, allowOf)
+      if (f) candidates.push(mk(f))
+      if (frac === 0) break
+    }
+  }
+  return filterValid(candidates, (a) => (a.type === 'moveUnit' ? moveRejection(state, unitId, pending.context.moveType, a.placements) : null), 6)
+}
+
+function arrivalCandidates(state: GameState, pending: Extract<PendingDecision, { kind: 'deployUnit' }>): Action[] {
+  const groupIds = pending.context.unitIds
+  const models = groupIds.flatMap((id) => (state.units[id] ? unitModels(state, id) : []))
+  if (models.length === 0) return []
+  const rad = Math.max(...models.map((m) => Math.max(m.base.radius, m.base.radius2 ?? 0)))
+  const spacing = 2 * rad + 0.2
+  const cols = Math.ceil(Math.sqrt(models.length))
+  const rows = Math.ceil(models.length / cols)
+  const poly = boardPolygon(state)
+  const minX = Math.min(...poly.map((p) => p.x)), maxX = Math.max(...poly.map((p) => p.x))
+  const minZ = Math.min(...poly.map((p) => p.z)), maxZ = Math.max(...poly.map((p) => p.z))
+  const out: Action[] = []
+  for (let z0 = minZ + rad + 0.1; z0 + (rows - 1) * spacing + rad < maxZ && out.length < 3; z0 += 3) {
+    for (let x0 = minX + rad + 0.1; x0 + (cols - 1) * spacing + rad < maxX && out.length < 3; x0 += 3) {
+      const placements: ModelPlacement[] = models.map((m, i) => ({ modelId: m.id, pos: { x: x0 + (i % cols) * spacing, y: 0, z: z0 + Math.floor(i / cols) * spacing }, facing: m.facing }))
+      const action: Action = { type: 'deployUnit', player: pending.player, decisionId: pending.id, unitId: groupIds[0], placements }
+      if (validateArrival(state, action, pending) === null) out.push(action)
+    }
+  }
+  if (out.length === 0) out.push({ type: 'deployUnit', player: pending.player, decisionId: pending.id, unitId: groupIds[0], placements: [], toReserves: true })
+  return out
+}
+
+function movementLegalActions(state: GameState, pending: PendingDecision): Action[] | null {
+  if (pending.kind === 'moveUnit') return moveUnitCandidates(state, pending)
+  if (pending.kind === 'deployUnit') return arrivalCandidates(state, pending)
+  return optionActions(pending)
+}
+
 export const movementModule: PhaseModule = {
   name: 'movement',
+  legalActions(state, pending) { return movementLegalActions(state, pending) },
   enter(ctx) {
     ctx.state.step = 'select'
     ctx.state.phaseState.activated = []
@@ -686,7 +779,7 @@ export const movementModule: PhaseModule = {
     if (pending.kind === 'moveUnit') {
       if (action.type !== 'moveUnit') return optionCheck(pending, action)
       if (action.unitId !== pending.context.unitId) return { code: 'E_INVALID_TARGET', reason: 'placements are for the wrong unit', details: { expected: pending.context.unitId } }
-      return resolveMove(state, action.unitId, pending.context.moveType, action.placements).rejection
+      return moveRejection(state, action.unitId, pending.context.moveType, action.placements)
     }
     if (pending.kind === 'deployUnit') return validateArrival(state, action, pending)
     return optionCheck(pending, action)

@@ -21,6 +21,7 @@
 // - A model may pick only one non-[EXTRA ATTACKS] melee weapon (`chooseOption` topic `meleeWeapon` when it has more
 //   than one); multi-profile melee weapons are not offered a `weaponProfile` choice — the model's first profile in
 //   its `weapons` list is used. Neither situation occurs anywhere in the Combat Patrol data this engine ships with.
+import { filterValid, optionActions, repairCoherency } from './legal'
 import {
   EPS, ENGAGEMENT_H, OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE, basesOverlap, checkPlacements, dist2D, distance,
   emptyMoveConstraints, horizontalGap, inBaseContact, pathCrossesModels, unitsWithinEngagementRange, whollyOnBoard,
@@ -149,7 +150,7 @@ function contactPoint(m: Model, target: Model, stopGap: number): { point: Vec3; 
 // R-9.5/R-9.10 heuristic arrangement: a model already in base contact with an enemy never needs to move; otherwise
 // closest-to-enemy models go first, each walking toward the nearest reachable Engagement Range point, capped by
 // `maxDistance` and by terrain/board/overlap legality — a model that cannot legally improve its position stays put.
-function planApproachEnemy(state: GameState, geo: FightGeometry, maxDistance: number): ResolvedPlacement[] {
+function planApproachEnemy(state: GameState, geo: FightGeometry, maxDistance: number, stopGap = ENGAGEMENT_H - 0.01): ResolvedPlacement[] {
   const stay = (m: Model): ResolvedPlacement => ({ model: m, from: m.pos, to: m.pos, facing: m.facing, path: [m.pos, m.pos], distance: 0 })
   if (geo.enemies.length === 0) return geo.models.map(stay)
   const order = [...geo.models].sort((a, b) => Math.min(...geo.enemies.map((t) => horizontalGap(a, t))) - Math.min(...geo.enemies.map((t) => horizontalGap(b, t))))
@@ -158,7 +159,7 @@ function planApproachEnemy(state: GameState, geo: FightGeometry, maxDistance: nu
     if (geo.enemies.some((t) => inBaseContact(m, t))) { placed.push(stay(m)); continue }
     let chosen: { point: Vec3; travel: number } | null = null
     for (const t of geo.enemies) {
-      const c = contactPoint(m, t, ENGAGEMENT_H - 0.01)
+      const c = contactPoint(m, t, stopGap)
       if (!chosen || c.travel < chosen.travel) chosen = c
     }
     if (!chosen) { placed.push(stay(m)); continue }
@@ -232,12 +233,7 @@ function checkApproachArrangement(state: GameState, geo: FightGeometry, maxDista
   return result
 }
 
-function approachFeasible(state: GameState, geo: FightGeometry, maxDistance: number): boolean {
-  if (geo.models.length === 0) return false
-  const resolved = planApproachEnemy(state, geo, maxDistance)
-  const placements: ModelPlacement[] = resolved.map((r) => ({ modelId: r.model.id, pos: r.to, facing: r.facing }))
-  return checkApproachArrangement(state, geo, maxDistance, placements).rejection === null
-}
+
 
 // R-9.5/R-9.10: `model` ends closer to the enemy model it was CLOSEST to at the start of its own move [interp]
 function closerToClosestEnemyAtStart(model: Model, from: Vec3, to: Vec3, enemies: Model[]): boolean {
@@ -379,8 +375,8 @@ function doPileIn(ctx: EngineContext, unitId: UnitId): 'pending' | 'progress' {
   if (ctx.marked(`fi:piledIn:${unitId}`)) return 'progress'
   const geo = fightGeometry(s, unitId)
   const dist = hookService.pileInDistance?.(s, unitId, 3) ?? 3
-  const already = unitsWithinEngagementRange(geo.models, geo.enemies)
-  if (!already && !approachFeasible(s, geo, dist)) { ctx.once(`fi:piledIn:${unitId}`); return 'progress' }
+  // W1-G: offered only when some legal arrangement exists (the same candidates legalActions offers, fully validated)
+  if (geo.models.length === 0 || legalApproachMoves(s, unitId, dist, null, 1).length === 0) { ctx.once(`fi:piledIn:${unitId}`); return 'progress' }
   ctx.decide({
     kind: 'pileIn', player: s.units[unitId].player, window: 'fight.unitSelected', canPass: false,
     context: { unitId, distance: dist }, constraints: emptyMoveConstraints(dist, { coherency: true }),
@@ -467,10 +463,10 @@ function doConsolidate(ctx: EngineContext, unitId: UnitId): 'pending' | 'progres
   if (ctx.marked(`fi:consolidated:${unitId}`)) return 'progress'
   const geo = fightGeometry(s, unitId)
   const dist = hookService.consolidateDistance?.(s, unitId, 3) ?? 3
-  const alreadyEr = unitsWithinEngagementRange(geo.models, geo.enemies)
-  const enemyFeasible = alreadyEr || approachFeasible(s, geo, dist)
+  const enemyFeasible = geo.models.length > 0 && legalApproachMoves(s, unitId, dist, null, 1).length > 0
   let objectiveId: ObjectiveId | null = null
   if (!enemyFeasible) objectiveId = nearestReachableObjective(s, geo, dist)
+  if (objectiveId !== null && legalApproachMoves(s, unitId, dist, objectiveId, 1).length === 0) objectiveId = null
   if (!enemyFeasible && objectiveId === null) { ctx.once(`fi:consolidated:${unitId}`); return 'progress' }
   writeMark(s, `fi:dist:${unitId}`, String(dist))
   ctx.decide({
@@ -617,8 +613,91 @@ function driveFightUnit(ctx: EngineContext): 'pending' | 'progress' {
   return 'progress'
 }
 
+
+
+// full R-9.5/R-9.10 legality of a pile-in/consolidate arrangement (shared by validate(), feasibility and legalActions)
+function approachRejection(state: GameState, geo: FightGeometry, dist: number, objectiveId: ObjectiveId | null, placements: ModelPlacement[]): Rejection | null {
+  const check = checkConsolidateArrangement(state, geo, dist, objectiveId, placements)
+  if (check.rejection) return check.rejection
+  if (objectiveId !== null) return null
+  for (const r of check.resolved) {
+    if (r.distance <= EPS) continue
+    if (!closerToClosestEnemyAtStart(r.model, r.from, r.to, geo.enemies)) return { code: 'E_OUT_OF_RANGE', reason: `${r.model.id} must end closer to the enemy model it started closest to`, details: { modelId: r.model.id } }
+    const fp: Footprint = { pos: r.to, facing: r.facing, base: r.model.base }
+    const blockers: Footprint[] = [
+      ...check.resolved.filter((o) => o.model.id !== r.model.id).map((o) => ({ pos: o.to, facing: o.facing, base: o.model.base })),
+      ...geo.otherFriendly,
+    ]
+    if (!geo.enemies.some((e) => inBaseContact(fp, e)) && couldReachBaseContact(state, geo, r.model, dist, blockers)) {
+      return { code: 'E_OUT_OF_RANGE', reason: `${r.model.id} could end in base contact with an enemy and must`, details: { modelId: r.model.id } }
+    }
+  }
+  return null
+}
+
+// candidate pile-in/consolidate arrangements tried lazily (planner at ER edge / base contact / near contact, or toward
+// the fallback objective; each as planned then coherency-repaired; finally staying put); first `limit` legal ones
+function legalApproachMoves(state: GameState, unitId: UnitId, dist: number, objectiveId: ObjectiveId | null, limit = 1): ModelPlacement[][] {
+  const geo = fightGeometry(state, unitId)
+  if (geo.models.length === 0) return []
+  const out: ModelPlacement[][] = []
+  const tried = new Set<string>()
+  const consider = (placements: ModelPlacement[]): boolean => {
+    const key = JSON.stringify(placements)
+    if (tried.has(key)) return false
+    tried.add(key)
+    if (approachRejection(state, geo, dist, objectiveId, placements) === null) out.push(placements)
+    return out.length >= limit
+  }
+  const toPlacements = (rs: ResolvedPlacement[]): ModelPlacement[] => rs.filter((r) => r.distance > EPS).map((r) => ({ modelId: r.model.id, pos: r.to, facing: r.facing, path: r.path }))
+  const obj = objectiveId !== null ? state.objectives[objectiveId] : undefined
+  const terrainOk = (m: Model, to: Vec3): boolean => terrainService.canEndAt(state, m, to).ok && !terrainService.crossesImpassable(state, m, [m.pos, to])
+  const ok = obj
+    ? (m: Model, to: Vec3): boolean => dist2D(to, obj.pos) < dist2D(m.pos, obj.pos) - EPS && terrainOk(m, to)
+    : (m: Model, to: Vec3): boolean => closerToClosestEnemyAtStart(m, m.pos, to, geo.enemies) && terrainOk(m, to)
+  const repair = (pl: ModelPlacement[]): ModelPlacement[] => repairCoherency(geo.models, pl, { allowance: () => dist - 0.02, blockers: [...geo.otherFriendly, ...geo.enemies], ok })
+  const plans: (() => ModelPlacement[])[] = obj
+    ? [() => toPlacements(planApproachPoint(state, geo.models, { x: obj.pos.x, y: terrainService.heightAt(state, obj.pos.x, obj.pos.z), z: obj.pos.z }, geo.otherFriendly, geo.enemies, dist))]
+    : [ENGAGEMENT_H - 0.01, 0.004, 0.3].map((gap) => () => toPlacements(planApproachEnemy(state, geo, dist, gap)))
+  for (const plan of plans) {
+    const pl = plan()
+    if (consider(pl) || consider(repair(pl))) return out
+  }
+  if (consider([])) return out
+  consider(repair([]))
+  return out
+}
+
+// ---------- legal-action candidates (W1-G) ----------
+function fightLegalActions(state: GameState, pending: PendingDecision): Action[] | null {
+  if (pending.kind === 'pileIn' || pending.kind === 'consolidate') {
+    const unitId = pending.context.unitId
+    if (!state.units[unitId]) return []
+    const objId = pending.kind === 'consolidate' ? pending.context.objectiveFallback : null
+    return legalApproachMoves(state, unitId, pending.context.distance, objId, 3)
+      .map((placements) => ({ type: pending.kind, player: pending.player, decisionId: pending.id, unitId, placements }) as Action)
+  }
+  if (pending.kind === 'declareTargets') {
+    const { unitId, weapons, engagedWith } = pending.context
+    const prefs = engagedWith.length > 0 ? engagedWith : [...new Set(weapons.flatMap((w) => w.legalTargets))]
+    const candidates: Action[] = []
+    for (const pref of prefs) {
+      const targets: WeaponTarget[] = []
+      for (const w of weapons) {
+        if ((w.attacks ?? 0) <= 0 || w.legalTargets.length === 0) continue
+        const t = w.legalTargets.includes(pref) ? pref : w.legalTargets[0]
+        targets.push({ modelId: w.modelId, weaponId: w.weaponId, targetUnitId: t, ...(w.profileGroup ? { profileGroup: w.profileGroup } : {}), attacks: w.attacks as number })
+      }
+      candidates.push({ type: 'declareTargets', player: pending.player, decisionId: pending.id, unitId, targets })
+    }
+    return filterValid(candidates, (a) => fightModule.validate!(state, a, pending), 4)
+  }
+  return optionActions(pending)
+}
+
 export const fightModule: PhaseModule = {
   name: 'fight',
+  legalActions(state, pending) { return fightLegalActions(state, pending) },
   enter(ctx) {
     const s = ctx.state
     s.step = 'fightsFirst'
@@ -648,22 +727,7 @@ export const fightModule: PhaseModule = {
     if (pending.kind === 'pileIn') {
       if (action.type !== 'pileIn') return optionCheck(pending, action)
       if (action.unitId !== pending.context.unitId) return { code: 'E_INVALID_TARGET', reason: 'pileIn is for the wrong unit', details: { expected: pending.context.unitId } }
-      const geo = fightGeometry(state, action.unitId)
-      const check = checkApproachArrangement(state, geo, pending.context.distance, action.placements)
-      if (check.rejection) return check.rejection
-      for (const r of check.resolved) {
-        if (r.distance <= EPS) continue
-        if (!closerToClosestEnemyAtStart(r.model, r.from, r.to, geo.enemies)) return { code: 'E_OUT_OF_RANGE', reason: `${r.model.id} must end closer to the enemy model it started closest to`, details: { modelId: r.model.id } }
-        const fp: Footprint = { pos: r.to, facing: r.facing, base: r.model.base }
-        const blockers: Footprint[] = [
-          ...check.resolved.filter((o) => o.model.id !== r.model.id).map((o) => ({ pos: o.to, facing: o.facing, base: o.model.base })),
-          ...geo.otherFriendly,
-        ]
-        if (!geo.enemies.some((e) => inBaseContact(fp, e)) && couldReachBaseContact(state, geo, r.model, pending.context.distance, blockers)) {
-          return { code: 'E_OUT_OF_RANGE', reason: `${r.model.id} could end in base contact with an enemy and must`, details: { modelId: r.model.id } }
-        }
-      }
-      return null
+      return approachRejection(state, fightGeometry(state, action.unitId), pending.context.distance, null, action.placements)
     }
     if (pending.kind === 'declareTargets') {
       if (action.type !== 'declareTargets') return optionCheck(pending, action)
@@ -673,24 +737,7 @@ export const fightModule: PhaseModule = {
     if (pending.kind === 'consolidate') {
       if (action.type !== 'consolidate') return optionCheck(pending, action)
       if (action.unitId !== pending.context.unitId) return { code: 'E_INVALID_TARGET', reason: 'consolidate is for the wrong unit', details: { expected: pending.context.unitId } }
-      const geo = fightGeometry(state, action.unitId)
-      const check = checkConsolidateArrangement(state, geo, pending.context.distance, pending.context.objectiveFallback, action.placements)
-      if (check.rejection) return check.rejection
-      if (pending.context.objectiveFallback === null) {
-        for (const r of check.resolved) {
-          if (r.distance <= EPS) continue
-          if (!closerToClosestEnemyAtStart(r.model, r.from, r.to, geo.enemies)) return { code: 'E_OUT_OF_RANGE', reason: `${r.model.id} must end closer to the enemy model it started closest to`, details: { modelId: r.model.id } }
-          const fp: Footprint = { pos: r.to, facing: r.facing, base: r.model.base }
-          const blockers: Footprint[] = [
-            ...check.resolved.filter((o) => o.model.id !== r.model.id).map((o) => ({ pos: o.to, facing: o.facing, base: o.model.base })),
-            ...geo.otherFriendly,
-          ]
-          if (!geo.enemies.some((e) => inBaseContact(fp, e)) && couldReachBaseContact(state, geo, r.model, pending.context.distance, blockers)) {
-            return { code: 'E_OUT_OF_RANGE', reason: `${r.model.id} could end in base contact with an enemy and must`, details: { modelId: r.model.id } }
-          }
-        }
-      }
-      return null
+      return approachRejection(state, fightGeometry(state, action.unitId), pending.context.distance, pending.context.objectiveFallback, action.placements)
     }
     return optionCheck(pending, action)
   },

@@ -12,7 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
-    "sim": "node tools/sim.mjs",
+    "sim": "tsx tools/sim.ts",
     "validate:data": "tsx tools/validate-data.ts"
   },
   "dependencies": {
