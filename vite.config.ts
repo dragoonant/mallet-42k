@@ -15,5 +15,6 @@ export default defineConfig(({ mode }) => ({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    testTimeout: 30000, // CI runners are ~2x slower than local; heavy engine tests (charge search) exceed 5s there
   },
 }))

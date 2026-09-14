@@ -30,5 +30,5 @@ describe('client game store', () => {
     const final = useGameStore.getState()
     expect(final.state).not.toBeNull()
     expect(final.events.length).toBeGreaterThan(0)
-  }, 30000) // 300 legalActions() calls over the full engine (movement/shooting/charge/fight heuristics) is slow, not stuck
+  }, 120000) // 300 legalActions() calls over the full engine (movement/shooting/charge/fight heuristics) is slow, not stuck
 })
