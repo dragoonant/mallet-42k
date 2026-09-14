@@ -18,11 +18,15 @@ interface UiState {
   /** For `deployUnit`: which of context.unitIds the player is currently placing (palette selection). */
   deployTargetUnitId: string | null
   draft: PlacementDraft | null
+  /** A suggested-placement option's would-be result, shown as a ghost marker while its button is
+   *  hovered — never dispatched, purely a preview (src/client/ui/DecisionPrompt.tsx). */
+  previewDraft: PlacementDraft | null
   topDown: boolean
   selectUnit(id: string | null): void
   hoverUnit(id: string | null): void
   setDeployTarget(id: string | null): void
   setDraft(draft: PlacementDraft | null): void
+  setPreviewDraft(draft: PlacementDraft | null): void
   toggleTopDown(): void
   /** Clears everything scoped to one decision — call whenever `pending.id` changes. */
   resetForDecision(): void
@@ -35,12 +39,14 @@ export const useUiStore = create<UiState>((set) => ({
   hoveredUnitId: null,
   deployTargetUnitId: null,
   draft: null,
+  previewDraft: null,
   topDown: false,
   selectUnit: (id) => set({ selectedUnitId: id }),
   hoverUnit: (id) => set({ hoveredUnitId: id }),
   setDeployTarget: (id) => set({ deployTargetUnitId: id, draft: null }),
   setDraft: (draft) => set({ draft }),
+  setPreviewDraft: (previewDraft) => set({ previewDraft }),
   toggleTopDown: () => set((s) => ({ topDown: !s.topDown })),
-  resetForDecision: () => set({ deployTargetUnitId: null, draft: null }),
-  resetAll: () => set({ selectedUnitId: null, hoveredUnitId: null, deployTargetUnitId: null, draft: null }),
+  resetForDecision: () => set({ deployTargetUnitId: null, draft: null, previewDraft: null }),
+  resetAll: () => set({ selectedUnitId: null, hoveredUnitId: null, deployTargetUnitId: null, draft: null, previewDraft: null }),
 }))

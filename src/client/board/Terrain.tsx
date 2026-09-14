@@ -18,6 +18,10 @@ const PALETTE: Record<TerrainPieceData['kind'], { base: string; accent: string }
 const RUIN_WALL_VISUAL_CAP = 3
 const RUIN_WALL_VISUAL_SCALE = 0.55
 const WALL_THICKNESS = 0.35
+// Solid terrain is capped and semi-transparent so it never fully hides units or a deployment zone
+// behind it at table-top camera angles (LoS/cover still come from the engine's real terrain heights).
+const BLOCK_VISUAL_CAP = 3.2
+const TERRAIN_OPACITY = 0.8
 
 export interface TerrainProps {
   pieces: TerrainPieceData[]
@@ -85,12 +89,12 @@ function RuinWall({ seed, wall, color, accent }: { seed: string; wall: WallData;
     <group position={[mid.x, 0, mid.z]} rotation={[0, rotationY, 0]}>
       <mesh position={[0, wallHeight / 2, 0]}>
         <boxGeometry args={[length, wallHeight, WALL_THICKNESS]} />
-        <meshStandardMaterial color={color} roughness={1} />
+        <meshStandardMaterial color={color} roughness={1} transparent opacity={TERRAIN_OPACITY} />
       </mesh>
       {rubble.map((r, i) => (
         <mesh key={i} position={[r.offset, r.height / 2, 0]}>
           <boxGeometry args={[r.width, r.height, WALL_THICKNESS * 1.05]} />
-          <meshStandardMaterial color={accent} roughness={1} />
+          <meshStandardMaterial color={accent} roughness={1} transparent opacity={TERRAIN_OPACITY} />
         </mesh>
       ))}
     </group>
@@ -116,10 +120,11 @@ function BarricadePiece({ piece, colors }: { piece: TerrainPieceData; colors: { 
     <group>
       {walls.map((wall, i) => {
         const { mid, length, rotationY } = segmentTransform(wall.a, wall.b)
+        const visualHeight = Math.min(wall.height, BLOCK_VISUAL_CAP)
         return (
-          <mesh key={i} position={[mid.x, wall.height / 2, mid.z]} rotation={[0, rotationY, 0]}>
-            <boxGeometry args={[length, wall.height, WALL_THICKNESS * 0.8]} />
-            <meshStandardMaterial color={colors.base} roughness={0.85} />
+          <mesh key={i} position={[mid.x, visualHeight / 2, mid.z]} rotation={[0, rotationY, 0]}>
+            <boxGeometry args={[length, visualHeight, WALL_THICKNESS * 0.8]} />
+            <meshStandardMaterial color={colors.base} roughness={0.85} transparent opacity={TERRAIN_OPACITY} />
           </mesh>
         )
       })}
@@ -128,19 +133,22 @@ function BarricadePiece({ piece, colors }: { piece: TerrainPieceData; colors: { 
 }
 
 function BlockPiece({ piece, colors, lid }: { piece: TerrainPieceData; colors: { base: string; accent: string }; lid?: boolean }) {
-  const geometry = useMemo(() => extrudedPolygonGeometry(piece.footprint, piece.height), [piece.footprint, piece.height])
+  // Visual height only — cover/LoS still read the data's real `piece.height` via the engine's own
+  // terrain service, never this capped value.
+  const visualHeight = Math.min(piece.height, BLOCK_VISUAL_CAP)
+  const geometry = useMemo(() => extrudedPolygonGeometry(piece.footprint, visualHeight), [piece.footprint, visualHeight])
   const lidGeometry = useMemo(
-    () => (lid ? extrudedPolygonGeometry(insetPolygon(piece.footprint, 0.4), piece.height * 0.18) : null),
-    [lid, piece.footprint, piece.height],
+    () => (lid ? extrudedPolygonGeometry(insetPolygon(piece.footprint, 0.4), visualHeight * 0.18) : null),
+    [lid, piece.footprint, visualHeight],
   )
   return (
     <group>
       <mesh position={[0, 0, 0]} geometry={geometry}>
-        <meshStandardMaterial color={colors.base} roughness={0.9} side={THREE.DoubleSide} />
+        <meshStandardMaterial color={colors.base} roughness={0.9} side={THREE.DoubleSide} transparent opacity={TERRAIN_OPACITY} />
       </mesh>
       {lidGeometry && (
-        <mesh position={[0, piece.height, 0]} geometry={lidGeometry}>
-          <meshStandardMaterial color={colors.accent} roughness={0.8} side={THREE.DoubleSide} />
+        <mesh position={[0, visualHeight, 0]} geometry={lidGeometry}>
+          <meshStandardMaterial color={colors.accent} roughness={0.8} side={THREE.DoubleSide} transparent opacity={TERRAIN_OPACITY} />
         </mesh>
       )}
     </group>

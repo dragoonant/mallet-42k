@@ -1,11 +1,88 @@
 // One <Figure> per live model, wired to the click behaviour the current PendingDecision calls for
 // (activate/select a friendly unit, target an enemy unit) via decisions.ts; clicking a unit that
 // isn't a legal click for this decision just selects it for the unit card (src/client/ui/UnitCard.tsx).
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useFrame } from '@react-three/fiber'
+import type { Group } from 'three'
 import { Figure } from '../figures'
+import type { Pose } from '../figures'
 import { SelectionRing, TargetRing } from '../board'
 import { useGameStore } from '../store/game'
 import { useUiStore } from '../ui/uiStore'
 import { clickableUnitIds, unitClickAction } from './decisions'
+
+// How long a unit keeps its shoot/melee pose after an AttackSequenceStarted event names it, before
+// easing back to idle.
+const ATTACK_POSE_MS = 700
+const POSITION_EASE_PER_SEC = 10
+
+/** Wraps a model's Figure (+ rings) in a group that eases toward `position` each frame instead of
+ *  snapping there — the only thing that made a move/pile-in/consolidate visually register before. */
+function EasedGroup({ position, children }: { position: readonly [number, number, number]; children: ReactNode }) {
+  const ref = useRef<Group>(null!)
+  const initialized = useRef(false)
+  useFrame((_, delta) => {
+    const g = ref.current
+    if (!g) return
+    if (!initialized.current) {
+      g.position.set(position[0], position[1], position[2])
+      initialized.current = true
+      return
+    }
+    const t = Math.min(1, delta * POSITION_EASE_PER_SEC)
+    g.position.x += (position[0] - g.position.x) * t
+    g.position.y += (position[1] - g.position.y) * t
+    g.position.z += (position[2] - g.position.z) * t
+  })
+  return <group ref={ref}>{children}</group>
+}
+
+/** Tracks which units should currently render a shoot/melee pose, derived from the latest batch of
+ *  AttackSequenceStarted events rather than any live/transient engine state (a whole attack
+ *  sequence resolves within a single step(), so by the time the client sees the result it's already
+ *  over — the event log is the only record that anything happened at all). */
+function useAttackPoses(): Record<string, Pose> {
+  const events = useGameStore((s) => s.events)
+  const [poses, setPoses] = useState<Record<string, Pose>>({})
+  // seq (not array length/index) survives the log's own [-EVENT_LOG_LIMIT:] trimming once a long
+  // game fills it — an index-based "since last render" cursor would silently stop seeing new events
+  // the moment the buffer starts dropping its oldest entries.
+  const lastSeenSeq = useRef(-1)
+  const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+
+  useEffect(() => {
+    if (events.length === 0) return
+    const latestSeq = events[events.length - 1].seq
+    if (latestSeq < lastSeenSeq.current) {
+      // a lower seq than we've already seen means a new game started under us
+      lastSeenSeq.current = -1
+      setPoses({})
+    }
+    const fresh = events.filter((e) => e.seq > lastSeenSeq.current)
+    lastSeenSeq.current = latestSeq
+    for (const e of fresh) {
+      if (e.type !== 'AttackSequenceStarted') continue
+      const pose: Pose = e.kind === 'melee' ? 'melee' : 'shoot'
+      setPoses((prev) => ({ ...prev, [e.unitId]: pose }))
+      clearTimeout(timers.current[e.unitId])
+      timers.current[e.unitId] = setTimeout(() => {
+        setPoses((prev) => {
+          if (prev[e.unitId] !== pose) return prev
+          const next = { ...prev }
+          delete next[e.unitId]
+          return next
+        })
+      }, ATTACK_POSE_MS)
+    }
+  }, [events])
+
+  useEffect(() => {
+    const t = timers.current
+    return () => Object.values(t).forEach(clearTimeout)
+  }, [])
+
+  return poses
+}
 
 export function UnitsLayer() {
   const state = useGameStore((s) => s.state)
@@ -15,6 +92,7 @@ export function UnitsLayer() {
   const dispatch = useGameStore((s) => s.dispatch)
   const selectedUnitId = useUiStore((s) => s.selectedUnitId)
   const selectUnit = useUiStore((s) => s.selectUnit)
+  const attackPoses = useAttackPoses()
 
   if (!state) return null
 
@@ -28,6 +106,7 @@ export function UnitsLayer() {
         const faction = state.players[unit.player].faction
         const isSelected = unit.id === selectedUnitId
         const isClickable = interactive && clickable.has(unit.id)
+        const pose = attackPoses[unit.id] ?? 'idle'
 
         const handleClick = () => {
           if (isClickable && pending) {
@@ -46,11 +125,11 @@ export function UnitsLayer() {
               const m = state.models[modelId]
               if (!m) return null
               return (
-                <group key={modelId}>
+                <EasedGroup key={modelId} position={[m.pos.x, m.pos.y, m.pos.z]}>
                   <Figure
                     datasheetId={unit.datasheetId}
                     faction={faction}
-                    position={[m.pos.x, m.pos.y, m.pos.z]}
+                    pose={pose}
                     rotationY={m.facing}
                     selected={isSelected}
                     highlighted={isClickable}
@@ -59,9 +138,9 @@ export function UnitsLayer() {
                       handleClick()
                     }}
                   />
-                  {isSelected && <SelectionRing pos={{ x: m.pos.x, z: m.pos.z }} baseRadius={m.base.radius} />}
-                  {isClickable && <TargetRing pos={{ x: m.pos.x, z: m.pos.z }} baseRadius={m.base.radius} />}
-                </group>
+                  {isSelected && <SelectionRing pos={{ x: 0, z: 0 }} baseRadius={m.base.radius} />}
+                  {isClickable && <TargetRing pos={{ x: 0, z: 0 }} baseRadius={m.base.radius} />}
+                </EasedGroup>
               )
             })}
           </group>

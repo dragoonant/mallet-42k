@@ -1,7 +1,7 @@
 // Client-side placement math for deployment and moves. Purely presentational input-building — every
 // placement produced here is just a *proposed* Action; the engine (src/engine) is the sole authority
 // on legality and will reject anything invalid via step()'s rejection, never mutated here.
-import type { Model, ModelPlacement } from '@/engine'
+import { basesOverlap, unitModels, type GameState, type Model, type ModelPlacement, type UnitId } from '@/engine'
 
 export interface Anchor2D {
   x: number
@@ -56,4 +56,41 @@ export function deploymentFormation(models: Model[], anchor: Anchor2D): ModelPla
 
 export function distance2D(a: Anchor2D, b: Anchor2D): number {
   return Math.hypot(b.x - a.x, b.z - a.z)
+}
+
+/** A unit's own live models plus its attached leader/bodyguard's, if any — a bodyguard + its
+ *  attached Leader place/move as one drop (10-rules R-10.1), so any placement UI (deployment, and
+ *  the four move-family decisions) needs both units' models, not just the activated unit's own. */
+export function combinedUnitModels(state: GameState, unitId: UnitId): Model[] {
+  const unit = state.units[unitId]
+  if (!unit) return []
+  const partnerId = unit.attachedLeaderId ?? unit.bodyguardUnitId ?? null
+  const models = unitModels(state, unitId)
+  if (partnerId && state.units[partnerId]) models.push(...unitModels(state, partnerId))
+  return models
+}
+
+/** True if any drafted placement's base would overlap a model already on the board (excluding the
+ *  unit(s) currently being placed) — used to colour a placement draft red/green before Confirm
+ *  instead of only surfacing the overlap as a rejection toast after the click. */
+export function placementsOverlapExisting(
+  state: GameState,
+  placements: { modelId: string; pos: { x: number; y: number; z: number }; facing?: number }[],
+  excludeUnitIds: ReadonlySet<UnitId> = new Set(),
+): boolean {
+  const others: Model[] = []
+  for (const unit of Object.values(state.units)) {
+    if (unit.location !== 'board' || excludeUnitIds.has(unit.id)) continue
+    for (const modelId of unit.models) {
+      const m = state.models[modelId]
+      if (m) others.push(m)
+    }
+  }
+  for (const p of placements) {
+    const model = state.models[p.modelId]
+    if (!model) continue
+    const footprint = { pos: p.pos, facing: p.facing ?? model.facing, base: model.base }
+    if (others.some((other) => basesOverlap(footprint, other))) return true
+  }
+  return false
 }

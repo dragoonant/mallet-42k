@@ -5,6 +5,7 @@
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Text } from '@react-three/drei'
 import { Figure } from './Figure'
+import { resolveBase, resolveFigureKit, useDataBundle } from './data'
 import type { Pose } from './types'
 
 interface GalleryEntry {
@@ -28,7 +29,8 @@ const GALLERY_ENTRIES: GalleryEntry[] = [
 // them tightly and shooting from a modest elevation both matter for "fills a good part of the
 // frame": at a fixed vertical FOV/aspect, an object's share of frame height is ~ height*aspect/rowWidth
 // regardless of distance, so the row's total width is the one lever that actually helps.
-const SPACING = 2.2
+const MIN_SPACING = 2.2
+const BASE_CLEARANCE = 0.5 // gap between two adjacent bases' edges, on top of their own half-widths
 const EDGE_MARGIN = 1.6 // clearance beyond the outermost figure for its base + label
 const ELEVATION_DEG = 20 // camera pitch above the row — a flattering "product shot" angle
 const TARGET_Y = 0.75 // roughly half an infantry figure's height (most entries are infantry/heavy)
@@ -41,19 +43,43 @@ interface FigureGalleryProps {
   faction?: string
 }
 
+function entriesFor(faction?: string): GalleryEntry[] {
+  return faction ? GALLERY_ENTRIES.filter((e) => e.faction === faction) : GALLERY_ENTRIES
+}
+
+/** Row x-positions spaced by each entry's own base half-width (plus a fixed clearance) rather than a
+ *  single fixed spacing — a 60mm Dread and a 32mm Boy no longer share the same slot width, so big
+ *  bases (Warboss, Deffkoptas, Dread) stop overlapping their neighbours. */
+function useRowLayout(entries: GalleryEntry[]): { positions: number[]; totalWidth: number } {
+  const bundle = useDataBundle()
+  const halfWidths = entries.map((e) => {
+    const datasheet = bundle?.datasheets[e.datasheetId]
+    const { archetype } = resolveFigureKit(e.datasheetId, datasheet)
+    const base = resolveBase(datasheet, archetype)
+    return Math.max(base.radiusX, base.radiusZ, MIN_SPACING / 2 - BASE_CLEARANCE)
+  })
+  const positions: number[] = [0]
+  for (let i = 1; i < entries.length; i++) {
+    positions.push(positions[i - 1] + halfWidths[i - 1] + halfWidths[i] + BASE_CLEARANCE)
+  }
+  const totalWidth = entries.length > 0 ? positions[positions.length - 1] + halfWidths[0] + halfWidths[halfWidths.length - 1] : 0
+  return { positions, totalWidth }
+}
+
 export function FigureGallery({ pose = 'idle', faction }: FigureGalleryProps) {
-  const entries = faction ? GALLERY_ENTRIES.filter((e) => e.faction === faction) : GALLERY_ENTRIES
-  const startX = -((entries.length - 1) * SPACING) / 2
+  const entries = entriesFor(faction)
+  const { positions, totalWidth } = useRowLayout(entries)
+  const startX = -(positions[entries.length - 1] ?? 0) / 2
   return (
     <group>
       <mesh position={[0, -0.001, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[entries.length * SPACING + 4, 6]} />
+        <planeGeometry args={[totalWidth + 4, 6]} />
         <meshStandardMaterial color="#2c2f38" />
       </mesh>
       {entries.map((entry, i) => (
-        <group key={entry.datasheetId} position={[startX + i * SPACING, 0, 0]}>
+        <group key={entry.datasheetId} position={[startX + positions[i], 0, 0]}>
           <Figure datasheetId={entry.datasheetId} faction={entry.faction} pose={pose} />
-          <Text position={[0, 0.15, 1.3]} fontSize={0.2} color="#e8e8f2" anchorX="center" anchorY="middle" maxWidth={SPACING - 0.4}>
+          <Text position={[0, 0.15, 1.3]} fontSize={0.2} color="#e8e8f2" anchorX="center" anchorY="middle" maxWidth={MIN_SPACING - 0.4}>
             {entry.label}
           </Text>
         </group>
@@ -70,8 +96,9 @@ const FOV_DEG = 42
  *  around a handful of figures), and the pitch is a fixed, flattering elevation rather than
  *  scaling with distance (which would turn the full 8-wide row into a washed-out bird's-eye shot). */
 export function FigureGalleryStage({ pose = 'idle', faction }: FigureGalleryProps) {
-  const count = (faction ? GALLERY_ENTRIES.filter((e) => e.faction === faction) : GALLERY_ENTRIES).length
-  const rowFitWidth = (count - 1) * SPACING + 2 * EDGE_MARGIN
+  const entries = entriesFor(faction)
+  const { totalWidth } = useRowLayout(entries)
+  const rowFitWidth = totalWidth + 2 * EDGE_MARGIN
   const halfVFov = (FOV_DEG / 2) * (Math.PI / 180)
   const halfHFov = Math.atan(Math.tan(halfVFov) * ASSUMED_ASPECT)
   const distance = rowFitWidth / 2 / Math.tan(halfHFov)

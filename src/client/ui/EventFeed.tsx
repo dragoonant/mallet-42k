@@ -1,7 +1,9 @@
 // Rolling feed of engine events in plain language (docs/spec/50-client.md §5 "Action log", trimmed
-// to a read-only feed — undo/replay are out of scope for a first playable pass).
+// to a read-only feed — undo/replay are out of scope for a first playable pass). Only the events a
+// human actually cares about are shown here; everything else (HitRolled, DecisionRequested, and the
+// rest of the engine's internal bookkeeping) is filtered out rather than printed as a raw type name.
 import type { CSSProperties } from 'react'
-import type { GameEvent, GameState } from '@/engine'
+import type { DamageApplied, GameEvent, GameState } from '@/engine'
 import { useGameStore } from '../store/game'
 import { mutedText, panel } from './theme'
 
@@ -17,38 +19,68 @@ const wrap: CSSProperties = {
   flexDirection: 'column',
   pointerEvents: 'auto',
 }
-const heading: CSSProperties = { fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 }
-const scroll: CSSProperties = { overflowY: 'auto', display: 'flex', flexDirection: 'column-reverse', gap: 3, fontSize: 12 }
+const heading: CSSProperties = { fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6, flex: '0 0 auto' }
+// paddingTop keeps the newest line (rendered first — see column-reverse below) clear of the heading
+// above it; without it the top row read as clipped under the "EVENTS" label.
+const scroll: CSSProperties = { overflowY: 'auto', display: 'flex', flexDirection: 'column-reverse', gap: 4, fontSize: 12, paddingTop: 4 }
 
 function unitName(state: GameState, id: string | null | undefined): string {
   if (!id) return ''
   return state.units[id]?.name ?? id
 }
 
-function describe(e: GameEvent, state: GameState): string {
+function playerName(state: GameState, id: string | null | undefined): string {
+  if (!id) return 'No one'
+  return state.players[id as 'A' | 'B']?.name ?? id
+}
+
+function attackerFrom(state: GameState, source: DamageApplied['source']): string {
+  if ('attackerUnitId' in source) return ` from ${unitName(state, source.attackerUnitId)}`
+  if ('abilityId' in source) return ' from an ability'
+  if ('stratagemId' in source) return ' from a stratagem'
+  return ''
+}
+
+/** null means "not a key event" — filtered out of the feed entirely. */
+function describe(e: GameEvent, state: GameState): string | null {
   switch (e.type) {
     case 'RoundStarted':
       return `Round ${e.round} begins`
     case 'PhaseStarted':
-      return `${e.phase} phase (${e.player})`
+      return `${e.phase[0].toUpperCase()}${e.phase.slice(1)} phase — ${playerName(state, e.player)}`
     case 'UnitDeployed':
       return `${unitName(state, e.unitId)} ${e.toReserves ? 'held in reserve' : 'deployed'}`
+    case 'ReinforcementsArrived':
+      return `${unitName(state, e.unitId)} arrives from reserves`
     case 'MoveDeclared':
-      return `${unitName(state, e.unitId)} declares a ${e.moveType} move`
+      return `${unitName(state, e.unitId)} makes a ${e.moveType} move`
+    case 'DamageApplied':
+      return `${unitName(state, e.unitId)} takes ${e.amount}${e.mortal ? ' mortal' : ''} damage${attackerFrom(state, e.source)}`
     case 'ModelDestroyed':
-      return `A model of ${unitName(state, e.unitId)} falls`
+      return `A model of ${unitName(state, e.unitId)} falls${e.byUnitId ? ` to ${unitName(state, e.byUnitId)}` : ''}`
     case 'UnitDestroyed':
-      return `${unitName(state, e.unitId)} is wiped out`
+      return `${unitName(state, e.unitId)} is wiped out${e.byUnitId ? ` by ${unitName(state, e.byUnitId)}` : ''}`
     case 'BattleShocked':
       return `${unitName(state, e.unitId)} is battle-shocked`
+    case 'BattleShockRecovered':
+      return `${unitName(state, e.unitId)} recovers from battle shock`
+    case 'ChargeDeclared':
+      return `${unitName(state, e.unitId)} declares a charge against ${e.targetUnitIds.map((id) => unitName(state, id)).join(', ')}`
+    case 'ChargeRolled':
+      if (e.needed !== null && e.total < e.needed) return `${unitName(state, e.unitId)}'s charge fails (rolled ${e.total}, needed ${e.needed})`
+      return `${unitName(state, e.unitId)} charges in (rolled ${e.total})`
     case 'CpChanged':
-      return `${e.player} ${e.delta >= 0 ? 'gains' : 'spends'} ${Math.abs(e.delta)} CP (${e.source})`
+      return `${playerName(state, e.player)} ${e.delta >= 0 ? 'gains' : 'spends'} ${Math.abs(e.delta)} CP (${e.source})`
     case 'StratagemUsed':
-      return `${e.player} uses ${state.stratagems[e.stratagemId]?.name ?? e.stratagemId}`
+      return `${playerName(state, e.player)} uses ${state.stratagems[e.stratagemId]?.name ?? e.stratagemId}`
+    case 'ObjectiveSecured':
+      return `${playerName(state, e.by)} secures ${e.objectiveId}`
+    case 'VpScored':
+      return `${playerName(state, e.player)} scores ${e.amount} VP (${e.source})`
     case 'GameEnded':
-      return `Battle ends — ${e.result.winner === 'draw' ? 'draw' : `${e.result.winner} wins`}`
+      return `Battle ends — ${e.result.winner === 'draw' ? 'a draw' : `${playerName(state, e.result.winner)} wins`}`
     default:
-      return e.type
+      return null
   }
 }
 
@@ -56,15 +88,16 @@ export function EventFeed() {
   const state = useGameStore((s) => s.state)
   const events = useGameStore((s) => s.events)
   if (!state) return null
-  const recent = events.slice(-60)
+  const described = events.map((e) => describe(e, state)).filter((s): s is string => s !== null)
+  const recent = described.slice(-40)
 
   return (
     <div style={wrap}>
       <div style={heading}>Events</div>
       <div style={scroll}>
         {recent.length === 0 && <div style={mutedText}>Nothing yet.</div>}
-        {recent.map((e, i) => (
-          <div key={`${e.seq}-${i}`}>{describe(e, state)}</div>
+        {recent.map((text, i) => (
+          <div key={i}>{text}</div>
         ))}
       </div>
     </div>

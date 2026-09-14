@@ -105,11 +105,13 @@ export function resolveFigureKit(datasheetId: string, datasheet?: DatasheetData)
 
 // ---- base disc + figure height ----------------------------------------------------------------
 
+// vehicle bodies (VehicleBody.tsx) are authored small relative to their oval bases — bumped up from
+// 0.95 so a Deffkopta's chassis/rotor actually fills its 75mm base instead of reading as a bare disc.
 const DEFAULT_HEIGHT_BY_ARCHETYPE: Record<ArchetypeKind, number> = {
   infantry: 1.1,
   heavy: 1.3,
   monster: 2.6,
-  vehicle: 0.95,
+  vehicle: 1.8,
 }
 
 export interface ResolvedBase {

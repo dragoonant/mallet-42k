@@ -1,11 +1,23 @@
 // Selected-unit inspector (docs/spec/50-client.md §5 "Unit card"). Selection comes from
 // src/client/interaction/UnitsLayer.tsx clicking a Figure; this file only reads state.
-import type { CSSProperties } from 'react'
+import { useEffect, type CSSProperties } from 'react'
 import { useGameStore } from '../store/game'
 import { useUiStore } from './uiStore'
 import { colors, mutedText, panel } from './theme'
 
 const wrap: CSSProperties = { ...panel, position: 'absolute', left: 12, top: 70, width: 220, padding: 14, pointerEvents: 'auto' }
+const closeButton: CSSProperties = {
+  position: 'absolute',
+  top: 6,
+  right: 8,
+  background: 'transparent',
+  border: 'none',
+  color: colors.muted,
+  fontSize: 15,
+  cursor: 'pointer',
+  padding: 4,
+  lineHeight: 1,
+}
 const sectionTitle: CSSProperties = { ...mutedText, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 10, marginBottom: 2 }
 const list: CSSProperties = { margin: 0, paddingLeft: 16, fontSize: 12.5 }
 const warn: CSSProperties = { color: '#ffb84f', fontSize: 12, fontWeight: 600, marginTop: 4 }
@@ -13,6 +25,14 @@ const warn: CSSProperties = { color: '#ffb84f', fontSize: 12, fontWeight: 600, m
 export function UnitCard() {
   const state = useGameStore((s) => s.state)
   const selectedUnitId = useUiStore((s) => s.selectedUnitId)
+  const selectUnit = useUiStore((s) => s.selectUnit)
+  const phase = state?.phase
+
+  // A card left open from a previous phase (e.g. selected mid-deployment) stayed put forever with no
+  // way to dismiss it — clear the selection whenever the phase moves on.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => selectUnit(null), [phase])
+
   if (!state || !selectedUnitId) return null
   const unit = state.units[selectedUnitId]
   if (!unit) return null
@@ -25,6 +45,9 @@ export function UnitCard() {
 
   return (
     <div style={wrap} data-testid="unit-card">
+      <button style={closeButton} data-testid="unit-card-close" aria-label="Close" onClick={() => selectUnit(null)}>
+        ✕
+      </button>
       <div style={{ color, fontWeight: 700 }}>{unit.name}</div>
       <div style={mutedText}>{state.players[unit.player].name}</div>
       <div style={{ fontSize: 13, marginTop: 6 }}>

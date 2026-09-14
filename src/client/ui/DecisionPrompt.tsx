@@ -3,11 +3,70 @@
 // other decision kind — including declareTargets/declareCharge, which also accept a click on an enemy
 // Figure via UnitsLayer — renders as a plain clickable list here, so no decision can ever get stuck.
 import { useEffect, type CSSProperties } from 'react'
-import type { Action, DecisionOption, GameState, PendingDecision } from '@/engine'
+import { distance as edgeGap, unitModels, type Action, type DecisionOption, type GameState, type PendingDecision, type PlayerId } from '@/engine'
 import { useGameStore } from '../store/game'
 import { useUiStore } from './uiStore'
-import { placementInfo } from '../interaction'
+import { distance2D, modelsAnchor, placementInfo } from '../interaction'
 import { buttonBase, buttonDanger, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
+
+/** The nearest thing worth orienting a move/charge/pile-in/consolidate destination against — an
+ *  objective it lands on, or the nearest enemy unit — so a suggested placement reads as "toward
+ *  Boyz, 5.2"" instead of a bare distance. */
+function nearestReference(state: GameState, player: PlayerId, at: { x: number; z: number }): string | null {
+  let objective: { id: string; d: number } | null = null
+  for (const o of Object.values(state.objectives)) {
+    if (o.removed) continue
+    const d = Math.hypot(at.x - o.pos.x, at.z - o.pos.z)
+    if (!objective || d < objective.d) objective = { id: o.id, d }
+  }
+  if (objective && objective.d <= 3) return `onto ${objective.id} objective`
+
+  let enemy: { name: string; d: number } | null = null
+  for (const u of Object.values(state.units)) {
+    if (u.player === player || u.location !== 'board') continue
+    for (const modelId of u.models) {
+      const m = state.models[modelId]
+      if (!m) continue
+      const d = Math.hypot(at.x - m.pos.x, at.z - m.pos.z)
+      if (!enemy || d < enemy.d) enemy = { name: u.name, d }
+    }
+  }
+  return enemy ? `toward ${enemy.name}` : null
+}
+
+/** "5.2\" toward Boyz" (or "3.0\" onto west objective") for a moveUnit/chargeMove/pileIn/consolidate
+ *  action's placements, relative to the unit's current position — the raw ModelPlacement[] on its
+ *  own tells a human nothing about where the suggestion actually goes. */
+function placementSummary(state: GameState, unitId: string, placements: { pos: { x: number; z: number } }[]): string {
+  const unit = state.units[unitId]
+  const models = unitModels(state, unitId)
+  if (!unit || models.length === 0 || placements.length === 0) return ''
+  const from = modelsAnchor(models)
+  const to = { x: placements.reduce((s, p) => s + p.pos.x, 0) / placements.length, z: placements.reduce((s, p) => s + p.pos.z, 0) / placements.length }
+  const dist = distance2D(from, to)
+  const ref = nearestReference(state, unit.player, to)
+  return `${dist.toFixed(1)}"${ref ? ` ${ref}` : ''}`
+}
+
+/** Edge-to-edge gap a charging unit still needs to close against the hardest of its declared
+ *  targets — the same "roll 2D6, need at least this many inches" a player would work out by eye. */
+function chargeDistanceNeeded(state: GameState, unitId: string, targetUnitIds: string[]): number | null {
+  const attackers = unitModels(state, unitId)
+  if (attackers.length === 0 || targetUnitIds.length === 0) return null
+  let worst = 0
+  let any = false
+  for (const targetId of targetUnitIds) {
+    const targets = unitModels(state, targetId)
+    if (targets.length === 0) continue
+    let min = Infinity
+    for (const a of attackers) for (const t of targets) min = Math.min(min, edgeGap(a, t))
+    if (Number.isFinite(min)) {
+      any = true
+      worst = Math.max(worst, min)
+    }
+  }
+  return any ? worst : null
+}
 
 const KIND_TITLE: Partial<Record<PendingDecision['kind'], string>> = {
   deployUnit: 'Deploy your forces',
@@ -41,8 +100,19 @@ function describeAction(a: Action, state: GameState): string {
       return `${a.moveType.charAt(0).toUpperCase()}${a.moveType.slice(1)} move`
     case 'declareTargets':
       return a.targets.length > 0 ? `Target ${unitName(a.targets[0].targetUnitId)}` : 'Hold fire'
-    case 'declareCharge':
-      return `Charge ${a.targetUnitIds.map(unitName).join(', ')}`
+    case 'declareCharge': {
+      const names = a.targetUnitIds.map(unitName).join(', ')
+      const needed = chargeDistanceNeeded(state, a.unitId, a.targetUnitIds)
+      return needed !== null ? `Charge ${names}, need ${needed.toFixed(1)}"` : `Charge ${names}`
+    }
+    case 'moveUnit':
+    case 'chargeMove':
+    case 'pileIn':
+    case 'consolidate': {
+      const verb = { moveUnit: 'Move', chargeMove: 'Charge move', pileIn: 'Pile in', consolidate: 'Consolidate' }[a.type]
+      const summary = placementSummary(state, a.unitId, a.placements)
+      return summary ? `${verb} ${summary}` : verb
+    }
     case 'allocateAttack':
       return `Allocate to ${state.models[a.modelId]?.datasheetModelId ?? a.modelId}`
     case 'useStratagem':
@@ -58,7 +128,9 @@ function describeAction(a: Action, state: GameState): string {
     case 'deployUnit':
       return a.toReserves ? `Hold ${unitName(a.unitId)} in reserve` : `Deploy ${unitName(a.unitId)} here`
     default:
-      return `${a.type} option`
+      // Exhaustive today, but a future Action variant should still render as *something* clickable
+      // rather than crash — hence the cast (this branch is unreachable for the current union).
+      return `${(a as Action).type} option`
   }
 }
 
@@ -105,6 +177,7 @@ export function DecisionPrompt() {
   const dispatch = useGameStore((s) => s.dispatch)
   const draft = useUiStore((s) => s.draft)
   const setDraft = useUiStore((s) => s.setDraft)
+  const setPreviewDraft = useUiStore((s) => s.setPreviewDraft)
   const deployTargetUnitId = useUiStore((s) => s.deployTargetUnitId)
   const setDeployTarget = useUiStore((s) => s.setDeployTarget)
   const resetForDecision = useUiStore((s) => s.resetForDecision)
@@ -199,20 +272,34 @@ export function DecisionPrompt() {
 
       {showFallbackList && (
         <div style={optionList}>
-          {info && listItems.length > 0 && <div style={hint}>Or use a suggested placement:</div>}
-          {listItems.map((it) => (
-            <button
-              key={it.id}
-              data-testid={`prompt-option-${it.id}`}
-              style={buttonBase}
-              onClick={() => {
-                dispatch(it.action)
-                setDraft(null)
-              }}
-            >
-              {it.label}
-            </button>
-          ))}
+          {info && listItems.length > 0 && <div style={hint}>Or use a suggested placement — hover one to preview it:</div>}
+          {listItems.map((it) => {
+            // moveUnit/chargeMove/pileIn/consolidate options carry their own placements — hovering
+            // one shows a ghost of where it lands (PlacementOverlay), same colour as a real draft.
+            const withPlacements =
+              it.action.type === 'moveUnit' || it.action.type === 'chargeMove' || it.action.type === 'pileIn' || it.action.type === 'consolidate'
+                ? it.action
+                : null
+            return (
+              <button
+                key={it.id}
+                data-testid={`prompt-option-${it.id}`}
+                style={buttonBase}
+                onMouseEnter={() => {
+                  if (!withPlacements) return
+                  setPreviewDraft({ decisionId: pending.id, unitId: withPlacements.unitId, anchor: { x: 0, z: 0 }, placements: withPlacements.placements })
+                }}
+                onMouseLeave={() => setPreviewDraft(null)}
+                onClick={() => {
+                  setPreviewDraft(null)
+                  dispatch(it.action)
+                  setDraft(null)
+                }}
+              >
+                {it.label}
+              </button>
+            )
+          })}
         </div>
       )}
     </div>

@@ -31,7 +31,7 @@ export function EndScreen({ onPlayAgain }: { onPlayAgain: () => void }) {
   return (
     <div style={overlay} data-testid="end-screen">
       <div style={card}>
-        <h2 style={heading}>{result.winner === 'draw' ? 'Draw' : `${state.players[result.winner].name} wins`}</h2>
+        <h2 style={heading}>{result.winner === 'draw' ? 'Draw' : `Victory: ${state.players[result.winner].name}`}</h2>
         <p style={mutedText}>{reasonLabel(result.reason)}</p>
         <div style={vpRow}>
           <span style={{ color: colors.playerA }} data-testid="end-vp-A">
