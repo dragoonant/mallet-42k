@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
@@ -22,10 +22,34 @@ export interface CameraRigProps {
 export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150 }: CameraRigProps) {
   const controls = useRef<OrbitControlsImpl | null>(null)
   const targetPolar = useRef(OVERVIEW_POLAR)
+  const { camera } = useThree()
 
   useEffect(() => {
     targetPolar.current = topDown ? TOP_DOWN_POLAR : OVERVIEW_POLAR
   }, [topDown])
+
+  useEffect(() => {
+    // e2e/dev hook: lets Playwright re-point the orbit target and camera distance directly (e.g.
+    // over a group of just-deployed models) without simulating mouse drags/wheel zooms. The
+    // topDown lerp above still owns the viewing angle — this only moves target + distance,
+    // preserving whatever azimuth the camera currently has.
+    const w = window as unknown as { __malletCamera?: { lookAt(x: number, z: number, distanceIn: number): void } }
+    w.__malletCamera = {
+      lookAt(x, z, distanceIn) {
+        const c = controls.current
+        if (!c) return
+        const dir = camera.position.clone().sub(c.target)
+        dir.y = Math.max(dir.y, 0.1) // avoid a degenerate (near-zero) direction when already ~overhead
+        dir.normalize().multiplyScalar(THREE.MathUtils.clamp(distanceIn, minDistance, maxDistance))
+        c.target.set(x, 0, z)
+        camera.position.copy(c.target).add(dir)
+        c.update()
+      },
+    }
+    return () => {
+      delete w.__malletCamera
+    }
+  }, [camera, minDistance, maxDistance])
 
   useFrame(() => {
     const c = controls.current
