@@ -1,26 +1,42 @@
-import type { CSSProperties } from 'react'
+// Top-level screen switch (docs/spec/50-client.md). Start screen until a game exists, then the 3D
+// scene with the HUD/prompt overlays on top; the end screen layers over the (still-rendered) board
+// so the final position stays visible behind it.
+import { useState, type CSSProperties } from 'react'
 import { Scene } from './Scene'
+import { useGameStore } from './store/game'
+import { useUiStore } from './ui/uiStore'
+import { StartScreen, Hud, UnitCard, DiceLog, EventFeed, Toast, EndScreen, DecisionPrompt } from './ui'
 
-const overlayStyle: CSSProperties = {
-  position: 'absolute',
-  top: 12,
-  left: 16,
-  color: '#e8e8f2',
-  fontFamily: 'system-ui, -apple-system, sans-serif',
-  fontSize: 18,
-  fontWeight: 600,
-  letterSpacing: 0.4,
-  pointerEvents: 'none',
-  textShadow: '0 1px 3px rgba(0, 0, 0, 0.7)',
-}
+const overlayLayer: CSSProperties = { position: 'absolute', inset: 0, pointerEvents: 'none' }
 
 export function App() {
+  const [screen, setScreen] = useState<'start' | 'game'>('start')
+  const state = useGameStore((s) => s.state)
+  const resetAll = useUiStore((s) => s.resetAll)
+
+  if (screen === 'start' || !state) {
+    return (
+      <StartScreen
+        onStarted={() => {
+          resetAll()
+          setScreen('game')
+        }}
+      />
+    )
+  }
+
   return (
     <div style={{ position: 'fixed', inset: 0, overflow: 'hidden' }}>
       <Scene />
-      <div data-testid="title" style={overlayStyle}>
-        Mallet 42k — M0
+      <div style={overlayLayer}>
+        <Hud />
+        <UnitCard />
+        <DiceLog />
+        <EventFeed />
+        <DecisionPrompt />
+        <Toast />
       </div>
+      <EndScreen onPlayAgain={() => setScreen('start')} />
     </div>
   )
 }

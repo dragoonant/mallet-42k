@@ -79,9 +79,24 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Fixed this stage | Charge feasibility (`chargeFeasible`) and Fight pile-in/consolidate feasibility used only the planner's arrangement, which could pass placement checks yet fail R-8.5/R-9.5 "must end in base contact if possible" → engine raised a `chargeMove`/`pileIn` with no legal answer. Feasibility now = "some candidate passes full validation" (`legalChargeMoves`, `legalApproachMoves`), so an impossible charge fails at the roll. `planChargeMove`'s `tryChargePlacement` never checked end-position overlap with enemy models. Charge re-roll offer/auto re-roll could re-roll a die already Command Re-rolled (R-1.6, threw `applyReroll`). Setup auto-deploy raster could wrap a unit across a row gap (out of coherency). `geometry.baseEdgePoints` memoized (oval gap tests were ~85% of sim time). [interp R-2.6] `movement.ts` `moveRejection`: a unit already out of coherency (mid-turn casualties, e.g. Fire Overwatch at `movement.moveStarted`) that moves no model may end its declared move as it stands — otherwise a declared Normal/Advance move could have no legal answer; the end-of-turn cull resolves it. Coherency-repair candidates check terrain (`canEndAt`/`crossesImpassable`) |
 | Tests | `tests/engine/fullgame.test.ts` — 3 seeded full games (SIM-001/002/003/007/009/015): no violations, `GameResult`, `replay(log)` reproduces the final hash. 669 tests green; `npm run typecheck` clean |
 
+## Client (M3 — first playable client (v0))
+
+| Area | State |
+|---|---|
+| Screens (`src/client/App.tsx`) | Start screen (faction/mission/opponent/seed) → 3D game screen (canvas + HUD/prompt overlays) → end screen layered over the still-rendered board. `StartScreen` builds a real `GameSetup` from `loadBundle()` and calls `useGameStore.newGame()` |
+| Store (`src/client/store/game.ts`) | Zustand store: owns the one `GameState`, drives it only through `engine.step()` (never mutates state directly), keeps `pending`/`legal`/event/dice/action logs, schedules the bot seat (`src/ai/random.ts`'s `RandomDecider`) on a short delay, save/load via `localStorage` (`engine.save`/`load`) |
+| AI (`src/ai/random.ts`) | `RandomDecider` implements the engine's `Decider` interface — uniform pick over `legalActions()` with a bias against `pass` when another action is legal; used for the bot seat and in `tests/client/store.test.ts` |
+| Scene (`src/client/Scene.tsx`, `src/client/board/*`) | R3F canvas: `Board` (44"x30" mat, grid, deployment-zone tint), `Terrain`, `Objectives` (control-coloured rings), `Lighting`, `CameraRig` (orbiting camera, top-down toggle, clamped above the mat) |
+| Figures (`src/client/figures/*`) | Procedural chibi/SD figures built from datasheet base size + a small per-archetype kit config (`BipedBody`/`VehicleBody`/`BaseDisc`, `kitConfigs.ts`) — original designs, not GW sculpts; `FigureGallery`/`FigureGalleryStage` exist as a self-contained preview canvas but are not yet wired into `main.tsx`/`App.tsx` behind a `?gallery` flag |
+| Interaction (`src/client/interaction/*`) | `UnitsLayer` (one `<Figure>` per live model, click-to-activate/target via `decisions.ts`), `boardClick.ts` (board click → placement draft for deployment and the four move-family decisions), `PlacementOverlay` (ghost preview + range ring), `DeathGhosts` (fade-out on model/unit destruction) |
+| UI (`src/client/ui/*`) | `Hud` (round/phase tracker, CP/VP, end-phase/pass), `DecisionPrompt` (bespoke deploy/move controls plus a generic clickable-option list so no decision kind can get stuck), `UnitCard`, `DiceLog`, `EventFeed`, `Toast` (rejection codes), `EndScreen` |
+| How to play | `npm run dev`, pick a faction/mission/opponent (Bot or Hotseat) and Start — alternate `deployUnit` picks (click a unit chip, then click inside your deployment zone), then play phase-by-phase; the HUD's "End phase / Pass" button also serves as the `pass` action; a bot seat plays itself on a short delay |
+| Tests | `tests/client/store.test.ts` — `newGame()` + `RandomDecider` on both seats drives 300 steps through the real bundle without throwing; `tests/e2e/smoke.spec.ts` — Playwright screenshots of the start screen and an in-progress deployment (`e2e-out/01-start.png`, `02-game.png`, `03-closeup.png`, not committed) |
+| Known gaps | `FigureGallery` not wired to a route/flag yet; large single JS chunk (1.5 MB, no code-splitting) — fine for now per owner priority ("something playable fast"); no camera-relative screen-space UI for out-of-view units; AI is uniform-random, not remotely strategic; `src/assets` still unused (figures are procedural, not asset-based) |
+
 ## Not yet built
 
-- AI (`src/ai`), figure assets (`src/assets`) — placeholders only (Combat Patrol data is done, see Data)
+- Figure gallery route/flag; anything beyond the v0 client and random-bot AI
 
 ## Notes for the next agent
 
