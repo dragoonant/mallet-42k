@@ -412,8 +412,10 @@ function finalizeAllocation(ctx: EngineContext, gi: number, group: AttackGroup, 
   // granted Benefit of Cover (Go to Ground, Smokescreen) — the latter isn't weapon-aware, so gate it on Ignores Cover here
   const terrainCover = ctx.services.los.benefitOfCover(s, modelId, a.attackerUnitId, weapon)
   const grantedCover = weapon.kind === 'ranged' && !hasAbility(weapon, 'IGNORES_COVER') && !!ctx.services.hooks.hasBenefitOfCover?.(s, group.targetUnitId)
-  // SHOOT-041/WEAP-020: firing Indirect at a target with no visible model always grants it the benefit of cover
-  const indirectCover = a.kind === 'ranged' && hasAbility(weapon, 'INDIRECT_FIRE') && !ctx.services.los.unitVisible(s, cur.attackerModelId, group.targetUnitId)
+  // SHOOT-041/WEAP-020: firing Indirect at a target with no visible model always grants it the benefit of cover.
+  // Frozen at `attack.begin` (target declaration) via the `indirectNoLos` mark, not re-evaluated live here — same
+  // snapshot the -1 to-hit modifier above reads (SHOOT-041-cover-snapshot; see module header).
+  const indirectCover = a.kind === 'ranged' && hasAbility(weapon, 'INDIRECT_FIRE') && s.phaseState.marks.includes(`indirectNoLos:${cur.attackerModelId}:${group.targetUnitId}=1`)
   let cover = terrainCover || grantedCover || indirectCover
   // SHOOT-041-sv3 (R-3.12): a Sv 3+ or better model gets no cover bonus against AP 0, whatever the cover's source
   if (cover && model && weapon.AP === 0) {
