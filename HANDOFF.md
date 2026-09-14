@@ -106,3 +106,16 @@ findings; route each finding to the loop that owns the file (W2-finish lost a ro
 - Open issues: `hooks.ts` `HookContextFor` Extract→never for shared contexts (frozen-contract fix + 00-architecture note);
   WEAP-030 Psychic tag has no field on `DamageApplied`; Indirect Fire R-6.23 partial; transports not wired to
   decisions; surge move not integrated into shooting; `battleShockTest` overwrites expiry instead of max (R-4.8).
+
+## Resume point (2026-09-14) — supersedes the 2026-09-13 one above
+Owner priority changed: **playable first** (see CLAUDE.md "Owner priority"). Live: https://dragoonant.github.io/mallet-42k/
+- Landed on `main`: W1 phases `5e7ae1e`, integration + headless sim `124aa64` (M1), client v0 `38fcbcb` + playtest
+  fixes `d4f1f1c`, figure gallery `?gallery` `09665f1`, CI test timeouts `39a5a72`, M6 missions/scoring/stratagems UI
+  `9555154`, M5 utility AI `f3ff3c2`, empty-moveUnit fix `d15d725`, M2 measure/LoS/camera `d500220`.
+- Workflows: `w1-stage.js` (`args.lean`), `w3-client.js` (`part: ship|playtest`), `w6-missions.js`, `w4-ai.js`.
+- Figures (M3) parked by owner: procedural placeholders stay until M7 (Meshy/Tripo — needs owner's accounts).
+- Open: AI strong as Orks (6/6 vs random) but weak as Space Marines (~1/6) — melee trades/target priority in
+  `src/ai/utility.ts`/`expected.ts`; AI ignores most faction stratagems; objective OC computed client-side
+  (`src/client/board/controlLevels.ts`) because the engine doesn't export levelOfControl; 1.58 MB JS chunk;
+  charge/pile-in searches are heuristic; ~8 s engine time per headless game.
+- Next options: owner playtest feedback round; Space Marine AI tuning; M8 polish (dice/VFX/audio); M7 models.
