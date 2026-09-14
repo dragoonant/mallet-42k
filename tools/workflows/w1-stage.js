@@ -47,8 +47,12 @@ Module "${m.title}" (files: ${m.files}) failed verification. Coverage ${v.covera
 Fix the module code and add tests for uncovered/failing IDs in tests/engine/${m.key}.test.ts. The verifier's tests/engine/${m.key}.verify.test.ts must pass without being weakened (only edit it if a test contradicts the spec — then cite the spec rule in issues). Same ownership rules. Run 'npx vitest run tests/engine/${m.key}' and 'npm run typecheck'.
 Return JSON: ok, summary (≤60 words), files, issues.`
 
+const LEAN = !!(args && args.lean)
+const LEAN_NOTE = LEAN ? '\nLEAN MODE (owner priority: something playable fast): make the phase work end-to-end in a real game; write at most ~10 focused tests for the main flow; do not chase checklist coverage or write exhaustive edge-case tests.' : ''
+
 async function build(m, opts) {
-  const impl = await agent(implPrompt(m), Object.assign({ label: `impl:${m.key}`, phase: 'Build', schema: RESULT }, opts || {}))
+  const impl = await agent(implPrompt(m) + LEAN_NOTE, Object.assign({ label: `impl:${m.key}`, phase: 'Build', schema: RESULT }, opts || {}))
+  if (LEAN) return { key: m.key, impl: impl ? impl.summary : null, issues: impl ? impl.issues : [], verdict: 'skipped (lean)', coverage: null, failing: [] }
   let v = await agent(verifyPrompt(m), { label: `verify:${m.key}`, phase: 'Build', schema: VERDICT, effort: 'high' })
   let rounds = 0
   while (v && v.verdict === 'needs-fix' && rounds < 2) {
@@ -85,9 +89,10 @@ All engine modules are implemented with per-module tests (see tests/engine). You
 4. 'npm run sim -- --games 100 --seed 1' reports zero violations.
 5. Update STATUS.md (engine lines). Commit: git add src/engine tests tools docs STATUS.md package.json package-lock.json; message "M1: rules engine integrated, headless sim" + blank line + "${ATTR}" (retry on index.lock). git push origin main (pull --rebase first if rejected).
 Return JSON: ok, summary (≤120 words incl. sim stats), files, issues.`
-const integ = await agent(INTEG, { label: 'integrate+sim', schema: RESULT, effort: 'high' })
+const integ = await agent(INTEG + (LEAN ? '\nLEAN MODE: skip step 3 beyond 3 seeded games; goal is that full games run start to finish without crashing.' : ''), { label: 'integrate+sim', schema: RESULT, effort: 'high' })
 log(`integration: ${integ ? (integ.ok ? 'ok' : 'NOT ok') : 'no result'}`)
 
+if (LEAN) return { stage, integration: integ && { ok: integ.ok, summary: integ.summary, issues: integ.issues } }
 phase('Audit')
 const AUDIT = `${COMMON}
 Whole-engine audit. 1) Write tools/checklist-coverage.ts (script 'coverage:rules'): parse every ID in docs/spec/12-rules-test-checklist.md and every test name under tests/engine; print covered/uncovered IDs and any it.skip/it.todo. 2) Run 'npm test', 'npm run typecheck', 'npm run sim -- --games 200 --seed 7'. 3) Fidelity sampling: pick 30 rules spread across all modules (bias toward interactions: stratagem windows during charges, leader allocation with Precision, battle-shock + OC, Devastating Wounds + FNP, Fall Back + Desperate Escape, Overwatch during movement, Fights First ordering) and check the implementation against the spec by reading code and writing tests in tests/engine/audit.test.ts named with IDs. Do not modify engine code.

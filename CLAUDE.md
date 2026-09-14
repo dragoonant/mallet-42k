@@ -4,6 +4,12 @@ Read in this order, nothing else up front: `HANDOFF.md` (current state, next ste
 workflows) → `STATUS.md` (what exists) → `PLAN.md` (scope, decisions, milestones) → `docs/spec/`
 (rules, contracts, schemas — read only the sections a task names).
 
+## Owner priority: playable first (2026-09-13)
+- Something the owner can open and play beats test coverage. Run workflow stages lean (`args.lean: true`):
+  implement + commit, no adversarial verify loops, no whole-engine audit, unless the owner asks.
+- Tests only protect a working build: typecheck, a smoke test, one Playwright playthrough. No chasing
+  checklist coverage. Every stage should end in something visible on Pages or in screenshots.
+
 ## Token rules (the owner is on a metered plan — these are not optional)
 - The main loop never reads whole source files or hand-writes bulk code. It writes workflow scripts,
   reads structured results, and checks in with the owner in ≤10 lines.
