@@ -178,6 +178,47 @@ describe('movement phase — select / declare (MOVE-001..010, 034, 036)', () => 
     expect(pending.context.allowed).toEqual(['stationary'])
   })
 
+  it('MOVE-legal-nonempty declareMove never offers fallBack unless moveUnit can actually answer it (terrain-blocked escape gap)', () => {
+    // Same ring shape as MOVE-010 (contact model + a 4-ring at 2.75" + an 8-ring at 5.25", surrounding the boss on
+    // every side) but with the ring's due-east point pulled out of the way, opening a single escape gap — and a
+    // solid crate parked over exactly that gap. canFallBack used to sample only engagement range and the board
+    // edge (ignoring terrain), so it would see the ER-clear gap and offer 'fallBack'; the real moveUnit generator
+    // then had nowhere terrain-legal to put the model and legalActions() came back empty (the bug this guards).
+    const data = withBundle((b) => {
+      b.terrainLayouts['terrain.test'].pieces.push({
+        id: 'blocker', kind: 'crate', pos: { x: 0, z: 0 }, rot: 0,
+        footprint: [{ x: 1.2, z: -1.6 }, { x: 7, z: -1.6 }, { x: 7, z: 1.6 }, { x: 1.2, z: 1.6 }],
+        height: 3, traits: ['cover'],
+      })
+    })
+    const state = createGameState(makeSetup({ players: { A: makePlayerA({ attachments: [] }), B: makePlayerB() } }), data, 'fixture', ENGINE_VERSION)
+    const modules: ModuleTable = { ...DEFAULT_MODULES, services: { ...DEFAULT_MODULES.services, stratagems: recordingStratagems() } }
+    const { ctx } = createContext(state, new ScriptedRng([]), modules)
+    movementModule.enter(ctx)
+    placeUnit(ctx.state, ABoss, [{ x: 0, y: 0, z: 0 }]) // M6
+    const ring: [number, number][] = [[1, 0]]
+    for (let i = 0; i < 4; i++) {
+      if (i === 0) { ring.push([100, 100]); continue } // pulled off-board-adjacent to open the +x gap at this radius
+      const a = (i * 90 * Math.PI) / 180
+      ring.push([Math.cos(a) * 2.75, Math.sin(a) * 2.75])
+    }
+    for (let i = 0; i < 8; i++) {
+      if (i === 0) { ring.push([200, 200]); continue } // same, at the outer radius
+      const a = (i * 45 * Math.PI) / 180
+      ring.push([Math.cos(a) * 5.25, Math.sin(a) * 5.25])
+    }
+    let i = 0
+    for (const uid of [B, BWarboss, BBrute, BKopta]) {
+      const n = ctx.state.units[uid].models.length
+      placeUnit(ctx.state, uid, ring.slice(i, i + n))
+      i += n
+    }
+    act(ctx, { type: 'chooseUnitToActivate', player: 'A', decisionId: DID, unitId: ABoss })
+    const pending = ctx.state.pending as Extract<PendingDecision, { kind: 'declareMove' }>
+    // the only ER-clear spot is behind the crate — declareMove must not offer a fallBack it can't answer
+    expect(pending.context.allowed).toEqual(['stationary'])
+  })
+
   it('MOVE-034 a unit may only be selected to move once per Movement phase', () => {
     const { ctx } = start({ players: { A: makePlayerA({ attachments: [] }), B: makePlayerB() } })
     placeUnit(ctx.state, ABoss, [{ x: 0, y: 0, z: 0 }])

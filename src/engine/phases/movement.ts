@@ -195,26 +195,16 @@ function checkPaths(state: GameState, moveType: MoveType, result: { rejection: n
   return result
 }
 
-// R-5.10-ish sampling heuristic for MOVE-010 ("no legal end → the option is absent"): does some point within each
-// model's own allowance, ignoring the rest of the unit / terrain / coherency, land outside engagement range and on
-// the board? [interp] — a full reachability search (paths, coherency, terrain) is out of scope for offering options;
-// `moveUnit` still enforces every rule exactly when placements are actually submitted.
+// MOVE-010 ("no legal end → the option is absent"): declareMove must not offer 'fallBack' unless the *real* moveUnit
+// generator (moveUnitCandidatesFor, same terrain/coherency/overlap checks a submitted placement is validated against)
+// can actually produce a legal end for it — otherwise the unit gets stuck with a moveUnit decision that has zero
+// legal actions. This used to be a cheap per-model sampling heuristic that only checked engagement range and the
+// board edge, ignoring terrain and the rest of the unit's coherency/overlap — so it could say "yes" for a spot that
+// was individually ER-clear but actually unreachable (e.g. behind a solid terrain piece, or too cramped for the
+// whole unit to fit together coherently), leaving moveUnit with nothing to offer. Reusing the real generator closes
+// that gap by construction: whatever this finds IS what moveUnit's own legalActions() will find moments later.
 function canFallBack(state: GameState, unitId: UnitId): boolean {
-  const enemies = enemyModelsOnBoard(state, state.units[unitId].player)
-  for (const m of unitModelsForCoherency(state, unitId)) {
-    const M = hookService.statFor(state, { unitId: m.unitId, modelId: m.id, weapon: null, stat: 'M' }, modelStats(state, m).M)
-    let ok = false
-    for (let i = 0; i < 24 && !ok; i++) {
-      const ang = (2 * Math.PI * i) / 24
-      for (const frac of [1, 0.75, 0.5, 0.25]) {
-        const cand: Vec3 = { x: m.pos.x + Math.cos(ang) * M * frac, y: m.pos.y, z: m.pos.z + Math.sin(ang) * M * frac }
-        const fp: Footprint = { pos: cand, facing: m.facing, base: m.base }
-        if (whollyOnBoard(fp, state.board) && !anyWithinEngagementRange(fp, enemies)) { ok = true; break }
-      }
-    }
-    if (!ok) return false
-  }
-  return true
+  return moveUnitCandidatesFor(state, unitId, 'fallBack', state.units[unitId].player, '__probe__').length > 0
 }
 
 function allowedMoveTypes(state: GameState, unitId: UnitId): MoveType[] {
@@ -667,8 +657,11 @@ function doMove(ctx: EngineContext): 'pending' | 'select' {
 
 
 // ---------- legal-action candidates (W1-G: generic Deciders need >=1 concrete answer for continuous decisions) ----------
-function moveUnitCandidates(state: GameState, pending: Extract<PendingDecision, { kind: 'moveUnit' }>): Action[] {
-  const unitId = pending.context.unitId
+// Shared by moveUnitCandidates (the real moveUnit decision) AND canFallBack (the declareMove-time feasibility check,
+// MOVE-010): both need "does some placement of this unit actually validate for this moveType", so declareMove never
+// offers a move type that this generator then fails to answer. Kept a plain (state, unitId, moveType, ...) signature
+// rather than threading a `pending` object through, since canFallBack has no decision to hang one off yet.
+function moveUnitCandidatesFor(state: GameState, unitId: UnitId, moveType: MoveType, player: PlayerId, decisionId: string): Action[] {
   const unit = state.units[unitId]
   if (!unit) return []
   const models = unitModelsForCoherency(state, unitId)
@@ -686,7 +679,7 @@ function moveUnitCandidates(state: GameState, pending: Extract<PendingDecision, 
     if (v) { dirs.push(v); dirs.push({ x: -v.x, z: -v.z }) }
   }
   for (let i = 0; i < 16; i++) dirs.push({ x: Math.cos((2 * Math.PI * i) / 16), z: Math.sin((2 * Math.PI * i) / 16) })
-  const mk = (placements: ModelPlacement[]): Action => ({ type: 'moveUnit', player: pending.player, decisionId: pending.id, unitId, placements })
+  const mk = (placements: ModelPlacement[]): Action => ({ type: 'moveUnit', player, decisionId, unitId, placements })
   const candidates: Action[] = []
   for (const frac of [1, 0.6, 0.3]) for (const d of dirs) candidates.push(mk(translatePlacements(models, d.x * allow * frac, d.z * allow * frac)))
   candidates.push(mk([]))
@@ -707,7 +700,11 @@ function moveUnitCandidates(state: GameState, pending: Extract<PendingDecision, 
       if (frac === 0) break
     }
   }
-  return filterValid(candidates, (a) => (a.type === 'moveUnit' ? moveRejection(state, unitId, pending.context.moveType, a.placements) : null), 6)
+  return filterValid(candidates, (a) => (a.type === 'moveUnit' ? moveRejection(state, unitId, moveType, a.placements) : null), 6)
+}
+
+function moveUnitCandidates(state: GameState, pending: Extract<PendingDecision, { kind: 'moveUnit' }>): Action[] {
+  return moveUnitCandidatesFor(state, pending.context.unitId, pending.context.moveType, pending.player, pending.id)
 }
 
 function arrivalCandidates(state: GameState, pending: Extract<PendingDecision, { kind: 'deployUnit' }>): Action[] {
