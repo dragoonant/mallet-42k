@@ -49,30 +49,36 @@ The playtest found blockers (JSON): ${JSON.stringify(pt.blockers)}. Notes: ${pt.
 Fix them in src/client/** or src/ai/random.ts (not src/engine; for engine bugs describe them in issues). Keep tests/e2e/play.spec.ts passing without weakening it. Run 'npm run typecheck', 'npm run build', 'npm run e2e -- play.spec.ts'.
 Return JSON: ok, summary (≤80 words), files, issues.`
 
-phase('Build')
-const built = await parallel(BUILD.map(b => () => agent(b.prompt, { label: `build:${b.key}`, phase: 'Build', schema: RESULT, model: 'sonnet' })))
+const SHIP = (msg, extra) => `${COMMON}
+Land the client. Run 'npm run typecheck' and 'npm run build' — make minimal fixes if red. Do not add tests. ${extra}
+Update STATUS.md client lines (what exists, how to play, known gaps) — git pull --rebase first; another stage (engine integration) may be committing concurrently, so only git add your paths. Commit: git add src/client src/ai tests/client tests/e2e STATUS.md; message "${msg}" + blank line + "${ATTR}" (retry if .git/index.lock). git push origin main (pull --rebase if rejected). Do not commit e2e-out/.
+Return JSON: ok, summary (≤60 words), files (include absolute screenshot paths), issues.`
 
-phase('Wire')
-const wired = await agent(WIRE, { label: 'wire:ui', phase: 'Wire', schema: RESULT, model: 'sonnet' })
-
-phase('Playtest')
-let pt = await agent(playtestPrompt(1), { label: 'playtest1', phase: 'Playtest', schema: PLAYTEST, effort: 'high' })
-let fixes = []
-for (let r = 2; pt && pt.blockers.length && r <= 3; r++) {
-  const f = await agent(fixPrompt(pt), { label: `fix${r - 1}`, phase: 'Playtest', schema: RESULT, model: 'sonnet' })
-  fixes.push(f && f.summary)
-  pt = await agent(playtestPrompt(r), { label: `playtest${r}`, phase: 'Playtest', schema: PLAYTEST, effort: 'high' })
+const part = (args && args.part) || 'ship'
+if (part === 'ship') {
+  // Fail fast: build, wire, push a first playable-ish version with screenshots. No playtest loop.
+  phase('Build')
+  const built = await parallel(BUILD.map(b => () => agent(b.prompt, { label: `build:${b.key}`, phase: 'Build', schema: RESULT, model: 'sonnet' })))
+  phase('Wire')
+  const wired = await agent(WIRE, { label: 'wire:ui', phase: 'Wire', schema: RESULT, model: 'sonnet' })
+  phase('Ship')
+  const ship = await agent(SHIP('M3: first playable client (v0)', `Then take screenshots with a quick Playwright script (tests/e2e/smoke.spec.ts; config builds + previews on 4173 under /mallet-42k/; 'npx playwright install chromium' if missing): e2e-out/01-start.png, 02-game.png (after Start, board with deployed/deploying figures), 03-closeup.png (camera close on figures), 00-figures.png (FigureGallery via ?gallery if wired, else skip). Read the PNGs; if the scene is blank or broken, fix the obvious cause once and retake.`), { label: 'ship:v0', phase: 'Ship', schema: RESULT, model: 'sonnet' })
+  return {
+    built: built.filter(Boolean).map(b => ({ ok: b.ok, summary: b.summary, issues: b.issues.slice(0, 3) })),
+    wired: wired && { ok: wired.ok, summary: wired.summary, issues: wired.issues.slice(0, 5) },
+    ship: ship && { ok: ship.ok, summary: ship.summary, files: ship.files.filter(f => f.endsWith('.png')), issues: ship.issues },
+  }
 }
 
+// part === 'playtest': one browser playtest → one fix → ship.
+phase('Playtest')
+const pt = await agent(playtestPrompt(1), { label: 'playtest', phase: 'Playtest', schema: PLAYTEST, effort: 'high' })
+let fix = null
+if (pt && pt.blockers.length) fix = await agent(fixPrompt(pt), { label: 'fix', phase: 'Playtest', schema: RESULT, model: 'sonnet' })
 phase('Ship')
-const ship = await agent(`${COMMON}
-Land the playable client. Run 'npm run typecheck', 'npm test', 'npm run build' — make minimal fixes if red (never weaken tests). Update STATUS.md (client lines: what exists, how to play, known gaps). Commit: git add src/client src/ai tests tools STATUS.md package.json package-lock.json; message "M3: playable client (vs random bot + hotseat), procedural SD figures" + blank line + "${ATTR}" (retry if .git/index.lock). git push origin main (pull --rebase if rejected). Do not commit e2e-out/.
-Return JSON: ok, summary (≤60 words), files, issues.`, { label: 'ship', phase: 'Ship', schema: RESULT, model: 'sonnet' })
-
+const ship = await agent(SHIP('M3: playtest fixes', ''), { label: 'ship', phase: 'Ship', schema: RESULT, model: 'sonnet' })
 return {
-  built: built.filter(Boolean).map(b => ({ ok: b.ok, summary: b.summary, issues: b.issues.slice(0, 4) })),
-  wired: wired && { ok: wired.ok, summary: wired.summary, issues: wired.issues.slice(0, 6) },
   playtest: pt && { playable: pt.playable, reached: pt.reached, blockers: pt.blockers.map(b => b.what), screenshots: pt.screenshots, notes: pt.notes },
-  fixes,
+  fix: fix && fix.summary,
   ship: ship && { ok: ship.ok, summary: ship.summary, issues: ship.issues },
 }
