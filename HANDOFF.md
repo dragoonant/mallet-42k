@@ -93,3 +93,16 @@ findings; route each finding to the loop that owns the file (W2-finish lost a ro
 - Two agents editing `package.json`/`npm install` concurrently will corrupt `node_modules` — only one stage runs at a time now, and only commit/integration agents may install.
 - The M0 client scene is a placeholder; W3 replaces `src/client/Scene.tsx` entirely.
 - Shell cwd in the desktop app can reset between Bash calls — use absolute paths everywhere.
+
+## Resume point (2026-09-13, Opus session suspended for tokens)
+- Done on `main`: doc fixes `0dc85a4`, W1 foundations `9313cb4`, W1 systems `3867f5a` (558 tests green).
+- W1 **phases** was stopped mid-run. Its partial work (shooting/charge/fight + tests; typecheck clean,
+  664/665 tests — failing: `SHOOT-041-cover-snapshot` in `tests/engine/shooting.verify.test.ts`) is saved
+  on branch `wip/phases` (not merged, main not deployed with it). Next session: either
+  `git merge wip/phases`, fix that test, commit, or discard the branch; then rerun
+  `w1-stage.js {stage:'phases'}` (it rebuilds on whatever is in the tree), then `integration`, then W3 stage A.
+- Unverified fixes to re-check in integration: foundations LOS verify3 findings and all systems verify3
+  findings were fixed by the commit agent without a re-verify. Movement checklist coverage 49/61.
+- Open issues: `hooks.ts` `HookContextFor` Extract→never for shared contexts (frozen-contract fix + 00-architecture note);
+  WEAP-030 Psychic tag has no field on `DamageApplied`; Indirect Fire R-6.23 partial; transports not wired to
+  decisions; surge move not integrated into shooting; `battleShockTest` overwrites expiry instead of max (R-4.8).
