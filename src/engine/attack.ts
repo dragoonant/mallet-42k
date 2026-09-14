@@ -26,6 +26,13 @@
 //   `pendingDetach:<unitId>` mark, and `advance` runs the real `leaderService.detach` only once the whole sequence
 //   (including any mortal-wound queue) has finished, so the rest of the volley still allocates against the combined
 //   halves and any queued mortal wounds still spill onto the attached CHARACTER (SHOOT-048, LEAD-014).
+// - [BIG GUNS NEVER TIRE] R-6.3's -1 to hit is "if the unit was in ER when targets were selected", and [INDIRECT
+//   FIRE]'s -1/auto-fail (R-6.23) is likewise about the target's visibility when it was declared — neither may be
+//   re-evaluated live at each hit roll, or an engaging enemy dying (or a blocking model dying) mid-volley would
+//   retroactively change an already-declared attack's modifier (SHOOT-005-timing). `begin` snapshots both into
+//   `bgntAttacker=1` / `bgntTarget:<targetUnitId>=1` / `indirectNoLos:<modelId>:<targetUnitId>=1` marks the instant
+//   the sequence starts (which for the Shooting phase is the instant targets are declared), and `doHitStage` reads
+//   only those marks — never `leaderService`/`los` live — for these two modifiers.
 import type { DiceExpr, WeaponAbilityName } from '../data/types'
 import { clampHitWoundModifier, clampStat, dieSucceeds, netModifier, parseDiceExpr, rollSum, woundRollNeeded } from './dice'
 import { distance } from './geometry'
@@ -295,22 +302,19 @@ function doHitStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pendin
     const stealthHalves = targetHalves.length > 0 ? targetHalves : [group.targetUnitId]
     if (stealthHalves.every((id) => datasheetOf(s, id).coreAbilities.some((c) => c.ability === 'STEALTH'))) manualMods.push(-1)
     // SHOOT-041/WEAP-020: Indirect Fire vs a target with no visible model — -1 to hit, and (below) an unmodified
-    // roll of 3 or less always fails; the target still counts as being in cover (R-3.14, applied at allocation)
-    if (hasAbility(weapon, 'INDIRECT_FIRE') && !ctx.services.los.unitVisible(s, attackerModelId, group.targetUnitId)) {
+    // roll of 3 or less always fails; the target still counts as being in cover (R-3.14, applied at allocation).
+    // Frozen at `attack.begin` (target declaration), not re-evaluated live here — see module header.
+    if (hasAbility(weapon, 'INDIRECT_FIRE') && s.phaseState.marks.includes(`indirectNoLos:${attackerModelId}:${group.targetUnitId}=1`)) {
       indirectNoLos = true
       manualMods.push(-1)
     }
-    // SHOOT-005 Big Guns Never Tire: a MONSTER/VEHICLE (attacker or target) in Engagement Range takes -1 to hit
-    // with a non-Pistol ranged weapon
+    // SHOOT-005/007 Big Guns Never Tire: a MONSTER/VEHICLE attacker in Engagement Range, or an enemy MONSTER/VEHICLE
+    // target in Engagement Range of ANY unit of the attacker's army, takes -1 to hit with a non-Pistol ranged
+    // weapon — both snapshotted at `attack.begin` (target declaration), not re-evaluated live here (SHOOT-005-timing;
+    // see module header).
     if (!hasAbility(weapon, 'PISTOL')) {
-      const attackerKeywords = keywordsOf(s, a.attackerUnitId)
-      const attackerBig = attackerKeywords.includes('MONSTER') || attackerKeywords.includes('VEHICLE')
-      const targetKeywords = keywordsOf(s, group.targetUnitId)
-      const targetBig = targetKeywords.includes('MONSTER') || targetKeywords.includes('VEHICLE')
-      const attackerEngaged = attackerBig && (leaderService.inEngagementWithEnemy ? leaderService.inEngagementWithEnemy(s, a.attackerUnitId) : false)
-      // SHOOT-007 (R-6.3): an enemy MONSTER/VEHICLE in Engagement Range of ANY friendly unit (not only the shooter)
-      const targetEngaged = targetBig && !!leaderService.unitsInEngagement && Object.values(s.units).some((u) =>
-        u.player === attackerUnit.player && u.location === 'board' && leaderService.unitsInEngagement(s, u.id, group.targetUnitId))
+      const attackerEngaged = s.phaseState.marks.includes('bgntAttacker=1')
+      const targetEngaged = s.phaseState.marks.includes(`bgntTarget:${group.targetUnitId}=1`)
       if (attackerEngaged || targetEngaged) manualMods.push(-1)
     }
   }
@@ -792,13 +796,21 @@ function rollDeadlyDemise(ctx: EngineContext, model: Model, valueExpr: DiceExpr)
 
 // prefixes that only ever mean something WITHIN the one attack sequence that wrote them — stale entries left over
 // from an earlier, already-finished sequence in the same phase must never leak into a new one (SHOOT-046-dice)
-const SEQUENCE_SCOPED_MARK_PREFIXES = ['roll:', 'rerollOffered:', 'precisionDeclined:','hazardous:', 'groupTouched:', 'mortalAlloc:', 'mortalBatchSeq:', 'blastCount:', 'pendingDetach:']
+const SEQUENCE_SCOPED_MARK_PREFIXES = ['roll:', 'rerollOffered:', 'precisionDeclined:','hazardous:', 'groupTouched:', 'mortalAlloc:', 'mortalBatchSeq:', 'blastCount:', 'pendingDetach:', 'bgntAttacker', 'bgntTarget:', 'indirectNoLos:']
 
 export const attackService: AttackService = {
   begin(ctx, spec) {
     ctx.state.phaseState.marks = ctx.state.phaseState.marks.filter((m) => !SEQUENCE_SCOPED_MARK_PREFIXES.some((p) => m.startsWith(p)))
     const targetUnitIds = [...new Set(spec.targets.map((t) => t.targetUnitId))]
     const groups: AttackGroup[] = []
+    // SHOOT-005-timing (R-6.3): Big Guns Never Tire's -1 to hit is decided once, right now — "when targets were
+    // selected" — not re-derived from live board state at every hit roll (see module header).
+    const attackerKeywords = keywordsOf(ctx.state, spec.attackerUnitId)
+    const attackerBig = attackerKeywords.includes('MONSTER') || attackerKeywords.includes('VEHICLE')
+    if (attackerBig && leaderService.inEngagementWithEnemy(ctx.state, spec.attackerUnitId)) {
+      ctx.state.phaseState.marks.push('bgntAttacker=1')
+    }
+    const attackerPlayer = ctx.state.units[spec.attackerUnitId]?.player
     for (const targetUnitId of targetUnitIds) {
       const entries = spec.targets.filter((t) => t.targetUnitId === targetUnitId)
       const order: WeaponId[] = []
@@ -812,6 +824,21 @@ export const attackService: AttackService = {
       // BLAST stays correct even after an earlier group in this same sequence has thinned the target
       const count = leaderService.combinedModels ? leaderService.combinedModels(ctx.state, targetUnitId).length : unitModels(ctx.state, targetUnitId).length
       ctx.state.phaseState.marks.push(`blastCount:${targetUnitId}=${count}`)
+      // SHOOT-007 (R-6.3): the target-side half of Big Guns Never Tire — a MONSTER/VEHICLE target engaged with ANY
+      // unit of the attacker's army — snapshotted the same way.
+      const targetKeywords = keywordsOf(ctx.state, targetUnitId)
+      const targetBig = targetKeywords.includes('MONSTER') || targetKeywords.includes('VEHICLE')
+      const targetEngaged = targetBig && Object.values(ctx.state.units).some((u) =>
+        u.player === attackerPlayer && u.location === 'board' && leaderService.unitsInEngagement(ctx.state, u.id, targetUnitId))
+      if (targetEngaged) ctx.state.phaseState.marks.push(`bgntTarget:${targetUnitId}=1`)
+    }
+    // SHOOT-041/WEAP-020 (R-6.23): Indirect Fire's -1-to-hit/auto-fail is likewise about visibility "when [the
+    // target] was selected" — snapshotted per (firing model, target) here rather than re-checked live per roll.
+    for (const t of spec.targets) {
+      const w = weaponService.effectiveWeapon(ctx.state, t.modelId, t.weaponId)
+      if (w && hasAbility(w, 'INDIRECT_FIRE') && !ctx.services.los.unitVisible(ctx.state, t.modelId, t.targetUnitId)) {
+        ctx.state.phaseState.marks.push(`indirectNoLos:${t.modelId}:${t.targetUnitId}=1`)
+      }
     }
     ctx.state.phaseState.attack = {
       kind: spec.kind, attackerUnitId: spec.attackerUnitId, overwatch: spec.overwatch, targets: spec.targets, groups, current: null,
