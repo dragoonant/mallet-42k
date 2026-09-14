@@ -5,7 +5,6 @@ export { Terrain } from './Terrain'
 export type { TerrainProps } from './Terrain'
 
 export { Objectives } from './Objectives'
-export type { ObjectivesProps } from './Objectives'
 
 export { Lighting } from './Lighting'
 
@@ -19,6 +18,8 @@ export { SelectionRing, TargetRing, EngagementRing, MoveRangeRing } from './Ring
 export type { SelectionRingProps, TargetRingProps, EngagementRingProps, MoveRangeRingProps } from './Rings'
 
 export { boardPointFromWorld } from './geometry'
+
+export { liveControlLevels } from './controlLevels'
 
 export type { ObjectiveView, ObjectiveController, DeploymentZones, Vec2, Polygon, PlayerId } from './types'
 export { SIDE_COLOR, NEUTRAL_COLOR } from './types'

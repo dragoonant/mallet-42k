@@ -2,9 +2,13 @@
 // to a read-only feed — undo/replay are out of scope for a first playable pass). Only the events a
 // human actually cares about are shown here; everything else (HitRolled, DecisionRequested, and the
 // rest of the engine's internal bookkeeping) is filtered out rather than printed as a raw type name.
+// CP/VP lines get their own small pinned "Scoring" list above the general feed — mixed in with combat
+// lines they scrolled out of view within seconds of happening (M6 gap).
 import type { CSSProperties } from 'react'
 import type { DamageApplied, GameEvent, GameState } from '@/engine'
+import type { DataBundle } from '@/data/types'
 import { useGameStore } from '../store/game'
+import { sourceName } from './labels'
 import { mutedText, panel } from './theme'
 
 const wrap: CSSProperties = {
@@ -12,17 +16,19 @@ const wrap: CSSProperties = {
   position: 'absolute',
   right: 12,
   bottom: 12,
-  width: 210,
-  height: 170,
+  width: 220,
   padding: 10,
   display: 'flex',
   flexDirection: 'column',
+  gap: 8,
   pointerEvents: 'auto',
 }
-const heading: CSSProperties = { fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6, flex: '0 0 auto' }
+const heading: CSSProperties = { fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.6, flex: '0 0 auto' }
 // paddingTop keeps the newest line (rendered first — see column-reverse below) clear of the heading
-// above it; without it the top row read as clipped under the "EVENTS" label.
+// above it; without it the top row read as clipped under the label above.
 const scroll: CSSProperties = { overflowY: 'auto', display: 'flex', flexDirection: 'column-reverse', gap: 4, fontSize: 12, paddingTop: 4 }
+const scoringScroll: CSSProperties = { ...scroll, height: 60 }
+const eventsScroll: CSSProperties = { ...scroll, height: 150 }
 
 function unitName(state: GameState, id: string | null | undefined): string {
   if (!id) return ''
@@ -69,14 +75,10 @@ function describe(e: GameEvent, state: GameState): string | null {
     case 'ChargeRolled':
       if (e.needed !== null && e.total < e.needed) return `${unitName(state, e.unitId)}'s charge fails (rolled ${e.total}, needed ${e.needed})`
       return `${unitName(state, e.unitId)} charges in (rolled ${e.total})`
-    case 'CpChanged':
-      return `${playerName(state, e.player)} ${e.delta >= 0 ? 'gains' : 'spends'} ${Math.abs(e.delta)} CP (${e.source})`
     case 'StratagemUsed':
       return `${playerName(state, e.player)} uses ${state.stratagems[e.stratagemId]?.name ?? e.stratagemId}`
     case 'ObjectiveSecured':
       return `${playerName(state, e.by)} secures ${e.objectiveId}`
-    case 'VpScored':
-      return `${playerName(state, e.player)} scores ${e.amount} VP (${e.source})`
     case 'GameEnded':
       return `Battle ends — ${e.result.winner === 'draw' ? 'a draw' : `${playerName(state, e.result.winner)} wins`}`
     default:
@@ -84,21 +86,46 @@ function describe(e: GameEvent, state: GameState): string | null {
   }
 }
 
+/** Own-words CP/VP line for the pinned Scoring list — the only place these still show up. */
+function describeScoring(e: GameEvent, state: GameState, bundle: DataBundle | null): string | null {
+  if (e.type === 'CpChanged') {
+    const name = sourceName(state, bundle, e.source)
+    return `${playerName(state, e.player)} ${e.delta >= 0 ? 'gains' : 'spends'} ${Math.abs(e.delta)} CP — ${name}`
+  }
+  if (e.type === 'VpScored') {
+    return `${playerName(state, e.player)} +${e.amount} VP — ${sourceName(state, bundle, e.source)}`
+  }
+  return null
+}
+
 export function EventFeed() {
   const state = useGameStore((s) => s.state)
   const events = useGameStore((s) => s.events)
+  const bundle = useGameStore((s) => s.bundle)
   if (!state) return null
-  const described = events.map((e) => describe(e, state)).filter((s): s is string => s !== null)
-  const recent = described.slice(-40)
+
+  const scoring = events.map((e) => describeScoring(e, state, bundle)).filter((s): s is string => s !== null).slice(-30)
+  const described = events.map((e) => describe(e, state)).filter((s): s is string => s !== null).slice(-40)
 
   return (
     <div style={wrap}>
-      <div style={heading}>Events</div>
-      <div style={scroll}>
-        {recent.length === 0 && <div style={mutedText}>Nothing yet.</div>}
-        {recent.map((text, i) => (
-          <div key={i}>{text}</div>
-        ))}
+      <div>
+        <div style={heading}>Scoring</div>
+        <div style={scoringScroll} data-testid="scoring-feed">
+          {scoring.length === 0 && <div style={mutedText}>Nothing yet.</div>}
+          {scoring.map((text, i) => (
+            <div key={i}>{text}</div>
+          ))}
+        </div>
+      </div>
+      <div>
+        <div style={heading}>Events</div>
+        <div style={eventsScroll} data-testid="events-feed">
+          {described.length === 0 && <div style={mutedText}>Nothing yet.</div>}
+          {described.map((text, i) => (
+            <div key={i}>{text}</div>
+          ))}
+        </div>
       </div>
     </div>
   )

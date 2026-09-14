@@ -1015,6 +1015,15 @@ export const attackService: AttackService = {
     const nowDestroyed = removeModel(s, modelId)
     ctx.emit({ type: 'ModelDestroyed', unitId: unit.id, modelId, byPlayer: by.player, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
     ctx.services.hooks.run(ctx, 'onModelDestroyed', { destroyedUnitId: unit.id, destroyedModelId: modelId, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
+    // secondaries (e.g. Wrath of the Emperor) key off which of the killer's own models scored the kill; only a
+    // model-attributed kill counts (mortal wounds / self-inflicted losses carry by.player/by.modelId null).
+    // Reset once per phase by the scoring rule that reads it (missions.ts wrathOfTheEmperorAmount).
+    if (by.player && by.modelId) {
+      const secondaryState = s.players[by.player].secondaryState
+      const killsThisPhase = (secondaryState.killsThisPhase as Record<string, number> | undefined) ?? {}
+      killsThisPhase[by.modelId] = (killsThisPhase[by.modelId] ?? 0) + 1
+      secondaryState.killsThisPhase = killsThisPhase
+    }
     if (nowDestroyed) {
       unit.destroyedBy = { player: by.player ?? s.activePlayer, kind: by.kind, round: s.round, unitId: by.unitId, modelId: by.modelId }
       ctx.emit({ type: 'UnitDestroyed', unitId: unit.id, byPlayer: by.player, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })

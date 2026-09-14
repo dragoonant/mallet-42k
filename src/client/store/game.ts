@@ -27,12 +27,13 @@ import {
 import type { CombatPatrolData, DataBundle, EnhancementData } from '../../data/types'
 import { loadBundle } from '../../data'
 import { RandomDecider } from '../../ai/random'
+import { sourceName } from '../ui/labels'
 
 // ---------- setup defaults ----------
 export type FactionKey = 'space-marines' | 'orks'
 export type OpponentKind = 'bot' | 'hotseat'
 
-const FACTION_ID: Record<FactionKey, Id> = { 'space-marines': 'sm', orks: 'ork' }
+export const FACTION_ID: Record<FactionKey, Id> = { 'space-marines': 'sm', orks: 'ork' }
 const FACTION_LABEL: Record<FactionKey, string> = { 'space-marines': 'Space Marines', orks: 'Orks' }
 const otherFaction = (f: FactionKey): FactionKey => (f === 'space-marines' ? 'orks' : 'space-marines')
 
@@ -87,12 +88,13 @@ function defaultAttachments(bundle: DataBundle, patrol: CombatPatrolData): Playe
   return attachments
 }
 
-function buildPlayerSetup(bundle: DataBundle, factionKey: FactionKey): PlayerSetup {
+function buildPlayerSetup(bundle: DataBundle, factionKey: FactionKey, secondaryId?: string): PlayerSetup {
   const factionId = FACTION_ID[factionKey]
   const patrol = Object.values(bundle.patrols).find((p) => p.faction === factionId)
   if (!patrol) throw new Error(`newGame: no Combat Patrol data for faction "${factionId}"`)
   const enhancement = patrol.enhancements.find((e) => e.default) ?? patrol.enhancements[0]
-  const secondary = patrol.secondaries.find((s) => s.default) ?? patrol.secondaries[0]
+  const chosen = secondaryId ? patrol.secondaries.find((s) => s.id === secondaryId) : undefined
+  const secondary = chosen ?? patrol.secondaries.find((s) => s.default) ?? patrol.secondaries[0]
   const enhancementData = enhancement ? bundle.enhancements[enhancement.id] : undefined
   return {
     name: FACTION_LABEL[factionKey],
@@ -117,7 +119,7 @@ function buildSetup(bundle: DataBundle, opts: NewGameOptions): GameSetup {
     missionId,
     terrainLayoutId,
     players: {
-      A: buildPlayerSetup(bundle, opts.playerFaction),
+      A: buildPlayerSetup(bundle, opts.playerFaction, opts.secondaryId),
       B: buildPlayerSetup(bundle, opponentFaction),
     },
     sides: 'rollOff',
@@ -132,12 +134,19 @@ export interface NewGameOptions {
   playerFaction: FactionKey
   opponent: OpponentKind
   seed: string
+  /** Player A's chosen secondary (patrol.secondaries[].id); falls back to the patrol's default. */
+  secondaryId?: string
 }
 
 export interface ToastMessage {
   id: number
   text: string
   code?: RejectionCode
+}
+
+export interface VpToastMessage {
+  id: number
+  text: string
 }
 
 export interface GameStore {
@@ -150,6 +159,8 @@ export interface GameStore {
   diceLog: DiceRoll[]
   actionLog: Action[]
   toast: ToastMessage | null
+  /** Latest "+N VP — Reason" pop-up (M6 gap: scoring was invisible outside the Events list). */
+  vpToast: VpToastMessage | null
   opponent: OpponentKind | null
   humanSeat: PlayerId
   botSeat: PlayerId | null
@@ -159,6 +170,7 @@ export interface GameStore {
   newGame(opts: NewGameOptions): Promise<void>
   dispatch(action: Action): void
   clearToast(): void
+  clearVpToast(): void
   saveToLocalStorage(key?: string): void
   loadFromLocalStorage(key?: string): void
 }
@@ -179,6 +191,15 @@ function clearBotTimer(): void {
 
 function diceRollsFrom(events: GameEvent[]): DiceRoll[] {
   return events.filter((e): e is Extract<GameEvent, { type: 'DiceRolled' }> => e.type === 'DiceRolled').map((e) => e.roll)
+}
+
+/** The most recent VpScored in this batch of events, as a ready-to-show "+10 VP — Raze and Ruin"
+ *  pop-up — null when nothing scored this step. */
+function vpToastFrom(state: GameState, bundle: DataBundle | null, events: GameEvent[]): VpToastMessage | null {
+  const scored = events.filter((e): e is Extract<GameEvent, { type: 'VpScored' }> => e.type === 'VpScored')
+  const last = scored[scored.length - 1]
+  if (!last) return null
+  return { id: Date.now(), text: `+${last.amount} VP — ${sourceName(state, bundle, last.source)}` }
 }
 
 export const useGameStore = create<GameStore>()((set, get) => {
@@ -212,6 +233,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
       diceLog: [...s.diceLog, ...diceRollsFrom(result.events)].slice(-DICE_LOG_LIMIT),
       actionLog: dispatched && !result.rejection ? [...s.actionLog, dispatched].slice(-EVENT_LOG_LIMIT) : s.actionLog,
       toast: result.rejection ? { id: Date.now(), text: result.rejection.reason, code: result.rejection.code } : s.toast,
+      vpToast: vpToastFrom(result.state, s.bundle, result.events) ?? s.vpToast,
     }))
     scheduleBotIfNeeded()
   }
@@ -226,6 +248,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
     diceLog: [],
     actionLog: [],
     toast: null,
+    vpToast: null,
     opponent: null,
     humanSeat: 'A',
     botSeat: null,
@@ -253,6 +276,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
           diceLog: diceRollsFrom(result.events).slice(-DICE_LOG_LIMIT),
           actionLog: [],
           toast: null,
+          vpToast: null,
           opponent: opts.opponent,
           humanSeat: 'A',
           botSeat,
@@ -276,6 +300,10 @@ export const useGameStore = create<GameStore>()((set, get) => {
 
     clearToast() {
       set({ toast: null })
+    },
+
+    clearVpToast() {
+      set({ vpToast: null })
     },
 
     saveToLocalStorage(key = 'mallet42k:save') {

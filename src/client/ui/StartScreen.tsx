@@ -1,7 +1,12 @@
 // Pre-game setup modal (docs/spec/50-client.md §5 "Setup"). Owner faction picks a side, mission,
-// and opponent, then Start kicks off useGameStore.newGame(); loadBundle() happens inside the store.
-import { useState, type CSSProperties } from 'react'
-import { useGameStore, type FactionKey, type OpponentKind } from '../store/game'
+// secondary, and opponent, then Start kicks off useGameStore.newGame() — loadBundle() also happens
+// there, but this screen loads the same (memoized) bundle itself so the mission/secondary pickers can
+// show real names and text before a game exists.
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { loadBundle } from '../../data'
+import type { DataBundle } from '../../data/types'
+import { FACTION_ID, useGameStore, type FactionKey, type OpponentKind } from '../store/game'
+import { primaryScoringSummary } from './labels'
 import { buttonActive, buttonBase, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 
 const FACTIONS: { key: FactionKey; label: string; blurb: string }[] = [
@@ -9,7 +14,7 @@ const FACTIONS: { key: FactionKey; label: string; blurb: string }[] = [
   { key: 'orks', label: 'Orks', blurb: 'A rowdy green tide that hits harder the more of them are left standing.' },
 ]
 
-const MISSIONS = ['cp-01', 'cp-02', 'cp-03', 'cp-04', 'cp-05', 'cp-06']
+const MISSION_IDS = ['cp-01', 'cp-02', 'cp-03', 'cp-04', 'cp-05', 'cp-06']
 
 function randomSeed(): string {
   return Math.random().toString(36).slice(2, 10)
@@ -36,21 +41,48 @@ const select: CSSProperties = { ...buttonBase, cursor: 'pointer', width: '100%' 
 const input: CSSProperties = { ...buttonBase, flex: 1, cursor: 'text' }
 const blurb: CSSProperties = { ...mutedText, marginTop: -8 }
 const errorText: CSSProperties = { color: colors.danger, fontSize: 13 }
+const missionBlurb: CSSProperties = { ...mutedText, marginTop: -6, fontSize: 12 }
+const missionList: CSSProperties = { margin: '2px 0 0', paddingLeft: 16, fontSize: 11.5, color: colors.muted }
+const secondaryCard: CSSProperties = { border: `1px solid ${colors.border}`, borderRadius: 6, padding: '8px 10px', fontSize: 12, textAlign: 'left' as const }
 
 export function StartScreen({ onStarted }: { onStarted: () => void }) {
   const newGame = useGameStore((s) => s.newGame)
   const loading = useGameStore((s) => s.loading)
   const error = useGameStore((s) => s.error)
+  const [bundle, setBundle] = useState<DataBundle | null>(null)
   const [faction, setFaction] = useState<FactionKey>('space-marines')
   const [opponent, setOpponent] = useState<OpponentKind>('bot')
   const [mission, setMission] = useState('cp-01')
+  const [secondaryId, setSecondaryId] = useState<string>('')
   const [seed, setSeed] = useState<string>(() => randomSeed())
 
+  useEffect(() => {
+    let cancelled = false
+    void loadBundle().then((b) => {
+      if (!cancelled) setBundle(b)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const activeFaction = FACTIONS.find((f) => f.key === faction)!
+  const missionData = bundle?.missions[`mission.${mission}`]
+  const patrol = useMemo(() => {
+    if (!bundle) return undefined
+    const factionId = FACTION_ID[faction]
+    return Object.values(bundle.patrols).find((p) => p.faction === factionId)
+  }, [bundle, faction])
+
+  // The secondary picker resets to the patrol's default whenever the faction changes (a previous
+  // pick may not exist for the new patrol).
+  useEffect(() => {
+    setSecondaryId(patrol?.secondaries.find((s) => s.default)?.id ?? patrol?.secondaries[0]?.id ?? '')
+  }, [patrol])
 
   const start = async () => {
     try {
-      await newGame({ playerFaction: faction, opponent, mission: `mission.${mission}`, seed })
+      await newGame({ playerFaction: faction, opponent, mission: `mission.${mission}`, seed, secondaryId: secondaryId || undefined })
       onStarted()
     } catch {
       // error surfaced via store.error below
@@ -75,12 +107,36 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
 
         <div style={label}>Mission</div>
         <select style={select} value={mission} data-testid="setup-mission" onChange={(e) => setMission(e.target.value)}>
-          {MISSIONS.map((id) => (
+          {MISSION_IDS.map((id) => (
             <option key={id} value={id}>
-              Combat Patrol — {id.toUpperCase()}
+              {bundle?.missions[`mission.${id}`]?.name ?? `Combat Patrol — ${id.toUpperCase()}`}
             </option>
           ))}
         </select>
+        {missionData?.text && <p style={missionBlurb}>{missionData.text}</p>}
+        {missionData && (
+          <ul style={missionList} data-testid="setup-mission-scoring">
+            {primaryScoringSummary(missionData).map((line, i) => (
+              <li key={i}>{line}</li>
+            ))}
+          </ul>
+        )}
+
+        {patrol && patrol.secondaries.length > 0 && (
+          <>
+            <div style={label}>Your Secondary</div>
+            <div style={row} data-testid="setup-secondary">
+              {patrol.secondaries.map((s) => (
+                <button key={s.id} style={s.id === secondaryId ? buttonActive : buttonBase} onClick={() => setSecondaryId(s.id)}>
+                  {s.name}
+                </button>
+              ))}
+            </div>
+            {patrol.secondaries.find((s) => s.id === secondaryId) && (
+              <div style={secondaryCard}>{patrol.secondaries.find((s) => s.id === secondaryId)!.text}</div>
+            )}
+          </>
+        )}
 
         <div style={label}>Opponent</div>
         <div style={row} data-testid="setup-patrol-B">

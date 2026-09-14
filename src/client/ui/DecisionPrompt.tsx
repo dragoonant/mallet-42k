@@ -3,10 +3,14 @@
 // other decision kind — including declareTargets/declareCharge, which also accept a click on an enemy
 // Figure via UnitsLayer — renders as a plain clickable list here, so no decision can ever get stuck.
 import { useEffect, type CSSProperties } from 'react'
-import { distance as edgeGap, unitModels, type Action, type DecisionOption, type GameState, type PendingDecision, type PlayerId } from '@/engine'
+import {
+  distance as edgeGap, unitModels,
+  type Action, type ChooseOptionTopic, type DecisionOption, type GameState, type PendingDecision, type PlayerId, type StratagemId,
+} from '@/engine'
 import { useGameStore } from '../store/game'
 import { useUiStore } from './uiStore'
 import { distance2D, modelsAnchor, placementInfo } from '../interaction'
+import { objectiveLabel } from './labels'
 import { buttonBase, buttonDanger, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 
 /** The nearest thing worth orienting a move/charge/pile-in/consolidate destination against — an
@@ -87,6 +91,36 @@ const KIND_TITLE: Partial<Record<PendingDecision['kind'], string>> = {
   confirm: 'Confirm',
 }
 
+/** Per-topic title + one-line explanation of what picking an option actually does — chooseOption's
+ *  own KIND_TITLE was one generic label for every mission/secondary/rules-engine pick (M6 gap). */
+const CHOOSE_OPTION_INFO: Partial<Record<ChooseOptionTopic, { title: string; hint: string }>> = {
+  razeObjective: { title: 'Raze an objective?', hint: 'Destroys a marker you hold with no enemy nearby — it stops scoring VP for anyone, for the rest of the battle.' },
+  recoverObjective: { title: 'Recover intelligence?', hint: 'Spends a look at a marker you hold to gain a Command Point.' },
+  stompTarget: { title: "Pick a Stomp 'Em target", hint: "Name a surviving enemy unit now — score if an ORKS model destroys it in melee by the end of this round." },
+  bagTarget: { title: "Pick a Bag the Big 'Un target", hint: 'Name an enemy model now — score if it is destroyed by the end of this round.' },
+  battleShockOrder: { title: 'Order battle-shock tests', hint: 'Choose which of your affected units tests for battle shock next.' },
+  desperateEscapeCasualty: { title: 'Desperate Escape casualty', hint: 'Choose which model is removed after a failed Desperate Escape roll.' },
+  coherencyCull: { title: 'Unit coherency', hint: 'Choose which model(s) to remove so the rest of the unit stays within coherency.' },
+  saveType: { title: 'Choose a save', hint: 'Pick which save to attempt against this hit.' },
+  meleeWeapon: { title: 'Choose a melee weapon', hint: "Pick which of this model's melee weapons to fight with." },
+  weaponProfile: { title: 'Choose a weapon profile', hint: 'Pick which profile of this weapon to fire.' },
+  oathTarget: { title: 'Oath of Moment target', hint: 'Name the enemy unit your army re-rolls hits and wounds against this battle.' },
+  waaagh: { title: 'Call the Waaagh!', hint: 'Activate this once-per-battle army rule now, or hold it for later.' },
+  reserveArrival: { title: 'Bring on reinforcements', hint: 'Choose where this unit arrives from reserves.' },
+  leaderAttach: { title: 'Attach a leader', hint: 'Choose which bodyguard unit this leader joins.' },
+  hazardousCasualty: { title: 'Hazardous casualty', hint: 'A model must be removed for failing its Hazardous test.' },
+  rerollOffer: { title: 'Re-roll a die?', hint: 'Choose a die to re-roll, or keep the result.' },
+  abilityChoice: { title: 'Ability choice', hint: 'Choose how this ability applies.' },
+  chooseSide: { title: 'Choose your side', hint: 'Pick which deployment zone your army sets up in.' },
+}
+
+const REACTION_LABEL: Record<string, string> = {
+  overwatch: 'Fire Overwatch',
+  heroicIntervention: 'Heroic Intervention',
+  rapidIngress: 'Rapid Ingress',
+  counterOffensive: 'Counter-offensive',
+}
+
 function describeAction(a: Action, state: GameState): string {
   const unitName = (id: string) => state.units[id]?.name ?? id
   switch (a.type) {
@@ -115,8 +149,14 @@ function describeAction(a: Action, state: GameState): string {
     }
     case 'allocateAttack':
       return `Allocate to ${state.models[a.modelId]?.datasheetModelId ?? a.modelId}`
-    case 'useStratagem':
-      return state.stratagems[a.stratagemId]?.name ?? a.stratagemId
+    case 'useStratagem': {
+      const strat = state.stratagems[a.stratagemId]
+      const name = strat?.name ?? a.stratagemId
+      const cost = strat ? ` (${strat.cost} CP)` : ''
+      const targets: string[] = (a.targets.unitIds ?? []).map(unitName)
+      if (a.targets.objectiveId) targets.push(objectiveLabel(a.targets.objectiveId))
+      return `${name}${cost}${targets.length > 0 ? `: ${targets.join(', ')}` : ''}`
+    }
     case 'commandReroll':
       return 'Re-roll'
     case 'confirm':
@@ -132,6 +172,44 @@ function describeAction(a: Action, state: GameState): string {
       // rather than crash — hence the cast (this branch is unreachable for the current union).
       return `${(a as Action).type} option`
   }
+}
+
+/** Label a single option button for the kinds whose engine-provided DecisionOption.label is either
+ *  a raw id ("A:terminator-squad", a bare objective id) or too terse to explain the choice — everyone
+ *  else keeps the engine's own label untouched. */
+function labelForOption(pending: PendingDecision, state: GameState, o: { id: string; label: string; action: Action }): string {
+  switch (pending.kind) {
+    case 'chooseUnitToActivate':
+    case 'chooseFightUnit':
+    case 'stratagemWindow':
+    case 'reactionWindow':
+      return describeAction(o.action, state)
+    case 'commandReroll': {
+      if (o.action.type !== 'commandReroll') return describeAction(o.action, state)
+      const roll = pending.context.roll
+      return o.action.dieIndex === undefined ? `Re-roll (rolled ${roll.dice.join(', ')})` : `Re-roll die ${o.action.dieIndex + 1} (${roll.dice[o.action.dieIndex]})`
+    }
+    case 'chooseOption':
+      if (pending.context.topic === 'razeObjective' || pending.context.topic === 'recoverObjective') return objectiveLabel(o.id)
+      return o.label
+    default:
+      return o.label
+  }
+}
+
+/** What a chooseOption / stratagemWindow / reactionWindow option is "about", for the board-hover
+ *  highlight (M6 gap: prompts named units/objectives the player couldn't match to the board). */
+function hoverTargetFor(pending: PendingDecision, action: Action, optionId: string): { kind: 'unit' | 'objective'; id: string } | null {
+  if (action.type === 'useStratagem') {
+    if (action.targets.unitIds?.[0]) return { kind: 'unit', id: action.targets.unitIds[0] }
+    if (action.targets.objectiveId) return { kind: 'objective', id: action.targets.objectiveId }
+  }
+  if (pending.kind === 'chooseOption') {
+    const topic = pending.context.topic
+    if (topic === 'razeObjective' || topic === 'recoverObjective') return { kind: 'objective', id: optionId }
+    if (topic === 'stompTarget' || topic === 'bagTarget') return { kind: 'unit', id: optionId }
+  }
+  return null
 }
 
 const wrap: CSSProperties = {
@@ -150,6 +228,8 @@ const wrap: CSSProperties = {
 }
 const heading: CSSProperties = { fontWeight: 700, fontSize: 14 }
 const hint: CSSProperties = { ...mutedText }
+const infoBlock: CSSProperties = { ...mutedText, background: 'rgba(255,255,255,0.04)', borderRadius: 6, padding: '6px 8px' }
+const stratList: CSSProperties = { margin: '4px 0 0 16px', padding: 0, fontSize: 11.5 }
 const row: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap' }
 const optionList: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', maxHeight: 130, overflowY: 'auto' }
 function hasOptions(p: PendingDecision): p is Extract<PendingDecision, { options: DecisionOption[] }> {
@@ -169,6 +249,34 @@ const bannerWrap: CSSProperties = {
   padding: '8px 16px',
 }
 
+/** Short "here's what's on offer" block for stratagemWindow/reactionWindow — name, cost and effect
+ *  text for each usable stratagem, plus the trigger and the player's current CP (M6 gap: these
+ *  prompts showed raw ids with no effect or CP context). */
+function StratagemOffers({ state, player, stratagemIds, triggerLine }: { state: GameState; player: PlayerId; stratagemIds: StratagemId[]; triggerLine: string }) {
+  if (stratagemIds.length === 0) return null
+  return (
+    <div style={infoBlock}>
+      <div>
+        {triggerLine} · You have {state.players[player].cp} CP
+      </div>
+      <ul style={stratList}>
+        {stratagemIds.map((sid) => {
+          const s = state.stratagems[sid]
+          if (!s) return null
+          return (
+            <li key={sid} style={{ marginBottom: 3 }}>
+              <strong>
+                {s.name} ({s.cost} CP)
+              </strong>{' '}
+              — {s.text}
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  )
+}
+
 export function DecisionPrompt() {
   const state = useGameStore((s) => s.state)
   const pending = useGameStore((s) => s.pending)
@@ -181,6 +289,8 @@ export function DecisionPrompt() {
   const deployTargetUnitId = useUiStore((s) => s.deployTargetUnitId)
   const setDeployTarget = useUiStore((s) => s.setDeployTarget)
   const resetForDecision = useUiStore((s) => s.resetForDecision)
+  const hoverUnit = useUiStore((s) => s.hoverUnit)
+  const hoverObjective = useUiStore((s) => s.hoverObjective)
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => resetForDecision(), [pending?.id])
@@ -212,16 +322,39 @@ export function DecisionPrompt() {
   // own pre-validated candidates below — e.g. a coherency repair after a mid-move casualty can be
   // a placement our own delta-translate can't produce, so the fallback list must stay reachable.
   const showFallbackList = pending.kind !== 'deployUnit'
-  // chooseUnitToActivate/chooseFightUnit's own DecisionOption.label is just the bare unit id
-  // (e.g. "A:terminator-squad") — everywhere else the engine's label is already the nicer one.
-  const relabel = pending.kind === 'chooseUnitToActivate' || pending.kind === 'chooseFightUnit'
   const listItems: { id: string; label: string; action: Action }[] = hasOptions(pending)
-    ? pending.options.map((o) => ({ id: o.id, label: relabel ? describeAction(o.action, state) : o.label, action: o.action }))
+    ? pending.options.map((o) => ({ id: o.id, label: labelForOption(pending, state, o), action: o.action }))
     : (legal ?? []).map((a, i) => ({ id: `${a.type}-${i}`, label: describeAction(a, state), action: a }))
+
+  const chooseOptionInfo = pending.kind === 'chooseOption' ? CHOOSE_OPTION_INFO[pending.context.topic] : undefined
+  const kindTitle = chooseOptionInfo?.title ?? KIND_TITLE[pending.kind] ?? pending.kind
 
   return (
     <div style={wrap} data-testid="prompt">
-      <div style={heading}>{KIND_TITLE[pending.kind] ?? pending.kind}</div>
+      <div style={heading}>{kindTitle}</div>
+      {chooseOptionInfo && <div style={hint}>{chooseOptionInfo.hint}</div>}
+
+      {pending.kind === 'stratagemWindow' && (
+        <StratagemOffers
+          state={state}
+          player={pending.player}
+          stratagemIds={pending.context.usable}
+          triggerLine={pending.context.trigger.unitId ? `Triggered by ${state.units[pending.context.trigger.unitId]?.name ?? pending.context.trigger.unitId}` : 'A stratagem window is open'}
+        />
+      )}
+      {pending.kind === 'reactionWindow' && (
+        <StratagemOffers
+          state={state}
+          player={pending.player}
+          stratagemIds={(pending.options ?? []).filter((o): o is DecisionOption & { action: Extract<Action, { type: 'useStratagem' }> } => o.action.type === 'useStratagem').map((o) => o.action.stratagemId)}
+          triggerLine={`${REACTION_LABEL[pending.context.reaction] ?? pending.context.reaction}${pending.context.enemyUnitId ? ` — ${state.units[pending.context.enemyUnitId]?.name ?? pending.context.enemyUnitId}` : ''}`}
+        />
+      )}
+      {pending.kind === 'commandReroll' && (
+        <div style={infoBlock}>
+          Command Re-roll (1 CP) — you have {state.players[pending.player].cp} CP. {pending.context.roll.purpose} roll: [{pending.context.roll.dice.join(', ')}]
+        </div>
+      )}
 
       {pending.kind === 'deployUnit' && (
         <div style={row}>
@@ -280,18 +413,26 @@ export function DecisionPrompt() {
               it.action.type === 'moveUnit' || it.action.type === 'chargeMove' || it.action.type === 'pileIn' || it.action.type === 'consolidate'
                 ? it.action
                 : null
+            const hoverTarget = hoverTargetFor(pending, it.action, it.id)
             return (
               <button
                 key={it.id}
                 data-testid={`prompt-option-${it.id}`}
                 style={buttonBase}
                 onMouseEnter={() => {
-                  if (!withPlacements) return
-                  setPreviewDraft({ decisionId: pending.id, unitId: withPlacements.unitId, anchor: { x: 0, z: 0 }, placements: withPlacements.placements })
+                  if (withPlacements) setPreviewDraft({ decisionId: pending.id, unitId: withPlacements.unitId, anchor: { x: 0, z: 0 }, placements: withPlacements.placements })
+                  if (hoverTarget?.kind === 'unit') hoverUnit(hoverTarget.id)
+                  if (hoverTarget?.kind === 'objective') hoverObjective(hoverTarget.id)
                 }}
-                onMouseLeave={() => setPreviewDraft(null)}
+                onMouseLeave={() => {
+                  setPreviewDraft(null)
+                  hoverUnit(null)
+                  hoverObjective(null)
+                }}
                 onClick={() => {
                   setPreviewDraft(null)
+                  hoverUnit(null)
+                  hoverObjective(null)
                   dispatch(it.action)
                   setDraft(null)
                 }}

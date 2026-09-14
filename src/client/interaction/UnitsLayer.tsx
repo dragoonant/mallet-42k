@@ -7,6 +7,7 @@ import type { Group } from 'three'
 import { Figure } from '../figures'
 import type { Pose } from '../figures'
 import { SelectionRing, TargetRing } from '../board'
+import { colors } from '../ui/theme'
 import { useGameStore } from '../store/game'
 import { useUiStore } from '../ui/uiStore'
 import { clickableUnitIds, unitClickAction } from './decisions'
@@ -92,6 +93,7 @@ export function UnitsLayer() {
   const dispatch = useGameStore((s) => s.dispatch)
   const selectedUnitId = useUiStore((s) => s.selectedUnitId)
   const selectUnit = useUiStore((s) => s.selectUnit)
+  const hoveredUnitId = useUiStore((s) => s.hoveredUnitId)
   const attackPoses = useAttackPoses()
 
   if (!state) return null
@@ -106,6 +108,7 @@ export function UnitsLayer() {
         const faction = state.players[unit.player].faction
         const isSelected = unit.id === selectedUnitId
         const isClickable = interactive && clickable.has(unit.id)
+        const isHovered = unit.id === hoveredUnitId
         const pose = attackPoses[unit.id] ?? 'idle'
 
         const handleClick = () => {
@@ -140,6 +143,7 @@ export function UnitsLayer() {
                   />
                   {isSelected && <SelectionRing pos={{ x: 0, z: 0 }} baseRadius={m.base.radius} />}
                   {isClickable && <TargetRing pos={{ x: 0, z: 0 }} baseRadius={m.base.radius} />}
+                  {isHovered && !isSelected && !isClickable && <SelectionRing pos={{ x: 0, z: 0 }} baseRadius={m.base.radius} color={colors.accent} />}
                 </EasedGroup>
               )
             })}

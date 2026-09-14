@@ -4,6 +4,8 @@ import { Html } from '@react-three/drei'
 import { useGameStore } from '../store/game'
 import { colors, fontStack } from '../ui/theme'
 
+const SHOCK_COLOR = '#ffb84f'
+
 const labelStyle = {
   fontFamily: fontStack,
   fontSize: 12,
@@ -27,11 +29,11 @@ export function UnitLabels() {
         const cz = models.reduce((sum, m) => sum + m.pos.z, 0) / models.length
         const topY = Math.max(...models.map((m) => m.pos.y + m.height)) + 0.25
         const wounds = models.reduce((sum, m) => sum + m.woundsRemaining, 0)
-        const color = unit.player === 'A' ? colors.playerA : colors.playerB
+        const color = unit.battleShocked ? SHOCK_COLOR : unit.player === 'A' ? colors.playerA : colors.playerB
         return (
           <Html key={unit.id} position={[cx, topY, cz]} center distanceFactor={18} style={{ pointerEvents: 'none' }} occlude={false}>
-            <div style={{ ...labelStyle, color }}>
-              {unit.name} · {wounds}W
+            <div style={{ ...labelStyle, color }} data-testid={`unit-label-${unit.id}`}>
+              {unit.name} · {wounds}W{unit.battleShocked ? ' · Shocked' : ''}
             </div>
           </Html>
         )

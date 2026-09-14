@@ -29,9 +29,6 @@ export function Scene() {
 
   if (!state) return null
 
-  const objectives = Object.values(state.objectives)
-    .filter((o) => !o.removed)
-    .map((o) => ({ id: o.id, pos: o.pos }))
   const terrainPieces = Object.values(state.board.pieces) as TerrainPieceData[]
 
   return (
@@ -43,7 +40,7 @@ export function Scene() {
 
       <Board deploymentZones={state.mission.data.deploymentZones} onBoardPointer={onBoardClick} />
       <Terrain pieces={terrainPieces} />
-      <Objectives objectives={objectives} controller={(id) => state.objectives[id]?.controller ?? null} />
+      <Objectives />
 
       <UnitsLayer />
       <UnitLabels />

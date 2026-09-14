@@ -145,8 +145,12 @@ function whoApplies(who: ScoringRule['who'], pid: PlayerId, s: GameState): boole
   switch (who) {
     case 'active': return pid === s.activePlayer
     case 'opponent': return pid === otherPlayer(s.activePlayer)
-    case 'first': return pid === s.firstPlayer
-    case 'second': return pid === otherPlayer(s.firstPlayer)
+    // 'first'/'second' gate on the CURRENT turn's active player too, not just on pid's seat: 'command.end' and
+    // 'turn.end' windows both fire once per player per round (once at the end of each player's own Command phase /
+    // turn), so without this a round-5 rule scoped to who:'first'/'second' would double-award — once when its own
+    // phase/turn ends and again when the OTHER player's phase/turn ends (MISSION-R5-double-score).
+    case 'first': return pid === s.firstPlayer && s.activePlayer === s.firstPlayer
+    case 'second': return pid !== s.firstPlayer && s.activePlayer === pid
     default: return true // 'both' | undefined
   }
 }
@@ -181,6 +185,9 @@ function destroyedUnitsAmount(s: GameState, rule: ScoringRule, pid: PlayerId): n
 }
 
 function wrathOfTheEmperorAmount(s: GameState, rule: ScoringRule, pid: PlayerId): number {
+  // find the Captain unit by keyword (CAPTAIN datasheets in this roster are always single-model, so its one model's
+  // id is always `${unitId}#0` per modelIdFor — stable even the phase the Captain itself dies, unlike reading
+  // captain.models[0], which goes empty once the unit is destroyed and would drop a kill scored just before death)
   const captain = Object.values(s.units).find((u) => u.player === pid && keywordsOf(s, u.id).includes('CAPTAIN'))
   const killsThisPhase = s.players[pid].secondaryState.killsThisPhase as Record<string, number> | undefined
   s.players[pid].secondaryState.killsThisPhase = {} // reset at phase end (11-combat-patrol §2.6)

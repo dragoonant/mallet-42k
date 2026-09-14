@@ -5,7 +5,7 @@ import { useState, type CSSProperties } from 'react'
 import { Scene } from './Scene'
 import { useGameStore } from './store/game'
 import { useUiStore } from './ui/uiStore'
-import { StartScreen, Hud, UnitCard, DiceLog, EventFeed, Toast, EndScreen, DecisionPrompt } from './ui'
+import { StartScreen, Hud, UnitCard, DiceLog, EventFeed, Toast, VpToast, EndScreen, DecisionPrompt, StratagemPanel } from './ui'
 import { FigureGalleryStage } from './figures'
 import type { Pose } from './figures'
 
@@ -69,8 +69,10 @@ export function App() {
         <UnitCard />
         <DiceLog />
         <EventFeed />
+        <StratagemPanel />
         <DecisionPrompt />
         <Toast />
+        <VpToast />
       </div>
       <EndScreen onPlayAgain={() => setScreen('start')} />
     </div>

@@ -53,7 +53,7 @@ export function UnitCard() {
       <div style={{ fontSize: 13, marginTop: 6 }}>
         {models.length}/{unit.startingStrength} models · {totalWounds} wounds
       </div>
-      {unit.battleShocked && <div style={warn}>Battle-shocked</div>}
+      {unit.battleShocked && <div style={warn}>Battle-shocked — its objective control counts as 0</div>}
 
       {weaponIds.length > 0 && (
         <>
