@@ -109,6 +109,25 @@ export function makeEngine(overrides: { phases?: Partial<ModuleTable['phases']>;
 
 export const pingEngine = (opts: PingOptions = {}, services: Partial<Services> = {}) => makeEngine({ phases: pingPhases(opts), services })
 
+// drives the real setup+deployment phases (sides/first-turn preset, no Scouts in the fixture rosters) to completion
+// using each decision's own default legal action, so ping-phase tests can get past deployment before asserting on
+// the round/turn/phase machinery. Stops as soon as a decision isn't one of setup.ts's own (they all carry window
+// 'deployment.unit') — e.g. a round.start stratagem window, which can fire while state.phase is still 'deployment'
+// (00-arch §4) and must not be silently swallowed. Returns the intermediate results too, since some tests check the
+// full event stream.
+export function deployAll(engine: EngineApi, start: StepResult, maxSteps = 50): { results: StepResult[]; final: StepResult } {
+  const results: StepResult[] = []
+  let r = start
+  for (let i = 0; i < maxSteps && r.pending && r.pending.window === 'deployment.unit'; i++) {
+    const legal = engine.legalActions(r.state, r.pending)
+    if (!legal || legal.length === 0) throw new Error(`deployAll: no legal action for ${r.pending.kind}`)
+    r = engine.step(r.state, legal[0])
+    if (r.rejection) throw new Error(`deployAll: rejected ${r.rejection.code} ${r.rejection.reason}`)
+    results.push(r)
+  }
+  return { results, final: r }
+}
+
 // answer every decision with the first legal action (or `choose`) until the game ends or `maxSteps` is reached
 export function autoplay(
   engine: EngineApi,

@@ -4,7 +4,7 @@ import {
   DEFAULT_MODULES, EngineInvariantError, ScriptedRng, advanceGame, createContext, rollOff,
   type GameEvent, type PhaseStarted, type PlayerId, type TimingWindowId,
 } from '../../src/engine'
-import { autoplay, bundle, freshState, makeEngine, makeSetup, pingEngine, pingPhases, placeUnit, recordingStratagems, scriptedModule } from '../fixtures'
+import { autoplay, bundle, deployAll, freshState, makeEngine, makeSetup, pingEngine, pingPhases, placeUnit, recordingStratagems, scriptedModule } from '../fixtures'
 
 const setup = makeSetup()
 const types = (events: GameEvent[]) => events.map((e) => e.type)
@@ -12,17 +12,19 @@ const types = (events: GameEvent[]) => events.map((e) => e.type)
 describe('engine/core state machine', () => {
   it('runs 5 rounds × 2 turns × 5 phases in order and ends on VP', () => {
     const engine = pingEngine()
-    const r0 = engine.createGame(setup, 'machine', bundle)
+    const create = engine.createGame(setup, 'machine', bundle)
+    expect(types(create.events).slice(0, 3)).toEqual(['GameCreated', 'PhaseStarted', 'PhaseEnded'])
+    const deploy = deployAll(engine, create)
+    const r0 = deploy.final
     expect(r0.state.phase).toBe('command')
     expect(r0.state.round).toBe(1)
     expect(r0.state.activePlayer).toBe('A')
-    expect(types(r0.events).slice(0, 3)).toEqual(['GameCreated', 'PhaseStarted', 'PhaseEnded'])
     const { results, final } = autoplay(engine, r0)
     expect(final.state.phase).toBe('ended')
     expect(final.pending).toBeNull()
     expect(final.state.result).toEqual({ winner: 'draw', reason: 'vp', vp: { A: 0, B: 0 } })
-    expect(final.state.log).toHaveLength(50)
-    const all = [...r0.events, ...results.flatMap((r) => r.events)]
+    expect(final.state.log).toHaveLength(50 + deploy.results.length)
+    const all = [...create.events, ...deploy.results.flatMap((r) => r.events), ...results.flatMap((r) => r.events)]
     const phases = all.filter((e): e is PhaseStarted => e.type === 'PhaseStarted').map((e) => `${e.round}${e.turn}${e.phase}`)
     const expected: string[] = ['0Asetup', '0Adeployment']
     for (let round = 1; round <= 5; round++) for (const p of ['A', 'B']) for (const ph of ['command', 'movement', 'shooting', 'charge', 'fight']) expected.push(`${round}${p}${ph}`)
@@ -31,7 +33,7 @@ describe('engine/core state machine', () => {
     expect(all.filter((e) => e.type === 'RoundEnded')).toHaveLength(5)
     expect(all.filter((e) => e.type === 'TurnStarted').map((e) => e.turn)).toEqual(['A', 'B', 'A', 'B', 'A', 'B', 'A', 'B', 'A', 'B'])
     expect(all.filter((e) => e.type === 'GameEnded')).toHaveLength(1)
-    expect(all.filter((e) => e.type === 'DecisionRequested')).toHaveLength(50)
+    expect(all.filter((e) => e.type === 'DecisionRequested')).toHaveLength(50 + deploy.results.length)
     // the last event sequence: fight ends, round 5 ends, battle ends
     expect(types(final.events).slice(-3)).toEqual(['PhaseEnded', 'RoundEnded', 'GameEnded'])
   })
@@ -64,7 +66,8 @@ describe('engine/core state machine', () => {
   it('a window that raises a decision interrupts the sequence and resumes where it left off', () => {
     const strat = recordingStratagems(['phase.end', 'round.start'])
     const engine = pingEngine({}, { stratagems: strat })
-    const r0 = engine.createGame(setup, 'interrupt', bundle)
+    const deploy = deployAll(engine, engine.createGame(setup, 'interrupt', bundle))
+    const r0 = deploy.final
     // round.start of round 1 opened for A (first) before the first command phase
     expect(r0.pending?.kind).toBe('stratagemWindow')
     expect(r0.pending?.window).toBe('round.start')
@@ -87,13 +90,13 @@ describe('engine/core state machine', () => {
     expect(r5.pending?.kind).toBe('confirm')
     const { final } = autoplay(engine, r5)
     expect(final.state.phase).toBe('ended')
-    expect(final.state.log.length).toBe(50 + 100 + 10)
+    expect(final.state.log.length).toBe(deploy.results.length + 50 + 100 + 10)
   })
 
   it('rollOnce opens any.rollMade for the roller keyed by the roll id and returns the roll afterwards', () => {
     const strat = recordingStratagems(['any.rollMade'])
     const engine = pingEngine({ rollOnceBefore: true }, { stratagems: strat })
-    const r0 = engine.createGame(setup, 'rollonce', bundle)
+    const r0 = deployAll(engine, engine.createGame(setup, 'rollonce', bundle)).final
     expect(r0.pending?.kind).toBe('stratagemWindow')
     expect(r0.pending?.window).toBe('any.rollMade')
     expect(r0.events.filter((e) => e.type === 'DiceRolled')).toHaveLength(1)
@@ -167,24 +170,26 @@ describe('engine/core state machine', () => {
     expect(r1.state.players[winner === 'A' ? 'B' : 'A'].side).toBe('attacker')
     expect(r1.state.objectives['obj-home-a'].home).toBe(winner === 'A' ? 'B' : 'A')
     expect(types(r1.events)).toContain('SidesChosen')
-    expect(types(r1.events)).toContain('FirstTurnChosen')
-    expect(r1.state.phase).toBe('command')
-    expect(r1.state.activePlayer).toBe(r1.state.firstPlayer)
+    const deploy = deployAll(engine, r1)
+    const r2 = deploy.final
+    expect(types(deploy.results.flatMap((r) => r.events))).toContain('FirstTurnChosen')
+    expect(r2.state.phase).toBe('command')
+    expect(r2.state.activePlayer).toBe(r2.state.firstPlayer)
   })
 
   it('R-12.6 a player without forces has their turns skipped; both without → tabled', () => {
     const skipB = pingEngine({}, { missions: { ...DEFAULT_MODULES.services.missions, playerHasForces: (_s, p: PlayerId) => p === 'A' } })
     const g1 = autoplay(skipB, skipB.createGame(setup, 'skip', bundle))
     const turns = [...g1.results.flatMap((r) => r.events)].filter((e) => e.type === 'TurnStarted').map((e) => e.turn)
-    expect(turns).toEqual(['A', 'A', 'A', 'A'])
-    expect(g1.final.state.log).toHaveLength(25)
+    expect(turns).toEqual(['A', 'A', 'A', 'A', 'A'])
+    expect(g1.final.state.log).toHaveLength(6 + 25)
     expect(g1.final.state.result?.reason).toBe('vp')
 
     const tabled = pingEngine({}, { missions: { ...DEFAULT_MODULES.services.missions, isTabled: (s) => s.round >= 2, playerHasForces: (s) => s.round < 2 } })
     const g2 = autoplay(tabled, tabled.createGame(setup, 'tabled', bundle))
     expect(g2.final.state.result?.reason).toBe('tabled')
     expect(g2.final.state.round).toBe(2)
-    expect(g2.final.state.log).toHaveLength(10)
+    expect(g2.final.state.log).toHaveLength(6 + 10)
   })
 
   it('resign ends the game at once with the other player as victor', () => {
@@ -199,21 +204,22 @@ describe('engine/core state machine', () => {
 
   it('legalActions: finite decisions list their options (+ pass when allowed); continuous decisions are null', () => {
     const engine = pingEngine()
-    const r0 = engine.createGame(setup, 'legal', bundle)
+    const r0 = deployAll(engine, engine.createGame(setup, 'legal', bundle)).final
     const legal = engine.legalActions(r0.state, r0.pending!)
     expect(legal).toEqual([{ type: 'confirm', player: 'A', decisionId: r0.pending!.id }])
     const passable = recordingStratagems(['phase.end'])
     const e2 = pingEngine({}, { stratagems: passable })
-    const { final } = autoplay(e2, e2.createGame(setup, 'legal2', bundle), 1)
+    const deployed2 = deployAll(e2, e2.createGame(setup, 'legal2', bundle)).final
+    const { final } = autoplay(e2, deployed2, 1)
     expect(final.pending?.kind).toBe('stratagemWindow')
     expect(e2.legalActions(final.state, final.pending!)).toEqual([{ type: 'pass', player: 'A', decisionId: final.pending!.id }])
   })
 
   it('a module that returns pending without a decision, or enters without setting a step, is a programmer error', () => {
     const bad = makeEngine({ phases: { ...pingPhases(), command: scriptedModule('command', { advance: () => 'pending' }) } })
-    expect(() => bad.createGame(setup, 'bad', bundle)).toThrow(EngineInvariantError)
+    expect(() => deployAll(bad, bad.createGame(setup, 'bad', bundle))).toThrow(EngineInvariantError)
     const noStep = makeEngine({ phases: { ...pingPhases(), command: scriptedModule('command', { enter: () => undefined }) } })
-    expect(() => noStep.createGame(setup, 'bad2', bundle)).toThrow(/must set state.step/)
+    expect(() => deployAll(noStep, noStep.createGame(setup, 'bad2', bundle))).toThrow(/must set state.step/)
   })
 
   it('per-phase and per-turn unit flags reset at the right boundaries', () => {
@@ -226,7 +232,7 @@ describe('engine/core state machine', () => {
         return 'done'
       },
     }) } })
-    const r0 = engine.createGame(setup, 'flags', bundle)
+    const r0 = deployAll(engine, engine.createGame(setup, 'flags', bundle)).final
     const afterShooting = autoplay(engine, r0, 2).final // command, movement confirmed → shooting ran → charge pending
     expect(afterShooting.state.phase).toBe('charge')
     expect(afterShooting.state.units['A:grunts'].turn.shotThisPhase).toBe(false)

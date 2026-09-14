@@ -5,7 +5,7 @@ import {
   emptyMoveConstraints, makeRoll, parseDiceExpr, restoreRng, rollDiceExpr, setModelPos,
   type Action, type DiceRolled, type GameState, type Rng,
 } from '../../src/engine'
-import { autoplay, bundle, makeEngine, makeSetup, pingEngine, pingPhases, scriptedModule, withBundle } from '../fixtures'
+import { autoplay, bundle, deployAll, makeEngine, makeSetup, pingEngine, pingPhases, scriptedModule, withBundle } from '../fixtures'
 
 const seedSetup = makeSetup()
 
@@ -71,7 +71,7 @@ describe('engine/core rng + dice', () => {
       },
       handle(ctx) { ctx.state.mission.custom.total = ctx.rollExpr('2D6', { purpose: 'charge', player: 'A' }).total },
     }) } })
-    const r0 = engine.createGame(seedSetup, 's', bundle)
+    const r0 = deployAll(engine, engine.createGame(seedSetup, 's', bundle)).final
     const r1 = engine.step(r0.state, { type: 'confirm', player: 'A', decisionId: r0.pending!.id }, new ScriptedRng([3, 4]))
     const rolled = r1.events.filter((e): e is DiceRolled => e.type === 'DiceRolled')
     expect(rolled).toHaveLength(1)
@@ -180,7 +180,7 @@ describe('engine/core reducer', () => {
         return 'pending'
       },
     }) } })
-    const r0 = moveEngine.createGame(seedSetup, 'schema', bundle)
+    const r0 = deployAll(moveEngine, moveEngine.createGame(seedSetup, 'schema', bundle)).final
     expect(r0.pending?.kind).toBe('moveUnit')
     expect(moveEngine.legalActions(r0.state, r0.pending!)).toBeNull()
     const id = r0.pending!.id
@@ -230,7 +230,7 @@ describe('engine/core reducer', () => {
 
   it('CORE-012 step without rng uses state.rng; the same state + action twice → identical events and hash', () => {
     const e = pingEngine({ rollOnAnswer: true })
-    const r0 = e.createGame(seedSetup, 'det', bundle)
+    const r0 = deployAll(e, e.createGame(seedSetup, 'det', bundle)).final
     const action = e.legalActions(r0.state, r0.pending!)![0]
     const a = e.step(r0.state, action)
     const b = e.step(r0.state, action)
@@ -243,7 +243,7 @@ describe('engine/core reducer', () => {
 
   it('CORE-013 ScriptedRng override is written back as scripted:<remaining>; a later step continues the queue', () => {
     const e = pingEngine({ rollOnAnswer: true })
-    const r0 = e.createGame(seedSetup, 'scripted', bundle)
+    const r0 = deployAll(e, e.createGame(seedSetup, 'scripted', bundle)).final
     const a1 = e.legalActions(r0.state, r0.pending!)![0]
     const r1 = e.step(r0.state, a1, new ScriptedRng([5, 2, 6]))
     expect(r1.state.rng).toBe('scripted:2,6')
@@ -258,7 +258,7 @@ describe('engine/core reducer', () => {
     const e = pingEngine({ confirms: 3, rollOnAnswer: true })
     let rolls = 0
     const counting: Rng = { next: () => { rolls++; return 0.5 }, roll: (s) => { rolls++; return s === 3 ? 2 : 4 }, serialize: () => 'scripted:' }
-    const r0 = e.createGame(seedSetup, 'count', bundle)
+    const r0 = deployAll(e, e.createGame(seedSetup, 'count', bundle)).final
     let r = r0
     let dice = 0
     for (let i = 0; i < 10; i++) {
@@ -304,17 +304,19 @@ describe('engine/core reducer', () => {
       },
     })
     const e = makeEngine({ phases: { ...pingPhases(), command: mover } })
-    const r0 = e.createGame(seedSetup, 'undo', bundle)
+    const create = e.createGame(seedSetup, 'undo', bundle)
+    const r0 = deployAll(e, create).final
+    const startX = r0.state.models['A:grunts#0'].pos.x
     const r1 = e.step(r0.state, { type: 'confirm', player: 'A', decisionId: r0.pending!.id })
-    expect(r1.state.models['A:grunts#0'].pos.x).toBe(1)
+    expect(r1.state.models['A:grunts#0'].pos.x).toBe(startX + 1)
     const undone = e.undo(r1.state, { allowDice: true }, bundle)
-    expect(undone?.state.models['A:grunts#0'].pos.x).toBe(0)
+    expect(undone?.state.models['A:grunts#0'].pos.x).toBe(startX)
     expect(undone?.state.hash).toBe(r0.state.hash)
     const r2 = e.step(r1.state, { type: 'confirm', player: 'A', decisionId: r1.pending!.id })
-    expect(r2.state.log[1].diceRollIds).toHaveLength(1)
+    expect(r2.state.log[r2.state.log.length - 1].diceRollIds).toHaveLength(1)
     expect(e.undo(r2.state, { allowDice: false }, bundle)).toBeNull()
     expect(e.undo(r2.state, { allowDice: true }, bundle)?.state.hash).toBe(r1.state.hash)
-    expect(e.undo(r0.state, { allowDice: true }, bundle)).toBeNull()
+    expect(e.undo(create.state, { allowDice: true }, bundle)).toBeNull()
   })
 
   it('CORE-016 view() hides the opponent reserves list during setup/deployment and reveals it afterwards', () => {
@@ -330,8 +332,9 @@ describe('engine/core reducer', () => {
     expect(vB.state.setup.players.B.reserves).toEqual(['warboss'])
     expect(vB.hidden.opponentReserveCount).toBe(0)
     expect(r0.state.setup.players.B.reserves).toEqual(['warboss'])
-    // answer the side choice → deployment (stub) completes → round 1 command phase
-    const r1 = engine.step(r0.state, engine.legalActions(r0.state, r0.pending!)![0])
+    // answer the side choice → real deployment (warboss stays in Reserves) → round 1 command phase
+    const sideChosen = engine.step(r0.state, engine.legalActions(r0.state, r0.pending!)![0])
+    const r1 = deployAll(engine, sideChosen).final
     expect(r1.state.phase).toBe('command')
     expect(engine.view(r1.state, 'A').state.setup.players.B.reserves).toEqual(['warboss'])
     expect(engine.view(r1.state, 'A').hidden.opponentReserveCount).toBe(0)
@@ -349,7 +352,7 @@ describe('engine/core reducer', () => {
     })
     const run = (x: number, z: number): GameState => {
       const e = makeEngine({ phases: { ...pingPhases(), command: write(x, z) } })
-      const r0 = e.createGame(seedSetup, 'round', bundle)
+      const r0 = deployAll(e, e.createGame(seedSetup, 'round', bundle)).final
       return e.step(r0.state, { type: 'confirm', player: 'A', decisionId: r0.pending!.id }).state
     }
     const s1 = run(1.2345, 2.3456)

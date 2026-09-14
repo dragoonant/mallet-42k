@@ -6,7 +6,7 @@ import {
   whollyWithinOf, whollyWithinPolygon, within, withinEngagementRange, withinObjectiveRange,
   type Model,
 } from '../../src/engine'
-import { bundle, footprint, freshState, makeEngine, makeSetup, model, pingPhases, placeUnit, row, scriptedModule } from '../fixtures'
+import { bundle, deployAll, footprint, freshState, makeEngine, makeSetup, model, pingPhases, placeUnit, row, scriptedModule } from '../fixtures'
 
 const D32 = 32 / 25.4 // base diameter in inches
 
@@ -89,7 +89,7 @@ describe('engine/core measurement', () => {
     })
     const engine = makeEngine({ phases: { ...pingPhases(), command: mover } })
     // board: grunts in a row from x = -10 at z = -12, the Blu mob in a row from x = 3
-    const base = engine.createGame(makeSetup(), 'meas8', bundle).state
+    const base = deployAll(engine, engine.createGame(makeSetup(), 'meas8', bundle)).final.state
     const state = structuredClone(base)
     placeUnit(state, 'A:grunts', { x: -10, z: -12 })
     placeUnit(state, 'B:mob', { x: 3, z: -12, gap: 0.3 })
