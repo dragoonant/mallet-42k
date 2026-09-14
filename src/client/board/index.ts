@@ -14,8 +14,8 @@ export type { CameraRigProps } from './CameraRig'
 export { Ruler } from './Ruler'
 export type { RulerProps } from './Ruler'
 
-export { SelectionRing, TargetRing, EngagementRing, MoveRangeRing } from './Rings'
-export type { SelectionRingProps, TargetRingProps, EngagementRingProps, MoveRangeRingProps } from './Rings'
+export { SelectionRing, TargetRing, EngagementRing, MoveRangeRing, LosMarker } from './Rings'
+export type { SelectionRingProps, TargetRingProps, EngagementRingProps, MoveRangeRingProps, LosMarkerProps, LosStatus } from './Rings'
 
 export { boardPointFromWorld } from './geometry'
 

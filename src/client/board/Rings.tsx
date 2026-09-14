@@ -72,3 +72,27 @@ export function MoveRangeRing({ pos, range }: MoveRangeRingProps) {
     </mesh>
   )
 }
+
+export type LosStatus = 'visible' | 'cover' | 'hidden'
+
+export interface LosMarkerProps {
+  pos: Vec2
+  baseRadius: number
+  status: LosStatus
+}
+
+const LOS_COLOR: Record<LosStatus, string> = { visible: '#3ddc73', cover: '#f5d95a', hidden: '#ff4f4f' }
+
+/** Line-of-sight tint disc under an enemy model's base (M2 Line-of-sight view, key L): green when
+ *  visible to the selected unit, yellow when visible but the target has Benefit of Cover, and a
+ *  smaller/dimmer red when it can't be seen at all (§50-client §4, engine/los.ts). */
+export function LosMarker({ pos, baseRadius, status }: LosMarkerProps) {
+  const radius = baseRadius + (status === 'hidden' ? 0.15 : 0.35)
+  const opacity = status === 'hidden' ? 0.3 : 0.55
+  return (
+    <mesh position={[pos.x, RING_HEIGHT + 0.02, pos.z]} rotation={[-Math.PI / 2, 0, 0]}>
+      <circleGeometry args={[radius, 32]} />
+      <meshBasicMaterial color={LOS_COLOR[status]} transparent opacity={opacity} side={THREE.DoubleSide} depthWrite={false} />
+    </mesh>
+  )
+}

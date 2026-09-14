@@ -1,16 +1,17 @@
 // One <Figure> per live model, wired to the click behaviour the current PendingDecision calls for
 // (activate/select a friendly unit, target an enemy unit) via decisions.ts; clicking a unit that
 // isn't a legal click for this decision just selects it for the unit card (src/client/ui/UnitCard.tsx).
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useFrame } from '@react-three/fiber'
 import type { Group } from 'three'
 import { Figure } from '../figures'
 import type { Pose } from '../figures'
-import { SelectionRing, TargetRing } from '../board'
+import { SelectionRing, TargetRing, LosMarker } from '../board'
 import { colors } from '../ui/theme'
 import { useGameStore } from '../store/game'
 import { useUiStore } from '../ui/uiStore'
 import { clickableUnitIds, unitClickAction } from './decisions'
+import { losStatusByUnit } from './lineOfSight'
 
 // How long a unit keeps its shoot/melee pose after an AttackSequenceStarted event names it, before
 // easing back to idle.
@@ -94,7 +95,14 @@ export function UnitsLayer() {
   const selectedUnitId = useUiStore((s) => s.selectedUnitId)
   const selectUnit = useUiStore((s) => s.selectUnit)
   const hoveredUnitId = useUiStore((s) => s.hoveredUnitId)
+  const losOn = useUiStore((s) => s.losOn)
   const attackPoses = useAttackPoses()
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const losStatus = useMemo(
+    () => (losOn && selectedUnitId && state ? losStatusByUnit(state, selectedUnitId) : {}),
+    [losOn, selectedUnitId, state],
+  )
 
   if (!state) return null
 
@@ -144,6 +152,7 @@ export function UnitsLayer() {
                   {isSelected && <SelectionRing pos={{ x: 0, z: 0 }} baseRadius={m.base.radius} />}
                   {isClickable && <TargetRing pos={{ x: 0, z: 0 }} baseRadius={m.base.radius} />}
                   {isHovered && !isSelected && !isClickable && <SelectionRing pos={{ x: 0, z: 0 }} baseRadius={m.base.radius} color={colors.accent} />}
+                  {losOn && losStatus[unit.id] && <LosMarker pos={{ x: 0, z: 0 }} baseRadius={m.base.radius} status={losStatus[unit.id]} />}
                 </EasedGroup>
               )
             })}
