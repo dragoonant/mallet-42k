@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "e2e": "playwright test",
     "sim": "tsx tools/sim.ts",
+    "bench:ai": "tsx tools/ai-bench.ts",
     "validate:data": "tsx tools/validate-data.ts"
   },
   "dependencies": {

@@ -339,6 +339,15 @@ test('play a game as Space Marines vs Bot through the UI', async ({ page }) => {
 
   // 01: start screen, Space Marines vs Bot
   await page.goto('/')
+  // Widen the window between "the bot has a pending decision" and "it resolves" (store.ts BOT_DELAY_MS=400ms)
+  // so the ai-01-bot-turn.png screenshot below (mid-poll-loop, no artificial pause of its own) has a realistic
+  // chance of landing on the bot's own turn instead of whatever it triggers next (e.g. a Fire Overwatch reaction
+  // offered to the human) — this only stretches pacing, it changes no game logic.
+  await page.evaluate(() => {
+    const orig = window.setTimeout.bind(window)
+    window.setTimeout = ((fn: Parameters<typeof setTimeout>[0], delay?: number, ...args: unknown[]) =>
+      orig(fn, (delay ?? 0) * 5, ...args)) as typeof setTimeout
+  })
   await expect(page.getByTestId('start-game')).toBeVisible()
   await page.getByRole('button', { name: 'Space Marines' }).click()
   await page.getByRole('button', { name: 'Bot', exact: true }).click()
@@ -359,6 +368,7 @@ test('play a game as Space Marines vs Bot through the UI', async ({ page }) => {
   let shotShoot = false
   let shotClose = false
   let shotDeployed = false
+  let shotBotTurn = false
   let firstBattleRoundDone = false
   let lastPhaseKey = ''
 
@@ -392,6 +402,12 @@ test('play a game as Space Marines vs Bot through the UI', async ({ page }) => {
     }
 
     if (s.pending.player === s.botSeat) {
+      if (!shotBotTurn && (s.phase === 'movement' || s.phase === 'shooting')) {
+        shotBotTurn = true
+        // screenshot immediately (no extra wait) — the bot's own decision timer (store.ts BOT_DELAY_MS)
+        // resolves in ~400ms, so any delay here risks catching a reaction prompt spawned by its move instead
+        await page.screenshot({ path: 'e2e-out/ai-01-bot-turn.png' })
+      }
       if (s.pending.id !== lastBotId) {
         lastBotId = s.pending.id
         botWaitSince = Date.now()

@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { loadBundle } from '../../data'
 import type { DataBundle } from '../../data/types'
-import { FACTION_ID, useGameStore, type FactionKey, type OpponentKind } from '../store/game'
+import { AI_DIFFICULTY_OPTIONS, DEFAULT_AI_DIFFICULTY, FACTION_ID, useGameStore, type AiDifficulty, type FactionKey, type OpponentKind } from '../store/game'
 import { primaryScoringSummary } from './labels'
 import { buttonActive, buttonBase, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 
@@ -52,6 +52,7 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
   const [bundle, setBundle] = useState<DataBundle | null>(null)
   const [faction, setFaction] = useState<FactionKey>('space-marines')
   const [opponent, setOpponent] = useState<OpponentKind>('bot')
+  const [difficulty, setDifficulty] = useState<AiDifficulty>(DEFAULT_AI_DIFFICULTY)
   const [mission, setMission] = useState('cp-01')
   const [secondaryId, setSecondaryId] = useState<string>('')
   const [seed, setSeed] = useState<string>(() => randomSeed())
@@ -82,7 +83,14 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
 
   const start = async () => {
     try {
-      await newGame({ playerFaction: faction, opponent, mission: `mission.${mission}`, seed, secondaryId: secondaryId || undefined })
+      await newGame({
+        playerFaction: faction,
+        opponent,
+        mission: `mission.${mission}`,
+        seed,
+        secondaryId: secondaryId || undefined,
+        difficulty: opponent === 'bot' ? difficulty : undefined,
+      })
       onStarted()
     } catch {
       // error surfaced via store.error below
@@ -147,6 +155,20 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
             Hotseat (pass the device)
           </button>
         </div>
+
+        {opponent === 'bot' && (
+          <>
+            <div style={label}>Bot Strength</div>
+            <div style={row} data-testid="setup-difficulty">
+              {AI_DIFFICULTY_OPTIONS.map((d) => (
+                <button key={d.key} style={d.key === difficulty ? buttonActive : buttonBase} onClick={() => setDifficulty(d.key)}>
+                  {d.label}
+                </button>
+              ))}
+            </div>
+            <p style={blurb}>{AI_DIFFICULTY_OPTIONS.find((d) => d.key === difficulty)?.blurb}</p>
+          </>
+        )}
 
         <div style={label}>Seed</div>
         <div style={row}>

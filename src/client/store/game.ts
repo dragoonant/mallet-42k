@@ -24,14 +24,31 @@ import {
   type Unit,
   type Vec3,
 } from '../../engine'
+import type { Decider } from '../../engine/decider'
 import type { CombatPatrolData, DataBundle, EnhancementData } from '../../data/types'
 import { loadBundle } from '../../data'
 import { RandomDecider } from '../../ai/random'
+import { UtilityDecider } from '../../ai/utility'
 import { sourceName } from '../ui/labels'
 
 // ---------- setup defaults ----------
 export type FactionKey = 'space-marines' | 'orks'
 export type OpponentKind = 'bot' | 'hotseat'
+/** Bot opponent strength, own-words-labelled on the start screen (AI_DIFFICULTY_OPTIONS below).
+ *  'random' keeps the pre-M5 uniform-random bot as an explicit easy option; 'easy'/'normal' drive
+ *  src/ai/utility.ts's UtilityDecider (docs/spec/40-ai.md §7, simplified per its own header). */
+export type AiDifficulty = 'random' | 'easy' | 'normal'
+export const DEFAULT_AI_DIFFICULTY: AiDifficulty = 'normal'
+export const AI_DIFFICULTY_OPTIONS: { key: AiDifficulty; label: string; blurb: string }[] = [
+  { key: 'random', label: 'Random (easy)', blurb: 'Picks any legal move at random — great for learning the rules.' },
+  { key: 'easy', label: 'Casual', blurb: 'Weighs its options but plays a bit loose — good for a relaxed game.' },
+  { key: 'normal', label: 'Standard', blurb: 'Always takes what it judges the best move — a real fight.' },
+]
+
+function makeBotDecider(difficulty: AiDifficulty, seed: string): Decider {
+  if (difficulty === 'random') return new RandomDecider(seed)
+  return new UtilityDecider(difficulty, seed)
+}
 
 export const FACTION_ID: Record<FactionKey, Id> = { 'space-marines': 'sm', orks: 'ork' }
 const FACTION_LABEL: Record<FactionKey, string> = { 'space-marines': 'Space Marines', orks: 'Orks' }
@@ -136,6 +153,8 @@ export interface NewGameOptions {
   seed: string
   /** Player A's chosen secondary (patrol.secondaries[].id); falls back to the patrol's default. */
   secondaryId?: string
+  /** Bot opponent strength; ignored for 'hotseat'. Defaults to DEFAULT_AI_DIFFICULTY ('normal'). */
+  difficulty?: AiDifficulty
 }
 
 export interface ToastMessage {
@@ -164,6 +183,8 @@ export interface GameStore {
   opponent: OpponentKind | null
   humanSeat: PlayerId
   botSeat: PlayerId | null
+  /** Bot strength for the current game (null when there is no bot seat), for HUD/EndScreen display. */
+  difficulty: AiDifficulty | null
   loading: boolean
   error: string | null
 
@@ -180,7 +201,7 @@ const DICE_LOG_LIMIT = 200
 
 // Bot scheduling lives outside reactive state (timer handles/decider instances aren't state); reset on every newGame.
 let botTimer: ReturnType<typeof setTimeout> | null = null
-let botDecider: RandomDecider | null = null
+let botDecider: Decider | null = null
 
 function clearBotTimer(): void {
   if (botTimer !== null) {
@@ -252,6 +273,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
     opponent: null,
     humanSeat: 'A',
     botSeat: null,
+    difficulty: null,
     loading: false,
     error: null,
 
@@ -265,7 +287,8 @@ export const useGameStore = create<GameStore>()((set, get) => {
         const setup = buildSetup(bundle, opts)
         const result = createGame(setup, opts.seed, bundle)
         const botSeat: PlayerId | null = opts.opponent === 'bot' ? 'B' : null
-        botDecider = botSeat ? new RandomDecider(`${opts.seed}:ai:${botSeat}`) : null
+        const difficulty = opts.difficulty ?? DEFAULT_AI_DIFFICULTY
+        botDecider = botSeat ? makeBotDecider(difficulty, `${opts.seed}:ai:${botSeat}`) : null
         set({
           bundle,
           setup,
@@ -280,6 +303,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
           opponent: opts.opponent,
           humanSeat: 'A',
           botSeat,
+          difficulty: botSeat ? difficulty : null,
           loading: false,
           error: null,
         })
