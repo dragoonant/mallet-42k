@@ -1,21 +1,26 @@
 import { expect, test, type Page } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 
-// Regression coverage for the "Opponent is thinking…" freeze (commit e10ba8e): a bot decision that throws or
-// stalls used to leave src/client/store/game.ts's runBotDecision() permanently stuck on one PendingDecision,
-// since nothing ever retried or fell back. src/client/store/game.ts now wraps every bot decide()/dispatch()
-// with a watchdog + RandomDecider fallback (see BOT_DECISION_TIMEOUT_MS/UTILITY_SLOW_MS there); this spec
-// deploys as Space Marines vs the Standard bot (mirrors tests/e2e/play.spec.ts's own flow/helpers) and then
-// asserts the bot's own decision id keeps changing — never idle on the same decision for more than 20s —
-// all the way through its first Movement phase.
+// Regression coverage for the "Opponent is thinking…" freeze (commit e10ba8e) and its two follow-ups: a bot
+// decision that throws or stalls used to leave src/client/store/game.ts's runBotDecision() permanently stuck
+// on one PendingDecision (fixed with a watchdog + RandomDecider fallback), and separately a Command Re-roll
+// offer mid-attack (commandReroll) could stall indefinitely for either player — the bot's own offer wasn't
+// always recognised as "mid-attack" (skip the presentation-idle wait), and a human-owned offer could sit
+// behind buffered dice pacing. src/client/store/game.ts now also runs an unconditional outer watchdog
+// (NO_PROGRESS_WARN_MS) that warns and force-answers any bot decision that hasn't moved in 5s regardless of
+// why, and src/client/presentation/director.ts flushes decorative event pacing while a commandReroll is
+// pending so the relevant roll reaches the screen immediately. This spec deploys as Space Marines vs the
+// Standard bot (mirrors tests/e2e/play.spec.ts's own flow/helpers) and drives the whole of round 1 for both
+// players, asserting no PendingDecision ever sits unanswered for more than 15s unless it's genuinely the
+// human's own decision with a visible prompt.
 
 const W = 1600
 const H = 900
 const FOV = 45
 const OVERVIEW_POLAR = (55 * Math.PI) / 180
 const START_DIST = Math.hypot(28, 23.8) // Scene.tsx camera [0,28,23.8] looking at origin
-const STALL_LIMIT_MS = 20_000
-const GAME_BUDGET_MS = 6 * 60_000
+const STALL_LIMIT_MS = 15_000
+const GAME_BUDGET_MS = 9 * 60_000
 
 type V2 = { x: number; z: number }
 interface Cam { tx: number; tz: number; d: number; polar: number }
@@ -50,6 +55,7 @@ interface Snap {
   round: number
   active: string
   botSeat: string | null
+  humanSeat: string
   result: unknown
   toast: string | null
   pending: null | { id: string; kind: string; player: string; context: any; constraints?: any; options?: { id: string; label: string }[] }
@@ -68,6 +74,7 @@ async function snap(page: Page): Promise<Snap> {
       round: s?.round,
       active: s?.activePlayer,
       botSeat: g.botSeat,
+      humanSeat: g.humanSeat,
       result: s?.result ?? null,
       toast: g.toast?.text ?? null,
       pending: g.pending
@@ -270,8 +277,8 @@ async function handleHuman(page: Page, s: Snap): Promise<void> {
   }
 }
 
-test('bot keeps advancing through its first movement phase without freezing', async ({ page }) => {
-  test.setTimeout(8 * 60_000)
+test('no decision stalls through the whole of round 1, including Command Re-roll offers mid-attack', async ({ page }) => {
+  test.setTimeout(11 * 60_000)
   mkdirSync('e2e-out', { recursive: true })
   const consoleErrors: string[] = []
   const botLogs: string[] = []
@@ -312,17 +319,17 @@ test('bot keeps advancing through its first movement phase without freezing', as
   let botTurnStartAt: number | null = null
   const botTurnPhasesSeen = new Set<string>()
   let botTurnEndAt: number | null = null
+  let round1Done = false
 
   while (Date.now() - start < GAME_BUDGET_MS) {
     const s = await snap(page)
     if (s.result || s.phase === 'ended') break
+    if (s.round > 1) { round1Done = true; break } // covered the whole of round 1 for both players
 
     if (botTurnStartAt === null && s.round === 1 && s.active === s.botSeat) botTurnStartAt = Date.now()
     if (botTurnStartAt !== null && botTurnEndAt === null) {
       if (s.active === s.botSeat) botTurnPhasesSeen.add(s.phase)
-      // The bot's turn is done once we've seen it reach Fight and control has now passed elsewhere —
-      // either the round moved on, or the active seat flipped back to the human for its own turn.
-      else if (botTurnPhasesSeen.has('fight') && (s.round > 1 || s.active !== s.botSeat)) botTurnEndAt = Date.now()
+      else if (botTurnPhasesSeen.has('fight')) botTurnEndAt = Date.now()
     }
 
     if (!s.pending) {
@@ -335,22 +342,31 @@ test('bot keeps advancing through its first movement phase without freezing', as
       lastPendingId = s.pending.id
       lastChangeAt = Date.now()
     } else if (Date.now() - lastChangeAt > STALL_LIMIT_MS) {
-      stallReason = `decision ${s.pending.id} (${s.pending.kind}, player ${s.pending.player}) did not advance for >${STALL_LIMIT_MS}ms`
-      break
+      // A decision with no progress for >15s is only acceptable when it's genuinely waiting on the human
+      // AND the prompt is actually visible for them to answer (not hidden behind the dice tray, or a bot
+      // decision mislabelled as the human's) — our own harness always answers immediately below, so in
+      // practice this branch means presentation is blocking the prompt from rendering at all.
+      const isHumanTurn = s.pending.player === s.humanSeat
+      const promptVisible = isHumanTurn && (await page.getByTestId('prompt').isVisible().catch(() => false))
+      if (isHumanTurn && promptVisible) {
+        lastChangeAt = Date.now() // legitimately waiting on the human with a visible prompt — not a stall
+      } else {
+        stallReason = `decision ${s.pending.id} (${s.pending.kind}, player ${s.pending.player}) did not advance for >${STALL_LIMIT_MS}ms`
+          + (isHumanTurn ? ' (human decision but the prompt is not visible)' : '')
+        break
+      }
     }
 
     if (s.pending.player === s.botSeat) {
       if (s.phase === 'movement') sawBotMovement = true
       if (sawBotMovement && s.phase !== 'movement') reachedSecondHumanDecisionAfterMovement = true
       await page.waitForTimeout(150)
-      if (botTurnEndAt !== null) break
       continue
     }
 
     // human decision: answer it and keep going
     if (sawBotMovement && s.round >= 1 && s.phase !== 'movement') reachedSecondHumanDecisionAfterMovement = true
     await handleHuman(page, s)
-    if (botTurnEndAt !== null) break
     await page.waitForTimeout(60)
   }
 
@@ -370,16 +386,20 @@ test('bot keeps advancing through its first movement phase without freezing', as
   const redoHits = botLogs.filter((l) => l.includes('UtilityDecider took') && l.includes('redoing')).length
   const botTurnMs = botTurnStartAt !== null && botTurnEndAt !== null ? botTurnEndAt - botTurnStartAt : null
 
+  const noProgressWarnings = [...new Set(consoleErrors)].filter((l) => l.startsWith('[bot] no progress on decision'))
+
   const final = await snap(page)
   console.log(JSON.stringify({
     elapsedS: Math.round((Date.now() - start) / 1000),
     final: { round: final.round, phase: final.phase, active: final.active, pending: final.pending?.kind, player: final.pending?.player },
+    round1Done,
     sawBotMovement,
     reachedSecondHumanDecisionAfterMovement,
     stallReason,
     botTurnMs,
     botTurnPhasesSeen: [...botTurnPhasesSeen],
     decisionStats: { count: decideMs.length, meanMs: Math.round(mean * 10) / 10, p95Ms: p95, watchdogHits, redoHits },
+    noProgressWarnings,
     consoleErrors: [...new Set(consoleErrors)].slice(0, 30),
     botLogTail: botLogs.slice(-20),
   }, null, 2))
@@ -390,6 +410,10 @@ test('bot keeps advancing through its first movement phase without freezing', as
   if (botTurnMs !== null) {
     expect(botTurnMs, "bot's round-1 turn (movement+shooting+charge+fight) should finish within 90s at normal speed").toBeLessThan(90_000)
   }
-  expect(stallReason, 'bot decision stalled for >20s').toBeNull()
+  expect(stallReason, `no decision should stall for >${STALL_LIMIT_MS}ms unless it's the human's with a visible prompt`).toBeNull()
+  // The outer progress watchdog (src/client/store/game.ts's NO_PROGRESS_WARN_MS) should never need to fire
+  // on a healthy run — same "rare safety net" contract as the 3s/500ms ones above.
+  expect.soft(noProgressWarnings, 'the generic no-progress watchdog should not have needed to intervene').toEqual([])
   expect.soft(reachedSecondHumanDecisionAfterMovement, 'game progressed past the bot Movement phase to a later human decision').toBe(true)
+  expect.soft(round1Done, 'covered the whole of round 1 for both players (round advanced to 2)').toBe(true)
 })

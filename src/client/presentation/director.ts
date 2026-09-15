@@ -321,7 +321,12 @@ async function playBatch(from: GameState, to: GameState, events: GameEvent[], an
     } catch (err) {
       console.warn('[presentation] failed to play event', event.type, err)
     }
-    if (!absorbed) await sleep(gapFor(event.type, usePresentationSettings.getState().animSpeed))
+    // Someone (bot or human) is already sitting on a live Command Re-roll offer — skip the decorative
+    // pacing gap between events so the batch flushes straight through to the roll they're actually being
+    // asked about, instead of making a human re-roll decision wait behind unrelated event pacing while
+    // the die they need to see is still buried a few events back in this same buffered batch.
+    const midCommandReroll = useGameStore.getState().pending?.kind === 'commandReroll'
+    if (!absorbed && !midCommandReroll) await sleep(gapFor(event.type, usePresentationSettings.getState().animSpeed))
   }
 }
 

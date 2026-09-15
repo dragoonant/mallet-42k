@@ -74,6 +74,12 @@ function botPaceDelayMs(): number {
 const PRESENTATION_IDLE_TIMEOUT_MS = 3000 // cap on waiting for the director's queue to drain before deciding anyway
 const BOT_DECISION_TIMEOUT_MS = 3000 // absolute cap on how long we wait for decide() itself
 const UTILITY_SLOW_MS = 500 // UtilityDecider budget; over this we don't trust the pick and redo it with RandomDecider
+// Outer safety net, independent of scheduleBotIfNeeded/runBotDecision's own logic: whatever the cause (a
+// scheduling race, an exception outside the try/catch above, a browser-only timing quirk that didn't show
+// up in headless testing), no PendingDecision may sit unanswered forever. Polled on a real recurring timer
+// rather than tied to any one decision's own await chain, so it fires even if that chain never runs at all.
+const NO_PROGRESS_WARN_MS = 5000
+const PROGRESS_WATCHDOG_POLL_MS = 1000
 
 function botDebugEnabled(): boolean {
   try {
@@ -249,12 +255,27 @@ const DICE_LOG_LIMIT = 200
 // Bot scheduling lives outside reactive state (timer handles/decider instances aren't state); reset on every newGame.
 let botTimer: ReturnType<typeof setTimeout> | null = null
 let botDecider: Decider | null = null
+// Generic progress watchdog (see NO_PROGRESS_WARN_MS above) — its own timer handle and "have we already
+// warned about the current decision" bookkeeping, reset on every newGame like the bot scheduling above.
+let progressWatchdogTimer: ReturnType<typeof setInterval> | null = null
+let watchdogPendingId: string | null = null
+let watchdogPendingSince = 0
+let watchdogWarned = false
 
 function clearBotTimer(): void {
   if (botTimer !== null) {
     clearTimeout(botTimer)
     botTimer = null
   }
+}
+
+function clearProgressWatchdog(): void {
+  if (progressWatchdogTimer !== null) {
+    clearInterval(progressWatchdogTimer)
+    progressWatchdogTimer = null
+  }
+  watchdogPendingId = null
+  watchdogWarned = false
 }
 
 function diceRollsFrom(events: GameEvent[]): DiceRoll[] {
@@ -297,6 +318,47 @@ export const useGameStore = create<GameStore>()((set, get) => {
       botTimer = null
       void runBotDecision(decisionId)
     }, 0)
+  }
+
+  // Outer safety net (see NO_PROGRESS_WARN_MS above): polls independently of scheduleBotIfNeeded/
+  // runBotDecision, so it still fires even if whatever normally drives a bot decision never ran at all
+  // for this one (a scheduling race, an exception that somehow escaped runBotDecision's own try/catch, a
+  // browser-only timing quirk). Any PendingDecision — bot's or human's — gets one console.warn once it's
+  // sat unanswered for NO_PROGRESS_WARN_MS; a bot-owned one is then forced through via a fresh
+  // RandomDecider so the game can never truly freeze, regardless of root cause.
+  function startProgressWatchdog(): void {
+    clearProgressWatchdog()
+    progressWatchdogTimer = setInterval(() => {
+      const { state, pending, botSeat, legal } = get()
+      if (!state || !pending || state.phase === 'ended') {
+        watchdogPendingId = null
+        watchdogWarned = false
+        return
+      }
+      if (pending.id !== watchdogPendingId) {
+        watchdogPendingId = pending.id
+        watchdogPendingSince = Date.now()
+        watchdogWarned = false
+        return
+      }
+      const stalledMs = Date.now() - watchdogPendingSince
+      if (stalledMs < NO_PROGRESS_WARN_MS || watchdogWarned) return
+      watchdogWarned = true
+      console.warn(`[bot] no progress on decision ${pending.id} (${pending.kind}, player ${pending.player}) for ${stalledMs}ms`)
+      if (pending.player !== botSeat) return // the human's own decision — nothing to force, just the warning
+      const view = engineView(state, pending.player)
+      new RandomDecider(`${pending.id}:watchdog`).decide(view, pending, legal).then(
+        (action) => {
+          if (get().pending?.id !== pending.id) return
+          try {
+            get().dispatch(action)
+          } catch (err) {
+            console.error(`[bot] watchdog dispatch() threw on decision ${pending.id} (${pending.kind}):`, err)
+          }
+        },
+        (err) => console.error(`[bot] watchdog RandomDecider also threw on decision ${pending.id} (${pending.kind}):`, err),
+      )
+    }, PROGRESS_WATCHDOG_POLL_MS)
   }
 
   // Last-resort action picker: doesn't go through a Decider at all (a Decider throwing is exactly the failure
@@ -413,6 +475,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
 
     async newGame(opts) {
       clearBotTimer()
+      clearProgressWatchdog()
       botDecider = null
       set({ loading: true, error: null, toast: null })
       try {
@@ -442,6 +505,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
           error: null,
         })
         scheduleBotIfNeeded()
+        startProgressWatchdog()
       } catch (err) {
         set({ loading: false, error: err instanceof Error ? err.message : String(err) })
         throw err
@@ -483,6 +547,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
         const file = JSON.parse(raw) as SaveFile
         const { bundle } = get()
         clearBotTimer()
+        clearProgressWatchdog()
         const result = engineLoad(file, bundle ?? undefined)
         set({
           setup: file.setup,
@@ -491,6 +556,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
           legal: result.pending ? engineLegalActions(result.state, result.pending) : null,
         })
         scheduleBotIfNeeded()
+        startProgressWatchdog()
       } catch {
         // corrupt/missing save — leave the current game running
       }
