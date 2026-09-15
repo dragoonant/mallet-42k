@@ -1,16 +1,57 @@
-import { useMemo, useRef } from 'react'
+import { Suspense, useMemo, useRef } from 'react'
 import type { ThreeEvent } from '@react-three/fiber'
-import { Grid } from '@react-three/drei'
 import * as THREE from 'three'
 import { isCameraDragModifier } from './cameraModifiers'
 import { extrudedPolygonGeometry } from './geometry'
+import { GROUND_URLS, useTiledPBR } from './terrainAssets'
 import { SIDE_COLOR, type DeploymentZones } from './types'
 
 export const BOARD_WIDTH_IN = 44
 export const BOARD_DEPTH_IN = 30
-const GRID_STEP_IN = 6
+// One ground-texture repeat per this many inches of mat (~1 repeat per 10-12", per spec).
+const GROUND_REPEAT_INCHES = 11
 const ZONE_TINT_HEIGHT = 0.015
 const ZONE_TINT_THICKNESS = 0.01
+
+type PointerHandler = (e: ThreeEvent<PointerEvent>) => void
+
+/** The textured ground plane, split out so its useTexture() suspense boundary doesn't also gate
+ *  the deployment-zone tints or pointer handling above it. */
+function GroundMesh({
+  width,
+  depth,
+  onPointerMove,
+  onPointerDown,
+  onPointerUp,
+}: {
+  width: number
+  depth: number
+  onPointerMove: PointerHandler
+  onPointerDown: PointerHandler
+  onPointerUp: PointerHandler
+}) {
+  const { map, normalMap, roughnessMap } = useTiledPBR(GROUND_URLS)
+  useMemo(() => {
+    const repeatX = width / GROUND_REPEAT_INCHES
+    const repeatY = depth / GROUND_REPEAT_INCHES
+    map.repeat.set(repeatX, repeatY)
+    normalMap.repeat.set(repeatX, repeatY)
+    roughnessMap.repeat.set(repeatX, repeatY)
+  }, [map, normalMap, roughnessMap, width, depth])
+
+  return (
+    <mesh
+      rotation={[-Math.PI / 2, 0, 0]}
+      onPointerMove={onPointerMove}
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerUp}
+      receiveShadow
+    >
+      <planeGeometry args={[width, depth]} />
+      <meshStandardMaterial map={map} normalMap={normalMap} roughnessMap={roughnessMap} roughness={1} metalness={0} />
+    </mesh>
+  )
+}
 
 export interface BoardProps {
   width?: number
@@ -20,7 +61,7 @@ export interface BoardProps {
   onBoardPointer?: (point: { x: number; z: number }, kind: 'move' | 'down' | 'up') => void
 }
 
-/** The 44"x30" battle mat: ground plane, subtle inch grid, and deployment-zone tint (§50-client §4). */
+/** The 44"x30" battle mat: textured ground plane and deployment-zone tint (§50-client §4). */
 export function Board({ width = BOARD_WIDTH_IN, depth = BOARD_DEPTH_IN, deploymentZones, onBoardPointer }: BoardProps) {
   const dragging = useRef(false)
 
@@ -46,35 +87,21 @@ export function Board({ width = BOARD_WIDTH_IN, depth = BOARD_DEPTH_IN, deployme
 
   return (
     <group>
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        onPointerMove={(e) => emit(e, 'move')}
-        onPointerDown={(e) => {
-          dragging.current = true
-          emit(e, 'down')
-        }}
-        onPointerUp={(e) => {
-          dragging.current = false
-          emit(e, 'up')
-        }}
-      >
-        <planeGeometry args={[width, depth]} />
-        <meshStandardMaterial color="#3a3e4c" roughness={0.95} metalness={0} />
-      </mesh>
-
-      <Grid
-        args={[width, depth]}
-        position={[0, 0.01, 0]}
-        cellSize={GRID_STEP_IN}
-        cellThickness={1.0}
-        cellColor="#7a8098"
-        sectionSize={GRID_STEP_IN}
-        sectionThickness={1.4}
-        sectionColor="#a6acc4"
-        fadeDistance={140}
-        fadeStrength={1}
-        infiniteGrid={false}
-      />
+      <Suspense fallback={null}>
+        <GroundMesh
+          width={width}
+          depth={depth}
+          onPointerMove={(e) => emit(e, 'move')}
+          onPointerDown={(e) => {
+            dragging.current = true
+            emit(e, 'down')
+          }}
+          onPointerUp={(e) => {
+            dragging.current = false
+            emit(e, 'up')
+          }}
+        />
+      </Suspense>
 
       {zoneGeometries && (
         <>
