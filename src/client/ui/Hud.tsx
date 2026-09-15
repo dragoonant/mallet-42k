@@ -7,6 +7,7 @@ import { unitModels, type GameState, type Phase, type PlayerId } from '@/engine'
 import { useGameStore } from '../store/game'
 import { useUiStore } from './uiStore'
 import { modelsAnchor } from '../interaction/geometry'
+import { isPlacementDecision } from '../interaction/decisions'
 import { MissionPanel } from './MissionPanel'
 import { primaryScoringWindowHint, sourceName } from './labels'
 import { buttonBase, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
@@ -400,6 +401,7 @@ export function Hud() {
   const legal = useGameStore((s) => s.legal)
   const botSeat = useGameStore((s) => s.botSeat)
   const dispatch = useGameStore((s) => s.dispatch)
+  const deployTargetUnitId = useUiStore((s) => s.deployTargetUnitId)
   const [missionOpen, setMissionOpen] = useState(false)
   useToolShortcuts()
 
@@ -407,6 +409,11 @@ export function Hud() {
   const passAction = legal?.find((a) => a.type === 'pass') ?? null
   const thinking = !!pending && pending.player === botSeat
   const scoringHint = primaryScoringWindowHint(state.mission.data)
+  // The M4 formation picker bar (FormationPicker.tsx) floats just under this HUD row, anchored to the
+  // same horizontal centre as this hint — when both are showing, the picker sat visually on top with
+  // the hint peeking out from behind its edges instead of being fully hidden. Same "is the picker
+  // showing" condition FormationPicker.tsx itself uses (isDeploy || isMove), so the two never disagree.
+  const pickerOpen = !!pending && pending.player !== botSeat && ((pending.kind === 'deployUnit' && !!deployTargetUnitId) || isPlacementDecision(pending))
   const activeTitle = `Active: ${state.activePlayer}${state.activePlayer === state.firstPlayer ? ' (went first)' : ''}${thinking ? ' — thinking…' : ''}`
 
   return (
@@ -438,7 +445,7 @@ export function Hud() {
               End phase / Pass
             </button>
           </div>
-          {scoringHint && !missionOpen && (
+          {scoringHint && !missionOpen && !pickerOpen && (
             <div style={scoringHintStyle} data-testid="hud-scoring-hint">
               {scoringHint}
             </div>

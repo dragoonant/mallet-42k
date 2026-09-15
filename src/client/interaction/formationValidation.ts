@@ -8,11 +8,14 @@ import {
   dist2D,
   inCoherencyRange,
   isCoherent,
+  whollyOnBoard,
+  whollyWithinPolygon,
   type Footprint,
   type GameState,
   type Model,
   type ModelId,
   type MoveConstraints,
+  type Polygon,
   type UnitId,
   type Vec3,
 } from '@/engine'
@@ -95,6 +98,30 @@ export function validateDraft(
     if (others.some((o) => basesOverlap(f.fp, o))) {
       addReason(perModel, f.modelId, 'overlaps an existing model')
       reasonSet.add('overlaps an existing model')
+    }
+  }
+
+  // deployment-zone / region containment (every model of the combined unit — bodyguard + attached
+  // leader — wholly inside, base radius included) plus battlefield bounds. This mirrors exactly what
+  // the engine's checkPlacements enforces (`whollyWithinPolygon(f, constraints.region)` and
+  // `whollyOnBoard`), which is what previously let a leader+bodyguard preview show green/Confirm-able
+  // and still get rejected with "must end wholly within the allowed region": only individual overlap/
+  // coherency/terrain were checked here, never zone containment. A move-family decision carries its
+  // region (if any, e.g. a Reserves arrival) on `constraints.region`; a deploying draft is always
+  // called with `constraints: null` (deployment has no move-allowance to check), so falls back to
+  // `state.pending`'s own deploy zone — the very same object the caller already has as `pending`
+  // (the reducer sets `state.pending = pending` at decide-time), so this needs no extra parameter.
+  const pendingDeploy = state.pending?.kind === 'deployUnit' ? state.pending : null
+  const region: Polygon | null = constraints?.region ?? pendingDeploy?.context.zone ?? null
+  const regionLabel = pendingDeploy && pendingDeploy.window === 'deployment.unit' ? 'your deployment zone' : 'the allowed area'
+  for (const f of finals) {
+    if (region && !whollyWithinPolygon(f.fp, region)) {
+      addReason(perModel, f.modelId, `outside ${regionLabel}`)
+      reasonSet.add(`Part of the unit is outside ${regionLabel}`)
+    }
+    if (!whollyOnBoard(f.fp, state.board)) {
+      addReason(perModel, f.modelId, 'outside the battlefield')
+      reasonSet.add('part of the unit is outside the battlefield')
     }
   }
 

@@ -156,11 +156,15 @@ const BOARD_HALF_X_IN = 22
 const BOARD_HALF_Z_IN = 15
 // A leader auto-attaches to a bodyguard and deploys as one combined placement (src/client/store/game.ts's
 // `defaultAttachments`), so "click inside the zone" can mean anchoring a 5-8 model formation several
-// inches wide/deep — a Captain leading a 5-model Terminator Squad is a 6-model group. An anchor too close
-// to the zone or board edge left that whole group poking past it ("must end wholly within the allowed
-// region" / "would leave the battlefield" engine rejections). Candidates now keep at least this many
-// inches of clearance from BOTH the zone's own bounding box and the board's physical edge, on every side.
-const DEPLOY_EDGE_MARGIN_IN = 3
+// inches wide/deep — a Captain leading a 5-model Terminator Squad is a 6-model group. The client itself
+// now clamps a drafted anchor inward whenever the combined unit would poke past the zone/board edge
+// (src/client/interaction/boardClick.ts's clampAnchorToZone), so this margin only needs to keep a
+// candidate numerically clear of the exact boundary — it no longer has to fit the whole formation by
+// itself. A larger margin here used to collapse Combat Patrol's 5"-deep deployment bands (cp-01's zones)
+// down to a single centre-line candidate (depth 5" < 2 * old 3" margin), and that one surviving z always
+// projected into the same screen band — which, for whichever side's zone sits nearer the camera, can be
+// entirely behind the bottom decision-prompt panel with no other candidate to fall back on.
+const DEPLOY_EDGE_MARGIN_IN = 0.75
 
 function deployZoneCandidates(zone: V2[], pieces: { footprint: V2[] }[], jitterIndex: number): V2[] {
   const xs = zone.map((p) => p.x)
@@ -194,9 +198,14 @@ function deployZoneCandidates(zone: V2[], pieces: { footprint: V2[] }[], jitterI
   // for a lone/first unit, which is exactly the failure this whole candidate list exists to avoid.
   const jitter = jitterIndex === 0 || w <= 0.5 ? 0 : ((jitterIndex * 1.7) % (w * 0.15)) - w * 0.075
   // x/z-fractions stay in the already-margin-clamped [xLo,xHi]/[zLo,zHi] interior, so every generated
-  // point is already >= DEPLOY_EDGE_MARGIN_IN inside both the zone and the board on every side.
+  // point is already >= DEPLOY_EDGE_MARGIN_IN inside both the zone and the board on every side. zFracs
+  // now spans close to both z-edges of the zone, not just its middle band — for a shallow zone (cp-01's
+  // 5"-deep bands) the two edges can project to meaningfully different screen heights (the edge nearer
+  // the board centre sits higher/clearer of the bottom decision-prompt panel than the edge nearer the
+  // physical board edge), so trying both gives `clickCanvasAt` an actual choice instead of one collapsed
+  // centre-line point that's either fully clear or fully covered for every candidate at once.
   const xFracs = [0.5, 0.35, 0.65, 0.3, 0.7, 0.4, 0.6]
-  const zFracs = [0.5, 0.3, 0.7, 0.2, 0.8]
+  const zFracs = [0.5, 0.15, 0.85, 0.3, 0.7, 0.05, 0.95, 0.2, 0.8]
   const pts: V2[] = [{ x: clearX + jitter, z: zLo + d * 0.5 }]
   for (const zf of zFracs) for (const xf of xFracs) pts.push({ x: xLo + w * xf + jitter, z: zLo + d * zf })
   // [xLo,xHi]/[zLo,zHi] already fold in *both* the zone-edge and board-edge margins (each is the
@@ -206,7 +215,16 @@ function deployZoneCandidates(zone: V2[], pieces: { footprint: V2[] }[], jitterI
   // band flush against the board's own outer edge — shallower than 2x the margin, so the fallback
   // centreline sits inside the zone but can't also clear the full board-edge margin, and shouldn't
   // need to: it's still >=DEPLOY_EDGE_MARGIN_IN from the zone's own inner/outer edges either way).
-  return pts.filter((p) => p.x >= xLo - 1e-6 && p.x <= xHi + 1e-6 && p.z >= zLo - 1e-6 && p.z <= zHi + 1e-6)
+  const inBounds = pts.filter((p) => p.x >= xLo - 1e-6 && p.x <= xHi + 1e-6 && p.z >= zLo - 1e-6 && p.z <= zHi + 1e-6)
+  // Try the least-obstructed candidates first: the bottom decision-prompt/event-feed panels are what
+  // actually blocks a click (`clickCanvasAt`'s elementFromPoint check is still the real, final say —
+  // this only orders the attempts), and a smaller projected screen-y reads as "higher up, farther from
+  // those bottom panels" for this fixed overview camera, so sorting ascending front-loads whichever
+  // candidates are most likely to land on the canvas instead of walking through several doomed ones.
+  return inBounds
+    .map((p) => ({ p, y: project({ x: p.x, y: 0, z: p.z }).y }))
+    .sort((a, b) => a.y - b.y)
+    .map(({ p }) => p)
 }
 
 async function clearToast(page: Page) {
@@ -301,19 +319,34 @@ async function tryAlternateFormationForCoherency(page: Page, confirm: ReturnType
   return false
 }
 
+/** Cancels whatever draft is currently open (if any) — a no-op when there isn't one. A rejected
+ *  candidate used to leave its draft sitting open while the next one was tried: the decision-prompt
+ *  panel (`data-testid="prompt"`) grows several rows taller once a draft exists (Confirm/Reset/Cancel
+ *  plus, now that formationValidation.ts actually checks the deployment zone, an extra "Can't confirm:
+ *  …" reason line) — and that taller panel then covered board points on the *next* candidate that a
+ *  fresh, draft-less prompt would never have blocked, compounding across the whole candidate list
+ *  instead of each attempt getting an independent shot at the board. */
+async function resetOpenDraft(page: Page) {
+  const cancel = page.getByTestId('btn-cancel')
+  if (await cancel.isVisible().catch(() => false)) await cancel.click().catch(() => {})
+}
+
 /** Try to answer a board-placement decision by clicking the board then Confirm. */
 async function tryBoardPlacement(page: Page, s: Snap, points: V2[], label: string): Promise<boolean> {
   const id = s.pending!.id
   for (const p of points) {
     await clearToast(page)
+    await resetOpenDraft(page)
     const ok = await clickCanvasAt(page, project({ x: p.x, y: 0, z: p.z }), label)
     if (!ok) continue
     await page.waitForTimeout(120)
     const confirm = page.getByTestId('btn-confirm')
     // M4: Confirm is disabled (with a reason) while the formation preview fails a client-side check
-    // (coherency/overlap/terrain/allowance) — treat that exactly like "not visible" and try the next
-    // candidate point rather than clicking a disabled button (which would just hang), but only after
-    // a couple of alternate shapes at this same anchor have also failed to clear the check.
+    // (coherency/overlap/terrain/allowance/deployment-zone) — treat that exactly like "not visible"
+    // and try the next candidate point rather than clicking a disabled button (which would just hang),
+    // but only after a couple of alternate shapes at this same anchor have also failed to clear the
+    // check. Either way this candidate's now-invalid draft is cancelled (see `resetOpenDraft` above)
+    // before the loop's next iteration gets its own clean shot at the board.
     if (!(await confirm.isVisible().catch(() => false))) continue
     if (!(await confirm.isEnabled().catch(() => false)) && !(await tryAlternateFormationForCoherency(page, confirm))) continue
     await confirm.click()
@@ -321,6 +354,7 @@ async function tryBoardPlacement(page: Page, s: Snap, points: V2[], label: strin
     if (after.pending?.id !== id) return true
     if (after.toast) milestones.rejections.push(`${label}: ${after.toast}`)
   }
+  await resetOpenDraft(page)
   await clearToast(page)
   return false
 }
