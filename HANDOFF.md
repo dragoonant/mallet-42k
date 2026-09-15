@@ -119,3 +119,14 @@ Owner priority changed: **playable first** (see CLAUDE.md "Owner priority"). Liv
   (`src/client/board/controlLevels.ts`) because the engine doesn't export levelOfControl; 1.58 MB JS chunk;
   charge/pile-in searches are heuristic; ~8 s engine time per headless game.
 - Next options: owner playtest feedback round; Space Marine AI tuning; M8 polish (dice/VFX/audio); M7 models.
+
+## Resume point (2026-09-15)
+- Landed since 2026-09-14: gitignore secrets `c422ff8`, AI tuning `b813e7d` (Orks 100% / SM 33% vs random, 1.2 ms/decision),
+  M8 polish `868bdc5` (dice tray, pooled VFX, 40 ElevenLabs audio files in public/audio, walk/attack animation,
+  presentation director `src/client/presentation`, Settings popover). Workflow: `tools/workflows/w8-polish.js`.
+- ElevenLabs key lives ONLY in the OneDrive folder `Mallet 42k/elevenlabs.token.rtf` (extract with textutil, pass via
+  env to `npx tsx tools/gen-audio.ts`; never write it to the public repo). M8 used 467 credits; ~29k left this month.
+- Open: bot doesn't wait for animations (400 ms BOT_DELAY in store) so presentation can lag live state; audio uses one
+  ranged/one melee sound (no per-faction weapon mapping); dice tray skips battle-shock/desperate-escape rolls; bundle
+  1.66 MB + 880 KB audio; SM AI still weak; engine corner move-candidate edge case (`phases/movement.ts`);
+  figures still placeholder (M7 needs Meshy/Tripo account).
