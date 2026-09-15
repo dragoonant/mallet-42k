@@ -6,3 +6,8 @@ playwright-report
 .env
 .env.*
 .DS_Store
+
+# secrets (never commit)
+elevenlabs.token
+*.token
+.env*
