@@ -137,23 +137,30 @@ function clearAnchorX(zone: V2[], pieces: { footprint: V2[] }[], zoneMinX: numbe
  *  `clearAnchorX`), then a couple of fixed fallbacks biased toward the left/right thirds — the
  *  decision prompt panel sits centred at the bottom of the viewport, and a zone that projects near
  *  the bottom of the screen can have its centre hidden behind that panel even though the sides are
- *  clear (the panel is ~460px wide, nowhere near the full 1600px viewport). */
+ *  clear (the panel is ~460px wide, nowhere near the full 1600px viewport). Tried at several z-levels,
+ *  not just the zone's own vertical centre — a non-rectangular zone (cp-04's triangular ones, used by
+ *  the Arrowhead test below since a true open wedge needs more room than cp-02's uniformly 10"-wide
+ *  strip can give it) can be far wider near one end than at its centreline, so sampling only the
+ *  centre would miss the room that's actually there; this is a no-op extra cost for a plain
+ *  rectangular zone; where every z-level has the same width anyway. */
 function zoneCandidates(zone: V2[], pieces: { footprint: V2[] }[]): V2[] {
   const xs = zone.map((p) => p.x)
   const zs = zone.map((p) => p.z)
   const minX = Math.min(...xs)
   const maxX = Math.max(...xs)
-  const cz = (Math.min(...zs) + Math.max(...zs)) / 2
+  const minZ = Math.min(...zs)
+  const maxZ = Math.max(...zs)
   const w = maxX - minX
   const clearX = clearAnchorX(zone, pieces, minX, maxX)
-  return [
+  const zLevels = [(minZ + maxZ) / 2, minZ + (maxZ - minZ) * 0.2, minZ + (maxZ - minZ) * 0.8, minZ + (maxZ - minZ) * 0.05, minZ + (maxZ - minZ) * 0.95]
+  return zLevels.flatMap((cz) => [
     { x: clearX, z: cz },
     { x: minX + w * 0.25, z: cz },
     { x: maxX - w * 0.25, z: cz },
     { x: (minX + maxX) / 2, z: cz },
     { x: minX + w * 0.15, z: cz },
     { x: maxX - w * 0.15, z: cz },
-  ]
+  ])
 }
 
 async function clickPass(page: Page): Promise<boolean> {
@@ -411,12 +418,17 @@ test('formation picker: deploy Arrowhead(45°) -> Phalanx', async ({ page }) => 
   page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text().slice(0, 200)) })
   page.on('pageerror', (e) => consoleErrors.push(`pageerror: ${e.message.slice(0, 200)}`))
 
-  // cp-02 (not cp-01): its deployment zones are 10"-wide x 30"-deep side strips rather than cp-01's
-  // 44"-wide x 5"-deep bands — a 45°-rotated 10-model Arrowhead/Phalanx needs a bit over 3" of
-  // clearance in every direction from its anchor, which a 5"-deep strip can't give *any* point in it
-  // (the rotated bounding box would poke past the zone edge regardless of where along it you click),
-  // while a 10"-wide-by-30"-deep strip comfortably fits it centred on the strip's own width.
-  await startGame(page, 'cp-02', 'formations-1')
+  // cp-04 (not cp-01 or cp-02): a true open/hollow Arrowhead — one point model, each rank a full
+  // step wider on both sides than the last (docs: "a clear V/wedge... open back", not the old solid
+  // filled-triangle silhouette) — needs a good ~4.7" of clearance from its anchor in every direction
+  // for a 10-model unit, even at the tightest coherent/non-overlapping packing. cp-01's zones (44"-wide
+  // x 5"-deep bands) and cp-02/03/05/06's (10"-wide x 30"-deep side strips) are both too narrow in
+  // their short dimension once the shape is rotated 45° (it needs that clearance on *both* axes at
+  // once). cp-04's zones are right triangles — 22" wide at their board-edge base, narrowing to a point
+  // at the opposite corner — so an anchor near the wide base has room on both axes; `zoneCandidates`
+  // above samples several z-levels (not just the zone's vertical centre) specifically so it can find
+  // that wide end on a non-rectangular zone like this one.
+  await startGame(page, 'cp-04', 'formations-1')
 
   await runDeployment(page, async (s, name) => {
     const chip = page.locator('[data-testid="prompt"] button').filter({ hasText: new RegExp(`^${name}$`) }).first()

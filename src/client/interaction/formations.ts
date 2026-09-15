@@ -8,7 +8,8 @@
 // "right". So `radius` is a model's front-to-back half-extent and `radius2` is its side-to-side
 // half-extent once it's facing `f`; formation rows are built directly from those two numbers.
 import { deployFacing } from '@/engine/setup'
-import type { GameState, Model, ModelId, UnitId, Vec3 } from '@/engine'
+import { repairCoherency } from '@/engine/phases/legal'
+import type { GameState, Model, ModelId, ModelPlacement, UnitId, Vec3 } from '@/engine'
 import type { Anchor2D } from './geometry'
 import { splitBodyAndLeader } from './geometry'
 
@@ -143,25 +144,11 @@ function sliceByRowSizes(models: Model[], sizes: number[]): Model[][] {
   return rows
 }
 
-/** Arrowhead rank sizes: 1, 2, 3, ... until every model has a spot (the last rank absorbs any
- *  remainder), e.g. 10 models -> [1, 2, 3, 4] exactly. */
-function arrowheadRowSizes(n: number): number[] {
-  const sizes: number[] = []
-  let remaining = n
-  let k = 1
-  while (remaining > 0) {
-    const take = Math.min(k, remaining)
-    sizes.push(take)
-    remaining -= take
-    k += 1
-  }
-  return sizes
-}
-
 /** Body-only row groups (front to back) for a given formation kind — the leader (if any) is
  *  inserted separately by `formationRows` so every shape gets the same "attach the leader"
- *  treatment without duplicating it per-kind. */
-function bodyRowGroups(models: Model[], kind: Exclude<FormationKind, 'keep'>): Model[][] {
+ *  treatment without duplicating it per-kind. Arrowhead is handled separately by `arrowheadOffsets`
+ *  (a true hollow wedge, not a row-stack), so it's excluded from this type. */
+function bodyRowGroups(models: Model[], kind: Exclude<FormationKind, 'keep' | 'arrowhead'>): Model[][] {
   const n = models.length
   switch (kind) {
     case 'line':
@@ -177,23 +164,115 @@ function bodyRowGroups(models: Model[], kind: Exclude<FormationKind, 'keep'>): M
       const rows = Math.max(1, Math.round(Math.sqrt(n)))
       return sliceByRowSizes(models, evenSplit(n, rows))
     }
-    case 'arrowhead':
-      return sliceByRowSizes(models, arrowheadRowSizes(n))
   }
 }
 
 /** Row groups including the attached leader, front to back — centre-rear for every shape (an extra
- *  row appended at the very back), except arrowhead, where "centre-rear" means directly behind the
- *  point: a leader row inserted right after the tip so it rides in the heart of the wedge. */
-function formationRows(bodyModels: Model[], leaderModels: Model[], kind: Exclude<FormationKind, 'keep'>): Model[][] {
+ *  row appended at the very back). Not used for arrowhead (see `arrowheadOffsets`). */
+function formationRows(bodyModels: Model[], leaderModels: Model[], kind: Exclude<FormationKind, 'keep' | 'arrowhead'>): Model[][] {
   const rows = bodyRowGroups(bodyModels, kind)
   if (leaderModels.length === 0) return rows
-  if (kind === 'arrowhead') {
-    rows.splice(1, 0, leaderModels)
-  } else {
-    rows.push(leaderModels)
-  }
+  rows.push(leaderModels)
   return rows
+}
+
+/** Same-side rank step (both the lateral ±k·spacing increment and the k·rankGap depth increment share
+ *  this one value): the tightest step that keeps adjacent-rank bases from overlapping (`2·rad` between
+ *  ranks placed diagonally apart, plus a small edge gap), i.e. `(2·rad + EDGE_GAP_IN) / sqrt(2)` per
+ *  axis. Deliberately the *minimum* safe value, not a wider one — a true open/hollow wedge's reach
+ *  grows linearly with its rank count, and Combat Patrol's own deployment zones run as narrow as 10"
+ *  wide (see `ARROWHEAD_REACH_BUDGET_IN`), so every inch of per-rank spacing is inches the whole
+ *  formation may not have to spend once a 45°-rotated anchor is boxed in on both axes. */
+function arrowheadStep(rad: number): number {
+  return (2 * rad + EDGE_GAP_IN) / Math.SQRT2
+}
+
+/** How far in inches the wedge's own reach (point to its deepest rank) is allowed to grow before
+ *  later models stop opening new diagonal ranks and instead widen the last one into a row (see
+ *  `arrowheadOffsets`). Combat Patrol's narrowest deployment zones are 10" wide (5" either side of
+ *  centre) — this keeps a 45°-rotated wedge's corner-to-anchor reach comfortably inside that even
+ *  before accounting for terrain, so a 10+ model unit's Arrowhead is still choosable at the board's
+ *  tightest zones, not just its widest ones. */
+const ARROWHEAD_REACH_BUDGET_IN = 4.5
+
+/** Arrowhead's true wedge/chevron layout: a lone point model on the facing axis, then symmetric pairs
+ *  behind it at increasing lateral offsets ±k·step and increasing depth k·step (k = 1, 2, 3, ...) — an
+ *  open back, not the solid filled triangle a widening-row layout would produce. Ranks keep opening
+ *  while both (a) there are at least 2 body models left to pair up and (b) the *next* rank would still
+ *  stay within `ARROWHEAD_REACH_BUDGET_IN` of the point — beyond that (a large unit, or one with a
+ *  wide base), every remaining body model widens the *last* rank into a tight touching row instead of
+ *  opening new ranks indefinitely, which is what would otherwise make a 20-model wedge too wide for
+ *  any real deployment zone to hold. Any attached leader always rides in that same trailing group
+ *  (tacked onto the tail row, or — for a unit small enough that no tail row was needed — starting one
+ *  of its own at the next rank depth), never at the very tip.
+ *
+ *  Every rank up to the second-to-last has two same-side neighbours (k∓1) by construction; the last
+ *  rank/row's own members are each other's neighbours (touching), plus the second-to-last rank's same-
+ *  side model where that's in range. `generateFormation` still runs the result through the engine's
+ *  own `repairCoherency` as a defensive fallback (see that function) for any base-size/rank-count
+ *  combination this construction doesn't already cover. */
+function arrowheadOffsets(bodyModels: Model[], leaderModels: Model[]): Map<ModelId, { u: number; v: number }> {
+  const out = new Map<ModelId, { u: number; v: number }>()
+  if (bodyModels.length === 0) return out
+  const all = [...bodyModels, ...leaderModels]
+  const rad = Math.max(...all.map((m) => Math.max(widthHalf(m), depthHalf(m))))
+  const step = arrowheadStep(rad)
+  const maxRanks = Math.max(1, Math.floor(ARROWHEAD_REACH_BUDGET_IN / step))
+  const [point, ...rest] = bodyModels
+  out.set(point.id, { u: 0, v: 0 })
+  const placed: { u: number; v: number; r: number }[] = [{ u: 0, v: 0, r: rad }]
+  let k = 1
+  let i = 0
+  while (i + 1 < rest.length && k < maxRanks) {
+    const left = { u: -k * step, v: -k * step }
+    const right = { u: -k * step, v: k * step }
+    out.set(rest[i].id, left)
+    out.set(rest[i + 1].id, right)
+    placed.push({ ...left, r: rad }, { ...right, r: rad })
+    i += 2
+    k += 1
+  }
+  // Whatever's left — 0, 1, or (once the rank budget is spent) a whole remainder — plus any attached
+  // leader, becomes one tight touching row. A *wide* remainder (many models widening the last rank at
+  // once) can be wider than the legs ahead of it, so straight `-k·step` depth isn't always far enough
+  // behind them to clear — the row is pushed straight back (its own internal layout unchanged) until
+  // none of its members overlap any already-placed leg model.
+  const tail: Model[] = [...rest.slice(i), ...leaderModels]
+  if (tail.length > 0) {
+    const rowSlots = layoutRow(tail, EDGE_GAP_IN)
+    const rowRadii = rowSlots.map((s) => Math.max(widthHalf(s.model), depthHalf(s.model)))
+    let depth = k * step
+    for (let guard = 0; guard < 400; guard++) {
+      const u = -depth
+      const clear = rowSlots.every((s, idx) => placed.every((o) => Math.hypot(u - o.u, s.v - o.v) >= rowRadii[idx] + o.r + EDGE_GAP_IN * 0.5))
+      if (clear) break
+      depth += Math.max(0.05, rad * 0.1)
+    }
+    for (let idx = 0; idx < rowSlots.length; idx++) out.set(rowSlots[idx].model.id, { u: -depth, v: rowSlots[idx].v })
+  }
+  return out
+}
+
+/** Defensive coherency safety net for `arrowheadOffsets`'s output — the construction above (the
+ *  skip-2 same-side step for legs, the search-based `placePocketSlot` for leader/leftover models) is
+ *  coherent by construction for the common case, but this catches anything an edge-case base shape
+ *  (e.g. a strongly oval base, or a unit mixing very different base sizes) slips past that, by reusing
+ *  the engine's own `repairCoherency` (src/engine/phases/legal.ts, also used by the move/charge/
+ *  pile-in/consolidate legal-move search) rather than re-deriving the same "nudge a stray model beside
+ *  the main group" search here. `allowance` is unlimited because this is a from-scratch formation
+ *  preview, not a movement-budget-constrained board move — the engine re-validates any real move/
+ *  placement's distance separately when the player confirms it. A no-op whenever the construction
+ *  above is already fully coherent (the normal case), since `repairCoherency` exits immediately once
+ *  `isCoherent` holds. */
+function repairArrowheadCoherency(models: Model[], placements: FormationPlacement[]): FormationPlacement[] {
+  if (models.length < 2) return placements
+  const initial: ModelPlacement[] = placements.map((p) => ({ modelId: p.modelId, pos: p.pos, facing: p.facing }))
+  const repaired = repairCoherency(models, initial, { allowance: () => Infinity, blockers: [] })
+  const byId = new Map(repaired.map((p) => [p.modelId, p]))
+  return placements.map((p) => {
+    const r = byId.get(p.modelId)
+    return r ? { modelId: p.modelId, pos: r.pos, facing: p.facing } : p
+  })
 }
 
 function gapFor(kind: Exclude<FormationKind, 'keep'>): number {
@@ -250,6 +329,10 @@ export function generateFormation(
   if (kind === 'keep') {
     const { offsets } = currentShapeOffsets(all)
     return toWorld(anchor, facing, offsets, all)
+  }
+  if (kind === 'arrowhead') {
+    const offsets = arrowheadOffsets(bodyModels, leaderModels)
+    return repairArrowheadCoherency(all, toWorld(anchor, facing, offsets, all))
   }
   const rows = formationRows(bodyModels, leaderModels, kind)
   const offsets = layoutRows(rows, gapFor(kind))

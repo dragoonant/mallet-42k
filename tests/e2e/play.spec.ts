@@ -148,6 +148,20 @@ function clearAnchorX(zone: V2[], pieces: { footprint: V2[] }[], zoneMinX: numbe
  *  does the actual overlay screening; this just gives it enough spread across the real zone to find a
  *  clear point. `jitterIndex` (already-deployed-unit count) staggers repeat callers so several units
  *  landing in the same zone don't all aim at the exact same spot. */
+// Mirrors src/client/board/Board.tsx's BOARD_WIDTH_IN/BOARD_DEPTH_IN (44x30, centred at the origin) —
+// duplicated here rather than imported since these e2e specs never import src/client modules directly
+// (they only drive the built app through the page). Used to keep deploy-click anchors clear of the
+// physical board edge, not just the (sometimes edge-flush) deployment zone's own bounding box.
+const BOARD_HALF_X_IN = 22
+const BOARD_HALF_Z_IN = 15
+// A leader auto-attaches to a bodyguard and deploys as one combined placement (src/client/store/game.ts's
+// `defaultAttachments`), so "click inside the zone" can mean anchoring a 5-8 model formation several
+// inches wide/deep — a Captain leading a 5-model Terminator Squad is a 6-model group. An anchor too close
+// to the zone or board edge left that whole group poking past it ("must end wholly within the allowed
+// region" / "would leave the battlefield" engine rejections). Candidates now keep at least this many
+// inches of clearance from BOTH the zone's own bounding box and the board's physical edge, on every side.
+const DEPLOY_EDGE_MARGIN_IN = 3
+
 function deployZoneCandidates(zone: V2[], pieces: { footprint: V2[] }[], jitterIndex: number): V2[] {
   const xs = zone.map((p) => p.x)
   const zs = zone.map((p) => p.z)
@@ -155,9 +169,23 @@ function deployZoneCandidates(zone: V2[], pieces: { footprint: V2[] }[], jitterI
   const maxX = Math.max(...xs)
   const minZ = Math.min(...zs)
   const maxZ = Math.max(...zs)
-  const w = maxX - minX
-  const d = maxZ - minZ
-  const clearX = clearAnchorX(zone, pieces, minX, maxX)
+  // Safe anchor range: inside the zone's own bounds AND inside the board's physical edge, each shrunk
+  // by DEPLOY_EDGE_MARGIN_IN. Falls back to the (clamped) zone centre if the zone is narrower than two
+  // margins put together, so a very shallow zone still yields a usable single candidate rather than an
+  // empty/inverted range.
+  const xLoRaw = Math.max(minX + DEPLOY_EDGE_MARGIN_IN, -BOARD_HALF_X_IN + DEPLOY_EDGE_MARGIN_IN)
+  const xHiRaw = Math.min(maxX - DEPLOY_EDGE_MARGIN_IN, BOARD_HALF_X_IN - DEPLOY_EDGE_MARGIN_IN)
+  const zLoRaw = Math.max(minZ + DEPLOY_EDGE_MARGIN_IN, -BOARD_HALF_Z_IN + DEPLOY_EDGE_MARGIN_IN)
+  const zHiRaw = Math.min(maxZ - DEPLOY_EDGE_MARGIN_IN, BOARD_HALF_Z_IN - DEPLOY_EDGE_MARGIN_IN)
+  const midX = Math.min(Math.max((minX + maxX) / 2, -BOARD_HALF_X_IN), BOARD_HALF_X_IN)
+  const midZ = Math.min(Math.max((minZ + maxZ) / 2, -BOARD_HALF_Z_IN), BOARD_HALF_Z_IN)
+  const xLo = xLoRaw <= xHiRaw ? xLoRaw : midX
+  const xHi = xLoRaw <= xHiRaw ? xHiRaw : midX
+  const zLo = zLoRaw <= zHiRaw ? zLoRaw : midZ
+  const zHi = zLoRaw <= zHiRaw ? zHiRaw : midZ
+  const w = xHi - xLo
+  const d = zHi - zLo
+  const clearX = Math.min(Math.max(clearAnchorX(zone, pieces, xLo, xHi), xLo), xHi)
   // Bug this fixes: the old formula (`(jitterIndex * 2.7) % (w * 0.5) - w * 0.25`) subtracted a full
   // quarter-width constant even for `jitterIndex === 0` (the very first unit into this zone), so
   // every candidate — including the ones meant to sample the zone's clear centre and right side —
@@ -165,18 +193,20 @@ function deployZoneCandidates(zone: V2[], pieces: { footprint: V2[] }[], jitterI
   // the "on-screen but under the deploy/event panels" 30-45% of the zone as the only reachable band
   // for a lone/first unit, which is exactly the failure this whole candidate list exists to avoid.
   const jitter = jitterIndex === 0 || w <= 0.5 ? 0 : ((jitterIndex * 1.7) % (w * 0.15)) - w * 0.075
-  // x-fractions stay in the zone's interior (0.3-0.7, not 0.15/0.85) and the boundary margin below is
-  // a flat ~6" (not a token 0.5") — a leader auto-attaches to a bodyguard and deploys as one combined
-  // placement (src/client/store/game.ts's `defaultAttachments`), so "click inside the zone" can mean
-  // anchoring a 5-8 model line several inches wide; an anchor a token half-inch from the zone/board
-  // edge left that whole line poking past it ("must end wholly within the allowed region" / "would
-  // leave the battlefield" engine rejections seen for a 6-model Captain+Terminator Squad group).
-  const EDGE_MARGIN_IN = Math.min(6, w * 0.2)
+  // x/z-fractions stay in the already-margin-clamped [xLo,xHi]/[zLo,zHi] interior, so every generated
+  // point is already >= DEPLOY_EDGE_MARGIN_IN inside both the zone and the board on every side.
   const xFracs = [0.5, 0.35, 0.65, 0.3, 0.7, 0.4, 0.6]
   const zFracs = [0.5, 0.3, 0.7, 0.2, 0.8]
-  const pts: V2[] = [{ x: clearX + jitter, z: minZ + d * 0.5 }]
-  for (const zf of zFracs) for (const xf of xFracs) pts.push({ x: minX + w * xf + jitter, z: minZ + d * zf })
-  return pts.filter((p) => p.x > minX + EDGE_MARGIN_IN && p.x < maxX - EDGE_MARGIN_IN && p.z > minZ + 0.3 && p.z < maxZ - 0.3)
+  const pts: V2[] = [{ x: clearX + jitter, z: zLo + d * 0.5 }]
+  for (const zf of zFracs) for (const xf of xFracs) pts.push({ x: xLo + w * xf + jitter, z: zLo + d * zf })
+  // [xLo,xHi]/[zLo,zHi] already fold in *both* the zone-edge and board-edge margins (each is the
+  // tighter of the two, per-axis, with a zone-centre fallback when a shallow zone can't give both at
+  // once — see above) — so this is the only bounds check needed. A separate direct re-check against
+  // the raw board-edge margin here would be wrong for that fallback case (cp-01's zones are a 5"-deep
+  // band flush against the board's own outer edge — shallower than 2x the margin, so the fallback
+  // centreline sits inside the zone but can't also clear the full board-edge margin, and shouldn't
+  // need to: it's still >=DEPLOY_EDGE_MARGIN_IN from the zone's own inner/outer edges either way).
+  return pts.filter((p) => p.x >= xLo - 1e-6 && p.x <= xHi + 1e-6 && p.z >= zLo - 1e-6 && p.z <= zHi + 1e-6)
 }
 
 async function clearToast(page: Page) {
