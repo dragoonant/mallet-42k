@@ -12,6 +12,7 @@ import type { DataBundle, WeaponData } from '@/data/types'
 import { useGameStore } from '../store/game'
 import { modelsAnchor } from '../interaction/geometry'
 import { useCueStore } from './cueStore'
+import { setPresentationIdle } from './idleStore'
 import { usePresentationSettings, type AnimSpeed } from './settings'
 import { playRoll, type RollRequest } from '../dice'
 import { vfx, type ShotKind } from '../vfx'
@@ -342,6 +343,7 @@ export function startDirector(): () => void {
     bufferedFrom = null
     announcedPhases.clear()
     useCueStore.getState().reset()
+    setPresentationIdle(true)
   }
 
   // The engine pauses for a Command Re-roll decision after almost every die, so one attack reaches the
@@ -377,6 +379,12 @@ export function startDirector(): () => void {
       }
     } finally {
       pumping = false
+      // Nothing left buffered and no batch still playing — report idle immediately so a bot loop
+      // waiting on it (src/client/store/game.ts) proceeds right away instead of sitting on its own
+      // watchdog. Re-checked against the live `buffered` (not just "the while loop ended") since the
+      // store's subscribe callback below can push new events onto it between the last iteration and
+      // this line running.
+      if (buffered.length === 0) setPresentationIdle(true)
     }
   }
 
@@ -399,6 +407,10 @@ export function startDirector(): () => void {
     if (buffered.length === 0) bufferedFrom = prevState ?? state
     buffered = [...buffered, ...fresh]
     prevState = state
+    // Report busy the instant something is queued (not just once pump() gets around to consuming it) —
+    // a bot decision scheduled right after this dispatch must see "not idle yet" even before pump's own
+    // async chain has had a turn to run.
+    setPresentationIdle(false)
     void pump()
   })
 

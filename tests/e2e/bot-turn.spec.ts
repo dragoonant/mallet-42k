@@ -275,6 +275,9 @@ test('bot keeps advancing through its first movement phase without freezing', as
   mkdirSync('e2e-out', { recursive: true })
   const consoleErrors: string[] = []
   const botLogs: string[] = []
+  // ?debug turns on src/client/store/game.ts's botDebug() console.debug logging of the bot loop
+  // (decision kind, decide() duration, whether it waited on presentation) — captured here alongside
+  // the store's own console.error watchdog/fallback/redo lines (also prefixed '[bot]').
   page.on('console', (m) => {
     const text = m.text()
     if (m.type() === 'error') consoleErrors.push(text.slice(0, 400))
@@ -283,11 +286,6 @@ test('bot keeps advancing through its first movement phase without freezing', as
   page.on('pageerror', (e) => consoleErrors.push(`pageerror: ${e.message.slice(0, 400)}`))
 
   await page.setViewportSize({ width: W, height: H })
-  // ?debug turns on src/client/store/game.ts's botDebug() console.debug logging of the bot loop
-  // (decision kind, decide() duration) — console.debug isn't type 'error' so it's captured separately below.
-  page.on('console', (m) => {
-    if (m.type() === 'debug' && m.text().startsWith('[bot]')) botLogs.push(m.text().slice(0, 400))
-  })
   await page.goto('/?debug')
   await expect(page.getByTestId('start-game')).toBeVisible()
   await page.getByRole('button', { name: 'Space Marines' }).click()
@@ -299,12 +297,9 @@ test('bot keeps advancing through its first movement phase without freezing', as
   await expect(page.getByTestId('phase-tracker')).toBeVisible({ timeout: 20_000 })
   await page.waitForFunction(() => !!(window as any).__mallet)
   await page.waitForTimeout(1500)
-
-  // Speed pacing to 'fast' so the run doesn't spend its budget on dice/VFX animation.
-  await page.getByTestId('btn-settings').click()
-  await expect(page.getByTestId('settings-panel')).toBeVisible()
-  await page.getByTestId('settings-speed-fast').click()
-  await page.getByTestId('btn-settings').click()
+  // Deliberately left at the default 'normal' animation speed (src/client/presentation/settings.ts) —
+  // this spec's timing assertion targets normal speed specifically (the coordinator's ≤90s check), so
+  // switching to 'fast' here would hide exactly the pacing this run is meant to measure.
 
   const start = Date.now()
   let lastPendingId = ''
@@ -312,10 +307,23 @@ test('bot keeps advancing through its first movement phase without freezing', as
   let sawBotMovement = false
   let reachedSecondHumanDecisionAfterMovement = false
   let stallReason: string | null = null
+  // Bot's own round-1 turn (movement + shooting + charge + fight): starts the first time it's the bot's
+  // active turn, ends the first time active flips back to the human (or the round advances) afterward.
+  let botTurnStartAt: number | null = null
+  const botTurnPhasesSeen = new Set<string>()
+  let botTurnEndAt: number | null = null
 
   while (Date.now() - start < GAME_BUDGET_MS) {
     const s = await snap(page)
     if (s.result || s.phase === 'ended') break
+
+    if (botTurnStartAt === null && s.round === 1 && s.active === s.botSeat) botTurnStartAt = Date.now()
+    if (botTurnStartAt !== null && botTurnEndAt === null) {
+      if (s.active === s.botSeat) botTurnPhasesSeen.add(s.phase)
+      // The bot's turn is done once we've seen it reach Fight and control has now passed elsewhere —
+      // either the round moved on, or the active seat flipped back to the human for its own turn.
+      else if (botTurnPhasesSeen.has('fight') && (s.round > 1 || s.active !== s.botSeat)) botTurnEndAt = Date.now()
+    }
 
     if (!s.pending) {
       if (Date.now() - lastChangeAt > STALL_LIMIT_MS) { stallReason = 'no pending decision and no result'; break }
@@ -333,22 +341,34 @@ test('bot keeps advancing through its first movement phase without freezing', as
 
     if (s.pending.player === s.botSeat) {
       if (s.phase === 'movement') sawBotMovement = true
-      // once the bot has been seen moving and the human gets a fresh decision afterward, the freeze
-      // window this spec targets (bot stuck mid-Movement) has been cleared — stop once that happens
       if (sawBotMovement && s.phase !== 'movement') reachedSecondHumanDecisionAfterMovement = true
       await page.waitForTimeout(150)
+      if (botTurnEndAt !== null) break
       continue
     }
 
     // human decision: answer it and keep going
     if (sawBotMovement && s.round >= 1 && s.phase !== 'movement') reachedSecondHumanDecisionAfterMovement = true
     await handleHuman(page, s)
-    if (reachedSecondHumanDecisionAfterMovement) break
+    if (botTurnEndAt !== null) break
     await page.waitForTimeout(60)
   }
 
   await page.waitForTimeout(400)
   await page.screenshot({ path: 'e2e-out/bot-turn.png' })
+
+  // decide() timing stats from the '[bot] decide kind=... id=... ms=... waitedOnPresentation=...' lines
+  // (src/client/store/game.ts's botDebug, gated on ?debug above).
+  const decideMs = botLogs
+    .map((l) => /^\[bot\] decide kind=\S+ id=\S+ ms=([\d.]+)/.exec(l)?.[1])
+    .filter((v): v is string => v !== undefined)
+    .map(Number)
+  const sorted = [...decideMs].sort((a, b) => a - b)
+  const mean = sorted.length ? sorted.reduce((a, b) => a + b, 0) / sorted.length : 0
+  const p95 = sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(0.95 * sorted.length))] : 0
+  const watchdogHits = botLogs.filter((l) => l.includes('exceeded') && l.includes('ms — falling back')).length
+  const redoHits = botLogs.filter((l) => l.includes('UtilityDecider took') && l.includes('redoing')).length
+  const botTurnMs = botTurnStartAt !== null && botTurnEndAt !== null ? botTurnEndAt - botTurnStartAt : null
 
   const final = await snap(page)
   console.log(JSON.stringify({
@@ -357,11 +377,19 @@ test('bot keeps advancing through its first movement phase without freezing', as
     sawBotMovement,
     reachedSecondHumanDecisionAfterMovement,
     stallReason,
+    botTurnMs,
+    botTurnPhasesSeen: [...botTurnPhasesSeen],
+    decisionStats: { count: decideMs.length, meanMs: Math.round(mean * 10) / 10, p95Ms: p95, watchdogHits, redoHits },
     consoleErrors: [...new Set(consoleErrors)].slice(0, 30),
     botLogTail: botLogs.slice(-20),
   }, null, 2))
 
   expect.soft(sawBotMovement, 'bot reached its Movement phase').toBe(true)
+  expect.soft(watchdogHits, '3s presentation/decide watchdog should be a rare safety net, not the normal path').toBe(0)
+  expect.soft(redoHits, '500ms UtilityDecider redo should not fire on normal decisions').toBe(0)
+  if (botTurnMs !== null) {
+    expect(botTurnMs, "bot's round-1 turn (movement+shooting+charge+fight) should finish within 90s at normal speed").toBeLessThan(90_000)
+  }
   expect(stallReason, 'bot decision stalled for >20s').toBeNull()
   expect.soft(reachedSecondHumanDecisionAfterMovement, 'game progressed past the bot Movement phase to a later human decision').toBe(true)
 })

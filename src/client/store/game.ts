@@ -30,6 +30,10 @@ import { loadBundle } from '../../data'
 import { RandomDecider } from '../../ai/random'
 import { UtilityDecider } from '../../ai/utility'
 import { sourceName } from '../ui/labels'
+// Imported from their own submodules (not the '../presentation' barrel) to avoid a store<->director
+// import cycle: the barrel re-exports director.ts, which itself imports this store.
+import { waitForPresentationIdle } from '../presentation/idleStore'
+import { usePresentationSettings } from '../presentation/settings'
 
 // ---------- setup defaults ----------
 export type FactionKey = 'space-marines' | 'orks'
@@ -55,11 +59,20 @@ const FACTION_LABEL: Record<FactionKey, string> = { 'space-marines': 'Space Mari
 const otherFaction = (f: FactionKey): FactionKey => (f === 'space-marines' ? 'orks' : 'space-marines')
 
 const DEFAULT_MISSION_ID = 'mission.cp-01'
-const BOT_DELAY_MS = 400
+// The bot's own small "thinking" pace, once presentation has caught up — scaled by the player's chosen
+// animation speed (src/client/presentation/settings.ts) so a 'fast'/'instant' game doesn't sit through a
+// fixed 400ms per decision regardless of setting.
+const BOT_DELAY_MS: Record<'normal' | 'fast' | 'instant', number> = { normal: 400, fast: 100, instant: 0 }
+function botPaceDelayMs(): number {
+  return BOT_DELAY_MS[usePresentationSettings.getState().animSpeed]
+}
 // Watchdogs for the bot loop (client-owned defense-in-depth — the engine's own legalActions() contract already
 // guarantees a non-empty list per decision, but a bad heuristic, a slow scorer, or a genuinely stuck decision
 // must never be able to leave the HUD showing "Opponent is thinking…" forever; see docs on runBotDecision below).
-const BOT_DECISION_TIMEOUT_MS = 3000 // absolute cap on how long we wait for decide() (covers any stall, presentation included)
+// Both are a *rare safety net*: normal play resolves the presentation queue in well under a second and
+// decide() in low milliseconds, so neither cap should fire on a healthy turn.
+const PRESENTATION_IDLE_TIMEOUT_MS = 3000 // cap on waiting for the director's queue to drain before deciding anyway
+const BOT_DECISION_TIMEOUT_MS = 3000 // absolute cap on how long we wait for decide() itself
 const UTILITY_SLOW_MS = 500 // UtilityDecider budget; over this we don't trust the pick and redo it with RandomDecider
 
 function botDebugEnabled(): boolean {
@@ -72,6 +85,10 @@ function botDebugEnabled(): boolean {
 
 function botDebug(...args: unknown[]): void {
   if (botDebugEnabled()) console.debug('[bot]', ...args)
+}
+
+function sleep(ms: number): Promise<void> {
+  return ms > 0 ? new Promise((resolve) => setTimeout(resolve, ms)) : Promise.resolve()
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number, onTimeout: () => void): Promise<T> {
@@ -244,6 +261,19 @@ function diceRollsFrom(events: GameEvent[]): DiceRoll[] {
   return events.filter((e): e is Extract<GameEvent, { type: 'DiceRolled' }> => e.type === 'DiceRolled').map((e) => e.roll)
 }
 
+// Mirrors src/client/presentation/director.ts's hasOpenAttackRolls: true from the most recent
+// AttackSequenceStarted up to (not including) its matching AttackSequenceEnded. Scanned backward since we
+// only care about "is one open right now", not the whole buffer. Used to decide whether the bot should
+// skip the idle-wait/pacing delay for its next decision — see runBotDecision's own comment on why.
+function isMidAttackSequence(events: GameEvent[]): boolean {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const t = events[i].type
+    if (t === 'AttackSequenceEnded') return false
+    if (t === 'AttackSequenceStarted') return true
+  }
+  return false
+}
+
 /** The most recent VpScored in this batch of events, as a ready-to-show "+10 VP — Raze and Ruin"
  *  pop-up — null when nothing scored this step. */
 function vpToastFrom(state: GameState, bundle: DataBundle | null, events: GameEvent[]): VpToastMessage | null {
@@ -260,14 +290,13 @@ export const useGameStore = create<GameStore>()((set, get) => {
     if (!state || !pending || opponent !== 'bot' || !botSeat) return
     if (pending.player !== botSeat || state.phase === 'ended') return
     const decisionId = pending.id
-    // Mid-attack decisions (the Command Re-roll offer after each die) are answered at once: the pause
-    // reads as "thinking" nowhere on screen, and it would stall the director's grouped dice windows.
-    const last = get().events[get().events.length - 1]
-    const midAttack = !!last && /Rolled$|Tested$/.test(last.type)
+    // Defer to the next tick unconditionally — runBotDecision() itself does the real pacing (presentation
+    // idle wait + speed-scaled delay, skipped entirely for mid-attack decisions), since that pacing needs
+    // a fresh read of the event log/settings at the moment it actually runs, not at schedule time.
     botTimer = setTimeout(() => {
       botTimer = null
       void runBotDecision(decisionId)
-    }, midAttack ? 0 : BOT_DELAY_MS)
+    }, 0)
   }
 
   // Last-resort action picker: doesn't go through a Decider at all (a Decider throwing is exactly the failure
@@ -280,6 +309,25 @@ export const useGameStore = create<GameStore>()((set, get) => {
   }
 
   async function runBotDecision(expectedDecisionId: string): Promise<void> {
+    const initial = get()
+    if (!initial.state || !initial.pending || !initial.botSeat || initial.pending.id !== expectedDecisionId || !botDecider) return
+    // Any decision offered while an attack sequence is still open (commandReroll after almost every die,
+    // but also e.g. a save-type choice mid-sequence) is answered at once, with no idle-wait and no pacing
+    // delay: src/client/presentation/director.ts's waitForAttackToClose deliberately withholds the whole
+    // buffered attack-roll batch from playing until AttackSequenceEnded, precisely so the dice group into
+    // one tray window per squad/weapon/target instead of one window per die — so presentation genuinely
+    // never goes idle mid-sequence, and gating on it here would just burn the watchdog cap on every one of
+    // these (this is what made the bot's turn slow: see the coordinator's 52e4285 follow-up).
+    const midAttack = isMidAttackSequence(initial.events)
+    let waitedOnPresentation = false
+    if (!midAttack) {
+      const idleBefore = typeof performance !== 'undefined' ? performance.now() : Date.now()
+      await waitForPresentationIdle(PRESENTATION_IDLE_TIMEOUT_MS)
+      waitedOnPresentation = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - idleBefore > 1
+      if (get().pending?.id !== expectedDecisionId) return
+      await sleep(botPaceDelayMs())
+      if (get().pending?.id !== expectedDecisionId) return
+    }
     const { state, pending, legal, botSeat } = get()
     if (!state || !pending || !botSeat || pending.id !== expectedDecisionId || !botDecider) return
     const decider = botDecider
@@ -294,7 +342,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
         console.error(`[bot] decision ${pending.id} (${kind}) exceeded ${BOT_DECISION_TIMEOUT_MS}ms — falling back to RandomDecider`)
       })
       const elapsed = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0
-      botDebug(`decide kind=${kind} id=${pending.id} ms=${elapsed.toFixed(1)} waitedOnPresentation=false`)
+      botDebug(`decide kind=${kind} id=${pending.id} ms=${elapsed.toFixed(1)} waitedOnPresentation=${waitedOnPresentation}`)
       if (decider instanceof UtilityDecider && elapsed > UTILITY_SLOW_MS) {
         console.error(`[bot] UtilityDecider took ${elapsed.toFixed(1)}ms (> ${UTILITY_SLOW_MS}ms) on decision ${pending.id} (${kind}) — redoing with RandomDecider`)
         action = null // discard the slow pick; fall through to the RandomDecider fallback below
