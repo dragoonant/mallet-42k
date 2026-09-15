@@ -229,16 +229,46 @@ const wrap: CSSProperties = {
   gap: 6,
   pointerEvents: 'auto',
 }
+// Deployment-only dock: Combat Patrol's own deployment zones (src/data/missions/cp-0*.json) are full-
+// board-width strips hugging the board's near/far edge (§cp-01 zones z in [-15,-10]/[10,15], x the
+// full [-22,22]) — with the default overview camera those strips project to screen bands near the very
+// top and very bottom of the viewport (~26-35%/~59-74% of height at both 1280x720 and 1600x900, same
+// 16:9 aspect ratio, so the percentages hold at either size), leaving the vertical middle of the screen
+// always clear of both players' zones. `wrap`'s bottom-centre placement sits squarely on the near-side
+// strip, which is exactly the zone a deploying player needs to click into — every in-zone click during
+// deployment can end up landing on this DOM panel instead of the canvas underneath it. Docking to the
+// left edge and pinning both `top`/`bottom` (rather than a bottom offset + auto height) gives the panel
+// a fixed box confined to that clear middle band — content that would otherwise grow the panel taller
+// (a long roster, a multi-reason "Can't confirm" line) scrolls inside it instead of pushing the box
+// down into the near-side zone. A plain always-left dock (rather than picking the side away from the
+// zone) is enough here since the zones run the *board's* full width, not screen width — see the
+// comment above `deployRowVertical` for why the dock's own width doesn't matter once its vertical band
+// is clear of both zones.
+const deployWrap: CSSProperties = {
+  ...panel,
+  position: 'absolute',
+  left: 10,
+  top: '38%',
+  bottom: '38%',
+  width: 230,
+  padding: '10px 12px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 6,
+  overflowY: 'auto',
+  pointerEvents: 'auto',
+}
 const heading: CSSProperties = { fontWeight: 700, fontSize: 14 }
 const hint: CSSProperties = { ...mutedText }
 const infoBlock: CSSProperties = { ...mutedText, background: 'rgba(255,255,255,0.04)', borderRadius: 6, padding: '6px 8px' }
 const stratList: CSSProperties = { margin: '4px 0 0 16px', padding: 0, fontSize: 11.5 }
 const row: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap' }
-/** The deploy palette (unit chips + Reserves buttons) — one scrollable row instead of wrapping to
- *  several lines, so the panel's height stays fixed regardless of roster size and never grows tall
- *  enough to cover deployment-zone clicks near the bottom of the board (M4-era regression: a 5-unit
- *  patrol wrapped this row two or three lines deep). */
-const deployRow: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: 2 }
+/** The deploy palette (unit chips + Reserves buttons), laid out for the left-docked deployment panel
+ *  (`deployWrap`) — a vertical list fits a narrow sidebar far better than a horizontal scroller would.
+ *  The dock's own width is unconstrained by the zone strips (they run the board's full width, not just
+ *  the panel's column), so this only needs to look good, not dodge anything itself — `deployWrap`'s
+ *  pinned top/bottom is what keeps the whole box out of both zones. */
+const deployRowVertical: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6 }
 const optionList: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', maxHeight: 130, overflowY: 'auto' }
 function hasOptions(p: PendingDecision): p is Extract<PendingDecision, { options: DecisionOption[] }> {
   return 'options' in p
@@ -380,11 +410,12 @@ export function DecisionPrompt() {
 
   const chooseOptionInfo = pending.kind === 'chooseOption' ? CHOOSE_OPTION_INFO[pending.context.topic] : undefined
   const kindTitle = chooseOptionInfo?.title ?? KIND_TITLE[pending.kind] ?? pending.kind
+  const isDeploy = pending.kind === 'deployUnit'
 
   return (
     <>
       <FormationPicker />
-      <div style={wrap} data-testid="prompt">
+      <div style={isDeploy ? deployWrap : wrap} data-testid="prompt">
       <div style={heading}>{kindTitle}</div>
       {chooseOptionInfo && <div style={hint}>{chooseOptionInfo.hint}</div>}
 
@@ -411,11 +442,11 @@ export function DecisionPrompt() {
       )}
 
       {pending.kind === 'deployUnit' && (
-        <div style={deployRow}>
+        <div style={deployRowVertical}>
           {pending.context.unitIds.map((uid) => (
             <button
               key={uid}
-              style={{ ...(uid === deployTargetUnitId ? buttonPrimary : buttonBase), flexShrink: 0 }}
+              style={{ ...(uid === deployTargetUnitId ? buttonPrimary : buttonBase), flexShrink: 0, width: '100%', textAlign: 'left' }}
               onClick={() => setDeployTarget(uid)}
             >
               {state.units[uid]?.name ?? uid}
@@ -425,7 +456,7 @@ export function DecisionPrompt() {
             const reserveAction = legal?.find((a) => a.type === 'deployUnit' && a.unitId === uid && a.toReserves)
             if (!reserveAction) return null
             return (
-              <button key={`res-${uid}`} style={{ ...buttonBase, flexShrink: 0 }} onClick={() => dispatch(reserveAction)}>
+              <button key={`res-${uid}`} style={{ ...buttonBase, flexShrink: 0, width: '100%', textAlign: 'left' }} onClick={() => dispatch(reserveAction)}>
                 Reserves: {state.units[uid]?.name ?? uid}
               </button>
             )
