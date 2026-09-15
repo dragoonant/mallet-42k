@@ -271,12 +271,21 @@ async function clickFirstOption(page: Page, avoidPass = true): Promise<boolean> 
 }
 
 async function clickPass(page: Page): Promise<boolean> {
-  for (const id of ['btn-pass', 'btn-end-phase']) {
-    const b = page.getByTestId(id)
-    if ((await b.isVisible().catch(() => false)) && (await b.isEnabled().catch(() => false))) {
-      await b.click()
-      return true
-    }
+  // Scoped to the decision-prompt container itself (role/text, not a bare testid lookup that could
+  // resolve to a same-named button elsewhere on the page, e.g. the HUD's "End phase / Pass") — and logs
+  // which button it actually clicked, so a commandReroll/stratagemWindow/reactionWindow offer that never
+  // resolves shows up in the run log instead of just quietly spinning (the freeze this guards against).
+  const promptPass = page.getByTestId('prompt').getByRole('button', { name: 'Pass', exact: true })
+  if (await promptPass.isVisible().catch(() => false)) {
+    await promptPass.click()
+    note('clicked prompt button: Pass')
+    return true
+  }
+  const endPhase = page.getByTestId('btn-end-phase')
+  if ((await endPhase.isVisible().catch(() => false)) && (await endPhase.isEnabled().catch(() => false))) {
+    await endPhase.click()
+    note('clicked: End phase / Pass')
+    return true
   }
   return clickFirstOption(page, false)
 }
@@ -475,9 +484,21 @@ async function handleHuman(page: Page, s: Snap, fast: boolean): Promise<void> {
       if (!(await clickFirstOption(page))) await clickPass(page)
       return
     }
-    case 'stratagemWindow':
-    case 'reactionWindow':
     case 'commandReroll': {
+      // Rules sanity (read-only): the engine only opens this window for the roll's own owner
+      // (src/engine/stratagems.ts's openCommandReroll rejects roll.player !== player before ever
+      // deciding), so pending.player should always equal pending.context.roll.player.
+      const roll = p.context.roll
+      note(`commandReroll offered to player=${p.player} for roll.player=${roll?.player} purpose=${roll?.purpose} dice=${JSON.stringify(roll?.dice)}`)
+      if (roll && roll.player !== p.player) {
+        note(`MISMATCH: decision owner (${p.player}) does not match roll owner (${roll.player}) — possible engine bug`)
+        milestones.rejections.push(`commandReroll owner mismatch: decision=${p.player} roll=${roll.player}`)
+      }
+      if (!(await clickPass(page))) await clickFirstOption(page, false)
+      return
+    }
+    case 'stratagemWindow':
+    case 'reactionWindow': {
       if (!(await clickPass(page))) await clickFirstOption(page, false)
       return
     }

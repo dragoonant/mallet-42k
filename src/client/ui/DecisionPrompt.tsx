@@ -215,6 +215,12 @@ function hoverTargetFor(pending: PendingDecision, action: Action, optionId: stri
   return null
 }
 
+// A pending decision is player input the game is blocked on — it must never be visually covered (and,
+// more importantly, never have its buttons occluded from pointer hit-testing) by anything else on
+// screen, including the dice tray (src/client/dice/DiceTray.tsx, zIndex 20) sharing this same bottom-
+// centre real estate while an attack's dice are still animating. Every one of this file's own absolutely-
+// positioned containers (wrap/deployWrap/bannerWrap) sits above that.
+const PROMPT_Z_INDEX = 30
 const wrap: CSSProperties = {
   ...panel,
   position: 'absolute',
@@ -228,6 +234,7 @@ const wrap: CSSProperties = {
   flexDirection: 'column',
   gap: 6,
   pointerEvents: 'auto',
+  zIndex: PROMPT_Z_INDEX,
 }
 // Deployment-only dock: Combat Patrol's own deployment zones (src/data/missions/cp-0*.json) are full-
 // board-width strips hugging the board's near/far edge (§cp-01 zones z in [-15,-10]/[10,15], x the
@@ -257,6 +264,7 @@ const deployWrap: CSSProperties = {
   gap: 6,
   overflowY: 'auto',
   pointerEvents: 'auto',
+  zIndex: PROMPT_Z_INDEX,
 }
 const heading: CSSProperties = { fontWeight: 700, fontSize: 14 }
 const hint: CSSProperties = { ...mutedText }
@@ -285,6 +293,7 @@ const bannerWrap: CSSProperties = {
   border: `1px solid ${colors.border}`,
   borderRadius: 8,
   padding: '8px 16px',
+  zIndex: PROMPT_Z_INDEX,
 }
 
 /** Short "here's what's on offer" block for stratagemWindow/reactionWindow — name, cost and effect
