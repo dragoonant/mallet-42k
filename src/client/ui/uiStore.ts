@@ -48,6 +48,8 @@ interface UiState {
   losOn: boolean
   /** "Keys" help popover (src/client/ui/ToolsBar.tsx). */
   helpOpen: boolean
+  /** Settings popover (src/client/ui/SettingsPanel.tsx) — audio mix + animation-speed/dice/ambient. */
+  settingsOpen: boolean
   /** Board point the camera should smoothly centre on next — a fresh object every call so
    *  CameraRig's effect fires even when re-focusing the same spot (src/client/board/CameraRig.tsx). */
   focusTarget: Vec2 | null
@@ -65,6 +67,7 @@ interface UiState {
   clearMeasure(): void
   toggleLos(): void
   toggleHelp(): void
+  toggleSettings(): void
   focusCamera(pos: Vec2): void
   /** Clears everything scoped to one decision — call whenever `pending.id` changes. */
   resetForDecision(): void
@@ -85,6 +88,7 @@ export const useUiStore = create<UiState>((set) => ({
   measureLine: null,
   losOn: false,
   helpOpen: false,
+  settingsOpen: false,
   focusTarget: null,
   selectUnit: (id) => set({ selectedUnitId: id }),
   hoverUnit: (id) => set({ hoveredUnitId: id }),
@@ -100,6 +104,7 @@ export const useUiStore = create<UiState>((set) => ({
   clearMeasure: () => set({ measureAnchor: null, measureLine: null }),
   toggleLos: () => set((s) => ({ losOn: !s.losOn })),
   toggleHelp: () => set((s) => ({ helpOpen: !s.helpOpen })),
+  toggleSettings: () => set((s) => ({ settingsOpen: !s.settingsOpen })),
   focusCamera: (pos) => set({ focusTarget: { x: pos.x, z: pos.z } }),
   resetForDecision: () => set({ deployTargetUnitId: null, draft: null, previewDraft: null, hoveredUnitId: null, hoveredObjectiveId: null }),
   resetAll: () =>

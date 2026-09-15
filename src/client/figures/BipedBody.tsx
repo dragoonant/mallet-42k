@@ -5,7 +5,7 @@
 import { useRef } from 'react'
 import type { Group } from 'three'
 import { EndBlock, HeadBlob, LimbSegment, WeaponMesh } from './primitives'
-import { usePoseFrame, clamp01, easeOut } from './anim'
+import { usePoseFrame, clamp01, easeOut, useMaterialFader } from './anim'
 import type { BipedConfig, BodyProps } from './types'
 
 const ORK_SKIN = '#6f8f3f'
@@ -26,6 +26,7 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
   const armRRef = useRef<Group>(null!)
   const legLRef = useRef<Group>(null!)
   const legRRef = useRef<Group>(null!)
+  const fade = useMaterialFader(bodyRef)
 
   usePoseFrame(pose, (t, since) => {
     const body = bodyRef.current
@@ -47,6 +48,8 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
     armL.rotation.set(0, 0, 0)
     armR.rotation.set(0, 0, 0)
 
+    if (pose !== 'death') fade(1) // reset opacity if this figure was ever faded and got reused
+
     switch (pose) {
       case 'idle': {
         body.position.y = 0.012 * Math.sin(t * 2 + seed)
@@ -57,14 +60,22 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
         break
       }
       case 'walk': {
-        const freq = 6
+        // Heavier kits (bulk > 1: Terminators, the Dread) take slower, bigger-swinging strides
+        // that read as a stomp rather than a jog — no per-kit special-casing needed.
+        const freq = 6.5 / Math.sqrt(bulk)
         const phase = since * freq + seed
-        legL.rotation.x = 0.5 * Math.sin(phase)
-        legR.rotation.x = -0.5 * Math.sin(phase)
+        const stride = 0.5 + 0.15 * (bulk - 1)
+        legL.rotation.x = stride * Math.sin(phase)
+        legR.rotation.x = -stride * Math.sin(phase)
         armL.rotation.x = -0.35 * Math.sin(phase)
         armR.rotation.x = 0.35 * Math.sin(phase)
-        body.position.y = 0.02 * Math.abs(Math.sin(phase))
+        // Sharper, heavier footfall impact for bulkier kits (power > 1 peaks the bounce instead
+        // of a smooth sine) rather than just scaling a sine's amplitude.
+        const footfall = Math.pow(Math.abs(Math.sin(phase)), 1 / (1 + 0.4 * (bulk - 1)))
+        body.position.y = (0.02 + 0.015 * (bulk - 1)) * footfall
         torso.rotation.x = 0.06
+        torso.rotation.y = 0.05 * Math.sin(phase)
+        head.rotation.y = -0.03 * Math.sin(phase)
         break
       }
       case 'shoot': {
@@ -72,17 +83,32 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
         const kick = cyclePhase < 0.15 ? 1 - cyclePhase / 0.15 : 0
         armR.rotation.x = -0.5 * kick
         torso.rotation.x = -0.05 * kick
+        body.position.z = -0.02 * kick // recoil pushes the shooter back a touch
         body.position.y = 0.005 * Math.sin(t * 4)
         legL.rotation.z = 0.06
         legR.rotation.z = -0.06
         break
       }
       case 'melee': {
-        const chop = Math.sin(since * 6 + seed)
-        armR.rotation.x = 0.8 * chop
-        torso.rotation.y = 0.15 * chop
+        // One lunge-forward-and-recover per swing, synced to the same cycle as the weapon chop.
+        const cyclePhase = (since * 2.2 + seed * 0.1) % 1
+        const chop = Math.sin(cyclePhase * Math.PI * 2)
+        const lunge = cyclePhase < 0.3 ? Math.sin((cyclePhase / 0.3) * Math.PI) : 0
+        armR.rotation.x = 0.9 * chop
+        torso.rotation.y = 0.18 * chop
+        body.position.z = 0.07 * lunge
         legL.rotation.z = 0.1
         legR.rotation.z = -0.1
+        break
+      }
+      case 'hit': {
+        // Short decaying shake + knockback — reads as a flinch without needing to know which
+        // direction the hit came from.
+        const decay = Math.exp(-since * 11)
+        body.position.x = 0.03 * Math.sin(since * 45) * decay
+        body.position.z = -0.05 * decay
+        torso.rotation.z = 0.16 * decay
+        head.rotation.x = 0.12 * decay
         break
       }
       case 'death': {
@@ -90,6 +116,7 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
         body.rotation.z = -topple * (Math.PI / 2) * 0.9
         const sink = clamp01((since - 1.2) / 0.5)
         body.position.y = -sink * 0.4
+        fade(1 - sink)
         break
       }
     }

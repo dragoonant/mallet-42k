@@ -1,0 +1,267 @@
+{
+  "_comment": "Owned by the audio task (src/client/audio/**, tools/gen-audio.ts, public/audio/**). All prompts/lines are original wording \u2014 no Games Workshop text. Run `npx tsx tools/gen-audio.ts` to (re)generate missing files into public/audio/<id>.mp3.",
+  "voice": {
+    "voiceId": "SOYHLrjzK2X1ezoPC6cr",
+    "voiceName": "Harry - Fierce Warrior",
+    "modelId": "eleven_flash_v2_5"
+  },
+  "items": [
+    {
+      "id": "bolter-burst",
+      "kind": "sfx",
+      "prompt": "A short burst of a heavy automatic sci-fi rifle firing, punchy and mechanical",
+      "durationSeconds": 0.6,
+      "promptInfluence": 0.55
+    },
+    {
+      "id": "shoota-spray",
+      "kind": "sfx",
+      "prompt": "A chaotic rattling burst of a crude improvised automatic gun firing rapidly",
+      "durationSeconds": 0.7,
+      "promptInfluence": 0.5
+    },
+    {
+      "id": "heavy-gun",
+      "kind": "sfx",
+      "prompt": "A single heavy cannon shot, deep booming mechanical blast",
+      "durationSeconds": 0.8,
+      "promptInfluence": 0.55
+    },
+    {
+      "id": "flamer",
+      "kind": "sfx",
+      "prompt": "A whoosh and roar of a short burst of flame from a flamethrower",
+      "durationSeconds": 1.0,
+      "promptInfluence": 0.5
+    },
+    {
+      "id": "psychic-zap",
+      "kind": "sfx",
+      "prompt": "A crackling otherworldly energy zap with a metallic psychic resonance",
+      "durationSeconds": 0.8,
+      "promptInfluence": 0.5
+    },
+    {
+      "id": "hit-impact",
+      "kind": "sfx",
+      "prompt": "A solid physical impact thud, a body struck by a projectile",
+      "durationSeconds": 0.5,
+      "promptInfluence": 0.5
+    },
+    {
+      "id": "armour-save-clank",
+      "kind": "sfx",
+      "prompt": "A sharp metallic clank of a bullet deflecting off heavy armour plate",
+      "durationSeconds": 0.5,
+      "promptInfluence": 0.55
+    },
+    {
+      "id": "invuln-shimmer",
+      "kind": "sfx",
+      "prompt": "A shimmering energy shield deflecting an attack, bright ethereal chime",
+      "durationSeconds": 0.6,
+      "promptInfluence": 0.5
+    },
+    {
+      "id": "melee-chainsword",
+      "kind": "sfx",
+      "prompt": "A revving serrated blade striking and tearing through material",
+      "durationSeconds": 0.7,
+      "promptInfluence": 0.5
+    },
+    {
+      "id": "power-klaw-crunch",
+      "kind": "sfx",
+      "prompt": "A heavy hydraulic claw crushing and crunching metal with force",
+      "durationSeconds": 0.7,
+      "promptInfluence": 0.5
+    },
+    {
+      "id": "ork-war-cry",
+      "kind": "sfx",
+      "prompt": "A gruff guttural monstrous war cry shout from a large brutish creature",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.45
+    },
+    {
+      "id": "marine-shout",
+      "kind": "sfx",
+      "prompt": "A disciplined gruff soldier shouting a battle command",
+      "durationSeconds": 1.0,
+      "promptInfluence": 0.45
+    },
+    {
+      "id": "model-death",
+      "kind": "sfx",
+      "prompt": "A short pained grunt and metallic collapse as a soldier falls",
+      "durationSeconds": 0.6,
+      "promptInfluence": 0.5
+    },
+    {
+      "id": "vehicle-explosion",
+      "kind": "sfx",
+      "prompt": "A large vehicle exploding with a deep fiery boom and metal debris",
+      "durationSeconds": 1.5,
+      "promptInfluence": 0.55
+    },
+    {
+      "id": "charge-rumble",
+      "kind": "sfx",
+      "prompt": "A rumbling stampede of heavy footsteps charging forward",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.5
+    },
+    {
+      "id": "dice-rattle",
+      "kind": "sfx",
+      "prompt": "Dice rattling and rolling across a wooden tabletop",
+      "durationSeconds": 0.8,
+      "promptInfluence": 0.5
+    },
+    {
+      "id": "dice-land",
+      "kind": "sfx",
+      "prompt": "A couple of dice landing and settling on a table",
+      "durationSeconds": 0.5,
+      "promptInfluence": 0.5
+    },
+    {
+      "id": "objective-captured-chime",
+      "kind": "sfx",
+      "prompt": "A bright uplifting chime confirming an objective has been captured",
+      "durationSeconds": 0.8,
+      "promptInfluence": 0.45
+    },
+    {
+      "id": "vp-scored-sting",
+      "kind": "sfx",
+      "prompt": "A short triumphant musical sting for scoring points",
+      "durationSeconds": 0.7,
+      "promptInfluence": 0.45
+    },
+    {
+      "id": "cp-gained-click",
+      "kind": "sfx",
+      "prompt": "A crisp mechanical click confirming a resource point gained",
+      "durationSeconds": 0.5,
+      "promptInfluence": 0.5
+    },
+    {
+      "id": "stratagem-whoosh",
+      "kind": "sfx",
+      "prompt": "A dramatic swelling whoosh for activating a special tactical ability",
+      "durationSeconds": 0.8,
+      "promptInfluence": 0.45
+    },
+    {
+      "id": "battle-shock-sting",
+      "kind": "sfx",
+      "prompt": "A tense dissonant musical sting representing troops wavering in fear",
+      "durationSeconds": 0.8,
+      "promptInfluence": 0.45
+    },
+    {
+      "id": "turn-start-horn",
+      "kind": "sfx",
+      "prompt": "A deep battle horn blast signalling the start of a turn",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.5
+    },
+    {
+      "id": "ui-click",
+      "kind": "sfx",
+      "prompt": "A small clean user interface click sound",
+      "durationSeconds": 0.5,
+      "promptInfluence": 0.5
+    },
+    {
+      "id": "ui-error",
+      "kind": "sfx",
+      "prompt": "A short low buzzing interface error sound",
+      "durationSeconds": 0.5,
+      "promptInfluence": 0.5
+    },
+    {
+      "id": "victory-fanfare",
+      "kind": "sfx",
+      "prompt": "A triumphant heroic brass fanfare celebrating victory",
+      "durationSeconds": 2.0,
+      "promptInfluence": 0.45
+    },
+    {
+      "id": "defeat-sting",
+      "kind": "sfx",
+      "prompt": "A somber descending musical sting signalling defeat",
+      "durationSeconds": 1.5,
+      "promptInfluence": 0.45
+    },
+    {
+      "id": "ambient-battlefield-loop",
+      "kind": "sfx",
+      "prompt": "A distant looping ambient battlefield soundscape with wind, faint far-off explosions and machinery, seamless loop, no music",
+      "durationSeconds": 20,
+      "promptInfluence": 0.3,
+      "loop": true
+    },
+    {
+      "id": "narr-battle-round-one",
+      "kind": "voice",
+      "text": "Battle round one."
+    },
+    {
+      "id": "narr-movement-phase",
+      "kind": "voice",
+      "text": "Movement phase."
+    },
+    {
+      "id": "narr-shooting-phase",
+      "kind": "voice",
+      "text": "Shooting phase."
+    },
+    {
+      "id": "narr-charge",
+      "kind": "voice",
+      "text": "Charge!"
+    },
+    {
+      "id": "narr-fight-phase",
+      "kind": "voice",
+      "text": "Fight phase."
+    },
+    {
+      "id": "narr-command-phase",
+      "kind": "voice",
+      "text": "Command phase."
+    },
+    {
+      "id": "narr-objective-taken",
+      "kind": "voice",
+      "text": "Objective taken."
+    },
+    {
+      "id": "narr-unit-destroyed",
+      "kind": "voice",
+      "text": "Unit destroyed."
+    },
+    {
+      "id": "narr-stratagem",
+      "kind": "voice",
+      "text": "Stratagem!"
+    },
+    {
+      "id": "narr-victory",
+      "kind": "voice",
+      "text": "Victory!"
+    },
+    {
+      "id": "narr-defeat",
+      "kind": "voice",
+      "text": "Defeat."
+    },
+    {
+      "id": "narr-your-turn",
+      "kind": "voice",
+      "text": "Your turn."
+    }
+  ]
+}

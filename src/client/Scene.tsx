@@ -7,6 +7,7 @@ import { Board, CameraRig, Lighting, Objectives, Ruler, Terrain } from './board'
 import { useGameStore } from './store/game'
 import { useUiStore } from './ui/uiStore'
 import { computeBoardClickDraft, DeathGhosts, PlacementOverlay, resolveMeasureLine, UnitLabels, UnitsLayer, useBoardClick } from './interaction'
+import { VfxLayer } from './vfx'
 
 export function Scene() {
   const state = useGameStore((s) => s.state)
@@ -77,6 +78,7 @@ export function Scene() {
       <UnitLabels />
       <PlacementOverlay />
       <DeathGhosts />
+      <VfxLayer />
       {measureOn && measureLine && <Ruler a={measureLine.a} b={measureLine.b} />}
     </Canvas>
   )

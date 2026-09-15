@@ -1,13 +1,16 @@
 // Top-level screen switch (docs/spec/50-client.md). Start screen until a game exists, then the 3D
 // scene with the HUD/prompt overlays on top; the end screen layers over the (still-rendered) board
 // so the final position stays visible behind it.
-import { useState, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { Scene } from './Scene'
 import { useGameStore } from './store/game'
 import { useUiStore } from './ui/uiStore'
-import { StartScreen, Hud, UnitCard, DiceLog, EventFeed, Toast, VpToast, EndScreen, DecisionPrompt, StratagemPanel } from './ui'
+import { StartScreen, Hud, UnitCard, DiceLog, EventFeed, Toast, VpToast, EndScreen, DecisionPrompt, StratagemPanel, SettingsPanel } from './ui'
 import { FigureGalleryStage } from './figures'
 import type { Pose } from './figures'
+import { DiceTray } from './dice'
+import { audio } from './audio'
+import { PresentationDirector } from './presentation'
 
 const overlayLayer: CSSProperties = { position: 'absolute', inset: 0, pointerEvents: 'none' }
 
@@ -41,6 +44,12 @@ export function App() {
   const state = useGameStore((s) => s.state)
   const resetAll = useUiStore((s) => s.resetAll)
 
+  // Unlocks audio on the player's first click/tap/key, anywhere in the app — harmless to call more
+  // than once and safe to call before a game exists (the manager just preloads and waits).
+  useEffect(() => {
+    audio.attachAutoUnlock()
+  }, [])
+
   const gallery = useGalleryQuery()
   if (gallery.active) {
     return (
@@ -63,6 +72,7 @@ export function App() {
 
   return (
     <div style={{ position: 'fixed', inset: 0, overflow: 'hidden' }}>
+      <PresentationDirector />
       <Scene />
       <div style={overlayLayer}>
         <Hud />
@@ -73,6 +83,8 @@ export function App() {
         <DecisionPrompt />
         <Toast />
         <VpToast />
+        <DiceTray />
+        <SettingsPanel />
       </div>
       <EndScreen onPlayAgain={() => setScreen('start')} />
     </div>

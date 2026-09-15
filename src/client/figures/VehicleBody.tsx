@@ -3,13 +3,14 @@
 // (hull/turret/gunMount) reduced to what a gyrocopter actually needs.
 import { useRef } from 'react'
 import type { Group } from 'three'
-import { usePoseFrame, clamp01, easeOut } from './anim'
+import { usePoseFrame, clamp01, easeOut, useMaterialFader } from './anim'
 import type { BodyProps, VehicleConfig } from './types'
 
 export function VehicleBody({ config, colors, pose, seed }: BodyProps & { config: VehicleConfig }) {
   const bodyRef = useRef<Group>(null!)
   const rotorRef = useRef<Group>(null!)
   const gunRef = useRef<Group>(null!)
+  const fade = useMaterialFader(bodyRef)
 
   usePoseFrame(pose, (t, since) => {
     const body = bodyRef.current
@@ -21,6 +22,8 @@ export function VehicleBody({ config, colors, pose, seed }: BodyProps & { config
     body.position.set(0, 0, 0)
     gun.rotation.set(0, 0, 0)
     gun.position.set(0, 0, 0)
+
+    if (pose !== 'death') fade(1) // reset opacity if this figure was ever faded and got reused
 
     let rotorSpeed = 12
     switch (pose) {
@@ -40,10 +43,22 @@ export function VehicleBody({ config, colors, pose, seed }: BodyProps & { config
         body.rotation.x = -0.03 * kick
         break
       }
-      case 'melee':
+      case 'melee': {
+        // Ramming lunge-and-recover, same one-shot-per-cycle shape as the biped melee lunge.
+        const cyclePhase = (since * 1.8 + seed * 0.1) % 1
+        const lunge = cyclePhase < 0.3 ? Math.sin((cyclePhase / 0.3) * Math.PI) : 0
+        body.position.z = 0.1 * lunge
         body.rotation.z = 0.3 * Math.sin(since * 8 + seed)
         rotorSpeed = 16
         break
+      }
+      case 'hit': {
+        const decay = Math.exp(-since * 11)
+        body.position.x = 0.04 * Math.sin(since * 40) * decay
+        body.rotation.z = 0.2 * decay
+        body.position.z = -0.06 * decay
+        break
+      }
       case 'death': {
         const topple = easeOut(since / 1.2)
         body.rotation.z = topple * (Math.PI / 2) * 0.8
@@ -51,6 +66,7 @@ export function VehicleBody({ config, colors, pose, seed }: BodyProps & { config
         const sink = clamp01((since - 1.2) / 0.5)
         body.position.y = -sink * 0.5
         rotorSpeed = Math.max(0, 12 * (1 - clamp01(since / 1.2)))
+        fade(1 - sink)
         break
       }
     }

@@ -358,6 +358,15 @@ test('play a game as Space Marines vs Bot through the UI', async ({ page }) => {
   await page.waitForFunction(() => !!(window as any).__mallet)
   await page.waitForTimeout(2500) // camera polar lerp + first frames
 
+  // M8: open Settings (screenshot the popover), then speed pacing up to 'fast' so the full
+  // playtest below doesn't take forever — 'instant' would skip the dice tumble and vfx-catching
+  // gaps entirely, making the m8-01/m8-02 effect screenshots below impossible to land.
+  await page.getByTestId('btn-settings').click()
+  await expect(page.getByTestId('settings-panel')).toBeVisible()
+  await page.screenshot({ path: 'e2e-out/m8-04-settings.png' })
+  await page.getByTestId('settings-speed-fast').click()
+  await page.getByTestId('btn-settings').click()
+
   // projection sanity: click a figure of any on-board unit later; record accuracy
   const start = Date.now()
   let lastId = ''
@@ -371,6 +380,9 @@ test('play a game as Space Marines vs Bot through the UI', async ({ page }) => {
   let shotBotTurn = false
   let firstBattleRoundDone = false
   let lastPhaseKey = ''
+  let shotM8Shoot = false
+  let shotM8Dice = false
+  let shotM8Melee = false
 
   while (Date.now() - start < GAME_BUDGET_MS) {
     const s = await snap(page)
@@ -391,6 +403,23 @@ test('play a game as Space Marines vs Bot through the UI', async ({ page }) => {
       await page.screenshot({ path: 'e2e-out/02-deployed.png' })
     }
     if (s.round >= 2) firstBattleRoundDone = true
+
+    // M8: opportunistic catches — the director animates a step or two behind the engine state
+    // this loop polls, so the dice tray/fight phase can still be up well after `pending` has
+    // already moved on. Checked every iteration since a roll's on-screen window is brief even
+    // at 'fast' speed.
+    if (!shotM8Dice) {
+      const diceVisible = await page.getByTestId('dice-tray').isVisible().catch(() => false)
+      if (diceVisible) {
+        shotM8Dice = true
+        await page.screenshot({ path: 'e2e-out/m8-02-dice.png' })
+      }
+    }
+    if (!shotM8Melee && s.phase === 'fight') {
+      shotM8Melee = true
+      await page.waitForTimeout(150)
+      await page.screenshot({ path: 'e2e-out/m8-03-melee.png' })
+    }
 
     if (!s.pending) {
       await page.waitForTimeout(200)
@@ -444,6 +473,13 @@ test('play a game as Space Marines vs Bot through the UI', async ({ page }) => {
       await page.waitForTimeout(600)
       await page.screenshot({ path: 'e2e-out/03-movement.png' })
     }
+    if (!shotM8Shoot && milestones.figureTargets + milestones.listTargets > targetsBefore && s.phase === 'shooting') {
+      shotM8Shoot = true
+      // Short delay to let the director's TargetsDeclared handler spawn the tracer/impact vfx
+      // (src/client/presentation/director.ts) before the shot's own ~0.2-0.6s lifetime elapses.
+      await page.waitForTimeout(180)
+      await page.screenshot({ path: 'e2e-out/m8-01-shooting.png' })
+    }
     if (!shotShoot && milestones.figureTargets + milestones.listTargets > targetsBefore && s.phase === 'shooting') {
       shotShoot = true
       await page.waitForTimeout(900)
@@ -478,6 +514,8 @@ test('play a game as Space Marines vs Bot through the UI', async ({ page }) => {
   const final = await snap(page)
   await page.waitForTimeout(600)
   await page.screenshot({ path: 'e2e-out/06-end-or-latest.png' })
+  // M8: no fight phase reached this run — fall back to any action frame, per the polish checklist.
+  if (!shotM8Melee) await page.screenshot({ path: 'e2e-out/m8-03-melee.png' })
 
   const summary = {
     elapsedS: Math.round((Date.now() - start) / 1000),

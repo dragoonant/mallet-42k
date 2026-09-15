@@ -172,10 +172,12 @@ function ToolButtons() {
   const losOn = useUiStore((s) => s.losOn)
   const topDown = useUiStore((s) => s.topDown)
   const helpOpen = useUiStore((s) => s.helpOpen)
+  const settingsOpen = useUiStore((s) => s.settingsOpen)
   const toggleMeasure = useUiStore((s) => s.toggleMeasure)
   const toggleLos = useUiStore((s) => s.toggleLos)
   const toggleTopDown = useUiStore((s) => s.toggleTopDown)
   const toggleHelp = useUiStore((s) => s.toggleHelp)
+  const toggleSettings = useUiStore((s) => s.toggleSettings)
   const focusCamera = useUiStore((s) => s.focusCamera)
 
   const focusSelected = () => {
@@ -227,6 +229,14 @@ function ToolButtons() {
         onClick={toggleHelp}
       >
         Keys
+      </button>
+      <button
+        style={settingsOpen ? buttonActive : buttonBase}
+        data-testid="btn-settings"
+        title="Settings: volume/mute, animation speed, dice animation, ambient sound."
+        onClick={toggleSettings}
+      >
+        Settings
       </button>
     </>
   )
