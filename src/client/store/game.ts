@@ -56,6 +56,36 @@ const otherFaction = (f: FactionKey): FactionKey => (f === 'space-marines' ? 'or
 
 const DEFAULT_MISSION_ID = 'mission.cp-01'
 const BOT_DELAY_MS = 400
+// Watchdogs for the bot loop (client-owned defense-in-depth — the engine's own legalActions() contract already
+// guarantees a non-empty list per decision, but a bad heuristic, a slow scorer, or a genuinely stuck decision
+// must never be able to leave the HUD showing "Opponent is thinking…" forever; see docs on runBotDecision below).
+const BOT_DECISION_TIMEOUT_MS = 3000 // absolute cap on how long we wait for decide() (covers any stall, presentation included)
+const UTILITY_SLOW_MS = 500 // UtilityDecider budget; over this we don't trust the pick and redo it with RandomDecider
+
+function botDebugEnabled(): boolean {
+  try {
+    return typeof location !== 'undefined' && new URLSearchParams(location.search).has('debug')
+  } catch {
+    return false
+  }
+}
+
+function botDebug(...args: unknown[]): void {
+  if (botDebugEnabled()) console.debug('[bot]', ...args)
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, onTimeout: () => void): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      onTimeout()
+      reject(new Error(`bot decision timed out after ${ms}ms`))
+    }, ms)
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v) },
+      (e) => { clearTimeout(timer); reject(e) },
+    )
+  })
+}
 
 function resolveMissionId(bundle: DataBundle, mission?: string): Id {
   if (mission) {
@@ -240,13 +270,65 @@ export const useGameStore = create<GameStore>()((set, get) => {
     }, midAttack ? 0 : BOT_DELAY_MS)
   }
 
+  // Last-resort action picker: doesn't go through a Decider at all (a Decider throwing is exactly the failure
+  // this exists to survive), just re-reads legalActions() fresh and takes the first non-pass option so the
+  // decision always advances instead of leaving the bot's turn stuck forever.
+  function anyLegalAction(state: GameState, pending: PendingDecision): Action | null {
+    const options = engineLegalActions(state, pending)
+    if (!options || options.length === 0) return null
+    return options.find((a) => a.type !== 'pass') ?? options[0]
+  }
+
   async function runBotDecision(expectedDecisionId: string): Promise<void> {
     const { state, pending, legal, botSeat } = get()
     if (!state || !pending || !botSeat || pending.id !== expectedDecisionId || !botDecider) return
     const decider = botDecider
-    const action = await decider.decide(engineView(state, botSeat), pending, legal)
-    // the human may have acted (or the game may have ended) while the bot "thought" — dispatch re-validates anyway
-    if (get().pending?.id === expectedDecisionId) get().dispatch(action)
+    const view = engineView(state, botSeat)
+    const kind = pending.kind
+    let timedOut = false
+    let action: Action | null = null
+    const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now()
+    try {
+      action = await withTimeout(decider.decide(view, pending, legal), BOT_DECISION_TIMEOUT_MS, () => {
+        timedOut = true
+        console.error(`[bot] decision ${pending.id} (${kind}) exceeded ${BOT_DECISION_TIMEOUT_MS}ms — falling back to RandomDecider`)
+      })
+      const elapsed = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0
+      botDebug(`decide kind=${kind} id=${pending.id} ms=${elapsed.toFixed(1)} waitedOnPresentation=false`)
+      if (decider instanceof UtilityDecider && elapsed > UTILITY_SLOW_MS) {
+        console.error(`[bot] UtilityDecider took ${elapsed.toFixed(1)}ms (> ${UTILITY_SLOW_MS}ms) on decision ${pending.id} (${kind}) — redoing with RandomDecider`)
+        action = null // discard the slow pick; fall through to the RandomDecider fallback below
+      }
+    } catch (err) {
+      if (!timedOut) console.error(`[bot] decide() threw on decision ${pending.id} (${kind}):`, err)
+      action = null
+    }
+    if (get().pending?.id !== expectedDecisionId) return // human acted (or game ended) while the bot "thought"
+    if (!action) {
+      try {
+        action = await new RandomDecider(`${pending.id}:fallback`).decide(view, pending, legal)
+      } catch (err) {
+        console.error(`[bot] RandomDecider fallback also threw on decision ${pending.id} (${kind}):`, err)
+        action = null
+      }
+    }
+    if (!action) {
+      // Both the real decider and the random fallback failed on the same decision — legalActions() itself
+      // is empty (a violation of the engine's own contract; see src/engine/phases/legal.ts). Grab anything
+      // legal one more time rather than leave the HUD stuck on "Opponent is thinking…" forever.
+      const fresh = get().state
+      action = fresh ? anyLegalAction(fresh, pending) : null
+    }
+    if (!action) {
+      console.error(`[bot] no legal action available at all for decision ${pending.id} (${kind}) — giving up on this decision`)
+      return
+    }
+    if (get().pending?.id !== expectedDecisionId) return
+    try {
+      get().dispatch(action)
+    } catch (err) {
+      console.error(`[bot] dispatch() threw on decision ${pending.id} (${kind}):`, err)
+    }
   }
 
   function applyResult(result: { state: GameState; events: GameEvent[]; pending: PendingDecision | null; rejection?: { code: RejectionCode; reason: string } }, dispatched?: Action): void {
