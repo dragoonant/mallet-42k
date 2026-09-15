@@ -2,8 +2,15 @@ export { placementInfo, clickableUnitIds, unitClickAction, isPlacementDecision }
 export type { PlacementInfo, PlacementActionType } from './decisions'
 export { computeBoardClickDraft } from './boardClick'
 export { useBoardClick } from './useBoardClick'
-export { modelsAnchor, translatedPlacements, deploymentFormation, distance2D, combinedUnitModels, placementsOverlapExisting } from './geometry'
+export { modelsAnchor, translatedPlacements, deploymentFormation, distance2D, combinedUnitModels, combinedUnitIds, splitBodyAndLeader, placementsOverlapExisting } from './geometry'
 export type { Anchor2D } from './geometry'
+export {
+  FORMATION_ORDER, FORMATION_LABELS, FORMATION_HINTS, FORMATION_KEYS, ROTATE_STEP_RAD,
+  generateFormation, formationPlacementsForUnit, directionFacing, zoneFacing, normalizeAngle,
+} from './formations'
+export type { FormationKind, FormationPlacement } from './formations'
+export { validateDraft } from './formationValidation'
+export type { ValidationResult, CoherencyLink, DraftPlacement } from './formationValidation'
 export { PlacementOverlay } from './PlacementOverlay'
 export { UnitsLayer } from './UnitsLayer'
 export { UnitLabels } from './UnitLabels'

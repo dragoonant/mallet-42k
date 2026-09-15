@@ -178,7 +178,10 @@ async function tryBoardPlacement(page: Page, s: Snap, points: V2[], label: strin
     if (!ok) continue
     await page.waitForTimeout(120)
     const confirm = page.getByTestId('btn-confirm')
-    if (!(await confirm.isVisible().catch(() => false))) continue
+    // M4: Confirm is disabled (with a reason) while the formation preview fails a client-side check
+    // (coherency/overlap/terrain/allowance) — treat that exactly like "not visible" and try the next
+    // candidate point rather than clicking a disabled button (which would just hang).
+    if (!(await confirm.isVisible().catch(() => false)) || !(await confirm.isEnabled().catch(() => false))) continue
     await confirm.click()
     const after = await waitChange(page, id)
     if (after.pending?.id !== id) return true

@@ -70,6 +70,34 @@ export function combinedUnitModels(state: GameState, unitId: UnitId): Model[] {
   return models
 }
 
+/** Splits a placement target's models into "body" (the squad being formed up) and "leader" (an
+ *  attached character riding along, placed centre-rear of the formation — M4 formation picker).
+ *  `unitId` may itself be the leader (its own models are the small `leader` half and its
+ *  `bodyguardUnitId` partner supplies `body`) or the bodyguard (the common case: its own models are
+ *  `body` and `attachedLeaderId` supplies `leader`). Neither field set -> `leader` is empty. */
+export function splitBodyAndLeader(state: GameState, unitId: UnitId): { body: Model[]; leader: Model[] } {
+  const unit = state.units[unitId]
+  if (!unit) return { body: [], leader: [] }
+  if (unit.attachedLeaderId && state.units[unit.attachedLeaderId]) {
+    return { body: unitModels(state, unitId), leader: unitModels(state, unit.attachedLeaderId) }
+  }
+  if (unit.bodyguardUnitId && state.units[unit.bodyguardUnitId]) {
+    return { body: unitModels(state, unit.bodyguardUnitId), leader: unitModels(state, unitId) }
+  }
+  return { body: unitModels(state, unitId), leader: [] }
+}
+
+/** `unitId` plus its attached leader/bodyguard partner, if any — the set of unit ids a placement
+ *  overlap/validation check should exclude from "everything else on the board" since they're the
+ *  unit(s) actually being placed. */
+export function combinedUnitIds(state: GameState, unitId: UnitId): Set<UnitId> {
+  const unit = state.units[unitId]
+  const partnerId = unit?.attachedLeaderId ?? unit?.bodyguardUnitId ?? null
+  const ids: UnitId[] = [unitId]
+  if (partnerId) ids.push(partnerId)
+  return new Set(ids)
+}
+
 /** True if any drafted placement's base would overlap a model already on the board (excluding the
  *  unit(s) currently being placed) — used to colour a placement draft red/green before Confirm
  *  instead of only surfacing the overlap as a rejection toast after the click. */

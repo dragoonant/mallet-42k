@@ -9,8 +9,11 @@ import {
 } from '@/engine'
 import { useGameStore } from '../store/game'
 import { useUiStore } from './uiStore'
-import { distance2D, modelsAnchor, placementInfo } from '../interaction'
+import {
+  combinedUnitIds, combinedUnitModels, distance2D, formationPlacementsForUnit, modelsAnchor, placementInfo, validateDraft,
+} from '../interaction'
 import { objectiveLabel } from './labels'
+import { FormationPicker } from './FormationPicker'
 import { buttonBase, buttonDanger, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 
 /** The nearest thing worth orienting a move/charge/pile-in/consolidate destination against — an
@@ -291,9 +294,35 @@ export function DecisionPrompt() {
   const resetForDecision = useUiStore((s) => s.resetForDecision)
   const hoverUnit = useUiStore((s) => s.hoverUnit)
   const hoverObjective = useUiStore((s) => s.hoverObjective)
+  const formationKind = useUiStore((s) => s.formationKind)
+  const formationFacing = useUiStore((s) => s.formationFacing)
+  const primeFormation = useUiStore((s) => s.primeFormation)
+  const recallFormation = useUiStore((s) => s.recallFormation)
+  const rememberFormation = useUiStore((s) => s.rememberFormation)
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => resetForDecision(), [pending?.id])
+
+  // M4 formation memory (#5): a move-family decision already knows its unit, so it can be primed
+  // the moment it becomes pending — 'keep' at the remembered facing if this unit has one, else
+  // 'keep' with facing left on "auto" (recomputed from direction of travel on the first click).
+  // Deployment doesn't know its target unit yet (that's a separate click on the palette above), so
+  // it's primed by the effect below instead, once `deployTargetUnitId` is set.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!pending) return
+    const info = placementInfo(pending)
+    if (!info) return
+    const mem = recallFormation(info.unitId)
+    if (mem) primeFormation('keep', mem.facing, false)
+    else primeFormation('keep', 0, true)
+  }, [pending?.id])
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!pending || pending.kind !== 'deployUnit' || !deployTargetUnitId) return
+    primeFormation('line', 0, true)
+  }, [pending?.id, deployTargetUnitId])
 
   if (!state || !pending) return null
 
@@ -305,8 +334,19 @@ export function DecisionPrompt() {
   const activeDraft = draft && draft.decisionId === pending.id ? draft : null
   const passAction = legal?.find((a) => a.type === 'pass') ?? null
 
+  const draftValidation = activeDraft
+    ? validateDraft(
+        state,
+        combinedUnitModels(state, activeDraft.unitId),
+        activeDraft.placements,
+        pending.kind === 'deployUnit' ? null : (info?.constraints ?? null),
+        combinedUnitIds(state, activeDraft.unitId),
+        true,
+      )
+    : null
+
   const confirmDraft = () => {
-    if (!activeDraft) return
+    if (!activeDraft || (draftValidation && !draftValidation.ok)) return
     const { unitId, placements } = activeDraft
     const base = { player: pending.player, decisionId: pending.id }
     if (pending.kind === 'deployUnit') dispatch({ ...base, type: 'deployUnit', unitId, placements })
@@ -314,7 +354,14 @@ export function DecisionPrompt() {
     else if (pending.kind === 'chargeMove') dispatch({ ...base, type: 'chargeMove', unitId, placements })
     else if (pending.kind === 'pileIn') dispatch({ ...base, type: 'pileIn', unitId, placements })
     else if (pending.kind === 'consolidate') dispatch({ ...base, type: 'consolidate', unitId, placements })
+    rememberFormation(unitId, formationKind, formationFacing)
     setDraft(null)
+  }
+
+  const resetDraft = () => {
+    if (!activeDraft) return
+    const placements = formationPlacementsForUnit(state, activeDraft.unitId, activeDraft.anchor, formationFacing, formationKind)
+    if (placements.length > 0) setDraft({ ...activeDraft, placements })
   }
 
   const bespoke = pending.kind === 'deployUnit' || !!info
@@ -330,7 +377,9 @@ export function DecisionPrompt() {
   const kindTitle = chooseOptionInfo?.title ?? KIND_TITLE[pending.kind] ?? pending.kind
 
   return (
-    <div style={wrap} data-testid="prompt">
+    <>
+      <FormationPicker />
+      <div style={wrap} data-testid="prompt">
       <div style={heading}>{kindTitle}</div>
       {chooseOptionInfo && <div style={hint}>{chooseOptionInfo.hint}</div>}
 
@@ -388,8 +437,17 @@ export function DecisionPrompt() {
       <div style={row}>
         {activeDraft && (
           <>
-            <button style={buttonPrimary} data-testid="btn-confirm" onClick={confirmDraft}>
+            <button
+              style={draftValidation && !draftValidation.ok ? { ...buttonPrimary, opacity: 0.5, cursor: 'not-allowed' } : buttonPrimary}
+              data-testid="btn-confirm"
+              disabled={!!draftValidation && !draftValidation.ok}
+              title={draftValidation && !draftValidation.ok ? `Can't confirm: ${draftValidation.reasons.join(', ')}` : undefined}
+              onClick={confirmDraft}
+            >
               Confirm
+            </button>
+            <button style={buttonBase} data-testid="btn-reset-formation" onClick={resetDraft}>
+              Reset
             </button>
             <button style={buttonDanger} data-testid="btn-cancel" onClick={() => setDraft(null)}>
               Cancel
@@ -402,6 +460,11 @@ export function DecisionPrompt() {
           </button>
         )}
       </div>
+      {activeDraft && draftValidation && !draftValidation.ok && (
+        <div style={{ ...hint, color: colors.danger }} data-testid="draft-issue">
+          Can&apos;t confirm: {draftValidation.reasons.join(', ')}
+        </div>
+      )}
 
       {showFallbackList && (
         <div style={optionList}>
@@ -443,6 +506,7 @@ export function DecisionPrompt() {
           })}
         </div>
       )}
-    </div>
+      </div>
+    </>
   )
 }
