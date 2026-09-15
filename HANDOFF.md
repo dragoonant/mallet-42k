@@ -130,3 +130,16 @@ Owner priority changed: **playable first** (see CLAUDE.md "Owner priority"). Liv
   ranged/one melee sound (no per-faction weapon mapping); dice tray skips battle-shock/desperate-escape rolls; bundle
   1.66 MB + 880 KB audio; SM AI still weak; engine corner move-candidate edge case (`phases/movement.ts`);
   figures still placeholder (M7 needs Meshy/Tripo account).
+
+## Resume point (2026-09-15, evening)
+- Landed: formations `a9f239c` (keys 1–7, Q/E/R, nudge), HUD/deploy fixes `0ba98ba` `0d397c1` `c1e2a97` `e10ba8e`
+  (deploy panel docks left; zone+board clamp for leader+squad), bot loop `52e4285` `87a9cec` `6914cc8` (watchdog,
+  no presentation stalls, 5 s no-progress force-answer for bot-owned decisions), prompt above dice tray `25d7afc`,
+  Command Re-roll setting + fast e2e `dd80e34` (`tests/e2e/play-fast.spec.ts`: full game in ~7.5 min; old
+  play.spec.ts removed; helpers in `tests/e2e/helpers.ts`; also `bot-turn.spec.ts`, `deploy-only.spec.ts`).
+- Other sessions share this tree (f1 did deploy facing `d989070`; others did CC0 terrain `886366d`, dice grouping
+  `734224d` `2980c56`). Ownership agreed with Anthony: they own `src/client/board/**` + `PlacementOverlay.tsx`;
+  stage files by exact path only.
+- Sonnet subagents keep backgrounding long commands and stalling; prompts must say "foreground only" and cap runs.
+- Open: formation ghost figures (PlacementOverlay, other session); move+nudge e2e is test.fixme; SM AI ~33% vs
+  random; fast-game hotspots movement 147 s / shooting 127 s / fight 98 s; M7 models pending Meshy/Tripo key.
