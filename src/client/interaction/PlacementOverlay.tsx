@@ -12,6 +12,7 @@ import type { ThreeEvent } from '@react-three/fiber'
 import { Html, Line } from '@react-three/drei'
 import { enemyModelsOnBoard, dist2D, type Model, type UnitId } from '@/engine'
 import { EngagementRing, MoveRangeRing, Ruler } from '../board'
+import { isSpaceHeld } from '../board/cameraModifiers'
 import { useGameStore } from '../store/game'
 import { useUiStore } from '../ui/uiStore'
 import { colors } from '../ui/theme'
@@ -178,6 +179,11 @@ export function PlacementOverlay() {
 
   const beginNudge = (e: ThreeEvent<PointerEvent>, modelId: string, placements: { modelId: string; pos: { x: number; y: number; z: number } }[]) => {
     if (!activeDraft) return
+    // M4 camera remap: right/middle-button and Alt/Space+left now orbit/pan the camera (CameraRig.tsx)
+    // instead of grabbing a model. Shift+left is intentionally left alone here — it already means
+    // "grab the whole formation" below — see issues in the M4 camera-remap report for the residual
+    // collision with Shift+left-drag = pan.
+    if (e.button !== 0 || e.altKey || isSpaceHeld()) return
     const model = placements.find((p) => p.modelId === modelId)
     if (!model) return
     const shift = e.shiftKey
