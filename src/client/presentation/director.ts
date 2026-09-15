@@ -115,6 +115,19 @@ function rollGroupKey(e: GameEvent): string | null {
   }
 }
 
+/** Longest the director holds attack rolls back waiting for their sequence to end (a safety cap). */
+const ATTACK_WAIT_MAX_MS = 4000
+
+/** True when the buffer has hit/wound/save rolls whose attack sequence hasn't ended yet. */
+function hasOpenAttackRolls(events: GameEvent[]): boolean {
+  let open = false
+  for (const e of events) {
+    if (e.type === 'HitRolled' || e.type === 'WoundRolled' || e.type === 'SaveRolled') open = true
+    else if (e.type === 'AttackSequenceEnded') open = false
+  }
+  return open
+}
+
 /** One tray window for a group of same-key roll events. Auto hits/wounds and "no save possible"
  *  carry no die, so they're left out; null when nothing is left to show. */
 function groupRequest(state: GameState, group: GameEvent[]): RollRequest | null {
@@ -316,39 +329,77 @@ async function playBatch(from: GameState, to: GameState, events: GameEvent[], an
 export function startDirector(): () => void {
   let prevState: GameState | null = null
   let lastSeq = -1
-  let queue: Promise<void> = Promise.resolve()
+  // Events not yet played, and the state from before the first of them.
+  let buffered: GameEvent[] = []
+  let bufferedFrom: GameState | null = null
+  let pumping = false
   const announcedPhases = new Set<Phase>()
+
+  function reset(): void {
+    prevState = null
+    lastSeq = -1
+    buffered = []
+    bufferedFrom = null
+    announcedPhases.clear()
+    useCueStore.getState().reset()
+  }
+
+  // The engine pauses for a Command Re-roll decision after almost every die, so one attack reaches the
+  // store as many one-roll updates. While the bot is answering those (play carries on by itself), hold
+  // attack rolls until their sequence ends so playBatch can group the whole squad's dice. When the human
+  // owns the pending decision, play what's buffered — they may need to see the die to decide.
+  async function waitForAttackToClose(): Promise<void> {
+    const started = Date.now()
+    while (Date.now() - started < ATTACK_WAIT_MAX_MS && hasOpenAttackRolls(buffered)) {
+      const { pending, botSeat, state } = useGameStore.getState()
+      if (!state || !pending || !botSeat || pending.player !== botSeat) return
+      await sleep(60)
+    }
+  }
+
+  async function pump(): Promise<void> {
+    if (pumping) return
+    pumping = true
+    try {
+      while (buffered.length > 0 && prevState) {
+        await waitForAttackToClose()
+        const events = buffered
+        const from = bufferedFrom ?? prevState
+        const to = prevState
+        buffered = []
+        bufferedFrom = null
+        if (events.length === 0 || !to) break
+        try {
+          await playBatch(from, to, events, announcedPhases)
+        } catch (err) {
+          console.warn('[presentation] batch failed', err)
+        }
+      }
+    } finally {
+      pumping = false
+    }
+  }
 
   const unsubscribe = useGameStore.subscribe((s) => {
     const state = s.state
     if (!state) {
-      prevState = null
-      lastSeq = -1
-      announcedPhases.clear()
-      useCueStore.getState().reset()
+      reset()
       return
     }
     const events = s.events
     const latestSeq = events.length > 0 ? events[events.length - 1].seq : -1
-    if (latestSeq < lastSeq) {
-      // A lower seq than we've already seen means a new game started under us.
-      prevState = null
-      lastSeq = -1
-      announcedPhases.clear()
-      useCueStore.getState().reset()
-    }
+    // A lower seq than we've already seen means a new game started under us.
+    if (latestSeq < lastSeq) reset()
     const fresh = events.filter((e) => e.seq > lastSeq)
     if (fresh.length === 0) {
       prevState = state
       return
     }
     lastSeq = latestSeq
-    const from = prevState ?? state
-    const to = state
+    if (buffered.length === 0) bufferedFrom = prevState ?? state
+    buffered = [...buffered, ...fresh]
     prevState = state
-    queue = queue.then(() => playBatch(from, to, fresh, announcedPhases)).catch((err) => {
-      console.warn('[presentation] batch failed', err)
-    })
+    void pump()
   })
 
   return () => {

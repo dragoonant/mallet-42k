@@ -230,10 +230,14 @@ export const useGameStore = create<GameStore>()((set, get) => {
     if (!state || !pending || opponent !== 'bot' || !botSeat) return
     if (pending.player !== botSeat || state.phase === 'ended') return
     const decisionId = pending.id
+    // Mid-attack decisions (the Command Re-roll offer after each die) are answered at once: the pause
+    // reads as "thinking" nowhere on screen, and it would stall the director's grouped dice windows.
+    const last = get().events[get().events.length - 1]
+    const midAttack = !!last && /Rolled$|Tested$/.test(last.type)
     botTimer = setTimeout(() => {
       botTimer = null
       void runBotDecision(decisionId)
-    }, BOT_DELAY_MS)
+    }, midAttack ? 0 : BOT_DELAY_MS)
   }
 
   async function runBotDecision(expectedDecisionId: string): Promise<void> {
