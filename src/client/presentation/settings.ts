@@ -11,17 +11,31 @@ import { audio } from '../audio'
  *  the dice tumble and the director's own pacing gaps between events. */
 export type AnimSpeed = DiceSpeed
 
+/** How often to stop the game for a human-owned `commandReroll` offer (src/client/store/game.ts reads
+ *  this to decide whether to auto-answer Pass instead of showing the prompt) — a single attack can
+ *  otherwise raise 16+ of these in one round. 'always' is the pre-existing behaviour (every offer shown);
+ *  'onlyWhenItMatters' (default) shows it only for rolls a player would actually consider re-rolling —
+ *  see commandRerollMatters() in game.ts for the exact rules; 'never' auto-passes every offer (safe to do
+ *  unconditionally: the engine never even raises the decision when the player can't afford Command
+ *  Re-roll in the first place, so there's no affordability check left to make here). */
+export type CommandRerollSetting = 'always' | 'onlyWhenItMatters' | 'never'
+
 export interface PresentationSettings {
   animSpeed: AnimSpeed
   diceOn: boolean
   ambientOn: boolean
+  commandRerollSetting: CommandRerollSetting
 }
 
 const STORAGE_KEY = 'mallet42k:presentation-settings'
-const DEFAULTS: PresentationSettings = { animSpeed: 'normal', diceOn: true, ambientOn: true }
+const DEFAULTS: PresentationSettings = { animSpeed: 'normal', diceOn: true, ambientOn: true, commandRerollSetting: 'onlyWhenItMatters' }
 
 function isAnimSpeed(v: unknown): v is AnimSpeed {
   return v === 'normal' || v === 'fast' || v === 'instant'
+}
+
+function isCommandRerollSetting(v: unknown): v is CommandRerollSetting {
+  return v === 'always' || v === 'onlyWhenItMatters' || v === 'never'
 }
 
 function load(): PresentationSettings {
@@ -34,6 +48,7 @@ function load(): PresentationSettings {
       animSpeed: isAnimSpeed(parsed.animSpeed) ? parsed.animSpeed : DEFAULTS.animSpeed,
       diceOn: parsed.diceOn !== false,
       ambientOn: parsed.ambientOn !== false,
+      commandRerollSetting: isCommandRerollSetting(parsed.commandRerollSetting) ? parsed.commandRerollSetting : DEFAULTS.commandRerollSetting,
     }
   } catch {
     return { ...DEFAULTS }
@@ -53,6 +68,7 @@ interface PresentationSettingsStore extends PresentationSettings {
   setAnimSpeed(speed: AnimSpeed): void
   setDiceOn(on: boolean): void
   setAmbientOn(on: boolean): void
+  setCommandRerollSetting(setting: CommandRerollSetting): void
 }
 
 export const usePresentationSettings = create<PresentationSettingsStore>((set, get) => ({
@@ -61,18 +77,23 @@ export const usePresentationSettings = create<PresentationSettingsStore>((set, g
   setAnimSpeed(animSpeed) {
     setDiceSpeed(animSpeed)
     set({ animSpeed })
-    persist({ animSpeed, diceOn: get().diceOn, ambientOn: get().ambientOn })
+    persist({ animSpeed, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting })
   },
 
   setDiceOn(diceOn) {
     set({ diceOn })
-    persist({ animSpeed: get().animSpeed, diceOn, ambientOn: get().ambientOn })
+    persist({ animSpeed: get().animSpeed, diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting })
   },
 
   setAmbientOn(ambientOn) {
     audio.setAmbientEnabled(ambientOn)
     set({ ambientOn })
-    persist({ animSpeed: get().animSpeed, diceOn: get().diceOn, ambientOn })
+    persist({ animSpeed: get().animSpeed, diceOn: get().diceOn, ambientOn, commandRerollSetting: get().commandRerollSetting })
+  },
+
+  setCommandRerollSetting(commandRerollSetting) {
+    set({ commandRerollSetting })
+    persist({ animSpeed: get().animSpeed, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting })
   },
 }))
 

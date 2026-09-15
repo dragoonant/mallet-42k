@@ -1,5 +1,10 @@
 import { expect, test, type Page } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
+import {
+  answerRerollLikeDecision, clickFirstOption, clickPass, deployZoneCandidates, makeCam, promptButton,
+  snap as sharedSnap, tryBoardPlacement, verifyPromptButtonsClickable,
+  type Snap as SharedSnap, type V2,
+} from './helpers'
 
 // Regression coverage for the "Opponent is thinking…" freeze (commit e10ba8e) and its two follow-ups: a bot
 // decision that throws or stalls used to leave src/client/store/game.ts's runBotDecision() permanently stuck
@@ -16,308 +21,13 @@ import { mkdirSync } from 'node:fs'
 
 const W = 1600
 const H = 900
-const FOV = 45
-const OVERVIEW_POLAR = (55 * Math.PI) / 180
-const START_DIST = Math.hypot(28, 23.8) // Scene.tsx camera [0,28,23.8] looking at origin
 const STALL_LIMIT_MS = 15_000
 const GAME_BUDGET_MS = 9 * 60_000
 
-type V2 = { x: number; z: number }
-interface Cam { tx: number; tz: number; d: number; polar: number }
-const cam: Cam = { tx: 0, tz: 0, d: START_DIST, polar: OVERVIEW_POLAR }
+type Snap = SharedSnap
+const cam = makeCam()
+const snap = (page: Page) => sharedSnap(page)
 
-/** World (inches) -> screen px for the CameraRig's orbit camera (azimuth 0, camera on +z side). Copied from
- *  tests/e2e/play.spec.ts (kept local rather than imported — these e2e specs never import one another). */
-function project(p: { x: number; y: number; z: number }): { x: number; y: number } {
-  const pos = { x: cam.tx, y: cam.d * Math.cos(cam.polar), z: cam.tz + cam.d * Math.sin(cam.polar) }
-  const f = norm({ x: cam.tx - pos.x, y: -pos.y, z: cam.tz - pos.z })
-  const r = norm(cross(f, { x: 0, y: 1, z: 0 }))
-  const u = cross(r, f)
-  const v = { x: p.x - pos.x, y: p.y - pos.y, z: p.z - pos.z }
-  const xc = dot(v, r)
-  const yc = dot(v, u)
-  const zc = dot(v, f)
-  const t = Math.tan((FOV * Math.PI) / 360)
-  const ndcX = xc / (zc * t * (W / H))
-  const ndcY = yc / (zc * t)
-  return { x: ((ndcX + 1) / 2) * W, y: ((1 - ndcY) / 2) * H }
-}
-type V3 = { x: number; y: number; z: number }
-const dot = (a: V3, b: V3) => a.x * b.x + a.y * b.y + a.z * b.z
-const cross = (a: V3, b: V3): V3 => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x })
-const norm = (a: V3): V3 => {
-  const l = Math.hypot(a.x, a.y, a.z)
-  return { x: a.x / l, y: a.y / l, z: a.z / l }
-}
-
-interface Snap {
-  phase: string
-  round: number
-  active: string
-  botSeat: string | null
-  humanSeat: string
-  result: unknown
-  toast: string | null
-  pending: null | { id: string; kind: string; player: string; context: any; constraints?: any; options?: { id: string; label: string }[] }
-  legalTypes: string[]
-  units: { id: string; name: string; player: string; loc: string; models: { x: number; y: number; z: number }[] }[]
-  objectives: V2[]
-  pieces: { footprint: V2[] }[]
-}
-
-async function snap(page: Page): Promise<Snap> {
-  return page.evaluate(() => {
-    const g = (window as any).__mallet.useGameStore.getState()
-    const s = g.state
-    return {
-      phase: s?.phase,
-      round: s?.round,
-      active: s?.activePlayer,
-      botSeat: g.botSeat,
-      humanSeat: g.humanSeat,
-      result: s?.result ?? null,
-      toast: g.toast?.text ?? null,
-      pending: g.pending
-        ? {
-            id: g.pending.id,
-            kind: g.pending.kind,
-            player: g.pending.player,
-            context: g.pending.context,
-            constraints: g.pending.constraints,
-            options: g.pending.options?.map((o: any) => ({ id: o.id, label: o.label })),
-          }
-        : null,
-      legalTypes: (g.legal ?? []).map((a: any) => a.type),
-      units: s
-        ? Object.values(s.units).map((u: any) => ({
-            id: u.id,
-            name: u.name,
-            player: u.player,
-            loc: u.location,
-            models: u.models.map((m: string) => s.models[m]?.pos).filter(Boolean),
-          }))
-        : [],
-      objectives: s ? Object.values(s.objectives).filter((o: any) => !o.removed).map((o: any) => ({ x: o.pos.x, z: o.pos.z })) : [],
-      pieces: s ? Object.values(s.board.pieces).map((p: any) => ({ footprint: p.footprint })) : [],
-    }
-  })
-}
-
-// ---------- deploy helpers (mirrors tests/e2e/play.spec.ts's own, trimmed to what deployment needs) ----------
-const BOARD_HALF_X_IN = 22
-const BOARD_HALF_Z_IN = 15
-const DEPLOY_EDGE_MARGIN_IN = 0.75
-
-function clearAnchorX(zone: V2[], pieces: { footprint: V2[] }[], zoneMinX: number, zoneMaxX: number): number {
-  const zs = zone.map((p) => p.z)
-  const zMin = Math.min(...zs)
-  const zMax = Math.max(...zs)
-  const margin = 0.5
-  const blocked: [number, number][] = []
-  for (const piece of pieces) {
-    const pxs = piece.footprint.map((p) => p.x)
-    const pzs = piece.footprint.map((p) => p.z)
-    const pMinZ = Math.min(...pzs)
-    const pMaxZ = Math.max(...pzs)
-    if (pMaxZ < zMin || pMinZ > zMax) continue
-    blocked.push([Math.min(...pxs) - margin, Math.max(...pxs) + margin])
-  }
-  blocked.sort((a, b) => a[0] - b[0])
-  const merged: [number, number][] = []
-  for (const b of blocked) {
-    const last = merged[merged.length - 1]
-    if (last && b[0] <= last[1]) last[1] = Math.max(last[1], b[1])
-    else merged.push([b[0], b[1]])
-  }
-  const gaps: [number, number][] = []
-  let cursor = zoneMinX
-  for (const [s, e] of merged) {
-    if (s > cursor) gaps.push([cursor, Math.min(s, zoneMaxX)])
-    cursor = Math.max(cursor, e)
-  }
-  if (cursor < zoneMaxX) gaps.push([cursor, zoneMaxX])
-  let best: [number, number] = [zoneMinX, zoneMaxX]
-  for (const g of gaps) if (g[1] - g[0] > best[1] - best[0]) best = g
-  return (best[0] + best[1]) / 2
-}
-
-function deployZoneCandidates(zone: V2[], pieces: { footprint: V2[] }[], jitterIndex: number): V2[] {
-  const xs = zone.map((p) => p.x)
-  const zs = zone.map((p) => p.z)
-  const minX = Math.min(...xs)
-  const maxX = Math.max(...xs)
-  const minZ = Math.min(...zs)
-  const maxZ = Math.max(...zs)
-  const xLoRaw = Math.max(minX + DEPLOY_EDGE_MARGIN_IN, -BOARD_HALF_X_IN + DEPLOY_EDGE_MARGIN_IN)
-  const xHiRaw = Math.min(maxX - DEPLOY_EDGE_MARGIN_IN, BOARD_HALF_X_IN - DEPLOY_EDGE_MARGIN_IN)
-  const zLoRaw = Math.max(minZ + DEPLOY_EDGE_MARGIN_IN, -BOARD_HALF_Z_IN + DEPLOY_EDGE_MARGIN_IN)
-  const zHiRaw = Math.min(maxZ - DEPLOY_EDGE_MARGIN_IN, BOARD_HALF_Z_IN - DEPLOY_EDGE_MARGIN_IN)
-  const midX = Math.min(Math.max((minX + maxX) / 2, -BOARD_HALF_X_IN), BOARD_HALF_X_IN)
-  const midZ = Math.min(Math.max((minZ + maxZ) / 2, -BOARD_HALF_Z_IN), BOARD_HALF_Z_IN)
-  const xLo = xLoRaw <= xHiRaw ? xLoRaw : midX
-  const xHi = xLoRaw <= xHiRaw ? xHiRaw : midX
-  const zLo = zLoRaw <= zHiRaw ? zLoRaw : midZ
-  const zHi = zLoRaw <= zHiRaw ? zHiRaw : midZ
-  const w = xHi - xLo
-  const d = zHi - zLo
-  const clearX = Math.min(Math.max(clearAnchorX(zone, pieces, xLo, xHi), xLo), xHi)
-  const jitter = jitterIndex === 0 || w <= 0.5 ? 0 : ((jitterIndex * 1.7) % (w * 0.15)) - w * 0.075
-  const xFracs = [0.5, 0.35, 0.65, 0.3, 0.7, 0.4, 0.6]
-  const zFracs = [0.5, 0.15, 0.85, 0.3, 0.7, 0.05, 0.95, 0.2, 0.8]
-  const pts: V2[] = [{ x: clearX + jitter, z: zLo + d * 0.5 }]
-  for (const zf of zFracs) for (const xf of xFracs) pts.push({ x: xLo + w * xf + jitter, z: zLo + d * zf })
-  const inBounds = pts.filter((p) => p.x >= xLo - 1e-6 && p.x <= xHi + 1e-6 && p.z >= zLo - 1e-6 && p.z <= zHi + 1e-6)
-  return inBounds
-    .map((p) => ({ p, y: project({ x: p.x, y: 0, z: p.z }).y }))
-    .sort((a, b) => a.y - b.y)
-    .map(({ p }) => p)
-}
-
-async function clearToast(page: Page) {
-  await page.evaluate(() => (window as any).__mallet.useGameStore.getState().clearToast())
-}
-
-async function clickCanvasAt(page: Page, pt: { x: number; y: number }): Promise<boolean> {
-  if (pt.x < 2 || pt.y < 2 || pt.x > W - 2 || pt.y > H - 2) return false
-  const tag = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.tagName ?? null, [pt.x, pt.y])
-  if (tag !== 'CANVAS') return false
-  await page.mouse.click(pt.x, pt.y)
-  return true
-}
-
-async function waitChange(page: Page, id: string, ms = 1500): Promise<Snap> {
-  const end = Date.now() + ms
-  let s = await snap(page)
-  while (Date.now() < end && s.pending?.id === id && !s.toast) {
-    await page.waitForTimeout(80)
-    s = await snap(page)
-  }
-  return s
-}
-
-async function promptButton(page: Page, re: RegExp) {
-  const b = page.locator('[data-testid="prompt"] button').filter({ hasText: re }).first()
-  return (await b.isVisible().catch(() => false)) ? b : null
-}
-
-async function clickFirstOption(page: Page, avoidPass = true): Promise<boolean> {
-  const opts = page.locator('[data-testid^="prompt-option-"]')
-  const n = await opts.count()
-  for (let i = 0; i < n; i++) {
-    const t = (await opts.nth(i).textContent()) ?? ''
-    if (avoidPass && /^Pass$/.test(t)) continue
-    await opts.nth(i).click()
-    return true
-  }
-  return false
-}
-
-async function clickPass(page: Page): Promise<boolean> {
-  for (const id of ['btn-pass', 'btn-end-phase']) {
-    const b = page.getByTestId(id)
-    if ((await b.isVisible().catch(() => false)) && (await b.isEnabled().catch(() => false))) {
-      await b.click()
-      return true
-    }
-  }
-  return clickFirstOption(page, false)
-}
-
-/** Command Re-roll / stratagem / reaction offers: answer by role/text scoped to the decision-prompt
- *  container itself (`[data-testid="prompt"]`), not a bare testid lookup elsewhere on the page — and log
- *  which button actually got clicked (coordinator's ask: verify Pass isn't silently failing to resolve,
- *  e.g. because the dice tray is drawn on top of it — src/client/ui/DecisionPrompt.tsx now stacks the
- *  prompt above the tray, but this also double-checks the click really lands on the button and not
- *  whatever's visually behind/over it). Returns the label of whatever it clicked, or null if nothing in
- *  the prompt was clickable at all. */
-async function answerRerollLikeDecision(page: Page): Promise<string | null> {
-  const prompt = page.getByTestId('prompt')
-  if (!(await prompt.isVisible().catch(() => false))) return null
-  const passBtn = prompt.getByRole('button', { name: 'Pass', exact: true })
-  if (await passBtn.isVisible().catch(() => false)) {
-    const box = await passBtn.boundingBox()
-    if (box) {
-      const cx = box.x + box.width / 2
-      const cy = box.y + box.height / 2
-      const tag = await page.evaluate(([x, y]) => {
-        const el = document.elementFromPoint(x, y)
-        return el ? { tag: el.tagName, testid: el.getAttribute('data-testid'), text: el.textContent?.slice(0, 40) } : null
-      }, [cx, cy])
-      console.log(`[harness] Pass button hit-test at (${Math.round(cx)},${Math.round(cy)}): ${JSON.stringify(tag)}`)
-    }
-    await passBtn.click()
-    console.log('[harness] clicked prompt button: Pass')
-    return 'Pass'
-  }
-  // No Pass on offer (canPass:false) — take the first real option in the prompt instead, same container.
-  const anyBtn = prompt.getByRole('button').first()
-  if (await anyBtn.isVisible().catch(() => false)) {
-    const label = (await anyBtn.textContent())?.trim() ?? '(unlabelled)'
-    await anyBtn.click()
-    console.log(`[harness] clicked prompt button: ${label}`)
-    return label
-  }
-  return null
-}
-
-/** Coordinator's ask: "make sure every button in the prompt is clickable (elementFromPoint at each
- *  button centre returns the button)". Checks every <button> currently inside the decision-prompt
- *  container and reports any whose centre point resolves (via document.elementFromPoint) to something
- *  else — e.g. the dice tray drawn on top of it. Read-only: never clicks anything itself. Returns one
- *  "PROMPT BUTTON COVERED: ..." string per offender (empty when everything is clickable), so the caller
- *  can both log and assert on it. */
-async function verifyPromptButtonsClickable(page: Page): Promise<string[]> {
-  const results = await page.evaluate(() => {
-    const prompt = document.querySelector('[data-testid="prompt"]')
-    if (!prompt) return []
-    return Array.from(prompt.querySelectorAll('button')).map((btn) => {
-      const r = btn.getBoundingClientRect()
-      const cx = r.left + r.width / 2
-      const cy = r.top + r.height / 2
-      const hit = document.elementFromPoint(cx, cy)
-      const covered = !(hit && (hit === btn || btn.contains(hit)))
-      return {
-        label: (btn.textContent ?? '').trim().slice(0, 30),
-        testid: btn.getAttribute('data-testid'),
-        covered,
-        hitTag: hit?.tagName ?? null,
-        hitTestid: hit?.getAttribute('data-testid') ?? null,
-      }
-    })
-  })
-  const notes: string[] = []
-  for (const r of results) {
-    if (r.covered) notes.push(`PROMPT BUTTON COVERED: "${r.label}" (${r.testid}) — elementFromPoint hit ${r.hitTag} (${r.hitTestid}) instead`)
-  }
-  if (notes.length > 0) for (const n of notes) console.log(`[harness] ${n}`)
-  else if (results.length > 0) console.log(`[harness] all ${results.length} prompt button(s) clickable (elementFromPoint OK)`)
-  return notes
-}
-
-async function resetOpenDraft(page: Page) {
-  const cancel = page.getByTestId('btn-cancel')
-  if (await cancel.isVisible().catch(() => false)) await cancel.click().catch(() => {})
-}
-
-async function tryBoardPlacement(page: Page, s: Snap, points: V2[]): Promise<boolean> {
-  const id = s.pending!.id
-  for (const p of points) {
-    await clearToast(page)
-    await resetOpenDraft(page)
-    const ok = await clickCanvasAt(page, project({ x: p.x, y: 0, z: p.z }))
-    if (!ok) continue
-    await page.waitForTimeout(120)
-    const confirm = page.getByTestId('btn-confirm')
-    if (!(await confirm.isVisible().catch(() => false))) continue
-    if (!(await confirm.isEnabled().catch(() => false))) continue
-    await confirm.click()
-    const after = await waitChange(page, id)
-    if (after.pending?.id !== id) return true
-  }
-  await resetOpenDraft(page)
-  await clearToast(page)
-  return false
-}
 
 /** Answers only the human's (player A) decisions — deployUnit via a board click (falling back to the
  *  Reserves/Pass buttons), everything else via the decision prompt's first non-Pass option. The bot (player
@@ -336,8 +46,8 @@ async function handleHuman(page: Page, s: Snap): Promise<string[]> {
       if (chip) await chip.click()
       const zone: V2[] = p.context.zone
       const taken = s.units.filter((u) => u.player === me && u.loc === 'board').length
-      const inside = deployZoneCandidates(zone, s.pieces, taken)
-      if (chip && (await tryBoardPlacement(page, s, inside))) return []
+      const inside = deployZoneCandidates(zone, s.pieces, taken, cam, W, H)
+      if (chip && (await tryBoardPlacement(page, s, inside, cam, W, H, name))) return []
       const res = await promptButton(page, /^Reserves:/)
       if (res) { await res.click(); return [] }
       await clickPass(page)

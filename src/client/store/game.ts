@@ -4,6 +4,7 @@
 import { create } from 'zustand'
 import {
   createGame,
+  diceExprMean,
   legalActions as engineLegalActions,
   load as engineLoad,
   save as engineSave,
@@ -11,6 +12,7 @@ import {
   registerDataBundle,
   view as engineView,
   type Action,
+  type CommandRerollDecision,
   type GameEvent,
   type GameSetup,
   type GameState,
@@ -33,7 +35,7 @@ import { sourceName } from '../ui/labels'
 // Imported from their own submodules (not the '../presentation' barrel) to avoid a store<->director
 // import cycle: the barrel re-exports director.ts, which itself imports this store.
 import { waitForPresentationIdle } from '../presentation/idleStore'
-import { usePresentationSettings } from '../presentation/settings'
+import { usePresentationSettings, type CommandRerollSetting } from '../presentation/settings'
 
 // ---------- setup defaults ----------
 export type FactionKey = 'space-marines' | 'orks'
@@ -221,6 +223,17 @@ export interface VpToastMessage {
   text: string
 }
 
+/** A client-only annotation line for the event feed (src/client/ui/EventFeed.tsx) — not a real engine
+ *  GameEvent (that union is frozen, see src/engine/types.ts's header), so it's tracked separately and
+ *  interleaved at render time by `afterSeq` against each real event's own EventBase.seq. Used today only
+ *  for "Re-roll skipped (setting)" (see maybeAutoSkipCommandReroll below), but kept generic in case a
+ *  later client-only note needs the same feed slot. */
+export interface LogNote {
+  id: number
+  afterSeq: number
+  text: string
+}
+
 export interface GameStore {
   bundle: DataBundle | null
   setup: GameSetup | null
@@ -230,6 +243,8 @@ export interface GameStore {
   events: GameEvent[]
   diceLog: DiceRoll[]
   actionLog: Action[]
+  /** Client-only feed annotations — see LogNote. */
+  notes: LogNote[]
   toast: ToastMessage | null
   /** Latest "+N VP — Reason" pop-up (M6 gap: scoring was invisible outside the Events list). */
   vpToast: VpToastMessage | null
@@ -251,6 +266,118 @@ export interface GameStore {
 
 const EVENT_LOG_LIMIT = 200
 const DICE_LOG_LIMIT = 200
+const NOTES_LOG_LIMIT = 200
+
+// ---------- Command Re-roll setting (docs: see CommandRerollSetting in presentation/settings.ts) ----------
+// A human-owned commandReroll decision (src/engine/stratagems.ts's openCommandReroll) can be raised after
+// almost every re-rollable die — 16+ times in a busy round — so most players want the game to only stop
+// for one when it's actually worth considering. 'onlyWhenItMatters' (the default) auto-answers Pass for
+// everything else. The rules below are a client-side *heuristic* reading of the same roll a player would
+// eyeball themselves; they intentionally err toward showing the prompt (returning "matters") whenever the
+// engine's own event log doesn't give us enough to be sure, rather than silently passing on an offer we
+// couldn't actually evaluate.
+
+function unitHasAnyKeyword(state: GameState, unitId: string | null, keywords: string[]): boolean {
+  const unit = unitId ? state.units[unitId] : undefined
+  const ds = unit ? state.datasheets[unit.datasheetId] : undefined
+  if (!ds) return false
+  return keywords.some((kw) => (ds.keywords as string[]).includes(kw) || (ds.factionKeywords as string[]).includes(kw))
+}
+
+/** A weapon whose Damage characteristic can plausibly matter (mean ≥ 2) — D2, D3 (mean 2), D6 (mean 3.5),
+ *  flat 2+, etc. A flat 1 (mean 1) never qualifies. */
+function weaponDamageMatters(state: GameState, weaponId: string | null): boolean {
+  const weapon = weaponId ? state.weapons[weaponId] : undefined
+  return !!weapon && diceExprMean(weapon.D) >= 2
+}
+
+/** Most recent ChargeRolled for this unit in the log — the same roll that just raised the commandReroll
+ *  decision, since stratagems.ts opens that decision immediately after the roll it answers, in the same
+ *  step(). Unmatched (shouldn't happen) or an impossible charge (needed === null) both count as failed. */
+function chargeRollFailed(events: GameEvent[], unitId: string | null): boolean {
+  if (!unitId) return true
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i]
+    if (e.type === 'ChargeRolled' && e.unitId === unitId) return e.needed === null || e.total < e.needed
+  }
+  return true // no matching roll found — ask rather than guess
+}
+
+/** Most recent SaveRolled for this model — null when we can't find it (ask rather than guess). */
+function saveRollFailed(events: GameEvent[], modelId: string | null): boolean | null {
+  if (!modelId) return null
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i]
+    if (e.type === 'SaveRolled' && e.modelId === modelId) return !e.saved
+  }
+  return null
+}
+
+/** How many hit/wound rolls have already failed against this exact attacker+weapon+target combo since the
+ *  most recent AttackSequenceStarted for that attacker — i.e. within the attack currently in progress.
+ *  Includes the roll that just raised this decision (its HitRolled/WoundRolled is already in the log by
+ *  the time stratagems.ts opens the commandReroll window — same step()). */
+function attackSequenceFailCount(
+  events: GameEvent[], purpose: 'hit' | 'wound', attackerUnitId: string | null, weaponId: string | null, targetUnitId: string | null,
+): number {
+  if (!attackerUnitId) return 0
+  let start = 0
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i]
+    if (e.type === 'AttackSequenceStarted' && e.unitId === attackerUnitId) { start = i; break }
+    if (e.type === 'AttackSequenceEnded' && e.unitId === attackerUnitId) break // that sequence already closed
+  }
+  let fails = 0
+  for (let i = start; i < events.length; i++) {
+    const e = events[i]
+    if (purpose === 'hit' && e.type === 'HitRolled' && !e.auto && !e.hit
+      && e.attack.attackerUnitId === attackerUnitId && e.attack.weaponId === weaponId && e.attack.targetUnitId === targetUnitId) fails++
+    if (purpose === 'wound' && e.type === 'WoundRolled' && !e.auto && !e.wounded
+      && e.attack.attackerUnitId === attackerUnitId && e.attack.weaponId === weaponId && e.attack.targetUnitId === targetUnitId) fails++
+  }
+  return fails
+}
+
+/** The "onlyWhenItMatters" rule set (see the setting's own doc comment in presentation/settings.ts):
+ *  failed charge rolls; failed saves on a CHARACTER/VEHICLE/MONSTER model or a unit's last model; hit/wound
+ *  rolls with 2+ dice already failed this attack or a Damage-2+ weapon; Advance rolls; battle-shock/
+ *  desperate-escape rolls (battle-shock itself is never commandRerollable — see stratagems.ts's
+ *  COMMAND_REROLL_PURPOSES — so only desperateEscape can reach here in practice). Anything else (attacks,
+ *  damage, hazardous, …) doesn't matter and gets auto-passed. */
+function commandRerollMatters(state: GameState, events: GameEvent[], pending: CommandRerollDecision): boolean {
+  const roll = pending.context.roll
+  switch (roll.purpose) {
+    case 'advance':
+    case 'desperateEscape':
+    case 'battleShock':
+      return true
+    case 'charge':
+      return chargeRollFailed(events, roll.unitId)
+    case 'save': {
+      const failed = saveRollFailed(events, roll.modelId)
+      if (failed === null) return true
+      if (!failed) return false
+      const bigModel = unitHasAnyKeyword(state, roll.unitId, ['CHARACTER', 'VEHICLE', 'MONSTER'])
+      const unit = roll.unitId ? state.units[roll.unitId] : undefined
+      const lastModel = !!unit && unit.models.length <= 1
+      return bigModel || lastModel
+    }
+    case 'hit':
+    case 'wound':
+      return attackSequenceFailCount(events, roll.purpose, roll.unitId, roll.weaponId, roll.targetUnitId) >= 2 || weaponDamageMatters(state, roll.weaponId)
+    default:
+      return false
+  }
+}
+
+function shouldSkipCommandReroll(setting: CommandRerollSetting, state: GameState, events: GameEvent[], pending: CommandRerollDecision): boolean {
+  if (setting === 'always') return false
+  // 'never': the engine only ever raises this decision when the player can afford Command Re-roll (see
+  // stratagems.ts's commandRerollBlocked, checked before ctx.decide()), so there's no affordability check
+  // left for us to make — always safe to auto-pass.
+  if (setting === 'never') return true
+  return !commandRerollMatters(state, events, pending)
+}
 
 // Bot scheduling lives outside reactive state (timer handles/decider instances aren't state); reset on every newGame.
 let botTimer: ReturnType<typeof setTimeout> | null = null
@@ -441,6 +568,27 @@ export const useGameStore = create<GameStore>()((set, get) => {
     }
   }
 
+  // Command Re-roll setting (see shouldSkipCommandReroll above): whenever the freshly-applied pending
+  // decision is a human-owned commandReroll the current setting says to skip, dispatch Pass on the
+  // player's behalf immediately and drop a muted note in the event feed instead of showing the prompt.
+  // Never touches a decision owned by botSeat — the bot answers its own commandReroll offers through
+  // runBotDecision/UtilityDecider as usual, not through this path. Recurses (via dispatch → applyResult
+  // → this function again) for the next decision, which is exactly right for a run of several
+  // auto-skippable offers in the same attack.
+  function maybeAutoSkipCommandReroll(): void {
+    const { state, pending, legal, botSeat, events } = get()
+    if (!state || !pending || pending.kind !== 'commandReroll' || pending.player === botSeat) return
+    const setting = usePresentationSettings.getState().commandRerollSetting
+    if (!shouldSkipCommandReroll(setting, state, events, pending)) return
+    const options = legal ?? engineLegalActions(state, pending)
+    const passAction = options?.find((a) => a.type === 'pass')
+    if (!passAction) return
+    set((s) => ({
+      notes: [...s.notes, { id: Date.now() + Math.random(), afterSeq: s.events[s.events.length - 1]?.seq ?? 0, text: 'Re-roll skipped (setting)' }].slice(-NOTES_LOG_LIMIT),
+    }))
+    get().dispatch(passAction)
+  }
+
   function applyResult(result: { state: GameState; events: GameEvent[]; pending: PendingDecision | null; rejection?: { code: RejectionCode; reason: string } }, dispatched?: Action): void {
     set((s) => ({
       state: result.state,
@@ -453,6 +601,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
       vpToast: vpToastFrom(result.state, s.bundle, result.events) ?? s.vpToast,
     }))
     scheduleBotIfNeeded()
+    maybeAutoSkipCommandReroll()
   }
 
   return {
@@ -464,6 +613,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
     events: [],
     diceLog: [],
     actionLog: [],
+    notes: [],
     toast: null,
     vpToast: null,
     opponent: null,
@@ -495,6 +645,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
           events: result.events.slice(-EVENT_LOG_LIMIT),
           diceLog: diceRollsFrom(result.events).slice(-DICE_LOG_LIMIT),
           actionLog: [],
+          notes: [],
           toast: null,
           vpToast: null,
           opponent: opts.opponent,
@@ -505,6 +656,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
           error: null,
         })
         scheduleBotIfNeeded()
+        maybeAutoSkipCommandReroll()
         startProgressWatchdog()
       } catch (err) {
         set({ loading: false, error: err instanceof Error ? err.message : String(err) })
@@ -556,6 +708,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
           legal: result.pending ? engineLegalActions(result.state, result.pending) : null,
         })
         scheduleBotIfNeeded()
+        maybeAutoSkipCommandReroll()
         startProgressWatchdog()
       } catch {
         // corrupt/missing save — leave the current game running

@@ -98,14 +98,28 @@ function describeScoring(e: GameEvent, state: GameState, bundle: DataBundle | nu
   return null
 }
 
+/** A described engine event or a client-only note (src/client/store/game.ts's LogNote — e.g. "Re-roll
+ *  skipped (setting)"), ordered the same way they'll render: by the real event stream's own seq, with a
+ *  note sorted in right after the events that were on the log when it was pushed. */
+interface FeedLine { key: string; text: string; muted: boolean; sortKey: number }
+
 export function EventFeed() {
   const state = useGameStore((s) => s.state)
   const events = useGameStore((s) => s.events)
+  const notes = useGameStore((s) => s.notes)
   const bundle = useGameStore((s) => s.bundle)
   if (!state) return null
 
   const scoring = events.map((e) => describeScoring(e, state, bundle)).filter((s): s is string => s !== null).slice(-30)
-  const described = events.map((e) => describe(e, state)).filter((s): s is string => s !== null).slice(-40)
+
+  const lines: FeedLine[] = []
+  for (const e of events) {
+    const text = describe(e, state)
+    if (text !== null) lines.push({ key: `e:${e.seq}`, text, muted: false, sortKey: e.seq })
+  }
+  for (const n of notes) lines.push({ key: `n:${n.id}`, text: n.text, muted: true, sortKey: n.afterSeq + 0.5 })
+  lines.sort((a, b) => a.sortKey - b.sortKey)
+  const described = lines.slice(-40)
 
   return (
     <div style={wrap}>
@@ -122,8 +136,10 @@ export function EventFeed() {
         <div style={heading}>Events</div>
         <div style={eventsScroll} data-testid="events-feed">
           {described.length === 0 && <div style={mutedText}>Nothing yet.</div>}
-          {described.map((text, i) => (
-            <div key={i}>{text}</div>
+          {described.map((line) => (
+            <div key={line.key} style={line.muted ? mutedText : undefined} data-testid={line.muted ? 'event-note' : undefined}>
+              {line.text}
+            </div>
           ))}
         </div>
       </div>
