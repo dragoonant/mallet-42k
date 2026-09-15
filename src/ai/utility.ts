@@ -3,17 +3,17 @@
 // fast" owner priority: no Monte Carlo, no role planner, no points data — see src/ai/expected.ts header for the
 // specific simplifications). `easy` picks randomly among the top 3 scored actions; `normal` always takes the best.
 import {
-  DEFAULT_SERVICES, boardModelsOf, boardUnitsOf, deploymentZone, distance, legalActions, modelProfile, modelStats,
-  unitModels, withinEngagementRange, withinObjectiveRange,
+  DEFAULT_SERVICES, boardModelsOf, boardUnitsOf, deploymentZone, distance, hasKeyword, legalActions, modelProfile,
+  modelStats, unitModels, withinEngagementRange, withinObjectiveRange,
   type Action, type DeclareChargeAction, type DeclareMoveAction, type DeclareTargetsAction, type Decider,
   type DeployUnitAction, type GameState, type ModelPlacement, type ObjectiveId, type PendingDecision, type PlayerId,
-  type PlayerView, type Polygon, type UnitId,
+  type PlayerView, type Polygon, type UnitId, type UseStratagemAction,
 } from '../engine'
 import type { ScoringRule } from '../data/types'
 import { createRng, restoreRng, type Rng } from '../engine/rng'
 import {
-  bestMeleeWeapon, bestRangedRangeOfUnit, bestRangedWeapon, hasAnyMeleeWeapon, hasAnyRangedWeapon, sumExpectedAttacks,
-  threatAt, unitMeleeDamage, unitRangedDamage, unitValue,
+  bestMeleeWeapon, bestRangedRangeOfUnit, bestRangedWeapon, expectedAttack, hasAnyMeleeWeapon, hasAnyRangedWeapon,
+  sumExpectedAttacks, threatAt, unitMeleeDamage, unitRangedDamage, unitValue,
 } from './expected'
 
 export type Difficulty = 'easy' | 'normal'
@@ -143,6 +143,26 @@ function minGapBetweenUnits(state: GameState, a: UnitId, b: UnitId): number {
   return gap
 }
 
+function centerOfUnit(state: GameState, unitId: UnitId): { x: number; z: number } | null {
+  const models = unitModels(state, unitId)
+  if (models.length === 0) return null
+  let x = 0, z = 0
+  for (const m of models) { x += m.pos.x; z += m.pos.z }
+  return { x: x / models.length, z: z / models.length }
+}
+
+// enemy units currently within Engagement Range of unitId (used to check whether a fight-phase stratagem is
+// actually about to matter, e.g. Veteran Instincts / Epic Challenge)
+function engagedEnemyUnits(state: GameState, player: PlayerId, unitId: UnitId): UnitId[] {
+  const mine = unitModels(state, unitId)
+  const out: UnitId[] = []
+  for (const u of boardUnitsOf(state, other(player))) {
+    const theirs = unitModels(state, u.id)
+    if (mine.some((a) => theirs.some((b) => withinEngagementRange(a, b)))) out.push(u.id)
+  }
+  return out
+}
+
 // 2D6 ≥ n probability table (40-ai.md §5)
 const CHARGE_PROB: Record<number, number> = { 2: 1, 3: 0.972, 4: 0.917, 5: 0.833, 6: 0.722, 7: 0.583, 8: 0.417, 9: 0.278, 10: 0.167, 11: 0.083, 12: 0.028 }
 function chargeProb(needed: number): number {
@@ -165,6 +185,20 @@ function countEngagedAfter(state: GameState, unitId: UnitId, placements: ModelPl
   return n
 }
 
+// nearest objective actually worth holding (objectiveScoreWeight > 1), and how far it is from `pos` — used to
+// reward *closing the gap* on top of the absolute objectivePull, see scorePosition below.
+function nearestValuableObjective(state: GameState, player: PlayerId, pos: { x: number; z: number }): { dist: number; weight: number } | null {
+  let best: { dist: number; weight: number } | null = null
+  for (const obj of Object.values(state.objectives)) {
+    if (obj.removed) continue
+    const weight = objectiveScoreWeight(state, player, obj.id)
+    if (weight <= 1) continue
+    const dist = Math.hypot(obj.pos.x - pos.x, obj.pos.z - pos.z)
+    if (!best || dist < best.dist) best = { dist, weight }
+  }
+  return best
+}
+
 // Shared position scorer for moveUnit / chargeMove / pileIn / consolidate: objective pull, threat avoidance,
 // charge/shoot readiness, and (for charge/consolidate) how many models end up fighting.
 function scorePosition(state: GameState, player: PlayerId, unitId: UnitId, placements: ModelPlacement[], bonusEngage: boolean): number {
@@ -172,6 +206,18 @@ function scorePosition(state: GameState, player: PlayerId, unitId: UnitId, place
   const center = placementsCenter(placements)
   let score = objectivePull(state, player, center)
   score -= threatAt(state, player, center) * 2
+  // objectivePull's gradient is gentle at range (by design, so a unit doesn't panic-sprint from 20" out) and
+  // threatAt already grows the moment a unit enters any enemy's threat radius, so early on a unit can find every
+  // reachable placement scores about the same (or worse) than just not moving at all — it "freezes" in its
+  // deployment zone for the whole game rather than ever closing on a valuable objective. Reward the move itself
+  // for closing distance to the nearest valuable objective, independent of the absolute pull, so progress always
+  // beats standing still.
+  const currentCenter = centerOfUnit(state, unitId)
+  if (currentCenter) {
+    const before = nearestValuableObjective(state, player, currentCenter)
+    const after = nearestValuableObjective(state, player, center)
+    if (before && after && before.dist > 3) score += Math.max(0, before.dist - after.dist) * Math.min(before.weight, after.weight) * 0.15
+  }
   const enemy = nearestEnemyFromPoint(state, player, center)
   if (enemy) {
     if (hasAnyMeleeWeapon(state, unitId)) {
@@ -204,6 +250,14 @@ function scoreDeployUnit(state: GameState, player: PlayerId, action: DeployUnitA
     if (d < 6) crowd += 6 - d
   }
   score -= crowd * 0.1
+  // A deployment right in a board-edge corner can leave a unit with almost no room to maneuver later — every
+  // "move toward the objective" direction ends up crossing the board edge or a ruin wall that's often tucked into
+  // that same corner, so the unit ends up stuck in place move after move despite still having full Move stat.
+  // Objective pull alone doesn't see that cost (it only measures distance, not "can I actually go anywhere from
+  // here"), so nudge deployment away from tight corners as a cheap proxy.
+  const edgeMargin = 2.5
+  const edgeDist = Math.min(state.board.w / 2 - Math.abs(center.x), state.board.h / 2 - Math.abs(center.z))
+  if (edgeDist < edgeMargin) score -= (edgeMargin - edgeDist) * 1.5
   return score
 }
 
@@ -237,17 +291,27 @@ function scoreDeclareMove(state: GameState, player: PlayerId, action: DeclareMov
   const enemy = nearestEnemyUnit(state, player, unitId)
   const gap = enemy?.gap ?? Infinity
   const rangedRange = bestRangedRangeOfUnit(state, unitId) ?? 24
+  // elite-army play (40-ai.md priority): a gunline unit only benefits from staying put if it's actually about to
+  // shoot something from here — HEAVY's +1 to hit and "already in range" only matter with a target in range right
+  // now. Otherwise standing still just camps deployment while objectives (often worth far more than a stray shot)
+  // sit uncontested — this was letting Marine gunline squads freeze in place for entire games (never reaching any
+  // scored objective) since the flat HEAVY/ranged bonus applied unconditionally.
+  const canShootFromHere = ranged && gap <= rangedRange
   switch (action.moveType) {
     case 'stationary': {
       let s = 1.0
-      if (ranged && heavy) s += 2.5
+      if (ranged && heavy && canShootFromHere) s += 2.5
       if (onControlledValuableObjective) s += 1.5
-      if (ranged && !melee && gap <= rangedRange) s += 1.5
+      if (ranged && !melee && canShootFromHere) s += 1.5
+      if (!canShootFromHere && !onControlledValuableObjective) s -= 1.5
       return s
     }
     case 'normal': {
+      // Normal moves keep full shooting eligibility (only Advance/Fall Back forfeit it), so a ranged unit loses
+      // nothing by repositioning toward a valuable objective while still able to shoot this turn.
       let s = 2.0
       if (melee && gap > stats.M + ENGAGEMENT_H && gap <= stats.M + 12) s += 1.0
+      if (nearestUnheldTarget <= stats.M + 6) s += 1.5
       return s
     }
     case 'advance': {
@@ -354,21 +418,32 @@ function scoreChooseFightUnit(state: GameState, player: PlayerId, action: Action
 function scoreDeclareCharge(state: GameState, player: PlayerId, action: DeclareChargeAction | { type: 'pass' }): number {
   if (action.type === 'pass') return 0.3
   const unitId = action.unitId
+  // elite-army play: only counter-charge favourable fights. Weighing our own expected losses at half the rate of
+  // the damage we deal (the old 0.01 vs 0.02) systematically undervalues our own models — it let a lone Captain
+  // charge a Deff Dread it had no realistic chance against and get killed. Both sides of the trade now use the
+  // same scale, and a solo CHARACTER (the single most expensive, hardest-to-replace model in an elite list) gets
+  // an extra risk penalty on top since losing it costs more than its raw stat-derived value already implies.
+  const isLoneCharacter = hasKeyword(state, unitId, 'CHARACTER') && unitModels(state, unitId).length <= 1
+  const riskMult = isLoneCharacter ? 1.6 : 1.0
   let neededMax = 0, payoff = 0
   for (const targetId of action.targetUnitIds) {
     const gap = minGapBetweenUnits(state, unitId, targetId)
     neededMax = Math.max(neededMax, Math.max(0, gap - ENGAGEMENT_H))
     const dmg = unitMeleeDamage(state, unitId, targetId, { charged: true })
     const ret = unitMeleeDamage(state, targetId, unitId, {})
-    payoff += dmg * unitValue(state, targetId) * 0.02 - ret * unitValue(state, unitId) * 0.01
+    payoff += dmg * unitValue(state, targetId) * 0.02 - ret * unitValue(state, unitId) * 0.02 * riskMult
   }
   const p = chargeProb(Math.ceil(neededMax))
   return p * payoff - (1 - p) * 0.4
 }
 
 // Named stratagems this tier-1 AI actually models; everything else defaults to holding CP (spec §5: "hold CP by
-// default; use one only when its modelled value beats a threshold").
-function stratagemScore(state: GameState, player: PlayerId, pending: PendingDecision, id: string, cost: number): number {
+// default; use one only when its modelled value beats a threshold"). `action.targets` carries the concrete
+// (unit/model) choice legalActions() already bound for this specific option, so branches read from there instead
+// of re-deriving candidates — each scored option can name a different target.
+function stratagemScore(state: GameState, player: PlayerId, pending: PendingDecision, action: UseStratagemAction, cost: number): number {
+  const id = action.stratagemId
+  const targets = action.targets ?? {}
   const cp = state.players[player].cp
   if (cp < cost) return -Infinity
   const trigger = pending.kind === 'reactionWindow' ? pending.context.enemyUnitId : pending.kind === 'stratagemWindow' ? pending.context.trigger.unitId : null
@@ -395,6 +470,152 @@ function stratagemScore(state: GameState, player: PlayerId, pending: PendingDeci
     const val = unitValue(state, targetTrigger)
     return val > 20 && totalW > 0 ? val * 0.02 - cost * 1.5 : -Infinity
   }
+  // Tank Shock: mortal wounds = min(6, T dice at 5+); use when it meaningfully hurts what we just charged.
+  if (id.endsWith('tank-shock')) {
+    const enemyUnitId = targets.unitIds?.[1]
+    const vehicleModelId = targets.modelIds?.[0]
+    if (!enemyUnitId || !vehicleModelId) return -Infinity
+    const model = state.models[vehicleModelId]
+    if (!model) return -Infinity
+    const expectedMortalWounds = Math.min(6, modelStats(state, model).T * (2 / 6))
+    return expectedMortalWounds * unitValue(state, enemyUnitId) * 0.02 - cost
+  }
+  // Grenade: 6 dice at 4+ ~= 3 expected mortal wounds; worth more when that's likely to outright kill a model
+  // (no CP unit currently has GRENADES, so this only ever fires if the roster data changes).
+  if (id.endsWith('.grenade')) {
+    const enemyUnitId = targets.unitIds?.[1] ?? targetTrigger
+    if (!enemyUnitId) return -Infinity
+    const expectedMortalWounds = 6 * (3 / 6)
+    const models = unitModels(state, enemyUnitId)
+    const weakestW = models.length > 0 ? Math.min(...models.map((m) => modelStats(state, m).W)) : 1
+    const killsAModel = expectedMortalWounds >= weakestW
+    return expectedMortalWounds * unitValue(state, enemyUnitId) * 0.02 * (killsAModel ? 1.5 : 0.8) - cost
+  }
+  // Veteran Instincts: reroll 1s normally, reroll any wound vs MONSTER/VEHICLE — the big reroll-all case is the
+  // one worth spending CP on; a plain reroll-ones against rank-and-file is only worth it against a juicy target.
+  if (id.endsWith('veteran-instincts')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId) return -Infinity
+    const enemies = engagedEnemyUnits(state, player, unitId)
+    let bestDmg = 0, bestEnemyId: UnitId | null = null, bestIsMonsterVehicle = false
+    for (const e of enemies) {
+      const dmg = unitMeleeDamage(state, unitId, e, {})
+      if (dmg > bestDmg) { bestDmg = dmg; bestEnemyId = e; bestIsMonsterVehicle = hasKeyword(state, e, 'MONSTER') || hasKeyword(state, e, 'VEHICLE') }
+    }
+    if (!bestEnemyId) return -Infinity
+    if (!bestIsMonsterVehicle && bestDmg < 4) return -Infinity // reroll-ones on a weak fight isn't worth 1 CP
+    const bonusFrac = bestIsMonsterVehicle ? 0.5 : 0.15
+    return bestDmg * bonusFrac * unitValue(state, bestEnemyId) * 0.02 - cost
+  }
+  // Epic Challenge: Precision lets our Character snipe the enemy's attached leader directly instead of whatever
+  // model would normally be allocated to — only worth it when there's actually a leader there to snipe.
+  if (id.endsWith('epic-challenge')) {
+    const enemyUnitId = targets.unitIds?.[0]
+    const modelId = targets.modelIds?.[0]
+    if (!enemyUnitId || !modelId) return -Infinity
+    const leaderId = state.units[enemyUnitId]?.attachedLeaderId
+    if (!leaderId) return -Infinity
+    const wid = bestMeleeWeapon(state, modelId)
+    if (!wid) return -Infinity
+    const dmg = expectedAttack(state, modelId, wid, leaderId, {}).damage
+    if (dmg <= 0) return -Infinity
+    return dmg * unitValue(state, leaderId) * 0.03 - cost
+  }
+  // Insane Bravery: oncePerBattle, so only worth burning on a battle-shock test that would actually hurt — a
+  // unit sitting on an objective that scores, or a high-value unit we can't afford to see fall back/flee.
+  if (id.endsWith('insane-bravery')) {
+    const unitId = targets.unitIds?.[0] ?? trigger
+    if (!unitId) return -Infinity
+    const models = unitModels(state, unitId)
+    if (models.length === 0) return -Infinity
+    const onValuableObjective = Object.values(state.objectives).some((o) => !o.removed
+      && objectiveScoreWeight(state, player, o.id) > 1 && models.some((m) => withinObjectiveRange(m, o)))
+    const val = unitValue(state, unitId)
+    if (!onValuableObjective && val < 15) return -Infinity
+    return val * (onValuableObjective ? 0.06 : 0.02) - cost
+  }
+  // Rapid Ingress: bring a reserved unit on now instead of next Reinforcements — worth it when a valuable
+  // objective is still uncontested and we can put a body on/near it immediately.
+  if (id.endsWith('rapid-ingress')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId) return -Infinity
+    const hasValuableUnclaimed = Object.values(state.objectives).some((o) => !o.removed
+      && objectiveScoreWeight(state, player, o.id) > 1 && DEFAULT_SERVICES.objectives.controller(state, o.id) !== player)
+    if (!hasValuableUnclaimed) return -Infinity
+    return unitValue(state, unitId) * 0.03 - cost
+  }
+  // Duty and Honour: keeps a held objective "ours" even if the unit later moves off/dies — worth it only for an
+  // objective that actually scores and that the enemy could plausibly contest soon.
+  if (id.endsWith('duty-and-honour')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId) return -Infinity
+    const models = unitModels(state, unitId)
+    let bestWeight = 0, threatened = false
+    for (const o of Object.values(state.objectives)) {
+      if (o.removed || DEFAULT_SERVICES.objectives.controller(state, o.id) !== player) continue
+      if (!models.some((m) => withinObjectiveRange(m, o))) continue
+      const weight = objectiveScoreWeight(state, player, o.id)
+      if (weight <= bestWeight) continue
+      const enemy = nearestEnemyFromPoint(state, player, o.pos)
+      bestWeight = weight
+      threatened = !!enemy && enemy.gap <= 16 // roughly a turn's move+charge away
+    }
+    if (bestWeight <= 1 || !threatened) return -Infinity
+    return bestWeight * 2 - cost
+  }
+  // Get Stuck In: extends this unit's pile-in/consolidate to 6" — worth it when that extra reach can drag it
+  // into a second fight or onto a valuable objective it couldn't reach with the normal 3".
+  if (id.endsWith('get-stuck-in')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId || !hasAnyMeleeWeapon(state, unitId)) return -Infinity
+    const center = centerOfUnit(state, unitId)
+    if (!center) return -Infinity
+    let extraReach = false
+    for (const u of boardUnitsOf(state, other(player))) {
+      const gap = minGapBetweenUnits(state, unitId, u.id)
+      if (gap > ENGAGEMENT_H && gap <= 6) extraReach = true
+    }
+    for (const o of Object.values(state.objectives)) {
+      if (o.removed || objectiveScoreWeight(state, player, o.id) <= 1) continue
+      const d = Math.hypot(o.pos.x - center.x, o.pos.z - center.z)
+      if (d > 3 && d <= 6) extraReach = true
+    }
+    if (!extraReach) return -Infinity
+    return unitValue(state, unitId) * 0.02 - cost
+  }
+  // Brutal but Kunnin': only unlocks anything if the unit actually Fell Back this turn — otherwise it can
+  // already declare a charge normally and the stratagem does nothing.
+  if (id.endsWith('brutal-but-kunnin')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId) return -Infinity
+    const unit = state.units[unitId]
+    if (!unit || unit.turn.moveType !== 'fallBack') return -Infinity
+    const enemy = nearestEnemyUnit(state, player, unitId)
+    if (!enemy) return -Infinity
+    const myModels = unitModels(state, unitId)
+    if (myModels.length === 0) return -Infinity
+    const stats = modelStats(state, myModels[0])
+    const needed = Math.max(0, Math.ceil(enemy.gap - ENGAGEMENT_H))
+    if (needed > stats.M + 12) return -Infinity
+    const p = chargeProb(needed)
+    const dmg = unitMeleeDamage(state, unitId, enemy.unitId, { charged: true })
+    return p * dmg * unitValue(state, enemy.unitId) * 0.02 - cost
+  }
+  // Krump da Gitz!: free D6" surge toward whoever just shot us — only worth triggering when it sets up a
+  // realistic charge next turn (otherwise it just drags the unit further from where it wants to be).
+  if (id.endsWith('krump-da-gitz')) {
+    const unitId = targets.unitIds?.[0] ?? targetTrigger
+    if (!unitId || !hasAnyMeleeWeapon(state, unitId)) return -Infinity
+    const enemy = nearestEnemyUnit(state, player, unitId)
+    if (!enemy) return -Infinity
+    const myModels = unitModels(state, unitId)
+    if (myModels.length === 0) return -Infinity
+    const stats = modelStats(state, myModels[0])
+    const afterGap = Math.max(0, enemy.gap - 3.5) // average D6
+    const needed = Math.max(0, Math.ceil(afterGap - ENGAGEMENT_H))
+    if (needed > stats.M + 3.5) return -Infinity // still not a plausible charge next turn
+    return unitValue(state, enemy.unitId) * 0.015 - cost
+  }
   return -Infinity // unmodelled stratagem: hold CP
 }
 
@@ -403,7 +624,7 @@ function scoreStratagemOrReaction(state: GameState, player: PlayerId, pending: P
   if (action.type !== 'useStratagem') return 0
   const strat = state.stratagems[action.stratagemId]
   const cost = strat?.cost ?? 1
-  return stratagemScore(state, player, pending, action.stratagemId, cost)
+  return stratagemScore(state, player, pending, action, cost)
 }
 
 function scoreCommandReroll(pending: PendingDecision, action: Action): number {
