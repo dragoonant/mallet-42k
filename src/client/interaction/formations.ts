@@ -7,6 +7,7 @@
 // The base's `radius2` axis (defaults to `radius` for round bases) runs along (-sin f, cos f) —
 // "right". So `radius` is a model's front-to-back half-extent and `radius2` is its side-to-side
 // half-extent once it's facing `f`; formation rows are built directly from those two numbers.
+import { deployFacing } from '@/engine/setup'
 import type { GameState, Model, ModelId, UnitId, Vec3 } from '@/engine'
 import type { Anchor2D } from './geometry'
 import { splitBodyAndLeader } from './geometry'
@@ -278,13 +279,8 @@ export function formationPlacementsForUnit(
  *  off-centre click) would routinely poke out of the zone. */
 export function zoneFacing(zone: { x: number; z: number }[]): number {
   if (zone.length === 0) return 0
-  const xs = zone.map((p) => p.x)
-  const zs = zone.map((p) => p.z)
-  const width = Math.max(...xs) - Math.min(...xs)
-  const depth = Math.max(...zs) - Math.min(...zs)
-  // facing 0 -> spread runs along world z (right = (0,1)); facing PI/2 -> spread runs along world x
-  // (right = (-1,0)) — see the module header's coordinate convention.
-  return width >= depth ? Math.PI / 2 : 0
+  // face from the zone's centre toward the board centre, so each side deploys looking at the enemy
+  return deployFacing(zone)
 }
 
 /** A sensible starting facing for a fresh formation before the player has rotated it: the direction

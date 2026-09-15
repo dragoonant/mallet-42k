@@ -101,10 +101,20 @@ function resolveDeploy(
   return { rejection: null, toReserves: false, resolved: result.resolved }
 }
 
+// facing for a freshly deployed model: from the zone's centre toward the board centre (the origin), snapped to an axis,
+// so a deployed unit looks across the board at the enemy rather than keeping the default facing 0
+export function deployFacing(zone: Polygon): number {
+  const xs = zone.map((p) => p.x), zs = zone.map((p) => p.z)
+  const cx = (Math.max(...xs) + Math.min(...xs)) / 2, cz = (Math.max(...zs) + Math.min(...zs)) / 2
+  if (Math.abs(cx) >= Math.abs(cz)) return cx > 0 ? Math.PI : 0
+  return cz > 0 ? -Math.PI / 2 : Math.PI / 2
+}
+
 // a simple, always-legal placement for `unitId`'s models wholly within `zone` and clear of everything already placed —
 // used by legalActions() so a generic Decider (AI, autoplay tests) can drive deployUnit without solving placement
 // itself; returns null only if the zone genuinely has no room left (raster scan of its bounding box)
 function autoDeployPlacements(models: Model[], zone: Polygon, otherFriendly: Model[], enemies: Model[]): ModelPlacement[] | null {
+  const facing = deployFacing(zone)
   // a small inward safety pad keeps candidates well clear of the zone/board edge, avoiding floating-point boundary
   // ambiguity in pointInPolygon (exact edge points are not reliably "inside" under ray-casting)
   const pad = 0.05
@@ -117,16 +127,16 @@ function autoDeployPlacements(models: Model[], zone: Polygon, otherFriendly: Mod
     let found: { x: number; z: number } | null = null
     for (let z = minZ + m.base.radius; z <= maxZ - m.base.radius + 1e-9 && !found; z += step) {
       for (let x = minX + m.base.radius; x <= maxX - m.base.radius + 1e-9 && !found; x += step) {
-        const cand: Footprint = { pos: { x, y: 0, z }, facing: 0, base: m.base }
+        const cand: Footprint = { pos: { x, y: 0, z }, facing, base: m.base }
         if (!whollyWithinPolygon(cand, zone)) continue
         if (placedHere.some((o) => basesOverlap(cand, o)) || otherFriendly.some((o) => basesOverlap(cand, o)) || enemies.some((o) => basesOverlap(cand, o))) continue
         found = { x, z }
       }
     }
     if (!found) return null
-    const footprint: Footprint = { pos: { x: found.x, y: 0, z: found.z }, facing: 0, base: m.base }
+    const footprint: Footprint = { pos: { x: found.x, y: 0, z: found.z }, facing, base: m.base }
     placedHere.push(footprint)
-    out.push({ modelId: m.id, pos: footprint.pos })
+    out.push({ modelId: m.id, pos: footprint.pos, facing })
   }
   return out
 }
@@ -277,7 +287,8 @@ export const setupModule: PhaseModule = {
       const minZ = Math.min(...zone.map((p) => p.z)), maxZ = Math.max(...zone.map((p) => p.z))
       for (let z0 = minZ + rad + 0.1; z0 < maxZ; z0 += 1) {
         for (let x0 = minX + rad + 0.1; x0 < maxX; x0 += 1) {
-          const action = mk(models.map((m, i) => ({ modelId: m.id, pos: { x: x0 + (i % cols) * spacing, y: 0, z: z0 + Math.floor(i / cols) * spacing } })))
+          const facing = deployFacing(zone)
+          const action = mk(models.map((m, i) => ({ modelId: m.id, pos: { x: x0 + (i % cols) * spacing, y: 0, z: z0 + Math.floor(i / cols) * spacing }, facing })))
           if (resolveDeploy(state, action, pending).rejection === null) return [action]
         }
       }

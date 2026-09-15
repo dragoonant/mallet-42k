@@ -61,7 +61,7 @@ export function Figure({
   datasheetId,
   faction,
   position = [0, 0, 0],
-  rotationY = 0,
+  rotationY,
   moving,
   action,
   pose: poseOverride,
@@ -69,11 +69,14 @@ export function Figure({
   highlighted,
   onClick,
 }: FigureProps) {
+  // `rotationY` is an engine facing — forward along world (cos f, sin f) — but the figure mesh
+  // faces local +Z, which three's rotation.y turns to (sin θ, cos θ); θ = π/2 − f lines them up.
+  const yaw = rotationY === undefined ? 0 : Math.PI / 2 - rotationY
   const bundle = useDataBundle()
   const seedRef = useRef(Math.random() * 100)
   const groupRef = useRef<Group>(null!)
   const easedPos = useRef({ x: position[0], y: position[1], z: position[2] })
-  const easedYaw = useRef(rotationY)
+  const easedYaw = useRef(yaw)
   const initialized = useRef(false)
   const [autoMoving, setAutoMoving] = useState(false)
 
@@ -95,11 +98,11 @@ export function Figure({
     if (!g) return
     if (!initialized.current) {
       g.position.set(position[0], position[1], position[2])
-      g.rotation.y = rotationY
+      g.rotation.y = yaw
       easedPos.current.x = position[0]
       easedPos.current.y = position[1]
       easedPos.current.z = position[2]
-      easedYaw.current = rotationY
+      easedYaw.current = yaw
       initialized.current = true
       return
     }
@@ -112,7 +115,7 @@ export function Figure({
     g.position.set(p.x, p.y, p.z)
 
     // Shortest-path yaw ease so a figure never spins the long way round to face a new target.
-    let diff = rotationY - easedYaw.current
+    let diff = yaw - easedYaw.current
     diff = ((diff + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI
     easedYaw.current += diff * Math.min(1, delta * YAW_EASE_PER_SEC)
     g.rotation.y = easedYaw.current
