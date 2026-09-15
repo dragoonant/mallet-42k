@@ -4,12 +4,13 @@ import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { BOARD_DEPTH_IN, BOARD_WIDTH_IN } from './Board'
+import { initCameraModifiers, isSpaceHeld } from './cameraModifiers'
 
 const OVERVIEW_POLAR = THREE.MathUtils.degToRad(55)
 const TOP_DOWN_POLAR = THREE.MathUtils.degToRad(4)
 const MIN_POLAR = THREE.MathUtils.degToRad(4)
 const MAX_POLAR = THREE.MathUtils.degToRad(82)
-const TARGET_MARGIN = 6
+const TARGET_MARGIN = 4
 /** Pleasant framing distance for the "focus selected unit" button — close enough to read the
  *  model, far enough to still see nearby terrain/enemies for context. */
 const FOCUS_DISTANCE_IN = 16
@@ -32,11 +33,41 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
   const controls = useRef<OrbitControlsImpl | null>(null)
   const targetPolar = useRef(OVERVIEW_POLAR)
   const pendingFocus = useRef<{ x: number; z: number } | null>(null)
-  const { camera } = useThree()
+  const { camera, gl } = useThree()
 
   useEffect(() => {
     targetPolar.current = topDown ? TOP_DOWN_POLAR : OVERVIEW_POLAR
   }, [topDown])
+
+  // Mouse remap: left never orbits the camera by itself (it's reserved for picking/measuring/nudging
+  // game objects) — middle-drag pans, right-drag orbits, and left only drives the camera when a
+  // trackpad-fallback modifier is held (Space/Shift = pan, Alt = rotate). MIDDLE/RIGHT are static;
+  // LEFT is recomputed on every pointerdown from the live modifier keys. Set imperatively (not as a
+  // reactive `mouseButtons` JSX prop) so a CameraRig re-render mid-drag can't clobber the LEFT value
+  // this listener just set. A window-level *capture* listener runs before OrbitControls' own
+  // (bubble-phase) pointerdown listener on the canvas, guaranteeing our LEFT assignment lands first.
+  useEffect(() => {
+    const dom = gl.domElement
+    const c0 = controls.current
+    if (c0) {
+      c0.mouseButtons.MIDDLE = THREE.MOUSE.PAN
+      c0.mouseButtons.RIGHT = THREE.MOUSE.ROTATE
+      c0.mouseButtons.LEFT = undefined
+    }
+    const cleanupModifiers = initCameraModifiers(dom)
+    const onPointerDownCapture = (e: PointerEvent) => {
+      const c = controls.current
+      if (!c || e.button !== 0) return
+      if (isSpaceHeld() || e.shiftKey) c.mouseButtons.LEFT = THREE.MOUSE.PAN
+      else if (e.altKey) c.mouseButtons.LEFT = THREE.MOUSE.ROTATE
+      else c.mouseButtons.LEFT = undefined
+    }
+    window.addEventListener('pointerdown', onPointerDownCapture, { capture: true })
+    return () => {
+      cleanupModifiers()
+      window.removeEventListener('pointerdown', onPointerDownCapture, { capture: true })
+    }
+  }, [gl])
 
   useEffect(() => {
     if (focusTarget) pendingFocus.current = { x: focusTarget.x, z: focusTarget.z }
@@ -107,6 +138,7 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
       maxDistance={maxDistance}
       minPolarAngle={MIN_POLAR}
       maxPolarAngle={MAX_POLAR}
+      screenSpacePanning={false}
     />
   )
 }

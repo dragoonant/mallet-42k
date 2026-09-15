@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react'
 import type { ThreeEvent } from '@react-three/fiber'
 import { Grid } from '@react-three/drei'
 import * as THREE from 'three'
+import { isCameraDragModifier } from './cameraModifiers'
 import { extrudedPolygonGeometry } from './geometry'
 import { SIDE_COLOR, type DeploymentZones } from './types'
 
@@ -31,8 +32,15 @@ export function Board({ width = BOARD_WIDTH_IN, depth = BOARD_DEPTH_IN, deployme
     }
   }, [deploymentZones])
 
+  // M4 camera remap: left click/drag is the only button that drives board clicks/Measure/nudge, and
+  // only when no camera-drag modifier (Space/Shift/Alt) is held — those combinations pan/rotate the
+  // camera instead (CameraRig.tsx). Right/middle-button events never reach onBoardPointer at all, so
+  // a right- or middle-drag orbit/pan can't also read as a click, a Measure drag, or a model nudge.
   const emit = (e: ThreeEvent<PointerEvent>, kind: 'move' | 'down' | 'up') => {
     if (!onBoardPointer) return
+    if (kind === 'down' && (e.button !== 0 || isCameraDragModifier(e))) return
+    if (kind === 'move' && ((e.buttons & 1) === 0 || isCameraDragModifier(e))) return
+    if (kind === 'up' && e.button !== 0) return
     onBoardPointer({ x: e.point.x, z: e.point.z }, kind)
   }
 
