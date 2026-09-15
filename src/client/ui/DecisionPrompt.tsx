@@ -219,14 +219,14 @@ const wrap: CSSProperties = {
   ...panel,
   position: 'absolute',
   left: '50%',
-  bottom: 12,
+  bottom: 10,
   transform: 'translateX(-50%)',
   width: 460,
-  maxWidth: 'calc(100vw - 480px)',
-  padding: 14,
+  maxWidth: 'calc(100vw - 440px)',
+  padding: '10px 14px',
   display: 'flex',
   flexDirection: 'column',
-  gap: 8,
+  gap: 6,
   pointerEvents: 'auto',
 }
 const heading: CSSProperties = { fontWeight: 700, fontSize: 14 }
@@ -234,6 +234,11 @@ const hint: CSSProperties = { ...mutedText }
 const infoBlock: CSSProperties = { ...mutedText, background: 'rgba(255,255,255,0.04)', borderRadius: 6, padding: '6px 8px' }
 const stratList: CSSProperties = { margin: '4px 0 0 16px', padding: 0, fontSize: 11.5 }
 const row: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap' }
+/** The deploy palette (unit chips + Reserves buttons) — one scrollable row instead of wrapping to
+ *  several lines, so the panel's height stays fixed regardless of roster size and never grows tall
+ *  enough to cover deployment-zone clicks near the bottom of the board (M4-era regression: a 5-unit
+ *  patrol wrapped this row two or three lines deep). */
+const deployRow: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: 2 }
 const optionList: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', maxHeight: 130, overflowY: 'auto' }
 function hasOptions(p: PendingDecision): p is Extract<PendingDecision, { options: DecisionOption[] }> {
   return 'options' in p
@@ -406,9 +411,13 @@ export function DecisionPrompt() {
       )}
 
       {pending.kind === 'deployUnit' && (
-        <div style={row}>
+        <div style={deployRow}>
           {pending.context.unitIds.map((uid) => (
-            <button key={uid} style={uid === deployTargetUnitId ? buttonPrimary : buttonBase} onClick={() => setDeployTarget(uid)}>
+            <button
+              key={uid}
+              style={{ ...(uid === deployTargetUnitId ? buttonPrimary : buttonBase), flexShrink: 0 }}
+              onClick={() => setDeployTarget(uid)}
+            >
               {state.units[uid]?.name ?? uid}
             </button>
           ))}
@@ -416,7 +425,7 @@ export function DecisionPrompt() {
             const reserveAction = legal?.find((a) => a.type === 'deployUnit' && a.unitId === uid && a.toReserves)
             if (!reserveAction) return null
             return (
-              <button key={`res-${uid}`} style={buttonBase} onClick={() => dispatch(reserveAction)}>
+              <button key={`res-${uid}`} style={{ ...buttonBase, flexShrink: 0 }} onClick={() => dispatch(reserveAction)}>
                 Reserves: {state.units[uid]?.name ?? uid}
               </button>
             )

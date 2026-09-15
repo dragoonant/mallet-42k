@@ -50,6 +50,7 @@ interface Snap {
   legalTypes: string[]
   units: { id: string; name: string; player: string; loc: string; models: { x: number; y: number; z: number }[] }[]
   objectives: V2[]
+  pieces: { footprint: V2[] }[]
 }
 
 async function snap(page: Page): Promise<Snap> {
@@ -84,6 +85,7 @@ async function snap(page: Page): Promise<Snap> {
           }))
         : [],
       objectives: s ? Object.values(s.objectives).filter((o: any) => !o.removed).map((o: any) => ({ x: o.pos.x, z: o.pos.z })) : [],
+      pieces: s ? Object.values(s.board.pieces).map((p: any) => ({ footprint: p.footprint })) : [],
     }
   })
 }
@@ -97,6 +99,84 @@ const log: string[] = []
 const note = (s: string) => {
   log.push(s)
   console.log(`[play] ${s}`)
+}
+
+/** The x-span (with a small margin) that's clear, across the deployment zone's whole depth, of every
+ *  terrain piece whose own z-span overlaps the zone at all (mirrors tests/e2e/formations.spec.ts's
+ *  helper of the same name — a mission's zone can sit right next to a crate/ruin). */
+function clearAnchorX(zone: V2[], pieces: { footprint: V2[] }[], zoneMinX: number, zoneMaxX: number): number {
+  const zs = zone.map((p) => p.z)
+  const zMin = Math.min(...zs)
+  const zMax = Math.max(...zs)
+  const margin = 0.5
+  const blocked: [number, number][] = []
+  for (const piece of pieces) {
+    const pxs = piece.footprint.map((p) => p.x)
+    const pzs = piece.footprint.map((p) => p.z)
+    const pMinZ = Math.min(...pzs)
+    const pMaxZ = Math.max(...pzs)
+    if (pMaxZ < zMin || pMinZ > zMax) continue
+    blocked.push([Math.min(...pxs) - margin, Math.max(...pxs) + margin])
+  }
+  blocked.sort((a, b) => a[0] - b[0])
+  const merged: [number, number][] = []
+  for (const b of blocked) {
+    const last = merged[merged.length - 1]
+    if (last && b[0] <= last[1]) last[1] = Math.max(last[1], b[1])
+    else merged.push([b[0], b[1]])
+  }
+  const gaps: [number, number][] = []
+  let cursor = zoneMinX
+  for (const [s, e] of merged) {
+    if (s > cursor) gaps.push([cursor, Math.min(s, zoneMaxX)])
+    cursor = Math.max(cursor, e)
+  }
+  if (cursor < zoneMaxX) gaps.push([cursor, zoneMaxX])
+  let best: [number, number] = [zoneMinX, zoneMaxX]
+  for (const g of gaps) if (g[1] - g[0] > best[1] - best[0]) best = g
+  return (best[0] + best[1]) / 2
+}
+
+/** Candidate deployment-click points spanning the zone's own bounding box (a real grid of x/z
+ *  fractions across the actual zone, terrain-aware via `clearAnchorX`) rather than a fixed list of
+ *  absolute world coordinates guessed from one particular mission's layout — the previous list
+ *  (`[-15, 0, 15, -8, 8, -19, 19]` etc.) was tuned to cp-01's own zones and could leave every
+ *  candidate either outside a differently-shaped zone or clustered in the one spot that happens to
+ *  sit under the bottom decision-prompt/event-feed panels (the deploy failure this fixes: a
+ *  single-model HQ like Librarian Tantus in a zone whose centre projects behind those panels never
+ *  got a single unobstructed candidate to try). `clickCanvasAt`'s own elementFromPoint check still
+ *  does the actual overlay screening; this just gives it enough spread across the real zone to find a
+ *  clear point. `jitterIndex` (already-deployed-unit count) staggers repeat callers so several units
+ *  landing in the same zone don't all aim at the exact same spot. */
+function deployZoneCandidates(zone: V2[], pieces: { footprint: V2[] }[], jitterIndex: number): V2[] {
+  const xs = zone.map((p) => p.x)
+  const zs = zone.map((p) => p.z)
+  const minX = Math.min(...xs)
+  const maxX = Math.max(...xs)
+  const minZ = Math.min(...zs)
+  const maxZ = Math.max(...zs)
+  const w = maxX - minX
+  const d = maxZ - minZ
+  const clearX = clearAnchorX(zone, pieces, minX, maxX)
+  // Bug this fixes: the old formula (`(jitterIndex * 2.7) % (w * 0.5) - w * 0.25`) subtracted a full
+  // quarter-width constant even for `jitterIndex === 0` (the very first unit into this zone), so
+  // every candidate — including the ones meant to sample the zone's clear centre and right side —
+  // was shifted a fixed ~11" toward the left edge before any real jitter was even needed. That left
+  // the "on-screen but under the deploy/event panels" 30-45% of the zone as the only reachable band
+  // for a lone/first unit, which is exactly the failure this whole candidate list exists to avoid.
+  const jitter = jitterIndex === 0 || w <= 0.5 ? 0 : ((jitterIndex * 1.7) % (w * 0.15)) - w * 0.075
+  // x-fractions stay in the zone's interior (0.3-0.7, not 0.15/0.85) and the boundary margin below is
+  // a flat ~6" (not a token 0.5") — a leader auto-attaches to a bodyguard and deploys as one combined
+  // placement (src/client/store/game.ts's `defaultAttachments`), so "click inside the zone" can mean
+  // anchoring a 5-8 model line several inches wide; an anchor a token half-inch from the zone/board
+  // edge left that whole line poking past it ("must end wholly within the allowed region" / "would
+  // leave the battlefield" engine rejections seen for a 6-model Captain+Terminator Squad group).
+  const EDGE_MARGIN_IN = Math.min(6, w * 0.2)
+  const xFracs = [0.5, 0.35, 0.65, 0.3, 0.7, 0.4, 0.6]
+  const zFracs = [0.5, 0.3, 0.7, 0.2, 0.8]
+  const pts: V2[] = [{ x: clearX + jitter, z: minZ + d * 0.5 }]
+  for (const zf of zFracs) for (const xf of xFracs) pts.push({ x: minX + w * xf + jitter, z: minZ + d * zf })
+  return pts.filter((p) => p.x > minX + EDGE_MARGIN_IN && p.x < maxX - EDGE_MARGIN_IN && p.z > minZ + 0.3 && p.z < maxZ - 0.3)
 }
 
 async function clearToast(page: Page) {
@@ -169,6 +249,28 @@ const milestones = {
   rejections: [] as string[],
 }
 
+// A leader auto-attaches to a bodyguard at game setup (src/client/store/game.ts's `defaultAttachments`)
+// and deploys as one combined placement (docs/spec: "an attached Leader has no drop of its own") — so
+// picking a named leader like "Librarian Tantus" to deploy can actually be placing a 6-model group
+// (1 leader + a 5-model squad). The formation picker's default shape (a single-row Line) satisfies
+// coherency for a small unit but not a 6+-model one: 10th edition requires every model in a 6+-model
+// unit to sit within 2" of at least *two* others, which a straight line's own end models fail (each
+// has only one lateral neighbour). Rather than treat every anchor point as a dead end the moment that
+// happens, try a few tighter shapes at the same anchor first — this is still "pick a valid target",
+// just widened to include the formation-shape half of a placement, not only its screen coordinate.
+const COHERENCY_FALLBACK_KINDS = ['phalanx', 'ranks2', 'ranks3', 'column', 'spread']
+
+async function tryAlternateFormationForCoherency(page: Page, confirm: ReturnType<Page['getByTestId']>): Promise<boolean> {
+  for (const kind of COHERENCY_FALLBACK_KINDS) {
+    const btn = page.getByTestId(`formation-${kind}`)
+    if (!(await btn.isVisible().catch(() => false))) return false // no formation picker for this decision
+    await btn.click({ timeout: 2_000 }).catch(() => {})
+    await page.waitForTimeout(100)
+    if (await confirm.isEnabled().catch(() => false)) return true
+  }
+  return false
+}
+
 /** Try to answer a board-placement decision by clicking the board then Confirm. */
 async function tryBoardPlacement(page: Page, s: Snap, points: V2[], label: string): Promise<boolean> {
   const id = s.pending!.id
@@ -180,8 +282,10 @@ async function tryBoardPlacement(page: Page, s: Snap, points: V2[], label: strin
     const confirm = page.getByTestId('btn-confirm')
     // M4: Confirm is disabled (with a reason) while the formation preview fails a client-side check
     // (coherency/overlap/terrain/allowance) — treat that exactly like "not visible" and try the next
-    // candidate point rather than clicking a disabled button (which would just hang).
-    if (!(await confirm.isVisible().catch(() => false)) || !(await confirm.isEnabled().catch(() => false))) continue
+    // candidate point rather than clicking a disabled button (which would just hang), but only after
+    // a couple of alternate shapes at this same anchor have also failed to clear the check.
+    if (!(await confirm.isVisible().catch(() => false))) continue
+    if (!(await confirm.isEnabled().catch(() => false)) && !(await tryAlternateFormationForCoherency(page, confirm))) continue
     await confirm.click()
     const after = await waitChange(page, id)
     if (after.pending?.id !== id) return true
@@ -205,13 +309,8 @@ async function handleHuman(page: Page, s: Snap, fast: boolean): Promise<void> {
       const chip = await promptButton(page, new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`))
       if (chip) await chip.click()
       const zone: V2[] = p.context.zone
-      const xs = zone.map((q) => q.x)
-      const zs = zone.map((q) => q.z)
-      const cz = (Math.min(...zs) + Math.max(...zs)) / 2
       const taken = s.units.filter((u) => u.player === me && u.loc === 'board').length
-      const cands: V2[] = []
-      for (const dz of [0, -1, 1]) for (const x of [-15, 0, 15, -8, 8, -19, 19]) cands.push({ x: x + ((taken * 3) % 5) - 2, z: cz + dz })
-      const inside = cands.filter((c) => c.x > Math.min(...xs) + 2 && c.x < Math.max(...xs) - 2)
+      const inside = deployZoneCandidates(zone, s.pieces, taken)
       if (!fast && chip && (await tryBoardPlacement(page, s, inside, `deploy ${name}`))) {
         milestones.boardClickDeploys++
         return

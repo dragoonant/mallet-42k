@@ -134,36 +134,44 @@ export function validateDraft(
   }
 
   // coherency — per-model neighbour count (for the link colours / red tint) + the engine's own
-  // connected-group rule (for the overall ok/disabled-Confirm gate)
-  const need = coherencyNeighboursNeeded(finals.length)
-  const counts: number[] = finals.map(() => 0)
-  const nearest: number[] = finals.map(() => -1)
-  for (let i = 0; i < finals.length; i++) {
-    let nearestD = Infinity
-    for (let j = 0; j < finals.length; j++) {
-      if (i === j) continue
-      if (inCoherencyRange(finals[i].fp, finals[j].fp)) counts[i]++
-      const d = dist2D(finals[i].fp.pos, finals[j].fp.pos)
-      if (d < nearestD) { nearestD = d; nearest[i] = j }
-    }
-  }
-  const brokenIdx = new Set<number>()
-  for (let i = 0; i < finals.length; i++) if (counts[i] < need) brokenIdx.add(i)
+  // connected-group rule (for the overall ok/disabled-Confirm gate). A lone model is always coherent
+  // (the engine's own `isCoherent` special-cases `length <= 1` the same way — "≤ 1 model always is")
+  // — skipping the neighbour-count loop entirely for that case, rather than only guarding the
+  // `isCoherent` call below, matters because `coherencyNeighboursNeeded` returns 1 even for a
+  // 1-model unit: without this guard a single unattached character (no bodyguard to combine with)
+  // could never pass this check at any anchor or formation shape, permanently disabling Confirm for
+  // its own deployment/move — a real dead end for any player, not just a cosmetic red ring.
   const links: CoherencyLink[] = []
-  const drawn = new Set<string>()
-  for (let i = 0; i < finals.length; i++) {
-    const j = nearest[i]
-    if (j < 0) continue
-    const key = i < j ? `${i}-${j}` : `${j}-${i}`
-    if (drawn.has(key)) continue
-    drawn.add(key)
-    links.push({ a: finals[i].fp.pos, b: finals[j].fp.pos, ok: !brokenIdx.has(i) && !brokenIdx.has(j) })
+  if (finals.length > 1) {
+    const need = coherencyNeighboursNeeded(finals.length)
+    const counts: number[] = finals.map(() => 0)
+    const nearest: number[] = finals.map(() => -1)
+    for (let i = 0; i < finals.length; i++) {
+      let nearestD = Infinity
+      for (let j = 0; j < finals.length; j++) {
+        if (i === j) continue
+        if (inCoherencyRange(finals[i].fp, finals[j].fp)) counts[i]++
+        const d = dist2D(finals[i].fp.pos, finals[j].fp.pos)
+        if (d < nearestD) { nearestD = d; nearest[i] = j }
+      }
+    }
+    const brokenIdx = new Set<number>()
+    for (let i = 0; i < finals.length; i++) if (counts[i] < need) brokenIdx.add(i)
+    const drawn = new Set<string>()
+    for (let i = 0; i < finals.length; i++) {
+      const j = nearest[i]
+      if (j < 0) continue
+      const key = i < j ? `${i}-${j}` : `${j}-${i}`
+      if (drawn.has(key)) continue
+      drawn.add(key)
+      links.push({ a: finals[i].fp.pos, b: finals[j].fp.pos, ok: !brokenIdx.has(i) && !brokenIdx.has(j) })
+    }
+    for (const i of brokenIdx) {
+      addReason(perModel, finals[i].modelId, 'breaks unit coherency')
+      reasonSet.add('unit out of coherency')
+    }
+    if (!isCoherent(finals.map((f) => f.fp))) reasonSet.add('unit out of coherency')
   }
-  for (const i of brokenIdx) {
-    addReason(perModel, finals[i].modelId, 'breaks unit coherency')
-    reasonSet.add('unit out of coherency')
-  }
-  if (finals.length > 1 && !isCoherent(finals.map((f) => f.fp))) reasonSet.add('unit out of coherency')
 
   return { ok: reasonSet.size === 0, perModel, reasons: [...reasonSet], links }
 }

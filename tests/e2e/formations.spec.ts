@@ -456,6 +456,21 @@ test('formation picker: deploy Arrowhead(45°) -> Phalanx', async ({ page }) => 
       expect(Math.abs(normDeg(facingNow - expectedFacing))).toBeLessThanOrEqual(1)
       await page.waitForTimeout(150)
       await page.screenshot({ path: 'e2e-out/f-01-arrowhead.png' })
+      // Same frame, new name: the ghost-figure/facing-chevron/front-rank-highlight fix (M4 gap —
+      // the preview used to be bare base rings with no readable facing) lands right here, on the
+      // exact Arrowhead(45°) draft f-01 already screenshots.
+      await page.screenshot({ path: 'e2e-out/f-04-arrowhead-ghosts.png' })
+
+      // HUD layout audit at both budgeted viewports, taken on this same deployment frame (formation
+      // picker open, a decision prompt up, both player badges populated) — the overcrowded-HUD fix
+      // this covers (round label clipped, active-player text overflow, tooltip-over-buttons, one
+      // player's panel covering Settings) needs a real in-game frame, not the empty start screen.
+      await page.screenshot({ path: 'e2e-out/hud-1600.png' })
+      await page.setViewportSize({ width: 1280, height: 720 })
+      await page.waitForTimeout(200)
+      await page.screenshot({ path: 'e2e-out/hud-1280.png' })
+      await page.setViewportSize({ width: W, height: H })
+      await page.waitForTimeout(200)
 
       // Then Phalanx, at the same rotated facing, before ever confirming.
       await pickFormationKind(page, 'phalanx')

@@ -24,6 +24,13 @@ const BLOCKED_COLOR = colors.danger
 const GHOST_COLOR = '#8fa8ff'
 const LINK_OK_COLOR = '#ffffff'
 const LINK_BAD_COLOR = colors.danger
+const FRONT_RANK_COLOR = '#ffffff'
+const CHEVRON_COLOR = '#ffffff'
+
+/** How close (along the facing axis) a model has to be to the formation's own front-most model to
+ *  still count as "front rank" — a little over one model depth, so a slightly uneven front row (e.g.
+ *  an attached leader riding a hair ahead/behind its bodyguard) still reads as one rank. */
+const FRONT_RANK_TOLERANCE_IN = 0.6
 
 /** Slightly bigger than the visible ring so a nudge-drag is easy to grab without needing pixel
  *  precision — invisible, pointer-events only. */
@@ -49,6 +56,33 @@ function CoherencyLinks({ links }: { links: CoherencyLink[] }) {
   )
 }
 
+function placementsCentroid(placements: { pos: { x: number; z: number } }[]): { x: number; z: number } {
+  if (placements.length === 0) return { x: 0, z: 0 }
+  let x = 0
+  let z = 0
+  for (const p of placements) {
+    x += p.pos.x
+    z += p.pos.z
+  }
+  return { x: x / placements.length, z: z / placements.length }
+}
+
+/** Points a chevron ("<" opening away from `facing`, apex forward) `aheadIn` inches in front of
+ *  `anchor` along `facing` — the M4 gap this fixes: a formation preview of bare base rings gave no
+ *  visual read on which way the unit was actually going to face once placed, arrowhead included (a
+ *  wedge with no facing cue just looks like a lopsided cluster of rings). */
+function FacingChevron({ anchor, facing, aheadIn, color }: { anchor: { x: number; z: number }; facing: number; aheadIn: number; color: string }) {
+  const fx = Math.cos(facing)
+  const fz = Math.sin(facing)
+  const rx = -Math.sin(facing)
+  const rz = Math.cos(facing)
+  const apex: [number, number, number] = [anchor.x + fx * (aheadIn + 0.9), 0.08, anchor.z + fz * (aheadIn + 0.9)]
+  const wingBase = aheadIn - 0.1
+  const left: [number, number, number] = [anchor.x + fx * wingBase - rx * 0.7, 0.08, anchor.z + fz * wingBase - rz * 0.7]
+  const right: [number, number, number] = [anchor.x + fx * wingBase + rx * 0.7, 0.08, anchor.z + fz * wingBase + rz * 0.7]
+  return <Line points={[left, apex, right]} color={color} lineWidth={2.5} transparent opacity={0.9} />
+}
+
 function DraftMarkers({
   placements,
   perModel,
@@ -56,6 +90,8 @@ function DraftMarkers({
   opacity = 0.85,
   onModelPointerDown,
   onHover,
+  anchor,
+  facing,
 }: {
   placements: { modelId: string; pos: { x: number; z: number } }[]
   perModel?: Record<string, string[]>
@@ -63,16 +99,41 @@ function DraftMarkers({
   opacity?: number
   onModelPointerDown?: (e: ThreeEvent<PointerEvent>, modelId: string) => void
   onHover?: (modelId: string | null) => void
+  /** Formation anchor + facing (radians) — when given, draws one overall facing chevron ahead of the
+   *  formation and brightens whichever model(s) sit in the front rank, so a wedge (or any other
+   *  shape) reads as "this way, point/front here" at a glance instead of a flat field of rings. */
+  anchor?: { x: number; z: number }
+  facing?: number
 }) {
+  const front = useMemo(() => {
+    if (facing === undefined || !anchor || placements.length === 0) return null
+    const fx = Math.cos(facing)
+    const fz = Math.sin(facing)
+    let max = -Infinity
+    for (const p of placements) {
+      const proj = (p.pos.x - anchor.x) * fx + (p.pos.z - anchor.z) * fz
+      if (proj > max) max = proj
+    }
+    return { max, fx, fz }
+  }, [placements, anchor, facing])
+
   return (
     <>
+      {front && anchor && facing !== undefined && <FacingChevron anchor={anchor} facing={facing} aheadIn={Math.max(front.max, 0)} color={CHEVRON_COLOR} />}
       {placements.map((p) => {
         const blocked = !!perModel?.[p.modelId]?.length
+        const isFrontRank = !!front && (p.pos.x - anchor!.x) * front.fx + (p.pos.z - anchor!.z) * front.fz > front.max - FRONT_RANK_TOLERANCE_IN
         return (
           <group key={p.modelId}>
+            {isFrontRank && !blocked && (
+              <mesh position={[p.pos.x, 0.065, p.pos.z]} rotation={[-Math.PI / 2, 0, 0]}>
+                <ringGeometry args={[0.62, 0.74, 24]} />
+                <meshBasicMaterial color={FRONT_RANK_COLOR} transparent opacity={0.55} />
+              </mesh>
+            )}
             <mesh position={[p.pos.x, 0.07, p.pos.z]} rotation={[-Math.PI / 2, 0, 0]}>
               <ringGeometry args={[0.45, 0.6, 24]} />
-              <meshBasicMaterial color={blocked ? BLOCKED_COLOR : color} transparent opacity={opacity} />
+              <meshBasicMaterial color={blocked ? BLOCKED_COLOR : color} transparent opacity={isFrontRank ? Math.min(1, opacity + 0.15) : opacity} />
             </mesh>
             {onModelPointerDown && (
               <mesh
@@ -152,6 +213,8 @@ export function PlacementOverlay() {
           perModel={result.perModel}
           onModelPointerDown={(e, modelId) => beginNudge(e, modelId, activeDraft.placements)}
           onHover={setHoveredModelId}
+          anchor={activeDraft.anchor}
+          facing={activeDraft.placements[0]?.facing}
         />
         {hoveredModelId && <ReasonLabel modelId={hoveredModelId} placements={activeDraft.placements} perModel={result.perModel} />}
       </group>
@@ -185,13 +248,27 @@ export function PlacementOverlay() {
             perModel={result.perModel}
             onModelPointerDown={(e, modelId) => beginNudge(e, modelId, unitDraft.placements)}
             onHover={setHoveredModelId}
+            anchor={unitDraft.anchor}
+            facing={unitDraft.placements[0]?.facing}
           />
           {hoveredModelId && (
             <DistanceLabel modelId={hoveredModelId} models={models} placements={unitDraft.placements} constraints={info.constraints} />
           )}
         </>
       )}
-      {ghost && ghost.unitId === info.unitId && <DraftMarkers placements={ghost.placements} color={GHOST_COLOR} opacity={0.5} />}
+      {ghost && ghost.unitId === info.unitId && (
+        // `ghost.anchor` is a placeholder ({x:0,z:0} — DecisionPrompt.tsx's hover preview never
+        // learns the suggested action's real anchor) — recompute the centroid from its own
+        // placements so the facing chevron lands over the ghost, not off in whatever direction
+        // happens to point away from the world origin.
+        <DraftMarkers
+          placements={ghost.placements}
+          color={GHOST_COLOR}
+          opacity={0.5}
+          anchor={placementsCentroid(ghost.placements)}
+          facing={ghost.placements[0]?.facing}
+        />
+      )}
     </group>
   )
 }

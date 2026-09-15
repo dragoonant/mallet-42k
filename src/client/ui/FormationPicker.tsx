@@ -20,17 +20,17 @@ const wrap = {
   ...panel,
   position: 'absolute' as const,
   left: '50%',
-  top: 100,
+  top: 78,
   transform: 'translateX(-50%)',
-  padding: '8px 12px',
+  padding: '6px 10px',
   display: 'flex',
   alignItems: 'center',
-  gap: 8,
+  gap: 6,
   pointerEvents: 'auto' as const,
   fontFamily: fontStack,
 }
 
-const kindButton = { ...buttonBase, fontSize: 12, padding: '5px 9px', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 1 }
+const kindButton = { ...buttonBase, fontSize: 11.5, padding: '4px 8px', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 1 }
 const kindButtonActive = { ...kindButton, ...buttonActive }
 const keyHint = { fontSize: 9, opacity: 0.7 }
 const divider = { width: 1, alignSelf: 'stretch' as const, background: colors.border }
