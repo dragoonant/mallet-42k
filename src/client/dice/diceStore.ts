@@ -50,8 +50,10 @@ export function computeResults(req: RollRequest): DieResult[] {
     const wasRerolled = rerolledVal !== undefined && rerolledVal !== original
     const value = wasRerolled ? rerolledVal : original
     const isCritical = value === 6
+    const pass = req.passed?.[i]
     const outcome: DieResult['outcome'] =
-      req.target === undefined ? 'neutral' : value >= req.target ? 'success' : 'fail'
+      pass !== undefined ? (pass ? 'success' : 'fail')
+        : req.target === undefined ? 'neutral' : value >= req.target ? 'success' : 'fail'
     return { value, original, wasRerolled, isCritical, outcome }
   })
 }
@@ -62,8 +64,10 @@ export function kick(): void {
   const s = useDiceStore.getState()
   if (s.current || s.queue.length === 0) return
   const [next, ...rest] = s.queue
-  const { tumbleMs, holdMs } = DURATIONS[s.speed]
+  const { tumbleMs, holdMs: baseHoldMs } = DURATIONS[s.speed]
   const dice = computeResults(next.request)
+  // A grouped whole-squad window stays up a little longer so the result can be read (+1/12 per die, capped).
+  const holdMs = baseHoldMs === 0 ? 0 : baseHoldMs + Math.round((baseHoldMs / 12) * Math.min(dice.length - 1, 15))
   const startPhase: CurrentRoll['phase'] = tumbleMs === 0 ? 'settled' : 'tumbling'
   useDiceStore.setState({ queue: rest, current: { id: next.id, request: next.request, dice, phase: startPhase } })
 

@@ -22,6 +22,9 @@ export interface RollRequest {
    *  reroll lands on the same face again — it still resolves correctly, it just skips the flip
    *  flourish for that one die). Shorter than `dice`: trailing dice are treated as not rerolled. */
   rerolled?: number[]
+  /** Per-die pass/fail, same order as `dice`. Overrides `target` — for grouped rolls whose dice
+   *  don't share one threshold (hits, cover-modified saves). */
+  passed?: boolean[]
 }
 
 /** A queued/settled roll as the tray renders it internally. */

@@ -98,24 +98,54 @@ function bearing(from: { x: number; z: number }, to: { x: number; z: number }): 
 
 // ---------- dice-roll request builders (only for rolls that are cleanly single/paired d6s) ----------
 
-function hitRequest(state: GameState, e: EventOf<'HitRolled'>): RollRequest {
-  return { label: attackLabel(state, e.attack, 'To hit'), purpose: 'hit', dice: [e.final] }
+/** Rolls that share a tray window: every hit (or wound, save…) for one attacker+weapon+target in
+ *  an attack sequence plays as one window, however many models rolled. Null = not groupable. */
+function rollGroupKey(e: GameEvent): string | null {
+  switch (e.type) {
+    case 'HitRolled':
+    case 'WoundRolled':
+      return `${e.type}|${e.attack.attackerUnitId}|${e.attack.weaponId}|${e.attack.targetUnitId}`
+    case 'SaveRolled':
+      return `${e.type}|${e.attack.attackerUnitId}|${e.attack.weaponId}|${e.attack.targetUnitId}|${e.kind}`
+    case 'FeelNoPainRolled':
+    case 'HazardousTested':
+      return `${e.type}|${e.unitId}`
+    default:
+      return null
+  }
 }
-function woundRequest(state: GameState, e: EventOf<'WoundRolled'>): RollRequest {
-  return { label: attackLabel(state, e.attack, 'To wound'), purpose: 'wound', dice: [e.final], target: e.needed }
+
+/** One tray window for a group of same-key roll events. Auto hits/wounds and "no save possible"
+ *  carry no die, so they're left out; null when nothing is left to show. */
+function groupRequest(state: GameState, group: GameEvent[]): RollRequest | null {
+  const dice: number[] = []
+  const passed: boolean[] = []
+  const needed = new Set<number>()
+  for (const e of group) {
+    if (e.type === 'HitRolled') { if (!e.auto) { dice.push(e.final); passed.push(e.hit) } }
+    else if (e.type === 'WoundRolled') { if (!e.auto) { dice.push(e.final); passed.push(e.wounded); needed.add(e.needed) } }
+    else if (e.type === 'SaveRolled') { if (e.kind !== 'none') { dice.push(e.final); passed.push(e.saved); needed.add(e.needed) } }
+    else if (e.type === 'FeelNoPainRolled') { dice.push(e.die); passed.push(e.ignored); needed.add(e.needed) }
+    else if (e.type === 'HazardousTested') { dice.push(e.die); passed.push(!e.failed) }
+  }
+  if (dice.length === 0) return null
+  const target = needed.size === 1 ? [...needed][0] : undefined
+  const e = group[0]
+  switch (e.type) {
+    case 'HitRolled': return { label: attackLabel(state, e.attack, 'To hit'), purpose: 'hit', dice, passed }
+    case 'WoundRolled': return { label: attackLabel(state, e.attack, 'To wound'), purpose: 'wound', dice, passed, target }
+    case 'SaveRolled': {
+      const label = e.kind === 'invuln' ? 'Invulnerable save' : 'Armour save'
+      return { label: attackLabel(state, e.attack, label), purpose: 'save', dice, passed, target }
+    }
+    case 'FeelNoPainRolled': return { label: `${unitLabel(state, e.unitId)} — Feel No Pain`, purpose: 'fnp', dice, passed, target }
+    case 'HazardousTested': return { label: `${unitLabel(state, e.unitId)} — Hazardous`, purpose: 'hazardous', dice, passed }
+    default: return null
+  }
 }
-function saveRequest(state: GameState, e: EventOf<'SaveRolled'>): RollRequest {
-  const label = e.kind === 'invuln' ? 'Invulnerable save' : e.kind === 'armour' ? 'Armour save' : 'Save'
-  return { label: attackLabel(state, e.attack, label), purpose: 'save', dice: [e.final], target: e.needed }
-}
-function fnpRequest(state: GameState, e: EventOf<'FeelNoPainRolled'>): RollRequest {
-  return { label: `${unitLabel(state, e.unitId)} — Feel No Pain`, purpose: 'fnp', dice: [e.die], target: e.needed }
-}
+
 function chargeRequest(state: GameState, e: EventOf<'ChargeRolled'>): RollRequest {
   return { label: `${unitLabel(state, e.unitId)} — Charge`, purpose: 'charge', dice: [...e.dice], target: e.needed ?? undefined }
-}
-function hazardousRequest(state: GameState, e: EventOf<'HazardousTested'>): RollRequest {
-  return { label: `${unitLabel(state, e.unitId)} — Hazardous`, purpose: 'hazardous', dice: [e.die] }
 }
 function deadlyDemiseRequest(state: GameState, e: EventOf<'DeadlyDemiseRolled'>): RollRequest {
   return { label: `${unitLabel(state, e.unitId)} — Deadly Demise`, purpose: 'deadlyDemise', dice: [e.die] }
@@ -167,6 +197,7 @@ async function playEvent(
   bundle: DataBundle | null,
   humanSeat: PlayerId,
   announcedPhases: Set<Phase>,
+  sounds = true,
 ): Promise<void> {
   const settings = usePresentationSettings.getState()
   const cues = useCueStore.getState()
@@ -183,7 +214,8 @@ async function playEvent(
   // Sound: src/client/audio/eventSounds.ts already maps almost every event type below to a sound
   // (dice rattle, hit/save clanks, deaths, charge rumble, objective/VP/CP/stratagem/battle-shock
   // stings, phase/turn narrator lines, victory/defeat) — one call here covers all of it.
-  playEventSounds(audio, [event], humanSeat)
+  // Grouped roll events are silenced here: playBatch plays one sound for the whole window.
+  if (sounds) playEventSounds(audio, [event], humanSeat)
 
   switch (event.type) {
     case 'AttackSequenceStarted':
@@ -194,16 +226,9 @@ async function playEvent(
       playTargetsDeclared(event, from, to, bundle)
       return
 
-    case 'HitRolled':
-      if (settings.diceOn) await playRoll(hitRequest(to, event))
-      return
-
-    case 'WoundRolled':
-      if (settings.diceOn) await playRoll(woundRequest(to, event))
-      return
-
+    // HitRolled / WoundRolled / FeelNoPainRolled / HazardousTested dice are shown by playBatch as
+    // one grouped window per squad+weapon+target (see rollGroupKey).
     case 'SaveRolled': {
-      if (settings.diceOn) await playRoll(saveRequest(to, event))
       if (event.saved) {
         const at = modelPoint(from, to, event.modelId)
         if (at) vfx.save(at)
@@ -211,16 +236,8 @@ async function playEvent(
       return
     }
 
-    case 'FeelNoPainRolled':
-      if (settings.diceOn) await playRoll(fnpRequest(to, event))
-      return
-
     case 'ChargeRolled':
       if (settings.diceOn) await playRoll(chargeRequest(to, event))
-      return
-
-    case 'HazardousTested':
-      if (settings.diceOn) await playRoll(hazardousRequest(to, event))
       return
 
     case 'DeadlyDemiseRolled':
@@ -264,15 +281,33 @@ async function playEvent(
 
 async function playBatch(from: GameState, to: GameState, events: GameEvent[], announcedPhases: Set<Phase>): Promise<void> {
   const { humanSeat, bundle } = useGameStore.getState()
-  for (const event of events) {
+  // Indices of roll events whose dice already played inside an earlier grouped window.
+  const grouped = new Set<number>()
+  for (let i = 0; i < events.length; i++) {
+    const event = events[i]
+    const key = rollGroupKey(event)
+    const absorbed = grouped.has(i)
     // A presentation glitch (a stale reference in an unusual game state, say) should never take down
     // the rest of the game's presentation for the whole session — the queue keeps going either way.
     try {
-      await playEvent(event, from, to, bundle, humanSeat, announcedPhases)
+      if (key !== null && !absorbed) {
+        // Gather every same-key roll left in this attack sequence (the engine interleaves hit → wound
+        // → save per model) and show them as one window, like fast-dice at the table.
+        const group = [event]
+        for (let j = i + 1; j < events.length; j++) {
+          const e = events[j]
+          if (e.type === 'AttackSequenceStarted' || e.type === 'AttackSequenceEnded') break
+          if (rollGroupKey(e) === key) { group.push(e); grouped.add(j) }
+        }
+        playEventSounds(audio, [event], humanSeat)
+        const req = usePresentationSettings.getState().diceOn ? groupRequest(to, group) : null
+        if (req) await playRoll(req)
+      }
+      await playEvent(event, from, to, bundle, humanSeat, announcedPhases, key === null)
     } catch (err) {
       console.warn('[presentation] failed to play event', event.type, err)
     }
-    await sleep(gapFor(event.type, usePresentationSettings.getState().animSpeed))
+    if (!absorbed) await sleep(gapFor(event.type, usePresentationSettings.getState().animSpeed))
   }
 }
 

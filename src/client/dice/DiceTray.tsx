@@ -7,9 +7,10 @@ import { Die } from './Die'
 import { DURATIONS, useDiceStore } from './diceStore'
 import type { CSSProperties } from 'react'
 
-// Above this many dice (e.g. a 20-shot Ork boyz volley) the tray collapses to a compact summary
-// line and shrinks the dice themselves, rather than spilling a wall of cubes across the screen.
-const COLLAPSE_THRESHOLD = 8
+// Whole-squad rolls arrive as one window (director.ts groups them), so dice shrink as the count
+// grows and a pass-count summary line appears above SUMMARY_THRESHOLD dice.
+const SUMMARY_THRESHOLD = 4
+const PASS_WORD: Record<string, string> = { hit: 'hit', wound: 'wound', save: 'saved', fnp: 'ignored', hazardous: 'safe' }
 
 const STYLE_ID = 'mallet-dice-tray-style'
 function injectKeyframesOnce() {
@@ -104,10 +105,13 @@ export function DiceTray() {
 
   const { request, dice, phase, id } = current
   const { tumbleMs, flipMs } = DURATIONS[speed]
-  const collapsed = dice.length > COLLAPSE_THRESHOLD
-  const size = collapsed ? 16 : dice.length > 4 ? 34 : 46
+  const n = dice.length
+  const size = n > 30 ? 18 : n > 16 ? 24 : n > 8 ? 30 : n > 4 ? 34 : 46
   const hasTarget = request.target !== undefined
-  const hits = hasTarget ? dice.filter((d) => d.outcome === 'success').length : null
+  const hasOutcome = dice.some((d) => d.outcome !== 'neutral')
+  const collapsed = n > SUMMARY_THRESHOLD && hasOutcome
+  const hits = hasOutcome ? dice.filter((d) => d.outcome === 'success').length : null
+  const passWord = PASS_WORD[request.purpose] ?? 'success'
   const label = request.label ?? request.purpose
 
   return (
@@ -122,7 +126,7 @@ export function DiceTray() {
         </div>
         {collapsed && (
           <div style={summaryText} data-testid="dice-tray-summary">
-            {dice.length} dice{hits !== null ? `: ${hits} hit${hits === 1 ? '' : 's'}` : ''}
+            {n} dice{hits !== null ? `: ${hits} ${passWord}${hits !== 1 && (passWord === 'hit' || passWord === 'wound') ? 's' : ''}` : ''}
           </div>
         )}
         <div style={diceRow}>
