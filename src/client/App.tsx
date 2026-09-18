@@ -5,7 +5,7 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { Scene } from './Scene'
 import { useGameStore } from './store/game'
 import { useUiStore } from './ui/uiStore'
-import { StartScreen, Hud, UnitCard, DiceLog, EventFeed, Toast, VpToast, EndScreen, DecisionPrompt, StratagemPanel, SettingsPanel } from './ui'
+import { StartScreen, Hud, UnitCard, DiceLog, EventFeed, Toast, VpToast, PhaseBanner, EndScreen, DecisionPrompt, StratagemPanel, SettingsPanel } from './ui'
 import { FigureGalleryStage } from './figures'
 import type { Pose } from './figures'
 import { DiceTray } from './dice'
@@ -83,6 +83,7 @@ export function App() {
         <DecisionPrompt />
         <Toast />
         <VpToast />
+        <PhaseBanner />
         <DiceTray />
         <SettingsPanel />
       </div>

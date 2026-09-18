@@ -14,6 +14,7 @@ import { modelsAnchor } from '../interaction/geometry'
 import { useCueStore } from './cueStore'
 import { setPresentationIdle } from './idleStore'
 import { usePresentationSettings, type AnimSpeed } from './settings'
+import { announcementHoldMs, clearAnnouncement, holdAnnouncement, type AnnouncementKind } from './announceStore'
 import { playRoll, type RollRequest } from '../dice'
 import { vfx, type ShotKind } from '../vfx'
 import { audio, playEventSounds } from '../audio'
@@ -202,6 +203,25 @@ function playTargetsDeclared(e: EventOf<'TargetsDeclared'>, from: GameState, to:
   }
 }
 
+// ---------- narration pauses ----------
+
+// Own words, matching the HUD's phase chips (src/client/ui/Hud.tsx PHASES).
+const PHASE_TITLE: Partial<Record<Phase, string>> = {
+  command: 'Command Phase',
+  movement: 'Movement Phase',
+  shooting: 'Shooting Phase',
+  charge: 'Charge Phase',
+  fight: 'Fight Phase',
+}
+
+/** Shows the banner for `kind` and waits out its pause (announceStore.ts). The wait is why a phase
+ *  nothing happens in no longer flashes past under a pile-up of overlapping narrator lines: the
+ *  events after it stay queued until the player has had a beat to read it (or clicked through). */
+function announce(kind: AnnouncementKind, title: string, subtitle: string, player: PlayerId): Promise<void> {
+  const durationMs = announcementHoldMs(kind, usePresentationSettings.getState().animSpeed)
+  return holdAnnouncement({ kind, title, subtitle, player, durationMs })
+}
+
 // ---------- one event ----------
 
 async function playEvent(
@@ -232,6 +252,25 @@ async function playEvent(
   if (sounds) playEventSounds(audio, [event], humanSeat)
 
   switch (event.type) {
+    // The two narrated beats (see `announce`). PhaseStarted only reaches here when it is the round's
+    // first announcement of that phase — the early return above already dropped the repeat.
+    case 'PhaseStarted': {
+      const title = PHASE_TITLE[event.phase]
+      if (!title) return
+      const who = to.players[event.turn]?.name ?? ''
+      await announce('phase', title, who ? `Round ${event.round} · ${who}` : `Round ${event.round}`, event.turn)
+      return
+    }
+
+    case 'TurnStarted': {
+      // Only the human's turn is narrated (eventSounds.ts plays 'narr-your-turn' for that seat only),
+      // so only that one gets a pause — the bot's turn starts straight into its command phase beat.
+      if (event.turn !== humanSeat) return
+      const who = to.players[event.turn]?.name ?? ''
+      await announce('turn', 'Your Turn', who ? `Round ${event.round} · ${who}` : `Round ${event.round}`, event.turn)
+      return
+    }
+
     case 'AttackSequenceStarted':
       cues.setUnitAction(event.unitId, event.kind === 'melee' ? 'melee' : 'shoot', event.seq, CUE_MS[event.kind === 'melee' ? 'melee' : 'shoot'])
       return
@@ -347,6 +386,7 @@ export function startDirector(): () => void {
     buffered = []
     bufferedFrom = null
     announcedPhases.clear()
+    clearAnnouncement()
     useCueStore.getState().reset()
     setPresentationIdle(true)
   }

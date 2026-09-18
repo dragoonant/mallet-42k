@@ -35,6 +35,7 @@ import { sourceName } from '../ui/labels'
 // Imported from their own submodules (not the '../presentation' barrel) to avoid a store<->director
 // import cycle: the barrel re-exports director.ts, which itself imports this store.
 import { waitForPresentationIdle } from '../presentation/idleStore'
+import { isAnnouncementHolding } from '../presentation/announceStore'
 import { usePresentationSettings, type CommandRerollSetting } from '../presentation/settings'
 
 // ---------- setup defaults ----------
@@ -466,6 +467,14 @@ export const useGameStore = create<GameStore>()((set, get) => {
         watchdogPendingId = pending.id
         watchdogPendingSince = Date.now()
         watchdogWarned = false
+        return
+      }
+      // A narration pause (the phase/turn banner — src/client/presentation/announceStore.ts) is
+      // deliberate dead time the player can end with a click, not a stalled decision: hold the stall
+      // clock while one is on screen so a run of announced phases can't trip the watchdog into
+      // force-answering the bot over the top of the banner.
+      if (isAnnouncementHolding()) {
+        watchdogPendingSince = Date.now()
         return
       }
       const stalledMs = Date.now() - watchdogPendingSince

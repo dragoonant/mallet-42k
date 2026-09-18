@@ -83,9 +83,23 @@ LoS visualiser: select a model, hover enemy model → sample-point rays green/re
 | Dice log | right, collapsible | rows from `DiceRolled`/`HitRolled`/… with purpose, dice faces, modifiers, result; filter by phase; click a row → highlights the attacker/target |
 | Action log | right tab | actions with seq; click to jump camera; undo button (hotseat / no-dice actions) |
 | Stratagem tray | bottom | usable stratagems for the current window, cost, greyed when unaffordable |
+| Phase banner | centre, upper third | the phase/turn the director is announcing, the round and whose turn it is, a "click anywhere to continue" hint and a countdown bar. Shown only while a narration pause is running (§5.1) |
 | Decision prompt | centre-bottom | §6 |
 | End screen | modal | VP breakdown per scoring rule, kills, save replay button |
 | Setup | pre-game modal | mission, terrain layout, faction/patrol per side, seat (human A/B/hotseat/AI vs AI), difficulty, seed |
+
+### 5.1 Narration pauses
+
+Each phase the director narrates (one voice line per phase per round) and each "your turn" hand-over
+holds the presentation queue for a beat before the events after it play: 2.4s for a phase, 1.6s for a
+turn, scaled ×0.35 at `fast` and dropped entirely at `instant`. Without it a phase in which nothing
+happens starts and ends inside a few hundred ms, so its voice line plays over the next one's and the
+player never sees which phase went by.
+
+The pause is deliberate dead time, not a stall: the bot loop's presentation idle-wait extends past its
+own cap while one is on screen, and the store's no-progress watchdog holds its stall clock, so neither
+acts over the top of the banner. Any click or key anywhere ends the pause early (it never swallows the
+input that ended it), and it is always bounded by its own timer.
 
 ## 6. Decision prompts
 
@@ -120,6 +134,7 @@ Orbit camera (`OrbitControls`-like, custom): target on board plane, distance 8�
 | `strat-<stratagemId>` | stratagem tray button |
 | `setup-mission`, `setup-patrol-<A|B>`, `setup-seed`, `btn-start` | setup modal |
 | `end-screen`, `end-vp-<A|B>` | end screen |
+| `phase-banner` | narration-pause banner; carries `data-announcement-id` (per announcement) and `data-announcement-duration` (its length in ms) so a test can time a pause across back-to-back announcements, which reuse the element |
 | `model-<modelId>` | invisible DOM proxy per model (position in board inches as `data-x`/`data-z`) for asserting positions without WebGL picking |
 
 Test API on `window.__mallet` (enabled when `?test=1` or `import.meta.env.MODE === 'test'`):
