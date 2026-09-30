@@ -9,9 +9,9 @@
     {
       "id": "bolter-burst",
       "kind": "sfx",
-      "prompt": "A short burst of a heavy automatic sci-fi rifle firing, punchy and mechanical",
-      "durationSeconds": 0.6,
-      "promptInfluence": 0.55
+      "prompt": "A three-round burst from a very large calibre automatic rifle firing explosive rounds: each shot a sharp cracking report with a deep booming low end and a metallic mechanical action between rounds, dry and percussive, no music",
+      "durationSeconds": 0.9,
+      "promptInfluence": 0.6
     },
     {
       "id": "shoota-spray",

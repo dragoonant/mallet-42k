@@ -17,7 +17,8 @@ import { usePresentationSettings, type AnimSpeed } from './settings'
 import { announcementHoldMs, clearAnnouncement, holdAnnouncement, type AnnouncementKind } from './announceStore'
 import { playRoll, type RollRequest } from '../dice'
 import { vfx, type ShotKind } from '../vfx'
-import { audio, playEventSounds } from '../audio'
+import { audio, playEventSounds, type SoundLookup } from '../audio'
+import { isRangedFlavour, weaponFlavour } from '../weaponFlavour'
 import { colors } from '../ui/theme'
 
 type EventOf<T extends GameEvent['type']> = Extract<GameEvent, { type: T }>
@@ -83,15 +84,13 @@ function playerColor(player: PlayerId | null): string {
   return colors.muted
 }
 
-/** Loose weapon-name/keyword sniff for a tracer look — the engine doesn't expose a client-facing
- *  "weapon look" concept, and per-datasheet sound/vfx variety isn't worth the data-modelling cost
- *  yet (see audio/eventSounds.ts's own note on the same simplification). */
+/** Tracer look for a weapon — the same classification its firing sound comes from (see
+ *  src/client/weaponFlavour.ts), so a bolter can never sound like a bolter while drawing an ork
+ *  tracer. A melee flavour has no tracer; shooting only ever asks about ranged weapons, so the
+ *  fallback is just a total function's tail. */
 function shotKindFor(weaponId: string, weapon: WeaponData | undefined, faction: string): ShotKind {
-  const s = `${weaponId} ${weapon?.name ?? ''}`.toLowerCase()
-  if (s.includes('flame') || s.includes('torrent')) return 'flame'
-  if (s.includes('psy') || s.includes('smite') || s.includes('warp')) return 'psychic'
-  if (s.includes('heavy') || s.includes('las') || s.includes('kannon') || s.includes('rokkit') || s.includes('mega') || s.includes('missile')) return 'heavy'
-  return faction === 'ork' ? 'shoota' : 'bolter'
+  const flavour = weaponFlavour(weaponId, weapon, faction)
+  return isRangedFlavour(flavour) ? flavour : 'bolter'
 }
 
 function bearing(from: { x: number; z: number }, to: { x: number; z: number }): number {
@@ -224,6 +223,15 @@ function announce(kind: AnnouncementKind, title: string, subtitle: string, playe
 
 // ---------- one event ----------
 
+/** Weapon/faction lookups the sound map needs to pick a weapon-accurate firing sound. Rebuilt per
+ *  batch against that batch's post-state, so a unit destroyed later in the same batch still resolves. */
+function soundLookup(state: GameState, bundle: DataBundle | null): SoundLookup {
+  return {
+    weapon: (weaponId) => bundle?.weapons[weaponId],
+    factionOfUnit: (unitId) => factionOf(state, unitId),
+  }
+}
+
 async function playEvent(
   event: GameEvent,
   from: GameState,
@@ -231,6 +239,7 @@ async function playEvent(
   bundle: DataBundle | null,
   humanSeat: PlayerId,
   announcedPhases: Set<Phase>,
+  lookup: SoundLookup,
   sounds = true,
 ): Promise<void> {
   const settings = usePresentationSettings.getState()
@@ -249,7 +258,7 @@ async function playEvent(
   // (dice rattle, hit/save clanks, deaths, charge rumble, objective/VP/CP/stratagem/battle-shock
   // stings, phase/turn narrator lines, victory/defeat) — one call here covers all of it.
   // Grouped roll events are silenced here: playBatch plays one sound for the whole window.
-  if (sounds) playEventSounds(audio, [event], humanSeat)
+  if (sounds) playEventSounds(audio, [event], humanSeat, lookup)
 
   switch (event.type) {
     // The two narrated beats (see `announce`). PhaseStarted only reaches here when it is the round's
@@ -334,6 +343,7 @@ async function playEvent(
 
 async function playBatch(from: GameState, to: GameState, events: GameEvent[], announcedPhases: Set<Phase>): Promise<void> {
   const { humanSeat, bundle } = useGameStore.getState()
+  const lookup = soundLookup(to, bundle)
   // Indices of roll events whose dice already played inside an earlier grouped window.
   const grouped = new Set<number>()
   for (let i = 0; i < events.length; i++) {
@@ -352,11 +362,11 @@ async function playBatch(from: GameState, to: GameState, events: GameEvent[], an
           if (e.type === 'AttackSequenceStarted' || e.type === 'AttackSequenceEnded') break
           if (rollGroupKey(e) === key) { group.push(e); grouped.add(j) }
         }
-        playEventSounds(audio, [event], humanSeat)
+        playEventSounds(audio, [event], humanSeat, lookup)
         const req = usePresentationSettings.getState().diceOn ? groupRequest(to, group) : null
         if (req) await playRoll(req)
       }
-      await playEvent(event, from, to, bundle, humanSeat, announcedPhases, key === null)
+      await playEvent(event, from, to, bundle, humanSeat, announcedPhases, lookup, key === null)
     } catch (err) {
       console.warn('[presentation] failed to play event', event.type, err)
     }

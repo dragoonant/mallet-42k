@@ -29,5 +29,6 @@ export {
 } from './manifest'
 export type { SoundId, SfxId, VoiceId, MusicId, SoundChannel } from './manifest'
 export { soundsForEvent, playEventSounds, endGameVoiceLine } from './eventSounds'
+export type { SoundLookup } from './eventSounds'
 export type { EventSound } from './eventSounds'
 export { useAudioSettings } from './useAudioSettings'
