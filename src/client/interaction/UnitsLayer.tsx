@@ -74,6 +74,9 @@ export function UnitsLayer() {
   const selectedUnitId = useUiStore((s) => s.selectedUnitId)
   const selectUnit = useUiStore((s) => s.selectUnit)
   const hoveredUnitId = useUiStore((s) => s.hoveredUnitId)
+  // Single-model hover: an allocateAttack prompt names one model of a unit, and lighting up the
+  // whole unit wouldn't answer "which figure is this button?" (owner playtest).
+  const hoveredModelId = useUiStore((s) => s.hoveredModelId)
   const losOn = useUiStore((s) => s.losOn)
   const unitAction = useCueStore((s) => s.unitAction)
   const modelAction = useCueStore((s) => s.modelAction)
@@ -117,6 +120,7 @@ export function UnitsLayer() {
               if (!m) return null
               const action = modelAction[modelId] ?? unitAction[unit.id]
               const rotationY = modelFacing[modelId] ?? m.facing
+              const isHoveredModel = modelId === hoveredModelId
               return (
                 <ModelFigure key={modelId} position={[m.pos.x, m.pos.y, m.pos.z]}>
                   {(moving) => (
@@ -128,7 +132,7 @@ export function UnitsLayer() {
                         moving={moving}
                         action={action}
                         selected={isSelected}
-                        highlighted={isClickable}
+                        highlighted={isClickable || isHoveredModel}
                         onClick={(e) => {
                           e.stopPropagation()
                           handleClick()
@@ -136,7 +140,11 @@ export function UnitsLayer() {
                       />
                       {isSelected && <SelectionRing pos={{ x: 0, z: 0 }} baseRadius={m.base.radius} />}
                       {isClickable && <TargetRing pos={{ x: 0, z: 0 }} baseRadius={m.base.radius} />}
-                      {isHovered && !isSelected && !isClickable && <SelectionRing pos={{ x: 0, z: 0 }} baseRadius={m.base.radius} color={colors.accent} />}
+                      {/* The hovered model's own ring wins over the unit-level one, and is drawn
+                          whatever else is on the model — it answers a question the player is asking
+                          right now ("which figure is this button?"). */}
+                      {isHoveredModel && <SelectionRing pos={{ x: 0, z: 0 }} baseRadius={m.base.radius * 1.15} color={colors.accent} />}
+                      {isHovered && !isHoveredModel && !isSelected && !isClickable && <SelectionRing pos={{ x: 0, z: 0 }} baseRadius={m.base.radius} color={colors.accent} />}
                       {losOn && losStatus[unit.id] && <LosMarker pos={{ x: 0, z: 0 }} baseRadius={m.base.radius} status={losStatus[unit.id]} />}
                     </>
                   )}

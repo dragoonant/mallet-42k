@@ -1,8 +1,8 @@
 // Right-side dice log (docs/spec/50-client.md §5). Reads useGameStore's rolling DiceRoll buffer and
 // renders each roll as a short, attributed sentence rather than a bare purpose/number pair.
 import { useState, type CSSProperties } from 'react'
-import type { DiceRoll, GameState, RollPurpose } from '@/engine'
 import { useGameStore } from '../store/game'
+import { describeRoll } from './labels'
 import { colors, mutedText, panel } from './theme'
 
 // Collapsed by default and capped to a handful of rows — expanded, the panel used to cover the
@@ -12,10 +12,9 @@ const ROW_HEIGHT = 22
 
 const wrap: CSSProperties = {
   ...panel,
-  position: 'absolute',
-  right: 12,
-  top: 70,
-  width: 190,
+  position: 'relative', // placed by the right rail in App.tsx, which also stacks the dice tray below
+  width: '100%',
+  boxSizing: 'border-box',
   padding: 10,
   display: 'flex',
   flexDirection: 'column',
@@ -42,39 +41,6 @@ const scroll: CSSProperties = {
   maxHeight: MAX_VISIBLE_ROWS * ROW_HEIGHT,
 }
 const rowStyle: CSSProperties = { display: 'flex', flexDirection: 'column', borderBottom: `1px solid ${colors.border}`, padding: '3px 0' }
-
-const PURPOSE_LABEL: Record<RollPurpose, string> = {
-  hit: 'To hit',
-  wound: 'To wound',
-  save: 'Save',
-  damage: 'Damage',
-  attacks: 'Attacks',
-  fnp: 'Feel No Pain',
-  charge: 'Charge',
-  advance: 'Advance',
-  battleShock: 'Battle-shock',
-  desperateEscape: 'Desperate Escape',
-  hazardous: 'Hazardous',
-  deadlyDemise: 'Deadly Demise',
-  mortal: 'Mortal wounds',
-  rollOff: 'Roll-off',
-  firstTurn: 'First turn',
-  mission: 'Mission',
-  ability: 'Ability',
-  stratagem: 'Stratagem',
-  random: 'Random',
-}
-
-function unitName(state: GameState, id: string | null): string {
-  if (!id) return ''
-  return state.units[id]?.name ?? id
-}
-
-function describeRoll(roll: DiceRoll, state: GameState): string {
-  const who = unitName(state, roll.unitId) || state.players[roll.player]?.name || roll.player
-  const vs = roll.targetUnitId ? ` vs ${unitName(state, roll.targetUnitId)}` : ''
-  return `${who}${vs} — ${PURPOSE_LABEL[roll.purpose] ?? roll.purpose}`
-}
 
 export function DiceLog() {
   const state = useGameStore((s) => s.state)

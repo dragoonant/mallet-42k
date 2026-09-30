@@ -53,6 +53,9 @@ export interface MeasureLine {
 interface UiState {
   selectedUnitId: string | null
   hoveredUnitId: string | null
+  /** One model, for prompts that choose between models of the same unit (allocateAttack) — the
+   *  unit-level hover would light up all ten Boyz when the choice is which one takes the hit. */
+  hoveredModelId: string | null
   /** Objective a chooseOption/stratagem prompt option is naming — highlighted on the board while its
    *  button is hovered (src/client/ui/DecisionPrompt.tsx, src/client/board/Objectives.tsx). */
   hoveredObjectiveId: string | null
@@ -90,6 +93,7 @@ interface UiState {
   nudge: NudgeState | null
   selectUnit(id: string | null): void
   hoverUnit(id: string | null): void
+  hoverModel(id: string | null): void
   hoverObjective(id: string | null): void
   setDeployTarget(id: string | null): void
   setDraft(draft: PlacementDraft | null): void
@@ -128,6 +132,7 @@ interface UiState {
 export const useUiStore = create<UiState>((set, get) => ({
   selectedUnitId: null,
   hoveredUnitId: null,
+  hoveredModelId: null,
   hoveredObjectiveId: null,
   deployTargetUnitId: null,
   draft: null,
@@ -147,6 +152,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   nudge: null,
   selectUnit: (id) => set({ selectedUnitId: id }),
   hoverUnit: (id) => set({ hoveredUnitId: id }),
+  hoverModel: (id) => set({ hoveredModelId: id }),
   hoverObjective: (id) => set({ hoveredObjectiveId: id }),
   setDeployTarget: (id) => set({ deployTargetUnitId: id, draft: null }),
   setDraft: (draft) => set({ draft }),
@@ -171,11 +177,12 @@ export const useUiStore = create<UiState>((set, get) => ({
   startNudge: (n) => set({ nudge: n }),
   clearNudge: () => set({ nudge: null }),
   resetForDecision: () =>
-    set({ deployTargetUnitId: null, draft: null, previewDraft: null, hoveredUnitId: null, hoveredObjectiveId: null, nudge: null }),
+    set({ deployTargetUnitId: null, draft: null, previewDraft: null, hoveredUnitId: null, hoveredModelId: null, hoveredObjectiveId: null, nudge: null }),
   resetAll: () =>
     set({
       selectedUnitId: null,
       hoveredUnitId: null,
+      hoveredModelId: null,
       hoveredObjectiveId: null,
       deployTargetUnitId: null,
       draft: null,

@@ -1,7 +1,13 @@
-// Bottom-centre dice tray. Renders the roll currently playing in useDiceStore (fed by playRoll(),
-// see playRoll.ts) — nothing else in the client touches this store directly. Deliberately
+// Dice tray. Renders the roll currently playing in useDiceStore (fed by playRoll(), see
+// playRoll.ts) — nothing else in the client touches this store directly. Deliberately
 // self-contained (own colour tokens, no import from src/client/ui) since src/client/dice/** is
 // this module's whole ownership boundary in a shared working tree.
+//
+// It used to own a bottom-centre slot of its own, which put it directly behind the decision prompt
+// (src/client/ui/DecisionPrompt.tsx, also bottom-centre and deliberately above it) — owner playtest:
+// "dice rolls are being done behind the choice box at the bottom of the screen". It now flows inside
+// the right-hand rail App.tsx stacks under the Dice Log, so a roll and the choice it leads to are
+// never in the same place; the rail owns the placement, this owns the panel.
 import { useEffect } from 'react'
 import { Die } from './Die'
 import { DURATIONS, useDiceStore } from './diceStore'
@@ -27,14 +33,11 @@ function injectKeyframesOnce() {
 }
 
 const wrap: CSSProperties = {
-  position: 'absolute',
-  left: '50%',
-  bottom: 16,
-  transform: 'translateX(-50%)',
+  position: 'relative', // placed by the right rail in App.tsx
   pointerEvents: 'none',
   display: 'flex',
-  justifyContent: 'center',
-  zIndex: 20,
+  justifyContent: 'stretch',
+  width: '100%',
 }
 
 const colors = {
@@ -53,12 +56,13 @@ const panelStyle: CSSProperties = {
   fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
   boxShadow: '0 8px 28px rgba(0,0,0,0.5)',
   backdropFilter: 'blur(6px)',
-  padding: '10px 14px 12px',
+  padding: '8px 10px 10px',
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
   gap: 6,
-  maxWidth: 'min(90vw, 640px)',
+  width: '100%',
+  boxSizing: 'border-box',
   animation: 'mallet-dice-tray-in 180ms ease-out',
 }
 
@@ -66,9 +70,12 @@ const headerRow: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  gap: 10,
-  fontSize: 13,
+  flexWrap: 'wrap',
+  gap: 6,
+  fontSize: 12,
   fontWeight: 700,
+  textAlign: 'center',
+  lineHeight: 1.25,
 }
 
 const queueBadge: CSSProperties = {
@@ -89,8 +96,8 @@ const diceRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   justifyContent: 'center',
-  gap: 6,
-  maxWidth: 600,
+  gap: 5,
+  maxWidth: '100%',
 }
 
 export function DiceTray() {
@@ -106,7 +113,9 @@ export function DiceTray() {
   const { request, dice, phase, id } = current
   const { tumbleMs, flipMs } = DURATIONS[speed]
   const n = dice.length
-  const size = n > 30 ? 18 : n > 16 ? 24 : n > 8 ? 30 : n > 4 ? 34 : 46
+  // Sized for the rail's ~180px of inner width rather than the old full-width bottom slot: four of
+  // the largest still fit on one row.
+  const size = n > 30 ? 16 : n > 16 ? 20 : n > 8 ? 26 : n > 4 ? 30 : 38
   const hasTarget = request.target !== undefined
   const hasOutcome = dice.some((d) => d.outcome !== 'neutral')
   const collapsed = n > SUMMARY_THRESHOLD && hasOutcome

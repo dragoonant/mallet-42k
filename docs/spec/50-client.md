@@ -80,7 +80,8 @@ LoS visualiser: select a model, hover enemy model → sample-point rays green/re
 | Phase tracker | top | round, turn owner, phase chips (current highlighted), "End phase" button (only when `canPass`) |
 | HUD | top corners | CP, VP per player, objectives held, seed/hash (debug) |
 | Unit card | left | selected/hovered unit: stats, weapons (select for shooting), abilities (own-words text), wounds, status flags (battle-shocked, advanced, fell back, in engagement) |
-| Dice log | right, collapsible | rows from `DiceRolled`/`HitRolled`/… with purpose, dice faces, modifiers, result; filter by phase; click a row → highlights the attacker/target |
+| Dice log | right rail, collapsible | rows from `DiceRolled`/`HitRolled`/… with purpose, dice faces, modifiers, result; filter by phase; click a row → highlights the attacker/target |
+| Dice tray | right rail, directly under the dice log | the roll currently animating. Stacked in the same flex column as the dice log (App.tsx's `rightRail`) rather than owning a slot of its own, so it can never sit behind the decision prompt and the two stay adjacent whatever height the log is |
 | Action log | right tab | actions with seq; click to jump camera; undo button (hotseat / no-dice actions) |
 | Stratagem tray | bottom | usable stratagems for the current window, cost, greyed when unaffordable |
 | Phase banner | centre, upper third | the phase/turn the director is announcing, the round and whose turn it is, a "click anywhere to continue" hint and a countdown bar. Shown only while a narration pause is running (§5.1) |
@@ -115,6 +116,21 @@ input that ended it), and it is always bounded by its own timer.
 | others | inline in the 3D scene via the controllers; prompt shows a one-line instruction ("Move Intercessors: 6\" — drag the unit") and Confirm/Cancel/Pass |
 
 AI turns: prompt shows "Opponent is thinking…" with a progress dot; AI actions play at animation speed; a "skip animations" toggle fast-forwards.
+
+### 6.1 Saying what the decision is about
+
+A prompt that names options without naming the thing being decided is unanswerable. Three carry an
+info block built from the event log (`src/client/ui/labels.ts`), because the `PendingDecision`'s own
+context doesn't carry it:
+
+| Prompt | Block shows |
+|---|---|
+| `commandReroll` | what the roll was for, whose weapon against what, the dice (and the modified value where they differ), the number needed, and whether it passed — then the CP cost and the player's CP |
+| `chooseOption`/`saveType` | the incoming weapon and its AP, the model's Save characteristic and what it becomes after AP, the invulnerable save, and which of the two is the better roll. Deliberately the base numbers: save modifiers the client can't see (the benefit of cover, +1) can only make the armour save better than shown, never worse, so the comparison is never optimistic about the wrong option |
+| `allocateAttack` | the incoming weapon, its AP and Damage, attacker and target, and whether Precision applies; each option is a model with its wounds remaining |
+
+Options that name a board thing highlight it on hover — a unit, an objective, or (for `allocateAttack`)
+the single model, which the unit-level highlight cannot pick out.
 
 ## 7. Camera
 

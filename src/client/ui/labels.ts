@@ -2,7 +2,8 @@
 // VP/CP event sources, secondary/stratagem ids) into text a player can read without cross-referencing
 // the JSON. Pure lookups over DataBundle/GameState — no engine/scoring logic duplicated here beyond a
 // generic id-to-title-case fallback for whatever id we don't have a curated name for.
-import type { GameState, PlayerId } from '@/engine'
+import type { DiceRoll, GameEvent, GameState, PlayerId, RollPurpose, RuntimeWeapon } from '@/engine'
+import { modelStats, woundRollNeeded } from '@/engine'
 import type { DataBundle, MissionData, MissionRule, ScoringRule } from '@/data/types'
 
 const SMALL_WORDS = new Set(['and', 'of', 'the', 'for', 'with', 'in', 'on', 'a', 'an', 'but', 'or', 'to'])
@@ -140,4 +141,193 @@ export function primaryScoringWindowHint(mission: MissionData): string | null {
  *  already narrates what it does in prose; this is just a label for the collapsible list. */
 export function missionRuleLabel(rule: MissionRule): string {
   return prettifyId(rule.id)
+}
+
+// ---------- roll context for decision prompts (docs/spec/50-client.md §6) ----------
+// Owner playtest: "I'm given a choice of keeping or re-rolling a dice without even knowing what I'm
+// re-rolling for", and "when choosing a save I need to know what I need to roll to make the save
+// work… I have no idea what weapon or AP the enemy is using". Both prompts arrive mid-attack-
+// sequence, and the PendingDecision's own context carries only the roll (or the model + invuln) —
+// everything else the player needs to judge the choice is in the event log the client already keeps.
+
+export const ROLL_PURPOSE_LABEL: Record<RollPurpose, string> = {
+  hit: 'To hit',
+  wound: 'To wound',
+  save: 'Save',
+  damage: 'Damage',
+  attacks: 'Attacks',
+  fnp: 'Feel No Pain',
+  charge: 'Charge',
+  advance: 'Advance',
+  battleShock: 'Battle-shock',
+  desperateEscape: 'Desperate Escape',
+  hazardous: 'Hazardous',
+  deadlyDemise: 'Deadly Demise',
+  mortal: 'Mortal wounds',
+  rollOff: 'Roll-off',
+  firstTurn: 'First turn',
+  mission: 'Mission',
+  ability: 'Ability',
+  stratagem: 'Stratagem',
+  random: 'Random',
+}
+
+function unitNameOf(state: GameState, id: string | null | undefined): string {
+  if (!id) return ''
+  return state.units[id]?.name ?? id
+}
+
+/** "Terminator Squad vs Boyz — To hit" — the Dice Log's own one-line attribution for a roll. */
+export function describeRoll(roll: DiceRoll, state: GameState): string {
+  const who = unitNameOf(state, roll.unitId) || state.players[roll.player]?.name || roll.player
+  const vs = roll.targetUnitId ? ` vs ${unitNameOf(state, roll.targetUnitId)}` : ''
+  return `${who}${vs} — ${ROLL_PURPOSE_LABEL[roll.purpose] ?? roll.purpose}`
+}
+
+/** Toughness of the unit being attacked, from its first model. Null when it can't be resolved. */
+function unitToughness(state: GameState, unitId: string | null): number | null {
+  const unit = unitId ? state.units[unitId] : undefined
+  const model = unit ? state.models[unit.models[0]] : undefined
+  if (!model) return null
+  try {
+    return modelStats(state, model).T
+  } catch {
+    return null
+  }
+}
+
+/** The attack currently being resolved, from the log — who is attacking and with what. A save or
+ *  Feel No Pain roll is made by the *defender*, so the roll's own unitId is the wrong name to put
+ *  next to the weapon; this is where the attacker's name comes from. */
+function lastAttack(events: readonly GameEvent[]): { attackerUnitId: string; weaponId: string } | null {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i]
+    if (e.type === 'WoundRolled' || e.type === 'HitRolled' || e.type === 'AttackAllocated') {
+      return { attackerUnitId: e.attack.attackerUnitId, weaponId: e.attack.weaponId }
+    }
+    if (e.type === 'TargetsDeclared' && e.targets[0]) {
+      return { attackerUnitId: e.unitId, weaponId: e.targets[0].weaponId }
+    }
+  }
+  return null
+}
+
+export interface RerollContext {
+  /** "To hit — Terminator Squad's Storm bolter vs Boyz" */
+  headline: string
+  /** "Rolled 2 — needs 3+." Never asserts an outcome the client would have to re-derive from the
+   *  engine's own crit/auto rules; the die and the target are what the decision turns on. */
+  detail: string
+}
+
+/** " — needs 3+" for the rolls whose target the client can work out exactly, "" otherwise (a charge
+ *  needs an engagement distance the client doesn't measure; an Advance has no target at all). Saves
+ *  get the fuller armour-vs-AP sentence, since that is the number people get wrong. */
+function rerollTargetText(state: GameState, events: readonly GameEvent[], roll: DiceRoll, weapon: RuntimeWeapon | undefined): string {
+  switch (roll.purpose) {
+    case 'hit':
+      return typeof weapon?.skill === 'number' ? ` — needs ${weapon.skill}+` : ''
+    case 'wound': {
+      // RuntimeWeapon.S is already a number — the datasheet's 'user'/'user+1' forms are resolved
+      // when the runtime weapon table is built, and effectiveWeapon folds stat modifiers in.
+      const S = weapon?.S ?? null
+      const T = unitToughness(state, roll.targetUnitId)
+      if (S === null || T === null) return ''
+      return ` — S${S} vs T${T}, needs ${woundRollNeeded(S, T)}+`
+    }
+    case 'save': {
+      if (!roll.modelId) return ''
+      const ctx = saveChoiceContext(state, events, roll.modelId, 0)
+      if (!ctx || ctx.armourNeeded === null) return ''
+      const apText = ctx.ap === 0 ? 'AP 0' : `AP ${ctx.ap}`
+      return ` — armour ${ctx.sv}+ against ${apText} needs ${ctx.armourNeeded}+`
+    }
+    default:
+      return ''
+  }
+}
+
+/** Everything a player needs to answer a Command Re-roll offer: what the roll was for, who made it
+ *  with what, against whom, what it came up and what it has to beat.
+ *
+ *  The target number is computed from the game state, never read back off the roll's own event —
+ *  `rollOnce` (src/engine/reducer.ts) opens this window *before* its caller emits HitRolled /
+ *  WoundRolled / SaveRolled, so the newest matching event in the log belongs to the PREVIOUS roll and
+ *  would quietly show the wrong numbers. The wound table comes from the engine's own
+ *  `woundRollNeeded`, not a second copy of the rule here. Modifiers the engine applied are already in
+ *  `roll.final`, which is the value shown. */
+export function rerollContext(state: GameState, events: readonly GameEvent[], roll: DiceRoll): RerollContext {
+  const purpose = ROLL_PURPOSE_LABEL[roll.purpose] ?? roll.purpose
+  const rollerName = unitNameOf(state, roll.unitId) || state.players[roll.player]?.name || roll.player
+  const weapon = roll.weaponId ? state.weapons[roll.weaponId] : undefined
+  const defending = roll.purpose === 'save' || roll.purpose === 'fnp'
+
+  let headline: string
+  if (defending) {
+    const attacker = lastAttack(events)
+    const attackerName = attacker ? unitNameOf(state, attacker.attackerUnitId) : ''
+    const weaponName = weapon?.name ?? (attacker ? state.weapons[attacker.weaponId]?.name : undefined)
+    const against = weaponName ? ` against ${attackerName ? `${attackerName}'s ` : ''}${weaponName}` : ''
+    headline = `${purpose} — ${rollerName}${against}`
+  } else {
+    const vs = roll.targetUnitId ? ` vs ${unitNameOf(state, roll.targetUnitId)}` : ''
+    headline = `${purpose} — ${rollerName}${weapon ? `'s ${weapon.name}` : ''}${vs}`
+  }
+
+  const shown = roll.final.length > 0 ? roll.final : roll.dice
+  const modified = roll.final.length > 0 && roll.dice.join(',') !== roll.final.join(',') ? ` (rolled ${roll.dice.join(', ')}, modified to ${shown.join(', ')})` : ''
+  return { headline, detail: `Rolled ${shown.join(', ')}${modified}${rerollTargetText(state, events, roll, weapon)}.` }
+}
+
+export interface SaveChoiceContext {
+  weaponName: string
+  /** Armour Penetration as the datasheet states it (0 or negative). */
+  ap: number
+  attackerName: string
+  /** The model's own Save characteristic, before AP. */
+  sv: number | null
+  /** What the armour save needs after AP — null when the model's Sv is unknown, 7+ meaning it can
+   *  only be made with a modifier (cover). */
+  armourNeeded: number | null
+  invulnNeeded: number
+}
+
+/** The incoming attack behind a `saveType` choice: which weapon, its AP, and therefore what each of
+ *  the two saves actually needs. Read off the most recent WoundRolled for this model's unit, which
+ *  is the wound that caused this save (the engine opens the choice inside that attack's save stage).
+ *
+ *  Deliberately the *base* numbers: the engine also applies save modifiers the client can't see —
+ *  the benefit of cover is +1 to an armour save — so the armour figure is a floor, never optimistic
+ *  about the invulnerable one. That is the right way round for this decision: cover can only make
+ *  armour better than shown, and the AP comparison the player is actually making is exact. */
+export function saveChoiceContext(state: GameState, events: readonly GameEvent[], modelId: string, invuln: number): SaveChoiceContext | null {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i]
+    if (e.type !== 'WoundRolled' && e.type !== 'AttackAllocated') continue
+    const weaponId = e.attack.weaponId
+    const weapon = state.weapons[weaponId]
+    if (!weapon) continue
+    // modelStats throws (EngineInvariantError) on a missing datasheet/profile. That should never
+    // happen in a live game, but a label helper feeding a prompt must degrade to "unknown" rather
+    // than take the prompt — and the decision itself — down with it.
+    let sv: number | null = null
+    const model = state.models[modelId]
+    if (model) {
+      try {
+        sv = modelStats(state, model).Sv ?? null
+      } catch {
+        sv = null
+      }
+    }
+    const armourNeeded = sv === null ? null : sv - weapon.AP
+    return {
+      weaponName: weapon.name,
+      ap: weapon.AP,
+      attackerName: unitNameOf(state, e.attack.attackerUnitId),
+      sv,
+      armourNeeded,
+      invulnNeeded: invuln,
+    }
+  }
+  return null
 }

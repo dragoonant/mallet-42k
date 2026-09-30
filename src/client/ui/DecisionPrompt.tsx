@@ -5,14 +5,14 @@
 import { useEffect, type CSSProperties } from 'react'
 import {
   distance as edgeGap, unitModels,
-  type Action, type ChooseOptionTopic, type DecisionOption, type GameState, type PendingDecision, type PlayerId, type StratagemId,
+  type Action, type ChooseOptionTopic, type DecisionOption, type GameEvent, type GameState, type PendingDecision, type PlayerId, type StratagemId,
 } from '@/engine'
 import { useGameStore } from '../store/game'
 import { useUiStore } from './uiStore'
 import {
   combinedUnitIds, combinedUnitModels, distance2D, formationPlacementsForUnit, modelsAnchor, placementInfo, validateDraft,
 } from '../interaction'
-import { objectiveLabel } from './labels'
+import { objectiveLabel, prettifyId, rerollContext, saveChoiceContext } from './labels'
 import { FormationPicker } from './FormationPicker'
 import { buttonBase, buttonDanger, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 
@@ -117,6 +117,12 @@ const CHOOSE_OPTION_INFO: Partial<Record<ChooseOptionTopic, { title: string; hin
   chooseSide: { title: 'Choose your side', hint: 'Pick which deployment zone your army sets up in.' },
 }
 
+/** "Pass" is the engine's word for declining, but for some prompts it reads as giving something up
+ *  rather than as the safe half of the choice the player was offered. */
+const PASS_LABEL: Partial<Record<PendingDecision['kind'], string>> = {
+  commandReroll: 'Keep the roll',
+}
+
 const REACTION_LABEL: Record<string, string> = {
   overwatch: 'Fire Overwatch',
   heroicIntervention: 'Heroic Intervention',
@@ -150,8 +156,16 @@ function describeAction(a: Action, state: GameState): string {
       const summary = placementSummary(state, a.unitId, a.placements)
       return summary ? `${verb} ${summary}` : verb
     }
-    case 'allocateAttack':
-      return `Allocate to ${state.models[a.modelId]?.datasheetModelId ?? a.modelId}`
+    case 'allocateAttack': {
+      // The raw datasheetModelId ("boy", "terminator") says nothing about *which* one — its place in
+      // the unit and the wounds it has left do, and that is what the choice is actually about. Hover
+      // lights the figure itself (hoverTargetFor).
+      const model = state.models[a.modelId]
+      if (!model) return `Allocate to ${a.modelId}`
+      const name = prettifyId(model.datasheetModelId)
+      const index = state.units[model.unitId]?.models.indexOf(a.modelId) ?? -1
+      return `${name}${index >= 0 ? ` #${index + 1}` : ''} · ${model.woundsRemaining}W left`
+    }
     case 'useStratagem': {
       const strat = state.stratagems[a.stratagemId]
       const name = strat?.name ?? a.stratagemId
@@ -180,29 +194,49 @@ function describeAction(a: Action, state: GameState): string {
 /** Label a single option button for the kinds whose engine-provided DecisionOption.label is either
  *  a raw id ("A:terminator-squad", a bare objective id) or too terse to explain the choice — everyone
  *  else keeps the engine's own label untouched. */
-function labelForOption(pending: PendingDecision, state: GameState, o: { id: string; label: string; action: Action }): string {
+function labelForOption(pending: PendingDecision, state: GameState, events: readonly GameEvent[], o: { id: string; label: string; action: Action }): string {
   switch (pending.kind) {
     case 'chooseUnitToActivate':
     case 'chooseFightUnit':
     case 'stratagemWindow':
     case 'reactionWindow':
+    // The engine labels these "allocate to A:terminator-squad#0" — a model id, which says nothing
+    // about which figure it is or how hurt it already is.
+    case 'allocateAttack':
       return describeAction(o.action, state)
     case 'commandReroll': {
       if (o.action.type !== 'commandReroll') return describeAction(o.action, state)
       const roll = pending.context.roll
-      return o.action.dieIndex === undefined ? `Re-roll (rolled ${roll.dice.join(', ')})` : `Re-roll die ${o.action.dieIndex + 1} (${roll.dice[o.action.dieIndex]})`
+      return o.action.dieIndex === undefined
+        ? `Re-roll for 1 CP (rolled ${roll.dice.join(', ')})`
+        : `Re-roll die ${o.action.dieIndex + 1} for 1 CP (rolled ${roll.dice[o.action.dieIndex]})`
     }
-    case 'chooseOption':
+    case 'chooseOption': {
       if (pending.context.topic === 'razeObjective' || pending.context.topic === 'recoverObjective') return objectiveLabel(o.id)
+      if (pending.context.topic === 'saveType') {
+        const modelId = typeof pending.context.data.modelId === 'string' ? pending.context.data.modelId : null
+        const invuln = typeof pending.context.data.invuln === 'number' ? pending.context.data.invuln : null
+        if (o.id === 'invuln' && invuln !== null) return `Invulnerable save — ${invuln}+`
+        if (o.id === 'armour' && modelId && invuln !== null) {
+          const ctx = saveChoiceContext(state, events, modelId, invuln)
+          if (ctx?.armourNeeded !== null && ctx !== null) {
+            return ctx.armourNeeded > 6 ? `Armour save — ${ctx.armourNeeded}+ (impossible)` : `Armour save — ${ctx.armourNeeded}+`
+          }
+        }
+      }
       return o.label
+    }
     default:
       return o.label
   }
 }
 
-/** What a chooseOption / stratagemWindow / reactionWindow option is "about", for the board-hover
- *  highlight (M6 gap: prompts named units/objectives the player couldn't match to the board). */
-function hoverTargetFor(pending: PendingDecision, action: Action, optionId: string): { kind: 'unit' | 'objective'; id: string } | null {
+/** What an option is "about", for the board-hover highlight (M6 gap: prompts named units/objectives
+ *  the player couldn't match to the board; owner playtest: the same for allocateAttack's models —
+ *  "when I hover over the button it should light up the appropriate figure on the game board"). */
+function hoverTargetFor(pending: PendingDecision, action: Action, optionId: string): { kind: 'unit' | 'model' | 'objective'; id: string } | null {
+  // Allocating an attack picks one model out of a unit, so the highlight has to be that one figure.
+  if (action.type === 'allocateAttack') return { kind: 'model', id: action.modelId }
   if (action.type === 'useStratagem') {
     if (action.targets.unitIds?.[0]) return { kind: 'unit', id: action.targets.unitIds[0] }
     if (action.targets.objectiveId) return { kind: 'objective', id: action.targets.objectiveId }
@@ -328,6 +362,8 @@ export function DecisionPrompt() {
   const state = useGameStore((s) => s.state)
   const pending = useGameStore((s) => s.pending)
   const legal = useGameStore((s) => s.legal)
+  // Both the re-roll and save-choice blocks below read the roll they are about back off the log.
+  const events = useGameStore((s) => s.events)
   const botSeat = useGameStore((s) => s.botSeat)
   const dispatch = useGameStore((s) => s.dispatch)
   const draft = useUiStore((s) => s.draft)
@@ -337,6 +373,7 @@ export function DecisionPrompt() {
   const setDeployTarget = useUiStore((s) => s.setDeployTarget)
   const resetForDecision = useUiStore((s) => s.resetForDecision)
   const hoverUnit = useUiStore((s) => s.hoverUnit)
+  const hoverModel = useUiStore((s) => s.hoverModel)
   const hoverObjective = useUiStore((s) => s.hoverObjective)
   const formationKind = useUiStore((s) => s.formationKind)
   const formationFacing = useUiStore((s) => s.formationFacing)
@@ -414,7 +451,7 @@ export function DecisionPrompt() {
   // a placement our own delta-translate can't produce, so the fallback list must stay reachable.
   const showFallbackList = pending.kind !== 'deployUnit'
   const listItems: { id: string; label: string; action: Action }[] = hasOptions(pending)
-    ? pending.options.map((o) => ({ id: o.id, label: labelForOption(pending, state, o), action: o.action }))
+    ? pending.options.map((o) => ({ id: o.id, label: labelForOption(pending, state, events, o), action: o.action }))
     : (legal ?? []).map((a, i) => ({ id: `${a.type}-${i}`, label: describeAction(a, state), action: a }))
 
   const chooseOptionInfo = pending.kind === 'chooseOption' ? CHOOSE_OPTION_INFO[pending.context.topic] : undefined
@@ -444,11 +481,69 @@ export function DecisionPrompt() {
           triggerLine={`${REACTION_LABEL[pending.context.reaction] ?? pending.context.reaction}${pending.context.enemyUnitId ? ` — ${state.units[pending.context.enemyUnitId]?.name ?? pending.context.enemyUnitId}` : ''}`}
         />
       )}
-      {pending.kind === 'commandReroll' && (
-        <div style={infoBlock}>
-          Command Re-roll (1 CP) — you have {state.players[pending.player].cp} CP. {pending.context.roll.purpose} roll: [{pending.context.roll.dice.join(', ')}]
-        </div>
-      )}
+      {pending.kind === 'commandReroll' && (() => {
+        const ctx = rerollContext(state, events, pending.context.roll)
+        return (
+          <div style={infoBlock} data-testid="reroll-context">
+            <div style={{ color: colors.text, fontWeight: 600 }}>{ctx.headline}</div>
+            <div>{ctx.detail}</div>
+            <div style={{ marginTop: 3 }}>Command Re-roll costs 1 CP — you have {state.players[pending.player].cp}.</div>
+          </div>
+        )
+      })()}
+
+      {pending.kind === 'allocateAttack' && (() => {
+        // Same gap as the save choice: the prompt named models but never said what was hitting them.
+        const ctx = saveChoiceContext(state, events, pending.context.eligibleModels[0] ?? '', 0)
+        const dmg = pending.context.damage
+        return (
+          <div style={infoBlock} data-testid="allocate-context">
+            <div style={{ color: colors.text, fontWeight: 600 }}>
+              {pending.context.mortal ? 'Mortal wounds' : 'A wound gets through'}
+              {ctx?.weaponName ? ` — ${ctx.weaponName} (${ctx.ap === 0 ? 'AP 0' : `AP ${ctx.ap}`})` : ''}
+              {dmg !== null ? ` · Damage ${dmg}` : ''}
+            </div>
+            <div>
+              From {state.units[pending.context.attackerUnitId]?.name ?? pending.context.attackerUnitId} against{' '}
+              {state.units[pending.context.targetUnitId]?.name ?? pending.context.targetUnitId}. Choose which model takes it — hover an
+              option to light that figure up on the board.
+              {pending.context.precision ? ' Precision: an attached character can be picked out.' : ''}
+            </div>
+          </div>
+        )
+      })()}
+
+      {pending.kind === 'chooseOption' && pending.context.topic === 'saveType' && (() => {
+        const modelId = typeof pending.context.data.modelId === 'string' ? pending.context.data.modelId : null
+        const invuln = typeof pending.context.data.invuln === 'number' ? pending.context.data.invuln : null
+        const ctx = modelId && invuln !== null ? saveChoiceContext(state, events, modelId, invuln) : null
+        if (!ctx) return null
+        const apText = ctx.ap === 0 ? 'AP 0' : `AP ${ctx.ap}`
+        return (
+          <div style={infoBlock} data-testid="save-context">
+            <div style={{ color: colors.text, fontWeight: 600 }}>
+              Incoming: {ctx.weaponName} ({apText}){ctx.attackerName ? ` — ${ctx.attackerName}` : ''}
+            </div>
+            <div>
+              {ctx.armourNeeded === null
+                ? 'Armour save: unknown'
+                : ctx.armourNeeded > 6
+                  ? `Armour save ${ctx.sv}+ is useless against ${apText} (needs ${ctx.armourNeeded}+)`
+                  : `Armour save ${ctx.sv}+ becomes ${ctx.armourNeeded}+ against ${apText}`}
+              {' · '}
+              Invulnerable save {ctx.invulnNeeded}+ (AP never applies)
+            </div>
+            <div style={{ marginTop: 3 }}>
+              {ctx.armourNeeded !== null && ctx.armourNeeded > ctx.invulnNeeded
+                ? 'The invulnerable save is the better roll here.'
+                : ctx.armourNeeded !== null && ctx.armourNeeded < ctx.invulnNeeded
+                  ? 'The armour save is the better roll here.'
+                  : 'Both saves need the same roll.'}
+              {' Cover, where it applies, improves the armour save by 1.'}
+            </div>
+          </div>
+        )
+      })()}
 
       {pending.kind === 'deployUnit' && (
         <div style={deployRowVertical}>
@@ -505,7 +600,7 @@ export function DecisionPrompt() {
         )}
         {passAction && (
           <button style={buttonBase} data-testid="btn-pass" onClick={() => dispatch(passAction)}>
-            Pass
+            {PASS_LABEL[pending.kind] ?? 'Pass'}
           </button>
         )}
       </div>
@@ -534,16 +629,19 @@ export function DecisionPrompt() {
                 onMouseEnter={() => {
                   if (withPlacements) setPreviewDraft({ decisionId: pending.id, unitId: withPlacements.unitId, anchor: { x: 0, z: 0 }, placements: withPlacements.placements })
                   if (hoverTarget?.kind === 'unit') hoverUnit(hoverTarget.id)
+                  if (hoverTarget?.kind === 'model') hoverModel(hoverTarget.id)
                   if (hoverTarget?.kind === 'objective') hoverObjective(hoverTarget.id)
                 }}
                 onMouseLeave={() => {
                   setPreviewDraft(null)
                   hoverUnit(null)
+                  hoverModel(null)
                   hoverObjective(null)
                 }}
                 onClick={() => {
                   setPreviewDraft(null)
                   hoverUnit(null)
+                  hoverModel(null)
                   hoverObjective(null)
                   dispatch(it.action)
                   setDraft(null)
