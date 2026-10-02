@@ -39,6 +39,7 @@ def load_photo(asset, tile_in):
     def ld(k):
         return Image.open(f'{PH}2k_{asset}_{k}.jpg')
     d = np.asarray(ld('diff').convert('RGB').resize((S, S), Image.LANCZOS), np.float32) / 255
+    d = d / np.maximum(gaussian_filter(d, (S / 9, S / 9, 0), mode='wrap') / d.mean((0, 1)), 0.2) ** 0.85
     n = np.asarray(ld('nor').convert('RGB').resize((S, S), Image.LANCZOS), np.float32) / 255 * 2 - 1
     for i in (0, 1):
         n[..., i] -= gaussian_filter(n[..., i], 40, mode='wrap')
@@ -87,12 +88,12 @@ def base_board(rng, asset, tile_in, target, contrast):
     lf1 = fbm(rng, [220, 90], [1, 0.7])
     lf2 = fbm(rng, [160, 60], [1, 0.6])
     lf3 = fbm(rng, [180], [1])
-    D = D * (1 + 0.17 * lf1)[..., None]
+    D = D * (1 + 0.10 * lf1)[..., None]
     D = D * np.stack([1 + 0.05 * lf2, 1 + 0.0 * lf2, 1 - 0.06 * lf2 + 0.02 * lf3], -1)
     return np.clip(D, 0, 1), N, np.clip(R, 0, 1)
 
 # ---------------------------------------------------------------- damage
-def ang_noise(rng, kmin=2, kmax=8, amp=0.16):
+def ang_noise(rng, kmin=2, kmax=9, amp=0.09):
     ks = np.arange(kmin, kmax + 1)
     a = amp * rng.uniform(0.4, 1, len(ks)) / np.sqrt(ks - kmin + 1)
     ph = rng.uniform(0, 2 * np.pi, len(ks))
@@ -115,7 +116,7 @@ def place_craters(rng, count):
     tries = 0
     while len(cs) < count and tries < 5000:
         tries += 1
-        diam = 1.0 + 5.0 * rng.random() ** 1.7
+        diam = 1.0 + 5.0 * rng.random() ** 1.4
         r = diam / 2
         x = rng.uniform(-22, 22); y = rng.uniform(-15, 15)
         # keep the centre readable: no big craters in the central zone
@@ -131,7 +132,7 @@ def build_damage(rng, strength, count):
     S = np.zeros((H, W), np.float32)       # scorch mask
     Fm = np.zeros((H, W), np.float32)      # crater floor mask (churned)
     E = np.zeros((H, W), np.float32)       # fresh ejecta mask
-    Nz = fbm(rng, [2.5, 6, 14], [1, 0.8, 0.8])
+    Nz = fbm(rng, [5, 12, 28], [0.5, 1, 1])
     Ner = fbm(rng, [5, 12, 30], [1, 1, 0.8])
     craters = place_craters(rng, count)
     info = []
@@ -154,7 +155,7 @@ def build_damage(rng, strength, count):
         th = np.arctan2(py, px)
         reff = R * (1 + ang_noise(rng)(th))
         nz = Nz[y0:y1, x0:x1]; ne = Ner[y0:y1, x0:x1]
-        d = dist / reff + 0.045 * nz * min(1.0, 3 / max(r_in, 0.5)) ** 0.3
+        d = dist / reff + 0.035 * nz
         d = np.clip(d, 0, None)
         streak = streak_fn(rng)(th)
         streak2 = streak_fn(rng, 90, 1.6)(th)
@@ -163,9 +164,9 @@ def build_damage(rng, strength, count):
         if with_bowl:
             D = 0.16 * r_in * strength
             bowl = -D * np.clip(1 - d ** 2, 0, 1) ** 0.85
-            rim = 0.07 * r_in * np.exp(-((d - 1.0) / 0.24) ** 2) * rimvar
-            ej = 0.035 * r_in * streak * np.exp(-(d - 1.0) / 0.8) * smooth(0.95, 1.2, d) * (d < 3.4)
-            h = bowl + rim + ej + 0.004 * nz * smooth(1.0, 0.5, d)
+            rim = 0.12 * r_in * np.exp(-((d - 1.0) / 0.24) ** 2) * rimvar
+            ej = 0.06 * r_in * streak * np.exp(-(d - 1.0) / 0.8) * smooth(0.95, 1.2, d) * (d < 3.4)
+            h = bowl + rim + ej + 0.0025 * nz * smooth(1.0, 0.5, d)
             fl = smooth(1.08, 0.55, d) * (0.85 + 0.15 * np.clip(ne, -1, 1))
             Fm[y0:y1, x0:x1] = np.maximum(Fm[y0:y1, x0:x1], np.clip(fl, 0, 1))
             en = streak * (0.5 + 0.5 * streak2) * np.exp(-(d - 1.0) / 0.9) * smooth(0.9, 1.25, d) * (d < 3.4) * (0.6 + 0.4 * (ne > -0.6))
@@ -173,7 +174,7 @@ def build_damage(rng, strength, count):
             Hf[y0:y1, x0:x1] += h
         # scorch bloom (also used standalone)
         bs = (0.8 + 0.4 * streak2) * bloom
-        sc = np.exp(-(d / bs) ** 1.7) * 1.15 * sev
+        sc = np.exp(-(d / bs) ** 1.7) * 1.0 * sev
         sc = sc - 0.5 * (0.5 + 0.5 * np.clip(ne, -2, 2) * 0.7) * smooth(0.2, 1.4, d)
         sc = smooth(0.0, 0.6, sc)
         S[y0:y1, x0:x1] = 1 - (1 - S[y0:y1, x0:x1]) * (1 - sc)
@@ -264,14 +265,14 @@ def build(n):
     col = col * (1 - 0.55 * Fm[..., None]) + churn * (0.55 * Fm[..., None]) * 0.85
     col = col * (1 - 0.25 * Fm[..., None])
     # fresh ejecta: slightly lighter, warmer, dry
-    col = col * (1 + 0.16 * E[..., None] * np.array([1.0, 0.95, 0.85], np.float32))
+    col = col * (1 + 0.45 * E[..., None] * np.array([1.0, 0.95, 0.85], np.float32))
     # scorch: charcoal retaining photo detail, ash fringe at its edge
     Ls = lum(col)[..., None]
-    char = (0.045 + 0.30 * Ls) * np.array([1.0, 0.97, 0.94], np.float32)
+    char = (0.085 + 0.42 * Ls) * np.array([1.0, 0.97, 0.94], np.float32)
     ash = (0.12 + 0.55 * Ls) * np.array([0.95, 0.95, 0.93], np.float32)
     band = (S * (1 - S) * 4)[..., None]
     col = col * (1 - 0.28 * band) + ash * (0.28 * band)
-    col = col * (1 - 0.88 * S[..., None]) + char * (0.88 * S[..., None])
+    col = col * (1 - 0.8 * S[..., None]) + char * (0.8 * S[..., None])
     col = col * (1 - 0.7 * sh[..., None])
     col = np.clip(col * ao[..., None], 0, 1)
 
