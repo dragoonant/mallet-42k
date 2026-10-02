@@ -34,6 +34,7 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
   const targetPolar = useRef(OVERVIEW_POLAR)
   const pendingFocus = useRef<{ x: number; z: number } | null>(null)
   const { camera, gl } = useThree()
+  const invalidate = useThree((s) => s.invalidate)
 
   useEffect(() => {
     targetPolar.current = topDown ? TOP_DOWN_POLAR : OVERVIEW_POLAR
@@ -89,18 +90,20 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
         c.target.set(x, 0, z)
         camera.position.copy(c.target).add(dir)
         c.update()
+        invalidate()
       },
     }
     return () => {
       delete w.__malletCamera
     }
-  }, [camera, minDistance, maxDistance])
+  }, [camera, invalidate, minDistance, maxDistance])
 
-  useFrame(() => {
+  useFrame((state) => {
     const c = controls.current
     if (!c) return
 
     if (pendingFocus.current) {
+      state.invalidate()
       const { x: tx, z: tz } = pendingFocus.current
       const dir = camera.position.clone().sub(c.target)
       const curDist = Math.max(dir.length(), 0.001)
@@ -123,7 +126,10 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
 
     const current = c.getPolarAngle()
     const next = THREE.MathUtils.lerp(current, targetPolar.current, 0.12)
-    if (Math.abs(next - current) > 0.0005) c.setPolarAngle(next)
+    if (Math.abs(next - current) > 0.0005) {
+      c.setPolarAngle(next)
+      state.invalidate()
+    }
 
     c.update()
   })

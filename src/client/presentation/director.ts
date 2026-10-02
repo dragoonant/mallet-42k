@@ -9,7 +9,8 @@
 import type { GameEvent, GameState, Phase, PlayerId } from '@/engine'
 import { unitModels } from '@/engine'
 import type { DataBundle, WeaponData } from '@/data/types'
-import { useGameStore } from '../store/game'
+import { useGameStore, vpToastFrom } from '../store/game'
+import { catchUpPresented, setPresentedSeq } from './presentedStore'
 import { modelsAnchor } from '../interaction/geometry'
 import { useCueStore } from './cueStore'
 import { setPresentationIdle } from './idleStore'
@@ -334,6 +335,13 @@ async function playEvent(
       return
     }
 
+    case 'VpScored': {
+      // Raised here (not when the engine step lands) so the "+N VP" pop-up matches the beat on screen.
+      const toast = vpToastFrom(to, bundle, [event])
+      if (toast) useGameStore.setState({ vpToast: toast })
+      return
+    }
+
     default:
       return
   }
@@ -370,6 +378,10 @@ async function playBatch(from: GameState, to: GameState, events: GameEvent[], an
     } catch (err) {
       console.warn('[presentation] failed to play event', event.type, err)
     }
+    // Engine seq is per *step* (every event of one step() shares it), so the cursor may only reach a
+    // seq once that step's last event has played — otherwise its first event would reveal the whole
+    // step's outcome (feed, counters, deaths, prompt) before the rest of its dice are shown.
+    if (i === events.length - 1 || events[i + 1].seq !== event.seq) setPresentedSeq(event.seq)
     // Someone (bot or human) is already sitting on a live Command Re-roll offer — skip the decorative
     // pacing gap between events so the batch flushes straight through to the roll they're actually being
     // asked about, instead of making a human re-roll decision wait behind unrelated event pacing while
@@ -383,7 +395,9 @@ async function playBatch(from: GameState, to: GameState, events: GameEvent[], an
  *  Safe to call once per app lifetime (Director.tsx does this in a mount-only effect). */
 export function startDirector(): () => void {
   let prevState: GameState | null = null
-  let lastSeq = -1
+  // Last event already queued, tracked by reference: seq can't be used (one seq per step, and an
+  // ActionRejected reuses the seq the next accepted step will carry, which would hide that step).
+  let lastEvent: GameEvent | null = null
   // Events not yet played, and the state from before the first of them.
   let buffered: GameEvent[] = []
   let bufferedFrom: GameState | null = null
@@ -392,10 +406,11 @@ export function startDirector(): () => void {
 
   function reset(): void {
     prevState = null
-    lastSeq = -1
+    lastEvent = null
     buffered = []
     bufferedFrom = null
     announcedPhases.clear()
+    catchUpPresented()
     clearAnnouncement()
     useCueStore.getState().reset()
     setPresentationIdle(true)
@@ -439,7 +454,10 @@ export function startDirector(): () => void {
       // watchdog. Re-checked against the live `buffered` (not just "the while loop ended") since the
       // store's subscribe callback below can push new events onto it between the last iteration and
       // this line running.
-      if (buffered.length === 0) setPresentationIdle(true)
+      if (buffered.length === 0) {
+        catchUpPresented()
+        setPresentationIdle(true)
+      }
     }
   }
 
@@ -450,15 +468,19 @@ export function startDirector(): () => void {
       return
     }
     const events = s.events
-    const latestSeq = events.length > 0 ? events[events.length - 1].seq : -1
-    // A lower seq than we've already seen means a new game started under us.
-    if (latestSeq < lastSeq) reset()
-    const fresh = events.filter((e) => e.seq > lastSeq)
+    let start = 0
+    if (lastEvent) {
+      const idx = events.lastIndexOf(lastEvent)
+      // The log no longer holds what we last queued: a new game or a load replaced it under us.
+      if (idx === -1) reset()
+      else start = idx + 1
+    }
+    const fresh = events.slice(start)
     if (fresh.length === 0) {
       prevState = state
       return
     }
-    lastSeq = latestSeq
+    lastEvent = events[events.length - 1]
     if (buffered.length === 0) bufferedFrom = prevState ?? state
     buffered = [...buffered, ...fresh]
     prevState = state

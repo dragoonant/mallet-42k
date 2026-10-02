@@ -35,8 +35,10 @@ import { sourceName } from '../ui/labels'
 // Imported from their own submodules (not the '../presentation' barrel) to avoid a store<->director
 // import cycle: the barrel re-exports director.ts, which itself imports this store.
 import { waitForPresentationIdle } from '../presentation/idleStore'
+import { pushSnapshot, resetPresentation, usePresentedStore } from '../presentation/presentedStore'
+import { rerollMuteActive, usePresentationSettings, type CommandRerollSetting, type RerollMute } from '../presentation/settings'
+import { critWouldPay, rollForOffer } from '../ui/rerollInfo'
 import { isAnnouncementHolding } from '../presentation/announceStore'
-import { usePresentationSettings, type CommandRerollSetting } from '../presentation/settings'
 
 // ---------- setup defaults ----------
 export type FactionKey = 'space-marines' | 'orks'
@@ -75,6 +77,7 @@ function botPaceDelayMs(): number {
 // Both are a *rare safety net*: normal play resolves the presentation queue in well under a second and
 // decide() in low milliseconds, so neither cap should fire on a healthy turn.
 const PRESENTATION_IDLE_TIMEOUT_MS = 3000 // cap on waiting for the director's queue to drain before deciding anyway
+const PRESENTATION_IDLE_PER_EVENT_MS = 150 // extra wait allowed per event still waiting to be presented (capped at 200 events)
 const BOT_DECISION_TIMEOUT_MS = 3000 // absolute cap on how long we wait for decide() itself
 const UTILITY_SLOW_MS = 500 // UtilityDecider budget; over this we don't trust the pick and redo it with RandomDecider
 // Outer safety net, independent of scheduleBotIfNeeded/runBotDecision's own logic: whatever the cause (a
@@ -227,7 +230,7 @@ export interface VpToastMessage {
 /** A client-only annotation line for the event feed (src/client/ui/EventFeed.tsx) — not a real engine
  *  GameEvent (that union is frozen, see src/engine/types.ts's header), so it's tracked separately and
  *  interleaved at render time by `afterSeq` against each real event's own EventBase.seq. Used today only
- *  for "Re-roll skipped (setting)" (see maybeAutoSkipCommandReroll below), but kept generic in case a
+ *  for "Re-roll skipped (setting)" (see maybeAutoAnswerReroll below), but kept generic in case a
  *  later client-only note needs the same feed slot. */
 export interface LogNote {
   id: number
@@ -240,6 +243,8 @@ export interface GameStore {
   setup: GameSetup | null
   state: GameState | null
   pending: PendingDecision | null
+  /** Seq of the last engine event when `pending` was raised; the prompt shows once presentedSeq reaches it. */
+  pendingSeq: number
   legal: Action[] | null
   events: GameEvent[]
   diceLog: DiceRoll[]
@@ -371,7 +376,9 @@ function commandRerollMatters(state: GameState, events: GameEvent[], pending: Co
   }
 }
 
-function shouldSkipCommandReroll(setting: CommandRerollSetting, state: GameState, events: GameEvent[], pending: CommandRerollDecision): boolean {
+function shouldSkipCommandReroll(setting: CommandRerollSetting, mute: RerollMute, state: GameState, events: GameEvent[], pending: CommandRerollDecision): boolean {
+  // "Stop asking", clicked in the prompt itself, outranks the setting for as long as it holds.
+  if (rerollMuteActive(mute, state)) return true
   if (setting === 'always') return false
   // 'never': the engine only ever raises this decision when the player can afford Command Re-roll (see
   // stratagems.ts's commandRerollBlocked, checked before ctx.decide()), so there's no affordability check
@@ -425,7 +432,7 @@ function isMidAttackSequence(events: GameEvent[]): boolean {
 
 /** The most recent VpScored in this batch of events, as a ready-to-show "+10 VP — Raze and Ruin"
  *  pop-up — null when nothing scored this step. */
-function vpToastFrom(state: GameState, bundle: DataBundle | null, events: GameEvent[]): VpToastMessage | null {
+export function vpToastFrom(state: GameState, bundle: DataBundle | null, events: GameEvent[]): VpToastMessage | null {
   const scored = events.filter((e): e is Extract<GameEvent, { type: 'VpScored' }> => e.type === 'VpScored')
   const last = scored[scored.length - 1]
   if (!last) return null
@@ -520,7 +527,11 @@ export const useGameStore = create<GameStore>()((set, get) => {
     let waitedOnPresentation = false
     if (!midAttack) {
       const idleBefore = typeof performance !== 'undefined' ? performance.now() : Date.now()
-      await waitForPresentationIdle(PRESENTATION_IDLE_TIMEOUT_MS)
+      // Cap scales with how many events are still waiting to be shown, so a long backlog (a big charge or
+      // volley) is never raced past by the bot while its dice are still on screen.
+      const { latestSeq, presentedSeq } = usePresentedStore.getState()
+      const backlog = Math.max(0, Math.min(200, latestSeq - presentedSeq))
+      await waitForPresentationIdle(PRESENTATION_IDLE_TIMEOUT_MS + backlog * PRESENTATION_IDLE_PER_EVENT_MS)
       waitedOnPresentation = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - idleBefore > 1
       if (get().pending?.id !== expectedDecisionId) return
       await sleep(botPaceDelayMs())
@@ -577,40 +588,81 @@ export const useGameStore = create<GameStore>()((set, get) => {
     }
   }
 
-  // Command Re-roll setting (see shouldSkipCommandReroll above): whenever the freshly-applied pending
-  // decision is a human-owned commandReroll the current setting says to skip, dispatch Pass on the
-  // player's behalf immediately and drop a muted note in the event feed instead of showing the prompt.
+  // Re-roll offers the player shouldn't have to sit through: a human-owned commandReroll the current
+  // setting (or an in-prompt mute) says to skip is answered Pass, and a rerollOffer whose re-roll could
+  // only lose an already-successful roll is answered Keep — each leaving a muted note in the event feed
+  // instead of a prompt, so an auto-answer is always visible after the fact.
   // Never touches a decision owned by botSeat — the bot answers its own commandReroll offers through
   // runBotDecision/UtilityDecider as usual, not through this path. Recurses (via dispatch → applyResult
   // → this function again) for the next decision, which is exactly right for a run of several
   // auto-skippable offers in the same attack.
-  function maybeAutoSkipCommandReroll(): void {
-    const { state, pending, legal, botSeat, events } = get()
-    if (!state || !pending || pending.kind !== 'commandReroll' || pending.player === botSeat) return
-    const setting = usePresentationSettings.getState().commandRerollSetting
-    if (!shouldSkipCommandReroll(setting, state, events, pending)) return
-    const options = legal ?? engineLegalActions(state, pending)
-    const passAction = options?.find((a) => a.type === 'pass')
-    if (!passAction) return
+  function addNote(text: string): void {
     set((s) => ({
-      notes: [...s.notes, { id: Date.now() + Math.random(), afterSeq: s.events[s.events.length - 1]?.seq ?? 0, text: 'Re-roll skipped (setting)' }].slice(-NOTES_LOG_LIMIT),
+      notes: [...s.notes, { id: Date.now() + Math.random(), afterSeq: s.events[s.events.length - 1]?.seq ?? 0, text }].slice(-NOTES_LOG_LIMIT),
     }))
-    get().dispatch(passAction)
+  }
+
+  function maybeAutoAnswerReroll(): void {
+    const { state, pending, legal, botSeat, events } = get()
+    if (!state || !pending || pending.player === botSeat) return
+    const { commandRerollSetting: setting, rerollMute: mute } = usePresentationSettings.getState()
+    const muted = rerollMuteActive(mute, state)
+
+    if (pending.kind === 'commandReroll') {
+      if (!shouldSkipCommandReroll(setting, mute, state, events, pending)) return
+      const options = legal ?? engineLegalActions(state, pending)
+      const passAction = options?.find((a) => a.type === 'pass')
+      if (!passAction) return
+      addNote(muted ? 'Re-roll offer skipped (muted)' : 'Re-roll skipped (setting)')
+      get().dispatch(passAction)
+      return
+    }
+
+    // rerollOffer (attack.ts / charge.ts) is only ever raised on a roll that already *succeeded* — an
+    // ability offering to re-roll anything, including the hits and wounds the player just made. Taking it
+    // can only lose that success unless a critical would trigger something (critWouldPay), so every other
+    // offer is answered "keep" here instead of asked, which is where most of the repetition came from.
+    // Charges are left to the player: a longer charge that is already in reach can still buy position.
+    if (pending.kind === 'chooseOption' && pending.context.topic === 'rerollOffer') {
+      if (setting === 'always' && !muted) return
+      const roll = rollForOffer(state, pending.context.data)
+      if (!roll) return // can't identify the roll — ask rather than answer blind
+      if (!muted && (roll.purpose === 'charge' || critWouldPay(state, roll))) return
+      const keep = (pending.options ?? []).find((o) => o.id === 'keep')
+      if (!keep) return
+      addNote(muted ? 'Kept the roll (muted)' : 'Kept the roll — a re-roll could only lose it')
+      get().dispatch(keep.action)
+    }
+  }
+
+  // Auto-answers run immediately, so a decision the player will never be asked is never pending (or
+  // rendered, even as the "Resolving dice…" placeholder) while its dice play. Nothing is revealed early:
+  // the feed note is gated on presentedSeq by its afterSeq (EventFeed.tsx), and the director plays the
+  // follow-on step's events strictly after the ones that raised this decision.
+  function scheduleAutoAnswer(): void {
+    if (get().pending) maybeAutoAnswerReroll()
   }
 
   function applyResult(result: { state: GameState; events: GameEvent[]; pending: PendingDecision | null; rejection?: { code: RejectionCode; reason: string } }, dispatched?: Action): void {
+    // step() returns a fresh state object (engine cloneForStep), so the snapshot ring can hold references.
+    // Engine event seq is the *action's* log index (shared by every event of one step), and a rejection's
+    // ActionRejected carries state.log.length — the seq the next accepted step will reuse. Advancing the
+    // cursor to it would mark that next step as already presented, so a rejection never moves it.
+    const lastSeq = result.events.length > 0 && !result.rejection ? result.events[result.events.length - 1].seq : usePresentedStore.getState().latestSeq
+    pushSnapshot(lastSeq, result.state)
     set((s) => ({
       state: result.state,
       pending: result.pending,
+      pendingSeq: lastSeq,
       legal: result.pending ? engineLegalActions(result.state, result.pending) : null,
       events: [...s.events, ...result.events].slice(-EVENT_LOG_LIMIT),
       diceLog: [...s.diceLog, ...diceRollsFrom(result.events)].slice(-DICE_LOG_LIMIT),
       actionLog: dispatched && !result.rejection ? [...s.actionLog, dispatched].slice(-EVENT_LOG_LIMIT) : s.actionLog,
       toast: result.rejection ? { id: Date.now(), text: result.rejection.reason, code: result.rejection.code } : s.toast,
-      vpToast: vpToastFrom(result.state, s.bundle, result.events) ?? s.vpToast,
+      // vpToast is raised by the presentation director when the VpScored event actually plays.
     }))
     scheduleBotIfNeeded()
-    maybeAutoSkipCommandReroll()
+    scheduleAutoAnswer()
   }
 
   return {
@@ -618,6 +670,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
     setup: null,
     state: null,
     pending: null,
+    pendingSeq: -1,
     legal: null,
     events: [],
     diceLog: [],
@@ -636,6 +689,8 @@ export const useGameStore = create<GameStore>()((set, get) => {
       clearBotTimer()
       clearProgressWatchdog()
       botDecider = null
+      // A "stop asking about re-rolls" from the last battle never carries into a new one (see RerollMute).
+      usePresentationSettings.getState().muteRerolls(null)
       set({ loading: true, error: null, toast: null })
       try {
         const bundle = await loadBundle()
@@ -645,11 +700,15 @@ export const useGameStore = create<GameStore>()((set, get) => {
         const botSeat: PlayerId | null = opts.opponent === 'bot' ? 'B' : null
         const difficulty = opts.difficulty ?? DEFAULT_AI_DIFFICULTY
         botDecider = botSeat ? makeBotDecider(difficulty, `${opts.seed}:ai:${botSeat}`) : null
+        // createGame events carry seq -1; the first step's events carry log.length (0).
+        const headSeq = result.state.log.length - 1
+        resetPresentation(headSeq, result.state)
         set({
           bundle,
           setup,
           state: result.state,
           pending: result.pending,
+          pendingSeq: headSeq,
           legal: result.pending ? engineLegalActions(result.state, result.pending) : null,
           events: result.events.slice(-EVENT_LOG_LIMIT),
           diceLog: diceRollsFrom(result.events).slice(-DICE_LOG_LIMIT),
@@ -665,7 +724,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
           error: null,
         })
         scheduleBotIfNeeded()
-        maybeAutoSkipCommandReroll()
+        scheduleAutoAnswer()
         startProgressWatchdog()
       } catch (err) {
         set({ loading: false, error: err instanceof Error ? err.message : String(err) })
@@ -710,14 +769,21 @@ export const useGameStore = create<GameStore>()((set, get) => {
         clearBotTimer()
         clearProgressWatchdog()
         const result = engineLoad(file, bundle ?? undefined)
+        // Next step's events will carry log.length, so everything up to log.length - 1 counts as shown.
+        const headSeq = result.state.log.length - 1
+        resetPresentation(headSeq, result.state)
         set({
           setup: file.setup,
           state: result.state,
           pending: result.pending,
+          pendingSeq: headSeq,
           legal: result.pending ? engineLegalActions(result.state, result.pending) : null,
+          events: [],
+          diceLog: [],
+          notes: [],
         })
         scheduleBotIfNeeded()
-        maybeAutoSkipCommandReroll()
+        scheduleAutoAnswer()
         startProgressWatchdog()
       } catch {
         // corrupt/missing save — leave the current game running

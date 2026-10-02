@@ -1,7 +1,7 @@
 // Small floating name + wounds tag over each on-board unit — the board otherwise has no way to tell
 // units apart or see how hurt they are at a glance beyond opening the unit card for one at a time.
 import { Html } from '@react-three/drei'
-import { useGameStore } from '../store/game'
+import { useDisplayState } from '../presentation/presentedStore'
 import { colors, fontStack } from '../ui/theme'
 
 const SHOCK_COLOR = '#ffb84f'
@@ -16,7 +16,7 @@ const labelStyle = {
 }
 
 export function UnitLabels() {
-  const state = useGameStore((s) => s.state)
+  const state = useDisplayState()
   if (!state) return null
   const units = Object.values(state.units).filter((u) => u.location === 'board')
 

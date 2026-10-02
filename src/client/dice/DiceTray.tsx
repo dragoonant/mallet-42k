@@ -32,6 +32,10 @@ function injectKeyframesOnce() {
   document.head.appendChild(style)
 }
 
+// The tray used to sit bottom-centre, where the decision prompt also lives — an attack's dice were
+// routinely hidden behind the prompt asking about them. It now renders as a block inside App.tsx's
+// right-hand rail, directly under the Dice Log, so the two stack instead of fighting: no positioning of
+// its own beyond filling the rail's width, and the rail re-flows when the log is expanded or collapsed.
 const wrap: CSSProperties = {
   position: 'relative', // placed by the right rail in App.tsx
   pointerEvents: 'none',

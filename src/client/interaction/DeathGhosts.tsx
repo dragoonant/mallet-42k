@@ -3,7 +3,7 @@
 // misattributes a stale position. Removed models never linger in GameState past this animation window.
 import { useEffect, useRef, useState } from 'react'
 import { Figure } from '../figures'
-import { useGameStore } from '../store/game'
+import { useDisplayState } from '../presentation/presentedStore'
 
 const DEATH_MS = 650
 
@@ -23,7 +23,7 @@ interface LastKnown {
 }
 
 export function DeathGhosts() {
-  const state = useGameStore((s) => s.state)
+  const state = useDisplayState()
   const prevRef = useRef<Record<string, LastKnown>>({})
   const [ghosts, setGhosts] = useState<Ghost[]>([])
 

@@ -1,7 +1,7 @@
 // Selected-unit inspector (docs/spec/50-client.md §5 "Unit card"). Selection comes from
 // src/client/interaction/UnitsLayer.tsx clicking a Figure; this file only reads state.
 import { useEffect, type CSSProperties } from 'react'
-import { useGameStore } from '../store/game'
+import { useDisplayState } from '../presentation/presentedStore'
 import { useUiStore } from './uiStore'
 import { colors, mutedText, panel } from './theme'
 
@@ -23,7 +23,7 @@ const list: CSSProperties = { margin: 0, paddingLeft: 16, fontSize: 12.5 }
 const warn: CSSProperties = { color: '#ffb84f', fontSize: 12, fontWeight: 600, marginTop: 4 }
 
 export function UnitCard() {
-  const state = useGameStore((s) => s.state)
+  const state = useDisplayState()
   const selectedUnitId = useUiStore((s) => s.selectedUnitId)
   const selectUnit = useUiStore((s) => s.selectUnit)
   const phase = state?.phase

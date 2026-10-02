@@ -14,10 +14,13 @@ import {
 } from '../interaction'
 import { neededChargeDistance } from '@/engine/phases/charge'
 import {
-  chargeTargetHelp, moveTypeHelp, objectiveLabel, prettifyId, rerollContext, saveAttackContext,
+  chargeTargetHelp, moveTypeHelp, objectiveLabel, prettifyId, saveAttackContext,
   saveChoiceFromDecisionData, shootingTargetHelp, type PromptHelp,
 } from './labels'
 import { FormationPicker } from './FormationPicker'
+import { rerollSummary, rollForOffer } from './rerollInfo'
+import { usePresentationSettings, type RerollMute } from '../presentation/settings'
+import { usePresentedStore } from '../presentation/presentedStore'
 import { buttonBase, buttonDanger, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 
 /** The nearest thing worth orienting a move/charge/pile-in/consolidate destination against — an
@@ -332,6 +335,14 @@ const row: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap' }
  *  pinned top/bottom is what keeps the whole box out of both zones. */
 const deployRowVertical: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6 }
 const optionList: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', maxHeight: 130, overflowY: 'auto' }
+/** The "stop asking" escapes under a re-roll prompt — deliberately quiet (text links, not buttons): they
+ *  answer the decision *and* silence later offers, so they shouldn't compete with Re-roll/Keep for the eye. */
+const muteRow: CSSProperties = { display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 2 }
+const muteLink: CSSProperties = {
+  fontFamily: fontStack, fontSize: 11, color: colors.muted, background: 'none', border: 'none',
+  padding: 0, cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 2,
+}
+const rollLine: CSSProperties = { color: colors.text, fontWeight: 600, fontSize: 12.5 }
 
 /** How long the pointer has to rest on an option before its help appears — long enough that moving
  *  across the row to the option you want doesn't flash three cards on the way. */
@@ -417,8 +428,10 @@ export function DecisionPrompt() {
   const state = useGameStore((s) => s.state)
   const pending = useGameStore((s) => s.pending)
   const legal = useGameStore((s) => s.legal)
-  // Both the re-roll and save-choice blocks below read the roll they are about back off the log.
   const events = useGameStore((s) => s.events)
+  const pendingSeq = useGameStore((s) => s.pendingSeq)
+  const presentedSeq = usePresentedStore((s) => s.presentedSeq)
+  const muteRerolls = usePresentationSettings((s) => s.muteRerolls)
   const botSeat = useGameStore((s) => s.botSeat)
   const dispatch = useGameStore((s) => s.dispatch)
   const draft = useUiStore((s) => s.draft)
@@ -481,6 +494,15 @@ export function DecisionPrompt() {
     return <div style={bannerWrap}>Opponent is thinking…</div>
   }
 
+  // The dice that raised this decision haven't finished showing yet — don't offer a choice about them.
+  if (presentedSeq < pendingSeq) {
+    return (
+      <div style={wrap} data-testid="prompt">
+        <div style={hint} data-testid="prompt-resolving">Resolving dice…</div>
+      </div>
+    )
+  }
+
   const info = placementInfo(pending)
   const activeDraft = draft && draft.decisionId === pending.id ? draft : null
   const passAction = legal?.find((a) => a.type === 'pass') ?? null
@@ -533,7 +555,30 @@ export function DecisionPrompt() {
   const activeHelp = helpForAction(state, listItems.find((it) => it.id === helpFor)?.action)
 
   const chooseOptionInfo = pending.kind === 'chooseOption' ? CHOOSE_OPTION_INFO[pending.context.topic] : undefined
-  const kindTitle = chooseOptionInfo?.title ?? KIND_TITLE[pending.kind] ?? pending.kind
+
+  // Both re-roll prompts (Command Re-roll, and an ability's own rerollOffer) are answered here with their
+  // numbers spelled out — "Rolled 1 — needs 3+ to save" — rather than the bare "[1]" the raw roll gives,
+  // and with a quiet way out of being asked again (see RerollMute in presentation/settings.ts). The roll
+  // itself comes with the decision for Command Re-roll; a rerollOffer names only its id, so it's looked up.
+  const rerollRoll = pending.kind === 'commandReroll'
+    ? pending.context.roll
+    : pending.kind === 'chooseOption' && pending.context.topic === 'rerollOffer'
+      ? rollForOffer(state, pending.context.data)
+      : null
+  const reroll = rerollRoll ? rerollSummary(state, events, rerollRoll) : null
+  const rerollCost = state.stratagems['core.s.command-reroll']?.cost ?? 1
+  const keepAction: Action | null = !reroll
+    ? null
+    : pending.kind === 'commandReroll'
+      ? passAction
+      : ((hasOptions(pending) ? pending.options : []).find((o) => o.id === 'keep')?.action ?? null)
+  const answerAndMute = (mute: RerollMute) => {
+    if (!keepAction) return
+    muteRerolls(mute)
+    dispatch(keepAction)
+  }
+
+  const kindTitle = reroll?.title ?? chooseOptionInfo?.title ?? KIND_TITLE[pending.kind] ?? pending.kind
   const isDeploy = pending.kind === 'deployUnit'
 
   return (
@@ -542,7 +587,7 @@ export function DecisionPrompt() {
       <div style={isDeploy ? deployWrap : wrap} data-testid="prompt">
       {activeHelp && <OptionHelp help={activeHelp} />}
       <div style={heading}>{kindTitle}</div>
-      {chooseOptionInfo && <div style={hint}>{chooseOptionInfo.hint}</div>}
+      {chooseOptionInfo && !reroll && <div style={hint}>{chooseOptionInfo.hint}</div>}
 
       {pending.kind === 'stratagemWindow' && (
         <StratagemOffers
@@ -560,33 +605,19 @@ export function DecisionPrompt() {
           triggerLine={`${REACTION_LABEL[pending.context.reaction] ?? pending.context.reaction}${pending.context.enemyUnitId ? ` — ${state.units[pending.context.enemyUnitId]?.name ?? pending.context.enemyUnitId}` : ''}`}
         />
       )}
-      {pending.kind === 'commandReroll' && (() => {
-        const ctx = rerollContext(state, events, pending.context.roll)
-        return (
-          <div style={infoBlock} data-testid="reroll-context">
-            <div style={{ color: colors.text, fontWeight: 600 }}>{ctx.headline}</div>
-            <div>{ctx.detail}</div>
-            <div style={{ marginTop: 3 }}>Command Re-roll costs 1 CP — you have {state.players[pending.player].cp}.</div>
+      {reroll && (
+        <div style={infoBlock} data-testid="reroll-info">
+          <div style={rollLine}>{reroll.line}</div>
+          {reroll.context && <div>{reroll.context}</div>}
+          <div style={{ marginTop: 3 }}>
+            {pending.kind === 'commandReroll'
+              ? `Command Re-roll costs ${rerollCost} CP — you have ${state.players[pending.player].cp} CP, and only one roll per phase can be re-rolled this way.`
+              : reroll.failed
+                ? 'A free re-roll, from one of your abilities.'
+                : 'This roll already succeeded — a re-roll is free, but it can just as easily lose it.'}
           </div>
-        )
-      })()}
-
-      {/* The generic reroll offer (R-6.24) is a different decision from Command Re-roll and had the
-          same gap: "Choose a die to re-roll" with no word on what the roll was. phaseState.lastRoll
-          is the roll it is about — the engine raises this offer while that roll is still current. */}
-      {pending.kind === 'chooseOption' && pending.context.topic === 'rerollOffer' && (() => {
-        const roll = state.phaseState?.lastRoll
-        const rollId = typeof pending.context.data.rollId === 'string' ? pending.context.data.rollId : null
-        if (!roll || (rollId !== null && roll.id !== rollId)) return null
-        const ctx = rerollContext(state, events, roll)
-        return (
-          <div style={infoBlock} data-testid="reroll-offer-context">
-            <div style={{ color: colors.text, fontWeight: 600 }}>{ctx.headline}</div>
-            <div>{ctx.detail}</div>
-          </div>
-        )
-      })()}
-
+        </div>
+      )}
       {pending.kind === 'declareTargets' && (
         <div style={infoBlock} data-testid="shoot-context">
           <div style={{ color: colors.text, fontWeight: 600 }}>
@@ -750,19 +781,54 @@ export function DecisionPrompt() {
             </button>
           </>
         )}
-        {passAction && (
+        {/* A re-roll prompt words its own "no thanks" as Keep the roll, just below — a second generic
+            Pass button next to it reads as a different (and scarier) answer than it actually is. */}
+        {passAction && !reroll && (
           <button style={buttonBase} data-testid="btn-pass" onClick={() => dispatch(passAction)}>
             {PASS_LABEL[pending.kind] ?? 'Pass'}
           </button>
         )}
       </div>
+
+      {reroll && (
+        <>
+          <div style={row}>
+            {/* 'keep' is rendered as its own button below, so it isn't repeated here as a re-roll offer. */}
+            {listItems.filter((it) => it.id !== 'keep').map((it) => (
+              <button
+                key={it.id}
+                style={buttonPrimary}
+                data-testid={`prompt-option-${it.id}`}
+                onClick={() => dispatch(it.action)}
+              >
+                {pending.kind === 'commandReroll' && !pending.context.selectableDice ? `Re-roll (${rerollCost} CP)` : it.label}
+              </button>
+            ))}
+            {keepAction && (
+              <button style={buttonBase} data-testid="btn-keep-roll" onClick={() => dispatch(keepAction)}>
+                Keep the roll
+              </button>
+            )}
+          </div>
+          {keepAction && (
+            <div style={muteRow}>
+              <button style={muteLink} data-testid="btn-reroll-mute-phase" onClick={() => answerAndMute({ scope: 'phase', round: state.round, phase: state.phase })}>
+                Keep, and stop asking this phase
+              </button>
+              <button style={muteLink} data-testid="btn-reroll-mute-battle" onClick={() => answerAndMute({ scope: 'battle' })}>
+                …for the rest of the battle
+              </button>
+            </div>
+          )}
+        </>
+      )}
       {activeDraft && draftValidation && !draftValidation.ok && (
         <div style={{ ...hint, color: colors.danger }} data-testid="draft-issue">
           Can&apos;t confirm: {draftValidation.reasons.join(', ')}
         </div>
       )}
 
-      {showFallbackList && (
+      {showFallbackList && !reroll && (
         <div style={optionList}>
           {info && listItems.length > 0 && <div style={hint}>Or use a suggested placement — hover one to preview it:</div>}
           {listItems.map((it) => {

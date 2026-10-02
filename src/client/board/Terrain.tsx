@@ -153,7 +153,7 @@ function RuinWall({ seed, wall }: { seed: string; wall: WallData }) {
         <meshStandardMaterial {...wallTextures} color={BRICK_TINT} roughness={1} transparent opacity={TERRAIN_OPACITY} />
       </mesh>
       {rubble.map((r, i) => (
-        <mesh key={i} position={[r.offset, r.height / 2, 0]} castShadow receiveShadow>
+        <mesh key={i} position={[r.offset, r.height / 2, 0]}>
           <boxGeometry args={[r.width, r.height, WALL_THICKNESS * 1.05]} />
           <meshStandardMaterial {...rubbleTextures[i]} color={RUBBLE_TINT} roughness={1} transparent opacity={TERRAIN_OPACITY} />
         </mesh>

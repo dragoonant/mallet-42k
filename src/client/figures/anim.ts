@@ -18,17 +18,36 @@ export function easeOut(t: number): number {
   return 1 - (1 - c) * (1 - c)
 }
 
+/** Wake the demand-driven render loop for another frame, and mark the (on-demand) shadow map stale —
+ *  anything that moves a shadow-casting object calls this each frame it is still animating. */
+export function requestFrame(state: { invalidate: () => void; gl: { shadowMap: { needsUpdate: boolean } } }): void {
+  state.gl.shadowMap.needsUpdate = true
+  state.invalidate()
+}
+
 /** Tracks how long the current pose has been playing (resets on pose change) alongside the raw
- *  running clock, and calls `onFrame` with both every frame. */
+ *  running clock, and calls `onFrame` with both every frame the pose is still animating. An idle
+ *  figure is posed once (a frozen sample of its idle cycle) and then does no per-frame work and asks
+ *  for no more frames; a finished death topple likewise holds its last pose. */
 export function usePoseFrame(pose: Pose, onFrame: (t: number, sincePose: number) => void): void {
   const startedAt = useRef(0)
   const prevPose = useRef<Pose>(pose)
+  const settled = useRef(false)
   useFrame((state) => {
     if (prevPose.current !== pose) {
       prevPose.current = pose
       startedAt.current = state.clock.elapsedTime
+      settled.current = false
     }
-    onFrame(state.clock.elapsedTime, state.clock.elapsedTime - startedAt.current)
+    if (settled.current) return
+    const since = state.clock.elapsedTime - startedAt.current
+    onFrame(state.clock.elapsedTime, since)
+    if (pose === 'idle' || (pose === 'death' && since > 2)) {
+      settled.current = true
+      state.gl.shadowMap.needsUpdate = true
+      return
+    }
+    requestFrame(state)
   })
 }
 
@@ -52,10 +71,14 @@ export function useMaterialFader(groupRef: RefObject<Object3D>): (opacity: numbe
       root.traverse((obj) => {
         if (!isMesh(obj) || !obj.material) return
         const mats = Array.isArray(obj.material) ? obj.material : [obj.material]
-        for (const m of mats) {
-          m.transparent = true
-          found.push(m)
-        }
+        // Materials are shared between figures (shared.tsx): fade this figure's own clones.
+        const own = mats.map((m) => {
+          const c = m.clone()
+          c.transparent = true
+          found.push(c)
+          return c
+        })
+        obj.material = Array.isArray(obj.material) ? own : own[0]
       })
       materialsRef.current = found
     }

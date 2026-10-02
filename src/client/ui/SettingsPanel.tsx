@@ -69,6 +69,8 @@ export function SettingsPanel() {
   const diceOn = usePresentationSettings((s) => s.diceOn)
   const ambientOn = usePresentationSettings((s) => s.ambientOn)
   const commandRerollSetting = usePresentationSettings((s) => s.commandRerollSetting)
+  const lowGraphics = usePresentationSettings((s) => s.lowGraphics)
+  const setLowGraphics = usePresentationSettings((s) => s.setLowGraphics)
   const setAnimSpeed = usePresentationSettings((s) => s.setAnimSpeed)
   const setDiceOn = usePresentationSettings((s) => s.setDiceOn)
   const setAmbientOn = usePresentationSettings((s) => s.setAmbientOn)
@@ -125,6 +127,10 @@ export function SettingsPanel() {
       <label style={checkboxRow}>
         <input type="checkbox" checked={ambientOn} onChange={(e) => setAmbientOn(e.target.checked)} data-testid="settings-ambient-on" />
         <span>Ambient battlefield sound</span>
+      </label>
+      <label style={checkboxRow}>
+        <input type="checkbox" checked={lowGraphics} onChange={(e) => setLowGraphics(e.target.checked)} data-testid="settings-low-graphics" />
+        <span>Low graphics (no shadows, lower resolution)</span>
       </label>
 
       <div style={sectionTitle}>Ask about Command Re-roll</div>

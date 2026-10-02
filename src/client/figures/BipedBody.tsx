@@ -2,6 +2,7 @@
 // arms and two legs, so "monster" — the Deff Dread — reuses the biped rig with big claws and a
 // heavy bulk factor rather than the tail/quadruped rig 30-figures.md §2 sketches for bigger
 // beasts; simplest thing that reads right for the one monster this kit needs).
+import { GBox, GCone, GCylinder, GSphere, StdMat } from './shared'
 import { useRef } from 'react'
 import type { Group } from 'three'
 import { EndBlock, HeadBlob, LimbSegment, WeaponMesh } from './primitives'
@@ -145,24 +146,24 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
 
       <group ref={torsoRef} position={[0, HIP_Y, 0]}>
         <mesh position={[0, TORSO_H / 2, 0]}>
-          <boxGeometry args={[torsoWidth, TORSO_H, torsoDepth]} />
-          <meshStandardMaterial color={colors.primary} roughness={0.55} />
+          <GBox args={[torsoWidth, TORSO_H, torsoDepth]} />
+          <StdMat color={colors.primary} roughness={0.55} />
         </mesh>
         <mesh position={[0, 0.015, 0]}>
-          <boxGeometry args={[torsoWidth * 1.05, 0.03, torsoDepth * 1.05]} />
-          <meshStandardMaterial color={colors.trim} roughness={0.5} />
+          <GBox args={[torsoWidth * 1.05, 0.03, torsoDepth * 1.05]} />
+          <StdMat color={colors.trim} roughness={0.5} />
         </mesh>
 
         {config.hasBackpack && (
           <mesh position={[0, TORSO_H * 0.62, -torsoDepth / 2 - 0.05 * bulk]}>
-            <boxGeometry args={[torsoWidth * 0.7, TORSO_H * 0.65, 0.1 * bulk]} />
-            <meshStandardMaterial color={colors.metal} metalness={0.4} roughness={0.6} />
+            <GBox args={[torsoWidth * 0.7, TORSO_H * 0.65, 0.1 * bulk]} />
+            <StdMat color={colors.metal} metalness={0.4} roughness={0.6} />
           </mesh>
         )}
         {config.hasCape && (
           <mesh position={[0, TORSO_H * 0.35, -torsoDepth / 2 - 0.02]} rotation={[0.25, 0, 0]}>
-            <boxGeometry args={[torsoWidth * 0.9, TORSO_H * 1.4, 0.02]} />
-            <meshStandardMaterial color={colors.secondary} roughness={0.8} />
+            <GBox args={[torsoWidth * 0.9, TORSO_H * 1.4, 0.02]} />
+            <StdMat color={colors.secondary} roughness={0.8} />
           </mesh>
         )}
 
@@ -170,12 +171,12 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
           {config.shoulderPads !== 'none' && (
             <>
               <mesh position={[-shoulderOffsetX, 0.02, 0]}>
-                <sphereGeometry args={[config.shoulderPads === 'large' ? 0.11 * bulk : 0.08 * bulk, 10, 8]} />
-                <meshStandardMaterial color={colors.secondary} roughness={0.5} />
+                <GSphere args={[config.shoulderPads === 'large' ? 0.11 * bulk : 0.08 * bulk, 10, 8]} />
+                <StdMat color={colors.secondary} roughness={0.5} />
               </mesh>
               <mesh position={[shoulderOffsetX, 0.02, 0]}>
-                <sphereGeometry args={[config.shoulderPads === 'large' ? 0.11 * bulk : 0.08 * bulk, 10, 8]} />
-                <meshStandardMaterial color={colors.secondary} roughness={0.5} />
+                <GSphere args={[config.shoulderPads === 'large' ? 0.11 * bulk : 0.08 * bulk, 10, 8]} />
+                <StdMat color={colors.secondary} roughness={0.5} />
               </mesh>
             </>
           )}
@@ -219,12 +220,12 @@ function HeadBody({
         <group>
           <HeadBlob radius={radius} color={colors.secondary} />
           <mesh position={[0, -radius * 0.1, radius * 0.9]}>
-            <boxGeometry args={[radius * 0.9, radius * 0.35, radius * 0.2]} />
-            <meshStandardMaterial color={VISOR} roughness={0.2} />
+            <GBox args={[radius * 0.9, radius * 0.35, radius * 0.2]} />
+            <StdMat color={VISOR} roughness={0.2} />
           </mesh>
           <mesh position={[0, radius * 0.95, 0]}>
-            <cylinderGeometry args={[radius * 0.03, radius * 0.03, radius * 0.35, 5]} />
-            <meshStandardMaterial color={colors.metal} metalness={0.6} />
+            <GCylinder args={[radius * 0.03, radius * 0.03, radius * 0.35, 5]} />
+            <StdMat color={colors.metal} metalness={0.6} />
           </mesh>
         </group>
       )
@@ -233,16 +234,16 @@ function HeadBody({
         <group>
           <HeadBlob radius={radius * 1.1} color={colors.secondary} />
           <mesh position={[0, -radius * 0.15, radius]}>
-            <boxGeometry args={[radius * 1.1, radius * 0.4, radius * 0.22]} />
-            <meshStandardMaterial color={VISOR} roughness={0.2} />
+            <GBox args={[radius * 1.1, radius * 0.4, radius * 0.22]} />
+            <StdMat color={VISOR} roughness={0.2} />
           </mesh>
           <mesh position={[-radius * 1.05, -radius * 0.1, 0]}>
-            <boxGeometry args={[radius * 0.22, radius * 0.3, radius * 0.3]} />
-            <meshStandardMaterial color={colors.metal} metalness={0.5} roughness={0.5} />
+            <GBox args={[radius * 0.22, radius * 0.3, radius * 0.3]} />
+            <StdMat color={colors.metal} metalness={0.5} roughness={0.5} />
           </mesh>
           <mesh position={[radius * 1.05, -radius * 0.1, 0]}>
-            <boxGeometry args={[radius * 0.22, radius * 0.3, radius * 0.3]} />
-            <meshStandardMaterial color={colors.metal} metalness={0.5} roughness={0.5} />
+            <GBox args={[radius * 0.22, radius * 0.3, radius * 0.3]} />
+            <StdMat color={colors.metal} metalness={0.5} roughness={0.5} />
           </mesh>
         </group>
       )
@@ -254,21 +255,21 @@ function HeadBody({
         <group>
           <HeadBlob radius={radius} color={flesh} />
           <mesh position={[0, -radius * 0.55, radius * 0.55]}>
-            <boxGeometry args={[radius * 1.3, radius * 0.7, radius * (boss ? 0.9 : 0.7)]} />
-            <meshStandardMaterial color={flesh} roughness={0.7} />
+            <GBox args={[radius * 1.3, radius * 0.7, radius * (boss ? 0.9 : 0.7)]} />
+            <StdMat color={flesh} roughness={0.7} />
           </mesh>
           <mesh position={[-radius * 0.3, -radius * 0.75, radius * 0.95]}>
-            <coneGeometry args={[radius * 0.12, radius * 0.3, 5]} />
-            <meshStandardMaterial color="#f0ead6" roughness={0.4} />
+            <GCone args={[radius * 0.12, radius * 0.3, 5]} />
+            <StdMat color="#f0ead6" roughness={0.4} />
           </mesh>
           <mesh position={[radius * 0.3, -radius * 0.75, radius * 0.95]}>
-            <coneGeometry args={[radius * 0.12, radius * 0.3, 5]} />
-            <meshStandardMaterial color="#f0ead6" roughness={0.4} />
+            <GCone args={[radius * 0.12, radius * 0.3, 5]} />
+            <StdMat color="#f0ead6" roughness={0.4} />
           </mesh>
           {boss && (
             <mesh position={[0, radius * 1.05, 0]}>
-              <boxGeometry args={[radius * 0.15, radius * 0.5, radius * 1.2]} />
-              <meshStandardMaterial color={colors.trim} roughness={0.5} />
+              <GBox args={[radius * 0.15, radius * 0.5, radius * 1.2]} />
+              <StdMat color={colors.trim} roughness={0.5} />
             </mesh>
           )}
         </group>

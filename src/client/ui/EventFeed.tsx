@@ -8,6 +8,7 @@ import type { CSSProperties } from 'react'
 import type { DamageApplied, GameEvent, GameState } from '@/engine'
 import type { DataBundle } from '@/data/types'
 import { useGameStore } from '../store/game'
+import { useDisplayState, usePresentedStore } from '../presentation/presentedStore'
 import { sourceName } from './labels'
 import { mutedText, panel } from './theme'
 
@@ -104,11 +105,14 @@ function describeScoring(e: GameEvent, state: GameState, bundle: DataBundle | nu
 interface FeedLine { key: string; text: string; muted: boolean; sortKey: number }
 
 export function EventFeed() {
-  const state = useGameStore((s) => s.state)
-  const events = useGameStore((s) => s.events)
-  const notes = useGameStore((s) => s.notes)
+  const state = useDisplayState()
+  const allEvents = useGameStore((s) => s.events)
+  const allNotes = useGameStore((s) => s.notes)
+  const presentedSeq = usePresentedStore((s) => s.presentedSeq)
   const bundle = useGameStore((s) => s.bundle)
   if (!state) return null
+  const events = allEvents.filter((e) => e.seq <= presentedSeq)
+  const notes = allNotes.filter((n) => n.afterSeq <= presentedSeq)
 
   const scoring = events.map((e) => describeScoring(e, state, bundle)).filter((s): s is string => s !== null).slice(-30)
 

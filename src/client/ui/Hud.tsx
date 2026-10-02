@@ -5,11 +5,13 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { unitModels, type GameState, type Phase, type PlayerId } from '@/engine'
 import { useGameStore } from '../store/game'
+import { useDisplayState, usePresentedStore } from '../presentation/presentedStore'
 import { useUiStore } from './uiStore'
 import { modelsAnchor } from '../interaction/geometry'
 import { isPlacementDecision } from '../interaction/decisions'
 import { MissionPanel } from './MissionPanel'
 import { primaryScoringWindowHint, sourceName } from './labels'
+import { BATTLEFIELDS } from '../board/terrainAssets'
 import { buttonBase, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 
 const PHASES: { id: Phase; label: string }[] = [
@@ -296,8 +298,21 @@ function ToolButtons() {
     if (models.length > 0) focusCamera(modelsAnchor(models))
   }
 
+  const battlefieldIndex = useUiStore((s) => s.battlefieldIndex)
+  const cycleBattlefield = useUiStore((s) => s.cycleBattlefield)
+  const battlefieldName = BATTLEFIELDS[battlefieldIndex].name
+
   const buttons = (
     <>
+      <button
+        style={{ ...toolBtn, width: 'auto', padding: '0 10px', fontSize: 12, whiteSpace: 'nowrap' }}
+        data-testid="btn-battlefield"
+        aria-label={`Battlefield: ${battlefieldName}`}
+        title="Battlefield: cycle the ground texture (purely cosmetic)."
+        onClick={cycleBattlefield}
+      >
+        Battlefield: {battlefieldName} ▸
+      </button>
       <button
         style={measureOn ? toolBtnActive : toolBtn}
         data-testid="btn-measure"
@@ -396,17 +411,20 @@ function KeysHelp() {
 }
 
 export function Hud() {
-  const state = useGameStore((s) => s.state)
+  const state = useDisplayState()
   const pending = useGameStore((s) => s.pending)
   const legal = useGameStore((s) => s.legal)
   const botSeat = useGameStore((s) => s.botSeat)
   const dispatch = useGameStore((s) => s.dispatch)
+  const pendingSeq = useGameStore((s) => s.pendingSeq)
+  const presentedSeq = usePresentedStore((s) => s.presentedSeq)
   const deployTargetUnitId = useUiStore((s) => s.deployTargetUnitId)
   const [missionOpen, setMissionOpen] = useState(false)
   useToolShortcuts()
 
   if (!state) return null
-  const passAction = legal?.find((a) => a.type === 'pass') ?? null
+  // Same gate as DecisionPrompt: no passing on a decision whose dice are still being shown.
+  const passAction = presentedSeq < pendingSeq ? null : (legal?.find((a) => a.type === 'pass') ?? null)
   const thinking = !!pending && pending.player === botSeat
   const scoringHint = primaryScoringWindowHint(state.mission.data)
   // The M4 formation picker bar (FormationPicker.tsx) floats just under this HUD row, anchored to the
