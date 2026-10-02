@@ -2,7 +2,7 @@
 // VP/CP event sources, secondary/stratagem ids) into text a player can read without cross-referencing
 // the JSON. Pure lookups over DataBundle/GameState — no engine/scoring logic duplicated here beyond a
 // generic id-to-title-case fallback for whatever id we don't have a curated name for.
-import type { DiceRoll, GameEvent, GameState, PlayerId, RollPurpose, RuntimeWeapon } from '@/engine'
+import type { DiceRoll, GameEvent, GameState, MoveType, PlayerId, RollPurpose, RuntimeWeapon } from '@/engine'
 import { modelStats, woundRollNeeded } from '@/engine'
 import type { DataBundle, MissionData, MissionRule, ScoringRule } from '@/data/types'
 
@@ -341,4 +341,106 @@ export function saveAttackContext(state: GameState, events: readonly GameEvent[]
     return { weaponName: weapon.name, ap: weapon.AP, attackerName: unitNameOf(state, e.attack.attackerUnitId) }
   }
   return null
+}
+
+// ---------- move types (docs/spec/10-rules-core.md R-5.1 to R-5.6) ----------
+// Owner playtest: the three move options were bare words, and what each one costs you is the whole
+// decision. This spells it out in the unit's own numbers — "Move up to 5"", not "move up to M".
+
+export interface MoveTypeHelp {
+  title: string
+  lines: string[]
+}
+
+/** The unit's Move characteristic. Taken from the datasheet profile: no ability in either Combat
+ *  Patrol roster modifies M (only OC, S and A), so this is exact today — if one is ever added, this
+ *  should come from the engine the way CurrentAttack.saveTargets does, rather than being re-derived.
+ *  Mixed-profile units report their slowest model, which is what the unit can actually keep up with. */
+function unitMove(state: GameState, unitId: string): number | null {
+  const unit = state.units[unitId]
+  if (!unit) return null
+  let slowest: number | null = null
+  for (const modelId of unit.models) {
+    const model = state.models[modelId]
+    if (!model) continue
+    try {
+      const M = modelStats(state, model).M
+      slowest = slowest === null ? M : Math.min(slowest, M)
+    } catch {
+      // a model whose profile can't be resolved just doesn't contribute
+    }
+  }
+  return slowest
+}
+
+function unitHasWeaponAbility(state: GameState, unitId: string, ability: string): boolean {
+  const unit = state.units[unitId]
+  if (!unit) return false
+  for (const modelId of unit.models) {
+    for (const weaponId of state.models[modelId]?.weapons ?? []) {
+      if (state.weapons[weaponId]?.abilities.some((a) => a.ability === ability)) return true
+    }
+  }
+  return false
+}
+
+/** What one move type means for this particular unit, for the hover help on a `declareMove` prompt.
+ *  Null for a type that isn't a move (or a unit that can't be resolved). */
+export function moveTypeHelp(state: GameState, unitId: string, moveType: MoveType): MoveTypeHelp | null {
+  const unit = state.units[unitId]
+  if (!unit) return null
+  const M = unitMove(state, unitId)
+  const far = M === null ? 'its Move' : `${M}"`
+  const assault = unitHasWeaponAbility(state, unitId, 'ASSAULT')
+  const heavy = unitHasWeaponAbility(state, unitId, 'HEAVY')
+  const waaagh = state.players[unit.player]?.waaagh?.activeRound === state.round
+
+  switch (moveType) {
+    case 'normal':
+      return {
+        title: 'Normal move',
+        lines: [
+          `Move each model up to ${far}, no closer than 1" to any enemy.`,
+          'The unit can still shoot and declare a charge this turn.',
+        ],
+      }
+    case 'advance':
+      return {
+        title: 'Advance',
+        lines: [
+          M === null
+            ? "Move as normal, with 1D6\" added to the unit's Move for this phase."
+            : `Move each model up to ${far} + 1D6" — ${M + 1}" to ${M + 6}" this phase.`,
+          assault
+            ? 'The unit cannot shoot this turn except with its Assault weapons.'
+            : 'The unit cannot shoot this turn.',
+          waaagh
+            ? 'Normally it could not charge either, but the Waaagh! lets it charge anyway.'
+            : 'It cannot declare a charge this turn.',
+        ],
+      }
+    case 'stationary':
+      return {
+        title: 'Remain Stationary',
+        lines: [
+          'No model moves.',
+          heavy
+            ? 'Its Heavy weapons get +1 to hit this turn — the reason to stand still.'
+            : 'It can still shoot and charge; nothing is given up by standing still.',
+        ],
+      }
+    case 'fallBack':
+      return {
+        title: 'Fall Back',
+        lines: [
+          `Move each model up to ${far}, and every model must end more than 1" from every enemy.`,
+          'The unit cannot shoot or declare a charge this turn.',
+          unit.battleShocked
+            ? 'Battle-shocked: every model takes a Desperate Escape test — each 1 or 2 destroys a model.'
+            : 'Any model that moves over an enemy takes a Desperate Escape test — a 1 or 2 destroys a model.',
+        ],
+      }
+    default:
+      return null
+  }
 }

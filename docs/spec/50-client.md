@@ -132,6 +132,14 @@ context doesn't carry it:
 Options that name a board thing highlight it on hover — a unit, an objective, or (for `allocateAttack`)
 the single model, which the unit-level highlight cannot pick out.
 
+`declareMove`'s options are rules in disguise — what each move costs the unit this turn *is* the
+choice — so resting on one for 450ms opens a help card above the row, written in that unit's own
+numbers: its Move characteristic ("Move each model up to 5""), the range an Advance can reach
+(`M+1`–`M+6`), whether it has Assault weapons to fire after Advancing or Heavy weapons that reward
+Remaining Stationary, and whether a Fall Back means every model tests for Desperate Escape (it is
+Battle-shocked) or only those crossing an enemy. The card never takes pointer events, so it cannot
+intercept the click it is explaining.
+
 ## 7. Camera
 
 Orbit camera (`OrbitControls`-like, custom): target on board plane, distance 8–60, polar 15°–80°, pan with WASD/middle-drag, clamp target inside board ± 6. Presets: `overview` (default, from player's edge), `topDown`, `focus(unit)` (smooth dolly to unit, 12" distance). Auto-focus on the acting unit during AI turns and on charge/fight resolution (toggle). Camera never blocks input; all transitions ≤ 600 ms and interruptible.
