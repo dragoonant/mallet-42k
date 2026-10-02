@@ -3,6 +3,7 @@
 import { useState, type CSSProperties } from 'react'
 import type { DiceRoll, GameState, RollPurpose } from '@/engine'
 import { useGameStore } from '../store/game'
+import { useDisplayState, usePresentedStore } from '../presentation/presentedStore'
 import { colors, mutedText, panel } from './theme'
 
 // Collapsed by default and capped to a handful of rows — expanded, the panel used to cover the
@@ -10,12 +11,12 @@ import { colors, mutedText, panel } from './theme'
 const MAX_VISIBLE_ROWS = 6
 const ROW_HEIGHT = 22
 
+// Positioned by App.tsx's right-hand rail (which also holds the dice tray directly underneath this
+// panel), so the log only sizes itself — a rail block, not an absolutely-placed overlay of its own.
 const wrap: CSSProperties = {
   ...panel,
-  position: 'absolute',
-  right: 12,
-  top: 70,
-  width: 190,
+  width: '100%',
+  boxSizing: 'border-box',
   padding: 10,
   display: 'flex',
   flexDirection: 'column',
@@ -77,11 +78,15 @@ function describeRoll(roll: DiceRoll, state: GameState): string {
 }
 
 export function DiceLog() {
-  const state = useGameStore((s) => s.state)
-  const diceLog = useGameStore((s) => s.diceLog)
+  const state = useDisplayState()
+  const events = useGameStore((s) => s.events)
+  const presentedSeq = usePresentedStore((s) => s.presentedSeq)
   const [collapsed, setCollapsed] = useState(true)
   if (!state) return null
-  const recent = diceLog.slice(-40)
+  // diceLog carries no seq, so derive the visible rolls from the DiceRolled events themselves.
+  const shown: DiceRoll[] = []
+  for (const e of events) if (e.type === 'DiceRolled' && e.seq <= presentedSeq) shown.push(e.roll)
+  const recent = shown.slice(-40)
 
   return (
     <div style={wrap} data-testid="dice-log">

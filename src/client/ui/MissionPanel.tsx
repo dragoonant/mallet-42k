@@ -3,6 +3,7 @@
 // top bar; pure readout of state.mission + the loaded DataBundle's secondaries.
 import type { CSSProperties } from 'react'
 import { useGameStore } from '../store/game'
+import { useDisplayState } from '../presentation/presentedStore'
 import { missionRuleLabel, primaryScoringSummary, secondaryFor } from './labels'
 import { colors, mutedText, panel } from './theme'
 
@@ -23,7 +24,7 @@ const sectionTitle: CSSProperties = { ...mutedText, textTransform: 'uppercase', 
 const list: CSSProperties = { margin: 0, paddingLeft: 18, fontSize: 12.5 }
 
 export function MissionPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const state = useGameStore((s) => s.state)
+  const state = useDisplayState()
   const bundle = useGameStore((s) => s.bundle)
   if (!open || !state) return null
 

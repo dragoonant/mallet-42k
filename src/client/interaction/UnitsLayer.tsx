@@ -13,6 +13,7 @@ import { Figure } from '../figures'
 import { SelectionRing, TargetRing, LosMarker } from '../board'
 import { colors } from '../ui/theme'
 import { useGameStore } from '../store/game'
+import { useDisplayState } from '../presentation/presentedStore'
 import { useUiStore } from '../ui/uiStore'
 import { useCueStore } from '../presentation'
 import { clickableUnitIds, unitClickAction } from './decisions'
@@ -66,7 +67,7 @@ function ModelFigure({
 }
 
 export function UnitsLayer() {
-  const state = useGameStore((s) => s.state)
+  const state = useDisplayState()
   const pending = useGameStore((s) => s.pending)
   const legal = useGameStore((s) => s.legal)
   const botSeat = useGameStore((s) => s.botSeat)

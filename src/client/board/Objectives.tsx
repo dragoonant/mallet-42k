@@ -5,7 +5,7 @@
 // having to thread that state through.
 import { useEffect, useRef, useState } from 'react'
 import { Html } from '@react-three/drei'
-import { useGameStore } from '../store/game'
+import { useDisplayState } from '../presentation/presentedStore'
 import { useUiStore } from '../ui/uiStore'
 import { prettifyId } from '../ui/labels'
 import { colors, fontStack } from '../ui/theme'
@@ -24,7 +24,7 @@ interface Ghost {
 }
 
 export function Objectives() {
-  const state = useGameStore((s) => s.state)
+  const state = useDisplayState()
   const hoveredObjectiveId = useUiStore((s) => s.hoveredObjectiveId)
   const prevRemoved = useRef<Record<string, boolean>>({})
   const [ghosts, setGhosts] = useState<Ghost[]>([])

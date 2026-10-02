@@ -14,6 +14,23 @@ import { PresentationDirector } from './presentation'
 
 const overlayLayer: CSSProperties = { position: 'absolute', inset: 0, pointerEvents: 'none' }
 
+/** Right-hand rail: the Dice Log with the dice tray stacked directly under it. The tray used to sit
+ *  bottom-centre, where the decision prompt covered the very dice it was asking about; stacking the two
+ *  here keeps a roll beside its own log, and lets the tray shift down on its own when the log is
+ *  expanded. Bottom-stopped well clear of the event feed (also right-docked, at bottom: 12). */
+const rightRail: CSSProperties = {
+  position: 'absolute',
+  right: 12,
+  top: 70,
+  bottom: 220,
+  width: 200,
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'stretch',
+  gap: 8,
+  pointerEvents: 'none',
+}
+
 // e2e/dev hook: exposes the two client stores on `window` so Playwright can drive/inspect the game
 // directly (e.g. dispatch deployment actions, read deployed model positions) instead of simulating
 // fragile mouse gestures. Harmless in production — just two store references, no behaviour change.
@@ -77,13 +94,15 @@ export function App() {
       <div style={overlayLayer}>
         <Hud />
         <UnitCard />
-        <DiceLog />
+        <div style={rightRail}>
+          <DiceLog />
+          <DiceTray />
+        </div>
         <EventFeed />
         <StratagemPanel />
         <DecisionPrompt />
         <Toast />
         <VpToast />
-        <DiceTray />
         <SettingsPanel />
       </div>
       <EndScreen onPlayAgain={() => setScreen('start')} />

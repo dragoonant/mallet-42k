@@ -1,4 +1,4 @@
-// Bottom-centre dice tray. Renders the roll currently playing in useDiceStore (fed by playRoll(),
+// Dice tray. Renders the roll currently playing in useDiceStore (fed by playRoll(),
 // see playRoll.ts) — nothing else in the client touches this store directly. Deliberately
 // self-contained (own colour tokens, no import from src/client/ui) since src/client/dice/** is
 // this module's whole ownership boundary in a shared working tree.
@@ -26,14 +26,15 @@ function injectKeyframesOnce() {
   document.head.appendChild(style)
 }
 
+// The tray used to sit bottom-centre, where the decision prompt also lives — an attack's dice were
+// routinely hidden behind the prompt asking about them. It now renders as a block inside App.tsx's
+// right-hand rail, directly under the Dice Log, so the two stack instead of fighting: no positioning of
+// its own beyond filling the rail's width, and the rail re-flows when the log is expanded or collapsed.
 const wrap: CSSProperties = {
-  position: 'absolute',
-  left: '50%',
-  bottom: 16,
-  transform: 'translateX(-50%)',
+  width: '100%',
   pointerEvents: 'none',
   display: 'flex',
-  justifyContent: 'center',
+  justifyContent: 'stretch',
   zIndex: 20,
 }
 
@@ -53,12 +54,13 @@ const panelStyle: CSSProperties = {
   fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
   boxShadow: '0 8px 28px rgba(0,0,0,0.5)',
   backdropFilter: 'blur(6px)',
-  padding: '10px 14px 12px',
+  padding: '8px 10px 10px',
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
   gap: 6,
-  maxWidth: 'min(90vw, 640px)',
+  width: '100%',
+  boxSizing: 'border-box',
   animation: 'mallet-dice-tray-in 180ms ease-out',
 }
 
@@ -66,9 +68,12 @@ const headerRow: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  gap: 10,
-  fontSize: 13,
+  flexWrap: 'wrap',
+  gap: 6,
+  fontSize: 12,
   fontWeight: 700,
+  textAlign: 'center',
+  lineHeight: 1.25,
 }
 
 const queueBadge: CSSProperties = {
@@ -89,8 +94,8 @@ const diceRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   justifyContent: 'center',
-  gap: 6,
-  maxWidth: 600,
+  gap: 5,
+  width: '100%',
 }
 
 export function DiceTray() {
@@ -106,7 +111,8 @@ export function DiceTray() {
   const { request, dice, phase, id } = current
   const { tumbleMs, flipMs } = DURATIONS[speed]
   const n = dice.length
-  const size = n > 30 ? 18 : n > 16 ? 24 : n > 8 ? 30 : n > 4 ? 34 : 46
+  // Sized for the right rail's ~180px of usable width: 4 big dice, or 5-6 smaller ones, per row.
+  const size = n > 30 ? 16 : n > 16 ? 20 : n > 8 ? 26 : n > 4 ? 30 : 38
   const hasTarget = request.target !== undefined
   const hasOutcome = dice.some((d) => d.outcome !== 'neutral')
   const collapsed = n > SUMMARY_THRESHOLD && hasOutcome

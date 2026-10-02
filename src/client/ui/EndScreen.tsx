@@ -3,6 +3,7 @@
 import type { CSSProperties } from 'react'
 import type { GameState, PlayerId } from '@/engine'
 import { useGameStore } from '../store/game'
+import { useDisplayState } from '../presentation/presentedStore'
 import { secondaryScoringIds } from './labels'
 import { buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 
@@ -48,7 +49,7 @@ function roundTotals(state: GameState, round: number, player: PlayerId, secondar
 }
 
 export function EndScreen({ onPlayAgain }: { onPlayAgain: () => void }) {
-  const state = useGameStore((s) => s.state)
+  const state = useDisplayState()
   const bundle = useGameStore((s) => s.bundle)
   const result = state?.result
   if (!state || !result) return null
