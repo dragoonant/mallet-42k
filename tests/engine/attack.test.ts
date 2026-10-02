@@ -165,8 +165,13 @@ describe('attack sequence: saves', () => {
     const state = stateWith(unattached())
     place(state)
     let sawSaveType = false
+    let offered: Record<string, unknown> | null = null
     const chooseInvuln: Choose = (p) => {
-      if (p.kind === 'chooseOption' && p.context.topic === 'saveType') { sawSaveType = true; return { type: 'chooseOption', player: p.player, decisionId: p.id, optionId: 'invuln' } }
+      if (p.kind === 'chooseOption' && p.context.topic === 'saveType') {
+        sawSaveType = true
+        offered = p.context.data
+        return { type: 'chooseOption', player: p.player, decisionId: p.id, optionId: 'invuln' }
+      }
       return firstOption(p)
     }
     // walker's fist (AP-2) vs A:boss (Sv3+, invuln 4+): armour needs 5+, invuln needs 4+
@@ -178,6 +183,46 @@ describe('attack sequence: saves', () => {
     expect(sawSaveType).toBe(true)
     const save = eventsOf(evs, 'SaveRolled')[0]
     expect(save).toMatchObject({ kind: 'invuln', needed: 4, die: 4, saved: true })
+    // The choice has to carry what each save would actually have to roll — AP and every modifier
+    // already applied — or it can't be made on anything but a guess (docs/spec/00-architecture.md §3).
+    expect(offered).toMatchObject({ sv: 3, ap: -2, cover: false, invuln: 4, armourTarget: 5, invulnTarget: 4 })
+  })
+
+  it('SHOOT-024 the save target offered with the choice is the one the dice are then judged against', () => {
+    // Same fist-into-boss attack, but taking the armour save: its published 5+ must be exactly the
+    // number the resolution uses, on a die either side of it.
+    for (const [die, expectSaved] of [[4, false], [5, true]] as const) {
+      const state = stateWith(unattached())
+      place(state)
+      let armourTarget: number | null = null
+      const chooseArmour: Choose = (p) => {
+        if (p.kind === 'chooseOption' && p.context.topic === 'saveType') {
+          armourTarget = p.context.data.armourTarget as number
+          return { type: 'chooseOption', player: p.player, decisionId: p.id, optionId: 'armour' }
+        }
+        return firstOption(p)
+      }
+      const { ctx, events } = ctxFor(state, [6, 6, die, ...TAIL])
+      attackService.begin(ctx, { kind: 'melee', attackerUnitId: 'A:walker', overwatch: false, targets: [target('A:walker#0', 'red.w.fist', 'A:boss', 1)] })
+      const save = eventsOf(drive({ ctx, events }, chooseArmour), 'SaveRolled')[0]
+      expect(armourTarget).toBe(5)
+      expect(save.die).toBe(die)
+      expect(save.saved).toBe(expectSaved)
+      expect(save.saved).toBe(save.die >= (armourTarget as unknown as number))
+    }
+  })
+
+  it('SHOOT-024 the same numbers are published on the attack before the save is rolled, for a re-roll offer to show', () => {
+    const state = stateWith(unattached())
+    place(state)
+    const { ctx } = ctxFor(state, [6, 6, 5, ...TAIL])
+    attackService.begin(ctx, { kind: 'melee', attackerUnitId: 'A:walker', overwatch: false, targets: [target('A:walker#0', 'red.w.fist', 'A:boss', 1)] })
+    // Stop at the first decision rather than driving through: the save stage publishes its numbers
+    // before it asks anything, which is what lets a Command Re-roll offer on the save roll — raised
+    // before SaveRolled exists — show the real target.
+    attackService.advance(ctx)
+    expect(ctx.state.pending?.kind).toBe('chooseOption')
+    expect(ctx.state.phaseState.attack?.current?.saveTargets).toMatchObject({ sv: 3, ap: -2, cover: false, armour: 5, invuln: 4 })
   })
 
   it('SHOOT-025 an unmodified save roll of 1 always fails', () => {

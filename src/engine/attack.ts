@@ -166,14 +166,14 @@ function computeAttackCount(ctx: EngineContext, gi: number, group: AttackGroup, 
 // ---------- current-attack lifecycle ----------
 
 function freshCurrentAttack(gi: number, attackerModelId: ModelId): CurrentAttack {
-  return { groupIndex: gi, attackerModelId, stage: 'hit', hit: null, wound: null, allocatedModelId: null, save: null, damage: null, cover: false }
+  return { groupIndex: gi, attackerModelId, stage: 'hit', hit: null, wound: null, allocatedModelId: null, save: null, saveTargets: null, damage: null, cover: false }
 }
 
 function freshDevastatingAttack(gi: number, attackerModelId: ModelId): CurrentAttack {
   return {
     groupIndex: gi, attackerModelId, stage: 'allocate', hit: null,
     wound: { die: 0, final: 0, critical: true, auto: false }, allocatedModelId: null,
-    save: { kind: 'none', die: 0, final: 0, passed: false }, damage: null, cover: false,
+    save: { kind: 'none', die: 0, final: 0, passed: false }, saveTargets: null, damage: null, cover: false,
   }
 }
 
@@ -473,6 +473,20 @@ function doAllocateStage(ctx: EngineContext, gi: number, group: AttackGroup): 'p
 
 // ---------- save stage (R-6.14, R-3.11-3.14 cover, R-6.21 modifier caps) ----------
 
+/** The d6 a save of this kind has to beat, given the modifiers in force (R-6.14, R-6.21).
+ *
+ *  The engine resolves a save as `die + ap + min(1, positive) + negative >= needed`, with an
+ *  unmodified 1 always failing, so the number the player actually has to roll is that inequality
+ *  rearranged. Positive modifiers are capped at +1 in total (the cover bonus is one of them);
+ *  negatives are not, matching the comparison below. A result above 6 means the save cannot be made
+ *  at all — the caller's own impossibility check (`bestPossible`) is this same arithmetic.
+ *
+ *  Both the save stage and the armour-or-invulnerable choice it offers read their numbers from here,
+ *  so a prompt can never show a different target from the one the dice are judged against. */
+function saveTarget(needed: number, ap: number, positive: number, negative: number): number {
+  return Math.max(2, needed - ap - Math.min(1, positive) - negative)
+}
+
 function collectSaveMods(ctx: EngineContext, actx: AttackContext, roll: DiceRoll) {
   return ctx.services.hooks.collect(ctx, 'onSaveRoll', { attack: actx, roll: { purpose: 'save', roll, dieIndex: 0, unmodified: roll.dice[0], rerolled: false } })
     .map((r) => r.result).filter(isRoll)
@@ -496,13 +510,37 @@ function doSaveStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pendi
   let invuln: number | null = dsInvuln
   for (const r of preResults) if (r.invuln !== undefined) invuln = invuln === null ? r.invuln : Math.min(invuln, r.invuln)
 
+  // Modifiers from the pre-pass. These don't depend on the die's value (the impossibility check below
+  // relies on the same thing), so they are also what the player is shown before choosing a save.
+  let hookPositive = 0
+  let preNegative = 0
+  for (const r of preResults) {
+    if (r.modifier === undefined) continue
+    if (r.modifier > 0) hookPositive += r.modifier
+    else preNegative += r.modifier
+  }
+  const sv = ctx.services.hooks.statFor ? ctx.services.hooks.statFor(s, { unitId: model.unitId, modelId, weapon: null, stat: 'Sv' }, modelStats(s, model).Sv) : modelStats(s, model).Sv
+  // Cover only ever helps an armour save (R-3.11); AP only ever hurts one.
+  const armourTarget = saveTarget(sv, weapon.AP, hookPositive + (cover ? 1 : 0), preNegative)
+  const invulnTarget = invuln === null ? null : saveTarget(invuln, 0, hookPositive, preNegative)
+  // Published on the attack so the client can show the real numbers — both in the choice below and in
+  // a Command Re-roll offer on the save roll, which opens before SaveRolled is emitted. Recomputed
+  // from scratch on every re-entry into this stage, so it can never go stale.
+  cur.saveTargets = { sv, ap: weapon.AP, cover, armour: armourTarget, invuln: invulnTarget }
+
   let kind: 'armour' | 'invuln'
   if (invuln !== null) {
     if (!cur.save || cur.save.kind === 'none') {
       const owner = s.units[model.unitId].player
       ctx.decide({
         kind: 'chooseOption', player: owner, window: 'any.rollMade', canPass: false,
-        context: { topic: 'saveType', unitId: model.unitId, abilityId: null, data: { modelId, invuln } },
+        // `invuln` is the characteristic (a 4++ is 4); `armourTarget`/`invulnTarget` are what each
+        // save actually has to roll once AP, cover and any modifiers are in — which is the whole
+        // basis of this choice, and not something the client can work out for itself.
+        context: {
+          topic: 'saveType', unitId: model.unitId, abilityId: null,
+          data: { modelId, invuln, armourTarget, invulnTarget, sv, ap: weapon.AP, cover, weaponId: weapon.id, attackerUnitId: a.attackerUnitId },
+        },
         options: [
           { id: 'armour', label: 'Armour save', action: { type: 'chooseOption', player: owner, decisionId: '', optionId: 'armour' } },
           { id: 'invuln', label: 'Invulnerable save', action: { type: 'chooseOption', player: owner, decisionId: '', optionId: 'invuln' } },
@@ -515,7 +553,6 @@ function doSaveStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pendi
     kind = 'armour'
   }
 
-  const sv = ctx.services.hooks.statFor ? ctx.services.hooks.statFor(s, { unitId: model.unitId, modelId, weapon: null, stat: 'Sv' }, modelStats(s, model).Sv) : modelStats(s, model).Sv
   const needed = kind === 'armour' ? sv : (invuln as number)
   const ap = kind === 'armour' ? weapon.AP : 0
   // WEAP-008-dice/WEAP-011: same per-slot suffix as the wound key so a Sustained Hits extra hit's save never reuses
@@ -524,13 +561,7 @@ function doSaveStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pendi
 
   // R-6.14/SHOOT-026: when even an unmodified 6 could not reach `needed`, the save is impossible — record it as
   // failed without rolling (modifiers here don't depend on the die's value, so the pre-pass numbers already apply).
-  let prePositive = kind === 'armour' && cover ? 1 : 0
-  let preNegative = 0
-  for (const r of preResults) {
-    if (r.modifier === undefined) continue
-    if (r.modifier > 0) prePositive += r.modifier
-    else preNegative += r.modifier
-  }
+  const prePositive = hookPositive + (kind === 'armour' && cover ? 1 : 0)
   const bestPossible = 6 + ap + Math.min(1, prePositive) + preNegative
   if (bestPossible < needed) {
     ctx.emit({ type: 'SaveRolled', attack: rollAttackCtx(actx), modelId, kind, die: 0, final: 0, needed, saved: false })

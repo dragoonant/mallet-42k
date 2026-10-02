@@ -12,7 +12,7 @@ import { useUiStore } from './uiStore'
 import {
   combinedUnitIds, combinedUnitModels, distance2D, formationPlacementsForUnit, modelsAnchor, placementInfo, validateDraft,
 } from '../interaction'
-import { objectiveLabel, prettifyId, rerollContext, saveChoiceContext } from './labels'
+import { objectiveLabel, prettifyId, rerollContext, saveAttackContext, saveChoiceFromDecisionData } from './labels'
 import { FormationPicker } from './FormationPicker'
 import { buttonBase, buttonDanger, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 
@@ -214,15 +214,12 @@ function labelForOption(pending: PendingDecision, state: GameState, events: read
     case 'chooseOption': {
       if (pending.context.topic === 'razeObjective' || pending.context.topic === 'recoverObjective') return objectiveLabel(o.id)
       if (pending.context.topic === 'saveType') {
-        const modelId = typeof pending.context.data.modelId === 'string' ? pending.context.data.modelId : null
-        const invuln = typeof pending.context.data.invuln === 'number' ? pending.context.data.invuln : null
-        if (o.id === 'invuln' && invuln !== null) return `Invulnerable save — ${invuln}+`
-        if (o.id === 'armour' && modelId && invuln !== null) {
-          const ctx = saveChoiceContext(state, events, modelId, invuln)
-          if (ctx?.armourNeeded !== null && ctx !== null) {
-            return ctx.armourNeeded > 6 ? `Armour save — ${ctx.armourNeeded}+ (impossible)` : `Armour save — ${ctx.armourNeeded}+`
-          }
-        }
+        // The engine hands us what each save must actually roll (AP, cover and modifiers in) —
+        // see docs/spec/00-architecture.md §3. Never re-derive it here.
+        const ctx = saveChoiceFromDecisionData(state, pending.context.data)
+        const needed = o.id === 'invuln' ? ctx?.invulnNeeded : ctx?.armourNeeded
+        const name = o.id === 'invuln' ? 'Invulnerable save' : 'Armour save'
+        if (typeof needed === 'number') return needed > 6 ? `${name} — ${needed}+ (impossible)` : `${name} — ${needed}+`
       }
       return o.label
     }
@@ -494,7 +491,7 @@ export function DecisionPrompt() {
 
       {pending.kind === 'allocateAttack' && (() => {
         // Same gap as the save choice: the prompt named models but never said what was hitting them.
-        const ctx = saveChoiceContext(state, events, pending.context.eligibleModels[0] ?? '', 0)
+        const ctx = saveAttackContext(state, events, pending.context.eligibleModels[0] ?? '')
         const dmg = pending.context.damage
         return (
           <div style={infoBlock} data-testid="allocate-context">
@@ -514,33 +511,33 @@ export function DecisionPrompt() {
       })()}
 
       {pending.kind === 'chooseOption' && pending.context.topic === 'saveType' && (() => {
-        const modelId = typeof pending.context.data.modelId === 'string' ? pending.context.data.modelId : null
-        const invuln = typeof pending.context.data.invuln === 'number' ? pending.context.data.invuln : null
-        const ctx = modelId && invuln !== null ? saveChoiceContext(state, events, modelId, invuln) : null
+        const ctx = saveChoiceFromDecisionData(state, pending.context.data)
         if (!ctx) return null
         const apText = ctx.ap === 0 ? 'AP 0' : `AP ${ctx.ap}`
+        const armour = ctx.armourNeeded
+        const invuln = ctx.invulnNeeded
+        const better =
+          armour === null || invuln === null
+            ? null
+            : armour > invuln
+              ? 'The invulnerable save is the better roll here.'
+              : armour < invuln
+                ? 'The armour save is the better roll here.'
+                : 'Both saves need the same roll.'
         return (
           <div style={infoBlock} data-testid="save-context">
             <div style={{ color: colors.text, fontWeight: 600 }}>
               Incoming: {ctx.weaponName} ({apText}){ctx.attackerName ? ` — ${ctx.attackerName}` : ''}
             </div>
             <div>
-              {ctx.armourNeeded === null
+              {armour === null
                 ? 'Armour save: unknown'
-                : ctx.armourNeeded > 6
-                  ? `Armour save ${ctx.sv}+ is useless against ${apText} (needs ${ctx.armourNeeded}+)`
-                  : `Armour save ${ctx.sv}+ becomes ${ctx.armourNeeded}+ against ${apText}`}
-              {' · '}
-              Invulnerable save {ctx.invulnNeeded}+ (AP never applies)
+                : armour > 6
+                  ? `Armour save ${ctx.sv}+ cannot be made against ${apText} (would need ${armour}+)`
+                  : `Armour save ${ctx.sv}+ needs ${armour}+ here${ctx.cover ? ' (cover already counted)' : ''}`}
+              {invuln !== null && ` · Invulnerable save needs ${invuln}+ (AP never applies)`}
             </div>
-            <div style={{ marginTop: 3 }}>
-              {ctx.armourNeeded !== null && ctx.armourNeeded > ctx.invulnNeeded
-                ? 'The invulnerable save is the better roll here.'
-                : ctx.armourNeeded !== null && ctx.armourNeeded < ctx.invulnNeeded
-                  ? 'The armour save is the better roll here.'
-                  : 'Both saves need the same roll.'}
-              {' Cover, where it applies, improves the armour save by 1.'}
-            </div>
+            {better && <div style={{ marginTop: 3 }}>{better}</div>}
           </div>
         )
       })()}

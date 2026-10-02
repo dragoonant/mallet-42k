@@ -83,6 +83,20 @@ interface PendingDecision {
 | `commandReroll` | either | use CP reroll on the roll just made, or pass |
 | `confirm` | any | acknowledge (battle-shock result, end of game) — `options` = [ok] |
 
+A `chooseOption` decision's `context.data` is an open record; the keys each topic carries are
+documented beside `ChooseOptionDecision` in `src/engine/types.ts`. Two topics put numbers there that
+the player cannot work out from the visible state:
+
+- `rerollOffer` — `{ rollId, dieIndexes }` (10-rules R-6.24).
+- `saveType` — `{ modelId, invuln, armourTarget, invulnTarget, sv, ap, cover, weaponId, attackerUnitId }`.
+  `invuln` is the characteristic; `armourTarget`/`invulnTarget` are the d6 each save must actually beat
+  once AP, the benefit of cover and any hook modifiers are applied (R-6.14, R-6.21) — the same numbers
+  the save stage judges the dice against, and the whole basis of the armour-or-invulnerable choice.
+  A target above 6 means that save cannot be made at all. The same pair is published on
+  `CurrentAttack.saveTargets` (`GameState.phaseState.attack.current`) before the save is rolled, so a
+  Command Re-roll offer on a save roll — which opens *before* `SaveRolled` is emitted — can show the
+  real target too. Both are display-only: the save stage recomputes from the modifiers in force.
+
 Stratagem and reaction interrupt windows are ordinary `PendingDecision`s of kind `stratagemWindow`/`reactionWindow` offered to the *reacting* player. The engine opens a window only when the reacting player has ≥1 affordable, legal stratagem for that `TimingWindowId` (or a legal reaction); otherwise it skips the window and emits no decision. This keeps human play snappy and bounds AI decisions.
 
 Window ordering when both players could act in the same window: active player first, then the opponent (a fresh `PendingDecision` each) — except the defensive windows `shooting.targetsDeclared` and `fight.targetsDeclared`, where the player whose unit was targeted goes first (10-rules R-11.5). Outside a turn (`round.*`, `battle.end`) the first-turn player goes first **[interp: replaces the R-1.3 roll-off; no conflicting simultaneous triggers exist in scope]**.

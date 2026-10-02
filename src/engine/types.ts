@@ -241,6 +241,13 @@ export interface CurrentAttack {
   wound: { die: number; final: number; critical: boolean; auto: boolean } | null
   allocatedModelId: ModelId | null
   save: { kind: 'armour' | 'invuln' | 'none'; die: number; final: number; passed: boolean } | null
+  /** What each save actually has to roll once AP, cover and any modifiers are in — the numbers the
+   *  save stage judges the dice against, published so a UI can show them. Written when the save stage
+   *  computes them (before it offers the armour-or-invulnerable choice, and before it rolls, so a
+   *  Command Re-roll offer on the save can show the real target too); null until then, and null for
+   *  `invuln` when the model has no invulnerable save. A target above 6 means the save cannot be made.
+   *  Display only — the save stage recomputes from the modifiers in force rather than reading this. */
+  saveTargets: { sv: number; ap: number; cover: boolean; armour: number; invuln: number | null } | null
   damage: number | null
   cover: boolean
 }
@@ -421,6 +428,8 @@ export type ChooseOptionTopic =
 export interface ChooseOptionDecision extends DecisionBase {
   kind: 'chooseOption'
   // rerollOffer: data = { rollId, dieIndexes: number[] } (R-6.24); options = one per re-rollable die + keep
+  // saveType: data = { modelId, invuln, armourTarget, invulnTarget, sv, ap, cover, weaponId, attackerUnitId } —
+  //   `invuln` is the characteristic, the two *Target fields the d6 each save must beat (see CurrentAttack.saveTargets)
   context: { topic: ChooseOptionTopic; unitId: UnitId | null; abilityId: Id | null; data: Record<string, unknown> }
   options: DecisionOption[]
 }

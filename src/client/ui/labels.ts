@@ -236,11 +236,15 @@ function rerollTargetText(state: GameState, events: readonly GameEvent[], roll: 
       return ` — S${S} vs T${T}, needs ${woundRollNeeded(S, T)}+`
     }
     case 'save': {
-      if (!roll.modelId) return ''
-      const ctx = saveChoiceContext(state, events, roll.modelId, 0)
-      if (!ctx || ctx.armourNeeded === null) return ''
-      const apText = ctx.ap === 0 ? 'AP 0' : `AP ${ctx.ap}`
-      return ` — armour ${ctx.sv}+ against ${apText} needs ${ctx.armourNeeded}+`
+      // The engine publishes the target of the save actually being made (armour or invulnerable,
+      // whichever the player took) before it rolls — this window opens before SaveRolled exists.
+      const targets = saveTargetsInFlight(state)
+      const kind = state.phaseState?.attack?.current?.save?.kind
+      if (!targets || !kind || kind === 'none') return ''
+      const needed = kind === 'invuln' ? targets.invuln : targets.armour
+      if (needed === null) return ''
+      const basis = kind === 'invuln' ? 'invulnerable save' : `armour ${targets.sv}+${targets.ap === 0 ? '' : ` against AP ${targets.ap}`}${targets.cover ? ' in cover' : ''}`
+      return ` — ${basis} needs ${needed}+`
     }
     default:
       return ''
@@ -286,48 +290,55 @@ export interface SaveChoiceContext {
   attackerName: string
   /** The model's own Save characteristic, before AP. */
   sv: number | null
-  /** What the armour save needs after AP — null when the model's Sv is unknown, 7+ meaning it can
-   *  only be made with a modifier (cover). */
+  /** What the armour save must actually roll — AP, the benefit of cover and any modifiers already
+   *  applied. Above 6 means it cannot be made at all. Null when the engine didn't publish it. */
   armourNeeded: number | null
-  invulnNeeded: number
+  /** What the invulnerable save must actually roll, modifiers included. */
+  invulnNeeded: number | null
+  /** Whether the engine counted the target as being in cover — it is why an armour save can be
+   *  better than the AP arithmetic alone suggests. */
+  cover: boolean
 }
 
-/** The incoming attack behind a `saveType` choice: which weapon, its AP, and therefore what each of
- *  the two saves actually needs. Read off the most recent WoundRolled for this model's unit, which
- *  is the wound that caused this save (the engine opens the choice inside that attack's save stage).
- *
- *  Deliberately the *base* numbers: the engine also applies save modifiers the client can't see —
- *  the benefit of cover is +1 to an armour save — so the armour figure is a floor, never optimistic
- *  about the invulnerable one. That is the right way round for this decision: cover can only make
- *  armour better than shown, and the AP comparison the player is actually making is exact. */
-export function saveChoiceContext(state: GameState, events: readonly GameEvent[], modelId: string, invuln: number): SaveChoiceContext | null {
+/** The numbers the engine published for a `saveType` decision (`context.data` — see
+ *  docs/spec/00-architecture.md §3). These are the real targets, modifiers and all: the client used
+ *  to derive `sv - AP` itself, which silently ignored the benefit of cover (+1) and any ability that
+ *  modifies a save, so it could show 5+ for a save the dice were judged against at 4+. */
+export function saveChoiceFromDecisionData(state: GameState, data: Record<string, unknown>): SaveChoiceContext | null {
+  const num = (k: string): number | null => (typeof data[k] === 'number' ? (data[k] as number) : null)
+  const armourTarget = num('armourTarget')
+  if (armourTarget === null) return null
+  const weaponId = typeof data.weaponId === 'string' ? data.weaponId : null
+  const attackerUnitId = typeof data.attackerUnitId === 'string' ? data.attackerUnitId : null
+  return {
+    weaponName: (weaponId ? state.weapons[weaponId]?.name : undefined) ?? 'the attack',
+    ap: num('ap') ?? 0,
+    attackerName: unitNameOf(state, attackerUnitId),
+    sv: num('sv'),
+    armourNeeded: armourTarget,
+    invulnNeeded: num('invulnTarget'),
+    cover: data.cover === true,
+  }
+}
+
+/** The numbers for the save currently being rolled, for a Command Re-roll offer on it — the engine
+ *  publishes them on the attack before it rolls (`CurrentAttack.saveTargets`), because that window
+ *  opens before `SaveRolled` is emitted. Null when no save is in flight. */
+export function saveTargetsInFlight(state: GameState): { sv: number; ap: number; cover: boolean; armour: number; invuln: number | null } | null {
+  // Optional all the way down: a label helper is called from render and must never throw on a
+  // state shape it didn't expect (a fixture, an old save file, a game that hasn't started).
+  return state.phaseState?.attack?.current?.saveTargets ?? null
+}
+
+/** The incoming attack behind a save, from the log: which weapon and whose. Used for the attacker's
+ *  name beside a save roll; the numbers themselves always come from the engine. */
+export function saveAttackContext(state: GameState, events: readonly GameEvent[], modelId: string): { weaponName: string; ap: number; attackerName: string } | null {
   for (let i = events.length - 1; i >= 0; i--) {
     const e = events[i]
     if (e.type !== 'WoundRolled' && e.type !== 'AttackAllocated') continue
-    const weaponId = e.attack.weaponId
-    const weapon = state.weapons[weaponId]
+    const weapon = state.weapons[e.attack.weaponId]
     if (!weapon) continue
-    // modelStats throws (EngineInvariantError) on a missing datasheet/profile. That should never
-    // happen in a live game, but a label helper feeding a prompt must degrade to "unknown" rather
-    // than take the prompt — and the decision itself — down with it.
-    let sv: number | null = null
-    const model = state.models[modelId]
-    if (model) {
-      try {
-        sv = modelStats(state, model).Sv ?? null
-      } catch {
-        sv = null
-      }
-    }
-    const armourNeeded = sv === null ? null : sv - weapon.AP
-    return {
-      weaponName: weapon.name,
-      ap: weapon.AP,
-      attackerName: unitNameOf(state, e.attack.attackerUnitId),
-      sv,
-      armourNeeded,
-      invulnNeeded: invuln,
-    }
+    return { weaponName: weapon.name, ap: weapon.AP, attackerName: unitNameOf(state, e.attack.attackerUnitId) }
   }
   return null
 }
