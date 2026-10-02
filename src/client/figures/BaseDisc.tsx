@@ -1,6 +1,7 @@
 // Base disc + selection/target rings (30-figures.md §6): rings are separate meshes parented to
 // root, never baked into the figure body, and are the only client-only geometry here — the
 // engine only ever sees the base's mm/shape via Model.base, never these meshes.
+import { GCylinder, StdMat } from './shared'
 import { DoubleSide } from 'three'
 import type { PaintColors } from './types'
 
@@ -22,12 +23,12 @@ export function BaseDisc({
   return (
     <group scale={[radiusX, 1, radiusZ]}>
       <mesh position={[0, BASE_THICKNESS / 2, 0]}>
-        <cylinderGeometry args={[1, 1, BASE_THICKNESS, 24]} />
-        <meshStandardMaterial color={colors.trim} roughness={0.7} />
+        <GCylinder args={[1, 1, BASE_THICKNESS, 24]} />
+        <StdMat color={colors.trim} roughness={0.7} />
       </mesh>
       <mesh position={[0, BASE_THICKNESS + 0.002, 0]}>
-        <cylinderGeometry args={[0.92, 0.92, 0.006, 24]} />
-        <meshStandardMaterial color={colors.secondary} roughness={0.75} />
+        <GCylinder args={[0.92, 0.92, 0.006, 24]} />
+        <StdMat color={colors.secondary} roughness={0.75} />
       </mesh>
 
       {highlighted && (

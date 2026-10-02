@@ -6,10 +6,11 @@
 // src/client/presentation's cue store (set by the presentation director as it plays engine events);
 // the walk cycle itself needs no cue at all — Figure infers it from `position` motion on its own, so
 // passing the model's real position (instead of pre-easing it in a wrapper) is all that's needed.
-import { useMemo, useRef, useState, type ReactNode } from 'react'
+import { memo, useCallback, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react'
 import { useFrame } from '@react-three/fiber'
 import type { Group } from 'three'
-import { Figure } from '../figures'
+import { Figure, type FigureAction } from '../figures'
+import { requestFrame } from '../figures/anim'
 import { SelectionRing, TargetRing, LosMarker } from '../board'
 import { colors } from '../ui/theme'
 import { useGameStore } from '../store/game'
@@ -24,47 +25,106 @@ const POSITION_EASE_PER_SEC = 10
 // figures/Figure.tsx's own MOVE_EPS so a caller-driven `moving` flag agrees with what Figure would
 // have inferred itself, for the (rare) figure that isn't wrapped by this component.
 const MOVE_EPS = 0.01
+const LOCAL_ORIGIN = { x: 0, z: 0 }
 
 /** Wraps one model's Figure (+ rings) in a group that eases toward `position` every frame — the
  *  only thing that makes a move/pile-in/consolidate visually register — and tracks whether it's
- *  still mid-ease so Figure can play its walk cycle for exactly as long as the model is travelling. */
-function ModelFigure({
-  position,
-  children,
-}: {
-  position: readonly [number, number, number]
-  children: (moving: boolean) => ReactNode
-}) {
+ *  still mid-ease so Figure can play its walk cycle for exactly as long as the model is travelling.
+ *  Does no per-frame work (and requests no frames) once arrived. */
+function ModelFigure({ x, y, z, children }: { x: number; y: number; z: number; children: (moving: boolean) => ReactNode }) {
   const ref = useRef<Group>(null!)
   const initialized = useRef(false)
   const [moving, setMoving] = useState(false)
   const movingRef = useRef(false)
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     const g = ref.current
     if (!g) return
     if (!initialized.current) {
-      g.position.set(position[0], position[1], position[2])
+      g.position.set(x, y, z)
       initialized.current = true
+      requestFrame(state)
       return
     }
+    if (g.position.x === x && g.position.y === y && g.position.z === z) return // arrived — idle
     const t = Math.min(1, delta * POSITION_EASE_PER_SEC)
-    g.position.x += (position[0] - g.position.x) * t
-    g.position.y += (position[1] - g.position.y) * t
-    g.position.z += (position[2] - g.position.z) * t
+    g.position.x += (x - g.position.x) * t
+    g.position.y += (y - g.position.y) * t
+    g.position.z += (z - g.position.z) * t
 
-    const dx = position[0] - g.position.x
-    const dy = position[1] - g.position.y
-    const dz = position[2] - g.position.z
+    const dx = x - g.position.x
+    const dy = y - g.position.y
+    const dz = z - g.position.z
     const stillMoving = dx * dx + dy * dy + dz * dz > MOVE_EPS * MOVE_EPS
+    if (!stillMoving) g.position.set(x, y, z)
     if (stillMoving !== movingRef.current) {
       movingRef.current = stillMoving
       setMoving(stillMoving)
     }
+    requestFrame(state)
   })
 
   return <group ref={ref}>{children(moving)}</group>
 }
+
+interface UnitModelProps {
+  unitId: string
+  datasheetId: string
+  faction: string
+  x: number
+  y: number
+  z: number
+  rotationY: number
+  baseRadius: number
+  action: FigureAction | undefined
+  isSelected: boolean
+  isClickable: boolean
+  isHovered: boolean
+  los: ComponentProps<typeof LosMarker>['status'] | undefined
+}
+
+/** One model. Memoised on primitives so an unrelated store change re-renders no figures; the click
+ *  handler reads live store state instead of closing over a per-render pending/legal/dispatch. */
+const UnitModel = memo(function UnitModel(p: UnitModelProps) {
+  const { unitId, isSelected, isClickable } = p
+  const onClick = useCallback(
+    (e: { stopPropagation(): void }) => {
+      e.stopPropagation()
+      const { pending, legal, dispatch } = useGameStore.getState()
+      if (isClickable && pending) {
+        const action = unitClickAction(pending, legal, unitId)
+        if (action) {
+          dispatch(action)
+          return
+        }
+      }
+      useUiStore.getState().selectUnit(isSelected ? null : unitId)
+    },
+    [unitId, isSelected, isClickable],
+  )
+  return (
+    <ModelFigure x={p.x} y={p.y} z={p.z}>
+      {(moving) => (
+        <>
+          <Figure
+            datasheetId={p.datasheetId}
+            faction={p.faction}
+            rotationY={p.rotationY}
+            moving={moving}
+            action={p.action}
+            selected={p.isSelected}
+            highlighted={p.isClickable}
+            onClick={onClick}
+          />
+          {p.isSelected && <SelectionRing pos={LOCAL_ORIGIN} baseRadius={p.baseRadius} />}
+          {p.isClickable && <TargetRing pos={LOCAL_ORIGIN} baseRadius={p.baseRadius} />}
+          {p.isHovered && !p.isSelected && !p.isClickable && <SelectionRing pos={LOCAL_ORIGIN} baseRadius={p.baseRadius} color={colors.accent} />}
+          {p.los && <LosMarker pos={LOCAL_ORIGIN} baseRadius={p.baseRadius} status={p.los} />}
+        </>
+      )}
+    </ModelFigure>
+  )
+})
 
 export function UnitsLayer() {
   const state = useDisplayState()
@@ -100,17 +160,6 @@ export function UnitsLayer() {
         const isClickable = interactive && clickable.has(unit.id)
         const isHovered = unit.id === hoveredUnitId
 
-        const handleClick = () => {
-          if (isClickable && pending) {
-            const action = unitClickAction(pending, legal, unit.id)
-            if (action) {
-              dispatch(action)
-              return
-            }
-          }
-          selectUnit(isSelected ? null : unit.id)
-        }
-
         return (
           <group key={unit.id}>
             {unit.models.map((modelId) => {
@@ -119,29 +168,22 @@ export function UnitsLayer() {
               const action = modelAction[modelId] ?? unitAction[unit.id]
               const rotationY = modelFacing[modelId] ?? m.facing
               return (
-                <ModelFigure key={modelId} position={[m.pos.x, m.pos.y, m.pos.z]}>
-                  {(moving) => (
-                    <>
-                      <Figure
-                        datasheetId={unit.datasheetId}
-                        faction={faction}
-                        rotationY={rotationY}
-                        moving={moving}
-                        action={action}
-                        selected={isSelected}
-                        highlighted={isClickable}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleClick()
-                        }}
-                      />
-                      {isSelected && <SelectionRing pos={{ x: 0, z: 0 }} baseRadius={m.base.radius} />}
-                      {isClickable && <TargetRing pos={{ x: 0, z: 0 }} baseRadius={m.base.radius} />}
-                      {isHovered && !isSelected && !isClickable && <SelectionRing pos={{ x: 0, z: 0 }} baseRadius={m.base.radius} color={colors.accent} />}
-                      {losOn && losStatus[unit.id] && <LosMarker pos={{ x: 0, z: 0 }} baseRadius={m.base.radius} status={losStatus[unit.id]} />}
-                    </>
-                  )}
-                </ModelFigure>
+                <UnitModel
+                  key={modelId}
+                  unitId={unit.id}
+                  datasheetId={unit.datasheetId}
+                  faction={faction}
+                  x={m.pos.x}
+                  y={m.pos.y}
+                  z={m.pos.z}
+                  rotationY={rotationY}
+                  baseRadius={m.base.radius}
+                  action={action}
+                  isSelected={isSelected}
+                  isClickable={isClickable}
+                  isHovered={isHovered}
+                  los={losOn ? losStatus[unit.id] : undefined}
+                />
               )
             })}
           </group>

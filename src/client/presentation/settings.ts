@@ -32,10 +32,12 @@ export interface PresentationSettings {
   diceOn: boolean
   ambientOn: boolean
   commandRerollSetting: CommandRerollSetting
+  /** Low graphics: no shadows, device-pixel-ratio capped at 1 (Scene.tsx / board/Lighting.tsx read this). */
+  lowGraphics: boolean
 }
 
 const STORAGE_KEY = 'mallet42k:presentation-settings'
-const DEFAULTS: PresentationSettings = { animSpeed: 'normal', diceOn: true, ambientOn: true, commandRerollSetting: 'onlyWhenItMatters' }
+const DEFAULTS: PresentationSettings = { animSpeed: 'normal', diceOn: true, ambientOn: true, commandRerollSetting: 'onlyWhenItMatters', lowGraphics: false }
 
 function isAnimSpeed(v: unknown): v is AnimSpeed {
   return v === 'normal' || v === 'fast' || v === 'instant'
@@ -56,6 +58,7 @@ function load(): PresentationSettings {
       diceOn: parsed.diceOn !== false,
       ambientOn: parsed.ambientOn !== false,
       commandRerollSetting: isCommandRerollSetting(parsed.commandRerollSetting) ? parsed.commandRerollSetting : DEFAULTS.commandRerollSetting,
+      lowGraphics: parsed.lowGraphics === true,
     }
   } catch {
     return { ...DEFAULTS }
@@ -78,6 +81,7 @@ interface PresentationSettingsStore extends PresentationSettings {
   setDiceOn(on: boolean): void
   setAmbientOn(on: boolean): void
   setCommandRerollSetting(setting: CommandRerollSetting): void
+  setLowGraphics(on: boolean): void
   muteRerolls(mute: RerollMute): void
 }
 
@@ -88,23 +92,28 @@ export const usePresentationSettings = create<PresentationSettingsStore>((set, g
   setAnimSpeed(animSpeed) {
     setDiceSpeed(animSpeed)
     set({ animSpeed })
-    persist({ animSpeed, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting })
+    persist({ animSpeed, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics })
   },
 
   setDiceOn(diceOn) {
     set({ diceOn })
-    persist({ animSpeed: get().animSpeed, diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting })
+    persist({ animSpeed: get().animSpeed, diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics })
   },
 
   setAmbientOn(ambientOn) {
     audio.setAmbientEnabled(ambientOn)
     set({ ambientOn })
-    persist({ animSpeed: get().animSpeed, diceOn: get().diceOn, ambientOn, commandRerollSetting: get().commandRerollSetting })
+    persist({ animSpeed: get().animSpeed, diceOn: get().diceOn, ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics })
   },
 
   setCommandRerollSetting(commandRerollSetting) {
     set({ commandRerollSetting })
-    persist({ animSpeed: get().animSpeed, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting })
+    persist({ animSpeed: get().animSpeed, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting, lowGraphics: get().lowGraphics })
+  },
+
+  setLowGraphics(lowGraphics) {
+    set({ lowGraphics })
+    persist({ animSpeed: get().animSpeed, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics })
   },
 
   // Not persisted, on purpose — see RerollMute. Pass null to start asking again.

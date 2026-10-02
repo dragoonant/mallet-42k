@@ -2,8 +2,9 @@
 // the engine never imports this and never sees anything drawn here, only the Model.base/height
 // numbers this reads from src/data (docs/spec/30-figures.md, top of file). See index.ts for the
 // full per-model API contract this exposes to the wiring layer.
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
+import { requestFrame } from './anim'
 import type { Group } from 'three'
 import type { ThreeEvent } from '@react-three/fiber'
 import { resolveBase, resolveFigureKit, resolvePaintColors, useDataBundle } from './data'
@@ -57,10 +58,12 @@ export interface FigureProps {
   onClick?: (event: ThreeEvent<MouseEvent>) => void
 }
 
-export function Figure({
+const ORIGIN = [0, 0, 0] as const
+
+export const Figure = memo(function Figure({
   datasheetId,
   faction,
-  position = [0, 0, 0],
+  position = ORIGIN,
   rotationY,
   moving,
   action,
@@ -78,6 +81,8 @@ export function Figure({
   const easedPos = useRef({ x: position[0], y: position[1], z: position[2] })
   const easedYaw = useRef(yaw)
   const initialized = useRef(false)
+  // Target (x,y,z,yaw) the figure last fully arrived at; while the props still match, the frame loop does nothing.
+  const settled = useRef<[number, number, number, number] | null>(null)
   const [autoMoving, setAutoMoving] = useState(false)
 
   // Tracks one-shot actions: a change in `action.t0` (any type, compared by !==) restarts the
@@ -93,9 +98,11 @@ export function Figure({
     return () => clearTimeout(timer)
   }, [action])
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     const g = groupRef.current
     if (!g) return
+    const st = settled.current
+    if (initialized.current && st && st[0] === position[0] && st[1] === position[1] && st[2] === position[2] && st[3] === yaw) return
     if (!initialized.current) {
       g.position.set(position[0], position[1], position[2])
       g.rotation.y = yaw
@@ -104,6 +111,8 @@ export function Figure({
       easedPos.current.z = position[2]
       easedYaw.current = yaw
       initialized.current = true
+      settled.current = [position[0], position[1], position[2], yaw]
+      requestFrame(state)
       return
     }
 
@@ -120,13 +129,22 @@ export function Figure({
     easedYaw.current += diff * Math.min(1, delta * YAW_EASE_PER_SEC)
     g.rotation.y = easedYaw.current
 
-    if (moving === undefined) {
-      const dx = position[0] - p.x
-      const dy = position[1] - p.y
-      const dz = position[2] - p.z
-      const stillMoving = dx * dx + dy * dy + dz * dz > MOVE_EPS * MOVE_EPS
-      if (stillMoving !== autoMoving) setAutoMoving(stillMoving)
+    const dx = position[0] - p.x
+    const dy = position[1] - p.y
+    const dz = position[2] - p.z
+    const stillMoving = dx * dx + dy * dy + dz * dz > MOVE_EPS * MOVE_EPS
+    if (moving === undefined && stillMoving !== autoMoving) setAutoMoving(stillMoving)
+    if (!stillMoving && Math.abs(diff) < 0.002) {
+      // Arrived: snap exactly and stop easing until the position/yaw props change.
+      p.x = position[0]
+      p.y = position[1]
+      p.z = position[2]
+      g.position.set(p.x, p.y, p.z)
+      easedYaw.current = yaw
+      g.rotation.y = yaw
+      settled.current = [position[0], position[1], position[2], yaw]
     }
+    requestFrame(state)
   })
 
   const datasheet = bundle?.datasheets[datasheetId]
@@ -169,4 +187,4 @@ export function Figure({
       </group>
     </group>
   )
-}
+})

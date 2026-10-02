@@ -4,6 +4,9 @@
 import { Canvas } from '@react-three/fiber'
 import type { TerrainPieceData } from '@/data/types'
 import { Board, CameraRig, Lighting, Objectives, Ruler, Terrain } from './board'
+import { ShadowSync } from './board/Lighting'
+import { usePresentationSettings } from './presentation/settings'
+import { useDisplayState } from './presentation/presentedStore'
 import { useGameStore } from './store/game'
 import { useUiStore } from './ui/uiStore'
 import { computeBoardClickDraft, DeathGhosts, PlacementOverlay, resolveMeasureLine, UnitLabels, UnitsLayer, useBoardClick } from './interaction'
@@ -11,6 +14,8 @@ import { VfxLayer } from './vfx'
 
 export function Scene() {
   const state = useGameStore((s) => s.state)
+  const displayState = useDisplayState()
+  const lowGraphics = usePresentationSettings((s) => s.lowGraphics)
   const pending = useGameStore((s) => s.pending)
   const botSeat = useGameStore((s) => s.botSeat)
   const topDown = useUiStore((s) => s.topDown)
@@ -65,9 +70,21 @@ export function Scene() {
 
   return (
     // ~30% closer than the previous [0, 40, 34] start (figures were only ~15px tall at default zoom).
-    <Canvas camera={{ position: [0, 28, 23.8], fov: 45, near: 0.1, far: 500 }} style={{ position: 'absolute', inset: 0 }}>
+    // frameloop="demand": nothing renders unless something asks: React prop/state commits, camera controls
+    // (OrbitControls change events), and every per-frame animator (figures/anim.ts requestFrame, ModelFigure,
+    // CameraRig, VfxLayer) calls invalidate() while it is still moving. Keyed on lowGraphics so the renderer's
+    // shadow setting and dpr rebuild cleanly when the setting flips.
+    <Canvas
+      key={lowGraphics ? 'low' : 'hi'}
+      frameloop="demand"
+      dpr={lowGraphics ? 1 : [1, 1.5]}
+      shadows={!lowGraphics}
+      camera={{ position: [0, 28, 23.8], fov: 45, near: 0.1, far: 500 }}
+      style={{ position: 'absolute', inset: 0 }}
+    >
       <color attach="background" args={['#0a0a10']} />
       <Lighting />
+      {!lowGraphics && <ShadowSync deps={[displayState?.models, terrainPieces]} />}
       <CameraRig topDown={topDown} focusTarget={focusTarget} />
 
       <Board deploymentZones={state.mission.data.deploymentZones} onBoardPointer={onBoardPointer} />

@@ -7,7 +7,7 @@
 // This file never imports from src/engine or from any other src/client/** module beyond three/R3F,
 // so it can be dropped into the scene by another agent's Scene.tsx without any coupling back here.
 import { useEffect, useMemo } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { InstancedPool, additiveMaterial } from './pool'
 import { DEBRIS_COLOR, DUST_COLOR, IMPACT_COLOR, IMPACT_FLASH_COLOR, MORTAL_COLOR, MORTAL_FLASH_COLOR, SAVE_COLOR, TRACER_THICKNESS, TRACER_TRAVEL_S, factionColor, shotPalette } from './palette'
@@ -295,13 +295,28 @@ export const vfx: VfxApi = {
   mortal: (at) => activeController?.mortal(at) ?? noop(),
 }
 
+let wakeUntil = 0
+let invalidateFn: (() => void) | null = null
+
 /** Mount once under the game's <Canvas> (sibling to Board/UnitsLayer/etc). Renders 5 pooled
  *  InstancedMeshes and drives them all from one useFrame tick; owns no engine/game state. */
 export function VfxLayer() {
   const pools = useMemo(() => createPools(), [])
 
   useEffect(() => {
-    activeController = makeController(pools)
+    const api = makeController(pools)
+    // Every effect call wakes the demand render loop for as long as an effect can live (max ~0.8s + travel).
+    activeController = new Proxy(api, {
+      get(target, key, receiver) {
+        const v = Reflect.get(target, key, receiver)
+        if (typeof v !== 'function') return v
+        return (...args: unknown[]) => {
+          wakeUntil = performance.now() / 1000 + 1.5
+          invalidateFn?.()
+          return (v as (...a: unknown[]) => unknown).apply(target, args)
+        }
+      },
+    })
     return () => {
       activeController = null
     }
@@ -311,8 +326,17 @@ export function VfxLayer() {
     return () => disposePools(pools)
   }, [pools])
 
-  useFrame(() => {
+  const invalidate = useThree((s) => s.invalidate)
+  useEffect(() => {
+    invalidateFn = invalidate
+    return () => {
+      invalidateFn = null
+    }
+  }, [invalidate])
+
+  useFrame((state) => {
     const now = performance.now() / 1000
+    if (now < wakeUntil) state.invalidate()
     pools.sparkPool.tick(now)
     pools.ringPool.tick(now)
     pools.puffPool.tick(now)
