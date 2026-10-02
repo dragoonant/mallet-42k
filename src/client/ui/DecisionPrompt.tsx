@@ -4,7 +4,7 @@
 // Figure via UnitsLayer — renders as a plain clickable list here, so no decision can ever get stuck.
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import {
-  distance as edgeGap, unitModels,
+  unitModels,
   type Action, type ChooseOptionTopic, type DecisionOption, type GameEvent, type GameState, type MoveType, type PendingDecision, type PlayerId, type StratagemId,
 } from '@/engine'
 import { useGameStore } from '../store/game'
@@ -12,7 +12,11 @@ import { useUiStore } from './uiStore'
 import {
   combinedUnitIds, combinedUnitModels, distance2D, formationPlacementsForUnit, modelsAnchor, placementInfo, validateDraft,
 } from '../interaction'
-import { moveTypeHelp, objectiveLabel, prettifyId, rerollContext, saveAttackContext, saveChoiceFromDecisionData, type MoveTypeHelp } from './labels'
+import { neededChargeDistance } from '@/engine/phases/charge'
+import {
+  chargeTargetHelp, moveTypeHelp, objectiveLabel, prettifyId, rerollContext, saveAttackContext,
+  saveChoiceFromDecisionData, shootingTargetHelp, type PromptHelp,
+} from './labels'
 import { FormationPicker } from './FormationPicker'
 import { buttonBase, buttonDanger, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 
@@ -57,23 +61,6 @@ function placementSummary(state: GameState, unitId: string, placements: { pos: {
 
 /** Edge-to-edge gap a charging unit still needs to close against the hardest of its declared
  *  targets — the same "roll 2D6, need at least this many inches" a player would work out by eye. */
-function chargeDistanceNeeded(state: GameState, unitId: string, targetUnitIds: string[]): number | null {
-  const attackers = unitModels(state, unitId)
-  if (attackers.length === 0 || targetUnitIds.length === 0) return null
-  let worst = 0
-  let any = false
-  for (const targetId of targetUnitIds) {
-    const targets = unitModels(state, targetId)
-    if (targets.length === 0) continue
-    let min = Infinity
-    for (const a of attackers) for (const t of targets) min = Math.min(min, edgeGap(a, t))
-    if (Number.isFinite(min)) {
-      any = true
-      worst = Math.max(worst, min)
-    }
-  }
-  return any ? worst : null
-}
 
 const KIND_TITLE: Partial<Record<PendingDecision['kind'], string>> = {
   deployUnit: 'Deploy your forces',
@@ -154,8 +141,12 @@ function describeAction(a: Action, state: GameState): string {
       return a.targets.length > 0 ? `Target ${unitName(a.targets[0].targetUnitId)}` : 'Hold fire'
     case 'declareCharge': {
       const names = a.targetUnitIds.map(unitName).join(', ')
-      const needed = chargeDistanceNeeded(state, a.unitId, a.targetUnitIds)
-      return needed !== null ? `Charge ${names}, need ${needed.toFixed(1)}"` : `Charge ${names}`
+      // The engine's own number (phases/charge.ts), so the button, the hover card and the roll the
+      // dice are judged against are all the same figure. The label this replaced measured something
+      // else — 3D distance, no Engagement Range subtracted, worst target rather than closest — and
+      // read "need 12.6"" beside a card correctly saying the roll needed a 10.
+      const needed = neededChargeDistance(state, a.unitId, a.targetUnitIds)
+      return needed !== null ? `Charge ${names} — needs ${Math.max(2, Math.ceil(needed))}+` : `Charge ${names}`
     }
     case 'moveUnit':
     case 'chargeMove':
@@ -239,12 +230,33 @@ function labelForOption(pending: PendingDecision, state: GameState, events: read
   }
 }
 
+/** The hover-help card for an option, where one can be written. These are the choices whose options
+ *  are rules in disguise: what each commits the unit to is the decision, and the button can only
+ *  carry a name. */
+function helpForAction(state: GameState, action: Action | undefined): PromptHelp | null {
+  if (!action) return null
+  switch (action.type) {
+    case 'declareMove':
+      return moveTypeHelp(state, action.unitId, action.moveType)
+    case 'declareTargets':
+      return shootingTargetHelp(state, action.targets)
+    case 'declareCharge':
+      return chargeTargetHelp(state, action.unitId, action.targetUnitIds)
+    default:
+      return null
+  }
+}
+
 /** What an option is "about", for the board-hover highlight (M6 gap: prompts named units/objectives
  *  the player couldn't match to the board; owner playtest: the same for allocateAttack's models —
  *  "when I hover over the button it should light up the appropriate figure on the game board"). */
 function hoverTargetFor(pending: PendingDecision, action: Action, optionId: string): { kind: 'unit' | 'model' | 'objective'; id: string } | null {
   // Allocating an attack picks one model out of a unit, so the highlight has to be that one figure.
   if (action.type === 'allocateAttack') return { kind: 'model', id: action.modelId }
+  // Shooting and charge options name an enemy unit: light it up so "which one is that?" never needs
+  // asking, the same way the stratagem/objective options already do.
+  if (action.type === 'declareTargets' && action.targets[0]) return { kind: 'unit', id: action.targets[0].targetUnitId }
+  if (action.type === 'declareCharge' && action.targetUnitIds[0]) return { kind: 'unit', id: action.targetUnitIds[0] }
   if (action.type === 'useStratagem') {
     if (action.targets.unitIds?.[0]) return { kind: 'unit', id: action.targets.unitIds[0] }
     if (action.targets.objectiveId) return { kind: 'objective', id: action.targets.objectiveId }
@@ -343,7 +355,7 @@ const helpTitle: CSSProperties = { fontWeight: 700, marginBottom: 4 }
 
 /** Hover help for one option, shown above the row (the prompt itself is at the bottom of the
  *  screen, so a card below it would be off-screen). */
-function OptionHelp({ help }: { help: MoveTypeHelp }) {
+function OptionHelp({ help }: { help: PromptHelp }) {
   return (
     <div style={helpCard} data-testid="option-help" role="tooltip">
       <div style={helpTitle}>{help.title}</div>
@@ -508,14 +520,17 @@ export function DecisionPrompt() {
   // own pre-validated candidates below — e.g. a coherency repair after a mid-move casualty can be
   // a placement our own delta-translate can't produce, so the fallback list must stay reachable.
   const showFallbackList = pending.kind !== 'deployUnit'
-  const listItems: { id: string; label: string; action: Action }[] = hasOptions(pending)
-    ? pending.options.map((o) => ({ id: o.id, label: labelForOption(pending, state, events, o), action: o.action }))
-    : (legal ?? []).map((a, i) => ({ id: `${a.type}-${i}`, label: describeAction(a, state), action: a }))
+  const listItems: { id: string; label: string; action: Action }[] = (
+    hasOptions(pending)
+      ? pending.options.map((o) => ({ id: o.id, label: labelForOption(pending, state, events, o), action: o.action }))
+      : (legal ?? []).map((a, i) => ({ id: `${a.type}-${i}`, label: describeAction(a, state), action: a }))
+  )
+    // Decisions with no engine-provided options list every *legal action*, and passing is one of
+    // them — which put a second "Pass" in the row next to the dedicated button below.
+    .filter((it) => it.action.type !== 'pass' || !passAction)
 
-  // Hover help for whichever option the pointer has rested on (move types today — see moveTypeHelp).
-  const helpFor_ = listItems.find((it) => it.id === helpFor)
-  const activeHelp =
-    helpFor_ && helpFor_.action.type === 'declareMove' ? moveTypeHelp(state, helpFor_.action.unitId, helpFor_.action.moveType) : null
+  // Hover help for whichever option the pointer has rested on.
+  const activeHelp = helpForAction(state, listItems.find((it) => it.id === helpFor)?.action)
 
   const chooseOptionInfo = pending.kind === 'chooseOption' ? CHOOSE_OPTION_INFO[pending.context.topic] : undefined
   const kindTitle = chooseOptionInfo?.title ?? KIND_TITLE[pending.kind] ?? pending.kind
@@ -552,6 +567,79 @@ export function DecisionPrompt() {
             <div style={{ color: colors.text, fontWeight: 600 }}>{ctx.headline}</div>
             <div>{ctx.detail}</div>
             <div style={{ marginTop: 3 }}>Command Re-roll costs 1 CP — you have {state.players[pending.player].cp}.</div>
+          </div>
+        )
+      })()}
+
+      {/* The generic reroll offer (R-6.24) is a different decision from Command Re-roll and had the
+          same gap: "Choose a die to re-roll" with no word on what the roll was. phaseState.lastRoll
+          is the roll it is about — the engine raises this offer while that roll is still current. */}
+      {pending.kind === 'chooseOption' && pending.context.topic === 'rerollOffer' && (() => {
+        const roll = state.phaseState?.lastRoll
+        const rollId = typeof pending.context.data.rollId === 'string' ? pending.context.data.rollId : null
+        if (!roll || (rollId !== null && roll.id !== rollId)) return null
+        const ctx = rerollContext(state, events, roll)
+        return (
+          <div style={infoBlock} data-testid="reroll-offer-context">
+            <div style={{ color: colors.text, fontWeight: 600 }}>{ctx.headline}</div>
+            <div>{ctx.detail}</div>
+          </div>
+        )
+      })()}
+
+      {pending.kind === 'declareTargets' && (
+        <div style={infoBlock} data-testid="shoot-context">
+          <div style={{ color: colors.text, fontWeight: 600 }}>
+            {state.units[pending.context.unitId]?.name ?? pending.context.unitId} —{' '}
+            {pending.context.overwatch ? 'Fire Overwatch (every hit needs an unmodified 6)' : pending.context.attackKind === 'melee' ? 'pick who to fight' : 'pick a target'}
+          </div>
+          <div>
+            Every weapon that can see the unit you pick fires at it. Hover an option for its weapons, the target&apos;s
+            Toughness and Save, and what each weapon needs to hit and wound.
+            {pending.context.engagedWith.length > 0 &&
+              ` In Engagement Range of ${pending.context.engagedWith.map((u) => state.units[u]?.name ?? u).join(', ')}.`}
+          </div>
+        </div>
+      )}
+
+      {pending.kind === 'declareCharge' && (
+        <div style={infoBlock} data-testid="charge-context">
+          <div style={{ color: colors.text, fontWeight: 600 }}>
+            {state.units[pending.context.unitId]?.name ?? pending.context.unitId} — declare a charge
+            {pending.context.heroic ? ' (Heroic Intervention)' : ''}
+          </div>
+          <div>
+            Roll 2D6 and move that far; every unit you declare must end up within Engagement Range or the charge fails
+            and the unit does not move. Hover an option for the distance, the roll it needs and the odds.
+          </div>
+        </div>
+      )}
+
+      {pending.kind === 'chargeMove' && (
+        <div style={infoBlock} data-testid="charge-move-context">
+          <div style={{ color: colors.text, fontWeight: 600 }}>Charge roll: {pending.context.roll}&quot;</div>
+          <div>
+            Move each model up to {pending.context.roll}&quot;, ending within 1&quot; of{' '}
+            {pending.context.targetUnitIds.map((u) => state.units[u]?.name ?? u).join(' and ')}.
+          </div>
+        </div>
+      )}
+
+      {(pending.kind === 'pileIn' || pending.kind === 'consolidate') && (
+        <div style={infoBlock} data-testid="pile-in-context">
+          Move each model up to {pending.context.distance}&quot;
+          {pending.kind === 'pileIn' ? ', as close as it can get to the closest enemy model.' : ', ending closer to the closest enemy model or an objective you can hold.'}
+        </div>
+      )}
+
+      {pending.kind === 'chooseOption' && pending.context.topic === 'hazardousCasualty' && (() => {
+        const weaponId = typeof pending.context.data.weaponId === 'string' ? pending.context.data.weaponId : null
+        const die = typeof pending.context.data.die === 'number' ? pending.context.data.die : null
+        const weapon = weaponId ? state.weapons[weaponId]?.name : null
+        return (
+          <div style={infoBlock} data-testid="hazardous-context">
+            {weapon ?? 'A Hazardous weapon'} failed its Hazardous test{die !== null ? ` (rolled ${die})` : ''} — a model
+            carrying it is destroyed. Choose which model is lost.
           </div>
         )
       })()}
@@ -685,10 +773,9 @@ export function DecisionPrompt() {
                 ? it.action
                 : null
             const hoverTarget = hoverTargetFor(pending, it.action, it.id)
-            // Move types are the one choice whose options are rules in disguise: what each costs the
-            // unit this turn is the decision, and the button can only carry its name. The card itself
-            // is rendered at panel level (see activeHelp) so the option scroller can't clip it.
-            const hasHelp = it.action.type === 'declareMove'
+            // The card itself is rendered at panel level (see activeHelp) so the option row, which
+            // is an overflow:auto scroller, can't clip it.
+            const hasHelp = helpForAction(state, it.action) !== null
             return (
               <button
                 key={it.id}
