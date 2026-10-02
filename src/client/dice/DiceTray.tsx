@@ -1,7 +1,13 @@
-// Dice tray. Renders the roll currently playing in useDiceStore (fed by playRoll(),
-// see playRoll.ts) — nothing else in the client touches this store directly. Deliberately
+// Dice tray. Renders the roll currently playing in useDiceStore (fed by playRoll(), see
+// playRoll.ts) — nothing else in the client touches this store directly. Deliberately
 // self-contained (own colour tokens, no import from src/client/ui) since src/client/dice/** is
 // this module's whole ownership boundary in a shared working tree.
+//
+// It used to own a bottom-centre slot of its own, which put it directly behind the decision prompt
+// (src/client/ui/DecisionPrompt.tsx, also bottom-centre and deliberately above it) — owner playtest:
+// "dice rolls are being done behind the choice box at the bottom of the screen". It now flows inside
+// the right-hand rail App.tsx stacks under the Dice Log, so a roll and the choice it leads to are
+// never in the same place; the rail owns the placement, this owns the panel.
 import { useEffect } from 'react'
 import { Die } from './Die'
 import { DURATIONS, useDiceStore } from './diceStore'
@@ -31,11 +37,11 @@ function injectKeyframesOnce() {
 // right-hand rail, directly under the Dice Log, so the two stack instead of fighting: no positioning of
 // its own beyond filling the rail's width, and the rail re-flows when the log is expanded or collapsed.
 const wrap: CSSProperties = {
-  width: '100%',
+  position: 'relative', // placed by the right rail in App.tsx
   pointerEvents: 'none',
   display: 'flex',
   justifyContent: 'stretch',
-  zIndex: 20,
+  width: '100%',
 }
 
 const colors = {
@@ -95,7 +101,7 @@ const diceRow: CSSProperties = {
   flexWrap: 'wrap',
   justifyContent: 'center',
   gap: 5,
-  width: '100%',
+  maxWidth: '100%',
 }
 
 export function DiceTray() {
@@ -111,7 +117,8 @@ export function DiceTray() {
   const { request, dice, phase, id } = current
   const { tumbleMs, flipMs } = DURATIONS[speed]
   const n = dice.length
-  // Sized for the right rail's ~180px of usable width: 4 big dice, or 5-6 smaller ones, per row.
+  // Sized for the rail's ~180px of inner width rather than the old full-width bottom slot: four of
+  // the largest still fit on one row.
   const size = n > 30 ? 16 : n > 16 ? 20 : n > 8 ? 26 : n > 4 ? 30 : 38
   const hasTarget = request.target !== undefined
   const hasOutcome = dice.some((d) => d.outcome !== 'neutral')

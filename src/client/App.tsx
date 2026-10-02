@@ -5,7 +5,7 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { Scene } from './Scene'
 import { useGameStore } from './store/game'
 import { useUiStore } from './ui/uiStore'
-import { StartScreen, Hud, UnitCard, DiceLog, EventFeed, Toast, VpToast, EndScreen, DecisionPrompt, StratagemPanel, SettingsPanel } from './ui'
+import { StartScreen, Hud, UnitCard, DiceLog, EventFeed, Toast, VpToast, PhaseBanner, EndScreen, DecisionPrompt, StratagemPanel, SettingsPanel } from './ui'
 import { FigureGalleryStage } from './figures'
 import type { Pose } from './figures'
 import { DiceTray } from './dice'
@@ -14,21 +14,21 @@ import { PresentationDirector } from './presentation'
 
 const overlayLayer: CSSProperties = { position: 'absolute', inset: 0, pointerEvents: 'none' }
 
-/** Right-hand rail: the Dice Log with the dice tray stacked directly under it. The tray used to sit
- *  bottom-centre, where the decision prompt covered the very dice it was asking about; stacking the two
- *  here keeps a roll beside its own log, and lets the tray shift down on its own when the log is
- *  expanded. Bottom-stopped well clear of the event feed (also right-docked, at bottom: 12). */
+// Right-hand rail: the Dice Log with the dice tray stacked directly under it. The tray used to sit
+// bottom-centre, i.e. behind the decision prompt — owner playtest: "dice rolls are being done behind
+// the choice box at the bottom of the screen". Stacking them in one flex column (rather than giving
+// the tray a fixed `top`) keeps the tray under the log whether the log is collapsed or expanded.
 const rightRail: CSSProperties = {
   position: 'absolute',
   right: 12,
   top: 70,
-  bottom: 220,
   width: 200,
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'stretch',
   gap: 8,
   pointerEvents: 'none',
+  zIndex: 20,
 }
 
 // e2e/dev hook: exposes the two client stores on `window` so Playwright can drive/inspect the game
@@ -103,6 +103,7 @@ export function App() {
         <DecisionPrompt />
         <Toast />
         <VpToast />
+        <PhaseBanner />
         <SettingsPanel />
       </div>
       <EndScreen onPlayAgain={() => setScreen('start')} />

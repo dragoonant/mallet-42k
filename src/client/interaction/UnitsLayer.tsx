@@ -80,6 +80,7 @@ interface UnitModelProps {
   isSelected: boolean
   isClickable: boolean
   isHovered: boolean
+  isHoveredModel: boolean
   los: ComponentProps<typeof LosMarker>['status'] | undefined
 }
 
@@ -113,12 +114,13 @@ const UnitModel = memo(function UnitModel(p: UnitModelProps) {
             moving={moving}
             action={p.action}
             selected={p.isSelected}
-            highlighted={p.isClickable}
+            highlighted={p.isClickable || p.isHoveredModel}
             onClick={onClick}
           />
           {p.isSelected && <SelectionRing pos={LOCAL_ORIGIN} baseRadius={p.baseRadius} />}
           {p.isClickable && <TargetRing pos={LOCAL_ORIGIN} baseRadius={p.baseRadius} />}
-          {p.isHovered && !p.isSelected && !p.isClickable && <SelectionRing pos={LOCAL_ORIGIN} baseRadius={p.baseRadius} color={colors.accent} />}
+          {p.isHoveredModel && <SelectionRing pos={LOCAL_ORIGIN} baseRadius={p.baseRadius * 1.15} color={colors.accent} />}
+          {p.isHovered && !p.isHoveredModel && !p.isSelected && !p.isClickable && <SelectionRing pos={LOCAL_ORIGIN} baseRadius={p.baseRadius} color={colors.accent} />}
           {p.los && <LosMarker pos={LOCAL_ORIGIN} baseRadius={p.baseRadius} status={p.los} />}
         </>
       )}
@@ -135,6 +137,9 @@ export function UnitsLayer() {
   const selectedUnitId = useUiStore((s) => s.selectedUnitId)
   const selectUnit = useUiStore((s) => s.selectUnit)
   const hoveredUnitId = useUiStore((s) => s.hoveredUnitId)
+  // Single-model hover: an allocateAttack prompt names one model of a unit, and lighting up the
+  // whole unit wouldn't answer "which figure is this button?" (owner playtest).
+  const hoveredModelId = useUiStore((s) => s.hoveredModelId)
   const losOn = useUiStore((s) => s.losOn)
   const unitAction = useCueStore((s) => s.unitAction)
   const modelAction = useCueStore((s) => s.modelAction)
@@ -167,6 +172,7 @@ export function UnitsLayer() {
               if (!m) return null
               const action = modelAction[modelId] ?? unitAction[unit.id]
               const rotationY = modelFacing[modelId] ?? m.facing
+              const isHoveredModel = modelId === hoveredModelId
               return (
                 <UnitModel
                   key={modelId}
@@ -182,6 +188,7 @@ export function UnitsLayer() {
                   isSelected={isSelected}
                   isClickable={isClickable}
                   isHovered={isHovered}
+                  isHoveredModel={isHoveredModel}
                   los={losOn ? losStatus[unit.id] : undefined}
                 />
               )

@@ -38,6 +38,7 @@ import { waitForPresentationIdle } from '../presentation/idleStore'
 import { pushSnapshot, resetPresentation, usePresentedStore } from '../presentation/presentedStore'
 import { rerollMuteActive, usePresentationSettings, type CommandRerollSetting, type RerollMute } from '../presentation/settings'
 import { critWouldPay, rollForOffer } from '../ui/rerollInfo'
+import { isAnnouncementHolding } from '../presentation/announceStore'
 
 // ---------- setup defaults ----------
 export type FactionKey = 'space-marines' | 'orks'
@@ -473,6 +474,14 @@ export const useGameStore = create<GameStore>()((set, get) => {
         watchdogPendingId = pending.id
         watchdogPendingSince = Date.now()
         watchdogWarned = false
+        return
+      }
+      // A narration pause (the phase/turn banner — src/client/presentation/announceStore.ts) is
+      // deliberate dead time the player can end with a click, not a stalled decision: hold the stall
+      // clock while one is on screen so a run of announced phases can't trip the watchdog into
+      // force-answering the bot over the top of the banner.
+      if (isAnnouncementHolding()) {
+        watchdogPendingSince = Date.now()
         return
       }
       const stalledMs = Date.now() - watchdogPendingSince

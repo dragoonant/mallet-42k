@@ -1,0 +1,5 @@
+# Candidate texture outputs are large and regenerable from the gen scripts; keep only review sheets.
+board-textures/**/*.jpg
+board-textures/**/*.png
+!board-textures/**/contact-sheet.jpg
+!board-textures/**/closeups.jpg

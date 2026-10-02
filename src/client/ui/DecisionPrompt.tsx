@@ -2,17 +2,17 @@
 // four move-family decisions (which need a board click, handled by src/client/interaction/**); every
 // other decision kind — including declareTargets/declareCharge, which also accept a click on an enemy
 // Figure via UnitsLayer — renders as a plain clickable list here, so no decision can ever get stuck.
-import { useEffect, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import {
   distance as edgeGap, unitModels,
-  type Action, type ChooseOptionTopic, type DecisionOption, type GameState, type PendingDecision, type PlayerId, type StratagemId,
+  type Action, type ChooseOptionTopic, type DecisionOption, type GameEvent, type GameState, type MoveType, type PendingDecision, type PlayerId, type StratagemId,
 } from '@/engine'
 import { useGameStore } from '../store/game'
 import { useUiStore } from './uiStore'
 import {
   combinedUnitIds, combinedUnitModels, distance2D, formationPlacementsForUnit, modelsAnchor, placementInfo, validateDraft,
 } from '../interaction'
-import { objectiveLabel } from './labels'
+import { moveTypeHelp, objectiveLabel, prettifyId, saveAttackContext, saveChoiceFromDecisionData, type MoveTypeHelp } from './labels'
 import { FormationPicker } from './FormationPicker'
 import { rerollSummary, rollForOffer } from './rerollInfo'
 import { usePresentationSettings, type RerollMute } from '../presentation/settings'
@@ -120,6 +120,19 @@ const CHOOSE_OPTION_INFO: Partial<Record<ChooseOptionTopic, { title: string; hin
   chooseSide: { title: 'Choose your side', hint: 'Pick which deployment zone your army sets up in.' },
 }
 
+/** "Pass" is the engine's word for declining, but for some prompts it reads as giving something up
+ *  rather than as the safe half of the choice the player was offered. */
+const PASS_LABEL: Partial<Record<PendingDecision['kind'], string>> = {
+  commandReroll: 'Keep the roll',
+}
+
+const MOVE_TYPE_LABEL: Partial<Record<MoveType, string>> = {
+  normal: 'Normal move',
+  advance: 'Advance',
+  stationary: 'Remain Stationary',
+  fallBack: 'Fall Back',
+}
+
 const REACTION_LABEL: Record<string, string> = {
   overwatch: 'Fire Overwatch',
   heroicIntervention: 'Heroic Intervention',
@@ -137,7 +150,9 @@ function describeAction(a: Action, state: GameState): string {
     case 'chooseFightUnit':
       return `Fight with ${unitName(a.unitId)}`
     case 'declareMove':
-      return `${a.moveType.charAt(0).toUpperCase()}${a.moveType.slice(1)} move`
+      // Matches the help card's own titles (labels.ts moveTypeHelp), and reads as the rulebook does
+      // rather than as the enum does ("fallBack move").
+      return MOVE_TYPE_LABEL[a.moveType] ?? a.moveType
     case 'declareTargets':
       return a.targets.length > 0 ? `Target ${unitName(a.targets[0].targetUnitId)}` : 'Hold fire'
     case 'declareCharge': {
@@ -153,8 +168,16 @@ function describeAction(a: Action, state: GameState): string {
       const summary = placementSummary(state, a.unitId, a.placements)
       return summary ? `${verb} ${summary}` : verb
     }
-    case 'allocateAttack':
-      return `Allocate to ${state.models[a.modelId]?.datasheetModelId ?? a.modelId}`
+    case 'allocateAttack': {
+      // The raw datasheetModelId ("boy", "terminator") says nothing about *which* one — its place in
+      // the unit and the wounds it has left do, and that is what the choice is actually about. Hover
+      // lights the figure itself (hoverTargetFor).
+      const model = state.models[a.modelId]
+      if (!model) return `Allocate to ${a.modelId}`
+      const name = prettifyId(model.datasheetModelId)
+      const index = state.units[model.unitId]?.models.indexOf(a.modelId) ?? -1
+      return `${name}${index >= 0 ? ` #${index + 1}` : ''} · ${model.woundsRemaining}W left`
+    }
     case 'useStratagem': {
       const strat = state.stratagems[a.stratagemId]
       const name = strat?.name ?? a.stratagemId
@@ -183,29 +206,48 @@ function describeAction(a: Action, state: GameState): string {
 /** Label a single option button for the kinds whose engine-provided DecisionOption.label is either
  *  a raw id ("A:terminator-squad", a bare objective id) or too terse to explain the choice — everyone
  *  else keeps the engine's own label untouched. */
-function labelForOption(pending: PendingDecision, state: GameState, o: { id: string; label: string; action: Action }): string {
+function labelForOption(pending: PendingDecision, state: GameState, events: readonly GameEvent[], o: { id: string; label: string; action: Action }): string {
   switch (pending.kind) {
     case 'chooseUnitToActivate':
     case 'chooseFightUnit':
     case 'stratagemWindow':
     case 'reactionWindow':
+    // The engine labels these with the bare move type ('normal', 'fallBack').
+    case 'declareMove':
+    // The engine labels these "allocate to A:terminator-squad#0" — a model id, which says nothing
+    // about which figure it is or how hurt it already is.
+    case 'allocateAttack':
       return describeAction(o.action, state)
     case 'commandReroll': {
       if (o.action.type !== 'commandReroll') return describeAction(o.action, state)
       const roll = pending.context.roll
-      return o.action.dieIndex === undefined ? `Re-roll (rolled ${roll.dice.join(', ')})` : `Re-roll die ${o.action.dieIndex + 1} (${roll.dice[o.action.dieIndex]})`
+      return o.action.dieIndex === undefined
+        ? `Re-roll for 1 CP (rolled ${roll.dice.join(', ')})`
+        : `Re-roll die ${o.action.dieIndex + 1} for 1 CP (rolled ${roll.dice[o.action.dieIndex]})`
     }
-    case 'chooseOption':
+    case 'chooseOption': {
       if (pending.context.topic === 'razeObjective' || pending.context.topic === 'recoverObjective') return objectiveLabel(o.id)
+      if (pending.context.topic === 'saveType') {
+        // The engine hands us what each save must actually roll (AP, cover and modifiers in) —
+        // see docs/spec/00-architecture.md §3. Never re-derive it here.
+        const ctx = saveChoiceFromDecisionData(state, pending.context.data)
+        const needed = o.id === 'invuln' ? ctx?.invulnNeeded : ctx?.armourNeeded
+        const name = o.id === 'invuln' ? 'Invulnerable save' : 'Armour save'
+        if (typeof needed === 'number') return needed > 6 ? `${name} — ${needed}+ (impossible)` : `${name} — ${needed}+`
+      }
       return o.label
+    }
     default:
       return o.label
   }
 }
 
-/** What a chooseOption / stratagemWindow / reactionWindow option is "about", for the board-hover
- *  highlight (M6 gap: prompts named units/objectives the player couldn't match to the board). */
-function hoverTargetFor(pending: PendingDecision, action: Action, optionId: string): { kind: 'unit' | 'objective'; id: string } | null {
+/** What an option is "about", for the board-hover highlight (M6 gap: prompts named units/objectives
+ *  the player couldn't match to the board; owner playtest: the same for allocateAttack's models —
+ *  "when I hover over the button it should light up the appropriate figure on the game board"). */
+function hoverTargetFor(pending: PendingDecision, action: Action, optionId: string): { kind: 'unit' | 'model' | 'objective'; id: string } | null {
+  // Allocating an attack picks one model out of a unit, so the highlight has to be that one figure.
+  if (action.type === 'allocateAttack') return { kind: 'model', id: action.modelId }
   if (action.type === 'useStratagem') {
     if (action.targets.unitIds?.[0]) return { kind: 'unit', id: action.targets.unitIds[0] }
     if (action.targets.objectiveId) return { kind: 'objective', id: action.targets.objectiveId }
@@ -289,6 +331,41 @@ const muteLink: CSSProperties = {
   padding: 0, cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 2,
 }
 const rollLine: CSSProperties = { color: colors.text, fontWeight: 600, fontSize: 12.5 }
+
+/** How long the pointer has to rest on an option before its help appears — long enough that moving
+ *  across the row to the option you want doesn't flash three cards on the way. */
+const HELP_DELAY_MS = 450
+// Anchored to the prompt panel, not to the hovered button: the option row is an overflow:auto
+// scroller (`optionList`), which clips anything positioned outside its box — a card above a button
+// was in the DOM and measurable, but painted away to nothing.
+const helpCard: CSSProperties = {
+  ...panel,
+  position: 'absolute',
+  bottom: 'calc(100% + 8px)',
+  left: 0,
+  width: 300,
+  padding: '8px 10px',
+  fontSize: 12,
+  lineHeight: 1.45,
+  pointerEvents: 'none', // never steals the click the player is about to make
+  zIndex: 40,
+}
+const helpTitle: CSSProperties = { fontWeight: 700, marginBottom: 4 }
+
+/** Hover help for one option, shown above the row (the prompt itself is at the bottom of the
+ *  screen, so a card below it would be off-screen). */
+function OptionHelp({ help }: { help: MoveTypeHelp }) {
+  return (
+    <div style={helpCard} data-testid="option-help" role="tooltip">
+      <div style={helpTitle}>{help.title}</div>
+      {help.lines.map((line, i) => (
+        <div key={i} style={{ color: i === 0 ? colors.text : colors.muted, marginTop: i === 0 ? 0 : 3 }}>
+          {line}
+        </div>
+      ))}
+    </div>
+  )
+}
 function hasOptions(p: PendingDecision): p is Extract<PendingDecision, { options: DecisionOption[] }> {
   return 'options' in p
 }
@@ -352,6 +429,7 @@ export function DecisionPrompt() {
   const setDeployTarget = useUiStore((s) => s.setDeployTarget)
   const resetForDecision = useUiStore((s) => s.resetForDecision)
   const hoverUnit = useUiStore((s) => s.hoverUnit)
+  const hoverModel = useUiStore((s) => s.hoverModel)
   const hoverObjective = useUiStore((s) => s.hoverObjective)
   const formationKind = useUiStore((s) => s.formationKind)
   const formationFacing = useUiStore((s) => s.formationFacing)
@@ -359,8 +437,23 @@ export function DecisionPrompt() {
   const recallFormation = useUiStore((s) => s.recallFormation)
   const rememberFormation = useUiStore((s) => s.rememberFormation)
 
+  // Delayed hover help on an option (currently the move types — see moveTypeHelp). Kept here rather
+  // than in each button so only one card is ever open, and so the timer is cancelled on unmount.
+  const [helpFor, setHelpFor] = useState<string | null>(null)
+  const helpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const cancelHelp = () => {
+    if (helpTimer.current !== null) clearTimeout(helpTimer.current)
+    helpTimer.current = null
+    setHelpFor(null)
+  }
+  const scheduleHelp = (id: string) => {
+    if (helpTimer.current !== null) clearTimeout(helpTimer.current)
+    helpTimer.current = setTimeout(() => setHelpFor(id), HELP_DELAY_MS)
+  }
+  useEffect(() => () => { if (helpTimer.current !== null) clearTimeout(helpTimer.current) }, [])
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => resetForDecision(), [pending?.id])
+  useEffect(() => { resetForDecision(); cancelHelp() }, [pending?.id])
 
   // M4 formation memory (#5): a move-family decision already knows its unit, so it can be primed
   // the moment it becomes pending — 'keep' at the remembered facing if this unit has one, else
@@ -438,8 +531,13 @@ export function DecisionPrompt() {
   // a placement our own delta-translate can't produce, so the fallback list must stay reachable.
   const showFallbackList = pending.kind !== 'deployUnit'
   const listItems: { id: string; label: string; action: Action }[] = hasOptions(pending)
-    ? pending.options.map((o) => ({ id: o.id, label: labelForOption(pending, state, o), action: o.action }))
+    ? pending.options.map((o) => ({ id: o.id, label: labelForOption(pending, state, events, o), action: o.action }))
     : (legal ?? []).map((a, i) => ({ id: `${a.type}-${i}`, label: describeAction(a, state), action: a }))
+
+  // Hover help for whichever option the pointer has rested on (move types today — see moveTypeHelp).
+  const helpFor_ = listItems.find((it) => it.id === helpFor)
+  const activeHelp =
+    helpFor_ && helpFor_.action.type === 'declareMove' ? moveTypeHelp(state, helpFor_.action.unitId, helpFor_.action.moveType) : null
 
   const chooseOptionInfo = pending.kind === 'chooseOption' ? CHOOSE_OPTION_INFO[pending.context.topic] : undefined
 
@@ -472,6 +570,7 @@ export function DecisionPrompt() {
     <>
       <FormationPicker />
       <div style={isDeploy ? deployWrap : wrap} data-testid="prompt">
+      {activeHelp && <OptionHelp help={activeHelp} />}
       <div style={heading}>{kindTitle}</div>
       {chooseOptionInfo && !reroll && <div style={hint}>{chooseOptionInfo.hint}</div>}
 
@@ -504,6 +603,58 @@ export function DecisionPrompt() {
           </div>
         </div>
       )}
+      {pending.kind === 'allocateAttack' && (() => {
+        // Same gap as the save choice: the prompt named models but never said what was hitting them.
+        const ctx = saveAttackContext(state, events, pending.context.eligibleModels[0] ?? '')
+        const dmg = pending.context.damage
+        return (
+          <div style={infoBlock} data-testid="allocate-context">
+            <div style={{ color: colors.text, fontWeight: 600 }}>
+              {pending.context.mortal ? 'Mortal wounds' : 'A wound gets through'}
+              {ctx?.weaponName ? ` — ${ctx.weaponName} (${ctx.ap === 0 ? 'AP 0' : `AP ${ctx.ap}`})` : ''}
+              {dmg !== null ? ` · Damage ${dmg}` : ''}
+            </div>
+            <div>
+              From {state.units[pending.context.attackerUnitId]?.name ?? pending.context.attackerUnitId} against{' '}
+              {state.units[pending.context.targetUnitId]?.name ?? pending.context.targetUnitId}. Choose which model takes it — hover an
+              option to light that figure up on the board.
+              {pending.context.precision ? ' Precision: an attached character can be picked out.' : ''}
+            </div>
+          </div>
+        )
+      })()}
+
+      {pending.kind === 'chooseOption' && pending.context.topic === 'saveType' && (() => {
+        const ctx = saveChoiceFromDecisionData(state, pending.context.data)
+        if (!ctx) return null
+        const apText = ctx.ap === 0 ? 'AP 0' : `AP ${ctx.ap}`
+        const armour = ctx.armourNeeded
+        const invuln = ctx.invulnNeeded
+        const better =
+          armour === null || invuln === null
+            ? null
+            : armour > invuln
+              ? 'The invulnerable save is the better roll here.'
+              : armour < invuln
+                ? 'The armour save is the better roll here.'
+                : 'Both saves need the same roll.'
+        return (
+          <div style={infoBlock} data-testid="save-context">
+            <div style={{ color: colors.text, fontWeight: 600 }}>
+              Incoming: {ctx.weaponName} ({apText}){ctx.attackerName ? ` — ${ctx.attackerName}` : ''}
+            </div>
+            <div>
+              {armour === null
+                ? 'Armour save: unknown'
+                : armour > 6
+                  ? `Armour save ${ctx.sv}+ cannot be made against ${apText} (would need ${armour}+)`
+                  : `Armour save ${ctx.sv}+ needs ${armour}+ here${ctx.cover ? ' (cover already counted)' : ''}`}
+              {invuln !== null && ` · Invulnerable save needs ${invuln}+ (AP never applies)`}
+            </div>
+            {better && <div style={{ marginTop: 3 }}>{better}</div>}
+          </div>
+        )
+      })()}
 
       {pending.kind === 'deployUnit' && (
         <div style={deployRowVertical}>
@@ -562,7 +713,7 @@ export function DecisionPrompt() {
             Pass button next to it reads as a different (and scarier) answer than it actually is. */}
         {passAction && !reroll && (
           <button style={buttonBase} data-testid="btn-pass" onClick={() => dispatch(passAction)}>
-            Pass
+            {PASS_LABEL[pending.kind] ?? 'Pass'}
           </button>
         )}
       </div>
@@ -616,24 +767,36 @@ export function DecisionPrompt() {
                 ? it.action
                 : null
             const hoverTarget = hoverTargetFor(pending, it.action, it.id)
+            // Move types are the one choice whose options are rules in disguise: what each costs the
+            // unit this turn is the decision, and the button can only carry its name. The card itself
+            // is rendered at panel level (see activeHelp) so the option scroller can't clip it.
+            const hasHelp = it.action.type === 'declareMove'
             return (
               <button
                 key={it.id}
                 data-testid={`prompt-option-${it.id}`}
                 style={buttonBase}
+                onFocus={() => hasHelp && setHelpFor(it.id)}
+                onBlur={cancelHelp}
                 onMouseEnter={() => {
+                  if (hasHelp) scheduleHelp(it.id)
                   if (withPlacements) setPreviewDraft({ decisionId: pending.id, unitId: withPlacements.unitId, anchor: { x: 0, z: 0 }, placements: withPlacements.placements })
                   if (hoverTarget?.kind === 'unit') hoverUnit(hoverTarget.id)
+                  if (hoverTarget?.kind === 'model') hoverModel(hoverTarget.id)
                   if (hoverTarget?.kind === 'objective') hoverObjective(hoverTarget.id)
                 }}
                 onMouseLeave={() => {
+                  cancelHelp()
                   setPreviewDraft(null)
                   hoverUnit(null)
+                  hoverModel(null)
                   hoverObjective(null)
                 }}
                 onClick={() => {
+                  cancelHelp()
                   setPreviewDraft(null)
                   hoverUnit(null)
+                  hoverModel(null)
                   hoverObjective(null)
                   dispatch(it.action)
                   setDraft(null)

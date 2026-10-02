@@ -13,11 +13,31 @@ export interface PbrUrls {
   roughnessMap: string
 }
 
-export const GROUND_URLS: PbrUrls = {
-  map: BASE + 'ground/diff_1k.jpg',
-  normalMap: BASE + 'ground/nor_gl_1k.jpg',
-  roughnessMap: BASE + 'ground/rough_1k.jpg',
+export interface Battlefield {
+  id: string
+  name: string
+  urls: PbrUrls
 }
+
+const battlefield = (id: string, name: string): Battlefield => ({
+  id,
+  name,
+  urls: {
+    map: BASE + `battlefield/${id}/diff.jpg`,
+    normalMap: BASE + `battlefield/${id}/nor.jpg`,
+    roughnessMap: BASE + `battlefield/${id}/rough.jpg`,
+  },
+})
+
+/** Non-tiling 44:30 ground textures, each stretched once across the whole board. */
+export const BATTLEFIELDS: readonly Battlefield[] = [
+  battlefield('aerialrock', 'Rocky Plateau'),
+  battlefield('dirt', 'Scorched Dirt'),
+  battlefield('dryrocks', 'Dry Rubble'),
+  battlefield('rocks08', 'Broken Stone'),
+  battlefield('crackmud', 'Cracked Mud'),
+  battlefield('laterite', 'Red Laterite'),
+]
 
 export const BRICK_URLS: PbrUrls = {
   map: BASE + 'brick/diff_1k.jpg',
@@ -89,4 +109,18 @@ export function polygonFootprintSize(polygon: { x: number; z: number }[]): { wid
     if (p.z > maxZ) maxZ = p.z
   }
   return { width: Math.max(maxX - minX, 0.01), depth: Math.max(maxZ - minZ, 0.01) }
+}
+
+/** Loads one battlefield's texture set for stretching once over the board: repeat 1, clamped edges,
+ *  sRGB diffuse. (Separate from useTiledPBR, which sets RepeatWrapping on the shared cached textures.) */
+export function useBattlefieldPBR(urls: PbrUrls, anisotropy?: number): PbrTextures {
+  const [map, normalMap, roughnessMap] = useTexture([urls.map, urls.normalMap, urls.roughnessMap])
+  map.colorSpace = THREE.SRGBColorSpace
+  for (const t of [map, normalMap, roughnessMap]) {
+    t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping
+    t.repeat.set(1, 1)
+    if (anisotropy) t.anisotropy = anisotropy
+    t.needsUpdate = true
+  }
+  return { map, normalMap, roughnessMap }
 }
