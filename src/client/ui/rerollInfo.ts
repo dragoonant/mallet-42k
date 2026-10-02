@@ -1,14 +1,23 @@
 // Plain-language copy for the two re-roll prompts (commandReroll, and chooseOption/rerollOffer) —
 // "Rolled 1, needs 3+ to save" rather than a bare "[1]".
 //
-// The engine's DiceRoll record carries the faces but not the threshold they were judged against, so
-// every number a player actually wants comes from the roll's own event: SaveRolled.needed,
-// WoundRolled.needed, FeelNoPainRolled.needed, ChargeRolled.needed. Those events are always already in
-// the log by the time the decision is raised — stratagems.ts's openCommandReroll and attack.ts's
-// rerollOffer both decide() inside the same step() that emitted them (the same assumption
-// commandRerollMatters() in store/game.ts makes). Hit rolls are the one exception: HitRolled has no
-// `needed`, so the threshold comes from the firing weapon's skill instead.
-import type { DiceRoll, GameEvent, GameState } from '@/engine'
+// The engine's DiceRoll record carries the faces but not the threshold they were judged against, and
+// the roll's own event is NOT yet in the log when either re-roll decision is raised: ctx.rollOnce
+// (engine/reducer.ts) opens the `any.rollMade` window immediately after rolling and before returning
+// to the caller that emits HitRolled/WoundRolled/SaveRolled, and attack.ts's rerollOffer likewise
+// decides inside the roll-resolution helper, before the same emit. So the newest matching event in
+// the log belongs to the PREVIOUS roll — reading `.needed` off it shows a number from the last
+// model's save, silently, whenever one exists.
+//
+// Every threshold therefore comes from game state instead:
+//   save    CurrentAttack.saveTargets, which the save stage publishes before it rolls
+//   hit     the firing weapon's own skill (BS/WS)
+//   wound   the engine's own woundRollNeeded(S, T)
+//   charge  the engine's own neededChargeDistance, against the declared targets in phaseState.charge
+// Events are still used for the things that are safely in the past — the attack a save belongs to
+// was wounded before the save stage began, so naming the attacker from it is sound.
+import { woundRollNeeded, modelStats, type DiceRoll, type GameEvent, type GameState } from '@/engine'
+import { neededChargeDistance } from '@/engine/phases/charge'
 
 export interface RerollSummary {
   /** Prompt heading, phrased as the question being asked: "Re-roll the armour save?" */
@@ -40,34 +49,47 @@ function shown(roll: DiceRoll): string {
   return final !== undefined && final !== die ? `${die} (${final} after modifiers)` : `${die}`
 }
 
-function lastSave(events: GameEvent[], modelId: string | null) {
-  for (let i = events.length - 1; i >= 0; i--) {
-    const e = events[i]
-    if (e.type === 'SaveRolled' && (modelId === null || e.modelId === modelId)) return e
-  }
-  return null
-}
-
-function lastAttackRoll<T extends 'HitRolled' | 'WoundRolled'>(events: GameEvent[], type: T, roll: DiceRoll) {
-  for (let i = events.length - 1; i >= 0; i--) {
-    const e = events[i]
-    if (e.type !== type) continue
-    // `type` is generic, so the check above doesn't narrow `e` on its own — both candidate events carry
-    // the same AttackRollContext, which is all this match needs.
-    const attack = (e as Extract<GameEvent, { type: 'HitRolled' | 'WoundRolled' }>).attack
-    if (roll.unitId && attack.attackerUnitId !== roll.unitId) continue
-    if (roll.weaponId && attack.weaponId !== roll.weaponId) continue
-    return e as Extract<GameEvent, { type: T }>
-  }
-  return null
-}
-
+/** Events that genuinely are in the log by the time a re-roll is offered — the ones from a stage
+ *  that already finished. Never use one of these for the roll currently being decided. */
 function lastOfType<T extends GameEvent['type']>(events: GameEvent[], type: T) {
   for (let i = events.length - 1; i >= 0; i--) {
     const e = events[i]
     if (e.type === type) return e as Extract<GameEvent, { type: T }>
   }
   return null
+}
+
+/** The wound that led to the save now being rolled — emitted before the save stage, so unlike the
+ *  save's own event this one really is in the log. */
+function lastWound(events: GameEvent[]) {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i]
+    if (e.type === 'WoundRolled' || e.type === 'AttackAllocated') return e
+  }
+  return null
+}
+
+/** Did the roll make `needed`? An unmodified 6 always succeeds and an unmodified 1 always fails
+ *  (R-6.21), which is the whole of the rule for a single-die hit/wound/save. */
+function passes(roll: DiceRoll, needed: number): boolean {
+  const die = roll.dice[0] ?? 0
+  if (die === 6) return true
+  if (die === 1) return false
+  return (roll.final[0] ?? die) >= needed
+}
+
+/** The wound threshold, from the weapon's Strength against the target's Toughness — the engine's own
+ *  table, not a second copy of it. */
+function woundNeeded(state: GameState, roll: DiceRoll): number | null {
+  const weapon = roll.weaponId ? state.weapons[roll.weaponId] : undefined
+  const target = roll.targetUnitId ? state.units[roll.targetUnitId] : undefined
+  const model = target ? state.models[target.models[0]] : undefined
+  if (!weapon || !model) return null
+  try {
+    return woundRollNeeded(weapon.S, modelStats(state, model).T)
+  } catch {
+    return null
+  }
 }
 
 /** One sentence naming the unit the roll belongs to, and the attack it is caught up in. */
@@ -80,49 +102,61 @@ function attackContext(state: GameState, attacker: string | null, weapon: string
 export function rerollSummary(state: GameState, events: GameEvent[], roll: DiceRoll): RerollSummary {
   switch (roll.purpose) {
     case 'save': {
-      const e = lastSave(events, roll.modelId)
-      const kindWord = e?.kind === 'invuln' ? 'invulnerable' : 'armour'
-      const attacker = e ? unitName(state, e.attack.attackerUnitId) : null
-      const gun = e ? weaponName(state, e.attack.weaponId) : null
+      // The save being made right now: kind from the choice (or armour when there was none), target
+      // from what the engine published before rolling. The attack it belongs to comes from the log,
+      // which is sound — the wound was rolled before this save stage started.
+      const cur = state.phaseState?.attack?.current ?? null
+      const kind = cur?.save?.kind === 'invuln' ? 'invuln' : 'armour'
+      const needed = kind === 'invuln' ? (cur?.saveTargets?.invuln ?? null) : (cur?.saveTargets?.armour ?? null)
+      const wound = lastWound(events)
+      const attacker = wound ? unitName(state, wound.attack.attackerUnitId) : null
+      const gun = wound ? weaponName(state, wound.attack.weaponId) : null
       const who = unitName(state, roll.unitId)
+      const cover = kind === 'armour' && cur?.saveTargets?.cover ? ' (cover counted)' : ''
       return {
-        title: `Re-roll the ${kindWord} save?`,
-        line: e ? `Rolled ${shown(roll)} — needs ${e.needed}+ to save.` : `Rolled ${shown(roll)} on a save.`,
+        title: `Re-roll the ${kind === 'invuln' ? 'invulnerable' : 'armour'} save?`,
+        line: needed === null
+          ? `Rolled ${shown(roll)} on a save.`
+          : `Rolled ${shown(roll)} — needs ${needed}+ to save${cover}.`,
         context: who ? `${who}${attacker ? `, hit by ${attacker}${gun ? ` (${gun})` : ''}` : ''}.` : null,
-        failed: e ? !e.saved : true,
+        failed: needed === null ? true : !passes(roll, needed),
       }
     }
     case 'hit': {
-      const e = lastAttackRoll(events, 'HitRolled', roll)
-      // HitRolled carries no threshold — the weapon's own skill (BS/WS) is the number the player needs.
+      // The weapon's own skill (BS/WS) is the number the player needs; HitRolled would not be in the
+      // log yet even if it carried one.
       const skill = roll.weaponId ? state.weapons[roll.weaponId]?.skill : null
       return {
         title: 'Re-roll the hit roll?',
-        line: skill ? `Rolled ${shown(roll)} — needs ${skill}+ to hit.` : `Rolled ${shown(roll)} to hit.`,
+        line: typeof skill === 'number' ? `Rolled ${shown(roll)} — needs ${skill}+ to hit.` : `Rolled ${shown(roll)} to hit.`,
         context: attackContext(state, unitName(state, roll.unitId), weaponName(state, roll.weaponId), unitName(state, roll.targetUnitId)),
-        failed: e ? !e.hit : true,
+        failed: typeof skill === 'number' ? !passes(roll, skill) : true,
       }
     }
     case 'wound': {
-      const e = lastAttackRoll(events, 'WoundRolled', roll)
       const target = unitName(state, roll.targetUnitId)
+      const needed = woundNeeded(state, roll)
       return {
         title: 'Re-roll the wound roll?',
-        line: e ? `Rolled ${shown(roll)} — needs ${e.needed}+ to wound${target ? ` ${target}` : ''}.` : `Rolled ${shown(roll)} to wound.`,
+        line: needed === null
+          ? `Rolled ${shown(roll)} to wound.`
+          : `Rolled ${shown(roll)} — needs ${needed}+ to wound${target ? ` ${target}` : ''}.`,
         context: attackContext(state, unitName(state, roll.unitId), weaponName(state, roll.weaponId), target),
-        failed: e ? !e.wounded : true,
+        failed: needed === null ? true : !passes(roll, needed),
       }
     }
     case 'charge': {
-      const e = lastOfType(events, 'ChargeRolled')
       const who = unitName(state, roll.unitId)
-      const total = e ? e.total : roll.dice.reduce((a, b) => a + b, 0)
-      const needed = e?.needed ?? null
+      const total = roll.final.length > 0 ? roll.final.reduce((a, b) => a + b, 0) : roll.dice.reduce((a, b) => a + b, 0)
+      // The declared targets are still on the charge state; the distance is the engine's own.
+      const charge = state.phaseState?.charge ?? null
+      const needed =
+        charge && charge.unitId === roll.unitId ? neededChargeDistance(state, charge.unitId, charge.targetUnitIds) : null
       return {
         title: 'Re-roll the charge?',
         line: needed === null
           ? `Rolled ${shown(roll)} = ${total}" — no target is in reach.`
-          : `Rolled ${shown(roll)} = ${total}" — needs ${needed}" to reach.`,
+          : `Rolled ${shown(roll)} = ${total}" — needs ${Math.max(2, Math.ceil(needed))} (${needed.toFixed(1)}") to reach.`,
         context: who ? `${who} is charging.` : null,
         failed: needed === null || total < needed,
       }
