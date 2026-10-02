@@ -3,13 +3,13 @@ import type { ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import { isCameraDragModifier } from './cameraModifiers'
 import { extrudedPolygonGeometry } from './geometry'
-import { GROUND_URLS, useTiledPBR } from './terrainAssets'
+import { useThree } from '@react-three/fiber'
+import { BATTLEFIELDS, useBattlefieldPBR } from './terrainAssets'
+import { useUiStore } from '../ui/uiStore'
 import { SIDE_COLOR, type DeploymentZones } from './types'
 
 export const BOARD_WIDTH_IN = 44
 export const BOARD_DEPTH_IN = 30
-// One ground-texture repeat per this many inches of mat (~1 repeat per 10-12", per spec).
-const GROUND_REPEAT_INCHES = 11
 const ZONE_TINT_HEIGHT = 0.015
 const ZONE_TINT_THICKNESS = 0.01
 
@@ -30,14 +30,10 @@ function GroundMesh({
   onPointerDown: PointerHandler
   onPointerUp: PointerHandler
 }) {
-  const { map, normalMap, roughnessMap } = useTiledPBR(GROUND_URLS)
-  useMemo(() => {
-    const repeatX = width / GROUND_REPEAT_INCHES
-    const repeatY = depth / GROUND_REPEAT_INCHES
-    map.repeat.set(repeatX, repeatY)
-    normalMap.repeat.set(repeatX, repeatY)
-    roughnessMap.repeat.set(repeatX, repeatY)
-  }, [map, normalMap, roughnessMap, width, depth])
+  const battlefieldIndex = useUiStore((s) => s.battlefieldIndex)
+  const maxAniso = useThree((s) => s.gl.capabilities.getMaxAnisotropy())
+  // Stretched once across the mat: image long axis = board x (44"), no tiling.
+  const { map, normalMap, roughnessMap } = useBattlefieldPBR(BATTLEFIELDS[battlefieldIndex].urls, maxAniso)
 
   return (
     <mesh

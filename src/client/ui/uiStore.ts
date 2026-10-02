@@ -5,6 +5,44 @@ import { create } from 'zustand'
 import type { ModelPlacement } from '@/engine'
 import type { FormationKind } from '../interaction/formations'
 
+const BATTLEFIELD_COUNT = 6
+const BATTLEFIELD_KEY = 'mallet42k.battlefield'
+const BATTLEFIELD_SLUGS = ['aerialrock', 'dirt', 'dryrocks', 'rocks08', 'crackmud', 'laterite']
+
+/** `?board=<1-6 or slug>` forces a battlefield (for screenshots); null when absent/invalid. */
+function forcedBattlefield(): number | null {
+  try {
+    const v = new URLSearchParams(window.location.search).get('board')
+    if (!v) return null
+    const n = Number(v)
+    if (Number.isInteger(n) && n >= 1 && n <= BATTLEFIELD_COUNT) return n - 1
+    const i = BATTLEFIELD_SLUGS.indexOf(v)
+    return i >= 0 ? i : null
+  } catch {
+    return null
+  }
+}
+const FORCED_BATTLEFIELD = forcedBattlefield()
+
+function storedBattlefield(): number {
+  try {
+    const n = Number(window.localStorage.getItem(BATTLEFIELD_KEY))
+    if (window.localStorage.getItem(BATTLEFIELD_KEY) !== null && Number.isInteger(n) && n >= 0 && n < BATTLEFIELD_COUNT) return n
+  } catch {
+    /* storage unavailable */
+  }
+  // Last-used index; the first new game advances from here, so start one before 0.
+  return BATTLEFIELD_COUNT - 1
+}
+
+function saveBattlefield(i: number): void {
+  try {
+    window.localStorage.setItem(BATTLEFIELD_KEY, String(i))
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 export interface PlacementDraft {
   /** decision id this draft answers — used to invalidate a stale draft when the decision moves on. */
   decisionId: string
@@ -51,6 +89,8 @@ export interface MeasureLine {
 }
 
 interface UiState {
+  /** Index into BATTLEFIELDS (src/client/board/terrainAssets.ts) of the ground texture in use. */
+  battlefieldIndex: number
   selectedUnitId: string | null
   hoveredUnitId: string | null
   /** One model, for prompts that choose between models of the same unit (allocateAttack) — the
@@ -107,6 +147,8 @@ interface UiState {
   toggleLos(): void
   toggleHelp(): void
   toggleSettings(): void
+  /** Advances to the next battlefield texture (HUD button); persisted. */
+  cycleBattlefield(): void
   focusCamera(pos: Vec2): void
   /** Sets the formation picker's shape/facing for the decision that just became pending — `auto`
    *  true means "keep re-deriving facing from travel direction until the player rotates manually"
@@ -130,6 +172,7 @@ interface UiState {
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
+  battlefieldIndex: FORCED_BATTLEFIELD ?? storedBattlefield(),
   selectedUnitId: null,
   hoveredUnitId: null,
   hoveredModelId: null,
@@ -166,6 +209,12 @@ export const useUiStore = create<UiState>((set, get) => ({
   toggleLos: () => set((s) => ({ losOn: !s.losOn })),
   toggleHelp: () => set((s) => ({ helpOpen: !s.helpOpen })),
   toggleSettings: () => set((s) => ({ settingsOpen: !s.settingsOpen })),
+  cycleBattlefield: () =>
+    set((s) => {
+      const i = (s.battlefieldIndex + 1) % BATTLEFIELD_COUNT
+      saveBattlefield(i)
+      return { battlefieldIndex: i }
+    }),
   focusCamera: (pos) => set({ focusTarget: { x: pos.x, z: pos.z } }),
   primeFormation: (kind, facing, auto) => set({ formationKind: kind, formationFacing: facing, formationFacingAuto: auto }),
   setFormationKind: (kind) => set({ formationKind: kind }),
@@ -178,8 +227,15 @@ export const useUiStore = create<UiState>((set, get) => ({
   clearNudge: () => set({ nudge: null }),
   resetForDecision: () =>
     set({ deployTargetUnitId: null, draft: null, previewDraft: null, hoveredUnitId: null, hoveredModelId: null, hoveredObjectiveId: null, nudge: null }),
-  resetAll: () =>
+  resetAll: () => {
+    // New game: rotate to the next battlefield unless ?board= forces one.
+    let battlefieldIndex = get().battlefieldIndex
+    if (FORCED_BATTLEFIELD === null) {
+      battlefieldIndex = (battlefieldIndex + 1) % BATTLEFIELD_COUNT
+      saveBattlefield(battlefieldIndex)
+    }
     set({
+      battlefieldIndex,
       selectedUnitId: null,
       hoveredUnitId: null,
       hoveredModelId: null,
@@ -197,5 +253,6 @@ export const useUiStore = create<UiState>((set, get) => ({
       formationFacingAuto: true,
       formationMemory: {},
       nudge: null,
-    }),
+    })
+  },
 }))

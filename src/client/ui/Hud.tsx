@@ -10,6 +10,7 @@ import { modelsAnchor } from '../interaction/geometry'
 import { isPlacementDecision } from '../interaction/decisions'
 import { MissionPanel } from './MissionPanel'
 import { primaryScoringWindowHint, sourceName } from './labels'
+import { BATTLEFIELDS } from '../board/terrainAssets'
 import { buttonBase, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 
 const PHASES: { id: Phase; label: string }[] = [
@@ -296,8 +297,21 @@ function ToolButtons() {
     if (models.length > 0) focusCamera(modelsAnchor(models))
   }
 
+  const battlefieldIndex = useUiStore((s) => s.battlefieldIndex)
+  const cycleBattlefield = useUiStore((s) => s.cycleBattlefield)
+  const battlefieldName = BATTLEFIELDS[battlefieldIndex].name
+
   const buttons = (
     <>
+      <button
+        style={{ ...toolBtn, width: 'auto', padding: '0 10px', fontSize: 12, whiteSpace: 'nowrap' }}
+        data-testid="btn-battlefield"
+        aria-label={`Battlefield: ${battlefieldName}`}
+        title="Battlefield: cycle the ground texture (purely cosmetic)."
+        onClick={cycleBattlefield}
+      >
+        Battlefield: {battlefieldName} ▸
+      </button>
       <button
         style={measureOn ? toolBtnActive : toolBtn}
         data-testid="btn-measure"
