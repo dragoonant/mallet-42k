@@ -2,17 +2,17 @@
 // four move-family decisions (which need a board click, handled by src/client/interaction/**); every
 // other decision kind — including declareTargets/declareCharge, which also accept a click on an enemy
 // Figure via UnitsLayer — renders as a plain clickable list here, so no decision can ever get stuck.
-import { useEffect, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import {
   distance as edgeGap, unitModels,
-  type Action, type ChooseOptionTopic, type DecisionOption, type GameEvent, type GameState, type PendingDecision, type PlayerId, type StratagemId,
+  type Action, type ChooseOptionTopic, type DecisionOption, type GameEvent, type GameState, type MoveType, type PendingDecision, type PlayerId, type StratagemId,
 } from '@/engine'
 import { useGameStore } from '../store/game'
 import { useUiStore } from './uiStore'
 import {
   combinedUnitIds, combinedUnitModels, distance2D, formationPlacementsForUnit, modelsAnchor, placementInfo, validateDraft,
 } from '../interaction'
-import { objectiveLabel, prettifyId, rerollContext, saveChoiceContext } from './labels'
+import { moveTypeHelp, objectiveLabel, prettifyId, rerollContext, saveAttackContext, saveChoiceFromDecisionData, type MoveTypeHelp } from './labels'
 import { FormationPicker } from './FormationPicker'
 import { buttonBase, buttonDanger, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 
@@ -123,6 +123,13 @@ const PASS_LABEL: Partial<Record<PendingDecision['kind'], string>> = {
   commandReroll: 'Keep the roll',
 }
 
+const MOVE_TYPE_LABEL: Partial<Record<MoveType, string>> = {
+  normal: 'Normal move',
+  advance: 'Advance',
+  stationary: 'Remain Stationary',
+  fallBack: 'Fall Back',
+}
+
 const REACTION_LABEL: Record<string, string> = {
   overwatch: 'Fire Overwatch',
   heroicIntervention: 'Heroic Intervention',
@@ -140,7 +147,9 @@ function describeAction(a: Action, state: GameState): string {
     case 'chooseFightUnit':
       return `Fight with ${unitName(a.unitId)}`
     case 'declareMove':
-      return `${a.moveType.charAt(0).toUpperCase()}${a.moveType.slice(1)} move`
+      // Matches the help card's own titles (labels.ts moveTypeHelp), and reads as the rulebook does
+      // rather than as the enum does ("fallBack move").
+      return MOVE_TYPE_LABEL[a.moveType] ?? a.moveType
     case 'declareTargets':
       return a.targets.length > 0 ? `Target ${unitName(a.targets[0].targetUnitId)}` : 'Hold fire'
     case 'declareCharge': {
@@ -200,6 +209,8 @@ function labelForOption(pending: PendingDecision, state: GameState, events: read
     case 'chooseFightUnit':
     case 'stratagemWindow':
     case 'reactionWindow':
+    // The engine labels these with the bare move type ('normal', 'fallBack').
+    case 'declareMove':
     // The engine labels these "allocate to A:terminator-squad#0" — a model id, which says nothing
     // about which figure it is or how hurt it already is.
     case 'allocateAttack':
@@ -214,15 +225,12 @@ function labelForOption(pending: PendingDecision, state: GameState, events: read
     case 'chooseOption': {
       if (pending.context.topic === 'razeObjective' || pending.context.topic === 'recoverObjective') return objectiveLabel(o.id)
       if (pending.context.topic === 'saveType') {
-        const modelId = typeof pending.context.data.modelId === 'string' ? pending.context.data.modelId : null
-        const invuln = typeof pending.context.data.invuln === 'number' ? pending.context.data.invuln : null
-        if (o.id === 'invuln' && invuln !== null) return `Invulnerable save — ${invuln}+`
-        if (o.id === 'armour' && modelId && invuln !== null) {
-          const ctx = saveChoiceContext(state, events, modelId, invuln)
-          if (ctx?.armourNeeded !== null && ctx !== null) {
-            return ctx.armourNeeded > 6 ? `Armour save — ${ctx.armourNeeded}+ (impossible)` : `Armour save — ${ctx.armourNeeded}+`
-          }
-        }
+        // The engine hands us what each save must actually roll (AP, cover and modifiers in) —
+        // see docs/spec/00-architecture.md §3. Never re-derive it here.
+        const ctx = saveChoiceFromDecisionData(state, pending.context.data)
+        const needed = o.id === 'invuln' ? ctx?.invulnNeeded : ctx?.armourNeeded
+        const name = o.id === 'invuln' ? 'Invulnerable save' : 'Armour save'
+        if (typeof needed === 'number') return needed > 6 ? `${name} — ${needed}+ (impossible)` : `${name} — ${needed}+`
       }
       return o.label
     }
@@ -312,6 +320,41 @@ const row: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap' }
  *  pinned top/bottom is what keeps the whole box out of both zones. */
 const deployRowVertical: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6 }
 const optionList: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', maxHeight: 130, overflowY: 'auto' }
+
+/** How long the pointer has to rest on an option before its help appears — long enough that moving
+ *  across the row to the option you want doesn't flash three cards on the way. */
+const HELP_DELAY_MS = 450
+// Anchored to the prompt panel, not to the hovered button: the option row is an overflow:auto
+// scroller (`optionList`), which clips anything positioned outside its box — a card above a button
+// was in the DOM and measurable, but painted away to nothing.
+const helpCard: CSSProperties = {
+  ...panel,
+  position: 'absolute',
+  bottom: 'calc(100% + 8px)',
+  left: 0,
+  width: 300,
+  padding: '8px 10px',
+  fontSize: 12,
+  lineHeight: 1.45,
+  pointerEvents: 'none', // never steals the click the player is about to make
+  zIndex: 40,
+}
+const helpTitle: CSSProperties = { fontWeight: 700, marginBottom: 4 }
+
+/** Hover help for one option, shown above the row (the prompt itself is at the bottom of the
+ *  screen, so a card below it would be off-screen). */
+function OptionHelp({ help }: { help: MoveTypeHelp }) {
+  return (
+    <div style={helpCard} data-testid="option-help" role="tooltip">
+      <div style={helpTitle}>{help.title}</div>
+      {help.lines.map((line, i) => (
+        <div key={i} style={{ color: i === 0 ? colors.text : colors.muted, marginTop: i === 0 ? 0 : 3 }}>
+          {line}
+        </div>
+      ))}
+    </div>
+  )
+}
 function hasOptions(p: PendingDecision): p is Extract<PendingDecision, { options: DecisionOption[] }> {
   return 'options' in p
 }
@@ -381,8 +424,23 @@ export function DecisionPrompt() {
   const recallFormation = useUiStore((s) => s.recallFormation)
   const rememberFormation = useUiStore((s) => s.rememberFormation)
 
+  // Delayed hover help on an option (currently the move types — see moveTypeHelp). Kept here rather
+  // than in each button so only one card is ever open, and so the timer is cancelled on unmount.
+  const [helpFor, setHelpFor] = useState<string | null>(null)
+  const helpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const cancelHelp = () => {
+    if (helpTimer.current !== null) clearTimeout(helpTimer.current)
+    helpTimer.current = null
+    setHelpFor(null)
+  }
+  const scheduleHelp = (id: string) => {
+    if (helpTimer.current !== null) clearTimeout(helpTimer.current)
+    helpTimer.current = setTimeout(() => setHelpFor(id), HELP_DELAY_MS)
+  }
+  useEffect(() => () => { if (helpTimer.current !== null) clearTimeout(helpTimer.current) }, [])
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => resetForDecision(), [pending?.id])
+  useEffect(() => { resetForDecision(); cancelHelp() }, [pending?.id])
 
   // M4 formation memory (#5): a move-family decision already knows its unit, so it can be primed
   // the moment it becomes pending — 'keep' at the remembered facing if this unit has one, else
@@ -454,6 +512,11 @@ export function DecisionPrompt() {
     ? pending.options.map((o) => ({ id: o.id, label: labelForOption(pending, state, events, o), action: o.action }))
     : (legal ?? []).map((a, i) => ({ id: `${a.type}-${i}`, label: describeAction(a, state), action: a }))
 
+  // Hover help for whichever option the pointer has rested on (move types today — see moveTypeHelp).
+  const helpFor_ = listItems.find((it) => it.id === helpFor)
+  const activeHelp =
+    helpFor_ && helpFor_.action.type === 'declareMove' ? moveTypeHelp(state, helpFor_.action.unitId, helpFor_.action.moveType) : null
+
   const chooseOptionInfo = pending.kind === 'chooseOption' ? CHOOSE_OPTION_INFO[pending.context.topic] : undefined
   const kindTitle = chooseOptionInfo?.title ?? KIND_TITLE[pending.kind] ?? pending.kind
   const isDeploy = pending.kind === 'deployUnit'
@@ -462,6 +525,7 @@ export function DecisionPrompt() {
     <>
       <FormationPicker />
       <div style={isDeploy ? deployWrap : wrap} data-testid="prompt">
+      {activeHelp && <OptionHelp help={activeHelp} />}
       <div style={heading}>{kindTitle}</div>
       {chooseOptionInfo && <div style={hint}>{chooseOptionInfo.hint}</div>}
 
@@ -494,7 +558,7 @@ export function DecisionPrompt() {
 
       {pending.kind === 'allocateAttack' && (() => {
         // Same gap as the save choice: the prompt named models but never said what was hitting them.
-        const ctx = saveChoiceContext(state, events, pending.context.eligibleModels[0] ?? '', 0)
+        const ctx = saveAttackContext(state, events, pending.context.eligibleModels[0] ?? '')
         const dmg = pending.context.damage
         return (
           <div style={infoBlock} data-testid="allocate-context">
@@ -514,33 +578,33 @@ export function DecisionPrompt() {
       })()}
 
       {pending.kind === 'chooseOption' && pending.context.topic === 'saveType' && (() => {
-        const modelId = typeof pending.context.data.modelId === 'string' ? pending.context.data.modelId : null
-        const invuln = typeof pending.context.data.invuln === 'number' ? pending.context.data.invuln : null
-        const ctx = modelId && invuln !== null ? saveChoiceContext(state, events, modelId, invuln) : null
+        const ctx = saveChoiceFromDecisionData(state, pending.context.data)
         if (!ctx) return null
         const apText = ctx.ap === 0 ? 'AP 0' : `AP ${ctx.ap}`
+        const armour = ctx.armourNeeded
+        const invuln = ctx.invulnNeeded
+        const better =
+          armour === null || invuln === null
+            ? null
+            : armour > invuln
+              ? 'The invulnerable save is the better roll here.'
+              : armour < invuln
+                ? 'The armour save is the better roll here.'
+                : 'Both saves need the same roll.'
         return (
           <div style={infoBlock} data-testid="save-context">
             <div style={{ color: colors.text, fontWeight: 600 }}>
               Incoming: {ctx.weaponName} ({apText}){ctx.attackerName ? ` — ${ctx.attackerName}` : ''}
             </div>
             <div>
-              {ctx.armourNeeded === null
+              {armour === null
                 ? 'Armour save: unknown'
-                : ctx.armourNeeded > 6
-                  ? `Armour save ${ctx.sv}+ is useless against ${apText} (needs ${ctx.armourNeeded}+)`
-                  : `Armour save ${ctx.sv}+ becomes ${ctx.armourNeeded}+ against ${apText}`}
-              {' · '}
-              Invulnerable save {ctx.invulnNeeded}+ (AP never applies)
+                : armour > 6
+                  ? `Armour save ${ctx.sv}+ cannot be made against ${apText} (would need ${armour}+)`
+                  : `Armour save ${ctx.sv}+ needs ${armour}+ here${ctx.cover ? ' (cover already counted)' : ''}`}
+              {invuln !== null && ` · Invulnerable save needs ${invuln}+ (AP never applies)`}
             </div>
-            <div style={{ marginTop: 3 }}>
-              {ctx.armourNeeded !== null && ctx.armourNeeded > ctx.invulnNeeded
-                ? 'The invulnerable save is the better roll here.'
-                : ctx.armourNeeded !== null && ctx.armourNeeded < ctx.invulnNeeded
-                  ? 'The armour save is the better roll here.'
-                  : 'Both saves need the same roll.'}
-              {' Cover, where it applies, improves the armour save by 1.'}
-            </div>
+            {better && <div style={{ marginTop: 3 }}>{better}</div>}
           </div>
         )
       })()}
@@ -621,24 +685,33 @@ export function DecisionPrompt() {
                 ? it.action
                 : null
             const hoverTarget = hoverTargetFor(pending, it.action, it.id)
+            // Move types are the one choice whose options are rules in disguise: what each costs the
+            // unit this turn is the decision, and the button can only carry its name. The card itself
+            // is rendered at panel level (see activeHelp) so the option scroller can't clip it.
+            const hasHelp = it.action.type === 'declareMove'
             return (
               <button
                 key={it.id}
                 data-testid={`prompt-option-${it.id}`}
                 style={buttonBase}
+                onFocus={() => hasHelp && setHelpFor(it.id)}
+                onBlur={cancelHelp}
                 onMouseEnter={() => {
+                  if (hasHelp) scheduleHelp(it.id)
                   if (withPlacements) setPreviewDraft({ decisionId: pending.id, unitId: withPlacements.unitId, anchor: { x: 0, z: 0 }, placements: withPlacements.placements })
                   if (hoverTarget?.kind === 'unit') hoverUnit(hoverTarget.id)
                   if (hoverTarget?.kind === 'model') hoverModel(hoverTarget.id)
                   if (hoverTarget?.kind === 'objective') hoverObjective(hoverTarget.id)
                 }}
                 onMouseLeave={() => {
+                  cancelHelp()
                   setPreviewDraft(null)
                   hoverUnit(null)
                   hoverModel(null)
                   hoverObjective(null)
                 }}
                 onClick={() => {
+                  cancelHelp()
                   setPreviewDraft(null)
                   hoverUnit(null)
                   hoverModel(null)

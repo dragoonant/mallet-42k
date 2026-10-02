@@ -125,12 +125,20 @@ context doesn't carry it:
 
 | Prompt | Block shows |
 |---|---|
-| `commandReroll` | what the roll was for, whose weapon against what, the dice (and the modified value where they differ), the number needed, and whether it passed — then the CP cost and the player's CP |
-| `chooseOption`/`saveType` | the incoming weapon and its AP, the model's Save characteristic and what it becomes after AP, the invulnerable save, and which of the two is the better roll. Deliberately the base numbers: save modifiers the client can't see (the benefit of cover, +1) can only make the armour save better than shown, never worse, so the comparison is never optimistic about the wrong option |
+| `commandReroll` | what the roll was for, whose weapon against what, the dice (and the modified value where they differ) and the number to beat — then the CP cost and the player's CP. A save re-roll reads its target from `CurrentAttack.saveTargets`, which the engine publishes before rolling, because this window opens before `SaveRolled` is emitted |
+| `chooseOption`/`saveType` | the incoming weapon and its AP, and **what each save actually has to roll** — AP, the benefit of cover and any modifiers already applied — plus which of the two is the better roll. The numbers come from the engine (`context.data`, §3 of 00-architecture), never from client-side arithmetic: a `sv - AP` of the client's own silently ignores cover and every save-modifying ability |
 | `allocateAttack` | the incoming weapon, its AP and Damage, attacker and target, and whether Precision applies; each option is a model with its wounds remaining |
 
 Options that name a board thing highlight it on hover — a unit, an objective, or (for `allocateAttack`)
 the single model, which the unit-level highlight cannot pick out.
+
+`declareMove`'s options are rules in disguise — what each move costs the unit this turn *is* the
+choice — so resting on one for 450ms opens a help card above the row, written in that unit's own
+numbers: its Move characteristic ("Move each model up to 5""), the range an Advance can reach
+(`M+1`–`M+6`), whether it has Assault weapons to fire after Advancing or Heavy weapons that reward
+Remaining Stationary, and whether a Fall Back means every model tests for Desperate Escape (it is
+Battle-shocked) or only those crossing an enemy. The card never takes pointer events, so it cannot
+intercept the click it is explaining.
 
 ## 7. Camera
 

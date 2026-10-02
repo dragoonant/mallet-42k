@@ -2,7 +2,7 @@
 // VP/CP event sources, secondary/stratagem ids) into text a player can read without cross-referencing
 // the JSON. Pure lookups over DataBundle/GameState — no engine/scoring logic duplicated here beyond a
 // generic id-to-title-case fallback for whatever id we don't have a curated name for.
-import type { DiceRoll, GameEvent, GameState, PlayerId, RollPurpose, RuntimeWeapon } from '@/engine'
+import type { DiceRoll, GameEvent, GameState, MoveType, PlayerId, RollPurpose, RuntimeWeapon } from '@/engine'
 import { modelStats, woundRollNeeded } from '@/engine'
 import type { DataBundle, MissionData, MissionRule, ScoringRule } from '@/data/types'
 
@@ -236,11 +236,15 @@ function rerollTargetText(state: GameState, events: readonly GameEvent[], roll: 
       return ` — S${S} vs T${T}, needs ${woundRollNeeded(S, T)}+`
     }
     case 'save': {
-      if (!roll.modelId) return ''
-      const ctx = saveChoiceContext(state, events, roll.modelId, 0)
-      if (!ctx || ctx.armourNeeded === null) return ''
-      const apText = ctx.ap === 0 ? 'AP 0' : `AP ${ctx.ap}`
-      return ` — armour ${ctx.sv}+ against ${apText} needs ${ctx.armourNeeded}+`
+      // The engine publishes the target of the save actually being made (armour or invulnerable,
+      // whichever the player took) before it rolls — this window opens before SaveRolled exists.
+      const targets = saveTargetsInFlight(state)
+      const kind = state.phaseState?.attack?.current?.save?.kind
+      if (!targets || !kind || kind === 'none') return ''
+      const needed = kind === 'invuln' ? targets.invuln : targets.armour
+      if (needed === null) return ''
+      const basis = kind === 'invuln' ? 'invulnerable save' : `armour ${targets.sv}+${targets.ap === 0 ? '' : ` against AP ${targets.ap}`}${targets.cover ? ' in cover' : ''}`
+      return ` — ${basis} needs ${needed}+`
     }
     default:
       return ''
@@ -286,48 +290,157 @@ export interface SaveChoiceContext {
   attackerName: string
   /** The model's own Save characteristic, before AP. */
   sv: number | null
-  /** What the armour save needs after AP — null when the model's Sv is unknown, 7+ meaning it can
-   *  only be made with a modifier (cover). */
+  /** What the armour save must actually roll — AP, the benefit of cover and any modifiers already
+   *  applied. Above 6 means it cannot be made at all. Null when the engine didn't publish it. */
   armourNeeded: number | null
-  invulnNeeded: number
+  /** What the invulnerable save must actually roll, modifiers included. */
+  invulnNeeded: number | null
+  /** Whether the engine counted the target as being in cover — it is why an armour save can be
+   *  better than the AP arithmetic alone suggests. */
+  cover: boolean
 }
 
-/** The incoming attack behind a `saveType` choice: which weapon, its AP, and therefore what each of
- *  the two saves actually needs. Read off the most recent WoundRolled for this model's unit, which
- *  is the wound that caused this save (the engine opens the choice inside that attack's save stage).
- *
- *  Deliberately the *base* numbers: the engine also applies save modifiers the client can't see —
- *  the benefit of cover is +1 to an armour save — so the armour figure is a floor, never optimistic
- *  about the invulnerable one. That is the right way round for this decision: cover can only make
- *  armour better than shown, and the AP comparison the player is actually making is exact. */
-export function saveChoiceContext(state: GameState, events: readonly GameEvent[], modelId: string, invuln: number): SaveChoiceContext | null {
+/** The numbers the engine published for a `saveType` decision (`context.data` — see
+ *  docs/spec/00-architecture.md §3). These are the real targets, modifiers and all: the client used
+ *  to derive `sv - AP` itself, which silently ignored the benefit of cover (+1) and any ability that
+ *  modifies a save, so it could show 5+ for a save the dice were judged against at 4+. */
+export function saveChoiceFromDecisionData(state: GameState, data: Record<string, unknown>): SaveChoiceContext | null {
+  const num = (k: string): number | null => (typeof data[k] === 'number' ? (data[k] as number) : null)
+  const armourTarget = num('armourTarget')
+  if (armourTarget === null) return null
+  const weaponId = typeof data.weaponId === 'string' ? data.weaponId : null
+  const attackerUnitId = typeof data.attackerUnitId === 'string' ? data.attackerUnitId : null
+  return {
+    weaponName: (weaponId ? state.weapons[weaponId]?.name : undefined) ?? 'the attack',
+    ap: num('ap') ?? 0,
+    attackerName: unitNameOf(state, attackerUnitId),
+    sv: num('sv'),
+    armourNeeded: armourTarget,
+    invulnNeeded: num('invulnTarget'),
+    cover: data.cover === true,
+  }
+}
+
+/** The numbers for the save currently being rolled, for a Command Re-roll offer on it — the engine
+ *  publishes them on the attack before it rolls (`CurrentAttack.saveTargets`), because that window
+ *  opens before `SaveRolled` is emitted. Null when no save is in flight. */
+export function saveTargetsInFlight(state: GameState): { sv: number; ap: number; cover: boolean; armour: number; invuln: number | null } | null {
+  // Optional all the way down: a label helper is called from render and must never throw on a
+  // state shape it didn't expect (a fixture, an old save file, a game that hasn't started).
+  return state.phaseState?.attack?.current?.saveTargets ?? null
+}
+
+/** The incoming attack behind a save, from the log: which weapon and whose. Used for the attacker's
+ *  name beside a save roll; the numbers themselves always come from the engine. */
+export function saveAttackContext(state: GameState, events: readonly GameEvent[], modelId: string): { weaponName: string; ap: number; attackerName: string } | null {
   for (let i = events.length - 1; i >= 0; i--) {
     const e = events[i]
     if (e.type !== 'WoundRolled' && e.type !== 'AttackAllocated') continue
-    const weaponId = e.attack.weaponId
-    const weapon = state.weapons[weaponId]
+    const weapon = state.weapons[e.attack.weaponId]
     if (!weapon) continue
-    // modelStats throws (EngineInvariantError) on a missing datasheet/profile. That should never
-    // happen in a live game, but a label helper feeding a prompt must degrade to "unknown" rather
-    // than take the prompt — and the decision itself — down with it.
-    let sv: number | null = null
-    const model = state.models[modelId]
-    if (model) {
-      try {
-        sv = modelStats(state, model).Sv ?? null
-      } catch {
-        sv = null
-      }
-    }
-    const armourNeeded = sv === null ? null : sv - weapon.AP
-    return {
-      weaponName: weapon.name,
-      ap: weapon.AP,
-      attackerName: unitNameOf(state, e.attack.attackerUnitId),
-      sv,
-      armourNeeded,
-      invulnNeeded: invuln,
-    }
+    return { weaponName: weapon.name, ap: weapon.AP, attackerName: unitNameOf(state, e.attack.attackerUnitId) }
   }
   return null
+}
+
+// ---------- move types (docs/spec/10-rules-core.md R-5.1 to R-5.6) ----------
+// Owner playtest: the three move options were bare words, and what each one costs you is the whole
+// decision. This spells it out in the unit's own numbers — "Move up to 5"", not "move up to M".
+
+export interface MoveTypeHelp {
+  title: string
+  lines: string[]
+}
+
+/** The unit's Move characteristic. Taken from the datasheet profile: no ability in either Combat
+ *  Patrol roster modifies M (only OC, S and A), so this is exact today — if one is ever added, this
+ *  should come from the engine the way CurrentAttack.saveTargets does, rather than being re-derived.
+ *  Mixed-profile units report their slowest model, which is what the unit can actually keep up with. */
+function unitMove(state: GameState, unitId: string): number | null {
+  const unit = state.units[unitId]
+  if (!unit) return null
+  let slowest: number | null = null
+  for (const modelId of unit.models) {
+    const model = state.models[modelId]
+    if (!model) continue
+    try {
+      const M = modelStats(state, model).M
+      slowest = slowest === null ? M : Math.min(slowest, M)
+    } catch {
+      // a model whose profile can't be resolved just doesn't contribute
+    }
+  }
+  return slowest
+}
+
+function unitHasWeaponAbility(state: GameState, unitId: string, ability: string): boolean {
+  const unit = state.units[unitId]
+  if (!unit) return false
+  for (const modelId of unit.models) {
+    for (const weaponId of state.models[modelId]?.weapons ?? []) {
+      if (state.weapons[weaponId]?.abilities.some((a) => a.ability === ability)) return true
+    }
+  }
+  return false
+}
+
+/** What one move type means for this particular unit, for the hover help on a `declareMove` prompt.
+ *  Null for a type that isn't a move (or a unit that can't be resolved). */
+export function moveTypeHelp(state: GameState, unitId: string, moveType: MoveType): MoveTypeHelp | null {
+  const unit = state.units[unitId]
+  if (!unit) return null
+  const M = unitMove(state, unitId)
+  const far = M === null ? 'its Move' : `${M}"`
+  const assault = unitHasWeaponAbility(state, unitId, 'ASSAULT')
+  const heavy = unitHasWeaponAbility(state, unitId, 'HEAVY')
+  const waaagh = state.players[unit.player]?.waaagh?.activeRound === state.round
+
+  switch (moveType) {
+    case 'normal':
+      return {
+        title: 'Normal move',
+        lines: [
+          `Move each model up to ${far}, no closer than 1" to any enemy.`,
+          'The unit can still shoot and declare a charge this turn.',
+        ],
+      }
+    case 'advance':
+      return {
+        title: 'Advance',
+        lines: [
+          M === null
+            ? "Move as normal, with 1D6\" added to the unit's Move for this phase."
+            : `Move each model up to ${far} + 1D6" — ${M + 1}" to ${M + 6}" this phase.`,
+          assault
+            ? 'The unit cannot shoot this turn except with its Assault weapons.'
+            : 'The unit cannot shoot this turn.',
+          waaagh
+            ? 'Normally it could not charge either, but the Waaagh! lets it charge anyway.'
+            : 'It cannot declare a charge this turn.',
+        ],
+      }
+    case 'stationary':
+      return {
+        title: 'Remain Stationary',
+        lines: [
+          'No model moves.',
+          heavy
+            ? 'Its Heavy weapons get +1 to hit this turn — the reason to stand still.'
+            : 'It can still shoot and charge; nothing is given up by standing still.',
+        ],
+      }
+    case 'fallBack':
+      return {
+        title: 'Fall Back',
+        lines: [
+          `Move each model up to ${far}, and every model must end more than 1" from every enemy.`,
+          'The unit cannot shoot or declare a charge this turn.',
+          unit.battleShocked
+            ? 'Battle-shocked: every model takes a Desperate Escape test — each 1 or 2 destroys a model.'
+            : 'Any model that moves over an enemy takes a Desperate Escape test — a 1 or 2 destroys a model.',
+        ],
+      }
+    default:
+      return null
+  }
 }
