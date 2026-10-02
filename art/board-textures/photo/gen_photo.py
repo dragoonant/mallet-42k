@@ -6,8 +6,9 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from scipy.ndimage import gaussian_filter, map_coordinates
 
-PH = '/tmp/claude-0/-home-user-mallet-42k/3c3d7caa-4ab2-5ea5-960d-59d0c8ade4f1/scratchpad/ph/'
 OUT = os.path.dirname(os.path.abspath(__file__)) + '/'
+# Poly Haven (CC0) 2k source photos, fetched on first run; .cache/ is gitignored.
+PH = OUT + '.cache/'
 W, H = 2048, 1396
 PPI = W / 44.0
 
@@ -34,10 +35,21 @@ def smooth(e0, e1, x):
     t = np.clip((x - e0) / (e1 - e0), 0, 1)
     return t * t * (3 - 2 * t)
 
+def fetch_photo(asset):
+    import json, urllib.request
+    os.makedirs(PH, exist_ok=True)
+    files = json.load(urllib.request.urlopen(f'https://api.polyhaven.com/files/{asset}'))
+    for k, key in [('diff', 'Diffuse'), ('nor', 'nor_gl'), ('rough', 'Rough'), ('disp', 'Displacement')]:
+        if key in files and '2k' in files[key]:
+            f = files[key]['2k']; urllib.request.urlretrieve((f.get('jpg') or f.get('png'))['url'], f'{PH}2k_{asset}_{k}.jpg')
+
 def load_photo(asset, tile_in):
     S = int(round(tile_in * PPI))
     def ld(k):
-        return Image.open(f'{PH}2k_{asset}_{k}.jpg')
+        path = f'{PH}2k_{asset}_{k}.jpg'
+        if not os.path.exists(path):
+            fetch_photo(asset)
+        return Image.open(path)
     d = np.asarray(ld('diff').convert('RGB').resize((S, S), Image.LANCZOS), np.float32) / 255
     d = d / np.maximum(gaussian_filter(d, (S / 9, S / 9, 0), mode='wrap') / d.mean((0, 1)), 0.2) ** 0.85
     n = np.asarray(ld('nor').convert('RGB').resize((S, S), Image.LANCZOS), np.float32) / 255 * 2 - 1
@@ -243,7 +255,7 @@ def lum(c):
 def build(n):
     slug, asset, target, tile, count, strength, contrast = VARIANTS[n]
     rng = np.random.default_rng(4200 + n)
-    cf = f'/tmp/claude-0/-home-user-mallet-42k/3c3d7caa-4ab2-5ea5-960d-59d0c8ade4f1/scratchpad/base{n}.npz'
+    cf = f'{PH}base{n}.npz'
     if os.path.exists(cf) and os.environ.get('CACHE'):
         z = np.load(cf); D, N, R = z['D'], z['N'], z['R']
         base_board_rng_skip = True
