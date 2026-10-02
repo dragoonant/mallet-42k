@@ -76,34 +76,35 @@ class Scene:
         x0, x1 = max(0, int(cx) - half), min(W, int(cx) + half); y0, y1 = max(0, int(cy) - half), min(H, int(cy) + half)
         if x1 <= x0 or y1 <= y0: return
         sl = (slice(y0, y1), slice(x0, x1))
-        px = XX[sl] - cx + self.WX[sl] * R * 0.18 + self.NF[sl] * R * 0.03
-        py = YY[sl] - cy + self.WY[sl] * R * 0.18 + self.NF[sl][::-1, ::-1] * R * 0.03
+        px = XX[sl] - cx + self.WX[sl] * R * 0.09 + self.NF[sl] * R * 0.012
+        py = YY[sl] - cy + self.WY[sl] * R * 0.09 + self.NF[sl][::-1, ::-1] * R * 0.012
         th = np.arctan2(py, px); d = np.hypot(px, py)
         ang = np.zeros_like(d)
-        for k in range(2, 9):
-            ang += rng.uniform(0.3, 1) / k**0.9 * 0.22 * np.cos(k * th + rng.uniform(0, 6.28))
+        for k in range(2, 6):
+            ang += rng.uniform(0.3, 1) / k**0.9 * 0.14 * np.cos(k * th + rng.uniform(0, 6.28))
         ang += 0.07 * rng.standard_normal()  # slight size jitter
         t = d / (R * (1 + ang))
         tt = np.clip(1 - t, 0, 1); bowl = ss(0, 1, tt) ** 1.15 * (0.55 + 0.45 * ss(0, 0.5, tt))
         # slightly flattened floor
         bowl = np.clip(bowl, 0, 1)
-        fw = ss(1.02, 0.86, t)
+        fw = ss(1.04, 0.8, t)
         if water:
             bowl_h = np.minimum(bowl, level)
             wm = ss(level - 0.03, level + 0.0, bowl) * fw
             self.water[sl] = np.maximum(self.water[sl], wm)
         else: bowl_h = bowl
-        rimp = np.exp(-((t - 1.06) / 0.2) ** 2) * (1 + 0.35 * self.NM[sl] * 0.5)
-        rimp = rimp * np.where(t > 1.06, np.exp(-(t - 1.06) / 0.5), 1)
+        rimp = np.exp(-((t - 1.08) / 0.3) ** 2) * (1 + 0.1 * self.NF[sl])
+        rimp = rimp * np.where(t > 1.08, np.exp(-(t - 1.08) / 0.6), 1)
         # ejecta rays
         ray = np.zeros_like(d)
         for _ in range(14):
             k = rng.integers(5, 55); ray += rng.uniform(0.3, 1) * np.cos(k * th + rng.uniform(0, 6.28))
-        ray = np.clip(0.5 + 0.55 * ray / 3.0, 0, 1) ** 2.2
+        ray = np.clip(0.5 + 0.55 * ray / 3.0, 0, 1) ** 2.2; ray = ndi.gaussian_filter(ray, 1.5)
         ejm = np.where(t > 1.0, np.exp(-(t - 1.0) / ejlen), 0) * (0.25 + ray) * ss(0.95, 1.15, t) * (1 + 0.5 * self.NM[sl])
         ejm = np.clip(ejm, 0, 1.5) * ss(4.2, 3.0, t)
+        ejm_s = np.where(t > 1.0, np.exp(-(t - 1.0) / ejlen), 0) * ss(0.95, 1.15, t) * ss(4.2, 3.0, t)
         h = self.h[sl]
-        h[:] = h * (1 - fw) + (-depth * R * bowl_h) * fw + R * rim * rimp * (1 - fw * 0.5) + R * ejs * ejm * (1 - fw)
+        h[:] = h * (1 - fw) + (-depth * R * bowl_h) * fw + R * rim * rimp * (1 - fw * 0.5) + R * ejs * 0.35 * ejm_s * (1 - fw)
         mx = np.maximum
         self.floor[sl] = mx(self.floor[sl], fw * bowl ** 0.6)
         self.depthm[sl] = mx(self.depthm[sl], fw * bowl)
@@ -124,7 +125,7 @@ class Scene:
         th = np.arctan2(py, px); d = np.hypot(px, py)
         ang = sum(rng.uniform(0.3, 1) / k * 0.35 * np.cos(k * th + rng.uniform(0, 6.28)) for k in range(1, 8))
         t = d / (R * (1 + ang))
-        N = self.NM[sl] * 0.18 + self.NF[sl] * 0.1
+        N = self.NM[sl] * 0.09 + self.NF[sl] * 0.06
         core = ss(0.8, 0.35, t + N) * strength; outer = ss(1.15, 0.55, t + N * 1.4) * strength
         self.core[sl] = np.maximum(self.core[sl], core); self.outer[sl] = np.maximum(self.outer[sl], outer)
 
@@ -170,7 +171,7 @@ def v1(seed=101):
     S = Scene(seed); rng = S.rng
     S.terrain(1.0)
     for x, y, r in S.place(14, 0.9, 2.6, edge=40, center_avoid=0.5): S.crater(x, y, r, depth=0.3, rim=0.1, ejs=0.04, scorch=0.7, fresh=0)
-    for x, y, r in S.place(34, 0.9, 3.8, alpha=1.3, edge=60, minsep=0.4): S.bloom(x, y, r, rng.uniform(0.7, 1.0))
+    for x, y, r in S.place(30, 1.2, 4.5, alpha=1.2, edge=60, minsep=0.4): S.bloom(x, y, r * 1.2, rng.uniform(0.8, 1.0))
     s = seed
     m = ss(-1.2, 1.2, fbm(s + 31, 260, 2.0) * 0.8 + fbm(s + 32, 50, 1.6) * 0.6 + fbm(s + 33, 10, 1.0) * 0.25)
     d = ramp(m, [(0, (80, 72, 46)), (0.4, (102, 92, 60)), (0.75, (122, 110, 72)), (1, (136, 122, 82))])
@@ -209,10 +210,10 @@ def v2(seed=202):
     r = 0.9 - 0.2 * S.halo - 0.12 * S.floor + 0.05 * fbm(s + 37, 20, 1.2) + 0.05 * S.rim
     save(2, 'crater-field', d, S.h, r)
 
-def voronoi(seed, n, warpamp=25):
+def voronoi(seed, n, warpamp=7):
     rng = np.random.default_rng(seed)
     pts = np.stack([rng.uniform(-60, W + 60, n), rng.uniform(-60, H + 60, n)], -1)
-    wx = fbm(seed + 1, 60, 1.8) * warpamp; wy = fbm(seed + 2, 60, 1.8) * warpamp
+    wx = norm(ndi.gaussian_filter(fbm(seed + 1, 150, 2.0), 14)) * warpamp; wy = norm(ndi.gaussian_filter(fbm(seed + 2, 150, 2.0), 14)) * warpamp
     q = np.stack([(XX + wx).ravel(), (YY + wy).ravel()], -1)
     dd, ii = cKDTree(pts).query(q, k=2, workers=-1)
     return (dd[:, 1] - dd[:, 0]).reshape(H, W).astype(np.float32), ii[:, 0].reshape(H, W)
@@ -224,26 +225,26 @@ def v3(seed=303):
     for i, (x, y, r) in enumerate(cr):
         S.crater(x, y, r, depth=0.3, rim=0.08, ejs=0.04, scorch=0.8, fresh=0.9 if i < 2 else 0)
     for x, y, r in S.place(8, 0.5, 1.2, edge=40): S.crater(x, y, r, depth=0.25, rim=0.06, ejs=0.03, scorch=0.5, fresh=0)
-    gap, idx = voronoi(s + 50, 650)
-    gap2, idx2 = voronoi(s + 60, 120, 40)
-    crack = ss(2.2, 0.3, gap) * ss(0.2, 0.8, fbm(s + 51, 90, 1.4) * 0.5 + 0.5 + 0.0)
+    gap, idx = voronoi(s + 50, 240)
+    gap2, idx2 = voronoi(s + 60, 120, 10)
+    crack = ss(5.0, 1.0, ndi.gaussian_filter(gap, 0.8)) * (0.55 + 0.45 * ss(-1, 0.5, ndi.gaussian_filter(fbm(s + 51, 90, 1.4), 3)))
     crack2 = ss(3.0, 0.4, gap2) * 0.5
     crack = np.clip(crack + crack2 * 0.0, 0, 1)
     keep = 1 - np.clip(S.floor * 1.4 + S.halo * 0.4, 0, 1)  # no cracks in craters
     crack *= keep
-    S.h += -crack * 3.5 + ss(0, 5, gap) * 1.2 * keep - (ss(0, 5, gap2) ** 1) * 0.0
+    S.h += -crack * 2.5 + ss(0, 5, gap) * 0.8 * keep - (ss(0, 5, gap2) ** 1) * 0.0
     plate = hsh(idx.astype(np.float32), 3.0)
     m = ss(-1.5, 1.5, fbm(s + 31, 220, 2.0) + fbm(s + 32, 35, 1.5) * 0.5)
-    d = ramp(m, [(0, (96, 94, 90)), (0.5, (128, 126, 120)), (1, (152, 150, 142))])
+    d = ramp(m, [(0, (104, 102, 98)), (0.5, (132, 130, 124)), (1, (156, 154, 146))])
     d = d * (0.94 + 0.12 * plate[..., None]) * (1 + fbm(s + 33, 10, 1.2)[..., None] * 0.05)
     d = d + grain(s + 34, 0.03)
-    d = blend(d, np.array([48, 45, 42]) / 255., crack * 0.8)
-    cind = ss(1.1, 2.0, fbm(s + 35, 3, 0.2)) * ss(-1, 1, fbm(s + 36, 40, 1.4))
+    d = blend(d, np.array([56, 53, 50]) / 255., crack * 0.6)
+    cind = ss(1.6, 2.4, ndi.gaussian_filter(fbm(s + 35, 3, 0.2), 1.0) * 2.5) * ss(-1, 1, fbm(s + 36, 40, 1.4))
     d = blend(d, np.array([58, 54, 50]) / 255., cind * 0.5)
     d = blend(d, np.array([24, 22, 21]) / 255., np.clip(S.halo, 0, 1) * 0.7)
     d = blend(d, np.array([18, 16, 15]) / 255. * (1 + 0.5 * fbm(s + 37, 5, 1.0)[..., None]), ss(0, 1, S.floor) * 0.95)
     d = blend(d, np.array([170, 168, 160]) / 255., S.rim * 0.4 + S.ej * 0.2)
-    ember = ss(0.15, 0.9, S.glow) * ss(-0.3, 1.0, fbm(s + 38, 8, 1.0) + fbm(s + 39, 3, 0.8) * 0.5)
+    ember = ss(0.15, 0.9, S.glow) * ss(-0.3, 1.0, ndi.gaussian_filter(fbm(s + 38, 10, 1.4) + fbm(s + 39, 4, 1.0) * 0.5, 1.5) * 1.6)
     ember = np.clip(ember, 0, 1)
     d = d + np.array([255, 110, 25]) / 255. * (ember[..., None] ** 1.3) * 0.75
     r = 0.92 - 0.25 * S.halo - 0.15 * S.floor + 0.04 * plate - 0.2 * crack * 0 + 0.05 * fbm(s + 40, 20, 1.2)
@@ -259,7 +260,7 @@ def ruts(S, n, seed):
             a += curv + rng.normal(0, 0.003); x += np.cos(a) * 2; y += np.sin(a) * 2; P.append((x, y, a))
         for sgn in (-1, 1):
             line = [(px + sgn * gauge * -np.sin(pa), py + sgn * gauge * np.cos(pa)) for px, py, pa in P]
-            dr.line(line, fill=255, width=int(rng.uniform(7, 10)), joint='curve')
+            dr.line(line, fill=255, width=int(rng.uniform(16, 20)), joint='curve')
     m = np.asarray(im, np.float32) / 255
     return m
 
@@ -267,12 +268,12 @@ def v4(seed=404):
     S = Scene(seed); rng = S.rng; s = seed
     S.terrain(1.2, 0.3)
     for x, y, r in S.place(26, 0.8, 3.0, alpha=1.4, edge=50, minsep=0.5, center_avoid=0.35):
-        S.crater(x, y, r, depth=0.3, rim=0.09, ejs=0.04, scorch=0.2, water=rng.random() < 0.7, fresh=0, level=rng.uniform(0.5, 0.65))
+        S.crater(x, y, r, depth=0.3, rim=0.09, ejs=0.04, scorch=0.2, water=rng.random() < 0.7, fresh=0, level=rng.uniform(0.18, 0.3))
     rut = ruts(S, 7, s + 70)
-    rut = ndi.gaussian_filter(rut, 2.2); rut = warp(rut, 5, 40, s + 71); rut = np.clip(rut * 2.0, 0, 1)
+    rut = ndi.gaussian_filter(rut, 5); rut = warp(rut, 5, 40, s + 71); rut = np.clip(rut * 1.6, 0, 1)
     rut *= 1 - np.clip(S.floor * 2, 0, 1)
-    ridge = np.clip(ndi.gaussian_filter(rut, 5) - rut * 0.8, 0, 1)
-    S.h += -rut * 9 + ridge * 6 + fbm(s + 72, 6, 1.4) * 0.5 * (rut + 0.3)
+    ridge = np.clip(ndi.gaussian_filter(rut, 12) - rut, 0, 1) * 0.6
+    S.h += -rut * 6 + ridge * 4 + fbm(s + 72, 6, 1.4) * 0.5 * (rut + 0.3)
     # puddle in ruts: low spots
     puddle = ss(0.55, 0.9, rut) * ss(-0.1, 0.9, fbm(s + 73, 80, 1.6))
     S.h = np.where(S.water > 0.5, S.h, S.h)  # (water flattened in crater())
@@ -284,7 +285,7 @@ def v4(seed=404):
     d = blend(d, np.array([36, 28, 22]) / 255., S.halo * 0.4 + S.floor * 0.5)
     d = blend(d, np.array([40, 30, 22]) / 255., rut * 0.6)
     d = blend(d, np.array([104, 82, 58]) / 255., S.rim * 0.4 + S.ej * 0.2 + ridge * 0.25)
-    wcol = ramp(0.5 + 0.35 * fbm(s + 37, 50, 1.8), [(0, (28, 36, 24)), (0.5, (40, 52, 34)), (1, (62, 72, 44))])
+    wcol = ramp(0.5 + 0.3 * fbm(s + 37, 120, 2.0), [(0, (24, 30, 22)), (0.5, (36, 46, 32)), (1, (54, 64, 42))])
     wm = np.clip(S.water, 0, 1) * ss(0.0, 0.5, S.depthm * 5 - 1.0 + 1.0)
     wm = np.clip(S.water, 0, 1)
     d = blend(d, wcol, wm * 0.92)
@@ -304,11 +305,11 @@ def v5(seed=505):
         S.crater(x, y, r, depth=0.24, rim=0.08, ejs=0.05, scorch=0.0, ejlen=2.0, fresh=0)
     streak = fbm(s + 41, 0, 0, aniso=(70, 2.2, ang)) * 0.6 + fbm(s + 42, 0, 0, aniso=(30, 1.2, ang)) * 0.4
     streak = norm(streak)
-    S.h += streak * 0.7 + fbm(s + 43, 0, 0, aniso=(10, 0.9, ang)) * 0.25
+    S.h += streak * 0.25 + fbm(s + 43, 0, 0, aniso=(10, 0.9, ang)) * 0.06
     m = ss(-1.5, 1.5, fbm(s + 31, 240, 2.0) + fbm(s + 32, 40, 1.5) * 0.5 + streak * 0.45)
     d = ramp(m, [(0, (118, 56, 34)), (0.35, (150, 76, 44)), (0.7, (178, 102, 56)), (1, (200, 134, 78))])
     d = d * (1 + fbm(s + 33, 10, 1.2)[..., None] * 0.05) + grain(s + 34, 0.035)
-    d = d * (1 + 0.07 * streak[..., None])
+    d = d * (1 + 0.045 * streak[..., None])
     pebble = ss(1.4, 2.4, fbm(s + 35, 3, 0.2)); d = blend(d, np.array([92, 52, 38]) / 255., pebble * 0.4)
     d = blend(d, np.array([204, 156, 108]) / 255., ss(0.5, 2.0, streak) * 0.2)
     scorch = np.clip(S.floor * 1.0, 0, 1)
@@ -329,15 +330,16 @@ def v6(seed=606):
     patch = fbm(s + 31, 160, 1.9) * 0.9 + fbm(s + 32, 40, 1.5) * 0.55 + fbm(s + 33, 12, 1.1) * 0.25
     tuft = fbm(s + 34, 9, 1.0) + 0.6 * fbm(s + 35, 3.5, 0.5)
     soilm = ss(0.2, 1.0, -patch - 0.15)  # bare patches
-    soilm = np.clip(soilm + S.floor * 1.2 + S.ej * 0.5 + S.core * 0.85, 0, 1)
+    soilm = ndi.gaussian_filter(soilm, 1.2)
+    soilm = np.clip(soilm + S.floor * 1.2 + S.ej * 0.5 + ss(0.3, 0.9, S.outer) * 0.7, 0, 1)
     gm = ss(-1.6, 1.4, fbm(s + 36, 140, 1.8) + fbm(s + 37, 30, 1.4) * 0.5)
-    g = ramp(gm, [(0, (86, 100, 52)), (0.4, (112, 126, 62)), (0.75, (136, 146, 72)), (1, (160, 160, 84))])
+    g = ramp(gm, [(0, (78, 92, 48)), (0.4, (98, 112, 56)), (0.75, (118, 128, 62)), (1, (138, 142, 74))])
     g = g * (1 + 0.16 * np.clip(tuft, -2, 2)[..., None] * 0.5) + grain(s + 38, 0.05)
     sd = ramp(ss(-1.5, 1.5, fbm(s + 39, 70, 1.6)), [(0, (78, 62, 42)), (1, (116, 94, 62))]) + grain(s + 40, 0.03)
     fringe = ss(0, 0.5, soilm) * ss(0.9, 0.3, soilm)  # dried transition band
     d = blend(g, sd, soilm)
     d = blend(d, np.array([150, 140, 80]) / 255., fringe * 0.3)
-    d = blend(d, np.array([32, 30, 24]) / 255., np.clip(S.core, 0, 1) * 0.9)
+    d = blend(d, np.array([34, 31, 26]) / 255. * (1 + 0.4 * fbm(s + 45, 5, 1.0)[..., None]), ndi.gaussian_filter(np.clip(S.core, 0, 1), 2) * 0.92)
     ringm = np.clip(S.outer - S.core, 0, 1) * ss(-0.8, 0.8, fbm(s + 41, 8, 1.0))
     d = blend(d, np.array([70, 60, 42]) / 255., ringm * 0.55)
     d = blend(d, np.array([40, 34, 26]) / 255., S.halo * 0.4 + S.floor * 0.55)
