@@ -2,13 +2,16 @@ import { useEffect } from 'react'
 import { useThree } from '@react-three/fiber'
 import { usePresentationSettings } from '../presentation/settings'
 
-/** Hemisphere fill + a single shadowed directional key light, sized for the 44x30 board. The shadow map
- *  is only re-rendered on demand (see ShadowSync) rather than every frame. */
+/** Hemisphere + ambient fill, a single shadowed directional key light sized for the 44x30 board, and a
+ *  weak shadowless fill from the opposite side so faces turned away from the key keep their colour.
+ *  The shadow map is only re-rendered on demand (see ShadowSync) rather than every frame. */
 export function Lighting() {
   const lowGraphics = usePresentationSettings((s) => s.lowGraphics)
   return (
     <>
-      <hemisphereLight intensity={0.9} color="#dfe4ff" groundColor="#2a2a34" />
+      <hemisphereLight intensity={0.9} color="#dfe4ff" groundColor="#4a4a58" />
+      <ambientLight intensity={0.35} />
+      <directionalLight position={[-18, 16, -12]} intensity={0.45} color="#cfd8ff" />
       <directionalLight
         position={[20, 34, 14]}
         intensity={1.2}
