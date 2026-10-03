@@ -25,6 +25,9 @@ export interface RollRequest {
   /** Per-die pass/fail, same order as `dice`. Overrides `target` — for grouped rolls whose dice
    *  don't share one threshold (hits, cover-modified saves). */
   passed?: boolean[]
+  /** The same dice were just on screen in the interactive re-roll tray: skip the tumble and only flip
+   *  the re-rolled ones. */
+  skipTumble?: boolean
 }
 
 /** A queued/settled roll as the tray renders it internally. */

@@ -115,7 +115,8 @@ export function DiceTray() {
   if (!current) return null
 
   const { request, dice, phase, id } = current
-  const { tumbleMs, flipMs } = DURATIONS[speed]
+  const { tumbleMs: speedTumbleMs, flipMs } = DURATIONS[speed]
+  const tumbleMs = request.skipTumble ? 0 : speedTumbleMs
   const n = dice.length
   // Sized for the rail's ~180px of inner width rather than the old full-width bottom slot: four of
   // the largest still fit on one row.

@@ -46,15 +46,49 @@ const scroll: CSSProperties = {
 }
 const rowStyle: CSSProperties = { display: 'flex', flexDirection: 'column', borderBottom: `1px solid ${colors.border}`, padding: '3px 0' }
 
+/** "6, 2, 5↻" — the dice of a roll at their final faces; a re-rolled die is marked and its first face is in
+ *  the tooltip. A per-die roll shows the target ("· 3+") when the engine published one. */
+function DiceFaces({ roll, rerolled }: { roll: DiceRoll; rerolled?: Map<number, { before: number; after: number }> }) {
+  const perDie = roll.final.length === roll.dice.length
+  return (
+    <span style={mutedText} data-testid="dice-faces">
+      {roll.final.map((face, i) => {
+        const re = rerolled?.get(i)
+        // final already includes modifiers; once a die was re-rolled show its new face (net of any modifier)
+        const shownFace = re && perDie ? face - roll.dice[i] + re.after : face
+        return (
+          <span key={i} title={re ? `Re-rolled from ${re.before}` : undefined} style={re ? { color: colors.accent } : undefined}>
+            {i > 0 ? ', ' : ''}
+            {shownFace}
+            {re ? '↻' : ''}
+          </span>
+        )
+      })}
+      {typeof roll.needed === 'number' && roll.final.length > 1 ? ` · needs ${roll.needed}+` : ''}
+    </span>
+  )
+}
+
 export function DiceLog() {
   const state = useDisplayState()
   const events = useGameStore((s) => s.events)
   const presentedSeq = usePresentedStore((s) => s.presentedSeq)
   const [collapsed, setCollapsed] = useState(true)
   if (!state) return null
-  // diceLog carries no seq, so derive the visible rolls from the DiceRolled events themselves.
+  // diceLog carries no seq, so derive the visible rolls from the DiceRolled events themselves. A DiceRolled
+  // event holds the faces as first rolled; DiceRerolled events (by roll id) say which dice changed, so the
+  // log can show the final faces and mark the re-rolled ones.
   const shown: DiceRoll[] = []
-  for (const e of events) if (e.type === 'DiceRolled' && e.seq <= presentedSeq) shown.push(e.roll)
+  const rerolls = new Map<string, Map<number, { before: number; after: number }>>()
+  for (const e of events) {
+    if (e.seq > presentedSeq) continue
+    if (e.type === 'DiceRolled') shown.push(e.roll)
+    else if (e.type === 'DiceRerolled') {
+      const forRoll = rerolls.get(e.rollId) ?? new Map<number, { before: number; after: number }>()
+      ;(e.indexes ?? e.before.map((_, i) => i)).forEach((idx, k) => forRoll.set(idx, { before: e.before[k], after: e.after[k] }))
+      rerolls.set(e.rollId, forRoll)
+    }
+  }
   const recent = shown.slice(-40)
 
   return (
@@ -69,7 +103,7 @@ export function DiceLog() {
           {recent.map((roll, i) => (
             <div key={`${roll.id}-${i}`} style={rowStyle} data-testid={`dice-row-${roll.id}`}>
               <span>{describeRoll(roll, state)}</span>
-              <span style={mutedText}>{roll.final.join(', ')}</span>
+              <DiceFaces roll={roll} rerolled={rerolls.get(roll.id)} />
             </div>
           ))}
         </div>

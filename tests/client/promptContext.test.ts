@@ -4,7 +4,7 @@
 // are reconstructed from the event log in src/client/ui/labels.ts — this pins them.
 import { describe, expect, it } from 'vitest'
 import type { DiceRoll, GameEvent, GameState } from '../../src/engine'
-import { rerollContext, saveAttackContext, saveChoiceFromDecisionData, describeRoll } from '../../src/client/ui/labels'
+import { rerollContext, saveAttackContext, describeRoll } from '../../src/client/ui/labels'
 
 // A GameState carries far more than these helpers read; this is the slice they actually touch.
 const state = {
@@ -102,47 +102,7 @@ describe('command re-roll context', () => {
   })
 })
 
-describe('save choice context', () => {
-  // The engine publishes what each save must actually roll — AP, the benefit of cover and any
-  // modifiers already applied (docs/spec/00-architecture.md §3). The client must show those numbers
-  // and never re-derive them: a `sv - AP` of its own silently ignores cover and every save-modifying
-  // ability, so it could print 5+ for a save the dice are judged against at 4+.
-  const data = (over: Record<string, unknown> = {}) => ({
-    modelId: 'am1', invuln: 4, sv: 2, ap: -2, cover: false,
-    armourTarget: 4, invulnTarget: 4, weaponId: 'sm.w.power-fist', attackerUnitId: 'u2',
-    ...over,
-  })
-
-  it('reports the engine\'s numbers, not an arithmetic of its own', () => {
-    const ctx = saveChoiceFromDecisionData(state, data())!
-    expect(ctx.weaponName).toBe('Power fist')
-    expect(ctx.ap).toBe(-2)
-    expect(ctx.attackerName).toBe('Boyz')
-    expect(ctx.sv).toBe(2)
-    expect(ctx.armourNeeded).toBe(4)
-    expect(ctx.invulnNeeded).toBe(4)
-  })
-
-  it('takes cover into account because the engine already did', () => {
-    // Same Sv2+ model behind the same AP-2 weapon, but in cover: the engine's armour target is a 3+,
-    // which the old client-side `sv - ap` could never have produced.
-    const ctx = saveChoiceFromDecisionData(state, data({ cover: true, armourTarget: 3 }))!
-    expect(ctx.armourNeeded).toBe(3)
-    expect(ctx.cover).toBe(true)
-    expect(ctx.armourNeeded! < ctx.invulnNeeded!).toBe(true) // so armour is the better roll here
-  })
-
-  it('passes an impossible armour save straight through (above 6)', () => {
-    const ctx = saveChoiceFromDecisionData(state, data({ sv: 6, armourTarget: 8 }))!
-    expect(ctx.armourNeeded).toBe(8)
-    expect(ctx.armourNeeded! > ctx.invulnNeeded!).toBe(true)
-  })
-
-  it('returns null rather than guessing when the decision carries no numbers', () => {
-    // An older save file or a replay from before the engine published them.
-    expect(saveChoiceFromDecisionData(state, { modelId: 'am1', invuln: 4 })).toBeNull()
-  })
-
+describe('save attack context', () => {
   it('names the incoming attack from the log, for prompts that have no decision data', () => {
     const events = [{ ...base, type: 'WoundRolled', attack: { ...attack, weaponId: 'sm.w.power-fist' }, die: 5, final: 5, needed: 4, wounded: true, critical: false, auto: false }] as GameEvent[]
     const ctx = saveAttackContext(state, events, 'm1')!

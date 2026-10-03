@@ -102,7 +102,7 @@ async function clickFirstOption(page: Page, avoidPass = true, re?: RegExp): Prom
 }
 
 async function clickPass(page: Page): Promise<boolean> {
-  for (const id of ['btn-pass', 'btn-end-phase']) {
+  for (const id of ['reroll-keep', 'btn-pass', 'btn-end-phase']) {
     const b = page.getByTestId(id)
     if ((await b.isVisible().catch(() => false)) && (await b.isEnabled().catch(() => false))) {
       await b.click()

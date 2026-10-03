@@ -74,7 +74,7 @@ function describe(e: GameEvent, state: GameState): string | null {
     case 'ChargeDeclared':
       return `${unitName(state, e.unitId)} declares a charge against ${e.targetUnitIds.map((id) => unitName(state, id)).join(', ')}`
     case 'ChargeRolled':
-      if (e.needed !== null && e.total < e.needed) return `${unitName(state, e.unitId)}'s charge fails (rolled ${e.total}, needed ${e.needed})`
+      if (e.needed !== null && e.total < e.needed) return `${unitName(state, e.unitId)}'s charge fails (rolled ${e.total}, needed ${Math.ceil(e.needed)})`
       return `${unitName(state, e.unitId)} charges in (rolled ${e.total})`
     case 'StratagemUsed':
       return `${playerName(state, e.player)} uses ${state.stratagems[e.stratagemId]?.name ?? e.stratagemId}`

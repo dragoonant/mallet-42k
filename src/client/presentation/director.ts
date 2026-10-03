@@ -16,7 +16,7 @@ import { useCueStore } from './cueStore'
 import { setPresentationIdle } from './idleStore'
 import { usePresentationSettings, type AnimSpeed } from './settings'
 import { announcementHoldMs, clearAnnouncement, holdAnnouncement, type AnnouncementKind } from './announceStore'
-import { playRoll, type RollRequest } from '../dice'
+import { playRoll, rerollTrayShown, type RollRequest } from '../dice'
 import { vfx, type ShotKind } from '../vfx'
 import { audio, playEventSounds, type SoundLookup } from '../audio'
 import { isRangedFlavour, weaponFlavour } from '../weaponFlavour'
@@ -100,14 +100,18 @@ function bearing(from: { x: number; z: number }, to: { x: number; z: number }): 
 
 // ---------- dice-roll request builders (only for rolls that are cleanly single/paired d6s) ----------
 
-/** Rolls that share a tray window: every hit (or wound, save…) for one attacker+weapon+target in
- *  an attack sequence plays as one window, however many models rolled. Null = not groupable. */
+/** Rolls that share a tray window. Fast-rolled attack dice carry the id of the one batch roll they came
+ *  from, so a whole batch (a squad's hits, wounds or saves) is one window. Dice rolled one at a time
+ *  (a per-attack save, say) have no roll id and fall back to attacker+weapon+target within the attack
+ *  sequence. Null = not groupable. */
 function rollGroupKey(e: GameEvent): string | null {
   switch (e.type) {
     case 'HitRolled':
     case 'WoundRolled':
+      if (e.rollId) return `${e.type}|roll|${e.rollId}`
       return `${e.type}|${e.attack.attackerUnitId}|${e.attack.weaponId}|${e.attack.targetUnitId}`
     case 'SaveRolled':
+      if (e.rollId) return `${e.type}|roll|${e.rollId}`
       return `${e.type}|${e.attack.attackerUnitId}|${e.attack.weaponId}|${e.attack.targetUnitId}|${e.kind}`
     case 'FeelNoPainRolled':
     case 'HazardousTested':
@@ -130,37 +134,79 @@ function hasOpenAttackRolls(events: GameEvent[]): boolean {
   return open
 }
 
+/** Dice re-rolled so far, by roll id: the face each die showed before and the one it landed on. Filled as
+ *  DiceRerolled events play (they always precede the per-die events of the same roll), read when the
+ *  roll's tray window is built so the re-rolled dice flip to their new face. */
+const rerolledDice = new Map<string, Map<number, { before: number; after: number }>>()
+const REROLL_MEMORY = 60
+
+function noteReroll(e: EventOf<'DiceRerolled'>): void {
+  const forRoll = rerolledDice.get(e.rollId) ?? new Map<number, { before: number; after: number }>()
+  const indexes = e.indexes ?? e.before.map((_, i) => i)
+  indexes.forEach((idx, k) => {
+    if (e.before[k] !== undefined && e.after[k] !== undefined) forRoll.set(idx, { before: e.before[k], after: e.after[k] })
+  })
+  rerolledDice.delete(e.rollId)
+  rerolledDice.set(e.rollId, forRoll)
+  while (rerolledDice.size > REROLL_MEMORY) rerolledDice.delete(rerolledDice.keys().next().value as string)
+}
+
+/** The most recent charge roll seen (DiceRolled), so the ChargeRolled that follows can find its re-roll. */
+let lastChargeRollId: string | null = null
+
+/** Faces + re-roll flips for a window: `dice` are the first faces, `rerolled` the final ones (see RollRequest). */
+function withRerolls(rollId: string | undefined, entries: { index: number | undefined; die: number }[]): { dice: number[]; rerolled?: number[] } {
+  const info = rollId ? rerolledDice.get(rollId) : undefined
+  const dice = entries.map((en) => (en.index !== undefined ? info?.get(en.index)?.before : undefined) ?? en.die)
+  if (!info) return { dice }
+  const rerolled = entries.map((en) => en.die)
+  return rerolled.some((v, i) => v !== dice[i]) ? { dice, rerolled } : { dice }
+}
+
 /** One tray window for a group of same-key roll events. Auto hits/wounds and "no save possible"
- *  carry no die, so they're left out; null when nothing is left to show. */
+ *  carry no die, so they're left out; null when nothing is left to show. Faces are the unmodified dice
+ *  (a modified total can be 0 or 7, which no d6 face shows); pass/fail comes from the engine's verdict. */
 function groupRequest(state: GameState, group: GameEvent[]): RollRequest | null {
-  const dice: number[] = []
-  const passed: boolean[] = []
+  const entries: { index: number | undefined; die: number; passed: boolean }[] = []
   const needed = new Set<number>()
   for (const e of group) {
-    if (e.type === 'HitRolled') { if (!e.auto) { dice.push(e.final); passed.push(e.hit) } }
-    else if (e.type === 'WoundRolled') { if (!e.auto) { dice.push(e.final); passed.push(e.wounded); needed.add(e.needed) } }
-    else if (e.type === 'SaveRolled') { if (e.kind !== 'none') { dice.push(e.final); passed.push(e.saved); needed.add(e.needed) } }
-    else if (e.type === 'FeelNoPainRolled') { dice.push(e.die); passed.push(e.ignored); needed.add(e.needed) }
-    else if (e.type === 'HazardousTested') { dice.push(e.die); passed.push(!e.failed) }
+    if (e.type === 'HitRolled') { if (!e.auto) entries.push({ index: e.dieIndex, die: e.die, passed: e.hit }) }
+    else if (e.type === 'WoundRolled') { if (!e.auto) { entries.push({ index: e.dieIndex, die: e.die, passed: e.wounded }); needed.add(e.needed) } }
+    else if (e.type === 'SaveRolled') { if (e.kind !== 'none') { entries.push({ index: e.dieIndex, die: e.die, passed: e.saved }); needed.add(e.needed) } }
+    else if (e.type === 'FeelNoPainRolled') { entries.push({ index: undefined, die: e.die, passed: e.ignored }); needed.add(e.needed) }
+    else if (e.type === 'HazardousTested') entries.push({ index: undefined, die: e.die, passed: !e.failed })
   }
-  if (dice.length === 0) return null
+  if (entries.length === 0) return null
+  // A batch's dice read left to right in the order they were rolled.
+  if (entries.every((en) => en.index !== undefined)) entries.sort((a, b) => (a.index as number) - (b.index as number))
+  const first = group[0]
+  const rollId = first.type === 'HitRolled' || first.type === 'WoundRolled' || first.type === 'SaveRolled' ? first.rollId : undefined
+  const { dice, rerolled } = withRerolls(rollId, entries)
+  const passed = entries.map((en) => en.passed)
   const target = needed.size === 1 ? [...needed][0] : undefined
-  const e = group[0]
+  const flip = rerolled ? { rerolled } : {}
+  const skipTumble = rollId !== undefined && rerollTrayShown.has(rollId)
+  const common = { dice, passed, ...flip, ...(skipTumble ? { skipTumble } : {}) }
+  const e = first
   switch (e.type) {
-    case 'HitRolled': return { label: attackLabel(state, e.attack, 'To hit'), purpose: 'hit', dice, passed }
-    case 'WoundRolled': return { label: attackLabel(state, e.attack, 'To wound'), purpose: 'wound', dice, passed, target }
+    case 'HitRolled': return { label: attackLabel(state, e.attack, 'To hit'), purpose: 'hit', ...common }
+    case 'WoundRolled': return { label: attackLabel(state, e.attack, 'To wound'), purpose: 'wound', target, ...common }
     case 'SaveRolled': {
       const label = e.kind === 'invuln' ? 'Invulnerable save' : 'Armour save'
-      return { label: attackLabel(state, e.attack, label), purpose: 'save', dice, passed, target }
+      return { label: attackLabel(state, e.attack, label), purpose: 'save', target, ...common }
     }
-    case 'FeelNoPainRolled': return { label: `${unitLabel(state, e.unitId)} — Feel No Pain`, purpose: 'fnp', dice, passed, target }
-    case 'HazardousTested': return { label: `${unitLabel(state, e.unitId)} — Hazardous`, purpose: 'hazardous', dice, passed }
+    case 'FeelNoPainRolled': return { label: `${unitLabel(state, e.unitId)} — Feel No Pain`, purpose: 'fnp', target, ...common }
+    case 'HazardousTested': return { label: `${unitLabel(state, e.unitId)} — Hazardous`, purpose: 'hazardous', ...common }
     default: return null
   }
 }
 
 function chargeRequest(state: GameState, e: EventOf<'ChargeRolled'>): RollRequest {
-  return { label: `${unitLabel(state, e.unitId)} — Charge`, purpose: 'charge', dice: [...e.dice], target: e.needed ?? undefined }
+  // The charge distance is a measured gap; the roll that clears it is the next whole number.
+  const target = e.needed == null ? undefined : Math.ceil(e.needed)
+  const { dice, rerolled } = withRerolls(lastChargeRollId ?? undefined, e.dice.map((die, index) => ({ index, die })))
+  const skipTumble = lastChargeRollId !== null && rerollTrayShown.has(lastChargeRollId)
+  return { label: `${unitLabel(state, e.unitId)} — Charge`, purpose: 'charge', dice, target, ...(rerolled ? { rerolled } : {}), ...(skipTumble ? { skipTumble } : {}) }
 }
 function deadlyDemiseRequest(state: GameState, e: EventOf<'DeadlyDemiseRolled'>): RollRequest {
   return { label: `${unitLabel(state, e.unitId)} — Deadly Demise`, purpose: 'deadlyDemise', dice: [e.die] }
@@ -290,7 +336,7 @@ async function playEvent(
       return
 
     // HitRolled / WoundRolled / FeelNoPainRolled / HazardousTested dice are shown by playBatch as
-    // one grouped window per squad+weapon+target (see rollGroupKey).
+    // one grouped window per batch roll (see rollGroupKey).
     case 'SaveRolled': {
       if (event.saved) {
         const at = modelPoint(from, to, event.modelId)
@@ -298,6 +344,14 @@ async function playEvent(
       }
       return
     }
+
+    case 'DiceRolled':
+      if (event.roll.purpose === 'charge') lastChargeRollId = event.roll.id
+      return
+
+    case 'DiceRerolled':
+      noteReroll(event)
+      return
 
     case 'ChargeRolled':
       if (settings.diceOn) await playRoll(chargeRequest(to, event))
@@ -362,8 +416,8 @@ async function playBatch(from: GameState, to: GameState, events: GameEvent[], an
     // the rest of the game's presentation for the whole session — the queue keeps going either way.
     try {
       if (key !== null && !absorbed) {
-        // Gather every same-key roll left in this attack sequence (the engine interleaves hit → wound
-        // → save per model) and show them as one window, like fast-dice at the table.
+        // Gather every same-key roll left in this attack sequence and show them as one window — a
+        // fast-rolled batch shares one roll id; per-attack saves share attacker+weapon+target.
         const group = [event]
         for (let j = i + 1; j < events.length; j++) {
           const e = events[j]
@@ -384,8 +438,7 @@ async function playBatch(from: GameState, to: GameState, events: GameEvent[], an
     if (i === events.length - 1 || events[i + 1].seq !== event.seq) setPresentedSeq(event.seq)
     // Someone (bot or human) is already sitting on a live Command Re-roll offer — skip the decorative
     // pacing gap between events so the batch flushes straight through to the roll they're actually being
-    // asked about, instead of making a human re-roll decision wait behind unrelated event pacing while
-    // the die they need to see is still buried a few events back in this same buffered batch.
+    // asked about, instead of making a human re-roll decision wait behind unrelated event pacing.
     const midCommandReroll = useGameStore.getState().pending?.kind === 'commandReroll'
     if (!absorbed && !midCommandReroll) await sleep(gapFor(event.type, usePresentationSettings.getState().animSpeed))
   }
@@ -416,10 +469,10 @@ export function startDirector(): () => void {
     setPresentationIdle(true)
   }
 
-  // The engine pauses for a Command Re-roll decision after almost every die, so one attack reaches the
-  // store as many one-roll updates. While the bot is answering those (play carries on by itself), hold
-  // attack rolls until their sequence ends so playBatch can group the whole squad's dice. When the human
-  // owns the pending decision, play what's buffered — they may need to see the die to decide.
+  // One attack still reaches the store as several updates (a batch of hits, then wounds, then saves, with a
+  // Command Re-roll window before each). While the bot is answering those (play carries on by itself), hold
+  // attack rolls until their sequence ends so per-attack saves group into one window. When the human
+  // owns the pending decision, play what's buffered — the interactive re-roll tray shows the dice itself.
   async function waitForAttackToClose(): Promise<void> {
     const started = Date.now()
     while (Date.now() - started < ATTACK_WAIT_MAX_MS && hasOpenAttackRolls(buffered)) {

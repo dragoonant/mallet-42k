@@ -78,7 +78,18 @@ export function Die({ result, phase, size, index, rollId, tumbleMs, flipMs }: Di
 
   const spin = seededSpin(index + 1 + (rollId.length % 7))
   const settled = phase === 'settled' && spinDone
-  const showBack = settled && result.wasRerolled
+  // A re-rolled die lands on its old face and then flips to the new one — the flip is armed a beat after
+  // settling so the transition actually runs (rendering straight onto the back face would just snap).
+  const [flipReady, setFlipReady] = useState(false)
+  useEffect(() => {
+    setFlipReady(false)
+  }, [rollId, index])
+  useEffect(() => {
+    if (!settled || !result.wasRerolled) return
+    const t = setTimeout(() => setFlipReady(true), 60)
+    return () => clearTimeout(t)
+  }, [settled, result.wasRerolled, rollId, index])
+  const showBack = settled && result.wasRerolled && flipReady
 
   const outlineColor =
     result.outcome === 'success'

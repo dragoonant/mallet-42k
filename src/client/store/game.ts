@@ -37,7 +37,7 @@ import { sourceName } from '../ui/labels'
 import { waitForPresentationIdle } from '../presentation/idleStore'
 import { pushSnapshot, resetPresentation, usePresentedStore } from '../presentation/presentedStore'
 import { rerollMuteActive, usePresentationSettings, type CommandRerollSetting, type RerollMute } from '../presentation/settings'
-import { critWouldPay, rollForOffer } from '../ui/rerollInfo'
+import { critWouldPay, dieOutcomes, offerIndexes, rollForOffer } from '../ui/rerollInfo'
 import { isAnnouncementHolding } from '../presentation/announceStore'
 
 // ---------- setup defaults ----------
@@ -309,44 +309,20 @@ function chargeRollFailed(events: GameEvent[], unitId: string | null): boolean {
   return true // no matching roll found — ask rather than guess
 }
 
-/** Most recent SaveRolled for this model — null when we can't find it (ask rather than guess). */
-function saveRollFailed(events: GameEvent[], modelId: string | null): boolean | null {
-  if (!modelId) return null
-  for (let i = events.length - 1; i >= 0; i--) {
-    const e = events[i]
-    if (e.type === 'SaveRolled' && e.modelId === modelId) return !e.saved
-  }
-  return null
+/** The dice of a batch that could still be re-rolled and currently fail (hit/wound/save rolls, judged by
+ *  the roll's own needed number — see dieOutcomes). Null when the roll can't be judged: ask rather than guess. */
+function failedDice(state: GameState, events: GameEvent[], pending: CommandRerollDecision): number[] | null {
+  const roll = pending.context.roll
+  const outcomes = dieOutcomes(state, events, roll)
+  if (outcomes.length === 0 || outcomes.every((o) => o === 'neutral')) return null
+  const locked = roll.rerolled ?? []
+  return outcomes.map((o, i) => (o === 'fail' && !locked.includes(i) ? i : -1)).filter((i) => i >= 0)
 }
 
-/** How many hit/wound rolls have already failed against this exact attacker+weapon+target combo since the
- *  most recent AttackSequenceStarted for that attacker — i.e. within the attack currently in progress.
- *  Includes the roll that just raised this decision (its HitRolled/WoundRolled is already in the log by
- *  the time stratagems.ts opens the commandReroll window — same step()). */
-function attackSequenceFailCount(
-  events: GameEvent[], purpose: 'hit' | 'wound', attackerUnitId: string | null, weaponId: string | null, targetUnitId: string | null,
-): number {
-  if (!attackerUnitId) return 0
-  let start = 0
-  for (let i = events.length - 1; i >= 0; i--) {
-    const e = events[i]
-    if (e.type === 'AttackSequenceStarted' && e.unitId === attackerUnitId) { start = i; break }
-    if (e.type === 'AttackSequenceEnded' && e.unitId === attackerUnitId) break // that sequence already closed
-  }
-  let fails = 0
-  for (let i = start; i < events.length; i++) {
-    const e = events[i]
-    if (purpose === 'hit' && e.type === 'HitRolled' && !e.auto && !e.hit
-      && e.attack.attackerUnitId === attackerUnitId && e.attack.weaponId === weaponId && e.attack.targetUnitId === targetUnitId) fails++
-    if (purpose === 'wound' && e.type === 'WoundRolled' && !e.auto && !e.wounded
-      && e.attack.attackerUnitId === attackerUnitId && e.attack.weaponId === weaponId && e.attack.targetUnitId === targetUnitId) fails++
-  }
-  return fails
-}
-
-/** The "onlyWhenItMatters" rule set (see the setting's own doc comment in presentation/settings.ts):
- *  failed charge rolls; failed saves on a CHARACTER/VEHICLE/MONSTER model or a unit's last model; hit/wound
- *  rolls with 2+ dice already failed this attack or a Damage-2+ weapon; Advance rolls; battle-shock/
+/** The "onlyWhenItMatters" rule set (see the setting's own doc comment in presentation/settings.ts), applied
+ *  once per fast-rolled batch: failed charge rolls; a save batch with a failed die when the target is a
+ *  CHARACTER/VEHICLE/MONSTER or a unit's last model; a hit/wound batch with 2+ failed dice or a Damage-2+
+ *  weapon (never when no die in the batch failed); Advance rolls; battle-shock/
  *  desperate-escape rolls (battle-shock itself is never commandRerollable — see stratagems.ts's
  *  COMMAND_REROLL_PURPOSES — so only desperateEscape can reach here in practice). Anything else (attacks,
  *  damage, hazardous, …) doesn't matter and gets auto-passed. */
@@ -360,17 +336,21 @@ function commandRerollMatters(state: GameState, events: GameEvent[], pending: Co
     case 'charge':
       return chargeRollFailed(events, roll.unitId)
     case 'save': {
-      const failed = saveRollFailed(events, roll.modelId)
+      const failed = failedDice(state, events, pending)
       if (failed === null) return true
-      if (!failed) return false
+      if (failed.length === 0) return false
       const bigModel = unitHasAnyKeyword(state, roll.unitId, ['CHARACTER', 'VEHICLE', 'MONSTER'])
       const unit = roll.unitId ? state.units[roll.unitId] : undefined
       const lastModel = !!unit && unit.models.length <= 1
       return bigModel || lastModel
     }
     case 'hit':
-    case 'wound':
-      return attackSequenceFailCount(events, roll.purpose, roll.unitId, roll.weaponId, roll.targetUnitId) >= 2 || weaponDamageMatters(state, roll.weaponId)
+    case 'wound': {
+      const failed = failedDice(state, events, pending)
+      if (failed === null) return true
+      if (failed.length === 0) return false
+      return failed.length >= 2 || weaponDamageMatters(state, roll.weaponId)
+    }
     default:
       return false
   }
@@ -618,16 +598,21 @@ export const useGameStore = create<GameStore>()((set, get) => {
       return
     }
 
-    // rerollOffer (attack.ts / charge.ts) is only ever raised on a roll that already *succeeded* — an
+    // rerollOffer (attack.ts / charge.ts) is raised once per batch, on dice that already *succeeded* — an
     // ability offering to re-roll anything, including the hits and wounds the player just made. Taking it
-    // can only lose that success unless a critical would trigger something (critWouldPay), so every other
-    // offer is answered "keep" here instead of asked, which is where most of the repetition came from.
-    // Charges are left to the player: a longer charge that is already in reach can still buy position.
+    // can only lose those successes unless a critical would trigger something (critWouldPay), so an offer
+    // whose every die already succeeded is answered "keep" here instead of asked, which is where most of
+    // the repetition came from. A failed die among the offered ones, and charges, are left to the player:
+    // a longer charge that is already in reach can still buy position.
     if (pending.kind === 'chooseOption' && pending.context.topic === 'rerollOffer') {
       if (setting === 'always' && !muted) return
       const roll = rollForOffer(state, pending.context.data)
       if (!roll) return // can't identify the roll — ask rather than answer blind
-      if (!muted && (roll.purpose === 'charge' || critWouldPay(state, roll))) return
+      const data = pending.context.data
+      const eligible = offerIndexes(roll, data)
+      const outcomes = dieOutcomes(state, events, roll, typeof data.needed === 'number' ? data.needed : null)
+      const allSucceeded = eligible.length > 0 && eligible.every((i) => outcomes[i] === 'success')
+      if (!muted && (roll.purpose === 'charge' || !allSucceeded || critWouldPay(state, roll, eligible))) return
       const keep = (pending.options ?? []).find((o) => o.id === 'keep')
       if (!keep) return
       addNote(muted ? 'Kept the roll (muted)' : 'Kept the roll — a re-roll could only lose it')

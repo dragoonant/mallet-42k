@@ -241,11 +241,13 @@ export async function clickFirstOption(page: Page, avoidPass = true): Promise<bo
   return false
 }
 
-/** Pass via the decision prompt's own button (src/client/ui/DecisionPrompt.tsx `btn-pass`), falling
- *  back to the HUD's "End phase / Pass" (`btn-end-phase`) and finally to the first non-Pass option list
- *  entry — so a decision with `canPass:false` still advances instead of hanging. */
+/** Pass via the decision prompt's own button (src/client/ui/DecisionPrompt.tsx `btn-pass`), or the
+ *  interactive re-roll tray's "Keep" (src/client/ui/RerollTray.tsx `reroll-keep` — what Pass means for a
+ *  Command Re-roll or an ability's re-roll offer), falling back to the HUD's "End phase / Pass"
+ *  (`btn-end-phase`) and finally to the first non-Pass option list entry — so a decision with
+ *  `canPass:false` still advances instead of hanging. */
 export async function clickPass(page: Page): Promise<boolean> {
-  for (const id of ['btn-pass', 'btn-end-phase']) {
+  for (const id of ['reroll-keep', 'btn-pass', 'btn-end-phase']) {
     const b = page.getByTestId(id)
     if ((await b.isVisible().catch(() => false)) && (await b.isEnabled().catch(() => false))) {
       await b.click()
@@ -325,6 +327,12 @@ export async function tryBoardPlacement(
 export async function answerRerollLikeDecision(page: Page): Promise<string | null> {
   const prompt = page.getByTestId('prompt')
   if (!(await prompt.isVisible().catch(() => false))) return null
+  // The re-roll tray answers "no thanks" with Keep, never with a generic Pass.
+  const keepBtn = prompt.getByTestId('reroll-keep')
+  if (await keepBtn.isVisible().catch(() => false)) {
+    await keepBtn.click()
+    return 'Keep'
+  }
   const passBtn = prompt.getByRole('button', { name: 'Pass', exact: true })
   if (await passBtn.isVisible().catch(() => false)) {
     await passBtn.click()

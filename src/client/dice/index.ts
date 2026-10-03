@@ -3,4 +3,6 @@
 // queued and play in order, never overlapping. setSpeed() controls tumble/hold duration globally.
 export { DiceTray } from './DiceTray'
 export { playRoll, setSpeed, getSpeed } from './playRoll'
+export { Die } from './Die'
+export { DURATIONS, rerollTrayShown, useDiceStore } from './diceStore'
 export type { DiceSpeed, RollRequest, DieResult } from './types'

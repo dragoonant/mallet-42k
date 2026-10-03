@@ -283,44 +283,6 @@ export function rerollContext(state: GameState, events: readonly GameEvent[], ro
   return { headline, detail: `Rolled ${shown.join(', ')}${modified}${rerollTargetText(state, events, roll, weapon)}.` }
 }
 
-export interface SaveChoiceContext {
-  weaponName: string
-  /** Armour Penetration as the datasheet states it (0 or negative). */
-  ap: number
-  attackerName: string
-  /** The model's own Save characteristic, before AP. */
-  sv: number | null
-  /** What the armour save must actually roll — AP, the benefit of cover and any modifiers already
-   *  applied. Above 6 means it cannot be made at all. Null when the engine didn't publish it. */
-  armourNeeded: number | null
-  /** What the invulnerable save must actually roll, modifiers included. */
-  invulnNeeded: number | null
-  /** Whether the engine counted the target as being in cover — it is why an armour save can be
-   *  better than the AP arithmetic alone suggests. */
-  cover: boolean
-}
-
-/** The numbers the engine published for a `saveType` decision (`context.data` — see
- *  docs/spec/00-architecture.md §3). These are the real targets, modifiers and all: the client used
- *  to derive `sv - AP` itself, which silently ignored the benefit of cover (+1) and any ability that
- *  modifies a save, so it could show 5+ for a save the dice were judged against at 4+. */
-export function saveChoiceFromDecisionData(state: GameState, data: Record<string, unknown>): SaveChoiceContext | null {
-  const num = (k: string): number | null => (typeof data[k] === 'number' ? (data[k] as number) : null)
-  const armourTarget = num('armourTarget')
-  if (armourTarget === null) return null
-  const weaponId = typeof data.weaponId === 'string' ? data.weaponId : null
-  const attackerUnitId = typeof data.attackerUnitId === 'string' ? data.attackerUnitId : null
-  return {
-    weaponName: (weaponId ? state.weapons[weaponId]?.name : undefined) ?? 'the attack',
-    ap: num('ap') ?? 0,
-    attackerName: unitNameOf(state, attackerUnitId),
-    sv: num('sv'),
-    armourNeeded: armourTarget,
-    invulnNeeded: num('invulnTarget'),
-    cover: data.cover === true,
-  }
-}
-
 /** The numbers for the save currently being rolled, for a Command Re-roll offer on it — the engine
  *  publishes them on the attack before it rolls (`CurrentAttack.saveTargets`), because that window
  *  opens before `SaveRolled` is emitted. Null when no save is in flight. */

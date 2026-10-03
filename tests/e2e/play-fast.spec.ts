@@ -232,8 +232,26 @@ test('play a full game fast: Space Marines vs Bot reaches a GameResult within 8 
 // short-ranged missions usually gets the human into Shooting (or at least an Advance roll), which is
 // exactly what's needed to give the "Always" check below a real hit/wound/save/advance roll to offer a
 // reroll on; a Pass-only drive risks never rolling anything re-rollable at all.
-async function driveRound1(page: Page, cam: Cam, budgetMs: number, onPending: (s: Snap) => void): Promise<Snap> {
+/** The first time a human Command Re-roll shows up, check the interactive dice tray is on screen, pick a die
+ *  (when the tray offers a choice), save screenshots/reroll-tray.png and take the re-roll. */
+async function exerciseRerollTray(page: Page): Promise<boolean> {
+  const tray = page.getByTestId('reroll-tray')
+  if (!(await tray.waitFor({ state: 'visible', timeout: 8_000 }).then(() => true).catch(() => false))) return false
+  await page.waitForTimeout(800) // let the dice settle
+  const pickable = page.locator('button[data-testid^="reroll-die-"]')
+  if ((await pickable.count()) > 0) await pickable.first().click()
+  await page.waitForTimeout(250)
+  mkdirSync('screenshots', { recursive: true })
+  await page.screenshot({ path: 'screenshots/reroll-tray.png' })
+  const confirm = page.getByTestId('reroll-confirm')
+  if (await confirm.isEnabled().catch(() => false)) await confirm.click()
+  else await page.getByTestId('reroll-keep').click()
+  return true
+}
+
+async function driveRound1(page: Page, cam: Cam, budgetMs: number, onPending: (s: Snap) => void, captureTray = false): Promise<Snap> {
   const start = Date.now()
+  let trayDone = false
   let s = await snap(page)
   let turn: TurnState = { key: '', usedMove: false, usedShot: false }
   while (Date.now() - start < budgetMs && s.round <= 1 && !s.result && s.phase !== 'ended') {
@@ -250,6 +268,13 @@ async function driveRound1(page: Page, cam: Cam, budgetMs: number, onPending: (s
     } else if (s.pending.kind === 'deployUnit') {
       await handleDeploy(page, s, cam)
     } else {
+      if (captureTray && !trayDone && s.pending.kind === 'commandReroll') {
+        trayDone = true
+        if (await exerciseRerollTray(page)) {
+          s = await snap(page)
+          continue
+        }
+      }
       const { moved, shot } = await handlePlay(page, s, cam, turn)
       if (moved) turn.usedMove = true
       if (shot) turn.usedShot = true
@@ -269,7 +294,7 @@ test('Command Re-roll setting "Always": a human reroll prompt appears at least o
   let sawHumanCommandReroll = false
   const final = await driveRound1(page, cam, 3 * 60_000, (s) => {
     if (s.pending?.kind === 'commandReroll' && s.pending.player === s.humanSeat) sawHumanCommandReroll = true
-  })
+  }, true)
   console.log(`[reroll-always] round reached=${final.round} sawHumanCommandReroll=${sawHumanCommandReroll}`)
   expect(sawHumanCommandReroll, 'a human commandReroll prompt appeared at least once with the "Always" setting').toBe(true)
 })

@@ -32,6 +32,11 @@ export const DURATIONS: Record<DiceSpeed, { tumbleMs: number; holdMs: number; fl
   instant: { tumbleMs: 0, holdMs: 0, flipMs: 0 },
 }
 
+/** Roll ids whose dice the player has already seen in the interactive re-roll tray (ui/RerollTray.tsx), so
+ *  the tray window that follows the answer (presentation/director.ts) skips the tumble and only flips
+ *  the dice that were re-rolled. */
+export const rerollTrayShown = new Set<string>()
+
 let seq = 0
 export function nextId(): string {
   seq += 1
@@ -64,7 +69,8 @@ export function kick(): void {
   const s = useDiceStore.getState()
   if (s.current || s.queue.length === 0) return
   const [next, ...rest] = s.queue
-  const { tumbleMs, holdMs: baseHoldMs } = DURATIONS[s.speed]
+  const { tumbleMs: speedTumbleMs, holdMs: baseHoldMs } = DURATIONS[s.speed]
+  const tumbleMs = next.request.skipTumble ? 0 : speedTumbleMs
   const dice = computeResults(next.request)
   // A grouped whole-squad window stays up a little longer so the result can be read (+1/12 per die, capped).
   const holdMs = baseHoldMs === 0 ? 0 : baseHoldMs + Math.round((baseHoldMs / 12) * Math.min(dice.length - 1, 15))

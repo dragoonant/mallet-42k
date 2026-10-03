@@ -12,10 +12,10 @@ import { useUiStore } from './uiStore'
 import {
   combinedUnitIds, combinedUnitModels, distance2D, formationPlacementsForUnit, modelsAnchor, placementInfo, validateDraft,
 } from '../interaction'
-import { moveTypeHelp, objectiveLabel, prettifyId, saveAttackContext, saveChoiceFromDecisionData, type MoveTypeHelp } from './labels'
+import { moveTypeHelp, objectiveLabel, prettifyId, saveAttackContext, type MoveTypeHelp } from './labels'
 import { FormationPicker } from './FormationPicker'
-import { rerollSummary, rollForOffer } from './rerollInfo'
-import { usePresentationSettings, type RerollMute } from '../presentation/settings'
+import { rerollTrayModel, rollForOffer } from './rerollInfo'
+import { RerollTray } from './RerollTray'
 import { usePresentedStore } from '../presentation/presentedStore'
 import { buttonBase, buttonDanger, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 
@@ -107,7 +107,6 @@ const CHOOSE_OPTION_INFO: Partial<Record<ChooseOptionTopic, { title: string; hin
   battleShockOrder: { title: 'Order battle-shock tests', hint: 'Choose which of your affected units tests for battle shock next.' },
   desperateEscapeCasualty: { title: 'Desperate Escape casualty', hint: 'Choose which model is removed after a failed Desperate Escape roll.' },
   coherencyCull: { title: 'Unit coherency', hint: 'Choose which model(s) to remove so the rest of the unit stays within coherency.' },
-  saveType: { title: 'Choose a save', hint: 'Pick which save to attempt against this hit.' },
   meleeWeapon: { title: 'Choose a melee weapon', hint: "Pick which of this model's melee weapons to fight with." },
   weaponProfile: { title: 'Choose a weapon profile', hint: 'Pick which profile of this weapon to fire.' },
   oathTarget: { title: 'Oath of Moment target', hint: 'Name the enemy unit your army re-rolls hits and wounds against this battle.' },
@@ -158,7 +157,7 @@ function describeAction(a: Action, state: GameState): string {
     case 'declareCharge': {
       const names = a.targetUnitIds.map(unitName).join(', ')
       const needed = chargeDistanceNeeded(state, a.unitId, a.targetUnitIds)
-      return needed !== null ? `Charge ${names}, need ${needed.toFixed(1)}"` : `Charge ${names}`
+      return needed !== null ? `Charge ${names}, need ${Math.ceil(needed)}+` : `Charge ${names}`
     }
     case 'moveUnit':
     case 'chargeMove':
@@ -227,14 +226,6 @@ function labelForOption(pending: PendingDecision, state: GameState, events: read
     }
     case 'chooseOption': {
       if (pending.context.topic === 'razeObjective' || pending.context.topic === 'recoverObjective') return objectiveLabel(o.id)
-      if (pending.context.topic === 'saveType') {
-        // The engine hands us what each save must actually roll (AP, cover and modifiers in) —
-        // see docs/spec/00-architecture.md §3. Never re-derive it here.
-        const ctx = saveChoiceFromDecisionData(state, pending.context.data)
-        const needed = o.id === 'invuln' ? ctx?.invulnNeeded : ctx?.armourNeeded
-        const name = o.id === 'invuln' ? 'Invulnerable save' : 'Armour save'
-        if (typeof needed === 'number') return needed > 6 ? `${name} — ${needed}+ (impossible)` : `${name} — ${needed}+`
-      }
       return o.label
     }
     default:
@@ -323,15 +314,6 @@ const row: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap' }
  *  pinned top/bottom is what keeps the whole box out of both zones. */
 const deployRowVertical: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6 }
 const optionList: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', maxHeight: 130, overflowY: 'auto' }
-/** The "stop asking" escapes under a re-roll prompt — deliberately quiet (text links, not buttons): they
- *  answer the decision *and* silence later offers, so they shouldn't compete with Re-roll/Keep for the eye. */
-const muteRow: CSSProperties = { display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 2 }
-const muteLink: CSSProperties = {
-  fontFamily: fontStack, fontSize: 11, color: colors.muted, background: 'none', border: 'none',
-  padding: 0, cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 2,
-}
-const rollLine: CSSProperties = { color: colors.text, fontWeight: 600, fontSize: 12.5 }
-
 /** How long the pointer has to rest on an option before its help appears — long enough that moving
  *  across the row to the option you want doesn't flash three cards on the way. */
 const HELP_DELAY_MS = 450
@@ -419,7 +401,6 @@ export function DecisionPrompt() {
   const events = useGameStore((s) => s.events)
   const pendingSeq = useGameStore((s) => s.pendingSeq)
   const presentedSeq = usePresentedStore((s) => s.presentedSeq)
-  const muteRerolls = usePresentationSettings((s) => s.muteRerolls)
   const botSeat = useGameStore((s) => s.botSeat)
   const dispatch = useGameStore((s) => s.dispatch)
   const draft = useUiStore((s) => s.draft)
@@ -541,29 +522,27 @@ export function DecisionPrompt() {
 
   const chooseOptionInfo = pending.kind === 'chooseOption' ? CHOOSE_OPTION_INFO[pending.context.topic] : undefined
 
-  // Both re-roll prompts (Command Re-roll, and an ability's own rerollOffer) are answered here with their
-  // numbers spelled out — "Rolled 1 — needs 3+ to save" — rather than the bare "[1]" the raw roll gives,
-  // and with a quiet way out of being asked again (see RerollMute in presentation/settings.ts). The roll
-  // itself comes with the decision for Command Re-roll; a rerollOffer names only its id, so it's looked up.
+  // Both re-roll prompts (Command Re-roll, and an ability's own rerollOffer) are answered in the
+  // interactive dice tray (RerollTray.tsx) instead of this panel's text and buttons: the whole roll is shown
+  // as dice and the player clicks the ones to re-roll. The roll itself comes with the decision for Command
+  // Re-roll; a rerollOffer names only its id, so it's looked up.
   const rerollRoll = pending.kind === 'commandReroll'
     ? pending.context.roll
     : pending.kind === 'chooseOption' && pending.context.topic === 'rerollOffer'
       ? rollForOffer(state, pending.context.data)
       : null
-  const reroll = rerollRoll ? rerollSummary(state, events, rerollRoll) : null
-  const rerollCost = state.stratagems['core.s.command-reroll']?.cost ?? 1
-  const keepAction: Action | null = !reroll
-    ? null
-    : pending.kind === 'commandReroll'
+  if (rerollRoll && (pending.kind === 'commandReroll' || pending.kind === 'chooseOption') && rerollTrayModel(state, events, pending, rerollRoll)) {
+    const keepAction: Action | null = pending.kind === 'commandReroll'
       ? passAction
       : ((hasOptions(pending) ? pending.options : []).find((o) => o.id === 'keep')?.action ?? null)
-  const answerAndMute = (mute: RerollMute) => {
-    if (!keepAction) return
-    muteRerolls(mute)
-    dispatch(keepAction)
+    return (
+      <div style={wrap} data-testid="prompt">
+        <RerollTray key={pending.id} state={state} events={events} pending={pending} roll={rerollRoll} keepAction={keepAction} />
+      </div>
+    )
   }
 
-  const kindTitle = reroll?.title ?? chooseOptionInfo?.title ?? KIND_TITLE[pending.kind] ?? pending.kind
+  const kindTitle = chooseOptionInfo?.title ?? KIND_TITLE[pending.kind] ?? pending.kind
   const isDeploy = pending.kind === 'deployUnit'
 
   return (
@@ -572,7 +551,7 @@ export function DecisionPrompt() {
       <div style={isDeploy ? deployWrap : wrap} data-testid="prompt">
       {activeHelp && <OptionHelp help={activeHelp} />}
       <div style={heading}>{kindTitle}</div>
-      {chooseOptionInfo && !reroll && <div style={hint}>{chooseOptionInfo.hint}</div>}
+      {chooseOptionInfo && <div style={hint}>{chooseOptionInfo.hint}</div>}
 
       {pending.kind === 'stratagemWindow' && (
         <StratagemOffers
@@ -589,19 +568,6 @@ export function DecisionPrompt() {
           stratagemIds={(pending.options ?? []).filter((o): o is DecisionOption & { action: Extract<Action, { type: 'useStratagem' }> } => o.action.type === 'useStratagem').map((o) => o.action.stratagemId)}
           triggerLine={`${REACTION_LABEL[pending.context.reaction] ?? pending.context.reaction}${pending.context.enemyUnitId ? ` — ${state.units[pending.context.enemyUnitId]?.name ?? pending.context.enemyUnitId}` : ''}`}
         />
-      )}
-      {reroll && (
-        <div style={infoBlock} data-testid="reroll-info">
-          <div style={rollLine}>{reroll.line}</div>
-          {reroll.context && <div>{reroll.context}</div>}
-          <div style={{ marginTop: 3 }}>
-            {pending.kind === 'commandReroll'
-              ? `Command Re-roll costs ${rerollCost} CP — you have ${state.players[pending.player].cp} CP, and only one roll per phase can be re-rolled this way.`
-              : reroll.failed
-                ? 'A free re-roll, from one of your abilities.'
-                : 'This roll already succeeded — a re-roll is free, but it can just as easily lose it.'}
-          </div>
-        </div>
       )}
       {pending.kind === 'allocateAttack' && (() => {
         // Same gap as the save choice: the prompt named models but never said what was hitting them.
@@ -620,38 +586,6 @@ export function DecisionPrompt() {
               option to light that figure up on the board.
               {pending.context.precision ? ' Precision: an attached character can be picked out.' : ''}
             </div>
-          </div>
-        )
-      })()}
-
-      {pending.kind === 'chooseOption' && pending.context.topic === 'saveType' && (() => {
-        const ctx = saveChoiceFromDecisionData(state, pending.context.data)
-        if (!ctx) return null
-        const apText = ctx.ap === 0 ? 'AP 0' : `AP ${ctx.ap}`
-        const armour = ctx.armourNeeded
-        const invuln = ctx.invulnNeeded
-        const better =
-          armour === null || invuln === null
-            ? null
-            : armour > invuln
-              ? 'The invulnerable save is the better roll here.'
-              : armour < invuln
-                ? 'The armour save is the better roll here.'
-                : 'Both saves need the same roll.'
-        return (
-          <div style={infoBlock} data-testid="save-context">
-            <div style={{ color: colors.text, fontWeight: 600 }}>
-              Incoming: {ctx.weaponName} ({apText}){ctx.attackerName ? ` — ${ctx.attackerName}` : ''}
-            </div>
-            <div>
-              {armour === null
-                ? 'Armour save: unknown'
-                : armour > 6
-                  ? `Armour save ${ctx.sv}+ cannot be made against ${apText} (would need ${armour}+)`
-                  : `Armour save ${ctx.sv}+ needs ${armour}+ here${ctx.cover ? ' (cover already counted)' : ''}`}
-              {invuln !== null && ` · Invulnerable save needs ${invuln}+ (AP never applies)`}
-            </div>
-            {better && <div style={{ marginTop: 3 }}>{better}</div>}
           </div>
         )
       })()}
@@ -709,54 +643,20 @@ export function DecisionPrompt() {
             </button>
           </>
         )}
-        {/* A re-roll prompt words its own "no thanks" as Keep the roll, just below — a second generic
-            Pass button next to it reads as a different (and scarier) answer than it actually is. */}
-        {passAction && !reroll && (
+        {passAction && (
           <button style={buttonBase} data-testid="btn-pass" onClick={() => dispatch(passAction)}>
             {PASS_LABEL[pending.kind] ?? 'Pass'}
           </button>
         )}
       </div>
 
-      {reroll && (
-        <>
-          <div style={row}>
-            {/* 'keep' is rendered as its own button below, so it isn't repeated here as a re-roll offer. */}
-            {listItems.filter((it) => it.id !== 'keep').map((it) => (
-              <button
-                key={it.id}
-                style={buttonPrimary}
-                data-testid={`prompt-option-${it.id}`}
-                onClick={() => dispatch(it.action)}
-              >
-                {pending.kind === 'commandReroll' && !pending.context.selectableDice ? `Re-roll (${rerollCost} CP)` : it.label}
-              </button>
-            ))}
-            {keepAction && (
-              <button style={buttonBase} data-testid="btn-keep-roll" onClick={() => dispatch(keepAction)}>
-                Keep the roll
-              </button>
-            )}
-          </div>
-          {keepAction && (
-            <div style={muteRow}>
-              <button style={muteLink} data-testid="btn-reroll-mute-phase" onClick={() => answerAndMute({ scope: 'phase', round: state.round, phase: state.phase })}>
-                Keep, and stop asking this phase
-              </button>
-              <button style={muteLink} data-testid="btn-reroll-mute-battle" onClick={() => answerAndMute({ scope: 'battle' })}>
-                …for the rest of the battle
-              </button>
-            </div>
-          )}
-        </>
-      )}
       {activeDraft && draftValidation && !draftValidation.ok && (
         <div style={{ ...hint, color: colors.danger }} data-testid="draft-issue">
           Can&apos;t confirm: {draftValidation.reasons.join(', ')}
         </div>
       )}
 
-      {showFallbackList && !reroll && (
+      {showFallbackList && (
         <div style={optionList}>
           {info && listItems.length > 0 && <div style={hint}>Or use a suggested placement — hover one to preview it:</div>}
           {listItems.map((it) => {

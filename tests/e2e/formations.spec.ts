@@ -164,7 +164,7 @@ function zoneCandidates(zone: V2[], pieces: { footprint: V2[] }[]): V2[] {
 }
 
 async function clickPass(page: Page): Promise<boolean> {
-  for (const id of ['btn-pass', 'btn-end-phase']) {
+  for (const id of ['reroll-keep', 'btn-pass', 'btn-end-phase']) {
     const b = page.getByTestId(id)
     if ((await b.isVisible().catch(() => false)) && (await b.isEnabled().catch(() => false))) {
       await b.click({ timeout: 3_000 }).catch(() => {})
