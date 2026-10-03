@@ -61,6 +61,8 @@ export interface FigureProps {
   pose?: Pose
   selected?: boolean
   highlighted?: boolean
+  /** Pointer is on this unit's prompt button: a bright pulsing ring, distinct from `highlighted`. */
+  hovered?: boolean
   onClick?: (event: ThreeEvent<MouseEvent>) => void
 }
 
@@ -77,6 +79,7 @@ export const Figure = memo(function Figure({
   pose: poseOverride,
   selected,
   highlighted,
+  hovered,
   onClick,
 }: FigureProps) {
   // `rotationY` is an engine facing — forward along world (cos f, sin f) — but the figure mesh
@@ -169,7 +172,7 @@ export const Figure = memo(function Figure({
 
   return (
     <group ref={groupRef} onClick={onClick}>
-      <BaseDisc radiusX={base.radiusX} radiusZ={base.radiusZ} colors={colors} selected={selected} highlighted={highlighted} glbBody={!!glb} />
+      <BaseDisc radiusX={base.radiusX} radiusZ={base.radiusZ} colors={colors} selected={selected} highlighted={highlighted} hovered={hovered} glbBody={!!glb} />
       {glb && <GlbBody object={glb} pose={pose} seed={seedRef.current} />}
       {!glb && <group position={[0, BASE_THICKNESS, 0]} scale={[base.height, base.height, base.height]}>
         {bodyKind === 'vehicle' ? (

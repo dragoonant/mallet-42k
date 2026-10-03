@@ -31,8 +31,8 @@ describe('shooting target help', () => {
     const help = shootingTargetHelp(state, shot())!
     expect(help.title).toBe(`Shoot ${state.units[orks].name}`)
     const defender = state.models[state.units[orks].models[0]]
-    expect(help.lines[0]).toContain(`T${modelStats(state, defender).T}`)
-    expect(help.lines[0]).toContain(`Sv${modelStats(state, defender).Sv}+`)
+    expect(help.lines[0]).toContain(`Toughness ${modelStats(state, defender).T}`)
+    expect(help.lines[0]).toContain(`Save ${modelStats(state, defender).Sv}+`)
     expect(help.lines[0]).toContain('model(s)')
   })
 

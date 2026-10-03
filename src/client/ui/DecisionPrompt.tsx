@@ -126,6 +126,17 @@ const REACTION_LABEL: Record<string, string> = {
   counterOffensive: 'Counter-offensive',
 }
 
+/** "Boy #3 · 2 wounds left" — which figure a model id is and how hurt it already is. The raw
+ *  datasheetModelId ("boy", "terminator") says nothing about *which* one; its place in the unit and
+ *  the wounds it has left do, and that is what a pick between models is actually about. */
+function modelLabel(state: GameState, modelId: string): string {
+  const model = state.models[modelId]
+  if (!model) return modelId
+  const index = state.units[model.unitId]?.models.indexOf(modelId) ?? -1
+  const w = model.woundsRemaining
+  return `${prettifyId(model.datasheetModelId)}${index >= 0 ? ` #${index + 1}` : ''} · ${w} ${w === 1 ? 'wound' : 'wounds'} left`
+}
+
 function describeAction(a: Action, state: GameState): string {
   const unitName = (id: string) => state.units[id]?.name ?? id
   switch (a.type) {
@@ -162,17 +173,14 @@ function describeAction(a: Action, state: GameState): string {
       // The raw datasheetModelId ("boy", "terminator") says nothing about *which* one — its place in
       // the unit and the wounds it has left do, and that is what the choice is actually about. Hover
       // lights the figure itself (hoverTargetFor).
-      const model = state.models[a.modelId]
-      if (!model) return `Allocate to ${a.modelId}`
-      const name = prettifyId(model.datasheetModelId)
-      const index = state.units[model.unitId]?.models.indexOf(a.modelId) ?? -1
-      return `${name}${index >= 0 ? ` #${index + 1}` : ''} · ${model.woundsRemaining}W left`
+      return state.models[a.modelId] ? modelLabel(state, a.modelId) : `Allocate to ${a.modelId}`
     }
     case 'useStratagem': {
       const strat = state.stratagems[a.stratagemId]
       const name = strat?.name ?? a.stratagemId
       const cost = strat ? ` (${strat.cost} CP)` : ''
       const targets: string[] = (a.targets.unitIds ?? []).map(unitName)
+      for (const mid of a.targets.modelIds ?? []) targets.push(state.models[mid] ? modelLabel(state, mid) : mid)
       if (a.targets.objectiveId) targets.push(objectiveLabel(a.targets.objectiveId))
       return `${name}${cost}${targets.length > 0 ? `: ${targets.join(', ')}` : ''}`
     }
@@ -192,6 +200,9 @@ function describeAction(a: Action, state: GameState): string {
       return `${(a as Action).type} option`
   }
 }
+
+/** chooseOption topics whose option ids are model ids (which figure is removed). */
+const MODEL_PICK_TOPICS: ReadonlySet<ChooseOptionTopic> = new Set<ChooseOptionTopic>(['hazardousCasualty', 'desperateEscapeCasualty', 'coherencyCull'])
 
 /** Label a single option button for the kinds whose engine-provided DecisionOption.label is either
  *  a raw id ("A:terminator-squad", a bare objective id) or too terse to explain the choice — everyone
@@ -216,6 +227,8 @@ function labelForOption(pending: PendingDecision, state: GameState, events: read
         : `Re-roll die ${o.action.dieIndex + 1} for 1 CP (rolled ${roll.dice[o.action.dieIndex]})`
     }
     case 'chooseOption': {
+      // The engine labels these "remove M:boy#3" — a model id; say which figure it is instead.
+      if (MODEL_PICK_TOPICS.has(pending.context.topic) && state.models[o.id]) return modelLabel(state, o.id)
       if (pending.context.topic === 'razeObjective' || pending.context.topic === 'recoverObjective') return objectiveLabel(o.id)
       return o.label
     }
@@ -243,24 +256,54 @@ function helpForAction(state: GameState, action: Action | undefined): PromptHelp
 
 /** What an option is "about", for the board-hover highlight (M6 gap: prompts named units/objectives
  *  the player couldn't match to the board; owner playtest: the same for allocateAttack's models —
- *  "when I hover over the button it should light up the appropriate figure on the game board"). */
-function hoverTargetFor(pending: PendingDecision, action: Action, optionId: string): { kind: 'unit' | 'model' | 'objective'; id: string } | null {
-  // Allocating an attack picks one model out of a unit, so the highlight has to be that one figure.
-  if (action.type === 'allocateAttack') return { kind: 'model', id: action.modelId }
-  // Shooting and charge options name an enemy unit: light it up so "which one is that?" never needs
-  // asking, the same way the stratagem/objective options already do.
-  if (action.type === 'declareTargets' && action.targets[0]) return { kind: 'unit', id: action.targets[0].targetUnitId }
-  if (action.type === 'declareCharge' && action.targetUnitIds[0]) return { kind: 'unit', id: action.targetUnitIds[0] }
-  if (action.type === 'useStratagem') {
-    if (action.targets.unitIds?.[0]) return { kind: 'unit', id: action.targets.unitIds[0] }
-    if (action.targets.objectiveId) return { kind: 'objective', id: action.targets.objectiveId }
+ *  "when I hover over the button it should light up the appropriate figure on the game board").
+ *  Every option that names a unit gets one: where it names two (attacker and target) the target wins,
+ *  because the acting unit is already the one the player is looking at. */
+type HoverTarget = { kind: 'unit'; ids: string[] } | { kind: 'model'; id: string } | { kind: 'objective'; id: string }
+
+const unitsOf = (ids: readonly string[]): HoverTarget | null => (ids.length > 0 ? { kind: 'unit', ids: [...new Set(ids)] } : null)
+
+function hoverTargetFor(state: GameState, pending: PendingDecision, action: Action, optionId: string): HoverTarget | null {
+  switch (action.type) {
+    // Allocating an attack picks one model out of a unit, so the highlight has to be that one figure.
+    case 'allocateAttack':
+      return { kind: 'model', id: action.modelId }
+    // Shooting and charge options name the enemy unit(s) to hit: light them up so "which one is that?"
+    // never needs asking.
+    case 'declareTargets':
+      return unitsOf(action.targets.map((t) => t.targetUnitId))
+    case 'declareCharge':
+      return unitsOf(action.targetUnitIds)
+    // Picking which of your own units acts (activate / fight / move type / suggested placement / deploy).
+    case 'chooseUnitToActivate':
+    case 'chooseFightUnit':
+    case 'declareMove':
+    case 'moveUnit':
+    case 'chargeMove':
+    case 'pileIn':
+    case 'consolidate':
+    case 'deployUnit':
+      return unitsOf([action.unitId])
+    case 'useStratagem': {
+      const t = action.targets
+      if (t.unitIds && t.unitIds.length > 0) return unitsOf(t.unitIds)
+      if (t.modelIds && t.modelIds.length > 0) return { kind: 'model', id: t.modelIds[0] }
+      if (t.objectiveId) return { kind: 'objective', id: t.objectiveId }
+      return null
+    }
+    case 'chooseOption': {
+      // Oath of Moment / battle-shock order / Stomp 'Em / Bag the Big 'Un / leader attach name a unit by
+      // id; the model-removal prompts name a model; raze/recover name an objective. A pick between
+      // weapons or ability modes has no board object of its own, so it lights the unit it is about.
+      if (pending.kind !== 'chooseOption' || pending.context.topic === 'rerollOffer') return null
+      if (state.units[optionId]) return { kind: 'unit', ids: [optionId] }
+      if (state.models[optionId]) return { kind: 'model', id: optionId }
+      if (state.objectives[optionId]) return { kind: 'objective', id: optionId }
+      return pending.context.unitId ? unitsOf([pending.context.unitId]) : null
+    }
+    default:
+      return null
   }
-  if (pending.kind === 'chooseOption') {
-    const topic = pending.context.topic
-    if (topic === 'razeObjective' || topic === 'recoverObjective') return { kind: 'objective', id: optionId }
-    if (topic === 'stompTarget' || topic === 'bagTarget') return { kind: 'unit', id: optionId }
-  }
-  return null
 }
 
 // A pending decision is player input the game is blocked on — it must never be visually covered (and,
@@ -424,6 +467,11 @@ export function DecisionPrompt() {
   const hoverUnit = useUiStore((s) => s.hoverUnit)
   const hoverModel = useUiStore((s) => s.hoverModel)
   const hoverObjective = useUiStore((s) => s.hoverObjective)
+  const clearBoardHover = () => {
+    hoverUnit(null)
+    hoverModel(null)
+    hoverObjective(null)
+  }
   const formationKind = useUiStore((s) => s.formationKind)
   const formationFacing = useUiStore((s) => s.formationFacing)
   const primeFormation = useUiStore((s) => s.primeFormation)
@@ -444,6 +492,15 @@ export function DecisionPrompt() {
     helpTimer.current = setTimeout(() => setHelpFor(id), HELP_DELAY_MS)
   }
   useEffect(() => () => { if (helpTimer.current !== null) clearTimeout(helpTimer.current) }, [])
+
+  // A hovered option button lights its unit on the board; that highlight must never outlive the button.
+  // Unmounting skips onMouseLeave, so clear on unmount, and again whenever the options stop being on
+  // screen (opponent's turn, dice still resolving) while the pointer may still be resting on one.
+  const optionsHidden = !state || !pending || pending.player === botSeat || presentedSeq < pendingSeq
+  useEffect(() => {
+    if (optionsHidden) clearBoardHover()
+  }, [optionsHidden]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => clearBoardHover, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { resetForDecision(); cancelHelp() }, [pending?.id])
@@ -649,7 +706,7 @@ export function DecisionPrompt() {
           <div style={infoBlock} data-testid="allocate-context">
             <div style={{ color: colors.text, fontWeight: 600 }}>
               {pending.context.mortal ? 'Mortal wounds' : 'A wound gets through'}
-              {ctx?.weaponName ? ` — ${ctx.weaponName} (${ctx.ap === 0 ? 'AP 0' : `AP ${ctx.ap}`})` : ''}
+              {ctx?.weaponName ? ` — ${ctx.weaponName} (Armour Penetration ${ctx.ap})` : ''}
               {dmg !== null ? ` · Damage ${dmg}` : ''}
             </div>
             <div>
@@ -738,7 +795,7 @@ export function DecisionPrompt() {
               it.action.type === 'moveUnit' || it.action.type === 'chargeMove' || it.action.type === 'pileIn' || it.action.type === 'consolidate'
                 ? it.action
                 : null
-            const hoverTarget = hoverTargetFor(pending, it.action, it.id)
+            const hoverTarget = hoverTargetFor(state, pending, it.action, it.id)
             // The card itself is rendered at panel level (see activeHelp) so the option row, which
             // is an overflow:auto scroller, can't clip it.
             const hasHelp = helpForAction(state, it.action) !== null
@@ -752,23 +809,19 @@ export function DecisionPrompt() {
                 onMouseEnter={() => {
                   if (hasHelp) scheduleHelp(it.id)
                   if (withPlacements) setPreviewDraft({ decisionId: pending.id, unitId: withPlacements.unitId, anchor: { x: 0, z: 0 }, placements: withPlacements.placements })
-                  if (hoverTarget?.kind === 'unit') hoverUnit(hoverTarget.id)
+                  if (hoverTarget?.kind === 'unit') hoverUnit(hoverTarget.ids)
                   if (hoverTarget?.kind === 'model') hoverModel(hoverTarget.id)
                   if (hoverTarget?.kind === 'objective') hoverObjective(hoverTarget.id)
                 }}
                 onMouseLeave={() => {
                   cancelHelp()
                   setPreviewDraft(null)
-                  hoverUnit(null)
-                  hoverModel(null)
-                  hoverObjective(null)
+                  clearBoardHover()
                 }}
                 onClick={() => {
                   cancelHelp()
                   setPreviewDraft(null)
-                  hoverUnit(null)
-                  hoverModel(null)
-                  hoverObjective(null)
+                  clearBoardHover()
                   dispatch(it.action)
                   setDraft(null)
                 }}

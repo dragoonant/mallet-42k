@@ -93,6 +93,9 @@ interface UiState {
   battlefieldIndex: number
   selectedUnitId: string | null
   hoveredUnitId: string | null
+  /** Every unit the hovered prompt option names (a charge can declare several targets; a stratagem can
+   *  name two units). `hoveredUnitId` is always the first of these — UnitsLayer reads this list. */
+  hoveredUnitIds: readonly string[]
   /** One model, for prompts that choose between models of the same unit (allocateAttack) — the
    *  unit-level hover would light up all ten Boyz when the choice is which one takes the hit. */
   hoveredModelId: string | null
@@ -132,7 +135,8 @@ interface UiState {
   formationMemory: Record<string, FormationMemoryEntry>
   nudge: NudgeState | null
   selectUnit(id: string | null): void
-  hoverUnit(id: string | null): void
+  /** One unit id, several (all lit together), or null to clear. */
+  hoverUnit(ids: string | readonly string[] | null): void
   hoverModel(id: string | null): void
   hoverObjective(id: string | null): void
   setDeployTarget(id: string | null): void
@@ -175,6 +179,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   battlefieldIndex: FORCED_BATTLEFIELD ?? storedBattlefield(),
   selectedUnitId: null,
   hoveredUnitId: null,
+  hoveredUnitIds: [],
   hoveredModelId: null,
   hoveredObjectiveId: null,
   deployTargetUnitId: null,
@@ -194,7 +199,10 @@ export const useUiStore = create<UiState>((set, get) => ({
   formationMemory: {},
   nudge: null,
   selectUnit: (id) => set({ selectedUnitId: id }),
-  hoverUnit: (id) => set({ hoveredUnitId: id }),
+  hoverUnit: (ids) => {
+    const list = ids === null ? [] : typeof ids === 'string' ? [ids] : [...ids]
+    set({ hoveredUnitId: list[0] ?? null, hoveredUnitIds: list })
+  },
   hoverModel: (id) => set({ hoveredModelId: id }),
   hoverObjective: (id) => set({ hoveredObjectiveId: id }),
   setDeployTarget: (id) => set({ deployTargetUnitId: id, draft: null }),
@@ -226,7 +234,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   startNudge: (n) => set({ nudge: n }),
   clearNudge: () => set({ nudge: null }),
   resetForDecision: () =>
-    set({ deployTargetUnitId: null, draft: null, previewDraft: null, hoveredUnitId: null, hoveredModelId: null, hoveredObjectiveId: null, nudge: null }),
+    set({ deployTargetUnitId: null, draft: null, previewDraft: null, hoveredUnitId: null, hoveredUnitIds: [], hoveredModelId: null, hoveredObjectiveId: null, nudge: null }),
   resetAll: () => {
     // New game: rotate to the next battlefield unless ?board= forces one.
     let battlefieldIndex = get().battlefieldIndex
@@ -238,6 +246,7 @@ export const useUiStore = create<UiState>((set, get) => ({
       battlefieldIndex,
       selectedUnitId: null,
       hoveredUnitId: null,
+      hoveredUnitIds: [],
       hoveredModelId: null,
       hoveredObjectiveId: null,
       deployTargetUnitId: null,
