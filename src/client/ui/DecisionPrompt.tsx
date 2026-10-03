@@ -379,8 +379,11 @@ const deployWrap: CSSProperties = {
   ...panel,
   position: 'absolute',
   left: 10,
-  top: '38%',
-  bottom: '38%',
+  // Sized to its content (roster + hint + Confirm/Reset/Cancel) and centred vertically, so the
+  // action buttons are always visible; only scrolls if it would exceed the viewport.
+  top: '50%',
+  transform: 'translateY(-50%)',
+  maxHeight: 'calc(100% - 20px)',
   width: 230,
   padding: '10px 12px',
   display: 'flex',
