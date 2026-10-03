@@ -113,13 +113,25 @@ export function sourcesFor(state: GameState): HookSourceEntry[] {
       out.push({
         source: { kind, id: a.id, unitId: unit.id, modelId: bearer },
         holderUnitId: unit.id, bearerModelId: bearer, trigger: a.trigger, when: a.when ?? null, effects: asList(a.effect),
-        scope: a.scope ?? { who: defaultWho }, code: a.code ?? null, params: a.params ?? {}, ability: a, active: null,
+        scope: codeHookFor(a.code)?.forceScope ?? a.scope ?? { who: defaultWho }, code: a.code ?? null, params: a.params ?? {}, ability: a, active: null,
       })
     }
     if (!gone) {
       for (const id of ds.abilities) fromAbility(state.abilities[id], 'ability', null, 'self')
       if (unit.bodyguardUnitId && ds.leader) for (const id of ds.leader.effects) fromAbility(state.abilities[id], 'ability', null, 'self')
       for (const a of enhancements) if (unit.models.includes(a.bearerModelId as ModelId)) fromAbility(a, 'enhancement', a.bearerModelId, 'bearer')
+      // Damaged (datasheet.damaged, NEC-032): while a model has at most `threshold` wounds left its own rolls carry the effect
+      if (ds.damaged) {
+        for (const id of unit.models) {
+          const m = state.models[id]
+          if (!m || m.woundsRemaining > ds.damaged.threshold) continue
+          out.push({
+            source: { kind: 'ability', id: `${ds.id}.damaged`, unitId: unit.id, modelId: id },
+            holderUnitId: unit.id, bearerModelId: id, trigger: null, when: null, effects: asList(ds.damaged.effect as Effect | Effect[]),
+            scope: { who: 'bearer' }, code: null, params: {}, ability: null, active: null,
+          })
+        }
+      }
     }
     for (const e of unit.effects) {
       const strat = state.stratagems[e.sourceAbilityId]
@@ -331,10 +343,10 @@ function keyIdentity(key: keyof Effect, e: Effect): string {
 
 export interface EffectMatch { entry: HookSourceEntry; effect: Effect; key: keyof Effect; index: number }
 
-function gateOpen(state: GameState, entry: HookSourceEntry): boolean {
+function gateOpen(state: GameState, entry: HookSourceEntry, data?: Record<string, unknown>): boolean {
   if (entry.active) return true
   const spec = codeHookFor(entry.code)
-  return !spec?.gate || spec.gate(state, state.units[entry.holderUnitId], entry)
+  return !spec?.gate || spec.gate(state, state.units[entry.holderUnitId], entry, data)
 }
 
 // every (source, effect entry, key) that applies at `hook` for this data; keys restricts the search
@@ -342,7 +354,7 @@ export function matchEffects(state: GameState, hook: HookName, data: Data, keys?
   const out: EffectMatch[] = []
   const seen = new Set<string>()
   for (const entry of sourcesFor(state)) {
-    if (entry.effects.length === 0 || !gateOpen(state, entry)) continue
+    if (entry.effects.length === 0 || !gateOpen(state, entry, data)) continue
     const holder = state.units[entry.holderUnitId]
     const env: ConditionEnv = { state, holder, player: holder.player, attack: data.attack ?? null, roll: data.roll ?? null, weapon: data.weapon ?? null }
     if (!evaluateCondition(env, entry.when)) continue
@@ -483,7 +495,7 @@ export const hookService: HookService & HookQueries = {
       const holder = s.units[entry.holderUnitId]
       if (!holder || holder.location === 'destroyed') continue
       const env: ConditionEnv = { state: s, holder, player: holder.player, attack: d.attack ?? null, roll: d.roll ?? null, weapon: d.weapon ?? null }
-      if (!gateOpen(s, entry) || !evaluateCondition(env, entry.when)) continue
+      if (!gateOpen(s, entry, d) || !evaluateCondition(env, entry.when)) continue
       spec.runAt(ctx, entry, d)
     }
   },
@@ -541,9 +553,13 @@ export const hookService: HookService & HookQueries = {
     handle(ctx, action, pending) {
       if (pending.kind !== 'chooseOption') return { code: 'E_NOT_AN_OPTION', reason: 'hooks: chooseOption expected' }
       const topic = pending.context.topic
-      const spec = Object.values(codeHooks).find((h) => h.pick?.topic === topic)
+      // a decision raised by a named code hook (Resonant Focus, Plasmacyte) is answered by that hook; `abilityChoice` is shared
+      const code = pending.context.data.code
+      const named = typeof code === 'string' ? codeHooks[code] : undefined
+      const spec = named ?? (topic === 'abilityChoice' ? undefined : Object.values(codeHooks).find((h) => h.pick?.topic === topic))
       let rej: ReturnType<DecisionHandler['handle']> = undefined
       if (spec?.pick) rej = spec.pick.handle(ctx, action, pending)
+      else if (spec?.answer) rej = spec.answer(ctx, action, pending)
       else if (action.type === 'chooseOption') {
         ctx.emit({ type: 'AbilityTriggered', abilityId: pending.context.abilityId ?? 'ability', sourceUnitId: pending.context.unitId, targetUnitId: null, summary: `chose ${action.optionId}`, player: pending.player })
       }

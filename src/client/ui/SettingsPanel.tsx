@@ -71,6 +71,8 @@ export function SettingsPanel() {
   const commandRerollSetting = usePresentationSettings((s) => s.commandRerollSetting)
   const lowGraphics = usePresentationSettings((s) => s.lowGraphics)
   const setLowGraphics = usePresentationSettings((s) => s.setLowGraphics)
+  const battlefieldAmbience = usePresentationSettings((s) => s.battlefieldAmbience)
+  const setBattlefieldAmbience = usePresentationSettings((s) => s.setBattlefieldAmbience)
   const setAnimSpeed = usePresentationSettings((s) => s.setAnimSpeed)
   const setDiceOn = usePresentationSettings((s) => s.setDiceOn)
   const setAmbientOn = usePresentationSettings((s) => s.setAmbientOn)
@@ -127,6 +129,15 @@ export function SettingsPanel() {
       <label style={checkboxRow}>
         <input type="checkbox" checked={ambientOn} onChange={(e) => setAmbientOn(e.target.checked)} data-testid="settings-ambient-on" />
         <span>Ambient battlefield sound</span>
+      </label>
+      <label style={checkboxRow}>
+        <input
+          type="checkbox"
+          checked={battlefieldAmbience}
+          onChange={(e) => setBattlefieldAmbience(e.target.checked)}
+          data-testid="settings-battlefield-ambience"
+        />
+        <span>Battlefield ambience (distant artillery and flares)</span>
       </label>
       <label style={checkboxRow}>
         <input type="checkbox" checked={lowGraphics} onChange={(e) => setLowGraphics(e.target.checked)} data-testid="settings-low-graphics" />

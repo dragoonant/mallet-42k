@@ -191,6 +191,9 @@ export interface Unit {
   deepStrikeWith: UnitId | null
   // modelId: the attacking model for ranged/melee kills; null for mortal wounds, Deadly Demise, culls
   destroyedBy: { player: PlayerId; kind: AttackKind | 'mortal' | 'other'; round: number; unitId: UnitId | null; modelId: ModelId | null } | null
+  // snapshot of every model removed from this unit, oldest first (filled by state.removeModel); Reanimation Protocols
+  // (docs/spec/factions/necrons.md NEC-2.4) puts the most recent one back. Saves from before M10 lack the field.
+  destroyedModels: Model[]
 }
 
 // ---------- players ----------
@@ -455,7 +458,7 @@ export interface ReactionWindowDecision extends DecisionBase {
 export type ChooseOptionTopic =
   | 'chooseSide' | 'battleShockOrder' | 'desperateEscapeCasualty' | 'coherencyCull' | 'saveType'
   | 'meleeWeapon' | 'weaponProfile' | 'oathTarget' | 'waaagh' | 'razeObjective' | 'recoverObjective'
-  | 'reserveArrival' | 'leaderAttach' | 'hazardousCasualty' | 'rerollOffer' | 'abilityChoice' | 'stompTarget' | 'bagTarget' | 'other'
+  | 'reserveArrival' | 'leaderAttach' | 'hazardousCasualty' | 'rerollOffer' | 'abilityChoice' | 'stompTarget' | 'bagTarget' | 'treasureObjective' | 'other'
 export interface ChooseOptionDecision extends DecisionBase {
   kind: 'chooseOption'
   // rerollOffer: data = { rollId, dieIndexes: number[], needed?, purpose?, key? } (R-6.24); options = reroll / keep; the

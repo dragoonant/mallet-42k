@@ -1,0 +1,26 @@
+[
+  {
+    "id": "nec.overlord-amonhotekh",
+    "faction": "necrons",
+    "name": "Overlord Amonhotekh",
+    "keywords": ["INFANTRY", "CHARACTER", "NOBLE", "OVERLORD", "AMONHOTEKH"],
+    "factionKeywords": ["NECRONS"],
+    "stats": { "M": 5, "T": 5, "Sv": 2, "W": 6, "Ld": 4, "OC": 1 },
+    "invuln": 4,
+    "composition": [
+      {
+        "modelId": "overlord",
+        "name": "Overlord Amonhotekh",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 40 },
+        "weapons": { "default": ["nec.w.tachyon-arrow", "nec.w.overlords-blade"] },
+        "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+      }
+    ],
+    "abilities": ["nec.a.reanimation-protocols", "nec.a.implacable-resilience"],
+    "coreAbilities": [ { "ability": "LEADER" } ],
+    "leader": { "attachTo": ["nec.necron-warriors"], "effects": [] },
+    "points": [ { "models": 1, "points": 0 } ],
+    "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+  }
+]

@@ -1,0 +1,42 @@
+[
+  {
+    "id": "nec.e.overriding-control",
+    "faction": "necrons",
+    "name": "Overriding Control",
+    "text": "The bearer's unit may shoot in a turn in which it Fell Back. It still may not declare a charge that turn.",
+    "cost": 0,
+    "restriction": { "keyword": ["OVERLORD"] },
+    "effect": {
+      "id": "nec.e.overriding-control.effect",
+      "name": "Overriding Control",
+      "text": "The bearer's unit (attached unit included) can shoot after Falling Back.",
+      "trigger": "always",
+      "effect": { "shootAfterFallBack": true },
+      "scope": { "who": "self" }
+    }
+  },
+  {
+    "id": "nec.e.protocol-of-resonant-focus",
+    "faction": "necrons",
+    "name": "Protocol of Resonant Focus",
+    "text": "In your Command phase, choose one enemy unit within 12\" of the bearer and visible to it. Until the end of the turn, each attack by a friendly NECRONS model against that unit re-rolls a hit roll of 1.",
+    "cost": 0,
+    "restriction": { "keyword": ["OVERLORD"] },
+    "effect": {
+      "id": "nec.e.protocol-of-resonant-focus.effect",
+      "name": "Protocol of Resonant Focus",
+      "text": "Mark one enemy unit within 12\" and visible to the bearer in your Command phase; friendly NECRONS attacks against it re-roll hit rolls of 1 until the end of the turn.",
+      "trigger": "hitRoll",
+      "effect": { "reroll": "ones" },
+      "code": "resonantFocusReroll",
+      "params": {
+        "pickCode": "resonantFocusPick",
+        "pickWindow": "command.start",
+        "range": 12,
+        "requireVisible": true,
+        "attackerFactionKeyword": "NECRONS",
+        "markName": "resonantFocus"
+      }
+    }
+  }
+]

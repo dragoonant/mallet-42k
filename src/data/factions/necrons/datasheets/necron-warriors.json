@@ -1,0 +1,32 @@
+[
+  {
+    "id": "nec.necron-warriors",
+    "faction": "necrons",
+    "name": "Necron Warriors",
+    "keywords": ["INFANTRY", "BATTLELINE", "NECRON WARRIORS"],
+    "factionKeywords": ["NECRONS"],
+    "stats": { "M": 5, "T": 4, "Sv": 4, "W": 1, "Ld": 7, "OC": 2 },
+    "composition": [
+      {
+        "modelId": "warrior-flayer",
+        "name": "Necron Warrior (gauss flayer)",
+        "min": 5, "max": 5, "default": 5,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["nec.w.gauss-flayer", "nec.w.close-combat-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "warrior-reaper",
+        "name": "Necron Warrior (gauss reaper)",
+        "min": 5, "max": 5, "default": 5,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["nec.w.gauss-reaper", "nec.w.close-combat-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      }
+    ],
+    "abilities": ["nec.a.reanimation-protocols"],
+    "coreAbilities": [],
+    "points": [ { "models": 10, "points": 0 } ],
+    "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+  }
+]

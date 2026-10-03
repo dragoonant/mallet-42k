@@ -8,7 +8,7 @@
 // in the decision's `context.data`) once the pick is answered, mirroring the pattern `hookService.offerPicks` uses for
 // Oath of Moment / Waaagh!. Per-rule "done" marks (`phaseState.marks`) make every step idempotent across that resume.
 import type { MissionRule, ScoringRule, TimingWindowId } from '../data/types'
-import { OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE, pointInPolygon, withinObjectiveRange } from './geometry'
+import { OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE, pointInPolygon, whollyWithinPolygon, withinObjectiveRange } from './geometry'
 import { hookService } from './hooks-impl'
 import { leaderService } from './leaders'
 import { liveClaimers, pruneClaim, recordClaim } from './objectives'
@@ -29,6 +29,8 @@ export interface MissionService {
   isTabled(state: GameState): boolean
   // R-12.7 / CP-1.11: VP totals incl. Battle Ready; equal → draw
   finalResult(state: GameState, reason: GameResult['reason']): GameResult
+  // a unit was just destroyed (attack.ts destroyModel): kill-triggered secondaries (Treasures of Aeons, NEC-4)
+  unitDestroyed?(ctx: EngineContext, info: { unitId: UnitId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: string | null }): void
   // answers chooseOption topics razeObjective / recoverObjective / stompTarget / bagTarget
   readonly handler: DecisionHandler
 }
@@ -164,7 +166,7 @@ function rulesFor(s: GameState, pid: PlayerId): ScoringRule[] {
 }
 
 // ScoringRule-shaped "pick" instances (pointsPer 0): raise a decision instead of computing an amount
-const PICK_CODES = new Set(['stompEmPick', 'bagPick'])
+const PICK_CODES = new Set(['stompEmPick', 'bagPick', 'treasuresOfAeonsPick'])
 
 // ---------- generic ScoringRule.rule amounts ----------
 function tierPoints(tiers: Record<string, number>, die: number): number {
@@ -268,9 +270,84 @@ function bagTheBigUnAmount(s: GameState, rule: ScoringRule, pid: PlayerId): numb
   return byBeastboss ? beastbossPoints : unitPoints
 }
 
+// Reclaim and Dominate (NEC-4): flat award when at least one non-Battle-shocked NECRONS unit (attached pair = one unit) has
+// every model wholly inside the opponent's deployment zone
+function reclaimAndDominateAmount(s: GameState, rule: ScoringRule, pid: PlayerId): number {
+  const zone = deploymentZone(s, otherPlayer(pid))
+  for (const u of boardUnitsOf(s, pid)) {
+    if (u.bodyguardUnitId) continue
+    const halves = leaderService.halves(s, u.id).map((id) => s.units[id]).filter((h) => h.location === 'board')
+    if (halves.length === 0 || !halves.some((h) => hasKeyword(s, h.id, 'NECRONS')) || halves.some((h) => h.battleShocked)) continue
+    const models = halves.flatMap((h) => unitModels(s, h.id))
+    if (models.length > 0 && models.every((m) => whollyWithinPolygon(m, zone))) return rule.pointsPer
+  }
+  return 0
+}
+
+// ---- Treasures of Aeons (NEC-4) ----
+// markers whose range counts: the picked treasure marker plus the player's own deployment-zone marker, if the mission has one
+function treasureMarkers(s: GameState, pid: PlayerId): Objective[] {
+  const picked = s.players[pid].secondaryState.treasureObjectiveId as string | undefined
+  const out: Objective[] = []
+  const treasure = picked ? s.objectives[picked] : undefined
+  if (treasure && !treasure.removed) out.push(treasure)
+  const home = Object.values(s.objectives).find((o) => o.home === pid && !o.removed && o.id !== picked)
+  if (home) out.push(home)
+  return out
+}
+
+function scoresTreasures(s: GameState, pid: PlayerId): ScoringRule | null {
+  return rulesFor(s, pid).find((r) => r.rule === 'custom' && r.code === 'treasuresOfAeonsScore' && s.round >= r.rounds.from && s.round <= r.rounds.to) ?? null
+}
+
+// phase-start snapshot: every enemy unit (canonical + halves) within objective range of a treasure marker right now
+function snapshotTreasures(s: GameState): void {
+  const { range, radius } = rangeParams(s)
+  for (const pid of ['A', 'B'] as PlayerId[]) {
+    if (!scoresTreasures(s, pid)) continue
+    const markers = treasureMarkers(s, pid)
+    const nearby = new Set<string>()
+    for (const e of boardUnitsOf(s, otherPlayer(pid))) {
+      if (unitModels(s, e.id).some((m) => markers.some((o) => withinObjectiveRange(m, o, 0, range, radius)))) {
+        for (const id of leaderService.halves(s, e.id)) nearby.add(id)
+      }
+    }
+    s.players[pid].secondaryState.treasureNearby = [...nearby]
+  }
+}
+
+function treasuresPickRule(ctx: EngineContext, rule: ScoringRule, pid: PlayerId, key: string): void {
+  const s = ctx.state
+  const candidates = Object.values(s.objectives).filter((o) => !o.removed && o.home === null)
+  if (candidates.length === 0) return
+  offerChoice(ctx, pid, rule.when, key, 'treasureObjective', candidates.map((o) => ({ id: o.id, label: o.id })), { ruleId: rule.id }, false)
+}
+
+function handleTreasureObjective(ctx: EngineContext, action: Action, pending: ChooseOptionDecision): Rejection | void {
+  if (action.type !== 'chooseOption') return { code: 'E_NOT_AN_OPTION', reason: 'treasureObjective expects chooseOption' }
+  const obj = ctx.state.objectives[action.optionId]
+  if (!obj || obj.removed || obj.home !== null) return { code: 'E_NOT_AN_OPTION', reason: `${action.optionId} is not a No Man's Land marker` }
+  ctx.state.players[pending.player].secondaryState.treasureObjectiveId = obj.id
+}
+
+function treasuresUnitDestroyed(ctx: EngineContext, info: { unitId: UnitId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: string | null }): void {
+  const s = ctx.state
+  const pid = info.byPlayer
+  if (!pid || !info.byModelId || !info.byUnitId || !s.units[info.byUnitId] || s.units[info.byUnitId].player !== pid) return
+  const rule = scoresTreasures(s, pid)
+  if (!rule || !hasKeyword(s, info.byUnitId, 'NECRONS')) return
+  const nearby = (s.players[pid].secondaryState.treasureNearby as string[] | undefined) ?? []
+  if (!nearby.includes(info.unitId)) return
+  const amount = Math.min(rule.pointsPer, rule.cap - (s.players[pid].vpBySource[rule.id] ?? 0))
+  if (amount <= 0) return
+  awardVp(ctx, pid, amount, rule.id)
+  s.mission.scored.push({ ruleId: rule.id, player: pid, round: s.round, turn: s.activePlayer, amount })
+}
+
 function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): number {
   const s = ctx.state
   switch (rule.code) {
+    case 'reclaimAndDominate': return reclaimAndDominateAmount(s, rule, pid)
     case 'wrathOfTheEmperor': return wrathOfTheEmperorAmount(s, rule, pid)
     case 'shockTactics': return shockTacticsAmount(ctx, rule, pid)
     case 'sweepingRaidEndgameBonus': return sweepingRaidBonusAmount(ctx, rule, pid)
@@ -374,6 +451,7 @@ function bagPickRule(ctx: EngineContext, rule: ScoringRule, pid: PlayerId, key: 
 
 function runPick(ctx: EngineContext, rule: ScoringRule, pid: PlayerId, key: string): void {
   if (rule.code === 'stompEmPick') stompEmPickRule(ctx, rule, pid, key)
+  else if (rule.code === 'treasuresOfAeonsPick') treasuresPickRule(ctx, rule, pid, key)
   else if (rule.code === 'bagPick') bagPickRule(ctx, rule, pid, key)
 }
 
@@ -492,6 +570,8 @@ function runMissionRule(ctx: EngineContext, rule: MissionRule, key: string): voi
 // ---------- occurrence driver (re-entrant: see file header) ----------
 function processWindow(ctx: EngineContext, window: TimingWindowId, key: string): void {
   const s = ctx.state
+  // Treasures of Aeons reads which enemy units were near a marker at the START of the phase in which they die
+  if (window.endsWith('.start') && once(s, `treasureSnapshot:${window}`)) snapshotTreasures(s)
   for (const rule of s.mission.rules) {
     if (rule.window !== window) continue
     if (!once(s, `missionRuleDone:${rule.id}:${key}`)) continue
@@ -567,6 +647,7 @@ export const missionService: MissionService = {
     processWindow(ctx, window, key)
   },
   playerHasForces: hasForces,
+  unitDestroyed: treasuresUnitDestroyed,
   isTabled(state) { return !hasForces(state, 'A') && !hasForces(state, 'B') },
   finalResult(state, reason) {
     const vp = { A: state.players.A.vp + state.players.A.battleReadyVp, B: state.players.B.vp + state.players.B.battleReadyVp }
@@ -583,6 +664,7 @@ export const missionService: MissionService = {
         case 'razeObjective': rej = handleRazeObjective(ctx, action, pending); break
         case 'stompTarget': rej = handleStompTarget(ctx, action, pending); break
         case 'bagTarget': rej = handleBagTarget(ctx, action, pending); break
+        case 'treasureObjective': rej = handleTreasureObjective(ctx, action, pending); break
         default: return { code: 'E_NOT_AN_OPTION', reason: `missions: no handler for topic ${topic}` }
       }
       if (rej) return rej

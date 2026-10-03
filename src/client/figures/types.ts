@@ -29,6 +29,11 @@ export type KitId =
   | 'ork-warboss'
   | 'ork-deff-dread'
   | 'ork-deffkopta'
+  | 'nec-warrior'
+  | 'nec-overlord'
+  | 'nec-skorpekh'
+  | 'nec-doomstalker'
+  | 'nec-scarab'
   | 'generic-infantry'
   | 'generic-heavy'
   | 'generic-monster'
@@ -46,7 +51,7 @@ export interface PaintColors {
 
 /** Body geometry + weapon dressing for a biped kit (infantry/heavy/monster archetypes — every
  *  datasheet in this data set that isn't a flyer resolves to a biped). */
-export type HeadShape = 'marine-helmet' | 'terminator-helmet' | 'ork-head' | 'ork-boss-head' | 'generic-head'
+export type HeadShape = 'marine-helmet' | 'terminator-helmet' | 'ork-head' | 'ork-boss-head' | 'necron-skull' | 'necron-lord' | 'generic-head'
 export type WeaponShape =
   | 'none'
   | 'bolt-rifle'
@@ -57,6 +62,10 @@ export type WeaponShape =
   | 'boss-choppa'
   | 'power-klaw'
   | 'twin-claw'
+  | 'gauss-flayer'
+  | 'warscythe'
+  | 'hyperphase-blade'
+  | 'doomsday-blaster'
 export type ShoulderPad = 'none' | 'small' | 'large'
 
 export interface BipedConfig {
@@ -68,6 +77,10 @@ export interface BipedConfig {
   shoulderPads: ShoulderPad
   hasCape: boolean
   skin: 'marine' | 'ork' | 'none' // 'none' = fully helmeted/armoured, no bare skin rendered
+  /** Which paint slot the arms use (default 'secondary'). Necron kits take 'metal' so the green stays a glow accent. */
+  limbColor?: 'secondary' | 'metal'
+  /** A small glowing core on the chest (paintScheme.secondary, emissive). */
+  chestCore?: boolean
 }
 
 export interface VehicleConfig {

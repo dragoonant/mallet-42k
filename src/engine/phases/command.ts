@@ -6,6 +6,7 @@
 // module only opens `command.battleShock` before each test and calls that service. R-4.3 recovery ("until the start
 // of that player's next Command phase") runs before any new test this phase, using Unit.battleShockExpiresRound
 // (set by hookService.battleShockTest, R-4.8 "remains shocked" already handled there — a single boolean flag).
+import { runReanimation } from '../factions/necrons'
 import { hookService } from '../hooks-impl'
 import { leaderService } from '../leaders'
 import { notImplementedHandle, type AdvanceResult, type EngineContext, type PhaseModule } from '../modules'
@@ -108,6 +109,8 @@ export const commandModule: PhaseModule = {
       if (r === 'pending') return 'pending'
       s.step = 'scoring'
     }
+    // NEC-2.6: Reanimation Protocols resolves at the end of the Command phase, before the scoring rules at command.end
+    if (ctx.once('cmd:reanimation')) runReanimation(ctx)
     // 'scoring': missions.onWindow runs the mission's ScoringRules at this window (R-4.1's "resolve other
     // Command-phase rules"); Oath of Moment / Waaagh! picks are offered at command.start (opened by the core).
     if (ctx.window('command.end', 'end', ctx.order.active())) return 'pending'

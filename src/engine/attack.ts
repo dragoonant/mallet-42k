@@ -1001,6 +1001,11 @@ const SEQUENCE_SCOPED_MARK_PREFIXES = ['roll:', 'rerollOffered:', 'autoReroll:',
 
 export const attackService: AttackService = {
   begin(ctx, spec) {
+    // [ONE SHOT] backstop: a weapon already fired this battle (Model.oneShotUsed) is dropped from any declaration, so no
+    // caller (shooting, either Overwatch builder, a client-built action) can fire it a second time
+    if (spec.targets.some((t) => ctx.state.models[t.modelId]?.oneShotUsed.includes(t.weaponId) && ctx.state.weapons[t.weaponId]?.abilities.some((a) => a.ability === 'ONE_SHOT'))) {
+      spec = { ...spec, targets: spec.targets.filter((t) => !(ctx.state.models[t.modelId]?.oneShotUsed.includes(t.weaponId) && ctx.state.weapons[t.weaponId]?.abilities.some((a) => a.ability === 'ONE_SHOT'))) }
+    }
     ctx.state.phaseState.marks = ctx.state.phaseState.marks.filter((m) => !SEQUENCE_SCOPED_MARK_PREFIXES.some((p) => m.startsWith(p)))
     const targetUnitIds = [...new Set(spec.targets.map((t) => t.targetUnitId))]
     const groups: AttackGroup[] = []
@@ -1254,6 +1259,7 @@ export const attackService: AttackService = {
       unit.destroyedBy = { player: by.player ?? s.activePlayer, kind: by.kind, round: s.round, unitId: by.unitId, modelId: by.modelId }
       ctx.emit({ type: 'UnitDestroyed', unitId: unit.id, byPlayer: by.player, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
       ctx.services.hooks.run(ctx, 'onUnitDestroyed', { destroyedUnitId: unit.id, destroyedModelId: null, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
+      ctx.services.missions.unitDestroyed?.(ctx, { unitId: unit.id, byPlayer: by.player, byUnitId: by.unitId, byModelId: by.modelId })
       if (leaderService.isAttached(s, unit.id) && leaderService.detach) {
         // SHOOT-048/LEAD-014/R-10.1: the leader/bodyguard split happens only once the attacking unit's WHOLE
         // sequence has finished — detaching now would immediately break leaderService.halves()/allocatableModels()

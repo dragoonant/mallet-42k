@@ -163,6 +163,67 @@ export function WeaponMesh({ shape, colors, hand }: { shape: WeaponShape; colors
           <PincerClaw size={0.32} color={colors.metal} open={0.45} />
         </group>
       )
+    case 'gauss-flayer':
+      return (
+        <group scale={1.4}>
+          <Barrel length={0.3} radius={0.03} color={colors.metal} />
+          <mesh position={[0, 0, 0.3]}>
+            <GBox args={[0.04, 0.04, 0.05]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.6} />
+          </mesh>
+          <mesh position={[0, -0.005, 0.04]}>
+            <GBox args={[0.07, 0.08, 0.16]} />
+            <StdMat color={colors.primary} roughness={0.5} metalness={0.4} />
+          </mesh>
+        </group>
+      )
+    case 'warscythe':
+      // A long haft with a crescent glowing blade across the top: the Overlord's own silhouette.
+      return (
+        <group scale={1.6}>
+          <mesh position={[0, 0, 0.12]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.014, 0.014, 0.4, 6]} />
+            <StdMat color={colors.trim} metalness={0.7} roughness={0.35} />
+          </mesh>
+          <mesh position={[0, 0.07, 0.3]} rotation={[0, 0, 0]}>
+            <GBox args={[0.03, 0.16, 0.2]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.2} />
+          </mesh>
+          <mesh position={[0, 0.14, 0.38]}>
+            <GBox args={[0.03, 0.06, 0.1]} />
+            <StdMat color={colors.metal} metalness={0.6} roughness={0.35} />
+          </mesh>
+        </group>
+      )
+    case 'hyperphase-blade':
+      // Skorpekh reaper blade: a long, flat, glowing edge swept out from the wrist.
+      return (
+        <group scale={1.5}>
+          <mesh position={[0, 0, 0.02]}>
+            <GBox args={[0.07, 0.07, 0.1]} />
+            <StdMat color={colors.metal} metalness={0.6} roughness={0.4} />
+          </mesh>
+          <mesh position={[0, 0.02, 0.22]}>
+            <GBox args={[0.012, 0.15, 0.34]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.1} />
+          </mesh>
+        </group>
+      )
+    case 'doomsday-blaster':
+      // Doomstalker's heavy gun: thick barrel with a green emitter at the muzzle and a power coupling at the base.
+      return (
+        <group scale={1.8}>
+          <Barrel length={0.4} radius={0.05} color={colors.metal} />
+          <mesh position={[0, 0, 0.42]}>
+            <GCylinder args={[0.065, 0.065, 0.05, 8]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.5} />
+          </mesh>
+          <mesh position={[0, 0.02, 0.02]}>
+            <GBox args={[0.12, 0.12, 0.2]} />
+            <StdMat color={colors.primary} roughness={0.5} metalness={0.4} />
+          </mesh>
+        </group>
+      )
     case 'none':
     default:
       return <EndBlock size={0.09} color={hand} />

@@ -187,6 +187,17 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Bug found by the screenshot | The charge option label used a client-side distance helper that measured something else — 3D distance, no Engagement Range subtracted, the worst declared target rather than the closest — so the button read "need 12.6"" beside a hover card correctly saying the 2D6 roll needed a 10. Both now come from the engine's `neededChargeDistance`, and the label states the roll rather than a distance. |
 | Verification | `npm run typecheck`, `npm test` (754 — `tests/client/targetHelp.test.ts` drives both cards off a real `newGame()` state with the two units placed a known distance apart, pins the hit/wound numbers against the engine's own `woundRollNeeded`, and checks the charge odds against an independently counted 2D6 distribution), `npm run validate:data` clean. Shooting prompt captured from the running app. |
 
+## Necrons (M10 — Amonhotekh's Guard patrol, playable)
+
+| Area | State |
+|---|---|
+| Patrol | Overlord Amonhotekh (attached to Necron Warriors), Skorpekh Destroyers, Canoptek Scarab Swarms, Canoptek Doomstalker; secondaries Reclaim and Dominate / Treasures of Aeons. Data in `src/data/factions/necrons/`; Ld schema widened to 2..12 for Ld 8+ units |
+| Engine hooks | `src/engine/factions/necrons.ts`: Reanimation Protocols (run by the Command phase before `command.end`), Protocol of Resonant Focus (pick + hit-1 re-roll), Plasmacyte surge, One Shot (also barred from Overwatch), Will of the Overlord gate (`requireFriendlyKeywordOnBoard`), Treasures of Aeons pick/score, `EngineCodeHook.forceScope`, hook data passed to `gate` |
+| Client | Start screen lists every faction with a patrol plus an opponent-faction select (Automatic default); procedural Necron figure kits and `SwarmBody`; weapon sound/VFX classes; Necron decision-prompt text |
+| Verification | `npm run typecheck`, `npm run validate:data` (39 files), `npm run build` green; `npm test` 851 passing (37 files, incl. `tests/engine/necrons.test.ts` and `tests/client/factions.test.ts`); `tests/e2e/necrons.spec.ts` starts Necrons vs bot, deploys through the UI, takes Fire Overwatch with the Warriors (screenshots in `e2e-out/m10-necrons-0*.png`) |
+| Sim | `npm run sim -- --games 6 --seed 5`: 6 games, 0 violations, all finished at round 5; Necrons in 3 games: 0 wins, 1 draw, 2 losses (sm 3, ork 2, 1 draw overall). No balance tuning done |
+| Known gaps | No GLB models (procedural figures only; the Plasmacyte is not drawn); the bot ignores the Necron stratagems and picks; Resonant Focus and Treasures prompts rely on `abilityChoice` ids for their hint text; the Necron rulings are listed in `docs/needs-rules-check.md` under "Necrons build" (RC-084 to RC-110) |
+
 ## Not yet built
 
 - Anything beyond M8 (see Client tables for what M3/M6/M8 cover); AI Monte Carlo/hard tier, generated models, scale-up, multiplayer, Phase B glTF animation/asset pipeline for figures (see PLAN.md, docs/spec/30-figures.md §9)

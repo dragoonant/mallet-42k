@@ -154,6 +154,7 @@ export function removeModel(state: GameState, modelId: ModelId): boolean {
   const model = state.models[modelId]
   if (!model) throw new EngineInvariantError(`removeModel: unknown model ${modelId}`)
   const unit = state.units[model.unitId]
+  unit.destroyedModels = [...(unit.destroyedModels ?? []), structuredClone(model)]
   unit.models = unit.models.filter((id) => id !== modelId)
   delete state.models[modelId]
   if (unit.models.length === 0) {
@@ -346,7 +347,7 @@ export function createGameState(setup: GameSetup, bundle: DataBundle, seed: stri
       units[unitId] = {
         id: unitId, player: pid, ref: pu.ref, datasheetId: ds.id, name: ds.name, models: modelIds, startingStrength: modelIds.length,
         location: 'reserves', attachedLeaderId: null, bodyguardUnitId: null, battleShocked: false, battleShockExpiresRound: null,
-        turn: emptyTurnState(), effects: [], enhancementId: null, isWarlord, deepStrikeWith: null, destroyedBy: null,
+        turn: emptyTurnState(), effects: [], enhancementId: null, isWarlord, deepStrikeWith: null, destroyedBy: null, destroyedModels: [],
       }
     }
     if (!warlordUnitId) throw new EngineInvariantError(`patrol '${patrol.id}': warlord ref '${patrol.warlord}' not found`)

@@ -448,14 +448,17 @@ export function neededChargeDistance(state: GameState, unitId: UnitId, targetUni
 
 // ---------- Fire Overwatch (reused from movement.ts's pattern: a pushed 'overwatch' reaction targeting the charger) ----------
 
-function overwatchTargetsFor(state: GameState, shooterUnitId: UnitId, chargerUnitId: UnitId): DeclaredTarget[] {
+export function overwatchTargetsFor(state: GameState, shooterUnitId: UnitId, chargerUnitId: UnitId): DeclaredTarget[] {
   const out: DeclaredTarget[] = []
   for (const half of leaderService.halves?.(state, shooterUnitId) ?? [shooterUnitId]) {
     if (state.units[half]?.location !== 'board') continue
     for (const m of unitModels(state, half)) {
       for (const wid of m.weapons) {
         const w = state.weapons[wid]
-        if (w && w.kind === 'ranged') out.push({ modelId: m.id, weaponId: wid, targetUnitId: chargerUnitId, profileGroup: w.profileGroup, attacks: null })
+        if (!w || w.kind !== 'ranged') continue
+        // [ONE SHOT]: a weapon already fired this battle is never a legal Overwatch choice either
+        if (w.abilities.some((a) => a.ability === 'ONE_SHOT') && m.oneShotUsed.includes(wid)) continue
+        out.push({ modelId: m.id, weaponId: wid, targetUnitId: chargerUnitId, profileGroup: w.profileGroup, attacks: null })
       }
     }
   }

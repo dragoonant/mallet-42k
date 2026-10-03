@@ -92,6 +92,7 @@ export const DEFAULT_MODULES: ModuleTable = {
     recoverObjective: missionService.handler,
     stompTarget: missionService.handler,
     bagTarget: missionService.handler,
+    treasureObjective: missionService.handler,
   },
 }
 

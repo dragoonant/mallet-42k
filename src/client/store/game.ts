@@ -41,7 +41,9 @@ import { critWouldPay, dieOutcomes, offerIndexes, rollForOffer } from '../ui/rer
 import { isAnnouncementHolding } from '../presentation/announceStore'
 
 // ---------- setup defaults ----------
-export type FactionKey = 'space-marines' | 'orks'
+/** A faction picked on the start screen: a legacy setup key ('space-marines', 'orks', 'necrons') or any
+ *  faction id the data bundle declares. resolveFactionId() maps either to the engine faction id. */
+export type FactionKey = string
 export type OpponentKind = 'bot' | 'hotseat'
 /** Bot opponent strength, own-words-labelled on the start screen (AI_DIFFICULTY_OPTIONS below).
  *  'random' keeps the pre-M5 uniform-random bot as an explicit easy option; 'easy'/'normal' drive
@@ -59,9 +61,24 @@ function makeBotDecider(difficulty: AiDifficulty, seed: string): Decider {
   return new UtilityDecider(difficulty, seed)
 }
 
-export const FACTION_ID: Record<FactionKey, Id> = { 'space-marines': 'sm', orks: 'ork' }
-const FACTION_LABEL: Record<FactionKey, string> = { 'space-marines': 'Space Marines', orks: 'Orks' }
-const otherFaction = (f: FactionKey): FactionKey => (f === 'space-marines' ? 'orks' : 'space-marines')
+/** Legacy setup keys -> engine faction ids. A key not listed is taken to already BE a faction id, so a
+ *  faction added to the data bundle is selectable with no client edit. */
+export const FACTION_ID: Record<string, Id> = { 'space-marines': 'sm', orks: 'ork', necrons: 'necrons' }
+export function resolveFactionId(key: FactionKey): Id {
+  return FACTION_ID[key] ?? key
+}
+function factionLabel(bundle: DataBundle, key: FactionKey): string {
+  return bundle.factions[resolveFactionId(key)]?.name ?? key
+}
+// Opponent when none is chosen: keeps the original Marines-vs-Orks pairing, otherwise the first other
+// faction (Marines, then Orks, then bundle order) that has a Combat Patrol.
+const DEFAULT_OPPONENT_ORDER = ['sm', 'ork']
+function defaultOpponentFaction(bundle: DataBundle, own: FactionKey): FactionKey {
+  const ownId = resolveFactionId(own)
+  const hasPatrol = (id: string) => Object.values(bundle.patrols).some((p) => p.faction === id)
+  const candidates = [...DEFAULT_OPPONENT_ORDER, ...Object.keys(bundle.factions)].filter((id) => id !== ownId && bundle.factions[id] && hasPatrol(id))
+  return candidates[0] ?? ownId
+}
 
 const DEFAULT_MISSION_ID = 'mission.cp-01'
 // The bot's own small "thinking" pace, once presentation has caught up — scaled by the player's chosen
@@ -165,7 +182,7 @@ function defaultAttachments(bundle: DataBundle, patrol: CombatPatrolData): Playe
 }
 
 function buildPlayerSetup(bundle: DataBundle, factionKey: FactionKey, secondaryId?: string): PlayerSetup {
-  const factionId = FACTION_ID[factionKey]
+  const factionId = resolveFactionId(factionKey)
   const patrol = Object.values(bundle.patrols).find((p) => p.faction === factionId)
   if (!patrol) throw new Error(`newGame: no Combat Patrol data for faction "${factionId}"`)
   const enhancement = patrol.enhancements.find((e) => e.default) ?? patrol.enhancements[0]
@@ -173,7 +190,7 @@ function buildPlayerSetup(bundle: DataBundle, factionKey: FactionKey, secondaryI
   const secondary = chosen ?? patrol.secondaries.find((s) => s.default) ?? patrol.secondaries[0]
   const enhancementData = enhancement ? bundle.enhancements[enhancement.id] : undefined
   return {
-    name: FACTION_LABEL[factionKey],
+    name: factionLabel(bundle, factionKey),
     faction: factionId,
     patrolId: patrol.id,
     enhancementId: enhancement?.id ?? '',
@@ -190,7 +207,7 @@ function buildSetup(bundle: DataBundle, opts: NewGameOptions): GameSetup {
   const mission = bundle.missions[missionId]
   const terrainLayoutId = mission.terrainLayouts[0]
   if (!terrainLayoutId) throw new Error(`newGame: mission "${missionId}" lists no terrain layouts`)
-  const opponentFaction = otherFaction(opts.playerFaction)
+  const opponentFaction = opts.opponentFaction ?? defaultOpponentFaction(bundle, opts.playerFaction)
   return {
     missionId,
     terrainLayoutId,
@@ -208,6 +225,8 @@ function buildSetup(bundle: DataBundle, opts: NewGameOptions): GameSetup {
 export interface NewGameOptions {
   mission?: string
   playerFaction: FactionKey
+  /** The other seat's faction; defaults per defaultOpponentFaction. May equal playerFaction (mirror match). */
+  opponentFaction?: FactionKey
   opponent: OpponentKind
   seed: string
   /** Player A's chosen secondary (patrol.secondaries[].id); falls back to the patrol's default. */

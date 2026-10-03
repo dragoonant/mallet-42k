@@ -160,6 +160,8 @@ export function buildShootingWeaponEntries(ctx: EngineContext, firingUnitId: Uni
     for (const wid of m.weapons) {
       const w = weaponService.effectiveWeapon(s, m.id, wid)
       if (!w || w.kind !== 'ranged') continue
+      // [ONE SHOT]: once fired (Model.oneShotUsed, set by attack.ts) the weapon is never a legal choice again
+      if (weaponService.hasAbility(w, 'ONE_SHOT') && m.oneShotUsed.includes(wid)) continue
       if (!weaponUsableThisActivation(s, firingUnitId, w)) continue
       const legalTargets = candidates.filter((t) => targetLegality(s, firingUnitId, m.id, w, t) === null)
       out.push({ modelId: m.id, weaponId: wid, profileGroup: w.profileGroup, legalTargets, attacks: null })

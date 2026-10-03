@@ -71,6 +71,11 @@ const KNOWN_KIT: Record<string, KitId> = {
   'ork.warboss-gordrang': 'ork-warboss',
   'ork.deff-dread': 'ork-deff-dread',
   'ork.deffkoptas': 'ork-deffkopta',
+  'nec.necron-warriors': 'nec-warrior',
+  'nec.overlord-amonhotekh': 'nec-overlord',
+  'nec.skorpekh-destroyers': 'nec-skorpekh',
+  'nec.canoptek-doomstalker': 'nec-doomstalker',
+  'nec.canoptek-scarab-swarms': 'nec-scarab',
 }
 
 const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
@@ -80,6 +85,11 @@ const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
   'ork-warboss': 'heavy',
   'ork-deff-dread': 'monster',
   'ork-deffkopta': 'vehicle',
+  'nec-warrior': 'infantry',
+  'nec-overlord': 'heavy',
+  'nec-skorpekh': 'heavy',
+  'nec-doomstalker': 'monster',
+  'nec-scarab': 'infantry',
   'generic-infantry': 'infantry',
   'generic-heavy': 'heavy',
   'generic-monster': 'monster',

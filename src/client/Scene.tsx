@@ -5,6 +5,7 @@ import { Canvas } from '@react-three/fiber'
 import type { TerrainPieceData } from '@/data/types'
 import { Board, CameraRig, Lighting, Objectives, Ruler, Terrain } from './board'
 import { ShadowSync } from './board/Lighting'
+import { BattlefieldAmbience } from './board/BattlefieldAmbience'
 import { usePresentationSettings } from './presentation/settings'
 import { useDisplayState } from './presentation/presentedStore'
 import { useGameStore } from './store/game'
@@ -84,6 +85,7 @@ export function Scene() {
     >
       <color attach="background" args={['#0a0a10']} />
       <Lighting />
+      <BattlefieldAmbience />
       {!lowGraphics && <ShadowSync deps={[displayState?.models, terrainPieces]} />}
       <CameraRig topDown={topDown} focusTarget={focusTarget} />
 

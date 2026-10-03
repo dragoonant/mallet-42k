@@ -282,14 +282,17 @@ export const setupModule: PhaseModule = {
       if (models.length === 0) return []
       const rad = Math.max(...models.map((m) => Math.max(m.base.radius, m.base.radius2 ?? 0)))
       const spacing = 2 * rad + 0.2
-      const cols = Math.ceil(Math.sqrt(models.length))
       const minX = Math.min(...zone.map((p) => p.x)), maxX = Math.max(...zone.map((p) => p.x))
       const minZ = Math.min(...zone.map((p) => p.z)), maxZ = Math.max(...zone.map((p) => p.z))
-      for (let z0 = minZ + rad + 0.1; z0 < maxZ; z0 += 1) {
-        for (let x0 = minX + rad + 0.1; x0 < maxX; x0 += 1) {
-          const facing = deployFacing(zone)
-          const action = mk(models.map((m, i) => ({ modelId: m.id, pos: { x: x0 + (i % cols) * spacing, y: 0, z: z0 + Math.floor(i / cols) * spacing }, facing })))
-          if (resolveDeploy(state, action, pending).rejection === null) return [action]
+      const facing = deployFacing(zone)
+      // M10: a square block is too deep for a 5" zone once the unit is 11 models (Overlord + 10 Warriors); widen the block
+      // (more columns, fewer rows) until the real validation accepts one
+      for (let cols = Math.ceil(Math.sqrt(models.length)); cols <= models.length; cols++) {
+        for (let z0 = minZ + rad + 0.1; z0 < maxZ; z0 += 1) {
+          for (let x0 = minX + rad + 0.1; x0 < maxX; x0 += 1) {
+            const action = mk(models.map((m, i) => ({ modelId: m.id, pos: { x: x0 + (i % cols) * spacing, y: 0, z: z0 + Math.floor(i / cols) * spacing }, facing })))
+            if (resolveDeploy(state, action, pending).rejection === null) return [action]
+          }
         }
       }
       return []

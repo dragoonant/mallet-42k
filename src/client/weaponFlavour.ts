@@ -34,24 +34,28 @@ function hasAbility(weapon: WeaponData | undefined, name: string): boolean {
  *  gun sounds like when nothing more specific matched. */
 export function weaponFlavour(weaponId: string, weapon: WeaponData | undefined, faction: string): WeaponFlavour {
   const text = `${weaponId} ${weapon?.name ?? ''}`.toLowerCase()
-  const melee = weapon ? weapon.type === 'melee' : /choppa|klaw|fist|weapon$|blade/.test(text)
+  const melee = weapon ? weapon.type === 'melee' : /choppa|klaw|fist|weapon$|blade|scythe/.test(text)
   const psychic = hasAbility(weapon, 'PSYCHIC') || /smite|witchfire|warp|psychic/.test(text)
+  // Gauss weapons flay with a green energy bolt rather than a bullet, so they voice and trace as an energy
+  // weapon; the psychic zap is the closest thing in the SFX palette.
+  const gauss = /gauss/.test(text)
   const strength = typeof weapon?.S === 'number' ? weapon.S : 0
 
   if (melee) {
     // A force weapon crackles rather than revs; everything else splits on whether it crushes or cuts.
     if (psychic || /force/.test(text)) return 'force'
-    if (/fist|klaw|claw|hammer|maul|crush/.test(text)) return 'crush'
-    if (/choppa|chain|sword|blade|axe|knife|talon/.test(text)) return 'chain'
+    if (/fist|klaw|claw|hammer|maul|crush|limbs/.test(text)) return 'crush'
+    if (/choppa|chain|sword|blade|axe|knife|talon|hyperphase|mandible/.test(text)) return 'chain'
     return strength >= 8 ? 'crush' : 'chain'
   }
 
-  if (psychic) return 'psychic'
+  if (psychic || gauss) return 'psychic'
   // TORRENT is the rules-level marker for a flame template (no hit roll, auto-hits).
   if (hasAbility(weapon, 'TORRENT') || /flame|flamer|burna|pyre|melta|incinerat/.test(text)) return 'flame'
   // BLAST marks the explosive/ordnance profiles; the keywords catch the rest of the big guns, and
   // S7+ catches a heavy profile whose name says nothing (nothing in the current bundle needs it).
-  if (hasAbility(weapon, 'BLAST') || /cannon|kannon|rokkit|rocket|missile|mega|lascannon|plasma|blasta/.test(text)) return 'heavy'
+  if (hasAbility(weapon, 'BLAST') || /cannon|kannon|rokkit|rocket|missile|mega|lascannon|plasma|blasta|blaster|tachyon/.test(text)) return 'heavy'
   if (/shoota|slugga|dakka|stikk/.test(text) || faction === 'orks' || faction === 'ork') return 'shoota'
+  if (faction === 'necrons') return 'psychic'
   return 'bolter'
 }

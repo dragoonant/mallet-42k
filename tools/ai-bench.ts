@@ -1,5 +1,5 @@
 // Tier-1 AI benchmark (owner: src/ai).
-// `npm run bench:ai -- --games N --seed S [--difficulty easy|normal] [--faction space-marines|orks]`
+// `npm run bench:ai -- --games N --seed S [--difficulty easy|normal] [--faction space-marines|orks|necrons]`
 // Plays UtilityDecider vs RandomDecider on the real Combat Patrol rosters through the public engine API
 // (createGame/legalActions/step/view), alternating which faction and which seat the AI takes (or, with
 // --faction, always playing that one roster), cycling missions cp-01..cp-06. Prints games, AI wins, draws,
@@ -25,14 +25,19 @@ function otherPlayer(p: PlayerId): PlayerId { return p === 'A' ? 'B' : 'A' }
 
 // --faction filters which patrol the AI plays (bench arg name matches the faction folders under src/data/factions;
 // the data's own faction ids are the shorter 'sm'/'ork').
-const FACTION_ARG_TO_DATA_ID: Record<string, string> = { 'space-marines': 'sm', orks: 'ork' }
+const FACTION_ARG_TO_DATA_ID: Record<string, string> = { 'space-marines': 'sm', orks: 'ork', necrons: 'necrons' }
+
+// the patrol data's own `attachTo` hints (a Leader joining its bodyguard unit); other rosters attach in the client only
+function attachmentsOf(patrol: { units: { ref: string; attachTo?: string }[] }) {
+  return patrol.units.filter((u) => u.attachTo).map((u) => ({ leaderRef: u.ref, bodyguardRef: u.attachTo as string }))
+}
 
 function playerSetup(bundle: DataBundle, patrolId: string, name: string) {
   const patrol = bundle.patrols[patrolId]
   if (!patrol) throw new Error(`ai-bench: patrol ${patrolId} missing from data bundle`)
   const enhancementId = (patrol.enhancements.find((e) => e.default) ?? patrol.enhancements[0]).id
   const secondaryId = (patrol.secondaries.find((s) => s.default) ?? patrol.secondaries[0]).id
-  return { name, faction: patrol.faction, patrolId, enhancementId, secondaryId, attachments: [], reserves: [] as string[], battleReadyVp: 0 }
+  return { name, faction: patrol.faction, patrolId, enhancementId, secondaryId, attachments: attachmentsOf(patrol), reserves: [] as string[], battleReadyVp: 0 }
 }
 
 // AI's roster alternates independently of which seat (A/B) it plays, so across an even run it sees both
@@ -45,10 +50,12 @@ function makeSetup(bundle: DataBundle, gameIndex: number, aiSeat: PlayerId, data
   // combinations all get covered across a run instead of faction and seat flipping together every game
   const aiPatrolIdx = forcedAiFactionId
     ? patrols.findIndex((p) => bundle.patrols[p].faction === forcedAiFactionId)
-    : Math.floor(gameIndex / 2) % 2
+    : Math.floor(gameIndex / 2) % patrols.length
   if (aiPatrolIdx < 0) throw new Error(`ai-bench: no patrol with faction ${forcedAiFactionId} in the data bundle`)
   const aiPatrol = patrols[aiPatrolIdx]
-  const oppPatrol = patrols[(aiPatrolIdx + 1) % patrols.length]
+  // the opponent cycles through the other rosters (one other roster: always that one, as with two factions)
+  const oppOffset = 1 + (Math.floor(gameIndex / (forcedAiFactionId ? 2 : 2 * patrols.length)) % (patrols.length - 1))
+  const oppPatrol = patrols[(aiPatrolIdx + oppOffset) % patrols.length]
   const ai = playerSetup(bundle, aiPatrol, 'UtilityAI')
   const opp = playerSetup(bundle, oppPatrol, 'Random')
   const players = aiSeat === 'A' ? { A: ai, B: opp } : { A: opp, B: ai }

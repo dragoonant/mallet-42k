@@ -16,6 +16,10 @@ const bundle = await loadBundle()
 // rename can't silently turn every ork gun back into a bolter.
 const ORK = 'ork'
 const SM = 'sm'
+const NEC = 'necrons'
+
+/** The engine faction id a weapon's own id prefix belongs to. */
+const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : SM)
 
 function lookupFor(faction: string): SoundLookup {
   return { weapon: (id) => bundle.weapons[id], factionOfUnit: () => faction }
@@ -63,6 +67,16 @@ const EXPECTED: Record<string, WeaponFlavour> = {
   'ork.w.close-combat-weapon': 'chain',
   'ork.w.power-klaw': 'crush',
   'ork.w.dread-klaw': 'crush',
+  'nec.w.tachyon-arrow': 'heavy',
+  'nec.w.gauss-flayer': 'psychic',
+  'nec.w.gauss-reaper': 'psychic',
+  'nec.w.twin-gauss-flayer': 'psychic',
+  'nec.w.doomsday-blaster': 'heavy',
+  'nec.w.overlords-blade': 'chain',
+  'nec.w.close-combat-weapon': 'chain',
+  'nec.w.skorpekh-hyperphase-weapons': 'chain',
+  'nec.w.feeder-mandibles': 'chain',
+  'nec.w.doomstalker-limbs': 'crush',
 }
 
 describe('weapon flavour', () => {
@@ -71,18 +85,18 @@ describe('weapon flavour', () => {
   })
 
   it('the faction ids this classifier is tuned for are the ones the data actually declares', () => {
-    expect(Object.keys(bundle.factions).sort()).toEqual([ORK, SM].sort())
+    expect(Object.keys(bundle.factions).sort()).toEqual([NEC, ORK, SM].sort())
   })
 
   for (const [id, expected] of Object.entries(EXPECTED)) {
     it(`classifies ${id} as ${expected}`, () => {
-      expect(weaponFlavour(id, bundle.weapons[id], id.startsWith('ork') ? ORK : SM)).toBe(expected)
+      expect(weaponFlavour(id, bundle.weapons[id], factionOfWeapon(id))).toBe(expected)
     })
   }
 
   it('every melee weapon gets a melee flavour and every ranged one a tracer-capable flavour', () => {
     for (const [id, weapon] of Object.entries(bundle.weapons)) {
-      const flavour = weaponFlavour(id, weapon, id.startsWith('ork') ? ORK : SM)
+      const flavour = weaponFlavour(id, weapon, factionOfWeapon(id))
       expect(isRangedFlavour(flavour), `${id} (${weapon.type})`).toBe(weapon.type === 'ranged')
     }
   })
@@ -90,6 +104,7 @@ describe('weapon flavour', () => {
   it('falls back on the firing unit\'s faction when the weapon is unknown to the bundle', () => {
     expect(weaponFlavour('mystery.gun', undefined, ORK)).toBe('shoota')
     expect(weaponFlavour('mystery.gun', undefined, SM)).toBe('bolter')
+    expect(weaponFlavour('mystery.gun', undefined, NEC)).toBe('psychic')
     // the store's own setup keys ('orks'/'space-marines') classify the same way, in case a caller
     // ever passes one of those instead
     expect(weaponFlavour('mystery.gun', undefined, 'orks')).toBe('shoota')
@@ -106,6 +121,12 @@ describe('firing sounds', () => {
 
   it('an ork mob firing shootas is the ork gun sound', () => {
     expect(soundIds(declared(['ork.w.shoota', 'ork.w.shoota']), ORK)).toEqual(['shoota-spray'])
+  })
+
+  it('a necron gauss line is the energy sound, its big guns the heavy one', () => {
+    expect(soundIds(declared(['nec.w.gauss-flayer', 'nec.w.gauss-flayer']), NEC)).toEqual(['psychic-zap'])
+    expect(soundIds(declared(['nec.w.doomsday-blaster']), NEC)).toEqual(['heavy-gun'])
+    expect(soundIds(declared(['nec.w.doomstalker-limbs'], 'fight'), NEC)).toEqual(['power-klaw-crunch'])
   })
 
   it('each weapon type sounds like itself', () => {
