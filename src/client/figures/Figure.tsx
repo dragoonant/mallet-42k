@@ -10,6 +10,9 @@ import type { ThreeEvent } from '@react-three/fiber'
 import { resolveBase, resolveFigureKit, resolvePaintColors, useDataBundle } from './data'
 import { BODY_KIND, BIPED_CONFIG, VEHICLE_CONFIG } from './kitConfigs'
 import { BaseDisc, BASE_THICKNESS } from './BaseDisc'
+import { GlbBody } from './GlbBody'
+import { glbSlugFor } from './glbModels'
+import { useGlbInstance } from './glbLoader'
 import { BipedBody } from './BipedBody'
 import { VehicleBody } from './VehicleBody'
 import type { Pose, FigureAction, FigureActionKind } from './types'
@@ -28,6 +31,9 @@ export interface FigureProps {
   /** Datasheet id from the data bundle, e.g. "sm.terminator-squad". Unknown ids still render —
    *  see resolveFigureKit's fallback. */
   datasheetId: string
+  /** Datasheet model type (Model.datasheetModelId, e.g. "sergeant"). Optional; only used to pick a GLB body
+   *  (see glbModels.ts) — omit and the procedural figure is always used. */
+  modelId?: string
   /** Faction id, e.g. "sm" | "ork" — resolves the paintScheme. Unknown ids paint neutral grey. */
   faction: string
   /** Target world position. Figure eases its own group toward it every frame (snapping only on
@@ -62,6 +68,7 @@ const ORIGIN = [0, 0, 0] as const
 
 export const Figure = memo(function Figure({
   datasheetId,
+  modelId,
   faction,
   position = ORIGIN,
   rotationY,
@@ -76,6 +83,7 @@ export const Figure = memo(function Figure({
   // faces local +Z, which three's rotation.y turns to (sin θ, cos θ); θ = π/2 − f lines them up.
   const yaw = rotationY === undefined ? 0 : Math.PI / 2 - rotationY
   const bundle = useDataBundle()
+  const glb = useGlbInstance(glbSlugFor(datasheetId, modelId))
   const seedRef = useRef(Math.random() * 100)
   const groupRef = useRef<Group>(null!)
   const easedPos = useRef({ x: position[0], y: position[1], z: position[2] })
@@ -161,8 +169,9 @@ export const Figure = memo(function Figure({
 
   return (
     <group ref={groupRef} onClick={onClick}>
-      <BaseDisc radiusX={base.radiusX} radiusZ={base.radiusZ} colors={colors} selected={selected} highlighted={highlighted} />
-      <group position={[0, BASE_THICKNESS, 0]} scale={[base.height, base.height, base.height]}>
+      <BaseDisc radiusX={base.radiusX} radiusZ={base.radiusZ} colors={colors} selected={selected} highlighted={highlighted} glbBody={!!glb} />
+      {glb && <GlbBody object={glb} pose={pose} seed={seedRef.current} />}
+      {!glb && <group position={[0, BASE_THICKNESS, 0]} scale={[base.height, base.height, base.height]}>
         {bodyKind === 'vehicle' ? (
           <VehicleBody config={VEHICLE_CONFIG[kit] ?? { weapon: 'none', hasRotor: false }} colors={colors} pose={pose} seed={seedRef.current} />
         ) : (
@@ -184,7 +193,7 @@ export const Figure = memo(function Figure({
             seed={seedRef.current}
           />
         )}
-      </group>
+      </group>}
     </group>
   )
 })

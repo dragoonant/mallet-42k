@@ -10,6 +10,7 @@ const DEATH_MS = 650
 interface Ghost {
   modelId: string
   datasheetId: string
+  modelType: string
   faction: string
   pos: readonly [number, number, number]
   rotationY: number
@@ -18,6 +19,7 @@ interface Ghost {
 
 interface LastKnown {
   unitId: string
+  modelType: string
   pos: readonly [number, number, number]
   rot: number
 }
@@ -40,10 +42,10 @@ export function DeathGhosts() {
       const unit = state.units[last.unitId]
       const faction = unit ? state.players[unit.player]?.faction : undefined
       if (!unit || !faction) continue
-      spawned.push({ modelId, datasheetId: unit.datasheetId, faction, pos: last.pos, rotationY: last.rot, until: Date.now() + DEATH_MS })
+      spawned.push({ modelId, datasheetId: unit.datasheetId, modelType: last.modelType, faction, pos: last.pos, rotationY: last.rot, until: Date.now() + DEATH_MS })
     }
     const next: Record<string, LastKnown> = {}
-    for (const m of Object.values(state.models)) next[m.id] = { unitId: m.unitId, pos: [m.pos.x, m.pos.y, m.pos.z], rot: m.facing }
+    for (const m of Object.values(state.models)) next[m.id] = { unitId: m.unitId, modelType: m.datasheetModelId, pos: [m.pos.x, m.pos.y, m.pos.z], rot: m.facing }
     prevRef.current = next
 
     if (spawned.length > 0) {
@@ -59,7 +61,7 @@ export function DeathGhosts() {
   return (
     <group>
       {ghosts.map((g) => (
-        <Figure key={g.modelId} datasheetId={g.datasheetId} faction={g.faction} pose="death" position={g.pos} rotationY={g.rotationY} />
+        <Figure key={g.modelId} datasheetId={g.datasheetId} modelId={g.modelType} faction={g.faction} pose="death" position={g.pos} rotationY={g.rotationY} />
       ))}
     </group>
   )

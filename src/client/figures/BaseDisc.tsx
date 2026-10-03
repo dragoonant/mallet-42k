@@ -13,23 +13,35 @@ export function BaseDisc({
   colors,
   selected,
   highlighted,
+  glbBody,
 }: {
   radiusX: number
   radiusZ: number
   colors: PaintColors
   selected?: boolean
   highlighted?: boolean
+  /** A GLB figure brings its own base disc: skip ours and draw a flat team-coloured ring just outside it. */
+  glbBody?: boolean
 }) {
   return (
     <group scale={[radiusX, 1, radiusZ]}>
-      <mesh position={[0, BASE_THICKNESS / 2, 0]}>
-        <GCylinder args={[1, 1, BASE_THICKNESS, 24]} />
-        <StdMat color={colors.trim} roughness={0.7} />
-      </mesh>
-      <mesh position={[0, BASE_THICKNESS + 0.002, 0]}>
-        <GCylinder args={[0.92, 0.92, 0.006, 24]} />
-        <StdMat color={colors.secondary} roughness={0.75} />
-      </mesh>
+      {glbBody ? (
+        <mesh position={[0, 0.004, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[1.0, 1.12, 32]} />
+          <meshBasicMaterial color={colors.secondary} side={DoubleSide} />
+        </mesh>
+      ) : (
+        <>
+          <mesh position={[0, BASE_THICKNESS / 2, 0]}>
+            <GCylinder args={[1, 1, BASE_THICKNESS, 24]} />
+            <StdMat color={colors.trim} roughness={0.7} />
+          </mesh>
+          <mesh position={[0, BASE_THICKNESS + 0.002, 0]}>
+            <GCylinder args={[0.92, 0.92, 0.006, 24]} />
+            <StdMat color={colors.secondary} roughness={0.75} />
+          </mesh>
+        </>
+      )}
 
       {highlighted && (
         <mesh position={[0, 0.008, 0]} rotation={[-Math.PI / 2, 0, 0]}>
