@@ -537,3 +537,48 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | CHA-030 | CHA-6 | Legionary heavy bolter: Heavy +1 to hit when Remained Stationary; meltagun Melta 2 at half range |
 | CHA-031 | CHA-1 | patrol loads: 4 units, 26 models, Zarkan is WARLORD with Foul Zealotry and attached to Possessed; default secondary Marked for Execution |
 | CHA-032 | CHA-1 | Zarkan may instead attach to Legionaries (pre-game choice); never to Cultists |
+
+## TYR — Tyranids: The Vardenghast Swarm (docs/spec/factions/tyranids.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| TYR-001 | TYR-2.2 | Termagants within 6" of the Prime take a Battle-shock test → one `DiceRolled` with 3 dice, total = sum of 3 |
+| TYR-002 | TYR-2.1 | Termagants 7" from the Prime (no model within 6") → 2D6 test |
+| TYR-003 | TYR-2.3 | Prime destroyed → every Tyranid test is 2D6; the Prime's own test while alive is 3D6 |
+| TYR-004 | TYR-2.1 | an enemy unit within 6" of the Prime tests on 2D6 (Synapse only helps its owner) |
+| TYR-005 | TYR-2.4 | Shadow in the Warp offered at own `command.start`; used → every enemy board unit tests once (attached pair once); never offered again this battle |
+| TYR-006 | TYR-2.5 | Shadow in the Warp offered to the Tyranid player at the opponent's `command.start`; a failed unit stays shocked through that Command phase (OC 0 for its primary scoring) |
+| TYR-007 | TYR-2.4 | Shadow in the Warp not offered while the Prime is in Reserves or destroyed |
+| TYR-008 | TYR-3 | Psychostatic Veil: Prime has a 4+ invuln; melee hit roll vs the Prime gets −1; ranged hit roll unchanged |
+| TYR-009 | TYR-3 | Psychostatic Veil: the Prime cannot be targeted by a ranged attack from 13"; can from 12" (Lone Operative) |
+| TYR-010 | TYR-3 | Secretion Goad: Barbgaunts within 6" of the bearer declare targets → offered; used → barblauncher AP 0 → −1 this phase only |
+| TYR-011 | TYR-3 | Secretion Goad once per turn: after use in Shooting, not offered in that turn's Fight; offered again next turn (incl. the opponent's Fight phase) |
+| TYR-012 | TYR-3 | Secretion Goad not offered for a unit with no model within 6" of the bearer |
+| TYR-013 | TYR-4 | Alpha Xenoform: the Prime kills an enemy model in a phase → +4 VP at that phase end; a kill by Termagants → 0 |
+| TYR-014 | TYR-4 | Alpha Xenoform: Prime destroyed in melee, Death Blow 4+, fights back and kills → +4 VP that phase |
+| TYR-015 | TYR-4 | Chitinous Tide: control a marker 5" outside the enemy DZ at own `turn.end` → +5 VP; 7" outside → 0; centre 6.5" outside (marker edge within 6") → +5 VP; two such markers → still 5 |
+| TYR-016 | TYR-5.1 | Hyper-Reactive after an enemy targets Termagants in the opponent's Shooting → their hit rolls −1 until phase end; not offered for the Psychophage (not INFANTRY) |
+| TYR-017 | TYR-5.1 | Hyper-Reactive in a Fight phase after an enemy unit selects the Leapers as its melee target |
+| TYR-018 | TYR-5.2 | Voracious Assault: Termagants shoot the closest eligible enemy → hit re-roll offered; at a farther unit → none |
+| TYR-019 | TYR-5.2 | Voracious Assault: two enemy units tied for closest → both qualify |
+| TYR-019b | TYR-5.2 | Voracious Assault: offered in either player's Fight phase for a unit not yet selected to fight; in Shooting only in your own phase for a unit not yet selected to shoot (`notYetShot`) |
+| TYR-020 | TYR-5.3 | Teeming Broods on Termagants at 12/20 with D6 = 4 → 16 models; returned models at 1 W, in coherency, not in ER of enemies |
+| TYR-021 | TYR-5.3 | Teeming Broods on a 10-model split unit at 8/10 with D6 = 5 → only 2 return (Starting Strength cap) |
+| TYR-022 | TYR-5.4 | Teeming Broods on a destroyed Termagants unit, 2D6 = 7 → new Reserves unit with 7 models, SS 7; the destroyed unit stays destroyed |
+| TYR-023 | TYR-5.4 | the spawned unit arrives as Strategic Reserves in a later own Movement phase: wholly within 6" of an edge, >9" from enemies, not in the enemy DZ in round 2; cannot arrive in the step it was created |
+| TYR-024 | TYR-5.4 | a spawned unit still in Reserves at the end of round 3 is removed; the opponent gets no kill credit |
+| TYR-025 | TYR-5.5 | Teeming Broods target list includes destroyed TERMAGANTS units; no other stratagem lists destroyed units |
+| TYR-026 | TYR-6.1 | Death Blow: Prime (not yet fought) killed in melee, D6 = 4 → not removed, `ModelRemovalDeferred`; once the attacker's activation ends its controller may fight with it (use/decline), then `ModelDestroyed` credits the original killer; declining removes it at once |
+| TYR-027 | TYR-6.1 | Death Blow: D6 = 3 → removed at once; killed by a ranged attack or mortal wounds → no roll; already fought this phase → no roll |
+| TYR-028 | TYR-6.1 | while removal is pending the Prime takes no further allocated attacks and adds 0 OC |
+| TYR-029 | TYR-6.2 | Feeding Frenzy: Psychophage melee vs a full-strength unit → no modifier; vs 19/20 Termagants → +1 hit; vs 9/20 → +1 hit and +1 wound |
+| TYR-030 | TYR-6.2 | Feeding Frenzy does not apply to the psychoclastic torrent (ranged) |
+| TYR-031 | TYR-6.3 | Skulking Horrors: enemy ends a Normal move 8" from Termagants → offer; used → D6" Normal move by the non-active player; a second enemy move that turn → no offer |
+| TYR-032 | TYR-6.3 | Skulking Horrors not offered when the Termagants are in ER, when the enemy ends 10" away, or after a Charge / Pile-in move |
+| TYR-033 | TYR-6.4 | Disruption Bombardment: Barbgaunts hit enemy INFANTRY → that unit −2 M, −2 Advance, −2 Charge through the opponent's next turn; expires at the start of the Tyranid player's next turn |
+| TYR-034 | TYR-6.4 | Disruption Bombardment: only a VEHICLE/MONSTER was hit, or nothing was hit → no effect |
+| TYR-035 | TYR-6.5 | Pouncing Leap: Heroic Intervention with the Leapers costs 0 CP (offered at 0 CP) and is offered even after HI was used on another unit this phase; Termagants still pay 1 CP |
+| TYR-036 | TYR-6.6 | Patrol Squads: split offered at Declare Battle Formations → two TERMAGANTS units of 10, each SS 10, each with Skulking Horrors |
+| TYR-037 | TYR-6 | Leapers deploy via Infiltrators more than 9" from the enemy DZ and enemy models; 8.9" is rejected |
+| TYR-038 | TYR-6 | Leapers fight in the Fights First step without having charged; Psychophage FNP 5+ and Deadly Demise 1 resolve |
+| TYR-039 | TYR-6 | psychoclastic torrent auto-hits and ignores cover; the maw's Anti-Psyker 4+ makes a 4+ wound roll vs a PSYKER critical, triggering Devastating Wounds |
+| TYR-040 | TYR-1 | patrol loads: 5 units, 30 models, the Prime is WARLORD with Psychostatic Veil; default secondary Alpha Xenoform |
