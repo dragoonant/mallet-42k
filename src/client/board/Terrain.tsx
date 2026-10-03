@@ -3,12 +3,11 @@ import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import type { FloorData, TerrainPieceData, WallData } from '@/data/types'
 import { extrudedPolygonGeometry, polygonBoundingRadius, polygonCentroid, seededUnit, segmentTransform } from './geometry'
-import { planRuin, planTurns, polygonBounds, simpleTurns, type Bounds } from './ruinFit'
+import { idVariant, planRuin, planTurns, polygonBounds, simpleTurns, type Bounds } from './ruinFit'
 import { useRuinModel, type RuinModel } from './ruinModels'
 import {
   BARRIER_MODEL_URL,
   CONCRETE_URLS,
-  METAL_URLS,
   ROCK_MODEL_URLS,
   cloneRepeat,
   polygonFootprintSize,
@@ -37,15 +36,6 @@ const CONCRETE_TINT = '#a9a9a4' // upper-floor slabs, matched to the grey ruins
 // Pulls the floor slab in from the footprint edge when a ruin GLB is drawn, so its sides never
 // z-fight the model's own outer walls.
 const GLB_FLOOR_INSET = 0.12
-// White so the diffuse map's own brightness shows (any tint here multiplies the texture darker);
-// metalness stays 0 below since this scene has no environment map to light a metallic surface from
-// — a nonzero metalness with no env map just reads as flat black. The slight warm emissive is a
-// safety net against the corrugated-iron photo itself being a dark, high-contrast rust texture.
-const METAL_TINT = '#ffffff'
-const METAL_LID_TINT = '#b8b3ac' // same texture, visibly darker than the body but nowhere near black
-const METAL_EMISSIVE = '#3a2c20'
-const METAL_EMISSIVE_INTENSITY = 0.25
-const METAL_LID_EMISSIVE_INTENSITY = 0.18
 
 // Ruins render as low, broken walls rather than the full data height — a stylistic choice so the
 // board reads clearly at table-top camera angles; the engine's own terrain heights govern LoS/cover.
@@ -61,7 +51,6 @@ const TERRAIN_OPACITY = 0.85
 // clearly at tabletop scale without looking either smeared or over-tiled).
 const WALL_REPEAT_INCHES = 8
 const CONCRETE_REPEAT_INCHES = 8
-const METAL_REPEAT_INCHES = 5
 
 const CRATER_MAX_HEIGHT = 1.5
 const CRATER_SCORCH_HEIGHT = 0.05
@@ -268,7 +257,21 @@ function BarrierSegment({ wall }: { wall: WallData }) {
   )
 }
 
+/** Crates are low concrete bunkers (bunker-a / bunker-b by id parity). The GLB's flat roof tops out
+ *  at piece.height, which is the standable floor height, so NO separate roof slab is drawn for it
+ *  (nothing to z-fight or poke through). Missing/failed GLB -> procedural grey crate with its lid. */
 function CratePiece({ piece }: { piece: TerrainPieceData }) {
+  const slug = idVariant(piece.id) % 2 === 0 ? 'bunker-a' : 'bunker-b'
+  const glb = useRuinModel(slug)
+  const bounds = useMemo(() => polygonBounds(piece.footprint), [piece.footprint])
+  if (glb.status === 'pending') return null
+  if (glb.status === 'ready') {
+    return <FittedModel model={glb.model} bounds={bounds} height={piece.height} turns={simpleTurns(glb.model.size, bounds)} />
+  }
+  return <ProceduralCrate piece={piece} />
+}
+
+function ProceduralCrate({ piece }: { piece: TerrainPieceData }) {
   // Visual height only — cover/LoS still read the data's real `piece.height` via the engine's own
   // terrain service, never this capped value.
   const visualHeight = Math.min(piece.height, BLOCK_VISUAL_CAP)
@@ -279,16 +282,15 @@ function CratePiece({ piece }: { piece: TerrainPieceData }) {
 
   const { width, depth } = useMemo(() => polygonFootprintSize(piece.footprint), [piece.footprint])
   const lidSize = useMemo(() => polygonFootprintSize(lidPolygon), [lidPolygon])
-  const metal = useTiledPBR(METAL_URLS)
+  const concrete = useTiledPBR(CONCRETE_URLS)
   const textures = useMemo(
-    () => cloneRepeat(metal, Math.max(width, depth) / METAL_REPEAT_INCHES, visualHeight / METAL_REPEAT_INCHES),
-    [metal, width, depth, visualHeight],
+    () => cloneRepeat(concrete, Math.max(width, depth) / CONCRETE_REPEAT_INCHES, visualHeight / CONCRETE_REPEAT_INCHES),
+    [concrete, width, depth, visualHeight],
   )
-  // Same corrugated-metal texture as the crate body, tinted darker (METAL_LID_TINT) instead of a
-  // flat accent color, so the lid still reads as sheet metal.
+  // Same concrete texture as the body, tinted darker so the lid still reads as a separate slab.
   const lidTextures = useMemo(
-    () => cloneRepeat(metal, Math.max(lidSize.width, lidSize.depth) / METAL_REPEAT_INCHES, lidThickness / METAL_REPEAT_INCHES),
-    [metal, lidSize, lidThickness],
+    () => cloneRepeat(concrete, Math.max(lidSize.width, lidSize.depth) / CONCRETE_REPEAT_INCHES, lidThickness / CONCRETE_REPEAT_INCHES),
+    [concrete, lidSize, lidThickness],
   )
 
   return (
@@ -296,11 +298,9 @@ function CratePiece({ piece }: { piece: TerrainPieceData }) {
       <mesh position={[0, 0, 0]} geometry={geometry} castShadow receiveShadow>
         <meshStandardMaterial
           {...textures}
-          color={METAL_TINT}
-          roughness={0.7}
+          color={RUIN_WALL_TINT}
+          roughness={0.9}
           metalness={0}
-          emissive={METAL_EMISSIVE}
-          emissiveIntensity={METAL_EMISSIVE_INTENSITY}
           side={THREE.DoubleSide}
           transparent
           opacity={TERRAIN_OPACITY}
@@ -309,11 +309,9 @@ function CratePiece({ piece }: { piece: TerrainPieceData }) {
       <mesh position={[0, visualHeight, 0]} geometry={lidGeometry} castShadow receiveShadow>
         <meshStandardMaterial
           {...lidTextures}
-          color={METAL_LID_TINT}
-          roughness={0.75}
+          color={RUBBLE_TINT}
+          roughness={0.9}
           metalness={0}
-          emissive={METAL_EMISSIVE}
-          emissiveIntensity={METAL_LID_EMISSIVE_INTENSITY}
           side={THREE.DoubleSide}
           transparent
           opacity={TERRAIN_OPACITY}
