@@ -498,3 +498,6 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | NEC-033 | NEC-6 | Deadly Demise: Scarab model destroyed → D6 roll, on 6 units within 6" take 1 MW; Doomstalker → D3 MW |
 | NEC-034 | NEC-6 | gauss flayer / twin gauss flayer: Lethal Hits auto-wound on critical hit; Rapid Fire 1 at half range; twin-linked re-rolls wound |
 | NEC-035 | NEC-1 | patrol loads: 5 units, 18 models, Overlord is WARLORD with Overriding Control and attached to Warriors; default secondary Reclaim and Dominate |
+| NEC-036 | NEC-3 | Resonant Focus re-roll survives the bearer's death: Overlord destroyed after the mark is placed → marked-unit hit re-roll of 1s still applies (Doomstalker and Warriors), still not vs another unit, gone at turn end |
+| NEC-037 | NEC-6 | a fired One Shot weapon is not a legal Overwatch weapon: after the tachyon arrow is fired it is absent from Fire Overwatch targets in both the Movement and Charge phases, and `attackService.begin` refuses it centrally |
+| NEC-038 | NEC-4 | Treasures of Aeons: a unit finished off by Devastating Wounds from a NECRONS attack near the treasure marker (in range at phase start) → +3 VP, credited to the attacking model |
