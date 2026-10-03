@@ -34,10 +34,12 @@ export interface PresentationSettings {
   commandRerollSetting: CommandRerollSetting
   /** Low graphics: no shadows, device-pixel-ratio capped at 1 (Scene.tsx / board/Lighting.tsx read this). */
   lowGraphics: boolean
+  /** Distant artillery flashes and flares around the board (board/BattlefieldAmbience.tsx). Forced off by lowGraphics. */
+  battlefieldAmbience: boolean
 }
 
 const STORAGE_KEY = 'mallet42k:presentation-settings'
-const DEFAULTS: PresentationSettings = { animSpeed: 'normal', diceOn: true, ambientOn: true, commandRerollSetting: 'onlyWhenItMatters', lowGraphics: false }
+const DEFAULTS: PresentationSettings = { animSpeed: 'normal', diceOn: true, ambientOn: true, commandRerollSetting: 'onlyWhenItMatters', lowGraphics: false, battlefieldAmbience: true }
 
 function isAnimSpeed(v: unknown): v is AnimSpeed {
   return v === 'normal' || v === 'fast' || v === 'instant'
@@ -59,6 +61,7 @@ function load(): PresentationSettings {
       ambientOn: parsed.ambientOn !== false,
       commandRerollSetting: isCommandRerollSetting(parsed.commandRerollSetting) ? parsed.commandRerollSetting : DEFAULTS.commandRerollSetting,
       lowGraphics: parsed.lowGraphics === true,
+      battlefieldAmbience: parsed.battlefieldAmbience !== false,
     }
   } catch {
     return { ...DEFAULTS }
@@ -82,6 +85,7 @@ interface PresentationSettingsStore extends PresentationSettings {
   setAmbientOn(on: boolean): void
   setCommandRerollSetting(setting: CommandRerollSetting): void
   setLowGraphics(on: boolean): void
+  setBattlefieldAmbience(on: boolean): void
   muteRerolls(mute: RerollMute): void
 }
 
@@ -92,28 +96,33 @@ export const usePresentationSettings = create<PresentationSettingsStore>((set, g
   setAnimSpeed(animSpeed) {
     setDiceSpeed(animSpeed)
     set({ animSpeed })
-    persist({ animSpeed, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics })
+    persist({ animSpeed, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience: get().battlefieldAmbience })
   },
 
   setDiceOn(diceOn) {
     set({ diceOn })
-    persist({ animSpeed: get().animSpeed, diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics })
+    persist({ animSpeed: get().animSpeed, diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience: get().battlefieldAmbience })
   },
 
   setAmbientOn(ambientOn) {
     audio.setAmbientEnabled(ambientOn)
     set({ ambientOn })
-    persist({ animSpeed: get().animSpeed, diceOn: get().diceOn, ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics })
+    persist({ animSpeed: get().animSpeed, diceOn: get().diceOn, ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience: get().battlefieldAmbience })
   },
 
   setCommandRerollSetting(commandRerollSetting) {
     set({ commandRerollSetting })
-    persist({ animSpeed: get().animSpeed, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting, lowGraphics: get().lowGraphics })
+    persist({ animSpeed: get().animSpeed, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience: get().battlefieldAmbience })
   },
 
   setLowGraphics(lowGraphics) {
     set({ lowGraphics })
-    persist({ animSpeed: get().animSpeed, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics })
+    persist({ animSpeed: get().animSpeed, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics, battlefieldAmbience: get().battlefieldAmbience })
+  },
+
+  setBattlefieldAmbience(battlefieldAmbience) {
+    set({ battlefieldAmbience })
+    persist({ animSpeed: get().animSpeed, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience })
   },
 
   // Not persisted, on purpose — see RerollMute. Pass null to start asking again.
