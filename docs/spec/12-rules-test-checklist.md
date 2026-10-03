@@ -501,3 +501,39 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | NEC-036 | NEC-3 | Resonant Focus re-roll survives the bearer's death: Overlord destroyed after the mark is placed → marked-unit hit re-roll of 1s still applies (Doomstalker and Warriors), still not vs another unit, gone at turn end |
 | NEC-037 | NEC-6 | a fired One Shot weapon is not a legal Overwatch weapon: after the tachyon arrow is fired it is absent from Fire Overwatch targets in both the Movement and Charge phases, and `attackService.begin` refuses it centrally |
 | NEC-038 | NEC-4 | Treasures of Aeons: a unit finished off by Devastating Wounds from a NECRONS attack near the treasure marker (in range at phase start) → +3 VP, credited to the attacking model |
+
+## CHA — Chaos Space Marines: Zarkan's Daemonkin (docs/spec/factions/chaos-space-marines.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| CHA-001 | CHA-2.1 | Legionaries selected to shoot → Dark Pact offered at `shooting.unitSelected` with lethal / sustained / decline; decline → no Ld roll, no effect |
+| CHA-002 | CHA-2.1 | Possessed selected to fight → Dark Pact offered at `fight.unitSelected` before pile-in |
+| CHA-003 | CHA-2.2 | Pact made, Ld test 2D6 = 7 vs Ld 6+ → pass, no mortal wounds; weapons gain the picked ability until phase end |
+| CHA-004 | CHA-2.2 | Pact made, Ld test fails → D3 mortal wounds on the unit (owner allocates), then the ability is still gained |
+| CHA-005 | CHA-2.2 | Ld test is not a Battle-shock test: failing never sets `battleShocked`, Insane Bravery is not offered, Battle-shock modifiers do not apply |
+| CHA-006 | CHA-2.3 | Lethal Hits pact: boltgun critical hit auto-wounds; Sustained Hits pact: critical hit adds 1 hit; both expire at phase end |
+| CHA-007 | CHA-2.3 | attached Zarkan + Possessed make one Pact: one Ld test using best Ld, ability on both halves' weapons |
+| CHA-008 | CHA-2.3 | Pact mortal wounds destroy the whole unit → no declareTargets, no ability granted |
+| CHA-009 | CHA-2.4 | Fire Overwatch by Legionaries → no Dark Pact prompt |
+| CHA-010 | CHA-3 | Foul Zealotry: Zarkan's unit Pact options are both / decline; `both` grants Lethal Hits and Sustained Hits 1 together |
+| CHA-011 | CHA-3 | Foul Zealotry does not affect Cultists or an un-led unit (pick-one options) |
+| CHA-012 | CHA-3 | Prey on the Weak: Rite of Possession hits enemy unit X → after Zarkan's unit shoots, pick X, X tests Battle-shock with −1 |
+| CHA-013 | CHA-3 | Prey on the Weak: enemy hit only by bolt pistol / Legionary boltguns → no prompt; Rite attacks all miss → no prompt |
+| CHA-014 | CHA-4 | Marked for Execution: opponent WARLORD destroyed in round 2 → +12 VP; in round 4 → +6 VP; never scores twice |
+| CHA-015 | CHA-4 | Marked for Execution: WARLORD killed by its own Hazardous roll still scores |
+| CHA-016 | CHA-4 | Sites of Power: round 1 → 0 VP; round 2, end of own turn, 2 vs 2 markers → +2 VP; 1 vs 2 → 0; 0 vs 0 → +2 |
+| CHA-017 | CHA-5 | Vindictive Strategy: target at Starting Strength → no hit re-roll; one model lost → hit roll of 1 re-rolled, wound roll of 1 not |
+| CHA-018 | CHA-5 | Vindictive Strategy: target below half-strength → hit 1s and wound 1s both re-rolled; attached target uses combined Starting Strength |
+| CHA-019 | CHA-5 | Vindictive Strategy not offered for a unit already selected to shoot / that already fought this phase |
+| CHA-020 | CHA-5 | Violent Unbinding: enemy melee attack destroys Zarkan, attacker within 6" → window opens before the next attack; D6 = 6 → 3 MW to the attacker |
+| CHA-021 | CHA-5 | Violent Unbinding: attacker more than 6" away (shooting) → stratagem not offered; D6 = 1 → no mortal wounds |
+| CHA-022 | CHA-5 | Daemonic Fervour: Possessed targeted in the Fight phase, model destroyed, D6 = 4 → model stays at 0 W, not allocatable, fights after the enemy unit's attacks, then removed |
+| CHA-023 | CHA-5 | Daemonic Fervour: D6 = 3 → removed normally; Possessed already fought this phase → no roll |
+| CHA-024 | CHA-5 | Daemonic Fervour: deferred model has no OC and is skipped by coherency; `UnitDestroyed` only after the last deferred model is removed; kill credited to the attacker |
+| CHA-025 | CHA-6 | Sacrificial Dagger: Zarkan selected to shoot, use → his unit suffers 1 MW; Rite of Possession gets +1 hit and +1 wound this phase; bolt pistol does not |
+| CHA-026 | CHA-6 | Sacrificial Dagger offered at most once per phase and only after the Dark Pact prompt |
+| CHA-027 | CHA-6 | Veterans of the Long War: Legionaries melee wound roll of 1 re-rolled; target within range of a marker → any failed wound roll re-rolled; ranged attacks unaffected |
+| CHA-028 | CHA-6 | Rite of Possession vs a PSYKER target: Anti-PSYKER 2+ → every unmodified wound roll of 2+ is a critical wound; Precision lets the attacker allocate to a visible CHARACTER |
+| CHA-029 | CHA-6 | Zarkan and Possessed have a 5+ invulnerable save (used against AP −3 instead of the 3+ armour) |
+| CHA-030 | CHA-6 | Legionary heavy bolter: Heavy +1 to hit when Remained Stationary; meltagun Melta 2 at half range |
+| CHA-031 | CHA-1 | patrol loads: 4 units, 26 models, Zarkan is WARLORD with Foul Zealotry and attached to Possessed; default secondary Marked for Execution |
+| CHA-032 | CHA-1 | Zarkan may instead attach to Legionaries (pre-game choice); never to Cultists |
