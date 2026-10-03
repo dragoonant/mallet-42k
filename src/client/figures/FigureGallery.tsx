@@ -23,6 +23,11 @@ const GALLERY_ENTRIES: GalleryEntry[] = [
   { datasheetId: 'ork.warboss-gordrang', faction: 'ork', label: 'Warboss Gordrang' },
   { datasheetId: 'ork.deffkoptas', faction: 'ork', label: 'Deffkoptas' },
   { datasheetId: 'ork.deff-dread', faction: 'ork', label: 'Deff Dread' },
+  { datasheetId: 'nec.necron-warriors', faction: 'necrons', label: 'Necron Warriors' },
+  { datasheetId: 'nec.overlord-amonhotekh', faction: 'necrons', label: 'Overlord Amonhotekh' },
+  { datasheetId: 'nec.skorpekh-destroyers', faction: 'necrons', label: 'Skorpekh Destroyers' },
+  { datasheetId: 'nec.canoptek-doomstalker', faction: 'necrons', label: 'Canoptek Doomstalker' },
+  { datasheetId: 'nec.canoptek-scarab-swarms', faction: 'necrons', label: 'Scarab Swarms' },
 ]
 
 // Figures are true tabletop-miniature scale (~1-2 world-inches tall — see resolveBase), so packing

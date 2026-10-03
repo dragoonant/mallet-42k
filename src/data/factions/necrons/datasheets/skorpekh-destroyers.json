@@ -1,0 +1,24 @@
+[
+  {
+    "id": "nec.skorpekh-destroyers",
+    "faction": "necrons",
+    "name": "Skorpekh Destroyers",
+    "keywords": ["INFANTRY", "SKORPEKH DESTROYERS"],
+    "factionKeywords": ["NECRONS"],
+    "stats": { "M": 7, "T": 6, "Sv": 3, "W": 3, "Ld": 7, "OC": 2 },
+    "composition": [
+      {
+        "modelId": "destroyer",
+        "name": "Skorpekh Destroyer",
+        "min": 3, "max": 3, "default": 3,
+        "base": { "shape": "round", "mm": 50 },
+        "weapons": { "default": ["nec.w.skorpekh-hyperphase-weapons"] },
+        "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+      }
+    ],
+    "abilities": ["nec.a.reanimation-protocols", "nec.a.plasmacyte"],
+    "coreAbilities": [],
+    "points": [ { "models": 3, "points": 0 } ],
+    "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+  }
+]

@@ -1,0 +1,33 @@
+[
+  {
+    "id": "nec.a.reanimation-protocols",
+    "name": "Reanimation Protocols",
+    "text": "At the end of your Command phase, roll a D3 for each of your units with this ability. For each point rolled, one at a time: if a model in the unit is wounded, it recovers 1 wound; otherwise, if the unit has lost models, one returns to the board with 1 wound remaining.",
+    "trigger": "phaseEnd",
+    "when": { "phase": "command", "ownTurn": true },
+    "code": "reanimationProtocols",
+    "params": { "dice": "D3", "healBeforeReturn": true, "returnWounds": 1 }
+  },
+  {
+    "id": "nec.a.implacable-resilience",
+    "name": "Implacable Resilience",
+    "text": "Each attack that is allocated to this model has its Damage characteristic reduced by 1, to a minimum of 1.",
+    "trigger": "attacksAllocated",
+    "effect": { "damageReduction": 1 },
+    "scope": { "who": "bearer" }
+  },
+  {
+    "id": "nec.a.plasmacyte",
+    "name": "Plasmacyte",
+    "text": "The unit carries one plasmacyte. Once per battle for each plasmacyte carried, when the unit is selected to fight, you may spend one: until the end of the phase, its melee weapons gain [DEVASTATING WOUNDS].",
+    "trigger": "unitSelectedToFight",
+    "code": "plasmacyteSurge",
+    "params": {
+      "charges": 1,
+      "window": "fight.unitSelected",
+      "grant": { "when": { "weaponType": "melee" }, "grantWeaponAbility": { "ability": "DEVASTATING_WOUNDS" } },
+      "scope": "self",
+      "duration": "untilEndOfPhase"
+    }
+  }
+]

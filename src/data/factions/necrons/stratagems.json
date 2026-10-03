@@ -1,0 +1,61 @@
+[
+  {
+    "id": "nec.s.mercurial-resilience",
+    "faction": "necrons",
+    "name": "Mercurial Resilience",
+    "text": "Use just after an enemy unit selects its targets, in the opponent's Shooting phase or either player's Fight phase, when one of your NECRONS units is a target. Until the end of the phase, models in that unit have a 5+ invulnerable save.",
+    "cost": 1,
+    "category": "wargear",
+    "phases": ["shooting", "fight"],
+    "window": ["shooting.targetsDeclared", "fight.targetsDeclared"],
+    "who": "either",
+    "condition": { "any": [ { "phase": "shooting", "ownTurn": false }, { "phase": "fight" } ] },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "NECRONS" }, "state": "targetedByAttack", "count": 1 }
+    ],
+    "effect": { "invuln": 5 },
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "nec.s.disruption-fields",
+    "faction": "necrons",
+    "name": "Disruption Fields",
+    "text": "Use in the Fight phase for one of your NECRONS units that has not yet been selected to fight. Until the end of the phase, add 1 to the Strength of the melee weapons carried by models in that unit.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["fight"],
+    "window": ["fight.start", "fight.attacksResolved"],
+    "who": "either",
+    "condition": { "phase": "fight" },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "NECRONS" }, "state": "notYetFought" }
+    ],
+    "effect": { "when": { "weaponType": "melee" }, "modifyStat": { "stat": "S", "value": 1 } },
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "nec.s.will-of-the-overlord",
+    "faction": "necrons",
+    "name": "Will of the Overlord",
+    "text": "Use at the start of your Command phase while an OVERLORD model from your army is on the battlefield, targeting one of your NECRONS units. Until the start of your next Command phase, add 1 to the Objective Control of each model in that unit.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["command"],
+    "window": "command.start",
+    "who": "active",
+    "condition": { "phase": "command" },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "NECRONS" } }
+    ],
+    "effect": { "modifyStat": { "stat": "OC", "value": 1 } },
+    "scope": { "who": "self" },
+    "duration": "untilNextTurn",
+    "limit": "oncePerPhase",
+    "code": "requireFriendlyKeywordOnBoard",
+    "params": { "keyword": "OVERLORD", "checkOnly": true }
+  }
+]

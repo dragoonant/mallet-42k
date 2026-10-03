@@ -1,0 +1,23 @@
+{
+  "id": "necrons",
+  "name": "Necrons",
+  "factionKeyword": "NECRONS",
+  "armyRule": "nec.a.reanimation-protocols",
+  "detachments": [
+    {
+      "id": "nec.d.combat-patrol",
+      "name": "Combat Patrol",
+      "rule": "nec.a.reanimation-protocols",
+      "stratagems": ["nec.s.mercurial-resilience", "nec.s.disruption-fields", "nec.s.will-of-the-overlord"],
+      "enhancements": ["nec.e.overriding-control", "nec.e.protocol-of-resonant-focus"]
+    }
+  ],
+  "paintScheme": {
+    "primary": "#3a3f45",
+    "secondary": "#39ff6a",
+    "trim": "#b8923a",
+    "metal": "#9aa3ab",
+    "decal": "#1d2a22"
+  },
+  "combatPatrols": ["nec.cp.amonhotekhs-guard"]
+}

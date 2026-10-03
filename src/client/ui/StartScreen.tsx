@@ -5,14 +5,26 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { loadBundle } from '../../data'
 import type { DataBundle } from '../../data/types'
-import { AI_DIFFICULTY_OPTIONS, DEFAULT_AI_DIFFICULTY, FACTION_ID, useGameStore, type AiDifficulty, type FactionKey, type OpponentKind } from '../store/game'
+import { AI_DIFFICULTY_OPTIONS, DEFAULT_AI_DIFFICULTY, resolveFactionId, useGameStore, type AiDifficulty, type FactionKey, type OpponentKind } from '../store/game'
 import { primaryScoringSummary } from './labels'
 import { buttonActive, buttonBase, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 
-const FACTIONS: { key: FactionKey; label: string; blurb: string }[] = [
-  { key: 'space-marines', label: 'Space Marines', blurb: 'Elite armoured warriors, few in number, strong in every fight.' },
-  { key: 'orks', label: 'Orks', blurb: 'A rowdy green tide that hits harder the more of them are left standing.' },
-]
+// Own-words one-liners per faction id. A faction with no entry here still appears (name only), so a new
+// faction in the data bundle is selectable before anyone writes it a blurb.
+const FACTION_BLURBS: Record<string, string> = {
+  sm: 'Elite armoured warriors, few in number, strong in every fight.',
+  ork: 'A rowdy green tide that hits harder the more of them are left standing.',
+  necrons: 'Ancient metal soldiers that shrug off damage and climb back to their feet turn after turn.',
+}
+
+// Button order for the factions the game ships; any other faction in the bundle follows alphabetically.
+const FACTION_ORDER = ['sm', 'ork', 'necrons']
+
+interface FactionChoice {
+  id: string
+  label: string
+  blurb: string
+}
 
 const MISSION_IDS = ['cp-01', 'cp-02', 'cp-03', 'cp-04', 'cp-05', 'cp-06']
 
@@ -51,6 +63,8 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
   const error = useGameStore((s) => s.error)
   const [bundle, setBundle] = useState<DataBundle | null>(null)
   const [faction, setFaction] = useState<FactionKey>('space-marines')
+  // '' = automatic (the first other faction); otherwise a faction id, which may equal your own (mirror match).
+  const [opponentFaction, setOpponentFaction] = useState<string>('')
   const [opponent, setOpponent] = useState<OpponentKind>('bot')
   const [difficulty, setDifficulty] = useState<AiDifficulty>(DEFAULT_AI_DIFFICULTY)
   const [mission, setMission] = useState('cp-01')
@@ -67,13 +81,24 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
     }
   }, [])
 
-  const activeFaction = FACTIONS.find((f) => f.key === faction)!
+  // Every faction in the bundle that has a Combat Patrol, known ones first in a fixed order.
+  const factions = useMemo<FactionChoice[]>(() => {
+    if (!bundle) return []
+    const ids = Object.keys(bundle.factions).filter((id) => Object.values(bundle.patrols).some((p) => p.faction === id))
+    ids.sort((x, y) => {
+      const ix = FACTION_ORDER.indexOf(x)
+      const iy = FACTION_ORDER.indexOf(y)
+      return (ix < 0 ? 99 : ix) - (iy < 0 ? 99 : iy) || x.localeCompare(y)
+    })
+    return ids.map((id) => ({ id, label: bundle.factions[id].name, blurb: FACTION_BLURBS[id] ?? '' }))
+  }, [bundle])
+  const factionId = resolveFactionId(faction)
+  const activeFaction = factions.find((f) => f.id === factionId)
   const missionData = bundle?.missions[`mission.${mission}`]
   const patrol = useMemo(() => {
     if (!bundle) return undefined
-    const factionId = FACTION_ID[faction]
     return Object.values(bundle.patrols).find((p) => p.faction === factionId)
-  }, [bundle, faction])
+  }, [bundle, factionId])
 
   // The secondary picker resets to the patrol's default whenever the faction changes (a previous
   // pick may not exist for the new patrol).
@@ -85,6 +110,7 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
     try {
       await newGame({
         playerFaction: faction,
+        opponentFaction: opponentFaction || undefined,
         opponent,
         mission: `mission.${mission}`,
         seed,
@@ -105,13 +131,13 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
 
         <div style={label}>Your Faction</div>
         <div style={row} data-testid="setup-patrol-A">
-          {FACTIONS.map((f) => (
-            <button key={f.key} style={f.key === faction ? buttonActive : buttonBase} onClick={() => setFaction(f.key)}>
+          {factions.map((f) => (
+            <button key={f.id} style={f.id === factionId ? buttonActive : buttonBase} onClick={() => setFaction(f.id)}>
               {f.label}
             </button>
           ))}
         </div>
-        <p style={blurb}>{activeFaction.blurb}</p>
+        {activeFaction?.blurb && <p style={blurb}>{activeFaction.blurb}</p>}
 
         <div style={label}>Mission</div>
         <select style={select} value={mission} data-testid="setup-mission" onChange={(e) => setMission(e.target.value)}>
@@ -155,6 +181,16 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
             Hotseat (pass the device)
           </button>
         </div>
+
+        <div style={label}>Opponent's Faction</div>
+        <select style={select} value={opponentFaction} data-testid="setup-opponent-faction" onChange={(e) => setOpponentFaction(e.target.value)}>
+          <option value="">Automatic</option>
+          {factions.map((f) => (
+            <option key={f.id} value={f.id}>
+              {f.label}
+            </option>
+          ))}
+        </select>
 
         {opponent === 'bot' && (
           <>

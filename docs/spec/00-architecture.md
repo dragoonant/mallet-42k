@@ -94,6 +94,7 @@ the player cannot work out from the visible state:
   with `optionId: 'reroll'` it must be a non-empty, duplicate-free subset of the offered `dieIndexes` (anything else is
   rejected `E_NOT_AN_OPTION`), and only those dice are re-rolled; absent = every offered die. There is one offer per
   batch, not one per die.
+- `treasureObjective` (M10) — Treasures of Aeons pick at round 1 start: options are the objective markers with no home owner; the answer stores `secondaryState.treasureObjectiveId`. `abilityChoice` is shared by several code hooks and the raising hook names itself in `context.data.code` (`resonantFocusPick`, `plasmacyteSurge`) so the answer reaches the right handler.
 - `saveType` — **retired (M9).** The engine picks the save that needs the lower d6 (tie: armour) and never raises this
   decision. The numbers still exist: `CurrentAttack.saveTargets` (display-only, per-attack saves) and `DiceRoll.needed` (a
   batched save roll carries the d6 its dice have to reach).
@@ -179,6 +180,7 @@ Event families (all events carry `seq`, `turn`, `phase`, `player`):
 | shooting/fight | `AttackSequenceStarted`, `TargetsDeclared`, `HitRolled`, `WoundRolled`, `SaveRolled`, `DamageApplied`, `FeelNoPainRolled`, `ModelDestroyed`, `UnitDestroyed` (both carry `byUnitId` **and** `byModelId`; null for mortal wounds / Deadly Demise / culls — Wrath of the Emperor and Bag the Big 'Un key on the model), `AttackSequenceEnded` |
 | charge | `ChargeDeclared`, `ChargeRolled`, `ChargeFailed`, `ChargeMoved`, `PiledIn`, `Consolidated` |
 | stratagem | `StratagemUsed`, `StratagemWindowOpened`, `StratagemWindowClosed`, `AbilityTriggered` (id, source, effect summary) |
+| reanimation (M10, necrons) | `WoundsRegained` { unitId, modelId, amount, source }, `ModelReturned` { unitId, modelId, pos, source } — emitted by Reanimation Protocols (docs/spec/factions/necrons.md NEC-2.2); `Unit.destroyedModels` (snapshot of every removed model, filled by `state.removeModel`) is what a returned model is taken from |
 | dice | `DiceRolled` { purpose, dice: number[], modifiers, final } — one per physical roll, always emitted even when also covered by a family event |
 | objectives | `ObjectiveControlChanged`, `VpScored` (source, amount) |
 | meta | `ActionRejected` { code, reason }, `DecisionRequested` { pending } |

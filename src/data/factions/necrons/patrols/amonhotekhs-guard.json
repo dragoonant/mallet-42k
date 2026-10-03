@@ -1,0 +1,39 @@
+{
+  "id": "nec.cp.amonhotekhs-guard",
+  "faction": "necrons",
+  "name": "Amonhotekh's Guard",
+  "units": [
+    { "ref": "overlord", "datasheet": "nec.overlord-amonhotekh", "size": 1, "enhancement": "nec.e.overriding-control", "attachTo": "warriors" },
+    { "ref": "warriors", "datasheet": "nec.necron-warriors", "size": 10 },
+    { "ref": "skorpekhs", "datasheet": "nec.skorpekh-destroyers", "size": 3 },
+    { "ref": "scarabs", "datasheet": "nec.canoptek-scarab-swarms", "size": 3 },
+    { "ref": "doomstalker", "datasheet": "nec.canoptek-doomstalker", "size": 1 }
+  ],
+  "stratagems": ["nec.s.mercurial-resilience", "nec.s.disruption-fields", "nec.s.will-of-the-overlord"],
+  "enhancements": [
+    { "id": "nec.e.overriding-control", "default": true },
+    { "id": "nec.e.protocol-of-resonant-focus", "default": false }
+  ],
+  "secondaries": [
+    {
+      "id": "nec.sec.reclaim-and-dominate",
+      "name": "Reclaim and Dominate",
+      "text": "At the end of each of your turns, score 4 victory points if at least one of your NECRONS units that is not Battle-shocked has every model wholly inside your opponent's deployment zone. The award is flat: 4 points per turn, however many units qualify.",
+      "default": true,
+      "scoring": [
+        { "id": "reclaim-and-dominate", "when": "turn.end", "rounds": { "from": 1, "to": 5 }, "who": "active", "rule": "custom", "pointsPer": 4, "cap": 4, "code": "reclaimAndDominate" }
+      ]
+    },
+    {
+      "id": "nec.sec.treasures-of-aeons",
+      "name": "Treasures of Aeons",
+      "text": "At the start of round 1, choose one objective marker in No Man's Land. Each time a model from your army destroys an enemy unit that, at the start of that phase, was within range of the chosen marker or of the marker in your own deployment zone, score 3 victory points.",
+      "default": false,
+      "scoring": [
+        { "id": "treasures-of-aeons-pick", "when": "round.start", "rounds": { "from": 1, "to": 1 }, "rule": "custom", "pointsPer": 0, "cap": 0, "code": "treasuresOfAeonsPick" },
+        { "id": "treasures-of-aeons-score", "when": "any.unitDestroyed", "rounds": { "from": 1, "to": 5 }, "who": "active", "rule": "custom", "pointsPer": 3, "cap": 99, "code": "treasuresOfAeonsScore" }
+      ]
+    }
+  ],
+  "warlord": "overlord"
+}

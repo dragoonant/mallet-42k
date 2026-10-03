@@ -219,14 +219,17 @@ function allowedMoveTypes(state: GameState, unitId: UnitId): MoveType[] {
 }
 
 // ---------- Fire Overwatch (a pushed 'overwatch' reaction targeting the just-moved unit) ----------
-function overwatchTargets(state: GameState, shooterUnitId: UnitId, targetUnitId: UnitId): DeclaredTarget[] {
+export function overwatchTargets(state: GameState, shooterUnitId: UnitId, targetUnitId: UnitId): DeclaredTarget[] {
   const out: DeclaredTarget[] = []
   for (const half of leaderService.halves(state, shooterUnitId)) {
     if (state.units[half]?.location !== 'board') continue
     for (const m of unitModels(state, half)) {
       for (const wid of m.weapons) {
         const w = state.weapons[wid]
-        if (w && w.kind === 'ranged') out.push({ modelId: m.id, weaponId: wid, targetUnitId, profileGroup: w.profileGroup, attacks: null })
+        if (!w || w.kind !== 'ranged') continue
+        // [ONE SHOT]: a weapon already fired this battle is never a legal Overwatch choice either
+        if (w.abilities.some((a) => a.ability === 'ONE_SHOT') && m.oneShotUsed.includes(wid)) continue
+        out.push({ modelId: m.id, weaponId: wid, targetUnitId, profileGroup: w.profileGroup, attacks: null })
       }
     }
   }

@@ -131,6 +131,7 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
   const armRadius = 0.06 * bulk
   const headRadius = Math.min(0.3, 0.19 + 0.02 * (bulk - 1))
 
+  const limb = config.limbColor === 'metal' ? colors.metal : colors.secondary
   const skinColor = config.skin === 'ork' ? ORK_SKIN : config.skin === 'marine' ? MARINE_SKIN : undefined
 
   return (
@@ -154,6 +155,12 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
           <StdMat color={colors.trim} roughness={0.5} />
         </mesh>
 
+        {config.chestCore && (
+          <mesh position={[0, TORSO_H * 0.55, torsoDepth / 2 + 0.008]}>
+            <GBox args={[torsoWidth * 0.28, torsoWidth * 0.28, 0.02]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.3} />
+          </mesh>
+        )}
         {config.hasBackpack && (
           <mesh position={[0, TORSO_H * 0.62, -torsoDepth / 2 - 0.05 * bulk]}>
             <GBox args={[torsoWidth * 0.7, TORSO_H * 0.65, 0.1 * bulk]} />
@@ -172,23 +179,23 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
             <>
               <mesh position={[-shoulderOffsetX, 0.02, 0]}>
                 <GSphere args={[config.shoulderPads === 'large' ? 0.11 * bulk : 0.08 * bulk, 10, 8]} />
-                <StdMat color={colors.secondary} roughness={0.5} />
+                <StdMat color={config.limbColor === 'metal' ? colors.metal : colors.secondary} roughness={0.5} />
               </mesh>
               <mesh position={[shoulderOffsetX, 0.02, 0]}>
                 <GSphere args={[config.shoulderPads === 'large' ? 0.11 * bulk : 0.08 * bulk, 10, 8]} />
-                <StdMat color={colors.secondary} roughness={0.5} />
+                <StdMat color={config.limbColor === 'metal' ? colors.metal : colors.secondary} roughness={0.5} />
               </mesh>
             </>
           )}
 
           <group ref={armLRef} position={[-shoulderOffsetX, 0, 0]}>
-            <LimbSegment length={ARM_LEN} radius={armRadius} color={colors.secondary} />
+            <LimbSegment length={ARM_LEN} radius={armRadius} color={limb} />
             <group position={[0, -ARM_LEN, 0]}>
               <WeaponMesh shape={config.leftWeapon} colors={colors} hand={colors.metal} />
             </group>
           </group>
           <group ref={armRRef} position={[shoulderOffsetX, 0, 0]}>
-            <LimbSegment length={ARM_LEN} radius={armRadius} color={colors.secondary} />
+            <LimbSegment length={ARM_LEN} radius={armRadius} color={limb} />
             <group position={[0, -ARM_LEN, 0.05]}>
               <WeaponMesh shape={config.rightWeapon} colors={colors} hand={colors.metal} />
             </group>
@@ -271,6 +278,42 @@ function HeadBody({
               <GBox args={[radius * 0.15, radius * 0.5, radius * 1.2]} />
               <StdMat color={colors.trim} roughness={0.5} />
             </mesh>
+          )}
+        </group>
+      )
+    }
+    case 'necron-skull':
+    case 'necron-lord': {
+      const lord = shape === 'necron-lord'
+      return (
+        <group>
+          <HeadBlob radius={radius} color={colors.metal} />
+          {/* glowing eye slits */}
+          <mesh position={[-radius * 0.38, radius * 0.08, radius * 0.92]}>
+            <GBox args={[radius * 0.32, radius * 0.16, radius * 0.14]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.6} />
+          </mesh>
+          <mesh position={[radius * 0.38, radius * 0.08, radius * 0.92]}>
+            <GBox args={[radius * 0.32, radius * 0.16, radius * 0.14]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.6} />
+          </mesh>
+          {/* dark jaw plate */}
+          <mesh position={[0, -radius * 0.62, radius * 0.5]}>
+            <GBox args={[radius * 0.8, radius * 0.4, radius * 0.5]} />
+            <StdMat color={colors.primary} roughness={0.5} metalness={0.3} />
+          </mesh>
+          {lord && (
+            <>
+              {/* tall gold crest, the visible mark of rank */}
+              <mesh position={[0, radius * 1.15, -radius * 0.1]}>
+                <GBox args={[radius * 0.18, radius * 0.9, radius * 1.1]} />
+                <StdMat color={colors.trim} roughness={0.35} metalness={0.7} />
+              </mesh>
+              <mesh position={[0, -radius * 0.05, 0]}>
+                <GBox args={[radius * 2.1, radius * 0.1, radius * 1.2]} />
+                <StdMat color={colors.trim} roughness={0.35} metalness={0.7} />
+              </mesh>
+            </>
           )}
         </group>
       )

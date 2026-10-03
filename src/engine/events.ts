@@ -1,7 +1,7 @@
 // GameEvent union emitted by the reducer; the only channel to UI, dice log and AI (00-arch §5). JSON-serialisable.
 import type {
   AttackKind, DiceRoll, GameResult, Id, ModelId, MoveType, ObjectiveId, OutOfPhaseMove, Path, PendingDecision,
-  Phase, PlayerId, Rejection, StratagemId, TimingWindowId, UnitId, WeaponId,
+  Phase, PlayerId, Rejection, StratagemId, TimingWindowId, UnitId, Vec3, WeaponId,
 } from './types'
 
 export interface EventBase { seq: number; round: number; turn: PlayerId; phase: Phase; player: PlayerId }
@@ -78,6 +78,9 @@ export interface StratagemUsed extends EventBase { type: 'StratagemUsed'; strata
 export interface StratagemWindowOpened extends EventBase { type: 'StratagemWindowOpened'; window: TimingWindowId; usable: StratagemId[] }
 export interface StratagemWindowClosed extends EventBase { type: 'StratagemWindowClosed'; window: TimingWindowId; used: StratagemId | null }
 export interface AbilityTriggered extends EventBase { type: 'AbilityTriggered'; abilityId: Id; sourceUnitId: UnitId | null; targetUnitId: UnitId | null; summary: string }
+// Reanimation Protocols (necrons): a wound regained / a destroyed model put back (docs/spec/factions/necrons.md NEC-2.2)
+export interface WoundsRegained extends EventBase { type: 'WoundsRegained'; unitId: UnitId; modelId: ModelId; amount: number; source: Id }
+export interface ModelReturned extends EventBase { type: 'ModelReturned'; unitId: UnitId; modelId: ModelId; pos: Vec3; source: Id }
 export interface EffectExpired extends EventBase { type: 'EffectExpired'; effectId: string; unitId: UnitId | null }
 
 // dice: one per physical roll, always emitted even when a family event covers it
@@ -101,7 +104,7 @@ export type GameEvent =
   | AttackSequenceStarted | TargetsDeclared | HitRolled | WoundRolled | AttackAllocated | SaveRolled | DamageApplied | FeelNoPainRolled
   | ModelDestroyed | UnitDestroyed | HazardousTested | DeadlyDemiseRolled | AttackSequenceEnded | LeaderDetached
   | ChargeDeclared | ChargeRolled | ChargeFailed | ChargeMoved | PiledIn | Consolidated | FightUnitSelected
-  | StratagemUsed | StratagemWindowOpened | StratagemWindowClosed | AbilityTriggered | EffectExpired
+  | StratagemUsed | StratagemWindowOpened | StratagemWindowClosed | AbilityTriggered | WoundsRegained | ModelReturned | EffectExpired
   | DiceRolled | DiceRerolled
   | ObjectiveControlChanged | ObjectiveSecured | ObjectiveRemoved | VpScored
   | ActionRejected | DecisionRequested

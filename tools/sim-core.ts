@@ -39,20 +39,30 @@ function botRng(seedText: string): () => number {
   }
 }
 
+// the patrol data's own `attachTo` hints (a Leader joining its bodyguard unit); other rosters attach in the client only
+function attachmentsOf(patrol: { units: { ref: string; attachTo?: string }[] }) {
+  return patrol.units.filter((u) => u.attachTo).map((u) => ({ leaderRef: u.ref, bodyguardRef: u.attachTo as string }))
+}
+
 function playerSetup(bundle: DataBundle, patrolId: string, name: string) {
   const patrol = bundle.patrols[patrolId]
   if (!patrol) throw new Error(`sim: patrol ${patrolId} missing from data bundle`)
   const enhancementId = (patrol.enhancements.find((e) => e.default) ?? patrol.enhancements[0]).id
   const secondaryId = (patrol.secondaries.find((s) => s.default) ?? patrol.secondaries[0]).id
-  return { name, faction: patrol.faction, patrolId, enhancementId, secondaryId, attachments: [], reserves: [], battleReadyVp: 0 }
+  return { name, faction: patrol.faction, patrolId, enhancementId, secondaryId, attachments: attachmentsOf(patrol), reserves: [], battleReadyVp: 0 }
 }
 
 export function makeSimSetup(bundle: DataBundle, gameIndex: number, dataVersion: string): GameSetup {
   const patrols = Object.keys(bundle.patrols).sort()
   if (patrols.length < 2) throw new Error('sim: need two Combat Patrol rosters in the data bundle')
-  const [p0, p1] = gameIndex % 2 === 0 ? [patrols[0], patrols[1]] : [patrols[1], patrols[0]]
+  // every ordered pair of distinct rosters in turn (two rosters: A/B alternate as before); with 3+ rosters the mission
+  // index also steps once per full pairing cycle so a pairing does not always meet the same mission
+  const pairs: [string, string][] = []
+  for (const x of patrols) for (const y of patrols) if (x !== y) pairs.push([x, y])
+  const [p0, p1] = patrols.length === 2 ? (gameIndex % 2 === 0 ? [patrols[0], patrols[1]] : [patrols[1], patrols[0]]) : pairs[gameIndex % pairs.length]
+  const missionIndex = patrols.length === 2 ? gameIndex : gameIndex + Math.floor(gameIndex / pairs.length)
   return {
-    missionId: MISSIONS[gameIndex % MISSIONS.length],
+    missionId: MISSIONS[missionIndex % MISSIONS.length],
     terrainLayoutId: Object.keys(bundle.terrainLayouts ?? {}).sort()[0] ?? 'terrain.cp-01',
     players: { A: playerSetup(bundle, p0, 'Bot A'), B: playerSetup(bundle, p1, 'Bot B') },
     sides: 'rollOff',

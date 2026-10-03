@@ -89,6 +89,7 @@ const KIND_TITLE: Partial<Record<PendingDecision['kind'], string>> = {
 const CHOOSE_OPTION_INFO: Partial<Record<ChooseOptionTopic, { title: string; hint: string }>> = {
   razeObjective: { title: 'Raze an objective?', hint: 'Destroys a marker you hold with no enemy nearby — it stops scoring VP for anyone, for the rest of the battle.' },
   recoverObjective: { title: 'Recover intelligence?', hint: 'Spends a look at a marker you hold to gain a Command Point.' },
+  treasureObjective: { title: 'Choose the treasure marker', hint: "Pick a marker in no man's land. If a Necron model destroys an enemy that was near it (or near the marker in your own zone) when the phase began, you score 3 VP." },
   stompTarget: { title: "Pick a Stomp 'Em target", hint: "Name a surviving enemy unit now — score if an ORKS model destroys it in melee by the end of this round." },
   bagTarget: { title: "Pick a Bag the Big 'Un target", hint: 'Name an enemy model now — score if it is destroyed by the end of this round.' },
   battleShockOrder: { title: 'Order battle-shock tests', hint: 'Choose which of your affected units tests for battle shock next.' },
@@ -104,6 +105,38 @@ const CHOOSE_OPTION_INFO: Partial<Record<ChooseOptionTopic, { title: string; hin
   rerollOffer: { title: 'Re-roll a die?', hint: 'Choose a die to re-roll, or keep the result.' },
   abilityChoice: { title: 'Ability choice', hint: 'Choose how this ability applies.' },
   chooseSide: { title: 'Choose your side', hint: 'Pick which deployment zone your army sets up in.' },
+}
+
+/** Necron rules reach the player as chooseOption prompts with the generic 'abilityChoice' (or 'other') topic, so
+ *  the ability id is what says which rule is asking. Own-words text; matched by id fragment so a renamed
+ *  prefix or a variant of the same rule still reads right. */
+const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string } }[] = [
+  {
+    match: /resonant-focus/,
+    info: {
+      title: 'Resonant Focus target',
+      hint: 'Name an enemy unit within 12" of the bearer that he can see. For the rest of this turn, every Necron attack against it re-rolls hit rolls of 1.',
+    },
+  },
+  {
+    match: /plasmacyte/,
+    info: {
+      title: 'Release the plasmacyte?',
+      hint: "One use for the whole battle: until the end of this phase, this unit's melee weapons gain Devastating Wounds.",
+    },
+  },
+  {
+    match: /reanimation/,
+    info: {
+      title: 'Reanimation Protocols',
+      hint: 'Fallen warriors climb back up: each point rolled heals one wound, or stands a lost model back up with a single wound.',
+    },
+  },
+]
+
+function chooseOptionInfoFor(context: { topic: ChooseOptionTopic; abilityId: string | null }): { title: string; hint: string } | undefined {
+  const byAbility = context.abilityId ? ABILITY_PROMPT_INFO.find((a) => a.match.test(context.abilityId!)) : undefined
+  return byAbility?.info ?? CHOOSE_OPTION_INFO[context.topic]
 }
 
 /** "Pass" is the engine's word for declining, but for some prompts it reads as giving something up
@@ -216,7 +249,7 @@ function labelForOption(pending: PendingDecision, state: GameState, events: read
         : `Re-roll die ${o.action.dieIndex + 1} for 1 CP (rolled ${roll.dice[o.action.dieIndex]})`
     }
     case 'chooseOption': {
-      if (pending.context.topic === 'razeObjective' || pending.context.topic === 'recoverObjective') return objectiveLabel(o.id)
+      if (pending.context.topic === 'razeObjective' || pending.context.topic === 'recoverObjective' || pending.context.topic === 'treasureObjective') return objectiveLabel(o.id)
       return o.label
     }
     default:
@@ -257,8 +290,11 @@ function hoverTargetFor(pending: PendingDecision, action: Action, optionId: stri
   }
   if (pending.kind === 'chooseOption') {
     const topic = pending.context.topic
-    if (topic === 'razeObjective' || topic === 'recoverObjective') return { kind: 'objective', id: optionId }
+    if (topic === 'razeObjective' || topic === 'recoverObjective' || topic === 'treasureObjective') return { kind: 'objective', id: optionId }
     if (topic === 'stompTarget' || topic === 'bagTarget') return { kind: 'unit', id: optionId }
+    // Necron picks: Resonant Focus names an enemy unit (Treasures of Aeons is topic 'treasureObjective').
+    const ability = pending.context.abilityId ?? ''
+    if (/resonant-focus/.test(ability)) return { kind: 'unit', id: optionId }
   }
   return null
 }
@@ -535,7 +571,7 @@ export function DecisionPrompt() {
   // Hover help for whichever option the pointer has rested on.
   const activeHelp = helpForAction(state, listItems.find((it) => it.id === helpFor)?.action)
 
-  const chooseOptionInfo = pending.kind === 'chooseOption' ? CHOOSE_OPTION_INFO[pending.context.topic] : undefined
+  const chooseOptionInfo = pending.kind === 'chooseOption' ? chooseOptionInfoFor(pending.context) : undefined
 
   // Both re-roll prompts (Command Re-roll, and an ability's own rerollOffer) are answered in the
   // interactive dice tray (RerollTray.tsx) instead of this panel's text and buttons: the whole roll is shown
