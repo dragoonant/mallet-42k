@@ -128,9 +128,24 @@ context doesn't carry it:
 | `commandReroll` | what the roll was for, whose weapon against what, the dice (and the modified value where they differ) and the number to beat — then the CP cost and the player's CP. A save re-roll reads its target from `CurrentAttack.saveTargets`, which the engine publishes before rolling, because this window opens before `SaveRolled` is emitted |
 | `chooseOption`/`saveType` | the incoming weapon and its AP, and **what each save actually has to roll** — AP, the benefit of cover and any modifiers already applied — plus which of the two is the better roll. The numbers come from the engine (`context.data`, §3 of 00-architecture), never from client-side arithmetic: a `sv - AP` of the client's own silently ignores cover and every save-modifying ability |
 | `allocateAttack` | the incoming weapon, its AP and Damage, attacker and target, and whether Precision applies; each option is a model with its wounds remaining |
+| `chooseOption`/`rerollOffer` | the same description as `commandReroll`, built from `phaseState.lastRoll` — the roll this offer is about. It is a *different* decision from Command Re-roll and had the same blind spot |
+| `declareTargets` | who is shooting (or fighting), that every weapon which can see the chosen unit fires at it, Overwatch's unmodified-6 rule when that is the window, and what the unit is engaged with |
+| `declareCharge` | that it is 2D6, that every declared unit must be reached or the charge fails entirely, and whether it is a Heroic Intervention |
+| `chargeMove` | the roll that was made, and the units every model must end within 1" of |
+| `pileIn` / `consolidate` | how far each model may move, and what it must end closer to |
+| `chooseOption`/`hazardousCasualty` | which weapon failed its Hazardous test, and the die |
 
 Options that name a board thing highlight it on hover — a unit, an objective, or (for `allocateAttack`)
 the single model, which the unit-level highlight cannot pick out.
+
+Three prompts also carry **hover help** on their options — the choices whose options are rules in
+disguise, where the button can only carry a name:
+
+| Option | Card shows |
+|---|---|
+| `declareMove` | see below |
+| `declareTargets` | the target's model count, Toughness, Save and invulnerable save, how far away it is, and one line per weapon: how many models fire it, its attacks, what it needs to hit, what it needs to wound *this* target, AP and damage. Hit/wound numbers are before modifiers, the same caveat the Dice Log carries |
+| `declareCharge` | how far short of Engagement Range the closest model is, the 2D6 roll that closes it and the odds of making it, that every declared unit must be reached, and that the target may fire Overwatch first. The distance comes from the engine's own `neededChargeDistance` — the function the charge roll is judged against |
 
 `declareMove`'s options are rules in disguise — what each move costs the unit this turn *is* the
 choice — so resting on one for 450ms opens a help card above the row, written in that unit's own

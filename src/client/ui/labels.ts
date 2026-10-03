@@ -3,7 +3,9 @@
 // the JSON. Pure lookups over DataBundle/GameState — no engine/scoring logic duplicated here beyond a
 // generic id-to-title-case fallback for whatever id we don't have a curated name for.
 import type { DiceRoll, GameEvent, GameState, MoveType, PlayerId, RollPurpose, RuntimeWeapon } from '@/engine'
-import { modelStats, woundRollNeeded } from '@/engine'
+import { horizontalGap, modelStats, woundRollNeeded } from '@/engine'
+// Deep import: the charge module owns this geometry and the engine barrel is a frozen contract.
+import { neededChargeDistance } from '@/engine/phases/charge'
 import type { DataBundle, MissionData, MissionRule, ScoringRule } from '@/data/types'
 
 const SMALL_WORDS = new Set(['and', 'of', 'the', 'for', 'with', 'in', 'on', 'a', 'an', 'but', 'or', 'to'])
@@ -309,7 +311,8 @@ export function saveAttackContext(state: GameState, events: readonly GameEvent[]
 // Owner playtest: the three move options were bare words, and what each one costs you is the whole
 // decision. This spells it out in the unit's own numbers — "Move up to 5"", not "move up to M".
 
-export interface MoveTypeHelp {
+/** A hover-help card: a heading and a few short lines. */
+export interface PromptHelp {
   title: string
   lines: string[]
 }
@@ -348,7 +351,7 @@ function unitHasWeaponAbility(state: GameState, unitId: string, ability: string)
 
 /** What one move type means for this particular unit, for the hover help on a `declareMove` prompt.
  *  Null for a type that isn't a move (or a unit that can't be resolved). */
-export function moveTypeHelp(state: GameState, unitId: string, moveType: MoveType): MoveTypeHelp | null {
+export function moveTypeHelp(state: GameState, unitId: string, moveType: MoveType): PromptHelp | null {
   const unit = state.units[unitId]
   if (!unit) return null
   const M = unitMove(state, unitId)
@@ -405,4 +408,116 @@ export function moveTypeHelp(state: GameState, unitId: string, moveType: MoveTyp
     default:
       return null
   }
+}
+
+// ---------- shooting and charge: what an option actually commits you to ----------
+// Owner playtest: "do the same for the shooting and charge prompts". Both name a target unit and
+// nothing else — the numbers that decide whether it is a good target (its Toughness and Save against
+// these particular weapons, how far away it is, what a charge would have to roll) are all derivable
+// from state the client already has, and none of them were on screen.
+
+/** 2D6 ≥ `needed`, as a percentage — a charge's whole risk in one number. */
+function chargeOdds(needed: number): number {
+  let ways = 0
+  for (let a = 1; a <= 6; a++) for (let b = 1; b <= 6; b++) if (a + b >= needed) ways++
+  return Math.round((ways / 36) * 100)
+}
+
+function unitModelCount(state: GameState, unitId: string): number {
+  return state.units[unitId]?.models.filter((m) => !!state.models[m]).length ?? 0
+}
+
+/** Closest approach between any model of two units, in inches (base to base). */
+function unitGap(state: GameState, a: string, b: string): number | null {
+  let best = Infinity
+  for (const am of state.units[a]?.models ?? []) {
+    for (const bm of state.units[b]?.models ?? []) {
+      const ma = state.models[am]
+      const mb = state.models[bm]
+      if (!ma || !mb) continue
+      best = Math.min(best, horizontalGap(ma, mb))
+    }
+  }
+  return best === Infinity ? null : best
+}
+
+const inches = (n: number): string => `${n < 10 ? n.toFixed(1) : Math.round(n)}"`
+
+/** What firing this unit's weapons at one target would mean: the target's own defences, and for each
+ *  weapon what it needs to hit and to wound *this* target. The hit number is the weapon's skill and
+ *  the wound number comes from the engine's own `woundRollNeeded`, so neither is a second copy of a
+ *  rule — but both are before modifiers (a hit modifier from an ability or cover isn't included),
+ *  which is the same caveat the Dice Log carries. */
+export function shootingTargetHelp(
+  state: GameState,
+  targets: readonly { modelId: string; weaponId: string; targetUnitId: string }[],
+): PromptHelp | null {
+  const first = targets[0]
+  if (!first) return null
+  const targetUnitId = first.targetUnitId
+  const target = state.units[targetUnitId]
+  if (!target) return null
+  const targetName = target.name ?? targetUnitId
+  const defender = state.models[target.models[0]]
+  let T: number | null = null
+  let Sv: number | null = null
+  if (defender) {
+    try {
+      const stats = modelStats(state, defender)
+      T = stats.T
+      Sv = stats.Sv
+    } catch {
+      // unresolvable profile: the weapon lines below still stand on their own
+    }
+  }
+  const invuln = state.datasheets[target.datasheetId]?.invuln ?? null
+
+  const lines: string[] = []
+  const gap = unitGap(state, targets[0] ? (state.models[first.modelId]?.unitId ?? '') : '', targetUnitId)
+  lines.push(
+    `${targetName}: ${unitModelCount(state, targetUnitId)} model(s)` +
+      (T !== null ? `, T${T}` : '') +
+      (Sv !== null ? `, Sv${Sv}+` : '') +
+      (invuln !== null ? `, ${invuln}++` : '') +
+      (gap !== null ? ` — ${inches(gap)} away` : ''),
+  )
+
+  // One line per distinct weapon, with how many models are firing it.
+  const byWeapon = new Map<string, number>()
+  for (const t of targets) byWeapon.set(t.weaponId, (byWeapon.get(t.weaponId) ?? 0) + 1)
+  const MAX_WEAPON_LINES = 4
+  let shown = 0
+  for (const [weaponId, count] of byWeapon) {
+    const w = state.weapons[weaponId]
+    if (!w) continue
+    if (shown >= MAX_WEAPON_LINES) {
+      lines.push(`…and ${byWeapon.size - shown} more weapon(s).`)
+      break
+    }
+    shown++
+    const hit = typeof w.skill === 'number' ? `hits on ${w.skill}+` : 'hits automatically'
+    const wound = T === null ? null : `wounds on ${woundRollNeeded(w.S, T)}+`
+    const ap = w.AP === 0 ? 'AP 0' : `AP ${w.AP}`
+    lines.push(`${count}× ${w.name} — ${w.A} attack(s), ${hit}${wound ? `, ${wound}` : ''}, ${ap}, damage ${w.D}.`)
+  }
+  return { title: `Shoot ${targetName}`, lines }
+}
+
+/** What declaring this charge would need: the roll, the odds, and the two things that can go wrong
+ *  (Overwatch, and having to reach *every* unit declared). `needed` comes from the engine's own
+ *  `neededChargeDistance` — the same function the charge roll is judged against. */
+export function chargeTargetHelp(state: GameState, unitId: string, targetUnitIds: readonly string[]): PromptHelp | null {
+  if (targetUnitIds.length === 0) return null
+  const names = targetUnitIds.map((id) => state.units[id]?.name ?? id)
+  const needed = neededChargeDistance(state, unitId, [...targetUnitIds])
+  const lines: string[] = []
+  if (needed === null) {
+    lines.push('The distance to this target cannot be measured from here.')
+  } else {
+    const roll = Math.max(2, Math.ceil(needed))
+    lines.push(`Closest model is ${inches(needed)} short of Engagement Range — the 2D6 charge roll needs ${roll}+ (${chargeOdds(roll)}%).`)
+  }
+  if (targetUnitIds.length > 1) lines.push('Every unit declared must be reached, or the whole charge fails.')
+  lines.push('The target may fire Overwatch before the charge move, and fights back in the Fight phase.')
+  return { title: `Charge ${names.join(' and ')}`, lines }
 }

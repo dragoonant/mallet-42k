@@ -433,7 +433,11 @@ function couldReachBaseContact(state: GameState, geo: ChargeGeometry, model: Mod
   return false
 }
 
-function neededChargeDistance(state: GameState, unitId: UnitId, targetUnitIds: UnitId[]): number | null {
+/** How far the charging unit's closest model has to travel to reach Engagement Range of the closest
+ *  model of any declared target — i.e. the number a 2D6 charge roll has to make (R-8.2). Exported so
+ *  the client can tell the player what a declared charge would need *before* the dice are rolled
+ *  without copying the geometry; the charge roll itself calls the same function. */
+export function neededChargeDistance(state: GameState, unitId: UnitId, targetUnitIds: UnitId[]): number | null {
   const geo = chargeGeometry(state, unitId, targetUnitIds)
   const allTargets = geo.targetGroups.flat()
   if (geo.models.length === 0 || allTargets.length === 0) return null

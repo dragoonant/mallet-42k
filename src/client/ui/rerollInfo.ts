@@ -7,6 +7,7 @@
 // three purposes, `needed` — the d6 each die has to reach. Charge rolls still read their own ChargeRolled
 // event, which is emitted before the offer.
 import type { Action, ChooseOptionDecision, CommandRerollDecision, DiceRoll, GameEvent, GameState } from '@/engine'
+import { neededChargeDistance } from '@/engine/phases/charge'
 
 export interface RerollSummary {
   /** Prompt heading, phrased as the question being asked: "Re-roll the armour save?" */
@@ -40,6 +41,8 @@ function shown(roll: DiceRoll): string {
   return final !== undefined && final !== die ? `${die} (${final} after modifiers)` : `${die}`
 }
 
+/** Events that genuinely are in the log by the time a re-roll is offered — the ones from a stage
+ *  that already finished. Never use one of these for the roll currently being decided. */
 function lastOfType<T extends GameEvent['type']>(events: GameEvent[], type: T) {
   for (let i = events.length - 1; i >= 0; i--) {
     const e = events[i]
@@ -134,16 +137,17 @@ export function rerollSummary(state: GameState, events: GameEvent[], roll: DiceR
       }
     }
     case 'charge': {
-      const e = lastOfType(events, 'ChargeRolled')
       const who = unitName(state, roll.unitId)
-      const total = e ? e.total : roll.dice.reduce((a, b) => a + b, 0)
-      // The engine's `needed` is a measured distance; the roll that reaches it is the next whole number.
-      const needed = e?.needed == null ? null : Math.ceil(e.needed)
+      const total = roll.final.length > 0 ? roll.final.reduce((a, b) => a + b, 0) : roll.dice.reduce((a, b) => a + b, 0)
+      // The declared targets are still on the charge state; the distance is the engine's own.
+      const charge = state.phaseState?.charge ?? null
+      const needed =
+        charge && charge.unitId === roll.unitId ? neededChargeDistance(state, charge.unitId, charge.targetUnitIds) : null
       return {
         title: 'Re-roll the charge?',
         line: needed === null
           ? `Rolled ${shown(roll)} = ${total}" — no target is in reach.`
-          : `Rolled ${shown(roll)} = ${total}" — needs ${needed}" to reach.`,
+          : `Rolled ${shown(roll)} = ${total}" — needs ${Math.max(2, Math.ceil(needed))}+ to reach.`,
         context: who ? `${who} is charging.` : null,
         failed: needed === null || total < needed,
       }
