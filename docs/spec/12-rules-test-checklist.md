@@ -459,3 +459,42 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | SIM-016 | | attached units are never allocated wounds on the CHARACTER while bodyguards live (assert in allocation) |
 | SIM-017 | | objective control events only at phase/turn ends or rule-triggered evaluations |
 | SIM-018 | | all six missions × both roster pairings run without invariant failures |
+
+## NEC — Necrons: Amonhotekh's Guard (docs/spec/factions/necrons.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| NEC-001 | NEC-2.1 | end of own Command phase, Skorpekhs 2/3 models, one at 2W; D3 = 3 → wounded model to 3W, destroyed model returns at 1W, then healed to 2W (source example) |
+| NEC-002 | NEC-2.1 | Reanimation does not fire in the opponent's Command phase nor at any other phase end |
+| NEC-003 | NEC-2.2 | unit at full strength and full wounds → D3 rolled, no state change, no `ModelReturned`/`WoundsRegained` |
+| NEC-004 | NEC-2.2 | heal before return: Warriors 8/10 + attached Overlord at 4/6 W, D3 = 2 → Overlord to 6W, no Warrior returned |
+| NEC-005 | NEC-2.3 | attached Overlord + Warriors roll one D3 (one `DiceRolled` purpose `ability`), Starting Strength 11 |
+| NEC-006 | NEC-2.3 | Overlord destroyed → bodyguard is its own unit; next Reanimation never returns the Overlord |
+| NEC-007 | NEC-2.3 | all Warriors destroyed while led → Overlord alone (SS 1) cannot return Warriors |
+| NEC-008 | NEC-2.3 | a unit with `location: destroyed` never reanimates |
+| NEC-009 | NEC-2.4 | returned Warrior keeps its original id and loadout (a destroyed gauss reaper model returns with gauss reaper) |
+| NEC-010 | NEC-2.4 | returned model is in coherency, on the board, overlaps no base, not in ER of a new enemy unit |
+| NEC-011 | NEC-2.4 | no legal spot (unit boxed in) → step wasted, model stays destroyed |
+| NEC-012 | NEC-2.6 | returned Warriors count for OC in the same `command.end` primary scoring |
+| NEC-013 | NEC-3 | Overriding Control: led Warriors Fall Back then shoot (legal); same unit cannot declare a charge |
+| NEC-014 | NEC-3 | Overriding Control: Skorpekhs (not the bearer's unit) cannot shoot after Falling Back |
+| NEC-015 | NEC-3 | Resonant Focus pick offered at own `command.start` only among enemies within 12" and visible to the bearer |
+| NEC-016 | NEC-3 | Resonant Focus: Doomstalker attack vs marked unit with an unmodified 1 re-rolls; vs another unit no re-roll; re-roll of 2+ not offered |
+| NEC-017 | NEC-3 | Resonant Focus expires at end of turn (opponent's turn: no re-roll) |
+| NEC-018 | NEC-4 | Reclaim and Dominate: Scarabs wholly in enemy DZ at end of own turn → +4 VP once even with two qualifying units |
+| NEC-019 | NEC-4 | Reclaim and Dominate: one model's base partly outside the DZ, or unit Battle-shocked → 0 VP |
+| NEC-020 | NEC-4 | Treasures of Aeons: pick offered at round 1 start among NML markers only |
+| NEC-021 | NEC-4 | Treasures of Aeons: enemy unit within range of the treasure marker at phase start, moves away, destroyed by Warriors that phase → +3 VP |
+| NEC-022 | NEC-4 | Treasures of Aeons: unit within range of the owner's DZ marker at phase start destroyed → +3 VP; unit outside both at phase start but inside when destroyed → 0 VP |
+| NEC-023 | NEC-4 | Treasures of Aeons: kill by Deadly Demise mortal wounds (no `byModelId`) → 0 VP |
+| NEC-024 | NEC-5 | Mercurial Resilience: offered after enemy targets declared in opponent's Shooting; Warriors gain 5+ invuln until phase end; Overlord keeps 4+ |
+| NEC-025 | NEC-5 | Mercurial Resilience in a Fight phase (either turn) after an enemy unit selects targets |
+| NEC-026 | NEC-5 | Disruption Fields: Skorpekh hyperphase S7 → S8; vs T8 now wounds on 4+ (was 5+); ranged weapons unchanged; not offered for a unit that already fought |
+| NEC-027 | NEC-5 | Will of the Overlord: +1 OC per model until start of own next Command phase |
+| NEC-028 | NEC-5 | Will of the Overlord not offered when no OVERLORD model is on the board |
+| NEC-029 | NEC-6 | Implacable Resilience: a D2 attack allocated to the Overlord deals 1; D1 stays 1; Deadly Demise mortal wounds not reduced |
+| NEC-030 | NEC-6 | Plasmacyte: offered when Skorpekhs are selected to fight; used → hyperphase weapons gain Devastating Wounds this phase; never offered again |
+| NEC-031 | NEC-6 | tachyon arrow is One Shot: second shooting phase it is not a legal weapon |
+| NEC-032 | NEC-6 | Doomstalker at 4 W left: −1 to hit on its attacks; at 5 W no modifier |
+| NEC-033 | NEC-6 | Deadly Demise: Scarab model destroyed → D6 roll, on 6 units within 6" take 1 MW; Doomstalker → D3 MW |
+| NEC-034 | NEC-6 | gauss flayer / twin gauss flayer: Lethal Hits auto-wound on critical hit; Rapid Fire 1 at half range; twin-linked re-rolls wound |
+| NEC-035 | NEC-1 | patrol loads: 5 units, 18 models, Overlord is WARLORD with Overriding Control and attached to Warriors; default secondary Reclaim and Dominate |
