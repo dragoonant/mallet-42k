@@ -183,7 +183,7 @@ describe('shooting verify: resolution after declaration (SHOOT-015, SHOOT-005 ti
     const r = mmToInch(32) / 2
     placeExact(s, 'A:grunts', { 'A:grunts#2': { x: 0, z: 0 }, 'A:grunts#3': { x: 0, z: 1.5 } })
     placeExact(s, 'B:mob', { 'B:mob#1': { x: 14 + 2 * r, z: 0 } })
-    const { ctx, events } = start(s, Array(80).fill(6))
+    const { ctx, events } = start(s, [...Array(8).fill(6), ...Array(4).fill(1), ...Array(80).fill(6)]) // hits, wounds, then failed saves so an allocation prompt opens mid-resolution
     act(ctx, { type: 'chooseUnitToActivate', player: 'A', decisionId: '', unitId: 'A:grunts' })
     act(ctx, { type: 'declareTargets', player: 'A', decisionId: '', unitId: 'A:grunts', targets: [
       { modelId: 'A:grunts#2', weaponId: 'red.w.gun', targetUnitId: 'B:mob' },

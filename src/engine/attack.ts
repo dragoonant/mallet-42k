@@ -1,7 +1,9 @@
 // Attack sequence (10-rules §6.2–§6.4, §7 weapon abilities, R-10.4/R-10.5). Owner: W1-D. Shared by the shooting phase,
 // the fight phase (WS, melee) and Fire Overwatch (overwatch: true, R-6.22). State lives in phaseState.attack
-// (AttackSequenceState); `advance` is a re-entrant state machine over CurrentAttack.stage and must use ctx.rollOnce
-// with keys like `hit:${groupIndex}:${resolved}` so Command Re-roll and rerollOffer (R-6.24) can interrupt.
+// (AttackSequenceState); `advance` is a re-entrant state machine and must use ctx.rollOnce so Command Re-roll and
+// rerollOffer (R-6.24) can interrupt. M9 fast-roll: the hit dice, then the wound dice (then, when the defender's models
+// are interchangeable, the save dice) of a merge run are each ONE DiceRoll with one decision per batch; the resulting
+// wounding attacks are queued (GroupBatch.queue) and then allocated / saved / damaged one at a time (CurrentAttack).
 //
 // Design notes (documented interpretations — see STATUS/issues):
 // - One AttackGroup per (attacker model, weapon, target) declared entry (attackerModelIds always length 1 here);
@@ -31,10 +33,11 @@
 //   re-evaluated live at each hit roll, or an engaging enemy dying (or a blocking model dying) mid-volley would
 //   retroactively change an already-declared attack's modifier (SHOOT-005-timing). `begin` snapshots both into
 //   `bgntAttacker=1` / `bgntTarget:<targetUnitId>=1` / `indirectNoLos:<modelId>:<targetUnitId>=1` marks the instant
-//   the sequence starts (which for the Shooting phase is the instant targets are declared), and `doHitStage` reads
+//   the sequence starts (which for the Shooting phase is the instant targets are declared), and `doHitBatch` reads
 //   only those marks — never `leaderService`/`los` live — for these two modifiers.
 import type { DiceExpr, WeaponAbilityName } from '../data/types'
-import { clampHitWoundModifier, clampStat, dieSucceeds, netModifier, parseDiceExpr, rollSum, woundRollNeeded } from './dice'
+import { canReroll, clampHitWoundModifier, clampStat, dieSucceeds, netModifier, parseDiceExpr, rollSum, woundRollNeeded } from './dice'
+import type { RollSpec } from './dice'
 import { distance } from './geometry'
 import type { AttackContext, EffectRequest, RollModifierResult } from './hooks'
 import { leaderService } from './leaders'
@@ -44,8 +47,8 @@ import { weaponService } from './weapons'
 import type { AttackRollContext } from './events'
 import {
   EngineInvariantError,
-  type AttackGroup, type AttackKind, type CurrentAttack, type DeclaredTarget, type DiceRoll, type GameState,
-  type Model, type ModelId, type PlayerId, type RuntimeWeapon, type UnitId, type WeaponId,
+  type AttackGroup, type AttackKind, type AttackSequenceState, type CurrentAttack, type DeclaredTarget, type DiceRoll, type GameState, type GroupBatch,
+  type Model, type ModelId, type PlayerId, type RuntimeWeapon, type UnitId, type WeaponId, type WoundSlot,
 } from './types'
 
 export interface AttackBegin { kind: AttackKind; attackerUnitId: UnitId; overwatch: boolean; targets: DeclaredTarget[] }
@@ -165,8 +168,11 @@ function computeAttackCount(ctx: EngineContext, gi: number, group: AttackGroup, 
 
 // ---------- current-attack lifecycle ----------
 
-function freshCurrentAttack(gi: number, attackerModelId: ModelId): CurrentAttack {
-  return { groupIndex: gi, attackerModelId, stage: 'hit', hit: null, wound: null, allocatedModelId: null, save: null, saveTargets: null, damage: null, cover: false }
+// item 10 (owner): attacks aimed at a target with no models left are lost — never rolled, never offered to a re-roll
+// window. Every model of every half of an attached unit has to be gone (halves() is [] for a unit that no longer exists).
+function targetGone(ctx: EngineContext, targetUnitId: UnitId): boolean {
+  const s = ctx.state
+  return leaderService.halves(s, targetUnitId).every((id) => !s.units[id] || unitModels(s, id).length === 0)
 }
 
 function freshDevastatingAttack(gi: number, attackerModelId: ModelId): CurrentAttack {
@@ -179,122 +185,152 @@ function freshDevastatingAttack(gi: number, attackerModelId: ModelId): CurrentAt
 
 function isDevastatingSlot(cur: CurrentAttack): boolean { return cur.save?.kind === 'none' && cur.hit === null }
 
-// WEAP-008-dice/WEAP-011: a Sustained Hits extra hit shares `group.resolved` with the primary attack it came from
-// (finishSlot only advances `resolved` once the whole chain — primary plus every extra hit — is done), so wound/
-// save/damage keys need a second axis to stay unique across the chain. `cur.hit.extraHits` counts strictly down by
-// one per extra hit consumed (see finishSlot) and is never reused within one chain, so it is that second axis.
-function hitSlotSuffix(cur: CurrentAttack): number { return cur.hit ? cur.hit.extraHits : 0 }
+// one queued wounding attack becomes the attack currently being allocated / saved / damaged
+function currentFromSlot(w: WoundSlot): CurrentAttack {
+  return {
+    groupIndex: w.groupIndex, attackerModelId: w.attackerModelId, stage: 'allocate', hit: { ...w.hit }, wound: { ...w.wound }, allocatedModelId: null,
+    save: null, saveTargets: null, damage: null, cover: false, slot: w.slot, ...(w.saveDie !== undefined ? { saveDie: w.saveDie } : {}),
+  }
+}
 
-function finishSlot(ctx: EngineContext, gi: number, group: AttackGroup): void {
+function finishSlot(ctx: EngineContext, _gi: number, group: AttackGroup): void {
   const a = attackSeq(ctx)
   const cur = a.current
   if (!cur) return
-  if (!isDevastatingSlot(cur) && cur.hit && cur.hit.extraHits > 0) {
-    a.current = { ...cur, hit: { ...cur.hit, extraHits: cur.hit.extraHits - 1 }, wound: null, allocatedModelId: null, save: null, damage: null, stage: 'wound' }
-    return
-  }
   if (isDevastatingSlot(cur)) group.devastatingPending = Math.max(0, group.devastatingPending - 1)
-  else group.resolved += 1
   a.current = null
 }
 
-// ---------- roll + optional-reroll helper (hit / wound) ----------
+function groupHasNormalWork(g: AttackGroup): boolean {
+  return g.attacks === 0 || g.resolved < g.attacks || (g.batch?.queue.length ?? 0) > 0
+}
 
-interface D6Outcome { unmodified: number; final: number; success: boolean; critical: boolean }
+// ---------- merge runs (M9) ----------
+// Consecutive groups against the same target with the same weapon profile (different firing models of one unit) are
+// fast-rolled as ONE batch: one hit roll, one wound roll, one save roll, one decision per step. The first group of a run
+// is its `runLead` and holds the `batch`; each die still knows its own firing model (range, Rapid Fire, cover, events).
 
-function collectRollMods(ctx: EngineContext, hook: 'onHitRoll' | 'onWoundRoll', actx: AttackContext, roll: DiceRoll, unmodified: number) {
+function assignRuns(ctx: EngineContext, a: AttackSequenceState): void {
+  if (a.groups.every((g) => g.runLead !== undefined)) return
+  const s = ctx.state
+  let lead = 0
+  let prevKey = ''
+  a.groups.forEach((g, j) => {
+    const w = weaponService.effectiveWeapon(s, g.attackerModelIds[0], g.weaponId)
+    const key = `${g.targetUnitId}|${g.weaponId}|${JSON.stringify(w)}`
+    if (j === 0 || key !== prevKey) lead = j
+    g.runLead = lead
+    prevKey = key
+  })
+}
+
+function runMembers(a: AttackSequenceState, lead: number): number[] {
+  const out: number[] = []
+  a.groups.forEach((g, j) => { if ((g.runLead ?? j) === lead) out.push(j) })
+  return out
+}
+
+function leadBatch(a: AttackSequenceState, gi: number): GroupBatch | undefined {
+  return a.groups[a.groups[gi].runLead ?? gi]?.batch
+}
+
+// ---------- fast-rolled hit / wound batches (M9) ----------
+// Order inside a batch: roll → automatic ability re-rolls (one ctx.reroll) → at most one optional `rerollOffer` →
+// one Command Re-roll window (rollOnce) → per-die evaluation. A die is never re-rolled twice (R-1.6).
+
+interface D6Eval { unmodified: number; final: number; success: boolean; critical: boolean; kinds: Set<string> }
+
+interface D6Opts { manualMods?: number[]; manualRerolls?: ('ones' | 'fails' | 'all')[]; overwatchAutoSix?: boolean; critBase?: number; source: 'hit' | 'wound'; autoFailAtOrBelow?: number }
+
+// everything needed to judge ONE die of a batch (each die belongs to one firing model's attack)
+interface DieCtx { actx: AttackContext; needed: number; opts: D6Opts }
+
+function collectRollMods(ctx: EngineContext, hook: 'onHitRoll' | 'onWoundRoll', actx: AttackContext, roll: DiceRoll, dieIndex: number) {
   return ctx.services.hooks.collect(ctx, hook, {
-    attack: actx, roll: { purpose: hook === 'onHitRoll' ? 'hit' : 'wound', roll, dieIndex: 0, unmodified, rerolled: (roll.rerolled ?? []).includes(0) },
+    attack: actx, roll: { purpose: hook === 'onHitRoll' ? 'hit' : 'wound', roll, dieIndex, unmodified: roll.dice[dieIndex], rerolled: (roll.rerolled ?? []).includes(dieIndex) },
   }).map((r) => r.result).filter(isRoll)
 }
 
-function stepD6(
-  ctx: EngineContext, key: string, hook: 'onHitRoll' | 'onWoundRoll', actx: AttackContext, needed: number,
-  opts: { manualMods?: number[]; manualRerolls?: ('ones' | 'fails' | 'all')[]; overwatchAutoSix?: boolean; critBase?: number; source: string; autoFailAtOrBelow?: number },
-): D6Outcome | 'pending' {
-  const s = ctx.state
-  const purpose = hook === 'onHitRoll' ? 'hit' as const : 'wound' as const
-  const roll = ctx.rollOnce(key, {
-    purpose, player: s.units[actx.attackerUnitId].player, sides: 6, count: 1, mode: 'perDie',
-    unitId: actx.attackerUnitId, modelId: actx.attackerModelId, weaponId: actx.weapon.id, targetUnitId: actx.targetUnitId, commandRerollable: true,
-  })
-  if (!roll) return 'pending'
-  let unmodified = roll.dice[0]
-  let results = collectRollMods(ctx, hook, actx, roll, unmodified)
+function evalD6Die(ctx: EngineContext, hook: 'onHitRoll' | 'onWoundRoll', d: DieCtx, roll: DiceRoll, i: number): D6Eval {
+  const { actx, needed, opts } = d
+  const unmodified = roll.dice[i]
+  const results = collectRollMods(ctx, hook, actx, roll, i)
   const ignoreMods = results.some((r) => r.ignoreModifiers)
-  const manual = opts.manualMods ?? []
   const net = ignoreMods ? 0 : clampHitWoundModifier(netModifier([
     ...results.filter((r) => r.modifier !== undefined).map((r) => ({ source: 'hook', value: r.modifier as number })),
-    ...manual.map((v) => ({ source: 'manual', value: v })),
+    ...(opts.manualMods ?? []).map((v) => ({ source: 'manual', value: v })),
   ], null))
   const critThreshold = results.reduce((acc, r) => (r.critThreshold !== undefined ? Math.min(acc, r.critThreshold) : acc), opts.critBase ?? 6)
-  const rerollKinds = new Set<string>([...results.map((r) => r.reroll).filter((x): x is NonNullable<typeof x> => !!x), ...(opts.manualRerolls ?? [])])
+  const kinds = new Set<string>([...results.map((r) => r.reroll).filter((x): x is NonNullable<typeof x> => !!x), ...(opts.manualRerolls ?? [])])
   const autoPass = results.some((r) => r.autoPass)
   const autoFail = results.some((r) => r.autoFail)
   // a critical (unmodified 6, or an Anti-X threshold on a wound roll) always succeeds, regardless of modifiers
-  const computeCritical = (u: number): boolean => (opts.overwatchAutoSix ? u === 6 : u !== 1 && u >= critThreshold)
-  const computeSuccess = (u: number, f: number, crit: boolean): boolean => {
-    if (autoFail) return false
-    // SHOOT-041/WEAP-020: Indirect Fire vs an unseen target auto-fails an unmodified roll at or below this
-    // threshold, regardless of modifiers or crit thresholds (there is nothing to aim at)
-    if (opts.autoFailAtOrBelow !== undefined && u <= opts.autoFailAtOrBelow) return false
-    if (autoPass || crit) return true
-    if (opts.overwatchAutoSix) return false
-    return dieSucceeds(u, f, needed, false)
+  const critical = opts.overwatchAutoSix ? unmodified === 6 : unmodified !== 1 && unmodified >= critThreshold
+  const final = unmodified + net
+  let success: boolean
+  if (autoFail) success = false
+  // SHOOT-041/WEAP-020: Indirect Fire vs an unseen target auto-fails an unmodified roll at or below this threshold
+  else if (opts.autoFailAtOrBelow !== undefined && unmodified <= opts.autoFailAtOrBelow) success = false
+  else if (autoPass || critical) success = true
+  else if (opts.overwatchAutoSix) success = false
+  else success = dieSucceeds(unmodified, final, needed, false)
+  return { unmodified, final, success, critical, kinds }
+}
+
+function rollBatchD6(ctx: EngineContext, key: string, hook: 'onHitRoll' | 'onWoundRoll', dies: DieCtx[]): { evals: D6Eval[]; rollId: string } | 'pending' {
+  const s = ctx.state
+  const first = dies[0].actx
+  const source = dies[0].opts.source
+  const player = s.units[first.attackerUnitId].player
+  const sameModel = dies.every((d) => d.actx.attackerModelId === first.attackerModelId)
+  const sameNeeded = dies.every((d) => d.needed === dies[0].needed)
+  const spec: RollSpec = {
+    purpose: source, player, sides: 6, count: dies.length, mode: 'perDie', unitId: first.attackerUnitId, modelId: sameModel ? first.attackerModelId : null,
+    weaponId: first.weapon.id, targetUnitId: first.targetUnitId, commandRerollable: true, ...(sameNeeded ? { needed: dies[0].needed } : {}),
   }
-  let final = unmodified + net
-  let critical = computeCritical(unmodified)
-  let success = computeSuccess(unmodified, final, critical)
-  const alreadyRerolled = (roll.rerolled ?? []).length > 0
-  const wouldFail = !success
-  const canAutoReroll = !alreadyRerolled && ((rerollKinds.has('ones') && unmodified === 1) || ((rerollKinds.has('fails') || rerollKinds.has('all')) && wouldFail))
-  if (canAutoReroll) {
-    const rr = ctx.reroll(roll, [0], opts.source)
-    unmodified = rr.dice[0]
-    results = collectRollMods(ctx, hook, actx, rr, unmodified)
-    final = unmodified + net
-    critical = computeCritical(unmodified)
-    success = computeSuccess(unmodified, final, critical)
-  } else if (!wouldFail && rerollKinds.has('all') && !alreadyRerolled) {
-    const offerKey = `rerollOffered:${key}`
-    if (!ctx.marked(offerKey)) {
-      ctx.once(offerKey)
+  const prefix = `roll:${key}=`
+  if (!s.phaseState.marks.some((m) => m.startsWith(prefix))) {
+    const fresh = ctx.roll(spec)
+    s.phaseState.marks.push(prefix + fresh.id)
+  }
+  if (ctx.once(`autoReroll:${key}`)) {
+    let roll = s.phaseState.lastRoll as DiceRoll
+    const evals = roll.dice.map((_, i) => evalD6Die(ctx, hook, dies[i], roll, i))
+    const auto: number[] = []
+    evals.forEach((e, i) => {
+      if (!canReroll(roll, i)) return
+      if ((e.kinds.has('ones') && e.unmodified === 1) || ((e.kinds.has('fails') || e.kinds.has('all')) && !e.success)) auto.push(i)
+    })
+    if (auto.length > 0) roll = ctx.reroll(roll, auto, source)
+    // R-6.24: whatever is still un-rerolled, passes, and may be re-rolled by an `all` source is offered (once per batch)
+    const offer: number[] = []
+    evals.forEach((e, i) => { if (canReroll(roll, i) && e.kinds.has('all') && e.success) offer.push(i) })
+    if (offer.length > 0 && ctx.once(`rerollOffered:${key}`)) {
       ctx.decide({
-        kind: 'chooseOption', player: s.units[actx.attackerUnitId].player, window: 'any.rollMade', canPass: false,
-        context: { topic: 'rerollOffer', unitId: actx.attackerUnitId, abilityId: null, data: { rollId: roll.id, dieIndexes: [0], key } },
+        kind: 'chooseOption', player, window: 'any.rollMade', canPass: false,
+        context: { topic: 'rerollOffer', unitId: first.attackerUnitId, abilityId: null, data: { rollId: roll.id, dieIndexes: offer, needed: dies[offer[0]].needed, purpose: source, key } },
         options: [
-          { id: 'reroll', label: 'Re-roll', action: { type: 'chooseOption', player: s.units[actx.attackerUnitId].player, decisionId: '', optionId: 'reroll' } },
-          { id: 'keep', label: 'Keep', action: { type: 'chooseOption', player: s.units[actx.attackerUnitId].player, decisionId: '', optionId: 'keep' } },
+          { id: 'reroll', label: 'Re-roll', action: { type: 'chooseOption', player, decisionId: '', optionId: 'reroll' } },
+          { id: 'keep', label: 'Keep', action: { type: 'chooseOption', player, decisionId: '', optionId: 'keep' } },
         ],
       })
       return 'pending'
     }
   }
-  return { unmodified, final, success, critical }
+  const roll = ctx.rollOnce(key, spec)
+  if (!roll) return 'pending'
+  return { evals: roll.dice.map((_, i) => evalD6Die(ctx, hook, dies[i], roll, i)), rollId: roll.id }
 }
 
-// ---------- hit stage ----------
+function newBatch(stage: GroupBatch['stage']): GroupBatch { return { stage, hits: [], queue: [], saveRoll: null, nextSlot: 0 } }
 
-function doHitStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pending' | 'progress' {
-  const a = attackSeq(ctx)
-  const cur = a.current as CurrentAttack
+// ---------- hit batch ----------
+
+function hitOpts(ctx: EngineContext, a: AttackSequenceState, group: AttackGroup, weapon: RuntimeWeapon, attackerModelId: ModelId): D6Opts {
   const s = ctx.state
-  const attackerModelId = cur.attackerModelId
-  const weapon = weaponService.effectiveWeapon(s, attackerModelId, group.weaponId)
-  const actx = buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, attackerModelId, weapon, group.targetUnitId, null, false)
-  const attackIndex = group.resolved
-
-  if (hasAbility(weapon, 'TORRENT')) {
-    cur.hit = { die: 0, final: 0, critical: false, extraHits: 0 }
-    ctx.emit({ type: 'HitRolled', attack: rollAttackCtx(actx), die: 0, final: 0, hit: true, critical: false, extraHits: 0, auto: true })
-    cur.stage = 'wound'
-    return 'progress'
-  }
-
   const manualMods: number[] = []
-  const heavy = hasAbility(weapon, 'HEAVY')
   const attackerUnit = s.units[a.attackerUnitId]
-  if (heavy && attackerUnit.turn.moveType === 'stationary' && !attackerUnit.turn.arrivedThisTurn) manualMods.push(1)
+  if (hasAbility(weapon, 'HEAVY') && attackerUnit.turn.moveType === 'stationary' && !attackerUnit.turn.arrivedThisTurn) manualMods.push(1)
   let indirectNoLos = false
   if (a.kind === 'ranged') {
     // SHOOT-036-attached (R-6.8): Stealth only if EVERY model of the (possibly attached) target has it
@@ -308,49 +344,68 @@ function doHitStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pendin
       indirectNoLos = true
       manualMods.push(-1)
     }
-    // SHOOT-005/007 Big Guns Never Tire: a MONSTER/VEHICLE attacker in Engagement Range, or an enemy MONSTER/VEHICLE
-    // target in Engagement Range of ANY unit of the attacker's army, takes -1 to hit with a non-Pistol ranged
-    // weapon — both snapshotted at `attack.begin` (target declaration), not re-evaluated live here (SHOOT-005-timing;
-    // see module header).
+    // SHOOT-005/007 Big Guns Never Tire: see module header (snapshotted at `attack.begin`).
     if (!hasAbility(weapon, 'PISTOL')) {
       const attackerEngaged = s.phaseState.marks.includes('bgntAttacker=1')
       const targetEngaged = s.phaseState.marks.includes(`bgntTarget:${group.targetUnitId}=1`)
       if (attackerEngaged || targetEngaged) manualMods.push(-1)
     }
   }
-  const needed = weapon.skill ?? 7
-  const r = stepD6(ctx, `hit:${gi}:${attackIndex}`, 'onHitRoll', actx, needed, { manualMods, overwatchAutoSix: a.overwatch, source: 'hit', autoFailAtOrBelow: indirectNoLos ? 3 : undefined })
-  if (r === 'pending') return 'pending'
-  ctx.emit({ type: 'HitRolled', attack: rollAttackCtx(actx), die: r.unmodified, final: r.final, hit: r.success, critical: r.critical, extraHits: 0, auto: false })
-  if (!r.success) { finishSlot(ctx, gi, group); return 'progress' }
+  return { manualMods, overwatchAutoSix: a.overwatch, source: 'hit', autoFailAtOrBelow: indirectNoLos ? 3 : undefined }
+}
 
-  let extraHits = 0
-  if (r.critical) {
-    const sh = weaponService.abilityValue(weapon, 'SUSTAINED_HITS')
-    if (sh != null) extraHits = Math.max(0, ctx.rollExpr(sh, { purpose: 'ability', player: attackerUnit.player, unitId: a.attackerUnitId }).total)
+function doHitBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
+  const a = attackSeq(ctx)
+  const s = ctx.state
+  const attackerUnit = s.units[a.attackerUnitId]
+  const batch = newBatch('wound')
+  const dies: DieCtx[] = []
+  const meta: { gi: number; model: ModelId; weapon: RuntimeWeapon }[] = []
+  for (const j of runMembers(a, lead)) {
+    const g = a.groups[j]
+    const model = g.attackerModelIds[0]
+    const weapon = weaponService.effectiveWeapon(s, model, g.weaponId)
+    const actx = buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, model, weapon, g.targetUnitId, null, false)
+    if (hasAbility(weapon, 'TORRENT')) {
+      for (let i = 0; i < g.attacks; i++) {
+        batch.hits.push({ groupIndex: j, attackerModelId: model, die: 0, final: 0, critical: false, lethal: false, extra: false })
+        ctx.emit({ type: 'HitRolled', attack: rollAttackCtx(actx), die: 0, final: 0, hit: true, critical: false, extraHits: 0, auto: true })
+      }
+      continue
+    }
+    const opts = hitOpts(ctx, a, g, weapon, model)
+    for (let i = 0; i < g.attacks; i++) { dies.push({ actx, needed: weapon.skill ?? 7, opts }); meta.push({ gi: j, model, weapon }) }
   }
-  cur.hit = { die: r.unmodified, final: r.final, critical: r.critical, extraHits }
-  if (r.critical && hasAbility(weapon, 'LETHAL_HITS')) {
-    cur.wound = { die: 0, final: 0, critical: false, auto: true }
-    ctx.emit({ type: 'WoundRolled', attack: rollAttackCtx(actx), die: 0, final: 0, needed: 0, wounded: true, critical: false, auto: true })
-    cur.stage = 'allocate'
-  } else {
-    cur.stage = 'wound'
+  if (dies.length > 0) {
+    const res = rollBatchD6(ctx, `hit:${lead}`, 'onHitRoll', dies)
+    if (res === 'pending') return 'pending'
+    res.evals.forEach((r, i) => {
+      const { gi, model, weapon } = meta[i]
+      let extraHits = 0
+      if (r.success && r.critical) {
+        const sh = weaponService.abilityValue(weapon, 'SUSTAINED_HITS')
+        if (sh != null) extraHits = Math.max(0, ctx.rollExpr(sh, { purpose: 'ability', player: attackerUnit.player, unitId: a.attackerUnitId }).total)
+      }
+      ctx.emit({ type: 'HitRolled', attack: rollAttackCtx(dies[i].actx), die: r.unmodified, final: r.final, hit: r.success, critical: r.critical, extraHits, auto: false, rollId: res.rollId, dieIndex: i })
+      if (!r.success) return
+      const lethal = r.critical && hasAbility(weapon, 'LETHAL_HITS')
+      batch.hits.push({ groupIndex: gi, attackerModelId: model, die: r.unmodified, final: r.final, critical: r.critical, lethal, extra: false })
+      if (lethal) ctx.emit({ type: 'WoundRolled', attack: rollAttackCtx(dies[i].actx), die: 0, final: 0, needed: 0, wounded: true, critical: false, auto: true })
+      // WEAP-008-dice/WEAP-011: Sustained Hits bonus hits are ordinary hits (never critical, so never Lethal) that follow their source
+      for (let e = 0; e < extraHits; e++) batch.hits.push({ groupIndex: gi, attackerModelId: model, die: r.unmodified, final: r.final, critical: false, lethal: false, extra: true })
+    })
   }
+  a.groups[lead].batch = batch
   return 'progress'
 }
 
-// ---------- wound stage ----------
+// ---------- wound batch ----------
 
-function doWoundStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pending' | 'progress' {
-  const a = attackSeq(ctx)
-  const cur = a.current as CurrentAttack
+function woundDie(ctx: EngineContext, a: AttackSequenceState, group: AttackGroup): DieCtx & { weapon: RuntimeWeapon } {
   const s = ctx.state
-  const attackerModelId = cur.attackerModelId
-  const weapon = weaponService.effectiveWeapon(s, attackerModelId, group.weaponId)
-  const actx = buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, attackerModelId, weapon, group.targetUnitId, null, false)
-  const attackIndex = group.resolved
-
+  const model = group.attackerModelIds[0]
+  const weapon = weaponService.effectiveWeapon(s, model, group.weaponId)
+  const actx = buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, model, weapon, group.targetUnitId, null, false)
   const statFor = ctx.services.hooks.statFor
   // SHOOT-018-statmod: effectiveWeapon already folded S modifiers in — applying statFor again would double them
   const S = weapon.S
@@ -370,19 +425,48 @@ function doWoundStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pend
   for (const ab of weapon.abilities) {
     if (ab.ability === 'ANTI' && ab.keyword && targetKeywords.includes(ab.keyword)) critBase = Math.min(critBase, toNumber(ab.value) || 6)
   }
+  return { actx, needed, opts: { manualMods, manualRerolls, critBase, source: 'wound' }, weapon }
+}
 
-  const r = stepD6(ctx, `wound:${gi}:${attackIndex}:x${hitSlotSuffix(cur)}`, 'onWoundRoll', actx, needed, { manualMods, manualRerolls, critBase, source: 'wound' })
-  if (r === 'pending') return 'pending'
-  ctx.emit({ type: 'WoundRolled', attack: rollAttackCtx(actx), die: r.unmodified, final: r.final, needed, wounded: r.success, critical: r.critical, auto: false })
-  if (!r.success) { finishSlot(ctx, gi, group); return 'progress' }
-  cur.wound = { die: r.unmodified, final: r.final, critical: r.critical, auto: false }
-  if (r.critical && hasAbility(weapon, 'DEVASTATING_WOUNDS')) {
-    group.devastatingPending += 1
-    finishSlot(ctx, gi, group)
-    return 'progress'
+function doWoundBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
+  const a = attackSeq(ctx)
+  const batch = a.groups[lead].batch as GroupBatch
+  const perGroup = new Map<number, DieCtx & { weapon: RuntimeWeapon }>()
+  const dieFor = (j: number) => { let d = perGroup.get(j); if (!d) { d = woundDie(ctx, a, a.groups[j]); perGroup.set(j, d) } return d }
+
+  const rolled = batch.hits.filter((h) => !h.lethal)
+  let evals: D6Eval[] = []
+  let rollId: string | undefined
+  if (rolled.length > 0) {
+    const r = rollBatchD6(ctx, `wound:${lead}`, 'onWoundRoll', rolled.map((h) => dieFor(h.groupIndex)))
+    if (r === 'pending') return 'pending'
+    evals = r.evals
+    rollId = r.rollId
   }
-  cur.stage = 'allocate'
+  let k = 0
+  for (const h of batch.hits) {
+    const hitInfo = { die: h.die, final: h.final, critical: h.critical, extraHits: 0 }
+    if (h.lethal) {
+      batch.queue.push({ slot: batch.nextSlot++, groupIndex: h.groupIndex, attackerModelId: h.attackerModelId, hit: hitInfo, wound: { die: 0, final: 0, critical: false, auto: true } })
+      continue
+    }
+    const idx = k++
+    const r = evals[idx]
+    const d = dieFor(h.groupIndex)
+    ctx.emit({ type: 'WoundRolled', attack: rollAttackCtx(d.actx), die: r.unmodified, final: r.final, needed: d.needed, wounded: r.success, critical: r.critical, auto: false, rollId, dieIndex: idx })
+    if (!r.success) continue
+    if (r.critical && hasAbility(d.weapon, 'DEVASTATING_WOUNDS')) { a.groups[h.groupIndex].devastatingPending += 1; continue }
+    batch.queue.push({ slot: batch.nextSlot++, groupIndex: h.groupIndex, attackerModelId: h.attackerModelId, hit: hitInfo, wound: { die: r.unmodified, final: r.final, critical: r.critical, auto: false } })
+  }
+  batch.stage = 'save'
+  for (const j of runMembers(a, lead)) a.groups[j].resolved = a.groups[j].attacks
   return 'progress'
+}
+
+function doBatchStages(ctx: EngineContext, lead: number): 'pending' | 'progress' {
+  const a = attackSeq(ctx)
+  if (!a.groups[lead].batch) return doHitBatch(ctx, lead)
+  return doWoundBatch(ctx, lead)
 }
 
 // ---------- allocation (R-6.13, R-10.1 leaders/Precision) ----------
@@ -395,19 +479,17 @@ function priorityPool(s: GameState, eligible: ModelId[]): ModelId[] {
   return priority.length > 0 ? priority : eligible
 }
 
-// one allocation slot's identity (normal attack incl. Sustained Hits chain position, or a deferred Devastating critical)
+// one allocation slot's identity (a queued wounding attack, or a deferred Devastating critical)
 function precisionDeclinedKey(cur: CurrentAttack, gi: number, group: AttackGroup): string {
-  return isDevastatingSlot(cur) ? `precisionDeclined:dev:${gi}:${group.devastatingPending}` : `precisionDeclined:${gi}:${group.resolved}:x${hitSlotSuffix(cur)}`
+  return isDevastatingSlot(cur) ? `precisionDeclined:dev:${gi}:${group.devastatingPending}` : `precisionDeclined:${gi}:${cur.slot ?? 0}`
 }
 
-function finalizeAllocation(ctx: EngineContext, gi: number, group: AttackGroup, modelId: ModelId): void {
+// R-3.14 benefit of cover for `modelId` against this group's weapon (before the Ignores-Cover save hook, applied in saveSetup)
+function coverFor(ctx: EngineContext, group: AttackGroup, attackerModelId: ModelId, modelId: ModelId): boolean {
   const a = attackSeq(ctx)
-  const cur = a.current as CurrentAttack
   const s = ctx.state
   const model = s.models[modelId]
-  cur.allocatedModelId = modelId
-  if (model) model.flags.allocatedThisPhase = true
-  const weapon = weaponService.effectiveWeapon(s, cur.attackerModelId, group.weaponId)
+  const weapon = weaponService.effectiveWeapon(s, attackerModelId, group.weaponId)
   // R-3.14: terrain-derived cover (los.benefitOfCover, which already denies itself for melee/[IGNORES COVER]) OR a
   // granted Benefit of Cover (Go to Ground, Smokescreen) — the latter isn't weapon-aware, so gate it on Ignores Cover here
   const terrainCover = ctx.services.los.benefitOfCover(s, modelId, a.attackerUnitId, weapon)
@@ -415,7 +497,7 @@ function finalizeAllocation(ctx: EngineContext, gi: number, group: AttackGroup, 
   // SHOOT-041/WEAP-020: firing Indirect at a target with no visible model always grants it the benefit of cover.
   // Frozen at `attack.begin` (target declaration) via the `indirectNoLos` mark, not re-evaluated live here — same
   // snapshot the -1 to-hit modifier above reads (SHOOT-041-cover-snapshot; see module header).
-  const indirectCover = a.kind === 'ranged' && hasAbility(weapon, 'INDIRECT_FIRE') && s.phaseState.marks.includes(`indirectNoLos:${cur.attackerModelId}:${group.targetUnitId}=1`)
+  const indirectCover = a.kind === 'ranged' && hasAbility(weapon, 'INDIRECT_FIRE') && s.phaseState.marks.includes(`indirectNoLos:${attackerModelId}:${group.targetUnitId}=1`)
   let cover = terrainCover || grantedCover || indirectCover
   // SHOOT-041-sv3 (R-3.12): a Sv 3+ or better model gets no cover bonus against AP 0, whatever the cover's source
   if (cover && model && weapon.AP === 0) {
@@ -423,6 +505,20 @@ function finalizeAllocation(ctx: EngineContext, gi: number, group: AttackGroup, 
     const sv = ctx.services.hooks.statFor ? ctx.services.hooks.statFor(s, { unitId: model.unitId, modelId, weapon: null, stat: 'Sv' }, baseSv) : baseSv
     if (sv <= 3) cover = false
   }
+  return cover
+}
+
+// `markAllocated` false = a fast-rolled save that already passed, allocated to an arbitrary interchangeable model: the
+// R-6.13 "must keep allocating to it" flag is only set when the allocation is a real choice the defender made
+function finalizeAllocation(ctx: EngineContext, gi: number, group: AttackGroup, modelId: ModelId, markAllocated = true): void {
+  const a = attackSeq(ctx)
+  const cur = a.current as CurrentAttack
+  const s = ctx.state
+  const model = s.models[modelId]
+  cur.allocatedModelId = modelId
+  if (model && markAllocated) model.flags.allocatedThisPhase = true
+  const weapon = weaponService.effectiveWeapon(s, cur.attackerModelId, group.weaponId)
+  const cover = coverFor(ctx, group, cur.attackerModelId, modelId)
   cur.cover = cover
   const actx = buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, cur.attackerModelId, weapon, group.targetUnitId, modelId, cover)
   ctx.emit({ type: 'AttackAllocated', attack: rollAttackCtx(actx), modelId, cover })
@@ -459,6 +555,17 @@ function doAllocateStage(ctx: EngineContext, gi: number, group: AttackGroup): 'p
   }
   const pool = priorityPool(s, eligible)
   if (pool.length === 0) { finishSlot(ctx, gi, group); return 'progress' }
+  // fast-rolled save that already PASSED: the choice of model is meaningless (every candidate saves identically), so
+  // don't ask the defender — only failed saves open an allocation decision (when there is a real choice to make)
+  const saveRoll = leadBatch(a, gi)?.saveRoll
+  if (pool.length > 1 && cur.saveDie !== undefined && saveRoll && !isDevastatingSlot(cur)) {
+    const probe = pool[0]
+    const setup = saveSetup(ctx, group, cur.attackerModelId, probe, coverFor(ctx, group, cur.attackerModelId, probe))
+    if (setup && !setup.impossible && evaluateSave(ctx, setup, saveRoll, cur.saveDie).saved) {
+      finalizeAllocation(ctx, gi, group, probe, pool !== eligible)
+      return 'progress'
+    }
+  }
   if (pool.length === 1) { finalizeAllocation(ctx, gi, group, pool[0]); return 'progress' }
   const owner = s.units[targetUnitId].player
   const isMortal = isDevastatingSlot(cur)
@@ -478,40 +585,50 @@ function doAllocateStage(ctx: EngineContext, gi: number, group: AttackGroup): 'p
  *  The engine resolves a save as `die + ap + min(1, positive) + negative >= needed`, with an
  *  unmodified 1 always failing, so the number the player actually has to roll is that inequality
  *  rearranged. Positive modifiers are capped at +1 in total (the cover bonus is one of them);
- *  negatives are not, matching the comparison below. A result above 6 means the save cannot be made
- *  at all — the caller's own impossibility check (`bestPossible`) is this same arithmetic.
+ *  negatives are not, matching the comparison in `evaluateSave`. A result above 6 means the save
+ *  cannot be made at all — `saveSetup`'s impossibility check (`bestPossible`) is this same arithmetic.
  *
- *  Both the save stage and the armour-or-invulnerable choice it offers read their numbers from here,
- *  so a prompt can never show a different target from the one the dice are judged against. */
+ *  The automatic armour-or-invulnerable pick and the numbers published on the attack both read
+ *  from here, so what a UI shows can never differ from what the dice are judged against. */
 function saveTarget(needed: number, ap: number, positive: number, negative: number): number {
   return Math.max(2, needed - ap - Math.min(1, positive) - negative)
 }
 
-function collectSaveMods(ctx: EngineContext, actx: AttackContext, roll: DiceRoll) {
-  return ctx.services.hooks.collect(ctx, 'onSaveRoll', { attack: actx, roll: { purpose: 'save', roll, dieIndex: 0, unmodified: roll.dice[0], rerolled: false } })
+function collectSaveMods(ctx: EngineContext, actx: AttackContext, roll: DiceRoll, dieIndex = 0) {
+  return ctx.services.hooks.collect(ctx, 'onSaveRoll', { attack: actx, roll: { purpose: 'save', roll, dieIndex, unmodified: roll.dice[dieIndex], rerolled: (roll.rerolled ?? []).includes(dieIndex) } })
     .map((r) => r.result).filter(isRoll)
 }
 
-function doSaveStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pending' | 'progress' {
-  const a = attackSeq(ctx)
-  const cur = a.current as CurrentAttack
-  const s = ctx.state
-  const weapon = weaponService.effectiveWeapon(s, cur.attackerModelId, group.weaponId)
-  const modelId = cur.allocatedModelId as ModelId
-  const model = s.models[modelId]
-  if (!model) { finishSlot(ctx, gi, group); return 'progress' }
-  const actx = buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, cur.attackerModelId, weapon, group.targetUnitId, modelId, cur.cover)
+interface SaveSetup {
+  actx: AttackContext
+  kind: 'armour' | 'invuln'
+  needed: number
+  ap: number
+  cover: boolean
+  /** even an unmodified 6 cannot make the save (R-6.14/SHOOT-026) */
+  impossible: boolean
+  /** the d6 the chosen (lower-roll) save has to beat */
+  targetRoll: number
+  saveTargets: NonNullable<CurrentAttack['saveTargets']>
+}
 
+// Everything about how `modelId` saves against this group's weapon, minus the die. The engine picks the save that
+// needs the LOWER roll (a tie goes to armour) — the old armour-or-invulnerable prompt is gone (M9).
+function saveSetup(ctx: EngineContext, group: AttackGroup, attackerModelId: ModelId, modelId: ModelId, rawCover: boolean): SaveSetup | null {
+  const a = attackSeq(ctx)
+  const s = ctx.state
+  const model = s.models[modelId]
+  if (!model) return null
+  const weapon = weaponService.effectiveWeapon(s, attackerModelId, group.weaponId)
+  const actx = buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, attackerModelId, weapon, group.targetUnitId, modelId, rawCover)
   const preFake = fakeRoll('save', s.units[model.unitId].player, model.unitId, modelId)
   const preResults = collectSaveMods(ctx, actx, preFake)
   const ignoreCoverHook = preResults.some((r) => r.ignoreCover)
-  const cover = cur.cover && !ignoreCoverHook
-  const dsInvuln = datasheetOf(s, model.unitId).invuln
-  let invuln: number | null = dsInvuln
+  const cover = rawCover && !ignoreCoverHook
+  let invuln: number | null = datasheetOf(s, model.unitId).invuln
   for (const r of preResults) if (r.invuln !== undefined) invuln = invuln === null ? r.invuln : Math.min(invuln, r.invuln)
 
-  // Modifiers from the pre-pass. These don't depend on the die's value (the impossibility check below
-  // relies on the same thing), so they are also what the player is shown before choosing a save.
+  // Modifiers from the pre-pass. These don't depend on the die's value (the impossibility check relies on the same thing).
   let hookPositive = 0
   let preNegative = 0
   for (const r of preResults) {
@@ -523,70 +640,121 @@ function doSaveStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pendi
   // Cover only ever helps an armour save (R-3.11); AP only ever hurts one.
   const armourTarget = saveTarget(sv, weapon.AP, hookPositive + (cover ? 1 : 0), preNegative)
   const invulnTarget = invuln === null ? null : saveTarget(invuln, 0, hookPositive, preNegative)
-  // Published on the attack so the client can show the real numbers — both in the choice below and in
-  // a Command Re-roll offer on the save roll, which opens before SaveRolled is emitted. Recomputed
-  // from scratch on every re-entry into this stage, so it can never go stale.
-  cur.saveTargets = { sv, ap: weapon.AP, cover, armour: armourTarget, invuln: invulnTarget }
-
-  let kind: 'armour' | 'invuln'
-  if (invuln !== null) {
-    if (!cur.save || cur.save.kind === 'none') {
-      const owner = s.units[model.unitId].player
-      ctx.decide({
-        kind: 'chooseOption', player: owner, window: 'any.rollMade', canPass: false,
-        // `invuln` is the characteristic (a 4++ is 4); `armourTarget`/`invulnTarget` are what each
-        // save actually has to roll once AP, cover and any modifiers are in — which is the whole
-        // basis of this choice, and not something the client can work out for itself.
-        context: {
-          topic: 'saveType', unitId: model.unitId, abilityId: null,
-          data: { modelId, invuln, armourTarget, invulnTarget, sv, ap: weapon.AP, cover, weaponId: weapon.id, attackerUnitId: a.attackerUnitId },
-        },
-        options: [
-          { id: 'armour', label: 'Armour save', action: { type: 'chooseOption', player: owner, decisionId: '', optionId: 'armour' } },
-          { id: 'invuln', label: 'Invulnerable save', action: { type: 'chooseOption', player: owner, decisionId: '', optionId: 'invuln' } },
-        ],
-      })
-      return 'pending'
-    }
-    kind = cur.save.kind as 'armour' | 'invuln'
-  } else {
-    kind = 'armour'
-  }
-
+  const kind: 'armour' | 'invuln' = invulnTarget !== null && invulnTarget < armourTarget ? 'invuln' : 'armour'
   const needed = kind === 'armour' ? sv : (invuln as number)
   const ap = kind === 'armour' ? weapon.AP : 0
-  // WEAP-008-dice/WEAP-011: same per-slot suffix as the wound key so a Sustained Hits extra hit's save never reuses
-  // the primary attack's save roll (they'd otherwise share `save:${gi}:${group.resolved}`)
-  const key = `save:${gi}:${group.resolved}:x${hitSlotSuffix(cur)}`
-
-  // R-6.14/SHOOT-026: when even an unmodified 6 could not reach `needed`, the save is impossible — record it as
-  // failed without rolling (modifiers here don't depend on the die's value, so the pre-pass numbers already apply).
   const prePositive = hookPositive + (kind === 'armour' && cover ? 1 : 0)
   const bestPossible = 6 + ap + Math.min(1, prePositive) + preNegative
-  if (bestPossible < needed) {
-    ctx.emit({ type: 'SaveRolled', attack: rollAttackCtx(actx), modelId, kind, die: 0, final: 0, needed, saved: false })
-    cur.save = { kind, die: 0, final: 0, passed: false }
-    cur.stage = 'damage'
-    return 'progress'
+  return {
+    actx, kind, needed, ap, cover, impossible: bestPossible < needed,
+    targetRoll: kind === 'armour' ? armourTarget : (invulnTarget as number),
+    saveTargets: { sv, ap: weapon.AP, cover, armour: armourTarget, invuln: invulnTarget },
   }
+}
 
-  const roll = ctx.rollOnce(key, { purpose: 'save', player: s.units[model.unitId].player, sides: 6, count: 1, mode: 'perDie', unitId: model.unitId, modelId, weaponId: weapon.id, targetUnitId: group.targetUnitId, commandRerollable: true })
-  if (!roll) return 'pending'
-  const unmodified = roll.dice[0]
-  const results = collectSaveMods(ctx, actx, roll)
-  let positive = kind === 'armour' && cover ? 1 : 0
+function evaluateSave(ctx: EngineContext, setup: SaveSetup, roll: DiceRoll, dieIndex: number): { unmodified: number; final: number; saved: boolean } {
+  const unmodified = roll.dice[dieIndex]
+  const results = collectSaveMods(ctx, setup.actx, roll, dieIndex)
+  let positive = setup.kind === 'armour' && setup.cover ? 1 : 0
   let negative = 0
   for (const r of results) {
     if (r.modifier === undefined) continue
     if (r.modifier > 0) positive += r.modifier
     else negative += r.modifier
   }
-  const final = unmodified + ap + Math.min(1, positive) + negative
-  const saved = unmodified !== 1 && final >= needed
-  ctx.emit({ type: 'SaveRolled', attack: rollAttackCtx(actx), modelId, kind, die: unmodified, final, needed, saved })
-  cur.save = { kind, die: unmodified, final, passed: saved }
-  if (saved) { finishSlot(ctx, gi, group); return 'progress' }
+  const final = unmodified + setup.ap + Math.min(1, positive) + negative
+  return { unmodified, final, saved: unmodified !== 1 && final >= setup.needed }
+}
+
+function doSaveStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pending' | 'progress' {
+  const a = attackSeq(ctx)
+  const cur = a.current as CurrentAttack
+  const s = ctx.state
+  const weapon = weaponService.effectiveWeapon(s, cur.attackerModelId, group.weaponId)
+  const modelId = cur.allocatedModelId as ModelId
+  const model = s.models[modelId]
+  if (!model) { finishSlot(ctx, gi, group); return 'progress' }
+  const setup = saveSetup(ctx, group, cur.attackerModelId, modelId, cur.cover)
+  if (!setup) { finishSlot(ctx, gi, group); return 'progress' }
+  const { actx, kind, needed } = setup
+  // Published on the attack so the client can show the real numbers (also for a Command Re-roll offer on an
+  // individually rolled save, which opens before SaveRolled is emitted). Recomputed from scratch on every re-entry.
+  cur.saveTargets = setup.saveTargets
+
+  // R-6.14/SHOOT-026: when even an unmodified 6 could not reach `needed`, the save is impossible — record it as
+  // failed without rolling (modifiers here don't depend on the die's value, so the pre-pass numbers already apply).
+  if (setup.impossible) {
+    ctx.emit({ type: 'SaveRolled', attack: rollAttackCtx(actx), modelId, kind, die: 0, final: 0, needed, saved: false })
+    cur.save = { kind, die: 0, final: 0, passed: false }
+    cur.stage = 'damage'
+    return 'progress'
+  }
+
+  let roll: DiceRoll
+  let dieIndex = 0
+  const batchRoll = leadBatch(a, gi)?.saveRoll
+  if (cur.saveDie !== undefined && batchRoll) {
+    roll = batchRoll
+    dieIndex = cur.saveDie
+  } else {
+    // WEAP-008-dice/WEAP-011: per-slot key so a Sustained Hits extra hit's save never reuses the primary attack's roll
+    const r = ctx.rollOnce(`save:${gi}:${cur.slot ?? 0}`, { purpose: 'save', player: s.units[model.unitId].player, sides: 6, count: 1, mode: 'perDie', unitId: model.unitId, modelId, weaponId: weapon.id, targetUnitId: group.targetUnitId, commandRerollable: true, needed: setup.targetRoll })
+    if (!r) return 'pending'
+    roll = r
+  }
+  const ev = evaluateSave(ctx, setup, roll, dieIndex)
+  ctx.emit({ type: 'SaveRolled', attack: rollAttackCtx(actx), modelId, kind, die: ev.unmodified, final: ev.final, needed, saved: ev.saved, ...(cur.saveDie !== undefined && batchRoll ? { rollId: roll.id, dieIndex } : {}) })
+  cur.save = { kind, die: ev.unmodified, final: ev.final, passed: ev.saved }
+  if (ev.saved) { finishSlot(ctx, gi, group); return 'progress' }
   cur.stage = 'damage'
+  return 'progress'
+}
+
+// Fast-rolled saves (M9): ONE DiceRoll (one Command Re-roll window) for every wounding attack of the merge run when the
+// defender cannot tell its candidate models apart — every (firing model, candidate model) pair needs the same d6 (after AP,
+// cover, invuln and modifiers) and the candidates share one Feel No Pain. Returns that shared target, or null = keep
+// per-attack rolls (Precision, impossible saves, or a mixed pool such as a Leader with a better save).
+function saveBatchTarget(ctx: EngineContext, lead: number): number | null {
+  const s = ctx.state
+  const a = attackSeq(ctx)
+  const group = a.groups[lead]
+  const b = group.batch as GroupBatch
+  const weapon = weaponService.effectiveWeapon(s, group.attackerModelIds[0], group.weaponId)
+  if (hasAbility(weapon, 'PRECISION')) return null
+  const eligible = leaderService.allocatableModels ? leaderService.allocatableModels(s, group.targetUnitId) : unitModels(s, group.targetUnitId).map((m) => m.id)
+  if (eligible.length === 0) return null
+  const attackers = [...new Set(b.queue.map((w) => w.attackerModelId))]
+  let sig: string | null = null
+  let target: number | null = null
+  for (const id of eligible) {
+    const model = s.models[id]
+    if (!model) return null
+    for (const attackerModelId of attackers) {
+      const setup = saveSetup(ctx, group, attackerModelId, id, coverFor(ctx, group, attackerModelId, id))
+      if (!setup || setup.impossible) return null
+      const key = `${setup.targetRoll}|${bestFeelNoPain(ctx, model, setup.actx)}`
+      if (sig === null) { sig = key; target = setup.targetRoll } else if (sig !== key) return null
+    }
+  }
+  return target
+}
+
+function doSaveBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
+  const s = ctx.state
+  const a = attackSeq(ctx)
+  const group = a.groups[lead]
+  const b = group.batch as GroupBatch
+  const target = saveBatchTarget(ctx, lead)
+  if (target === null) { b.stage = 'apply'; return 'progress' }
+  const player = s.units[group.targetUnitId].player
+  const roll = ctx.rollOnce(`save:${lead}:b`, {
+    purpose: 'save', player, sides: 6, count: b.queue.length, mode: 'perDie', unitId: group.targetUnitId, weaponId: group.weaponId,
+    targetUnitId: group.targetUnitId, commandRerollable: true, needed: target,
+  })
+  if (!roll) return 'pending'
+  b.saveRoll = roll
+  b.queue.forEach((slot, j) => { slot.saveDie = j })
+  b.stage = 'apply'
   return 'progress'
 }
 
@@ -646,7 +814,7 @@ function doDamageStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pen
       // pending index (which counts strictly down, see finishSlot) instead of `group.resolved` (already pinned at
       // `attacks` for every deferred critical in the group, which made them all reuse the first one's roll).
       // WEAP-008-dice/WEAP-011: normal attacks get the same per-slot suffix as wound/save, for the same reason.
-      const key = devastating ? `devdmg:${gi}:${group.devastatingPending}` : `damage:${gi}:${group.resolved}:x${hitSlotSuffix(cur)}`
+      const key = devastating ? `devdmg:${gi}:${group.devastatingPending}` : `damage:${gi}:${cur.slot ?? 0}`
       const player = s.units[a.attackerUnitId].player
       const roll = ctx.rollOnce(key, { purpose: 'damage', player, sides: parsed.sides ?? 6, count: parsed.count, mode: 'sum', modifiers, unitId: a.attackerUnitId, modelId: cur.attackerModelId, weaponId: weapon.id, targetUnitId: group.targetUnitId, commandRerollable: true })
       if (!roll) return 'pending'
@@ -829,7 +997,7 @@ function rollDeadlyDemise(ctx: EngineContext, model: Model, valueExpr: DiceExpr)
 
 // prefixes that only ever mean something WITHIN the one attack sequence that wrote them — stale entries left over
 // from an earlier, already-finished sequence in the same phase must never leak into a new one (SHOOT-046-dice)
-const SEQUENCE_SCOPED_MARK_PREFIXES = ['roll:', 'rerollOffered:', 'precisionDeclined:','hazardous:', 'groupTouched:', 'mortalAlloc:', 'mortalBatchSeq:', 'blastCount:', 'pendingDetach:', 'bgntAttacker', 'bgntTarget:', 'indirectNoLos:']
+const SEQUENCE_SCOPED_MARK_PREFIXES = ['roll:', 'rerollOffered:', 'autoReroll:', 'precisionDeclined:','hazardous:', 'groupTouched:', 'mortalAlloc:', 'mortalBatchSeq:', 'blastCount:', 'pendingDetach:', 'bgntAttacker', 'bgntTarget:', 'indirectNoLos:']
 
 export const attackService: AttackService = {
   begin(ctx, spec) {
@@ -897,12 +1065,13 @@ export const attackService: AttackService = {
       // any attack (even a normal one) against a DIFFERENT target. Groups are pushed target-by-target (`begin`), so
       // find the earliest group with any work left (normal attacks or a deferred critical), then within that
       // target's groups prefer normal attacks first and only fall back to devastatingPending once none remain.
+      assignRuns(ctx, a)
       let gi = a.current ? a.current.groupIndex : -1
       if (gi === -1) {
-        const firstUnfinished = a.groups.findIndex((g) => g.attacks === 0 || g.resolved < g.attacks || g.devastatingPending > 0)
+        const firstUnfinished = a.groups.findIndex((g) => groupHasNormalWork(g) || g.devastatingPending > 0)
         if (firstUnfinished !== -1) {
           const target = a.groups[firstUnfinished].targetUnitId
-          gi = a.groups.findIndex((g) => g.targetUnitId === target && (g.attacks === 0 || g.resolved < g.attacks))
+          gi = a.groups.findIndex((g) => g.targetUnitId === target && groupHasNormalWork(g))
           if (gi === -1) gi = a.groups.findIndex((g) => g.targetUnitId === target && g.devastatingPending > 0)
         }
       }
@@ -923,33 +1092,64 @@ export const attackService: AttackService = {
       const group = a.groups[gi]
       // one-time per-group bookkeeping (One Shot / Hazardous) — independent of whether `attacks` still needs
       // computing, since a melee group's attacks are already known at `begin` (declared.attacks non-null)
-      if (ctx.once(`groupTouched:${a.attackerUnitId}:${gi}`)) {
-        const attackerModel = ctx.state.models[group.attackerModelIds[0]]
-        const eff = weaponService.effectiveWeapon(ctx.state, group.attackerModelIds[0], group.weaponId)
-        if (attackerModel && hasAbility(eff, 'ONE_SHOT') && !attackerModel.oneShotUsed.includes(group.weaponId)) attackerModel.oneShotUsed.push(group.weaponId)
+      // M9: a merge run (same target + weapon profile, several firing models) is picked up as a whole via its lead group
+      const members = !a.current && group.runLead === gi ? runMembers(a, gi) : [gi]
+      for (const mj of members) {
+      const mg = a.groups[mj]
+      if (ctx.once(`groupTouched:${a.attackerUnitId}:${mj}`)) {
+        const attackerModel = ctx.state.models[mg.attackerModelIds[0]]
+        const eff = weaponService.effectiveWeapon(ctx.state, mg.attackerModelIds[0], mg.weaponId)
+        if (attackerModel && hasAbility(eff, 'ONE_SHOT') && !attackerModel.oneShotUsed.includes(mg.weaponId)) attackerModel.oneShotUsed.push(mg.weaponId)
         // WEAP-024-per-model: one Hazardous test per (firing model, weapon) — dedup used to be by weaponId alone,
         // so two different models firing the same Hazardous weapon wrongly shared a single test. The composite id
         // still dedupes the same model+weapon appearing in more than one group (e.g. split across two targets).
         if (hasAbility(eff, 'HAZARDOUS')) {
-          const hazId = `${group.attackerModelIds[0]}::${group.weaponId}`
+          const hazId = `${mg.attackerModelIds[0]}::${mg.weaponId}`
           if (!a.hazardousPending.includes(hazId as WeaponId)) a.hazardousPending.push(hazId as WeaponId)
         }
       }
-      if (group.attacks === 0) {
-        const declared = a.targets.find((t) => t.modelId === group.attackerModelIds[0] && t.weaponId === group.weaponId && t.targetUnitId === group.targetUnitId)
-        const computed = computeAttackCount(ctx, gi, group, declared)
+      }
+      // item 10: the target is already wiped out — the rest of this group's (run's) attacks are lost: nothing rolled, no
+      // windows, no events. Hazardous (touched above) and groups against other living targets still resolve.
+      if (!a.current && (groupHasNormalWork(group) || group.devastatingPending > 0) && targetGone(ctx, group.targetUnitId)) {
+        for (const mj of members) {
+          const mg = a.groups[mj]
+          mg.attacks = Math.max(1, mg.attacks)
+          mg.resolved = mg.attacks
+          mg.devastatingPending = 0
+        }
+        group.batch = newBatch('apply')
+        continue
+      }
+      const unknown = members.find((mj) => a.groups[mj].attacks === 0)
+      if (unknown !== undefined) {
+        const ug = a.groups[unknown]
+        const declared = a.targets.find((t) => t.modelId === ug.attackerModelIds[0] && t.weaponId === ug.weaponId && t.targetUnitId === ug.targetUnitId)
+        const computed = computeAttackCount(ctx, unknown, ug, declared)
         if (computed === 'pending') return 'pending'
-        group.attacks = computed
+        ug.attacks = computed
         continue
       }
       if (!a.current) {
-        a.current = group.resolved < group.attacks ? freshCurrentAttack(gi, group.attackerModelIds[0]) : freshDevastatingAttack(gi, group.attackerModelIds[0])
+        if (group.resolved < group.attacks) {
+          // hit + wound dice for the whole run, rolled as batches (M9)
+          if (doBatchStages(ctx, gi) === 'pending') return 'pending'
+          continue
+        }
+        const b = group.batch
+        if (b && b.queue.length > 0) {
+          if (b.stage === 'save') {
+            if (doSaveBatch(ctx, gi) === 'pending') return 'pending'
+            continue
+          }
+          a.current = currentFromSlot(b.queue.shift() as WoundSlot)
+          continue
+        }
+        a.current = freshDevastatingAttack(gi, group.attackerModelIds[0])
       }
       const cur = a.current
       let r: 'pending' | 'progress'
       switch (cur.stage) {
-        case 'hit': r = doHitStage(ctx, gi, group); break
-        case 'wound': r = doWoundStage(ctx, gi, group); break
         case 'allocate': r = doAllocateStage(ctx, gi, group); break
         case 'save': r = doSaveStage(ctx, gi, group); break
         case 'damage': r = doDamageStage(ctx, gi, group); break
@@ -995,12 +1195,6 @@ export const attackService: AttackService = {
       }
       if (pending.kind === 'chooseOption' && action.type === 'chooseOption') {
         const topic = pending.context.topic
-        if (topic === 'saveType') {
-          const cur = a.current
-          if (!cur) return { code: 'E_NOT_AN_OPTION', reason: 'no attack awaiting a save' }
-          cur.save = { kind: action.optionId as 'armour' | 'invuln', die: 0, final: 0, passed: false }
-          return
-        }
         if (topic === 'hazardousCasualty') {
           const data = pending.context.data as { weaponId: WeaponId; die: number }
           applyHazardousCasualty(ctx, data.weaponId, data.die, action.optionId)
@@ -1011,7 +1205,8 @@ export const attackService: AttackService = {
             const data = pending.context.data as { rollId: string; dieIndexes: number[] }
             const roll = s.phaseState.lastRoll
             if (!roll || roll.id !== data.rollId) throw new EngineInvariantError('rerollOffer: roll is no longer current', { rollId: data.rollId })
-            ctx.reroll(roll, data.dieIndexes, 'rerollOffer')
+            // M9: the player may pick a subset of the offered dice (validated in the reducer); absent = every offered die
+            ctx.reroll(roll, action.dieIndexes ?? data.dieIndexes, 'rerollOffer')
           }
           return
         }

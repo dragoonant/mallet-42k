@@ -2,7 +2,7 @@
 // handler) with a ScriptedRng, bypassing the (still-stub) shooting/fight phase modules per phases/README §6.
 import { describe, expect, it } from 'vitest'
 import {
-  ENGINE_VERSION, ScriptedRng, DEFAULT_MODULES, createGameState, createContext,
+  ENGINE_VERSION, ScriptedRng, engine, DEFAULT_MODULES, createGameState, createContext,
   type Action, type DeclaredTarget, type EngineContext, type GameEvent, type GameState, type PendingDecision,
 } from '../../src/engine'
 import { attackService } from '../../src/engine/attack'
@@ -136,7 +136,8 @@ describe('attack sequence: allocation priority', () => {
       if (p.kind === 'allocateAttack') return { type: 'allocateAttack', player: p.player, decisionId: p.id, modelId: p.context.eligibleModels[1] }
       return firstOption(p)
     }
-    const { ctx, events } = ctxFor(state, [6, 6, 1, 6, 6, 1, ...TAIL])
+    // fast-roll order: hits [6,6], wounds [6,6], saves [1,1] (both fail)
+    const { ctx, events } = ctxFor(state, [6, 6, 6, 6, 1, 1, ...TAIL])
     attackService.begin(ctx, { kind: 'ranged', attackerUnitId: 'B:mob', overwatch: false, targets: [target('B:mob#1', 'blu.w.slugga', 'A:grunts', 2)] })
     const decisions: PendingDecision[] = []
     const evs = drive({ ctx, events }, (p) => { if (p.kind === 'allocateAttack') decisions.push(p); return chooseSecond(p) })
@@ -161,68 +162,39 @@ describe('attack sequence: allocation priority', () => {
 // ---------- saves (R-6.14) ----------
 
 describe('attack sequence: saves', () => {
-  it('SHOOT-024 with an invulnerable save available, the owner chooses which save to roll', () => {
+  it('SHOOT-024 with an invulnerable save available, the engine picks the save that needs the lower roll (no prompt)', () => {
     const state = stateWith(unattached())
     place(state)
-    let sawSaveType = false
-    let offered: Record<string, unknown> | null = null
-    const chooseInvuln: Choose = (p) => {
-      if (p.kind === 'chooseOption' && p.context.topic === 'saveType') {
-        sawSaveType = true
-        offered = p.context.data
-        return { type: 'chooseOption', player: p.player, decisionId: p.id, optionId: 'invuln' }
-      }
-      return firstOption(p)
-    }
-    // walker's fist (AP-2) vs A:boss (Sv3+, invuln 4+): armour needs 5+, invuln needs 4+
+    // walker's fist (AP-2) vs A:boss (Sv3+, invuln 4+): armour needs 5+, invuln needs 4+ -> invuln, judged against 4+
     const { ctx, events } = ctxFor(state, [6, 6, 4, ...TAIL])
     attackService.begin(ctx, { kind: 'melee', attackerUnitId: 'A:walker', overwatch: false, targets: [target('A:walker#0', 'red.w.fist', 'A:boss', 1)] })
-    // A:boss belongs to the same player as the walker in this fixture's default sides; that's fine for testing the
-    // save-type decision mechanics in isolation (no cross-player legality is enforced by attack.ts itself)
-    const evs = drive({ ctx, events }, chooseInvuln)
-    expect(sawSaveType).toBe(true)
-    const save = eventsOf(evs, 'SaveRolled')[0]
-    expect(save).toMatchObject({ kind: 'invuln', needed: 4, die: 4, saved: true })
-    // The choice has to carry what each save would actually have to roll — AP and every modifier
-    // already applied — or it can't be made on anything but a guess (docs/spec/00-architecture.md §3).
-    expect(offered).toMatchObject({ sv: 3, ap: -2, cover: false, invuln: 4, armourTarget: 5, invulnTarget: 4 })
+    const evs = drive({ ctx, events })
+    expect(evs.some((e) => e.type === 'DecisionRequested' && e.pending.kind === 'chooseOption' && e.pending.context.topic === 'saveType')).toBe(false)
+    expect(eventsOf(evs, 'SaveRolled')[0]).toMatchObject({ kind: 'invuln', needed: 4, die: 4, saved: true })
   })
 
-  it('SHOOT-024 the save target offered with the choice is the one the dice are then judged against', () => {
-    // Same fist-into-boss attack, but taking the armour save: its published 5+ must be exactly the
-    // number the resolution uses, on a die either side of it.
-    for (const [die, expectSaved] of [[4, false], [5, true]] as const) {
-      const state = stateWith(unattached())
+  it('SHOOT-024 a tie between armour and invulnerable goes to armour; the published target is the one the dice are judged against', () => {
+    for (const [die, expectSaved] of [[3, false], [4, true]] as const) {
+      // fist at AP-1: armour 3+ with AP-1 needs 4+, invuln 4+ needs 4+ -> tie -> armour
+      const state = stateWith(unattached(), (b) => { (b.weapons['red.w.fist'] as any).AP = -1 })
       place(state)
-      let armourTarget: number | null = null
-      const chooseArmour: Choose = (p) => {
-        if (p.kind === 'chooseOption' && p.context.topic === 'saveType') {
-          armourTarget = p.context.data.armourTarget as number
-          return { type: 'chooseOption', player: p.player, decisionId: p.id, optionId: 'armour' }
-        }
-        return firstOption(p)
-      }
       const { ctx, events } = ctxFor(state, [6, 6, die, ...TAIL])
       attackService.begin(ctx, { kind: 'melee', attackerUnitId: 'A:walker', overwatch: false, targets: [target('A:walker#0', 'red.w.fist', 'A:boss', 1)] })
-      const save = eventsOf(drive({ ctx, events }, chooseArmour), 'SaveRolled')[0]
-      expect(armourTarget).toBe(5)
-      expect(save.die).toBe(die)
-      expect(save.saved).toBe(expectSaved)
-      expect(save.saved).toBe(save.die >= (armourTarget as unknown as number))
+      const evs = drive({ ctx, events })
+      const save = eventsOf(evs, 'SaveRolled')[0]
+      expect(save).toMatchObject({ kind: 'armour', needed: 3, die, saved: expectSaved })
+      expect(eventsOf(evs, 'DiceRolled').find((e) => e.roll.purpose === 'save')?.roll.needed).toBe(4)
     }
   })
 
-  it('SHOOT-024 the same numbers are published on the attack before the save is rolled, for a re-roll offer to show', () => {
+  it('SHOOT-024 the save roll carries the target it has to beat, for a Command Re-roll offer to show', () => {
     const state = stateWith(unattached())
     place(state)
-    const { ctx } = ctxFor(state, [6, 6, 5, ...TAIL])
+    const { ctx, events } = ctxFor(state, [6, 6, 5, ...TAIL])
     attackService.begin(ctx, { kind: 'melee', attackerUnitId: 'A:walker', overwatch: false, targets: [target('A:walker#0', 'red.w.fist', 'A:boss', 1)] })
-    // Stop at the first decision rather than driving through: the save stage publishes its numbers
-    // before it asks anything, which is what lets a Command Re-roll offer on the save roll — raised
-    // before SaveRolled exists — show the real target.
-    attackService.advance(ctx)
-    expect(ctx.state.pending?.kind).toBe('chooseOption')
-    expect(ctx.state.phaseState.attack?.current?.saveTargets).toMatchObject({ sv: 3, ap: -2, cover: false, armour: 5, invuln: 4 })
+    const evs = drive({ ctx, events })
+    const roll = eventsOf(evs, 'DiceRolled').find((e) => e.roll.purpose === 'save')!.roll
+    expect(roll.needed).toBe(4) // invulnerable 4+ beats armour 5+ (Sv3, AP-2)
   })
 
   it('SHOOT-025 an unmodified save roll of 1 always fails', () => {
@@ -581,7 +553,7 @@ describe('attack sequence: per-sequence and per-slot roll isolation', () => {
   it('WEAP-011 Lethal Hits + Sustained Hits: the primary auto-wound\'s save and the extra hit\'s save roll independently', () => {
     const state = stateWith(unattached(), (b) => { (b.weapons['red.w.gun'] as any).abilities = [{ ability: 'LETHAL_HITS' }, { ability: 'SUSTAINED_HITS', value: 1 }] })
     place(state)
-    const { ctx, events } = ctxFor(state, [6, 4, 5, 2, ...TAIL]) // hit 6 crit+lethal (auto-wound); save#1 die 4; extra wound 5 (success); save#2 die 2
+    const { ctx, events } = ctxFor(state, [6, 5, 4, 2, ...TAIL]) // hit 6 crit+lethal (auto-wound); extra hit's wound 5 (success); then saves: #1 die 4, #2 die 2
     attackService.begin(ctx, { kind: 'ranged', attackerUnitId: 'A:grunts', overwatch: false, targets: [target('A:grunts#1', 'red.w.gun', 'B:mob', 1)] })
     const evs = drive({ ctx, events })
     expect(eventsOf(evs, 'SaveRolled').map((s) => s.die)).toEqual([4, 2])
@@ -644,7 +616,8 @@ describe('attack sequence: Blast snapshot and leader/mortal spillover (R-10.1)',
     state.units['A:grunts'].models = ['A:grunts#1']
     state.models = Object.fromEntries(Object.entries(state.models).filter(([id]) => id === 'A:grunts#1' || !id.startsWith('A:grunts#')))
     state.models['A:grunts#1'].woundsRemaining = 1
-    const { ctx, events } = ctxFor(state, [6, 6, 1, 6, 6, 1, 6, 6, 1, ...TAIL])
+    // 3 hits, 3 wounds, 3 failed saves (batched)
+    const { ctx, events } = ctxFor(state, [6, 6, 6, 6, 6, 6, 1, 1, 1, ...TAIL])
     attackService.begin(ctx, { kind: 'ranged', attackerUnitId: 'B:mob', overwatch: false, targets: [target('B:mob#1', 'blu.w.slugga', 'A:grunts', 3)] })
     const evs = drive({ ctx, events })
     expect(eventsOf(evs, 'DamageApplied').filter((d) => d.modelId === 'A:boss#0')).toHaveLength(2) // 2 of the 3 attacks spill onto the leader
@@ -756,7 +729,7 @@ describe('attack sequence: additional checklist coverage', () => {
     place(state)
     // attack 1: hit 6, wound 4 (S4 vs T4 needs 4+), save 1 (fail), D3 damage face 1 -> 1 (grunts model to 1W remaining)
     // attack 2: forced onto the same model (now wounded); hit 6, wound 4, save 1 (fail), D3 damage face 6 -> 3 (overkill)
-    const { ctx, events } = ctxFor(state, [6, 4, 1, 1, 6, 4, 1, 6, ...TAIL])
+    const { ctx, events } = ctxFor(state, [6, 6, 4, 4, 1, 1, 1, 6, ...TAIL]) // hits, wounds, saves (all fail), then damage D3: 1 then 6
     attackService.begin(ctx, {
       kind: 'ranged', attackerUnitId: 'B:mob', overwatch: false,
       targets: [target('B:mob#1', 'blu.w.slugga', 'A:grunts', 1), target('B:mob#2', 'blu.w.slugga', 'A:grunts', 1)],
@@ -796,7 +769,7 @@ describe('attack sequence: additional checklist coverage', () => {
     const state = stateWith(unattached(), (b) => { (b.weapons['red.w.gun'] as any).abilities = [{ ability: 'DEVASTATING_WOUNDS' }] })
     place(state)
     // 2 normal attacks (wound 5 = success vs T5, save 1 = fail) then a critical wound (deferred to the end)
-    const { ctx, events } = ctxFor(state, [6, 5, 1, 6, 5, 1, 6, 6, ...TAIL])
+    const { ctx, events } = ctxFor(state, [6, 6, 6, 5, 5, 6, 1, 1, ...TAIL]) // hits, wounds (5,5,6=crit), saves (fail, fail)
     attackService.begin(ctx, { kind: 'ranged', attackerUnitId: 'A:grunts', overwatch: false, targets: [target('A:grunts#1', 'red.w.gun', 'B:mob', 3)] })
     const evs = drive({ ctx, events })
     expect(eventsOf(evs, 'SaveRolled')).toHaveLength(2)
@@ -821,7 +794,7 @@ describe('attack sequence: additional checklist coverage', () => {
     place(state)
     const { ctx, events } = ctxFor(state, [3, 5, ...TAIL]) // face 3 -> D3=2 attacks for model 1; face 5 -> D3=3 attacks for model 2
     attackService.begin(ctx, { kind: 'ranged', attackerUnitId: 'A:grunts', overwatch: false, targets: [target('A:grunts#1', 'red.w.gun', 'B:mob'), target('A:grunts#2', 'red.w.gun', 'B:mob')] })
-    expect(eventsOf(drive({ ctx, events }), 'HitRolled')).toHaveLength(5) // 2 + 3, each model's own roll
+    expect(eventsOf(drive({ ctx, events }), 'HitRolled')).toHaveLength(7) // (2 + Rapid Fire 1) + (3 + 1): each model rolled its own attack count
   })
 })
 
@@ -934,5 +907,151 @@ describe('attack sequence: verification round 2 regressions', () => {
     const dd = eventsOf(drive({ ctx, events }), 'DeadlyDemiseRolled')[0]
     expect(dd.exploded).toBe(true)
     expect(dd.affected.filter((u) => u === 'A:grunts' || u === 'A:boss')).toEqual(['A:grunts'])
+  })
+})
+
+// ---------- fast-roll batches (M9): one decision per batch, dice picked by index ----------
+describe('attack sequence: fast-roll batches', () => {
+  const pass = (p: PendingDecision): Action => ({ type: 'pass', player: p.player, decisionId: p.id })
+  // answers a Command Re-roll with the die at `dieIndex`, passes any other stratagem window, picks the first option otherwise
+  const commandRerollDie = (dieIndex: number, seen: PendingDecision[]): Choose => (p) => {
+    seen.push(p)
+    if (p.kind === 'commandReroll') return p.options.find((o) => o.id === `reroll:${dieIndex}`)!.action
+    if (p.kind === 'stratagemWindow' || p.kind === 'reactionWindow') return pass(p)
+    return firstOption(p)
+  }
+  const oathLike = (b: DataBundle) => {
+    b.datasheets['blu.mob'].abilities = [{ id: 't.oath', name: 'Oath', text: '', trigger: 'hitRoll', effect: { reroll: 'all' } } as any]
+  }
+
+  it('SHOOT-043c a batch of hit dice opens ONE commandReroll decision (selectableDice) and re-rolls exactly the picked die', () => {
+    const state = stateWith(unattached())
+    place(state)
+    state.players.B.cp = 2
+    const { ctx, events } = ctxFor(state, [2, 2, 2, 6, ...TAIL]) // three hit dice (all miss at BS5+); the pick re-rolls die 1 -> 6
+    attackService.begin(ctx, { kind: 'ranged', attackerUnitId: 'B:mob', overwatch: false, targets: [target('B:mob#1', 'blu.w.slugga', 'A:grunts', 3)] })
+    const seen: PendingDecision[] = []
+    const evs = drive({ ctx, events }, commandRerollDie(1, seen))
+    const offers = seen.filter((p) => p.kind === 'commandReroll' && p.context.roll.purpose === 'hit')
+    expect(offers).toHaveLength(1)
+    const offer = offers[0] as Extract<PendingDecision, { kind: 'commandReroll' }>
+    expect(offer.context.selectableDice).toBe(true)
+    expect(offer.context.roll.dice).toHaveLength(3)
+    expect(offer.context.roll.needed).toBe(5)
+    expect(eventsOf(evs, 'DiceRerolled')[0]).toMatchObject({ source: 'commandReroll', before: [2], after: [6], indexes: [1] })
+    expect(eventsOf(evs, 'HitRolled').map((h) => h.die)).toEqual([2, 6, 2]) // one HitRolled per die, in batch order
+    expect(eventsOf(evs, 'HitRolled').map((h) => h.dieIndex)).toEqual([0, 1, 2])
+  })
+
+  it('SHOOT-043d a rerollOffer re-rolls only the dice named in dieIndexes; the rest keep their result', () => {
+    const state = stateWith(unattached(), oathLike)
+    place(state)
+    const { ctx, events } = ctxFor(state, [5, 5, 5, 1, ...TAIL]) // three hits offered; only die 1 is re-rolled -> 1 (miss)
+    attackService.begin(ctx, { kind: 'ranged', attackerUnitId: 'B:mob', overwatch: false, targets: [target('B:mob#1', 'blu.w.slugga', 'A:grunts', 3)] })
+    const offers: PendingDecision[] = []
+    const evs = drive({ ctx, events }, (p) => {
+      if (p.kind === 'chooseOption' && p.context.topic === 'rerollOffer') {
+        offers.push(p)
+        return { type: 'chooseOption', player: p.player, decisionId: p.id, optionId: 'reroll', dieIndexes: [1] }
+      }
+      return firstOption(p)
+    })
+    expect(offers).toHaveLength(1) // ONE offer for the whole batch, not one per die
+    expect((offers[0] as Extract<PendingDecision, { kind: 'chooseOption' }>).context.data).toMatchObject({ dieIndexes: [0, 1, 2], needed: 5, purpose: 'hit' })
+    expect(eventsOf(evs, 'DiceRerolled')[0]).toMatchObject({ source: 'rerollOffer', before: [5], after: [1], indexes: [1] })
+    expect(eventsOf(evs, 'HitRolled').map((h) => [h.die, h.hit])).toEqual([[5, true], [1, false], [5, true]])
+  })
+
+  it('SHOOT-043e a rerollOffer answer with an empty, unoffered or repeated die index is rejected', () => {
+    const state = stateWith(unattached(), oathLike)
+    place(state)
+    const { ctx } = ctxFor(state, [5, 5, 5, ...TAIL])
+    attackService.begin(ctx, { kind: 'ranged', attackerUnitId: 'B:mob', overwatch: false, targets: [target('B:mob#1', 'blu.w.slugga', 'A:grunts', 3)] })
+    expect(attackService.advance(ctx)).toBe('pending')
+    const p = ctx.state.pending as PendingDecision
+    expect(p.kind === 'chooseOption' && p.context.topic).toBe('rerollOffer')
+    const ask = (dieIndexes: number[], optionId = 'reroll') => engine.validate(ctx.state, { type: 'chooseOption', player: p.player, decisionId: p.id, optionId, dieIndexes })
+    expect(ask([])?.code).toBe('E_NOT_AN_OPTION')
+    expect(ask([3])?.code).toBe('E_NOT_AN_OPTION')
+    expect(ask([0, 0])?.code).toBe('E_NOT_AN_OPTION')
+    expect(ask([0], 'keep')?.code).toBe('E_NOT_AN_OPTION')
+    expect(ask([0, 2])).toBeNull()
+  })
+
+  it('R-1.6 a die re-rolled by an ability is not offered to Command Re-roll again', () => {
+    const state = stateWith(unattached(), oathLike)
+    place(state)
+    state.players.B.cp = 2
+    const { ctx, events } = ctxFor(state, [5, 5, 5, 1, ...TAIL])
+    attackService.begin(ctx, { kind: 'ranged', attackerUnitId: 'B:mob', overwatch: false, targets: [target('B:mob#1', 'blu.w.slugga', 'A:grunts', 3)] })
+    const seen: PendingDecision[] = []
+    drive({ ctx, events }, (p) => {
+      seen.push(p)
+      if (p.kind === 'chooseOption' && p.context.topic === 'rerollOffer') return { type: 'chooseOption', player: p.player, decisionId: p.id, optionId: 'reroll', dieIndexes: [1] }
+      if (p.kind === 'commandReroll' || p.kind === 'stratagemWindow' || p.kind === 'reactionWindow') return pass(p)
+      return firstOption(p)
+    })
+    const cr = seen.find((p) => p.kind === 'commandReroll' && p.context.roll.purpose === 'hit') as Extract<PendingDecision, { kind: 'commandReroll' }>
+    expect(cr.options.map((o) => o.id)).toEqual(['reroll:0', 'reroll:2']) // die 1 already re-rolled
+  })
+
+  it('SHOOT-050a the saves of one group are ONE roll with one Command Re-roll window; only the failed save asks where to allocate', () => {
+    const state = stateWith(unattached())
+    place(state)
+    state.players.A.cp = 2
+    const { ctx, events } = ctxFor(state, [6, 6, 6, 6, 6, 6, 5, 1, 5, ...TAIL]) // 3 hits, 3 wounds, then saves 5 (pass) 1 (fail) 5 (pass)
+    attackService.begin(ctx, { kind: 'ranged', attackerUnitId: 'B:mob', overwatch: false, targets: [target('B:mob#1', 'blu.w.slugga', 'A:grunts', 3)] })
+    const seen: PendingDecision[] = []
+    const evs = drive({ ctx, events }, (p) => {
+      seen.push(p)
+      if (p.kind === 'commandReroll' || p.kind === 'stratagemWindow' || p.kind === 'reactionWindow') return pass(p)
+      return firstOption(p)
+    })
+    const saveRolls = eventsOf(evs, 'DiceRolled').filter((e) => e.roll.purpose === 'save')
+    expect(saveRolls).toHaveLength(1)
+    expect(saveRolls[0].roll.dice).toEqual([5, 1, 5])
+    expect(seen.filter((p) => p.kind === 'commandReroll' && p.context.roll.purpose === 'save')).toHaveLength(1)
+    expect(eventsOf(evs, 'SaveRolled').map((s) => s.saved)).toEqual([true, false, true])
+    expect(eventsOf(evs, 'SaveRolled').map((s) => s.dieIndex)).toEqual([0, 1, 2])
+    expect(seen.filter((p) => p.kind === 'allocateAttack')).toHaveLength(1) // fresh 4-model squad: a real choice, but only for the failure
+  })
+
+  it('SHOOT-050b two firing models with the same weapon at one target share ONE hit roll', () => {
+    const state = stateWith(unattached())
+    place(state)
+    const { ctx, events } = ctxFor(state, [2, 2, 2, 2, ...TAIL])
+    attackService.begin(ctx, { kind: 'ranged', attackerUnitId: 'B:mob', overwatch: false, targets: [target('B:mob#1', 'blu.w.slugga', 'A:grunts', 2), target('B:mob#2', 'blu.w.slugga', 'A:grunts', 2)] })
+    const evs = drive({ ctx, events })
+    const hitRolls = eventsOf(evs, 'DiceRolled').filter((e) => e.roll.purpose === 'hit')
+    expect(hitRolls).toHaveLength(1)
+    expect(hitRolls[0].roll.dice).toHaveLength(4)
+    expect(new Set(eventsOf(evs, 'HitRolled').map((h) => h.attack.attackerModelId))).toEqual(new Set(['B:mob#1', 'B:mob#2']))
+  })
+
+  it('SHOOT-051 attacks aimed at a target with no models left are lost: no dice, no events; other targets still resolve', () => {
+    const state = stateWith(unattached())
+    place(state)
+    const dead = state.units['A:grunts']
+    for (const id of dead.models) delete state.models[id]
+    dead.models = []
+    dead.location = 'destroyed'
+    const { ctx, events } = ctxFor(state, [...TAIL])
+    attackService.begin(ctx, { kind: 'ranged', attackerUnitId: 'B:mob', overwatch: false, targets: [target('B:mob#1', 'blu.w.slugga', 'A:grunts', 3), target('B:mob#2', 'blu.w.slugga', 'A:walker', 1)] })
+    const evs = drive({ ctx, events })
+    expect(eventsOf(evs, 'HitRolled')).toHaveLength(1)
+    expect(eventsOf(evs, 'HitRolled')[0].attack.targetUnitId).toBe('A:walker')
+    expect(eventsOf(evs, 'DiceRolled').filter((e) => e.roll.targetUnitId === 'A:grunts')).toHaveLength(0)
+  })
+
+  it('SHOOT-051b a target that dies partway through drops its remaining saves and later groups (nothing rolled for them)', () => {
+    const state = stateWith(unattached())
+    place(state)
+    for (const id of state.units['A:walker'].models) state.models[id].woundsRemaining = 1
+    const { ctx, events } = ctxFor(state, [...Array(10).fill(6), ...Array(5).fill(1), ...TAIL]) // 5 hits, 5 wounds, 5 failed saves
+    attackService.begin(ctx, { kind: 'ranged', attackerUnitId: 'B:mob', overwatch: false, targets: [target('B:mob#1', 'blu.w.slugga', 'A:walker', 3), target('B:mob#2', 'blu.w.slugga', 'A:walker', 2)] })
+    const evs = drive({ ctx, events })
+    expect(eventsOf(evs, 'ModelDestroyed').filter((m) => m.unitId === 'A:walker')).toHaveLength(1)
+    expect(eventsOf(evs, 'SaveRolled')).toHaveLength(1) // the first failed save kills it; the other 4 wounding attacks are lost
+    expect(eventsOf(evs, 'DiceRolled').filter((e) => e.roll.purpose === 'damage')).toHaveLength(0)
   })
 })

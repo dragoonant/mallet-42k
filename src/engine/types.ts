@@ -231,6 +231,31 @@ export interface AttackGroup {
   attacks: number
   resolved: number
   devastatingPending: number
+  /** Fast-roll bookkeeping (M9): once the group's hit batch has been rolled this holds the successful hits, the queue of
+   *  wounding attacks still to be allocated/saved, and the batched save roll. Absent until the hit batch finalises. */
+  batch?: GroupBatch
+  /** Index of the first group of this group's merge run: consecutive groups against the same target with the same
+   *  weapon profile (different firing models) are fast-rolled together, and the lead group holds the `batch`. */
+  runLead?: number
+}
+
+/** One successful hit of a fast-rolled group: `lethal` = auto-wounds (Lethal Hits), `extra` = Sustained Hits bonus hit. */
+export interface BatchHit { groupIndex: number; attackerModelId: ModelId; die: number; final: number; critical: boolean; lethal: boolean; extra: boolean }
+/** One wounding attack waiting to be allocated / saved / damaged. `saveDie` indexes into `GroupBatch.saveRoll.dice`. */
+export interface WoundSlot {
+  slot: number
+  groupIndex: number
+  attackerModelId: ModelId
+  hit: { die: number; final: number; critical: boolean; extraHits: number }
+  wound: { die: number; final: number; critical: boolean; auto: boolean }
+  saveDie?: number
+}
+export interface GroupBatch {
+  stage: 'wound' | 'save' | 'apply'
+  hits: BatchHit[]
+  queue: WoundSlot[]
+  saveRoll: DiceRoll | null
+  nextSlot: number
 }
 
 export interface CurrentAttack {
@@ -250,6 +275,10 @@ export interface CurrentAttack {
   saveTargets: { sv: number; ap: number; cover: boolean; armour: number; invuln: number | null } | null
   damage: number | null
   cover: boolean
+  /** Ordinal of this wounding attack within its group (keys wound/save/damage rolls); set by the fast-roll flow. */
+  slot?: number
+  /** Index of this attack's die inside the group's batched save roll; undefined = roll the save individually. */
+  saveDie?: number
 }
 
 export interface AttackSequenceState {
@@ -316,6 +345,8 @@ export interface DiceRoll {
   weaponId: WeaponId | null
   targetUnitId: UnitId | null
   commandRerollable: boolean
+  /** Display only: the d6 each die has to reach (hit/wound/save fast-rolls). */
+  needed?: number
 }
 
 // ---------- decisions ----------
@@ -427,9 +458,9 @@ export type ChooseOptionTopic =
   | 'reserveArrival' | 'leaderAttach' | 'hazardousCasualty' | 'rerollOffer' | 'abilityChoice' | 'stompTarget' | 'bagTarget' | 'other'
 export interface ChooseOptionDecision extends DecisionBase {
   kind: 'chooseOption'
-  // rerollOffer: data = { rollId, dieIndexes: number[] } (R-6.24); options = one per re-rollable die + keep
-  // saveType: data = { modelId, invuln, armourTarget, invulnTarget, sv, ap, cover, weaponId, attackerUnitId } —
-  //   `invuln` is the characteristic, the two *Target fields the d6 each save must beat (see CurrentAttack.saveTargets)
+  // rerollOffer: data = { rollId, dieIndexes: number[], needed?, purpose?, key? } (R-6.24); options = reroll / keep; the
+  //   `reroll` answer may carry `dieIndexes` (a non-empty subset of data.dieIndexes) to re-roll only those dice
+  // saveType: RETIRED (M9) — the engine now picks the save that needs the lower roll (ties: armour); never raised
   context: { topic: ChooseOptionTopic; unitId: UnitId | null; abilityId: Id | null; data: Record<string, unknown> }
   options: DecisionOption[]
 }

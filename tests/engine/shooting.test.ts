@@ -264,7 +264,7 @@ describe('shooting: resolution continues after declaration even if the target la
     const r = mmToInch(32) / 2
     placeExact(state, 'A:grunts', { 'A:grunts#2': { x: 0, z: 0 }, 'A:grunts#3': { x: 0, z: 1.5 } })
     placeExact(state, 'B:mob', { 'B:mob#1': { x: 14 + 2 * r, z: 0 } })
-    const { ctx, events } = start(state, Array(80).fill(6))
+    const { ctx, events } = start(state, [...Array(8).fill(6), ...Array(4).fill(1), ...Array(80).fill(6)]) // hits, wounds, then failed saves so an allocation prompt opens mid-resolution
     act(ctx, { type: 'chooseUnitToActivate', player: 'A', decisionId: DID, unitId: 'A:grunts' })
     act(ctx, {
       type: 'declareTargets', player: 'A', decisionId: DID, unitId: 'A:grunts',

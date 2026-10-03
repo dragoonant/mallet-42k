@@ -137,7 +137,7 @@ describe('attack.verify', () => {
     place(state)
     onlyModels(state, 'A:grunts', ['A:grunts#1'])
     state.models['A:grunts#1'].woundsRemaining = 1
-    const h = ctxFor(state, [6, 6, 1, 6, 6, 1, 6, 6, 1, ...TAIL])
+    const h = ctxFor(state, [6, 6, 6, 6, 6, 6, 1, 1, 1, ...TAIL]) // hits, wounds, saves (all fail)
     attackService.begin(h.ctx, { kind: 'ranged', attackerUnitId: 'B:mob', overwatch: false, targets: [target('B:mob#1', 'blu.w.slugga', 'A:grunts', 3)] })
     const ev = drive(h)
     expect(of(ev, 'DamageApplied').filter((d) => d.modelId === 'A:boss#0').length).toBe(2)
@@ -217,7 +217,7 @@ describe('attack.verify', () => {
   it('WEAP-011 Lethal Hits + Sustained Hits: 6 -> one auto-wound plus one extra hit that rolls to wound', () => {
     const state = stateWith(unattached(), (b) => { (b.weapons['red.w.gun'] as any).abilities = [{ ability: 'LETHAL_HITS' }, { ability: 'SUSTAINED_HITS', value: 1 }] })
     place(state)
-    const h = ctxFor(state, [6, 3, 5, 3, ...TAIL]) // hit 6; save 3 (Sv5 fail); extra wound 5 (success); save 3
+    const h = ctxFor(state, [6, 5, 3, 3, ...TAIL]) // hit 6; extra hit's wound 5 (success); saves 3, 3 (Sv5 fail)
     attackService.begin(h.ctx, { kind: 'ranged', attackerUnitId: 'A:grunts', overwatch: false, targets: [target('A:grunts#1', 'red.w.gun', 'B:mob', 1)] })
     const w = of(drive(h), 'WoundRolled')
     expect(w).toHaveLength(2)
@@ -425,7 +425,7 @@ describe('attack.verify round 3', () => {
     const sergeant = state.units['A:grunts'].models.find((id) => state.models[id].weapons.includes('red.w.pistol'))!
     const gunner = state.units['A:grunts'].models.find((id) => id !== sergeant && state.models[id].weapons.includes('red.w.gun'))!
     // gun A2 vs mob: hit 6, wound 6 (DW crit, deferred); hit 1 (grit re-roll 1) miss. pistol vs brute: hit 6, wound 2 fail
-    const h = ctxFor(state, [6, 6, 1, 1, 6, 2, ...TAIL])
+    const h = ctxFor(state, [6, 1, 1, 6, 6, 2, ...TAIL]) // gun hits 6,1 (+ grit re-roll of the 1 -> 1); wound 6; pistol hit 6; wound 2
     attackService.begin(h.ctx, { kind: 'ranged', attackerUnitId: 'A:grunts', overwatch: false, targets: [target(gunner, 'red.w.gun', 'B:mob'), target(sergeant, 'red.w.pistol', 'B:brute')] })
     const evs = drive(h)
     const iMob = evs.findIndex((e) => e.type === 'DamageApplied' && e.unitId === 'B:mob')
@@ -448,7 +448,7 @@ describe('attack.verify round 3', () => {
   })
 
   it('SHOOT-024-cover Benefit of Cover never improves an invulnerable save', () => {
-    const state = stateWith(unattached(), (b) => { (b.weapons['blu.w.slugga'] as any).abilities = [{ ability: 'INDIRECT_FIRE' }]; (b.weapons['blu.w.slugga'] as any).AP = -1 })
+    const state = stateWith(unattached(), (b) => { (b.weapons['blu.w.slugga'] as any).abilities = [{ ability: 'INDIRECT_FIRE' }]; (b.weapons['blu.w.slugga'] as any).AP = -3 })
     place(state)
     placeUnit(state, 'A:grunts', { x: 15, z: -12, gap: 0.5 })
     placeUnit(state, 'A:boss', [[-6, -5]])
@@ -457,8 +457,8 @@ describe('attack.verify round 3', () => {
     expect(DEFAULT_MODULES.services.los.unitVisible(state, 'B:mob#9', 'A:boss')).toBe(false)
     const h = ctxFor(state, [6, 6, 3, ...TAIL])
     attackService.begin(h.ctx, { kind: 'ranged', attackerUnitId: 'B:mob', overwatch: false, targets: [target('B:mob#9', 'blu.w.slugga', 'A:boss', 1)] })
-    const evs = drive(h, (p) => (p.kind === 'chooseOption' && (p.context as any).topic === 'saveType'
-      ? p.options.find((o) => o.id === 'invuln')!.action : firstOption(p)))
+    // AP-3: armour (3+, cover +1) would need 5+, the 4++ needs 4+ -> the engine picks the invulnerable save, cover or not
+    const evs = drive(h)
     expect(of(evs, 'AttackAllocated')[0].cover).toBe(true)
     expect(of(evs, 'SaveRolled')[0]).toMatchObject({ kind: 'invuln', die: 3, final: 3, saved: false })
   })

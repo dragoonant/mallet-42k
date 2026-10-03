@@ -87,15 +87,31 @@ A `chooseOption` decision's `context.data` is an open record; the keys each topi
 documented beside `ChooseOptionDecision` in `src/engine/types.ts`. Two topics put numbers there that
 the player cannot work out from the visible state:
 
-- `rerollOffer` — `{ rollId, dieIndexes }` (10-rules R-6.24).
-- `saveType` — `{ modelId, invuln, armourTarget, invulnTarget, sv, ap, cover, weaponId, attackerUnitId }`.
-  `invuln` is the characteristic; `armourTarget`/`invulnTarget` are the d6 each save must actually beat
-  once AP, the benefit of cover and any hook modifiers are applied (R-6.14, R-6.21) — the same numbers
-  the save stage judges the dice against, and the whole basis of the armour-or-invulnerable choice.
-  A target above 6 means that save cannot be made at all. The same pair is published on
-  `CurrentAttack.saveTargets` (`GameState.phaseState.attack.current`) before the save is rolled, so a
-  Command Re-roll offer on a save roll — which opens *before* `SaveRolled` is emitted — can show the
-  real target too. Both are display-only: the save stage recomputes from the modifiers in force.
+- `rerollOffer` — `{ rollId, dieIndexes, needed?, purpose?, key? }` (10-rules R-6.24). `dieIndexes` are the dice of that
+  roll the ability may still re-roll (never one already re-rolled); `needed` is the d6 each die has to reach and `purpose`
+  is `'hit' | 'wound'` (both present on attack rolls; the charge offer carries only `rollId`/`dieIndexes`, whole-roll).
+  Options are `reroll` and `keep`. **M9 (fast-roll):** the `chooseOption` action gains an optional `dieIndexes?: number[]`;
+  with `optionId: 'reroll'` it must be a non-empty, duplicate-free subset of the offered `dieIndexes` (anything else is
+  rejected `E_NOT_AN_OPTION`), and only those dice are re-rolled; absent = every offered die. There is one offer per
+  batch, not one per die.
+- `saveType` — **retired (M9).** The engine picks the save that needs the lower d6 (tie: armour) and never raises this
+  decision. The numbers still exist: `CurrentAttack.saveTargets` (display-only, per-attack saves) and `DiceRoll.needed` (a
+  batched save roll carries the d6 its dice have to reach).
+
+**Fast-rolled attack dice (M9).** Attacks that share a target and a weapon profile (consecutive `AttackGroup`s, i.e. several
+firing models of one unit; `AttackGroup.runLead`) are resolved in batches: ONE hit `DiceRoll` (count N, per-die
+evaluation), automatic ability re-rolls as one `ctx.reroll`, at most one `rerollOffer`, one Command Re-roll window
+(`commandReroll` context `{ roll, selectableDice: true }` when N > 1 — the stratagem still re-rolls exactly one die,
+`CommandRerollAction.dieIndex`), then the same for the wound dice (over the dice that hit, Lethal Hits auto-wounds excluded,
+Sustained Hits bonus hits included). The ability re-roll happens before the Command Re-roll window, so a die an ability already
+re-rolled is no longer offered to the stratagem (R-1.6). Saves are one `DiceRoll` per batch when every model the defender
+could allocate to saves identically (same d6 target after AP/cover/invuln/modifiers, same Feel No Pain; never with Precision
+or an impossible save), applied attack by attack through allocation/damage/FNP — an allocation prompt opens only for a
+failed save with a real choice; otherwise the old per-attack save flow runs. Attacks aimed at a target with no models left
+are lost (no dice, no windows, no events; Hazardous tests still resolve). Events stay one per die (`HitRolled`,
+`WoundRolled`, `SaveRolled`) and now carry the optional `rollId` + `dieIndex` of their die inside the batch `DiceRoll`;
+`DiceRerolled.indexes` names the re-rolled dice (`before`/`after` are aligned to it). `DiceRoll.needed` (display only) is the
+d6 each die has to reach. New optional state: `AttackGroup.batch`/`runLead`, `CurrentAttack.slot`/`saveDie`.
 
 Stratagem and reaction interrupt windows are ordinary `PendingDecision`s of kind `stratagemWindow`/`reactionWindow` offered to the *reacting* player. The engine opens a window only when the reacting player has ≥1 affordable, legal stratagem for that `TimingWindowId` (or a legal reaction); otherwise it skips the window and emits no decision. This keeps human play snappy and bounds AI decisions.
 
@@ -179,7 +195,7 @@ Events are the only channel to the UI (zustand store subscribes) and the dice lo
 | Replay | `replay(setup, seed, log)` must reproduce `state.hash` at every seq. CI runs this on every recorded sim game. |
 | Save | `SaveFile { version: 1, engineVersion, setup, seed, actions, finalHash }`. Load = replay (a save made with a `ScriptedRng` override replays only with the same override). Optional `snapshot` for fast resume; a mismatch between snapshot hash and replay hash is a hard error. |
 | Undo (hotseat) | replay to `seq - 1`. Vs AI: undo allowed only for actions that emitted no `DiceRolled` event (prevents re-rolling by undo). |
-| Versioning | `engineVersion` semver; a save with a different major is refused. Data files carry `dataVersion`; the hash includes it. |
+| Versioning | `engineVersion` semver (1.0.0 since M9: fast-rolled attack dice changed RNG draw order); a save with a different major is refused. Data files carry `dataVersion`; the hash includes it. |
 
 ## 7. Space and models
 

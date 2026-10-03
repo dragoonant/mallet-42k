@@ -50,10 +50,10 @@ export interface TargetsDeclared extends EventBase {
   targets: { modelId: ModelId; weaponId: WeaponId; targetUnitId: UnitId }[]
 }
 export interface AttackRollContext { attackerUnitId: UnitId; attackerModelId: ModelId; weaponId: WeaponId; targetUnitId: UnitId }
-export interface HitRolled extends EventBase { type: 'HitRolled'; attack: AttackRollContext; die: number; final: number; hit: boolean; critical: boolean; extraHits: number; auto: boolean }
-export interface WoundRolled extends EventBase { type: 'WoundRolled'; attack: AttackRollContext; die: number; final: number; needed: number; wounded: boolean; critical: boolean; auto: boolean }
+export interface HitRolled extends EventBase { type: 'HitRolled'; attack: AttackRollContext; die: number; final: number; hit: boolean; critical: boolean; extraHits: number; auto: boolean; rollId?: string; dieIndex?: number }
+export interface WoundRolled extends EventBase { type: 'WoundRolled'; attack: AttackRollContext; die: number; final: number; needed: number; wounded: boolean; critical: boolean; auto: boolean; rollId?: string; dieIndex?: number }
 export interface AttackAllocated extends EventBase { type: 'AttackAllocated'; attack: AttackRollContext; modelId: ModelId; cover: boolean }
-export interface SaveRolled extends EventBase { type: 'SaveRolled'; attack: AttackRollContext; modelId: ModelId; kind: 'armour' | 'invuln' | 'none'; die: number; final: number; needed: number; saved: boolean }
+export interface SaveRolled extends EventBase { type: 'SaveRolled'; attack: AttackRollContext; modelId: ModelId; kind: 'armour' | 'invuln' | 'none'; die: number; final: number; needed: number; saved: boolean; rollId?: string; dieIndex?: number }
 export interface DamageApplied extends EventBase { type: 'DamageApplied'; unitId: UnitId; modelId: ModelId; amount: number; mortal: boolean; woundsRemaining: number; source: AttackRollContext | { abilityId: Id } | { stratagemId: StratagemId } }
 export interface FeelNoPainRolled extends EventBase { type: 'FeelNoPainRolled'; unitId: UnitId; modelId: ModelId; die: number; needed: number; ignored: boolean }
 // byModelId: the attacking model for ranged/melee kills; null for mortal wounds, Deadly Demise, coherency culls
@@ -82,7 +82,7 @@ export interface EffectExpired extends EventBase { type: 'EffectExpired'; effect
 
 // dice: one per physical roll, always emitted even when a family event covers it
 export interface DiceRolled extends EventBase { type: 'DiceRolled'; roll: DiceRoll }
-export interface DiceRerolled extends EventBase { type: 'DiceRerolled'; rollId: string; source: 'commandReroll' | Id; before: number[]; after: number[] }
+export interface DiceRerolled extends EventBase { type: 'DiceRerolled'; rollId: string; source: 'commandReroll' | Id; before: number[]; after: number[]; indexes?: number[] }
 
 // objectives
 export interface ObjectiveControlChanged extends EventBase { type: 'ObjectiveControlChanged'; objectiveId: ObjectiveId; from: PlayerId | null; to: PlayerId | null; levels: Record<PlayerId, number> }

@@ -34,7 +34,8 @@ export interface ChargeMoveAction extends ActionBase { type: 'chargeMove'; unitI
 export interface PileInAction extends ActionBase { type: 'pileIn'; unitId: UnitId; placements: ModelPlacement[] }
 export interface ConsolidateAction extends ActionBase { type: 'consolidate'; unitId: UnitId; placements: ModelPlacement[] }
 export interface ChooseFightUnitAction extends ActionBase { type: 'chooseFightUnit'; unitId: UnitId }
-export interface ChooseOptionAction extends ActionBase { type: 'chooseOption'; optionId: string }
+// dieIndexes: only with optionId 'reroll' on a `rerollOffer`: a non-empty subset of the offered dice (absent = all offered)
+export interface ChooseOptionAction extends ActionBase { type: 'chooseOption'; optionId: string; dieIndexes?: number[] }
 export interface ConfirmAction extends ActionBase { type: 'confirm' }
 export interface PassAction extends ActionBase { type: 'pass' }
 export interface StratagemTargets { unitIds?: UnitId[]; modelIds?: ModelId[]; objectiveId?: string; optionId?: string }

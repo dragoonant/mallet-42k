@@ -106,7 +106,7 @@ function makeContext(draft: GameState, rng: Rng, modules: ModuleTable, rt: StepR
     reroll(roll, indexes, source) {
       const r = applyReroll(rng, roll, indexes)
       rt.diceRollIds.push(`${roll.id}#reroll`)
-      ctx.emit({ type: 'DiceRerolled', rollId: roll.id, source, before: r.before, after: r.after, player: roll.player })
+      ctx.emit({ type: 'DiceRerolled', rollId: roll.id, source, before: r.before, after: r.after, indexes: [...new Set(indexes)], player: roll.player })
       if (s.phaseState.lastRoll?.id === roll.id) s.phaseState.lastRoll = r.roll
       return r.roll
     },
@@ -215,7 +215,10 @@ export function checkActionShape(action: Action): Rejection | null {
     case 'declareCharge':
       if (!isStr(a.unitId)) return schema('unitId required')
       return Array.isArray(a.targetUnitIds) && a.targetUnitIds.length > 0 && a.targetUnitIds.every(isStr) ? null : schema('targetUnitIds must be a non-empty string array')
-    case 'chooseOption': return isStr(a.optionId) ? null : schema('optionId required')
+    case 'chooseOption':
+      if (!isStr(a.optionId)) return schema('optionId required')
+      if (a.dieIndexes !== undefined && (!Array.isArray(a.dieIndexes) || !a.dieIndexes.every((i) => Number.isInteger(i) && i >= 0))) return schema('dieIndexes must be an array of non-negative integers')
+      return null
     case 'useStratagem': {
       if (!isStr(a.stratagemId)) return schema('stratagemId required')
       if (!isObj(a.targets)) return schema('targets object required')
@@ -266,6 +269,16 @@ function envelopeCheck(state: GameState, action: Action): Rejection | null {
 function actionKey(a: Action): string {
   const { seq: _s, decisionId: _d, player: _p, ...rest } = a as Action & { seq?: number }
   return JSON.stringify(rest, Object.keys(rest).sort())
+}
+
+function badDieIndexes(action: Extract<Action, { type: 'chooseOption' }>, pending: Extract<PendingDecision, { kind: 'chooseOption' }>): Rejection | null {
+  if (pending.context.topic !== 'rerollOffer' || action.optionId !== 'reroll') return { code: 'E_NOT_AN_OPTION', reason: 'dieIndexes is only valid with a rerollOffer re-roll' }
+  const offered = (pending.context.data as { dieIndexes?: number[] }).dieIndexes ?? []
+  const picked = action.dieIndexes as number[]
+  if (picked.length === 0 || new Set(picked).size !== picked.length || !picked.every((i) => offered.includes(i))) {
+    return { code: 'E_NOT_AN_OPTION', reason: 'dieIndexes must be a non-empty subset of the offered dice', details: { offered } }
+  }
+  return null
 }
 
 function defaultValidate(_state: GameState, action: Action, pending: PendingDecision): Rejection | null {
@@ -506,6 +519,11 @@ export function createEngine(modules: ModuleTable): EngineApi {
     if (action.type === 'resign') return null
     const pending = state.pending as PendingDecision
     const owner = ownerOf(state, pending, modules, core)
+    // M9: a rerollOffer `reroll` may name which of the offered dice to re-roll (non-empty subset, no repeats)
+    if (action.type === 'chooseOption' && action.dieIndexes !== undefined && pending.kind === 'chooseOption') {
+      const bad = badDieIndexes(action, pending)
+      if (bad) return bad
+    }
     return owner.validate ? owner.validate(state, action, pending) : defaultValidate(state, action, pending)
   }
 

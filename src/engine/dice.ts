@@ -71,6 +71,8 @@ export interface RollSpec {
   targetUnitId?: UnitId | null
   // false for roll-offs and any roll a rule says can never be re-rolled (R-1.4)
   commandRerollable?: boolean
+  // display only: the d6 each die needs (hit/wound/save fast-rolls)
+  needed?: number
 }
 
 export function netModifier(modifiers: RollModifier[] | undefined, cap: number | null | undefined): number {
@@ -114,6 +116,7 @@ export function makeRoll(rng: Rng, spec: RollSpec, id: string): DiceRoll {
     weaponId: spec.weaponId ?? null,
     targetUnitId: spec.targetUnitId ?? null,
     commandRerollable: spec.commandRerollable ?? true,
+    ...(spec.needed !== undefined ? { needed: spec.needed } : {}),
   }
 }
 

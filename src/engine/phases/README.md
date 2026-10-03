@@ -107,6 +107,7 @@ Rules of the road:
    and afterwards the possibly re-rolled `DiceRoll`. Consume it (store the result in state) before rolling again.
    Plain `ctx.roll(spec)` / `ctx.rollExpr(expr, spec)` are for rolls that can never be re-rolled or where the module
    handles offers itself (R-6.24 `rerollOffer` → `ctx.reroll(roll, indexes, source)`). Every roll emits `DiceRolled`.
+   Attack dice are fast-rolled in batches (`attack.ts`, see 00-arch §3 "Fast-rolled attack dice"): one `DiceRoll` of N dice per step.
 5. **`ctx.once(key)` / `ctx.marked(key)`** are progress markers in `phaseState.marks` (reset per phase) for one-shot
    steps inside a re-entrant sequence ("hooks already run for this unit", "Advance roll made").
 6. **Placements**: validate with `checkPlacements` (geometry.ts) — schema, per-model allowance (`constraints.perModel`

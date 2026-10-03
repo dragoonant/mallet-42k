@@ -630,7 +630,17 @@ function scoreStratagemOrReaction(state: GameState, player: PlayerId, pending: P
 function scoreCommandReroll(pending: PendingDecision, action: Action): number {
   if (action.type === 'pass') return HOLD_CP_SCORE
   if (action.type !== 'commandReroll' || pending.kind !== 'commandReroll') return 0
-  const sum = pending.context.roll.final.reduce((a, b) => a + b, 0)
+  const roll = pending.context.roll
+  // M9 fast-rolled hit / wound / save batches: the stratagem re-rolls ONE die — only ever a failing one (the lowest, since
+  // every failing die is equally likely to turn, prefer the one nearest to passing last). Spending stays conservative
+  // (always below HOLD_CP_SCORE), exactly as it was for single dice: the bot holds its CP unless a charge/advance needs it.
+  if (action.dieIndex !== undefined && (roll.purpose === 'hit' || roll.purpose === 'wound' || roll.purpose === 'save')) {
+    const needed = roll.needed ?? 4
+    const die = roll.dice[action.dieIndex]
+    if (die === undefined || (die !== 1 && die >= needed)) return -1
+    return 0.5 - (die - 1) * 0.01
+  }
+  const sum = roll.final.reduce((a, b) => a + b, 0)
   if (pending.context.roll.purpose === 'charge' && sum < 8) return 3
   if (pending.context.roll.purpose === 'advance' && sum <= 2) return 1.5
   return 0.2
@@ -653,7 +663,6 @@ function scoreChooseOption(state: GameState, pending: PendingDecision, action: A
       score += unitValue(state, hintUnitId) * 0.03 // e.g. oathTarget/bagTarget/stompTarget: aim at the best target
     }
   }
-  if (topic === 'saveType' && action.optionId === 'invuln') score += 0.1
   const label = (option?.label ?? '').toLowerCase()
   if (/(skip|none|decline)/.test(label)) score -= 1
   return score
@@ -681,6 +690,20 @@ function scoreAction(state: GameState, player: PlayerId, pending: PendingDecisio
   }
 }
 
+// M9: an attack-roll `rerollOffer` (data.needed present) names the offered dice; the bot re-rolls only the ones that fail
+// (none in practice — failures are re-rolled automatically — so it keeps), never a die that already succeeded.
+function rerollOfferAnswer(state: GameState, pending: PendingDecision, options: Action[]): Action | null {
+  if (pending.kind !== 'chooseOption' || pending.context.topic !== 'rerollOffer') return null
+  const data = pending.context.data as { rollId?: string; dieIndexes?: number[]; needed?: number }
+  if (typeof data.needed !== 'number' || !Array.isArray(data.dieIndexes)) return null
+  const roll = state.phaseState.lastRoll
+  const reroll = options.find((o) => o.type === 'chooseOption' && o.optionId === 'reroll')
+  const keep = options.find((o) => o.type === 'chooseOption' && o.optionId === 'keep')
+  if (!roll || roll.id !== data.rollId || !reroll || reroll.type !== 'chooseOption' || !keep) return null
+  const failed = data.dieIndexes.filter((i) => roll.dice[i] === 1 || roll.dice[i] < (data.needed as number))
+  return failed.length > 0 ? { ...reroll, dieIndexes: failed } : keep
+}
+
 export class UtilityDecider implements Decider {
   private rng: Rng
 
@@ -697,6 +720,8 @@ export class UtilityDecider implements Decider {
     if (options.length === 0) throw new Error(`UtilityDecider: no legal action for decision ${pending.id} (${pending.kind})`)
     if (options.length === 1) return options[0]
     const state = view.state
+    const offer = rerollOfferAnswer(state, pending, options)
+    if (offer) return offer
     const scored = options.map((a) => ({ a, s: scoreAction(state, view.player, pending, a) }))
     scored.sort((x, y) => y.s - x.s)
     if (this.difficulty === 'easy') {
