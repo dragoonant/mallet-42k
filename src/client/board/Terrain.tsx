@@ -3,9 +3,10 @@ import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import type { FloorData, TerrainPieceData, WallData } from '@/data/types'
 import { extrudedPolygonGeometry, polygonBoundingRadius, polygonCentroid, seededUnit, segmentTransform } from './geometry'
+import { planRuin, planTurns, polygonBounds, simpleTurns, type Bounds } from './ruinFit'
+import { useRuinModel, type RuinModel } from './ruinModels'
 import {
   BARRIER_MODEL_URL,
-  BRICK_URLS,
   CONCRETE_URLS,
   METAL_URLS,
   ROCK_MODEL_URLS,
@@ -19,7 +20,7 @@ import {
 // 'wall'/'forest' are untextured fallbacks) keep a flat tint; textured kinds use a near-white tint
 // below (BRICK_TINT etc.) so the PBR map's own color shows through instead of being multiplied dark.
 const PALETTE: Record<TerrainPieceData['kind'], { base: string; accent: string }> = {
-  ruin: { base: '#8d8271', accent: '#6a6152' },
+  ruin: { base: '#8a8a86', accent: '#66665f' },
   crate: { base: '#5f6b4a', accent: '#454f34' },
   barricade: { base: '#7d8087', accent: '#5c5f66' },
   crater: { base: '#6f4f34', accent: '#523a26' },
@@ -30,9 +31,12 @@ const PALETTE: Record<TerrainPieceData['kind'], { base: string; accent: string }
 // Near-white tints for textured materials — a meshStandardMaterial's `color` multiplies its `map`,
 // so a dark tint here (the old PALETTE values) crushes the PBR texture toward black regardless of
 // the texture's own detail. These let the brick/concrete/metal photos read as intended.
-const BRICK_TINT = '#e8e0d4'
-const RUBBLE_TINT = '#cfc6b8'
-const CONCRETE_TINT = '#d0d0d0'
+const RUIN_WALL_TINT = '#a4a4a0' // weathered grey concrete (procedural ruin fallback)
+const RUBBLE_TINT = '#8c8c87'
+const CONCRETE_TINT = '#a9a9a4' // upper-floor slabs, matched to the grey ruins
+// Pulls the floor slab in from the footprint edge when a ruin GLB is drawn, so its sides never
+// z-fight the model's own outer walls.
+const GLB_FLOOR_INSET = 0.12
 // White so the diffuse map's own brightness shows (any tint here multiplies the texture darker);
 // metalness stays 0 below since this scene has no environment map to light a metallic surface from
 // — a nonzero metalness with no env map just reads as flat black. The slight warm emissive is a
@@ -55,7 +59,7 @@ const TERRAIN_OPACITY = 0.85
 
 // Texture-repeat scale: one full tile per this many inches of surface (bricks/concrete/metal read
 // clearly at tabletop scale without looking either smeared or over-tiled).
-const BRICK_REPEAT_INCHES = 5
+const WALL_REPEAT_INCHES = 8
 const CONCRETE_REPEAT_INCHES = 8
 const METAL_REPEAT_INCHES = 5
 
@@ -106,15 +110,39 @@ function TerrainPiece({ piece }: { piece: TerrainPieceData }) {
   }
 }
 
+/** Draws a loaded terrain GLB scaled (non-uniformly) so its bounding box exactly covers `bounds` in
+ *  X/Z and `height` in Y, rotated `turns` quarter-turns about Y before the scale is applied. */
+function FittedModel({ model, bounds, height, turns }: { model: RuinModel; bounds: Bounds; height: number; turns: number }) {
+  const [sx, sy, sz] = model.size
+  const swap = turns % 2 === 1
+  const rx = swap ? sz : sx
+  const rz = swap ? sx : sz
+  return (
+    <group position={[bounds.cx, 0, bounds.cz]} scale={[bounds.w / rx, height / sy, bounds.d / rz]}>
+      <group rotation={[0, (turns * Math.PI) / 2, 0]}>
+        <primitive object={model.object} />
+      </group>
+    </group>
+  )
+}
+
 function RuinPiece({ piece }: { piece: TerrainPieceData }) {
   const floors = piece.floors ?? []
+  const plan = useMemo(() => planRuin(piece.id, piece.footprint, piece.height), [piece.id, piece.footprint, piece.height])
+  const bounds = useMemo(() => polygonBounds(piece.footprint), [piece.footprint])
+  const glb = useRuinModel(plan?.slug)
+  // 'pending' draws nothing for the instant the GLB streams in (no flash of the fallback);
+  // 'failed' (missing file / manifest / disabled slug) draws the procedural ruin.
   return (
     <group>
-      {(piece.walls ?? []).map((wall, i) => (
-        <RuinWall key={i} seed={`${piece.id}-${i}`} wall={wall} />
-      ))}
+      {glb.status === 'ready' && plan ? (
+        <FittedModel model={glb.model} bounds={bounds} height={piece.height} turns={planTurns(plan, glb.model.size, bounds)} />
+      ) : glb.status === 'failed' ? (
+        (piece.walls ?? []).map((wall, i) => <RuinWall key={i} seed={`${piece.id}-${i}`} wall={wall} />)
+      ) : null}
+      {/* Upper floors are gameplay (models stand on them), so they are always drawn, in grey concrete. */}
       {floors.map((floor, i) => (
-        <UpperFloor key={i} floor={floor} />
+        <UpperFloor key={i} floor={floor} inset={glb.status === 'ready' ? GLB_FLOOR_INSET : 0} />
       ))}
     </group>
   )
@@ -136,21 +164,21 @@ function RuinWall({ seed, wall }: { seed: string; wall: WallData }) {
     })
   }, [seed, length, wallHeight])
 
-  const brick = useTiledPBR(BRICK_URLS)
+  const concrete = useTiledPBR(CONCRETE_URLS)
   const wallTextures = useMemo(
-    () => cloneRepeat(brick, length / BRICK_REPEAT_INCHES, wallHeight / BRICK_REPEAT_INCHES),
-    [brick, length, wallHeight],
+    () => cloneRepeat(concrete, length / WALL_REPEAT_INCHES, wallHeight / WALL_REPEAT_INCHES),
+    [concrete, length, wallHeight],
   )
   const rubbleTextures = useMemo(
-    () => rubble.map((r) => cloneRepeat(brick, r.width / BRICK_REPEAT_INCHES, r.height / BRICK_REPEAT_INCHES)),
-    [brick, rubble],
+    () => rubble.map((r) => cloneRepeat(concrete, r.width / WALL_REPEAT_INCHES, r.height / WALL_REPEAT_INCHES)),
+    [concrete, rubble],
   )
 
   return (
     <group position={[mid.x, 0, mid.z]} rotation={[0, rotationY, 0]}>
       <mesh position={[0, wallHeight / 2, 0]} castShadow receiveShadow>
         <boxGeometry args={[length, wallHeight, WALL_THICKNESS]} />
-        <meshStandardMaterial {...wallTextures} color={BRICK_TINT} roughness={1} transparent opacity={TERRAIN_OPACITY} />
+        <meshStandardMaterial {...wallTextures} color={RUIN_WALL_TINT} roughness={1} transparent opacity={TERRAIN_OPACITY} />
       </mesh>
       {rubble.map((r, i) => (
         <mesh key={i} position={[r.offset, r.height / 2, 0]}>
@@ -162,9 +190,12 @@ function RuinWall({ seed, wall }: { seed: string; wall: WallData }) {
   )
 }
 
-function UpperFloor({ floor }: { floor: FloorData }) {
+function UpperFloor({ floor, inset = 0 }: { floor: FloorData; inset?: number }) {
   const thickness = 0.4
-  const geometry = useMemo(() => extrudedPolygonGeometry(floor.polygon, thickness), [floor.polygon])
+  const geometry = useMemo(
+    () => extrudedPolygonGeometry(inset > 0 ? insetPolygon(floor.polygon, inset) : floor.polygon, thickness),
+    [floor.polygon, inset],
+  )
   const { width, depth } = useMemo(() => polygonFootprintSize(floor.polygon), [floor.polygon])
   const concrete = useTiledPBR(CONCRETE_URLS)
   const textures = useMemo(
@@ -179,7 +210,13 @@ function UpperFloor({ floor }: { floor: FloorData }) {
 }
 
 function BarricadePiece({ piece, colors }: { piece: TerrainPieceData; colors: { base: string; accent: string } }) {
+  const glb = useRuinModel('barricade')
+  const bounds = useMemo(() => polygonBounds(piece.footprint), [piece.footprint])
   const walls = piece.walls
+  if (glb.status === 'pending') return null
+  if (glb.status === 'ready') {
+    return <FittedModel model={glb.model} bounds={bounds} height={piece.height} turns={simpleTurns(glb.model.size, bounds)} />
+  }
   if (!walls || walls.length === 0) {
     return <BlockPiece piece={piece} colors={colors} />
   }
@@ -296,6 +333,9 @@ function CraterPiece({ piece }: { piece: TerrainPieceData }) {
   const center = useMemo(() => polygonCentroid(piece.footprint), [piece.footprint])
   const radius = useMemo(() => polygonBoundingRadius(piece.footprint, center), [piece.footprint, center])
   const scorchGeometry = useMemo(() => extrudedPolygonGeometry(piece.footprint, CRATER_SCORCH_HEIGHT), [piece.footprint])
+  // The decorative scorch decal is replaced by the flat blast-crater GLB when it is available.
+  const craterGlb = useRuinModel('crater')
+  const craterBounds = useMemo(() => polygonBounds(piece.footprint), [piece.footprint])
 
   // Fixed-length tuple (ROCK_MODEL_URLS never changes at runtime), so calling useGLTF once per
   // entry keeps a stable hook-call order across renders.
@@ -396,9 +436,18 @@ function CraterPiece({ piece }: { piece: TerrainPieceData }) {
 
   return (
     <group>
-      <mesh position={[0, 0.001, 0]} geometry={scorchGeometry}>
-        <meshStandardMaterial color="#3a2a1e" roughness={1} transparent opacity={0.6} depthWrite={false} />
-      </mesh>
+      {craterGlb.status === 'ready' ? (
+        <FittedModel
+          model={craterGlb.model}
+          bounds={craterBounds}
+          height={Math.max(piece.height, 0.05)}
+          turns={simpleTurns(craterGlb.model.size, craterBounds)}
+        />
+      ) : (
+        <mesh position={[0, 0.001, 0]} geometry={scorchGeometry}>
+          <meshStandardMaterial color="#3a2a1e" roughness={1} transparent opacity={0.6} depthWrite={false} />
+        </mesh>
+      )}
       {rocks.map((r, i) => (
         <primitive
           key={i}
