@@ -29,23 +29,14 @@ async function handleHuman(page: Page, s: Snap): Promise<void> {
     const compact = page.getByTestId('formation-phalanx')
     if (await compact.isVisible().catch(() => false)) await compact.click().catch(() => {})
     const zone: V2[] = p.context.zone
-    const taken = s.units.filter((u) => u.player === p.player && u.loc === 'board').length
     // The strip is wide and shallow (44x5): sweep it in 2" steps, centre first, three rows deep.
     const xs = Array.from({ length: 20 }, (_, i) => [2 * i, -2 * i]).flat().filter((x, i) => i !== 1 && Math.abs(x) <= 19)
     // The zone is on whichever long edge this seed gave the human: aim at its middle, then one row either side.
     const zs = zone.map((v) => v.z)
     const mid = (Math.min(...zs) + Math.max(...zs)) / 2
     const pts: V2[] = xs.flatMap((x) => [mid, mid - 1.3, mid + 1.3].map((z) => ({ x, z })))
-    if (chip && taken < 2 && (await tryBoardPlacement(page, s, pts, cam, W, H, name, { note: (m) => console.log('[am] ' + m), retryFormations: true }))) return
-    // The strip is crowded by now: take the engine's own first legal placement for this unit instead.
-    const dispatched = await page.evaluate((pid: string) => {
-      const st = (window as any).__mallet.useGameStore.getState() // eslint-disable-line @typescript-eslint/no-explicit-any
-      const a = (st.legal ?? []).find((x: any) => x.type === 'deployUnit' && !x.toReserves) // eslint-disable-line @typescript-eslint/no-explicit-any
-      if (!a || st.pending?.id !== pid) return false
-      st.dispatch(a)
-      return true
-    }, p.id)
-    if (dispatched) { console.log('[am] fallback legal placement for ' + name); return }
+    if (chip && (await tryBoardPlacement(page, s, pts, cam, W, H, name, { note: (m) => console.log('[am] ' + m), retryFormations: true }))) return
+    // Real clicks only: the board-click draft searches the strip for a free spot itself (findOpenDeploySpot), so no store shortcut.
     const res = await promptButton(page, /^Reserves:/)
     if (res) { await res.click(); return }
     await clickPass(page)

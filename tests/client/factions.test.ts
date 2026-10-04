@@ -2,7 +2,7 @@
 // Necron and Chaos Space Marine datasheet resolves to its own procedural kit (with GLB lookups falling back cleanly).
 import { describe, expect, it } from 'vitest'
 import { loadBundle } from '../../src/data'
-import { resolveFactionId, useGameStore } from '../../src/client/store/game'
+import { resolveFactionId, splittablePatrolRefs, useGameStore } from '../../src/client/store/game'
 import { resolveFigureKit } from '../../src/client/figures/data'
 import { BODY_KIND, BIPED_CONFIG, ARTILLERY_CONFIG } from '../../src/client/figures/kitConfigs'
 import { glbSlugFor } from '../../src/client/figures/glbModels'
@@ -228,4 +228,34 @@ describe('astra militarum figures', () => {
   it('every astra militarum weapon resolves to a known icon', () => {
     for (const w of Object.values(bundle.weapons).filter((x) => x.id.startsWith('am.'))) expect(WEAPON_ICON_KINDS).toContain(weaponIconKind(w))
   })
+})
+
+describe('Patrol Squads for both seats', () => {
+  it('Astra Militarum: the engine offers the Battery split to Player B as well as Player A, and a bot seat answers it', async () => {
+    await useGameStore.getState().newGame({ playerFaction: 'astra-militarum', opponentFaction: 'astra-militarum', opponent: 'hotseat', seed: 'am-squads-both' })
+    const owners: string[] = []
+    for (let i = 0; i < 30; i++) {
+      const { pending } = useGameStore.getState()
+      if (!pending || pending.kind === 'deployUnit') break
+      if (pending.kind !== 'chooseOption') throw new Error(`unexpected ${pending.kind}`)
+      if ((pending.context.data as { choice?: string }).choice === 'patrolSquads') owners.push(pending.player)
+      const first = pending.options[0].action
+      useGameStore.getState().dispatch({ ...first, decisionId: pending.id } as typeof first)
+    }
+    expect(owners.sort()).toEqual(['A', 'B'])
+  }, 60000)
+
+  it('Sororitas: splitSquads applies per seat (A only, B only, both) and defaults to whole units, so a hotseat Player B can split', async () => {
+    const run = async (a: boolean, b: boolean) => {
+      await useGameStore.getState().newGame({ playerFaction: 'adepta-sororitas', opponentFaction: 'adepta-sororitas', opponent: 'hotseat', seed: 'ade-split', splitSquads: a, opponentSplitSquads: b })
+      const s = useGameStore.getState().state!
+      return [Boolean(s.units['A:sisters-a']), Boolean(s.units['B:sisters-a'])]
+    }
+    expect(await run(false, false)).toEqual([false, false])
+    expect(await run(true, false)).toEqual([true, false])
+    expect(await run(false, true)).toEqual([false, true])
+    expect(await run(true, true)).toEqual([true, true])
+    expect(splittablePatrolRefs(bundle, 'adepta-sororitas')).toEqual(['sisters'])
+    expect(splittablePatrolRefs(bundle, 'space-marines')).toEqual([])
+  }, 60000)
 })

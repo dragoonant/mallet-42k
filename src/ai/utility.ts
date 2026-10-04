@@ -742,6 +742,8 @@ function scoreChooseOption(state: GameState, pending: PendingDecision, action: A
   }
   const label = (option?.label ?? '').toLowerCase()
   if (/(skip|none|decline)/.test(label)) score -= 1
+  // Patrol Squads: a bot keeps its unit whole (one activation, one deployment spot) rather than splitting at random
+  if ((pending.context.data as { choice?: string }).choice === 'patrolSquads' && action.optionId === 'keep') score += 0.5
   const code = (pending.context.data as { code?: string }).code
   // Astra Militarum Voice of Command: prefer Take Aim! on gunlines, Move! Move! Move! on units that need to cross the board,
   // Take Cover! on units with a poor save under fire; an Order to every unit (Command Laurels) is always good value.

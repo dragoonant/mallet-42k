@@ -181,7 +181,14 @@ function defaultAttachments(bundle: DataBundle, patrol: CombatPatrolData): Playe
   return attachments
 }
 
-function buildPlayerSetup(bundle: DataBundle, factionKey: FactionKey, secondaryId?: string): PlayerSetup {
+/** Patrol unit refs that carry setup-time Patrol Squads parts (e.g. Sororitas Battle Sisters); AM/Tyranids use the in-engine deployment prompt instead. */
+export function splittablePatrolRefs(bundle: DataBundle, factionKey: FactionKey): string[] {
+  const factionId = resolveFactionId(factionKey)
+  const patrol = Object.values(bundle.patrols).find((p) => p.faction === factionId)
+  return patrol ? patrol.units.filter((u) => u.patrolSquads?.length).map((u) => u.ref) : []
+}
+
+function buildPlayerSetup(bundle: DataBundle, factionKey: FactionKey, secondaryId?: string, split = false): PlayerSetup {
   const factionId = resolveFactionId(factionKey)
   const patrol = Object.values(bundle.patrols).find((p) => p.faction === factionId)
   if (!patrol) throw new Error(`newGame: no Combat Patrol data for faction "${factionId}"`)
@@ -199,6 +206,7 @@ function buildPlayerSetup(bundle: DataBundle, factionKey: FactionKey, secondaryI
     attachments: defaultAttachments(bundle, patrol),
     reserves: [], // no reserves unless a unit requires them (handled by the deployment decision itself)
     battleReadyVp: 0,
+    ...(split && splittablePatrolRefs(bundle, factionKey).length ? { splitUnits: splittablePatrolRefs(bundle, factionKey) } : {}),
   }
 }
 
@@ -212,8 +220,8 @@ function buildSetup(bundle: DataBundle, opts: NewGameOptions): GameSetup {
     missionId,
     terrainLayoutId,
     players: {
-      A: buildPlayerSetup(bundle, opts.playerFaction, opts.secondaryId),
-      B: buildPlayerSetup(bundle, opponentFaction),
+      A: buildPlayerSetup(bundle, opts.playerFaction, opts.secondaryId, opts.splitSquads),
+      B: buildPlayerSetup(bundle, opponentFaction, undefined, opts.opponentSplitSquads),
     },
     sides: 'rollOff',
     firstTurn: 'rollOff',
@@ -231,6 +239,11 @@ export interface NewGameOptions {
   seed: string
   /** Player A's chosen secondary (patrol.secondaries[].id); falls back to the patrol's default. */
   secondaryId?: string
+  /** Split the seat's setup-time Patrol Squads units (Sororitas Battle Sisters) into their listed halves. Default: keep whole.
+   *  Per seat, so a hotseat Player B can split too; a bot seat keeps its units whole unless asked. AM/Tyranids split through the
+   *  engine's own deployment prompt, which is offered to whichever seat owns the unit. */
+  splitSquads?: boolean
+  opponentSplitSquads?: boolean
   /** Bot opponent strength; ignored for 'hotseat'. Defaults to DEFAULT_AI_DIFFICULTY ('normal'). */
   difficulty?: AiDifficulty
 }

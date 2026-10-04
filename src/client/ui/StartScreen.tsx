@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { loadBundle } from '../../data'
 import type { DataBundle } from '../../data/types'
-import { AI_DIFFICULTY_OPTIONS, DEFAULT_AI_DIFFICULTY, resolveFactionId, useGameStore, type AiDifficulty, type FactionKey, type OpponentKind } from '../store/game'
+import { AI_DIFFICULTY_OPTIONS, DEFAULT_AI_DIFFICULTY, resolveFactionId, splittablePatrolRefs, useGameStore, type AiDifficulty, type FactionKey, type OpponentKind } from '../store/game'
 import { primaryScoringSummary } from './labels'
 import { buttonActive, buttonBase, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 
@@ -73,6 +73,8 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
   const [mission, setMission] = useState('cp-01')
   const [secondaryId, setSecondaryId] = useState<string>('')
   const [seed, setSeed] = useState<string>(() => randomSeed())
+  const [splitA, setSplitA] = useState(false)
+  const [splitB, setSplitB] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -109,6 +111,10 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
     setSecondaryId(patrol?.secondaries.find((s) => s.default)?.id ?? patrol?.secondaries[0]?.id ?? '')
   }, [patrol])
 
+  // Patrol Squads that are split at setup (Sororitas); AM/Tyranids get the engine's own prompt at deployment instead.
+  const canSplitA = !!bundle && splittablePatrolRefs(bundle, faction).length > 0
+  const canSplitB = !!bundle && opponent === 'hotseat' && !!opponentFaction && splittablePatrolRefs(bundle, opponentFaction).length > 0
+
   const start = async () => {
     try {
       await newGame({
@@ -118,6 +124,8 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
         mission: `mission.${mission}`,
         seed,
         secondaryId: secondaryId || undefined,
+        splitSquads: canSplitA && splitA,
+        opponentSplitSquads: canSplitB && splitB,
         difficulty: opponent === 'bot' ? difficulty : undefined,
       })
       onStarted()
@@ -175,6 +183,12 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
           </>
         )}
 
+        {canSplitA && (
+          <label style={blurb} data-testid="setup-split-A">
+            <input type="checkbox" checked={splitA} onChange={(e) => setSplitA(e.target.checked)} /> Split your Battle Sisters Squad into two units of 5 (Patrol Squads)
+          </label>
+        )}
+
         <div style={label}>Opponent</div>
         <div style={row} data-testid="setup-patrol-B">
           <button style={opponent === 'bot' ? buttonActive : buttonBase} onClick={() => setOpponent('bot')}>
@@ -194,6 +208,12 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
             </option>
           ))}
         </select>
+
+        {canSplitB && (
+          <label style={blurb} data-testid="setup-split-B">
+            <input type="checkbox" checked={splitB} onChange={(e) => setSplitB(e.target.checked)} /> Split Player B's Battle Sisters Squad into two units of 5 (Patrol Squads)
+          </label>
+        )}
 
         {opponent === 'bot' && (
           <>

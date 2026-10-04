@@ -525,6 +525,25 @@ describe('patrol stratagems (AST-5)', () => {
     expect(rerolls(trooper, 'am.w.lasgun', BOYZ)).toBe(0)
   })
 
+  it('AST-025 AST-5.2: Bring It Down — a unit eligible when the Stratagem was used keeps the re-roll all phase even after its leader link detaches (Karsk after the Shock Troops die)', () => {
+    const s = makeState(); deployArmy(s); placeUnit(s, BOYZ, { x: -6, z: 8, gap: 0.3 })
+    phase(s, 'shooting', 'A', { A: 2 })
+    const h = stratHarness(s)
+    expect(stratagemService.openWindow(h.ctx, 'shooting.start', 'A', 'x', {})).toBe(true)
+    expect(h.useOption(BID, BOYZ)).toBeNull()
+    const rerolls = (attackerModel: string, weapon: string) =>
+      hookService.collect(h.ctx, 'onHitRoll', { attack: attackCtx(s, attackerModel, weapon, BOYZ), roll: rollOf(2, 'hit') })
+        .filter((r) => r.result.kind === 'roll' && (r.result as { reroll?: string }).reroll === 'all').length
+    expect(s.units[KARSK].bodyguardUnitId).toBe(SHA)
+    expect(rerolls(KM, 'am.w.bolt-pistol')).toBe(1)
+    // the bodyguard dies mid-phase: Karsk detaches and its canonical id changes from SHA to KARSK
+    destroyUnit(s, SHA)
+    s.units[KARSK].bodyguardUnitId = null
+    s.units[SHA].attachedLeaderId = null
+    expect(leaderService.canonicalUnitId(s, KARSK)).toBe(KARSK)
+    expect(rerolls(KM, 'am.w.bolt-pistol')).toBe(1)
+  })
+
   it('AST-027 AST-5.3: Artillery Strike — only at the opponent\'s command.start, 2 CP, once per battle, targets the Karsk model only (AST-033)', () => {
     const s = makeState(); deployArmy(s)
     phase(s, 'command', 'A', { A: 3 })
