@@ -44,6 +44,7 @@ const FACTION_COLOR: Record<string, string> = {
   sm: '#5aa7ff',
   ork: '#8dff5a',
   necrons: '#39ff6a',
+  'chaos-space-marines': '#c25a7a',
 }
 
 const NEUTRAL_MELEE_COLOR = '#e8e8f0'

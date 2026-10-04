@@ -126,6 +126,27 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
     },
   },
   {
+    match: /dark-?pact/i,
+    info: {
+      title: 'Make a Dark Pact?',
+      hint: 'The unit tests its nerve (2D6 against its Leadership); on a failure it takes D3 mortal wounds. Pass or fail, every weapon in the unit then gains the power you pick until the end of the phase. Decline to skip all of it.',
+    },
+  },
+  {
+    match: /sacrificial-?dagger/i,
+    info: {
+      title: 'Spill blood for the dagger?',
+      hint: "The unit takes 1 mortal wound. If the bearer survives, his psychic attacks hit and wound at +1 until the end of the phase. Once per phase.",
+    },
+  },
+  {
+    match: /prey-?on-?the-?weak/i,
+    info: {
+      title: 'Prey on the Weak target',
+      hint: 'Pick an enemy unit that the Rite of Possession struck this activation: it takes an immediate Battle-shock test at -1.',
+    },
+  },
+  {
     match: /reanimation/,
     info: {
       title: 'Reanimation Protocols',
@@ -263,11 +284,29 @@ function labelForOption(pending: PendingDecision, state: GameState, events: read
       // The engine labels these "remove M:boy#3" — a model id; say which figure it is instead.
       if (MODEL_PICK_TOPICS.has(pending.context.topic) && state.models[o.id]) return modelLabel(state, o.id)
       if (pending.context.topic === 'razeObjective' || pending.context.topic === 'recoverObjective' || pending.context.topic === 'treasureObjective') return objectiveLabel(o.id)
-      return o.label
+      return abilityOptionLabel(pending.context.abilityId, o)
     }
     default:
       return o.label
   }
+}
+
+/** Dark Pact / Sacrificial Dagger offer short engine ids (lethal, sustained, both, use, decline); say what each does. */
+function abilityOptionLabel(abilityId: string | null, o: { id: string; label: string }): string {
+  if (!abilityId) return o.label
+  if (/dark-?pact/i.test(abilityId)) {
+    switch (o.id) {
+      case 'lethal': return 'Pact: Lethal Hits (6s to hit auto-wound)'
+      case 'sustained': return 'Pact: Sustained Hits 1 (6s to hit score an extra hit)'
+      case 'both': return 'Pact: Lethal Hits and Sustained Hits 1 (Foul Zealotry)'
+      case 'decline': return 'No pact'
+    }
+  }
+  if (/sacrificial-?dagger/i.test(abilityId)) {
+    if (o.id === 'use') return 'Use the dagger (1 mortal wound)'
+    if (o.id === 'decline') return 'Keep the dagger sheathed'
+  }
+  return o.label
 }
 
 /** The hover-help card for an option, where one can be written. These are the choices whose options

@@ -198,6 +198,17 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Sim | `npm run sim -- --games 6 --seed 5`: 6 games, 0 violations, all finished at round 5; Necrons in 3 games: 0 wins, 1 draw, 2 losses (sm 3, ork 2, 1 draw overall). No balance tuning done |
 | Known gaps | No GLB models (procedural figures only; the Plasmacyte is not drawn); the bot ignores the Necron stratagems and picks; Resonant Focus and Treasures prompts rely on `abilityChoice` ids for their hint text; the Necron rulings are listed in `docs/needs-rules-check.md` under "Necrons build" (RC-084 to RC-110) |
 
+## Chaos Space Marines (M10 — playable)
+
+| Area | State |
+|---|---|
+| Patrol | Aranis Zarkan (attached to the Possessed by default), Possessed, Legionaries, Cultist Mob; secondaries Marked for Execution / Sites of Power. Data in `src/data/factions/chaos-space-marines/` |
+| Engine hooks | `src/engine/factions/chaos-space-marines.ts` (Dark Pact + Sacrificial Dagger picks, Vindictive Strategy, Violent Unbinding, Daemonic Fervour, Marked for Execution / Sites of Power) and `src/engine/fight-on-death.ts` (deferred model removal, 0-wound models fight before removal); new `EngineCodeHook.gateEffect`, `pick.windows`, death-reaction requests via `attack.modelDestroyed`; stratagem keyword filters on attached units now match ANY half (affects all factions, RC-045); Precision-decline `pass` now routed to the attack service in Shooting/Fight (found by the sim) |
+| Client | Start-screen faction button, procedural Zarkan (sorcerer) and Possessed (daemon-skin) figures, weapon flavour, Dark Pact prompt text, palette |
+| Verification | `npm run typecheck`, `npm run validate:data`, `npm run build` green; `npm test` 945 passing (40 files, incl. `tests/engine/chaos-space-marines*.test.ts`); `tests/e2e/chaos-space-marines.spec.ts` starts CSM vs bot, deploys through the UI and takes Fire Overwatch (screenshots `e2e-out/m10-chaos-space-marines-0*.png`) |
+| Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all 6 finished; chaos-space-marines in 4 games: 2 wins, 2 losses (ork 2, necrons 1, sm 1 overall). No balance tuning |
+| Known gaps | No GLB models; bot ignores the CSM stratagems and Dark Pact is answered by the generic chooser; rulings in `docs/needs-rules-check.md` under "chaos-space-marines build" (CSM-01 to CSM-18) |
+
 ## Not yet built
 
 - Anything beyond M8 (see Client tables for what M3/M6/M8 cover); AI Monte Carlo/hard tier, generated models, scale-up, multiplayer, Phase B glTF animation/asset pipeline for figures (see PLAN.md, docs/spec/30-figures.md §9)

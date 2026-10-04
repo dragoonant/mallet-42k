@@ -1,0 +1,26 @@
+[
+  {
+    "id": "csm.aranis-zarkan",
+    "faction": "chaos-space-marines",
+    "name": "Aranis Zarkan",
+    "keywords": ["INFANTRY", "CHARACTER", "PSYKER", "CHAOS", "MASTER OF POSSESSION", "ARANIS ZARKAN"],
+    "factionKeywords": ["HERETIC ASTARTES"],
+    "stats": { "M": 8, "T": 4, "Sv": 3, "W": 4, "Ld": 6, "OC": 1 },
+    "invuln": 5,
+    "composition": [
+      {
+        "modelId": "zarkan",
+        "name": "Aranis Zarkan",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 40 },
+        "weapons": { "default": ["csm.w.bolt-pistol", "csm.w.rite-of-possession", "csm.w.rite-of-possession-focused", "csm.w.staff-of-possession"] },
+        "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+      }
+    ],
+    "abilities": ["csm.a.dark-pacts", "csm.a.sacrificial-dagger"],
+    "coreAbilities": [ { "ability": "LEADER" } ],
+    "leader": { "attachTo": ["csm.possessed", "csm.legionaries"], "effects": [] },
+    "points": [ { "models": 1, "points": 0 } ],
+    "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+  }
+]

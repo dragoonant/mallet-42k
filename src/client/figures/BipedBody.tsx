@@ -11,6 +11,7 @@ import type { BipedConfig, BodyProps } from './types'
 
 const ORK_SKIN = '#6f8f3f'
 const MARINE_SKIN = '#c9a074'
+const DAEMON_SKIN = '#8c7d9a'
 const VISOR = '#15171c'
 
 const HIP_Y = 0.32
@@ -131,8 +132,9 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
   const armRadius = 0.06 * bulk
   const headRadius = Math.min(0.3, 0.19 + 0.02 * (bulk - 1))
 
-  const limb = config.limbColor === 'metal' ? colors.metal : colors.secondary
-  const skinColor = config.skin === 'ork' ? ORK_SKIN : config.skin === 'marine' ? MARINE_SKIN : undefined
+  const skinColor = config.skin === 'ork' ? ORK_SKIN : config.skin === 'marine' ? MARINE_SKIN : config.skin === 'daemon' ? DAEMON_SKIN : undefined
+  const limb = config.limbColor === 'metal' ? colors.metal : config.limbColor === 'skin' && skinColor ? skinColor : colors.secondary
+  const torsoCol = config.torsoColor === 'secondary' ? colors.secondary : colors.primary
 
   return (
     <group ref={bodyRef}>
@@ -148,7 +150,7 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
       <group ref={torsoRef} position={[0, HIP_Y, 0]}>
         <mesh position={[0, TORSO_H / 2, 0]}>
           <GBox args={[torsoWidth, TORSO_H, torsoDepth]} />
-          <StdMat color={colors.primary} roughness={0.55} />
+          <StdMat color={torsoCol} roughness={0.55} />
         </mesh>
         <mesh position={[0, 0.015, 0]}>
           <GBox args={[torsoWidth * 1.05, 0.03, torsoDepth * 1.05]} />
@@ -160,6 +162,18 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
             <GBox args={[torsoWidth * 0.28, torsoWidth * 0.28, 0.02]} />
             <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.3} />
           </mesh>
+        )}
+        {config.chestPlate && (
+          <>
+            <mesh position={[0, TORSO_H * 0.55, torsoDepth / 2 + 0.01]}>
+              <GBox args={[torsoWidth * 0.62, torsoWidth * 0.5, 0.025]} />
+              <StdMat color={colors.trim} roughness={0.4} metalness={0.6} />
+            </mesh>
+            <mesh position={[0, TORSO_H * 0.55, torsoDepth / 2 + 0.026]}>
+              <GBox args={[torsoWidth * 0.2, torsoWidth * 0.2, 0.012]} />
+              <StdMat color={colors.decal} emissive={colors.decal} emissiveIntensity={1.5} />
+            </mesh>
+          </>
         )}
         {config.hasBackpack && (
           <mesh position={[0, TORSO_H * 0.62, -torsoDepth / 2 - 0.05 * bulk]}>
@@ -318,6 +332,102 @@ function HeadBody({
         </group>
       )
     }
+    case 'chaos-helmet':
+    case 'chaos-sorcerer': {
+      const lord = shape === 'chaos-sorcerer'
+      const horn = lord ? 1.45 : 1
+      return (
+        <group>
+          <HeadBlob radius={radius} color={colors.secondary} />
+          {/* two glowing warp-violet eye slits */}
+          <mesh position={[-radius * 0.34, radius * 0.05, radius * 0.93]}>
+            <GBox args={[radius * 0.3, radius * 0.14, radius * 0.14]} />
+            <StdMat color={colors.decal} emissive={colors.decal} emissiveIntensity={lord ? 2 : 1.4} />
+          </mesh>
+          <mesh position={[radius * 0.34, radius * 0.05, radius * 0.93]}>
+            <GBox args={[radius * 0.3, radius * 0.14, radius * 0.14]} />
+            <StdMat color={colors.decal} emissive={colors.decal} emissiveIntensity={lord ? 2 : 1.4} />
+          </mesh>
+          {/* brass grille under the visor */}
+          <mesh position={[0, -radius * 0.45, radius * 0.82]}>
+            <GBox args={[radius * 0.55, radius * 0.3, radius * 0.22]} />
+            <StdMat color={colors.trim} roughness={0.4} metalness={0.6} />
+          </mesh>
+          {/* swept-back horns: the quick read for "Chaos" */}
+          <mesh position={[-radius * 0.85, radius * 0.7, -radius * 0.05]} rotation={[0, 0, 0.7]}>
+            <GCone args={[radius * 0.16 * horn, radius * 0.7 * horn, 6]} />
+            <StdMat color={colors.trim} roughness={0.4} metalness={0.5} />
+          </mesh>
+          <mesh position={[radius * 0.85, radius * 0.7, -radius * 0.05]} rotation={[0, 0, -0.7]}>
+            <GCone args={[radius * 0.16 * horn, radius * 0.7 * horn, 6]} />
+            <StdMat color={colors.trim} roughness={0.4} metalness={0.5} />
+          </mesh>
+          {lord && (
+            <mesh position={[0, radius * 1.0, 0]}>
+              <GBox args={[radius * 1.5, radius * 0.12, radius * 1.1]} />
+              <StdMat color={colors.trim} roughness={0.35} metalness={0.7} />
+            </mesh>
+          )}
+        </group>
+      )
+    }
+    case 'possessed-head':
+      return (
+        <group>
+          <HeadBlob radius={radius} color={skinColor ?? DAEMON_SKIN} />
+          {/* wide, fanged jaw */}
+          <mesh position={[0, -radius * 0.6, radius * 0.5]}>
+            <GBox args={[radius * 1.4, radius * 0.6, radius * 0.8]} />
+            <StdMat color={skinColor ?? DAEMON_SKIN} roughness={0.7} />
+          </mesh>
+          <mesh position={[-radius * 0.35, -radius * 0.9, radius * 0.9]} rotation={[Math.PI, 0, 0]}>
+            <GCone args={[radius * 0.1, radius * 0.3, 5]} />
+            <StdMat color="#f0ead6" roughness={0.4} />
+          </mesh>
+          <mesh position={[radius * 0.35, -radius * 0.9, radius * 0.9]} rotation={[Math.PI, 0, 0]}>
+            <GCone args={[radius * 0.1, radius * 0.3, 5]} />
+            <StdMat color="#f0ead6" roughness={0.4} />
+          </mesh>
+          <mesh position={[-radius * 0.38, radius * 0.18, radius * 0.9]}>
+            <GSphere args={[radius * 0.15, 8, 6]} />
+            <StdMat color={colors.decal} emissive={colors.decal} emissiveIntensity={1.8} />
+          </mesh>
+          <mesh position={[radius * 0.38, radius * 0.18, radius * 0.9]}>
+            <GSphere args={[radius * 0.15, 8, 6]} />
+            <StdMat color={colors.decal} emissive={colors.decal} emissiveIntensity={1.8} />
+          </mesh>
+          <mesh position={[-radius * 0.7, radius * 0.85, 0]} rotation={[0, 0, 0.5]}>
+            <GCone args={[radius * 0.14, radius * 0.6, 5]} />
+            <StdMat color={colors.secondary} roughness={0.5} />
+          </mesh>
+          <mesh position={[radius * 0.7, radius * 0.85, 0]} rotation={[0, 0, -0.5]}>
+            <GCone args={[radius * 0.14, radius * 0.6, 5]} />
+            <StdMat color={colors.secondary} roughness={0.5} />
+          </mesh>
+        </group>
+      )
+    case 'cultist-hood':
+      return (
+        <group>
+          <HeadBlob radius={radius * 1.05} color={colors.primary} />
+          <mesh position={[0, radius * 1.0, -radius * 0.15]} rotation={[-0.35, 0, 0]}>
+            <GCone args={[radius * 0.55, radius * 0.7, 6]} />
+            <StdMat color={colors.primary} roughness={0.7} />
+          </mesh>
+          <mesh position={[0, -radius * 0.05, radius * 0.88]}>
+            <GBox args={[radius * 0.85, radius * 0.5, radius * 0.2]} />
+            <StdMat color={VISOR} roughness={0.8} />
+          </mesh>
+          <mesh position={[-radius * 0.2, 0, radius * 0.98]}>
+            <GBox args={[radius * 0.14, radius * 0.1, radius * 0.06]} />
+            <StdMat color={colors.decal} emissive={colors.decal} emissiveIntensity={1.4} />
+          </mesh>
+          <mesh position={[radius * 0.2, 0, radius * 0.98]}>
+            <GBox args={[radius * 0.14, radius * 0.1, radius * 0.06]} />
+            <StdMat color={colors.decal} emissive={colors.decal} emissiveIntensity={1.4} />
+          </mesh>
+        </group>
+      )
     case 'generic-head':
     default:
       return <HeadBlob radius={radius} color={colors.secondary} />

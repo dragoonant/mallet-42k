@@ -2,7 +2,7 @@
 // rounded/oversized (30-figures.md §1: "no thin parts < 0.03", weapons "oversized ×1.4") so the
 // silhouette still reads at tabletop zoom. Geometry is authored in the unit-height (H=1) space
 // that BipedBody/VehicleBody use; Figure scales the whole assembled group to the real height.
-import { GBox, GCapsule, GCylinder, GSphere, StdMat } from './shared'
+import { GBox, GCapsule, GCone, GCylinder, GSphere, StdMat } from './shared'
 import type { PaintColors, WeaponShape } from './types'
 
 /** A big, slightly-flattened sphere — the chibi head blob every kit head shape starts from. */
@@ -221,6 +221,84 @@ export function WeaponMesh({ shape, colors, hand }: { shape: WeaponShape; colors
           <mesh position={[0, 0.02, 0.02]}>
             <GBox args={[0.12, 0.12, 0.2]} />
             <StdMat color={colors.primary} roughness={0.5} metalness={0.4} />
+          </mesh>
+        </group>
+      )
+    case 'chaos-bolter':
+      // A boltgun in dark plate with a brass muzzle ring and a glowing sigil on the receiver.
+      return (
+        <group scale={1.4}>
+          <Barrel length={0.34} radius={0.028} color={colors.metal} />
+          <mesh position={[0, 0, 0.35]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.038, 0.038, 0.03, 8]} />
+            <StdMat color={colors.trim} metalness={0.6} roughness={0.4} />
+          </mesh>
+          <mesh position={[0, -0.01, 0.06]}>
+            <GBox args={[0.055, 0.075, 0.17]} />
+            <StdMat color={colors.primary} roughness={0.6} />
+          </mesh>
+          <mesh position={[0, 0.035, 0.07]}>
+            <GBox args={[0.02, 0.012, 0.05]} />
+            <StdMat color={colors.decal} emissive={colors.decal} emissiveIntensity={1.4} />
+          </mesh>
+        </group>
+      )
+    case 'ritual-staff':
+      // Zarkan's staff of possession: a tall brass haft topped with a glowing warp orb in a cage of spikes.
+      return (
+        <group scale={1.6}>
+          <mesh position={[0, 0, 0.12]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.014, 0.014, 0.42, 6]} />
+            <StdMat color={colors.trim} metalness={0.7} roughness={0.35} />
+          </mesh>
+          <mesh position={[0, 0.03, 0.36]}>
+            <GSphere args={[0.05, 10, 8]} />
+            <StdMat color={colors.decal} emissive={colors.decal} emissiveIntensity={1.8} />
+          </mesh>
+          <mesh position={[0, 0.1, 0.36]}>
+            <GCone args={[0.02, 0.08, 5]} />
+            <StdMat color={colors.metal} metalness={0.6} roughness={0.4} />
+          </mesh>
+          <mesh position={[0.06, 0.03, 0.36]} rotation={[0, 0, -Math.PI / 2]}>
+            <GCone args={[0.02, 0.08, 5]} />
+            <StdMat color={colors.metal} metalness={0.6} roughness={0.4} />
+          </mesh>
+          <mesh position={[-0.06, 0.03, 0.36]} rotation={[0, 0, Math.PI / 2]}>
+            <GCone args={[0.02, 0.08, 5]} />
+            <StdMat color={colors.metal} metalness={0.6} roughness={0.4} />
+          </mesh>
+        </group>
+      )
+    case 'mutant-claw':
+      // A swollen, wrong-shaped fist with three long talons: the Possessed's hideous mutations.
+      return (
+        <group scale={1.6}>
+          <mesh position={[0, 0, 0.04]}>
+            <GBox args={[0.12, 0.11, 0.14]} />
+            <StdMat color={colors.secondary} roughness={0.7} />
+          </mesh>
+          <mesh position={[-0.04, 0, 0.19]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCone args={[0.02, 0.18, 5]} />
+            <StdMat color={colors.metal} metalness={0.4} roughness={0.5} />
+          </mesh>
+          <mesh position={[0, 0.02, 0.2]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCone args={[0.02, 0.2, 5]} />
+            <StdMat color={colors.metal} metalness={0.4} roughness={0.5} />
+          </mesh>
+          <mesh position={[0.04, 0, 0.19]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCone args={[0.02, 0.18, 5]} />
+            <StdMat color={colors.metal} metalness={0.4} roughness={0.5} />
+          </mesh>
+        </group>
+      )
+    case 'rusty-blade':
+      // A crude cleaver: short, wide, dull metal on a bound grip.
+      return (
+        <group scale={1.4}>
+          <Blade length={0.24} width={0.12} color={colors.metal} />
+          <mesh position={[0, 0, -0.03]}>
+            <GBox args={[0.04, 0.08, 0.08]} />
+            <StdMat color={colors.secondary} roughness={0.8} />
           </mesh>
         </group>
       )

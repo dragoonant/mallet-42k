@@ -44,11 +44,12 @@ import { leaderService } from './leaders'
 import type { AdvanceResult, DecisionHandler, EngineContext } from './modules'
 import { datasheetOf, hasKeyword, keywordsOf, modelStats, removeModel, unitModels } from './state'
 import { weaponService } from './weapons'
+import { fightOnDeathThreshold } from './fight-on-death'
 import type { AttackRollContext } from './events'
 import {
   EngineInvariantError,
   type AttackGroup, type AttackKind, type AttackSequenceState, type CurrentAttack, type DeclaredTarget, type DiceRoll, type GameState, type GroupBatch,
-  type Model, type ModelId, type PlayerId, type RuntimeWeapon, type UnitId, type WeaponId, type WoundSlot,
+  type Model, type ModelId, type Phase, type PlayerId, type RuntimeWeapon, type UnitId, type Vec3, type WeaponId, type WoundSlot,
 } from './types'
 
 export interface AttackBegin { kind: AttackKind; attackerUnitId: UnitId; overwatch: boolean; targets: DeclaredTarget[] }
@@ -61,6 +62,30 @@ export interface AttackService {
   readonly handler: DecisionHandler
   queueMortalWounds(ctx: EngineContext, targetUnitId: UnitId, count: number, source: string, lostOnDeath: boolean): void
   destroyModel(ctx: EngineContext, modelId: ModelId, by: DestroyedBy): void
+  // C5: the tail of destroyModel (Deadly Demise, removal, ModelDestroyed, kill credit, UnitDestroyed, missions, detach) — also the point at
+  // which a fight-on-death model, deferred until it had fought, is finally removed
+  finishDestroy(ctx: EngineContext, modelId: ModelId, by: DestroyedBy): void
+}
+
+// C4: a model destroyed by an enemy attack leaves a phase-scoped `deathReaction:<json>` request, offered to its owner's death-reaction
+// stratagems (window `attack.modelDestroyed`) once that attack's damage has fully resolved, before the next attack is allocated.
+export interface DeathReactionRequest {
+  modelId: ModelId
+  unitId: UnitId // the destroyed model's unit
+  player: PlayerId // owner of the destroyed model
+  attackerUnitId: UnitId // canonical enemy unit whose attack destroyed it
+  pos: Vec3 // model position at destruction (measurements use this)
+  phase: Phase
+}
+const DEATH_REACTION_PREFIX = 'deathReaction:'
+function deathReactions(state: GameState): DeathReactionRequest[] {
+  const out: DeathReactionRequest[] = []
+  for (const m of state.phaseState.marks) if (m.startsWith(DEATH_REACTION_PREFIX)) out.push(JSON.parse(m.slice(DEATH_REACTION_PREFIX.length)) as DeathReactionRequest)
+  return out
+}
+export function pendingDeathReaction(state: GameState): DeathReactionRequest | null { return deathReactions(state)[0] ?? null }
+export function consumeDeathReaction(state: GameState, modelId: ModelId): void {
+  state.phaseState.marks = state.phaseState.marks.filter((m) => !(m.startsWith(DEATH_REACTION_PREFIX) && (JSON.parse(m.slice(DEATH_REACTION_PREFIX.length)) as DeathReactionRequest).modelId === modelId))
 }
 
 // ---------- small local helpers ----------
@@ -354,6 +379,32 @@ function hitOpts(ctx: EngineContext, a: AttackSequenceState, group: AttackGroup,
   return { manualMods, overwatchAutoSix: a.overwatch, source: 'hit', autoFailAtOrBelow: indirectNoLos ? 3 : undefined }
 }
 
+// C3 (CHA Prey on the Weak): phase-scoped record of which enemy canonical units a given weapon has hit this phase. Pushed on every
+// successful hit (incl. criticals and Torrent auto-hits), deduplicated; never cleared at sequence end (not in SEQUENCE_SCOPED_MARK_PREFIXES).
+function noteHitBy(s: GameState, attackerUnitId: UnitId, weaponId: WeaponId, targetUnitId: UnitId): void {
+  const mark = `hitBy:${leaderService.canonicalUnitId(s, attackerUnitId)}:${weaponId}:${leaderService.canonicalUnitId(s, targetUnitId)}`
+  if (!s.phaseState.marks.includes(mark)) s.phaseState.marks.push(mark)
+}
+
+// Enemy canonical units the attacker's weapon `weaponDataId` has hit so far this phase (each model's profile counts: matches the weapon id,
+// its shared profileGroup, or the id with the repo's '.w.' segment elided — so 'csm.w.rite-of-possession' and 'csm.rite-of-possession' both work).
+export function unitsHitByWeapon(state: GameState, attackerUnitId: UnitId, weaponDataId: string): UnitId[] {
+  const prefix = `hitBy:${leaderService.canonicalUnitId(state, attackerUnitId)}:`
+  const out: UnitId[] = []
+  for (const m of state.phaseState.marks) {
+    if (!m.startsWith(prefix)) continue
+    const rest = m.slice(prefix.length)
+    const cut = rest.indexOf(':')
+    if (cut < 0) continue
+    const wid = rest.slice(0, cut)
+    const target = rest.slice(cut + 1) as UnitId
+    const w = state.weapons[wid as WeaponId]
+    const hit = wid === weaponDataId || w?.profileGroup === weaponDataId || wid.replace('.w.', '.') === weaponDataId
+    if (hit && !out.includes(target)) out.push(target)
+  }
+  return out
+}
+
 function doHitBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
   const a = attackSeq(ctx)
   const s = ctx.state
@@ -367,6 +418,7 @@ function doHitBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
     const weapon = weaponService.effectiveWeapon(s, model, g.weaponId)
     const actx = buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, model, weapon, g.targetUnitId, null, false)
     if (hasAbility(weapon, 'TORRENT')) {
+      if (g.attacks > 0) noteHitBy(s, a.attackerUnitId, weapon.id, g.targetUnitId)
       for (let i = 0; i < g.attacks; i++) {
         batch.hits.push({ groupIndex: j, attackerModelId: model, die: 0, final: 0, critical: false, lethal: false, extra: false })
         ctx.emit({ type: 'HitRolled', attack: rollAttackCtx(actx), die: 0, final: 0, hit: true, critical: false, extraHits: 0, auto: true })
@@ -388,6 +440,7 @@ function doHitBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
       }
       ctx.emit({ type: 'HitRolled', attack: rollAttackCtx(dies[i].actx), die: r.unmodified, final: r.final, hit: r.success, critical: r.critical, extraHits, auto: false, rollId: res.rollId, dieIndex: i })
       if (!r.success) return
+      noteHitBy(s, a.attackerUnitId, weapon.id, a.groups[gi].targetUnitId)
       const lethal = r.critical && hasAbility(weapon, 'LETHAL_HITS')
       batch.hits.push({ groupIndex: gi, attackerModelId: model, die: r.unmodified, final: r.final, critical: r.critical, lethal, extra: false })
       if (lethal) ctx.emit({ type: 'WoundRolled', attack: rollAttackCtx(dies[i].actx), die: 0, final: 0, needed: 0, wounded: true, critical: false, auto: true })
@@ -1059,6 +1112,16 @@ export const attackService: AttackService = {
     for (let i = 0; i < MAX_TICKS; i++) {
       const a = ctx.state.phaseState.attack
       if (!a) throw new EngineInvariantError('attack.advance: no active sequence')
+      // C4: the previous attack's damage is fully resolved (nothing current) — offer the death-reaction window before anything else
+      // (more mortal wounds, the next attack's allocation, the end of the sequence). The request is dropped once the window is done.
+      if (!a.current) {
+        const req = pendingDeathReaction(ctx.state)
+        if (req) {
+          if (ctx.window('attack.modelDestroyed', req.modelId, ctx.order.defensive(req.player), { unitId: req.unitId })) return 'pending'
+          consumeDeathReaction(ctx.state, req.modelId)
+          continue
+        }
+      }
       if (a.mortalQueue.length > 0 && !a.current) {
         const r = drainOneMortalPoint(ctx)
         if (r === 'pending') return 'pending'
@@ -1236,6 +1299,35 @@ export const attackService: AttackService = {
   },
 
   destroyModel(ctx, modelId, by) {
+    const s = ctx.state
+    const model = s.models[modelId]
+    if (!model) return
+    const attacked = by.unitId !== null && (by.kind === 'ranged' || by.kind === 'melee') && s.units[by.unitId]?.player !== s.units[model.unitId]?.player
+    // C4: leave a death-reaction request (before removal/deferral), opened by `advance` once this attack's damage has resolved
+    if (attacked && by.unitId) {
+      const req: DeathReactionRequest = { modelId, unitId: model.unitId, player: s.units[model.unitId].player, attackerUnitId: leaderService.canonicalUnitId(s, by.unitId), pos: { ...model.pos }, phase: s.phase }
+      s.phaseState.marks.push(DEATH_REACTION_PREFIX + JSON.stringify(req))
+    }
+    // C5: Daemonic Fervour — a model of a fight-on-death unit that has not fought yet may stay, at 0 wounds, to fight once more
+    if (attacked && s.phase === 'fight') {
+      const canon = leaderService.canonicalUnitId(s, model.unitId)
+      const threshold = fightOnDeathThreshold(s, canon)
+      const fought = leaderService.halves(s, canon).some((id) => s.units[id]?.turn.foughtThisPhase || s.phaseState.fight?.fought.includes(id))
+      if (threshold !== null && !fought) {
+        const owner = s.units[model.unitId].player
+        const roll = ctx.roll({ purpose: 'ability', player: owner, sides: 6, count: 1, mode: 'perDie', unitId: model.unitId, modelId, commandRerollable: false })
+        const die = roll.dice[0]
+        if (die >= threshold) {
+          s.phaseState.marks.push(`deferredDeath:${JSON.stringify({ modelId, unitId: model.unitId, attackerUnitId: leaderService.canonicalUnitId(s, by.unitId as UnitId), by })}`)
+          ctx.emit({ type: 'AbilityTriggered', abilityId: 'fight-on-death', sourceUnitId: model.unitId, targetUnitId: null, summary: `${modelId} fights on (rolled ${die}, needed ${threshold}+)`, player: owner })
+          return
+        }
+      }
+    }
+    attackService.finishDestroy(ctx, modelId, by)
+  },
+
+  finishDestroy(ctx, modelId, by) {
     const s = ctx.state
     const model = s.models[modelId]
     if (!model) return

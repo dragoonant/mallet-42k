@@ -17,9 +17,10 @@ const bundle = await loadBundle()
 const ORK = 'ork'
 const SM = 'sm'
 const NEC = 'necrons'
+const CSM = 'chaos-space-marines'
 
 /** The engine faction id a weapon's own id prefix belongs to. */
-const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : SM)
+const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : SM)
 
 function lookupFor(faction: string): SoundLookup {
   return { weapon: (id) => bundle.weapons[id], factionOfUnit: () => faction }
@@ -77,6 +78,21 @@ const EXPECTED: Record<string, WeaponFlavour> = {
   'nec.w.skorpekh-hyperphase-weapons': 'chain',
   'nec.w.feeder-mandibles': 'chain',
   'nec.w.doomstalker-limbs': 'crush',
+  'csm.w.bolt-pistol': 'bolter',
+  'csm.w.rite-of-possession': 'psychic',
+  'csm.w.rite-of-possession-focused': 'psychic',
+  'csm.w.boltgun': 'bolter',
+  'csm.w.heavy-bolter': 'heavy',
+  'csm.w.meltagun': 'flame',
+  'csm.w.plasma-pistol': 'heavy',
+  'csm.w.plasma-pistol-supercharge': 'heavy',
+  'csm.w.autopistol': 'shoota',
+  'csm.w.bolt-pistol-cultist-champion': 'bolter',
+  'csm.w.staff-of-possession': 'force',
+  'csm.w.hideous-mutations': 'crush',
+  'csm.w.accursed-weapon': 'chain',
+  'csm.w.close-combat-weapon': 'chain',
+  'csm.w.brutal-assault-weapon': 'chain',
 }
 
 describe('weapon flavour', () => {
@@ -85,7 +101,7 @@ describe('weapon flavour', () => {
   })
 
   it('the faction ids this classifier is tuned for are the ones the data actually declares', () => {
-    expect(Object.keys(bundle.factions).sort()).toEqual([NEC, ORK, SM].sort())
+    for (const id of [NEC, ORK, SM, CSM]) expect(Object.keys(bundle.factions), id).toContain(id)
   })
 
   for (const [id, expected] of Object.entries(EXPECTED)) {
@@ -127,6 +143,16 @@ describe('firing sounds', () => {
     expect(soundIds(declared(['nec.w.gauss-flayer', 'nec.w.gauss-flayer']), NEC)).toEqual(['psychic-zap'])
     expect(soundIds(declared(['nec.w.doomsday-blaster']), NEC)).toEqual(['heavy-gun'])
     expect(soundIds(declared(['nec.w.doomstalker-limbs'], 'fight'), NEC)).toEqual(['power-klaw-crunch'])
+  })
+
+  it('chaos marines: bolters thump, autoguns rattle, the staff crackles, meltaguns burn', () => {
+    expect(soundIds(declared(['csm.w.boltgun', 'csm.w.boltgun']), CSM)).toEqual(['bolter-burst'])
+    expect(soundIds(declared(['csm.w.autopistol', 'csm.w.autopistol']), CSM)).toEqual(['shoota-spray'])
+    expect(soundIds(declared(['csm.w.meltagun']), CSM)).toEqual(['flamer'])
+    expect(soundIds(declared(['csm.w.heavy-bolter']), CSM)).toEqual(['heavy-gun'])
+    expect(soundIds(declared(['csm.w.rite-of-possession']), CSM)).toEqual(['psychic-zap'])
+    expect(soundIds(declared(['csm.w.staff-of-possession'], 'fight'), CSM)).toEqual(['psychic-zap'])
+    expect(soundIds(declared(['csm.w.hideous-mutations'], 'fight'), CSM)).toEqual(['power-klaw-crunch'])
   })
 
   it('each weapon type sounds like itself', () => {

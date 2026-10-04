@@ -18,9 +18,10 @@ export type TimingWindowId =
   | 'round.start'
   | 'command.start' | 'command.battleShock' | 'command.end'
   | 'movement.start' | 'movement.moveStarted' | 'movement.unitMoved' | 'movement.reinforcements' | 'movement.end'
-  | 'shooting.start' | 'shooting.targetsDeclared' | 'shooting.attacksResolved'
+  | 'shooting.start' | 'shooting.unitSelected' | 'shooting.targetsDeclared' | 'shooting.attacksResolved'
   | 'charge.start' | 'charge.declared' | 'charge.rolled' | 'charge.moveStarted' | 'charge.moveEnded'
   | 'fight.start' | 'fight.unitSelected' | 'fight.targetsDeclared' | 'fight.attacksResolved'
+  | 'attack.modelDestroyed'
   | 'any.unitDestroyed' | 'any.rollMade'
   | 'phase.end' | 'turn.end' | 'round.end' | 'battle.end'
 

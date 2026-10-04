@@ -68,6 +68,9 @@ export interface HookQueries {
   isOathTarget(state: GameState, attackerUnitId: UnitId, targetUnitId: UnitId): boolean
   // R-4.7 forced Battle-shock test (Piston-driven Brutality, Bestial Bellow): 2D6 + modifiers ≥ best Ld; returns passed
   battleShockTest(ctx: EngineContext, unitId: UnitId, source: string, modifier?: number): boolean
+  // CSM Dark Pacts: 2D6 (+modifier) >= best Ld of the unit's board models (both halves). NOT a Battle-shock test: no
+  // onBattleShockTest hooks, no state change. Rolls with purpose 'ability'; emits AbilityTriggered. Returns passed.
+  leadershipTest(ctx: EngineContext, unitId: UnitId, source: string, modifier?: number): boolean
   // R-4.2: non-automatic CP gain, capped at +1 per player per battle round; negative amounts spend (floor 0)
   gainCp(ctx: EngineContext, player: PlayerId, amount: number, source: string): number
   // raise the next window-keyed pick (Oath / Waaagh!) for this occurrence if one is due; true when a decision is pending
@@ -344,8 +347,9 @@ function keyIdentity(key: keyof Effect, e: Effect): string {
 export interface EffectMatch { entry: HookSourceEntry; effect: Effect; key: keyof Effect; index: number }
 
 function gateOpen(state: GameState, entry: HookSourceEntry, data?: Record<string, unknown>): boolean {
-  if (entry.active) return true
   const spec = codeHookFor(entry.code)
+  if (spec?.gateEffect && !spec.gateEffect(state, state.units[entry.holderUnitId], entry, data)) return false
+  if (entry.active) return true
   return !spec?.gate || spec.gate(state, state.units[entry.holderUnitId], entry, data)
 }
 
@@ -537,7 +541,7 @@ export const hookService: HookService & HookQueries = {
   offerPicks(ctx, window, key) {
     if (ctx.state.pending) return true
     for (const spec of Object.values(codeHooks)) {
-      if (spec.pick && spec.pick.window === window && spec.pick.offer(ctx, window, key)) return true
+      if (spec.pick && (spec.pick.window === window || spec.pick.windows?.includes(window)) && spec.pick.offer(ctx, window, key)) return true
     }
     return false
   },
@@ -665,6 +669,20 @@ export const hookService: HookService & HookQueries = {
       }
       ctx.emit({ type: 'BattleShocked', unitId, player: unit.player })
     }
+    return passed
+  },
+
+  leadershipTest(ctx, unitId, source, modifier = 0) {
+    const s = ctx.state
+    const unit = s.units[unitId]
+    if (!unit || unit.location !== 'board') return true
+    const models = leaderService.halves(s, unitId).filter((id) => s.units[id].location === 'board').flatMap((id) => unitModels(s, id))
+    if (models.length === 0) return true
+    const ld = Math.min(...models.map((m) => hookService.statFor(s, { unitId: m.unitId, modelId: m.id, weapon: null, stat: 'Ld' }, modelStats(s, m).Ld)))
+    const roll = ctx.roll({ purpose: 'ability', player: unit.player, count: 2, mode: 'sum', modifiers: modifier !== 0 ? [{ source, value: modifier }] : [], unitId, commandRerollable: false })
+    const total = rollSum(roll)
+    const passed = total >= ld
+    ctx.emit({ type: 'AbilityTriggered', abilityId: source, sourceUnitId: unitId, targetUnitId: unitId, summary: `Leadership test: ${total} vs Ld ${ld} - ${passed ? 'passed' : 'failed'}`, player: unit.player })
     return passed
   },
 

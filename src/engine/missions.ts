@@ -344,6 +344,26 @@ function treasuresUnitDestroyed(ctx: EngineContext, info: { unitId: UnitId; byPl
   s.mission.scored.push({ ruleId: rule.id, player: pid, round: s.round, turn: s.activePlayer, amount })
 }
 
+// CHA-4 Marked for Execution: the moment the opponent's Warlord is destroyed (any cause), once per battle. A Warlord that never arrives
+// from Reserves is never "destroyed" through this path, so it does not score.
+function markedForExecutionDestroyed(ctx: EngineContext, info: { unitId: UnitId }): void {
+  const s = ctx.state
+  for (const pid of ['A', 'B'] as PlayerId[]) {
+    const rule = rulesFor(s, pid).find((r) => r.rule === 'custom' && r.code === 'markedForExecution' && s.round >= r.rounds.from && s.round <= r.rounds.to)
+    if (!rule || s.players[pid].secondaryState.markedScored) continue
+    if (info.unitId !== s.players[otherPlayer(pid)].warlordUnitId) continue
+    s.players[pid].secondaryState.markedScored = true
+    const amount = s.round >= ((rule.params?.lateFromRound as number | undefined) ?? 4) ? ((rule.params?.latePoints as number | undefined) ?? 6) : rule.pointsPer
+    awardVp(ctx, pid, amount, rule.id)
+    s.mission.scored.push({ ruleId: rule.id, player: pid, round: s.round, turn: s.activePlayer, amount })
+  }
+}
+
+function unitDestroyedHook(ctx: EngineContext, info: { unitId: UnitId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: string | null }): void {
+  treasuresUnitDestroyed(ctx, info)
+  markedForExecutionDestroyed(ctx, info)
+}
+
 function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): number {
   const s = ctx.state
   switch (rule.code) {
@@ -371,7 +391,8 @@ function computeAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): nu
       const ids = objectiveIdsOf(s, rule)
       const mine = ids.filter((id) => holds(ctx, id, pid)).length
       const theirs = ids.filter((id) => holds(ctx, id, otherPlayer(pid))).length
-      return mine > theirs ? rule.pointsPer : 0
+      // C6: params.allowTie — holding as many as the opponent (incl. 0 vs 0) also scores
+      return (rule.params?.allowTie ? mine >= theirs : mine > theirs) ? rule.pointsPer : 0
     }
     case 'holdHome': {
       const home = Object.values(s.objectives).find((o) => o.home === pid)
@@ -647,7 +668,7 @@ export const missionService: MissionService = {
     processWindow(ctx, window, key)
   },
   playerHasForces: hasForces,
-  unitDestroyed: treasuresUnitDestroyed,
+  unitDestroyed: unitDestroyedHook,
   isTabled(state) { return !hasForces(state, 'A') && !hasForces(state, 'B') },
   finalResult(state, reason) {
     const vp = { A: state.players.A.vp + state.players.A.battleReadyVp, B: state.players.B.vp + state.players.B.battleReadyVp }

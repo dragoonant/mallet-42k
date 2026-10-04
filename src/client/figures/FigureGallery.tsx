@@ -28,6 +28,10 @@ const GALLERY_ENTRIES: GalleryEntry[] = [
   { datasheetId: 'nec.skorpekh-destroyers', faction: 'necrons', label: 'Skorpekh Destroyers' },
   { datasheetId: 'nec.canoptek-doomstalker', faction: 'necrons', label: 'Canoptek Doomstalker' },
   { datasheetId: 'nec.canoptek-scarab-swarms', faction: 'necrons', label: 'Scarab Swarms' },
+  { datasheetId: 'csm.aranis-zarkan', faction: 'chaos-space-marines', label: 'Aranis Zarkan' },
+  { datasheetId: 'csm.possessed', faction: 'chaos-space-marines', label: 'Possessed' },
+  { datasheetId: 'csm.legionaries', faction: 'chaos-space-marines', label: 'Legionaries' },
+  { datasheetId: 'csm.cultist-mob', faction: 'chaos-space-marines', label: 'Cultist Mob' },
 ]
 
 // Figures are true tabletop-miniature scale (~1-2 world-inches tall — see resolveBase), so packing

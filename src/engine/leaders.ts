@@ -146,7 +146,7 @@ export const leaderService: LeaderService & LeaderQueries = {
     const target = state.units[targetUnitId]
     if (halves.length === 1 || !target) return all.map((m) => m.id)
     const bodyguardId = target.attachedLeaderId ? target.id : target.bodyguardUnitId as UnitId
-    const bodyguardAlive = state.units[bodyguardId].models.length > 0
+    const bodyguardAlive = unitModels(state, bodyguardId).length > 0
     if (!bodyguardAlive) return all.map((m) => m.id)
     const visible = new Set(opts.visibleCharacterIds ?? [])
     return all.filter((m) => {

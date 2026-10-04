@@ -1,5 +1,5 @@
 // Faction plumbing in the client: every faction in the data bundle can be picked for either seat, and every
-// Necron datasheet resolves to its own procedural kit (with GLB lookups falling back cleanly).
+// Necron and Chaos Space Marine datasheet resolves to its own procedural kit (with GLB lookups falling back cleanly).
 import { describe, expect, it } from 'vitest'
 import { loadBundle } from '../../src/data'
 import { resolveFactionId, useGameStore } from '../../src/client/store/game'
@@ -37,6 +37,20 @@ describe('faction selection', () => {
     expect([s.players.A.faction, s.players.B.faction]).toEqual(['necrons', 'necrons'])
   }, 60000)
 
+  it('chaos-space-marines can be seated on either side by its bare faction id', async () => {
+    await useGameStore.getState().newGame({ playerFaction: 'chaos-space-marines', opponentFaction: 'orks', opponent: 'hotseat', seed: 'csm-vs-ork' })
+    let s = useGameStore.getState().state!
+    expect([s.players.A.faction, s.players.B.faction]).toEqual(['chaos-space-marines', 'ork'])
+
+    await useGameStore.getState().newGame({ playerFaction: 'necrons', opponentFaction: 'chaos-space-marines', opponent: 'hotseat', seed: 'nec-vs-csm' })
+    s = useGameStore.getState().state!
+    expect([s.players.A.faction, s.players.B.faction]).toEqual(['necrons', 'chaos-space-marines'])
+
+    await useGameStore.getState().newGame({ playerFaction: 'chaos-space-marines', opponentFaction: 'chaos-space-marines', opponent: 'hotseat', seed: 'csm-mirror' })
+    s = useGameStore.getState().state!
+    expect([s.players.A.faction, s.players.B.faction]).toEqual(['chaos-space-marines', 'chaos-space-marines'])
+  }, 60000)
+
   it('with no opponent chosen, the default is still a different faction', async () => {
     await useGameStore.getState().newGame({ playerFaction: 'orks', opponent: 'hotseat', seed: 'default-opp-ork' })
     expect(useGameStore.getState().state!.players.B.faction).toBe('sm')
@@ -64,4 +78,33 @@ describe('necron figures', () => {
       for (const m of ds.composition) expect(glbSlugFor(ds.id, m.modelId), m.modelId).toBeUndefined()
     })
   }
+})
+
+describe('chaos space marine figures', () => {
+  const sheets = Object.values(bundle.datasheets).filter((d) => d.id.startsWith('csm.'))
+
+  it('there are chaos datasheets to check', () => {
+    expect(sheets.length).toBe(4)
+  })
+
+  it('the faction paint scheme is the one the data declares (figures read it, nothing is hard-coded)', () => {
+    expect(bundle.factions['chaos-space-marines'].paintScheme.primary).toBe('#2b2f3a')
+  })
+
+  for (const ds of sheets) {
+    it(`${ds.id} resolves to a chaos kit with a body config`, () => {
+      const { kit } = resolveFigureKit(ds.id, ds)
+      expect(kit.startsWith('csm-'), kit).toBe(true)
+      const body = BODY_KIND[kit]
+      if (body === 'biped') expect(BIPED_CONFIG[kit], kit).toBeDefined()
+    })
+
+    it(`${ds.id} falls back to the procedural figure while no GLB is enabled`, () => {
+      for (const m of ds.composition) expect(glbSlugFor(ds.id, m.modelId), m.modelId).toBeUndefined()
+    })
+  }
+
+  it('an unknown future datasheet still gets a generic kit, never nothing', () => {
+    expect(resolveFigureKit('csm.future-unit', undefined).kit.startsWith('generic-')).toBe(true)
+  })
 })

@@ -193,8 +193,9 @@ function withinOk(env: StratagemEnv, models: Model[], spec: TargetSpec, prevId: 
 function keywordOk(state: GameState, unitIds: UnitId[], spec: TargetSpec): boolean {
   const kw = spec.filter?.keyword
   const not = spec.filter?.notKeyword
-  // [interp] a unit "has" a filter keyword when every half of an attached unit has it; notKeyword excludes any half
-  if (kw && !unitIds.every((id) => hookService.keywordsFor(state, id).includes(kw))) return false
+  // an attached unit has the keywords of both halves (R-10.1, e.g. Zarkan leading POSSESSED): a filter keyword matches when any half has it;
+  // notKeyword excludes any half
+  if (kw && !unitIds.some((id) => hookService.keywordsFor(state, id).includes(kw))) return false
   if (not && unitIds.some((id) => hookService.keywordsFor(state, id).includes(not))) return false
   return true
 }

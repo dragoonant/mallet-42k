@@ -34,6 +34,10 @@ export type KitId =
   | 'nec-skorpekh'
   | 'nec-doomstalker'
   | 'nec-scarab'
+  | 'csm-legionary'
+  | 'csm-zarkan'
+  | 'csm-possessed'
+  | 'csm-cultist'
   | 'generic-infantry'
   | 'generic-heavy'
   | 'generic-monster'
@@ -52,6 +56,7 @@ export interface PaintColors {
 /** Body geometry + weapon dressing for a biped kit (infantry/heavy/monster archetypes — every
  *  datasheet in this data set that isn't a flyer resolves to a biped). */
 export type HeadShape = 'marine-helmet' | 'terminator-helmet' | 'ork-head' | 'ork-boss-head' | 'necron-skull' | 'necron-lord' | 'generic-head'
+  | 'chaos-helmet' | 'chaos-sorcerer' | 'possessed-head' | 'cultist-hood'
 export type WeaponShape =
   | 'none'
   | 'bolt-rifle'
@@ -66,6 +71,10 @@ export type WeaponShape =
   | 'warscythe'
   | 'hyperphase-blade'
   | 'doomsday-blaster'
+  | 'chaos-bolter'
+  | 'ritual-staff'
+  | 'mutant-claw'
+  | 'rusty-blade'
 export type ShoulderPad = 'none' | 'small' | 'large'
 
 export interface BipedConfig {
@@ -76,11 +85,15 @@ export interface BipedConfig {
   hasBackpack: boolean
   shoulderPads: ShoulderPad
   hasCape: boolean
-  skin: 'marine' | 'ork' | 'none' // 'none' = fully helmeted/armoured, no bare skin rendered
+  skin: 'marine' | 'ork' | 'daemon' | 'none' // 'none' = fully helmeted/armoured, no bare skin rendered
   /** Which paint slot the arms use (default 'secondary'). Necron kits take 'metal' so the green stays a glow accent. */
-  limbColor?: 'secondary' | 'metal'
+  limbColor?: 'secondary' | 'metal' | 'skin'
   /** A small glowing core on the chest (paintScheme.secondary, emissive). */
   chestCore?: boolean
+  /** A brass chest plate with a violet-glow sigil (paintScheme.trim + decal). */
+  chestPlate?: boolean
+  /** Which paint slot the torso uses (default 'primary'). Robed cultists take 'secondary'. */
+  torsoColor?: 'primary' | 'secondary'
 }
 
 export interface VehicleConfig {

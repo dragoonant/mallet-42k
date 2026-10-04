@@ -1,0 +1,25 @@
+[
+  {
+    "id": "csm.possessed",
+    "faction": "chaos-space-marines",
+    "name": "Possessed",
+    "keywords": ["INFANTRY", "CHAOS", "DAEMON", "POSSESSED"],
+    "factionKeywords": ["HERETIC ASTARTES"],
+    "stats": { "M": 9, "T": 6, "Sv": 3, "W": 3, "Ld": 6, "OC": 1 },
+    "invuln": 5,
+    "composition": [
+      {
+        "modelId": "possessed",
+        "name": "Possessed",
+        "min": 5, "max": 5, "default": 5,
+        "base": { "shape": "round", "mm": 40 },
+        "weapons": { "default": ["csm.w.hideous-mutations"] },
+        "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+      }
+    ],
+    "abilities": ["csm.a.dark-pacts"],
+    "coreAbilities": [],
+    "points": [ { "models": 5, "points": 0 } ],
+    "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+  }
+]

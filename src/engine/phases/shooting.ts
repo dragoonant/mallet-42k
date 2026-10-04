@@ -337,6 +337,21 @@ export const shootingModule: PhaseModule = {
         continue
       }
       if (s.step === 'declareTargets') {
+        // C1 (Dark Pacts, Sacrificial Dagger): `shooting.unitSelected` opens once the unit is chosen, before targets are declared.
+        // Never for Overwatch (which never reaches this module). The window is idempotent per (window, key), so re-entry after an
+        // answered pick simply falls through.
+        const cur = readMark(s, 'sh:cur')
+        if (cur) {
+          if (ctx.window('shooting.unitSelected', cur, ctx.order.active(), { unitId: cur })) return 'pending'
+          // mortal wounds queued by a pick (Dark Pact, Sacrificial Dagger) wait in an open sequence: resolve them before targets
+          if (s.phaseState.attack && attackService.advance(ctx) === 'pending') return 'pending'
+          // a pact's mortal wounds may have wiped the unit out: nothing left to declare for
+          if (!leaderService.halves(s, cur).some((id) => s.units[id]?.location === 'board' && unitModels(s, id).length > 0)) {
+            writeMark(s, 'sh:cur', null)
+            s.step = 'selectUnit'
+            continue
+          }
+        }
         doOpenDeclareTargets(ctx)
         return 'pending'
       }
@@ -356,6 +371,7 @@ export const shootingModule: PhaseModule = {
   handle(ctx, action, pending): Rejection | void {
     const s = ctx.state
     if (action.type === 'pass') {
+      if (s.phaseState.attack && pending.kind === 'allocateAttack') return attackService.handler.handle(ctx, action, pending)
       if (pending.kind === 'chooseUnitToActivate') { writeMark(s, 'sh:ended', '1'); return }
       if (pending.kind === 'declareTargets') { writeMark(s, 'sh:cur', null); s.step = 'selectUnit'; return }
       return { code: 'E_NOT_AN_OPTION', reason: `shooting: pass is not valid for ${pending.kind}` }

@@ -1,0 +1,39 @@
+[
+  {
+    "id": "csm.e.foul-zealotry",
+    "faction": "chaos-space-marines",
+    "name": "Foul Zealotry",
+    "text": "When the bearer's unit makes a Dark Pact, it gains both [LETHAL HITS] and [SUSTAINED HITS 1] for the phase instead of choosing one. The Leadership test and mortal wounds are unchanged.",
+    "cost": 0,
+    "restriction": { "keyword": ["ARANIS ZARKAN"] },
+    "effect": {
+      "id": "csm.e.foul-zealotry.effect",
+      "name": "Foul Zealotry",
+      "text": "The bearer's unit takes both Dark Pact abilities together instead of picking one.",
+      "trigger": "always",
+      "code": "foulZealotry",
+      "scope": { "who": "self" }
+    }
+  },
+  {
+    "id": "csm.e.prey-on-the-weak",
+    "faction": "chaos-space-marines",
+    "name": "Prey on the Weak",
+    "text": "In your Shooting phase, once the bearer's unit has finished shooting, choose one enemy unit hit by at least one attack from the bearer's Rite of Possession that activation. That unit takes a Battle-shock test with -1 to the result.",
+    "cost": 0,
+    "restriction": { "keyword": ["ARANIS ZARKAN"] },
+    "effect": {
+      "id": "csm.e.prey-on-the-weak.effect",
+      "name": "Prey on the Weak",
+      "text": "After the bearer's unit shoots, one enemy unit hit by the Rite of Possession takes a Battle-shock test at -1.",
+      "trigger": "always",
+      "code": "preyOnTheWeak",
+      "scope": { "who": "self" },
+      "params": {
+        "pickWindow": "shooting.attacksResolved",
+        "weaponId": "csm.w.rite-of-possession",
+        "battleShockModifier": -1
+      }
+    }
+  }
+]

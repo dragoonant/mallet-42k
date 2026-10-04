@@ -84,14 +84,26 @@ function deepFreeze<T>(value: T): T {
 }
 
 // ---------- lookups ----------
+// C5 (Daemonic Fervour): a model destroyed in the Fight phase whose removal is deferred until it has fought stays in `unit.models` at 0
+// wounds, tracked by a phase-scoped `deferredDeath:<json>` mark. It is "dead" for every purpose except its own last attack, so
+// `unitModels` (the one place allocation pools, OC, coherency, targeting and visibility all read a unit's models from) skips it.
+// Only a model at 0 wounds can be one, so the mark scan runs only for those.
+export function isDeferredDead(state: GameState, modelId: ModelId): boolean {
+  const needle = `"modelId":"${modelId}"`
+  return state.phaseState.marks.some((m) => m.startsWith('deferredDeath:') && m.includes(needle))
+}
+
 export function unitModels(state: GameState, unitId: UnitId): Model[] {
   const unit = state.units[unitId]
   if (!unit) throw new EngineInvariantError(`unknown unit ${unitId}`)
-  return unit.models.map((id) => {
+  const out: Model[] = []
+  for (const id of unit.models) {
     const m = state.models[id]
     if (!m) throw new EngineInvariantError(`unit ${unitId} references missing model ${id}`)
-    return m
-  })
+    if (m.woundsRemaining <= 0 && isDeferredDead(state, id)) continue
+    out.push(m)
+  }
+  return out
 }
 
 // attached units are one unit for coherency (R-10.1, LEAD-004): includes the attached leader / bodyguard models

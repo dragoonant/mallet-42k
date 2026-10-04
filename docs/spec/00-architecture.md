@@ -148,6 +148,7 @@ Shared enum used by engine (to open windows), data (stratagem `window`), AI and 
 | `movement.reinforcements` | active, then opponent | after each reserves arrival; opponent: Fire Overwatch "set up" |
 | `movement.end` | active, then opponent | |
 | `shooting.start` | active, then opponent | |
+| `shooting.unitSelected` | active, then opponent | after a unit is chosen to shoot, before targets are declared (Dark Pacts, Sacrificial Dagger); never for Fire Overwatch |
 | `shooting.targetsDeclared` | opponent, then active | after targets declared, before hits are rolled (defensive stratagems) |
 | `shooting.attacksResolved` | active, then opponent | after one unit finished shooting |
 | `charge.start` | active, then opponent | |
@@ -159,6 +160,7 @@ Shared enum used by engine (to open windows), data (stratagem `window`), AI and 
 | `fight.unitSelected` | owner of unit, then opponent | before pile-in |
 | `fight.targetsDeclared` | opponent of the fighting unit, then owner | after melee targets declared (FightSubStep `declareTargets`), before attacks: Gene-wrought Resilience, Tough as Squig-hide |
 | `fight.attacksResolved` | owner, then opponent | after consolidation; Counter-offensive (opponent, `reactionWindow`) |
+| `attack.modelDestroyed` | owner of the destroyed model, then opponent | once the damage of the attack that destroyed an enemy-attacked model has fully resolved, before the next attack is allocated (Violent Unbinding); see `pendingDeathReaction` |
 | `any.unitDestroyed` | owner of destroyed unit, then opponent | |
 | `any.rollMade` | roller | command re-roll window; only opened when CP ≥ 1 |
 | `phase.end` | active, then opponent | end of every phase (both turns); used by scoring rules, rarely by stratagems |

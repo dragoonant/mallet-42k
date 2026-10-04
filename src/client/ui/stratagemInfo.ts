@@ -55,6 +55,10 @@ const WINDOW_TIMING: Partial<Record<string, string>> = {
   'charge.moveStarted': 'when an enemy starts a charge move',
   'fight.attacksResolved': 'right after a unit fights',
   'fight.unitSelected': 'when a unit is selected to fight',
+  'shooting.start': 'before a unit is picked to shoot',
+  'fight.start': 'before a unit is picked to fight',
+  'fight.targetsDeclared': 'when an enemy unit picks its targets',
+  'attack.modelDestroyed': 'when an attack destroys one of your models',
 }
 
 export function stratagemTimingLabel(s: RuntimeStratagem): string {

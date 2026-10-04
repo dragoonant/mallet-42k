@@ -1,0 +1,23 @@
+{
+  "id": "chaos-space-marines",
+  "name": "Chaos Space Marines",
+  "factionKeyword": "HERETIC ASTARTES",
+  "armyRule": "csm.a.dark-pacts",
+  "detachments": [
+    {
+      "id": "csm.d.combat-patrol",
+      "name": "Combat Patrol",
+      "rule": "csm.a.dark-pacts",
+      "stratagems": ["csm.s.vindictive-strategy", "csm.s.violent-unbinding", "csm.s.daemonic-fervour"],
+      "enhancements": ["csm.e.foul-zealotry", "csm.e.prey-on-the-weak"]
+    }
+  ],
+  "paintScheme": {
+    "primary": "#2b2f3a",
+    "secondary": "#7a1f2b",
+    "trim": "#a8823c",
+    "metal": "#8d9299",
+    "decal": "#c9b8f0"
+  },
+  "combatPatrols": ["csm.cp.zarkans-daemonkin"]
+}

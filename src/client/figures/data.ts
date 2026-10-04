@@ -76,6 +76,10 @@ const KNOWN_KIT: Record<string, KitId> = {
   'nec.skorpekh-destroyers': 'nec-skorpekh',
   'nec.canoptek-doomstalker': 'nec-doomstalker',
   'nec.canoptek-scarab-swarms': 'nec-scarab',
+  'csm.aranis-zarkan': 'csm-zarkan',
+  'csm.possessed': 'csm-possessed',
+  'csm.legionaries': 'csm-legionary',
+  'csm.cultist-mob': 'csm-cultist',
 }
 
 const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
@@ -90,6 +94,10 @@ const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
   'nec-skorpekh': 'heavy',
   'nec-doomstalker': 'monster',
   'nec-scarab': 'infantry',
+  'csm-legionary': 'infantry',
+  'csm-zarkan': 'heavy',
+  'csm-possessed': 'heavy',
+  'csm-cultist': 'infantry',
   'generic-infantry': 'infantry',
   'generic-heavy': 'heavy',
   'generic-monster': 'monster',

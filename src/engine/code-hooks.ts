@@ -11,6 +11,7 @@ import type { Effect, Scope, TimingWindowId } from '../data/types'
 import type { Action } from './actions'
 import { distance, withinEngagementRange, withinObjectiveRange, OBJECTIVE_MARKER_RADIUS } from './geometry'
 import type { AttackContext, CodeHook, HookName } from './hooks'
+import { chaosSpaceMarinesHooks } from './factions/chaos-space-marines'
 import { hookService, type HookSourceEntry } from './hooks-impl'
 import { leaderService } from './leaders'
 import type { EngineContext, Services, WindowTrigger } from './modules'
@@ -43,6 +44,8 @@ export interface EngineCodeHook extends CodeHook {
   gate?(state: GameState, holder: Unit, entry: HookSourceEntry, data?: Record<string, unknown>): boolean
   // replaces the source's own scope (Resonant Focus: the enhancement data has no scope, which would default to `bearer`)
   forceScope?: Scope
+  // like `gate`, but also consulted for effects an ActiveEffect carries (stratagem grants), where `gate` is skipped (Vindictive Strategy)
+  gateEffect?(state: GameState, holder: Unit, entry: HookSourceEntry, data?: Record<string, unknown>): boolean
   // answers a chooseOption whose context.data.code names this hook, when the hook has no `pick` of its own
   answer?(ctx: EngineContext, action: Action, pending: PendingDecision): Rejection | void
   // side effects at the descriptor's trigger hook, after its `when` passed (Piston-driven Brutality)
@@ -50,6 +53,8 @@ export interface EngineCodeHook extends CodeHook {
   // window-keyed pick raised as a chooseOption decision (Oath of Moment, Waaagh!)
   pick?: {
     window: TimingWindowId
+    // further windows the same pick is offered at (Dark Pacts: shooting.unitSelected + fight.unitSelected)
+    windows?: TimingWindowId[]
     topic: ChooseOptionTopic
     offer(ctx: EngineContext, window: TimingWindowId, key: string): boolean
     handle(ctx: EngineContext, action: Action, pending: PendingDecision): Rejection | void
@@ -635,6 +640,8 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   fireOverwatch, heroicInterventionCharge, rapidIngressArrival, counterOffensive, epicChallenge, tankShockMortalWounds,
   grenadeMortalWounds, getStuckInDistance, grantBenefitOfCover, dutyAndHonour,
   reanimationProtocols, resonantFocusPick, resonantFocusReroll, requireFriendlyKeywordOnBoard, plasmacyteSurge,
+  ...chaosSpaceMarinesHooks,
+  markedForExecution: missionHook('markedForExecution', 'onUnitDestroyed'),
   breakTheirSpirit: missionHook('breakTheirSpirit', 'onBattleShockTest'),
   claimSites: missionHook('claimSites'),
   irradiatedPowerCells: missionHook('irradiatedPowerCells'),

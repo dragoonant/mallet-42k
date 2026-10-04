@@ -47,6 +47,15 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'nec.skorpekh-destroyers/destroyer': 'skorpekh-destroyer',
   'nec.canoptek-doomstalker/doomstalker': 'canoptek-doomstalker',
   'nec.canoptek-scarab-swarms/swarm': 'canoptek-scarab',
+  // Chaos Space Marines: no GLBs yet, same arrangement as the Necrons above.
+  'csm.aranis-zarkan/zarkan': 'aranis-zarkan',
+  'csm.possessed/possessed': 'possessed',
+  'csm.legionaries/champion': 'legionary-champion',
+  'csm.legionaries/meltagun': 'legionary',
+  'csm.legionaries/heavy-bolter': 'legionary',
+  'csm.legionaries/boltgun': 'legionary',
+  'csm.cultist-mob/champion': 'cultist-champion',
+  'csm.cultist-mob/cultist': 'cultist',
 }
 
 /** The enabled GLB slug for a model type, or undefined (use the procedural figure). */

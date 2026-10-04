@@ -44,7 +44,7 @@ export function weaponFlavour(weaponId: string, weapon: WeaponData | undefined, 
   if (melee) {
     // A force weapon crackles rather than revs; everything else splits on whether it crushes or cuts.
     if (psychic || /force/.test(text)) return 'force'
-    if (/fist|klaw|claw|hammer|maul|crush|limbs/.test(text)) return 'crush'
+    if (/fist|klaw|claw|hammer|maul|crush|limbs|mutation/.test(text)) return 'crush'
     if (/choppa|chain|sword|blade|axe|knife|talon|hyperphase|mandible/.test(text)) return 'chain'
     return strength >= 8 ? 'crush' : 'chain'
   }
@@ -54,8 +54,9 @@ export function weaponFlavour(weaponId: string, weapon: WeaponData | undefined, 
   if (hasAbility(weapon, 'TORRENT') || /flame|flamer|burna|pyre|melta|incinerat/.test(text)) return 'flame'
   // BLAST marks the explosive/ordnance profiles; the keywords catch the rest of the big guns, and
   // S7+ catches a heavy profile whose name says nothing (nothing in the current bundle needs it).
-  if (hasAbility(weapon, 'BLAST') || /cannon|kannon|rokkit|rocket|missile|mega|lascannon|plasma|blasta|blaster|tachyon/.test(text)) return 'heavy'
-  if (/shoota|slugga|dakka|stikk/.test(text) || faction === 'orks' || faction === 'ork') return 'shoota'
+  if (hasAbility(weapon, 'BLAST') || /cannon|kannon|rokkit|rocket|missile|mega|lascannon|plasma|blasta|blaster|tachyon|heavy bolter|heavy-bolter/.test(text)) return 'heavy'
+  // Cultist autoguns are cheap rattling cracks, not bolter thumps.
+  if (/shoota|slugga|dakka|stikk|autopistol|autogun/.test(text) || faction === 'orks' || faction === 'ork') return 'shoota'
   if (faction === 'necrons') return 'psychic'
   return 'bolter'
 }

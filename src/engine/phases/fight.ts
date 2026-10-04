@@ -31,6 +31,7 @@ import {
 import { hookService } from '../hooks-impl'
 import { leaderService } from '../leaders'
 import { attackService } from '../attack'
+import { purgeDeferredDeaths, resolveDeferredDeaths } from '../fight-on-death'
 import { terrainService } from '../terrain'
 import { weaponService } from '../weapons'
 import { pendingReactions, consumeReaction } from '../code-hooks'
@@ -298,7 +299,7 @@ function meleeWeaponIdsOf(state: GameState, modelId: UnitId): WeaponId[] {
 // resolved weapon ids this model fights with: its one chosen non-EXTRA-ATTACKS melee weapon (auto-picked when there
 // is only one; a `chooseOption` decision when there is a real choice — never exercised by Combat Patrol data) plus
 // every [EXTRA ATTACKS] melee weapon it carries (R-9.7).
-function resolveModelWeapons(ctx: EngineContext, modelId: UnitId): WeaponId[] | 'pending' {
+export function resolveModelWeapons(ctx: EngineContext, modelId: UnitId): WeaponId[] | 'pending' {
   const s = ctx.state
   const all = meleeWeaponIdsOf(s, modelId)
   const extra = all.filter((w) => weaponService.hasAbility(s.weapons[w], 'EXTRA_ATTACKS'))
@@ -316,7 +317,7 @@ function resolveModelWeapons(ctx: EngineContext, modelId: UnitId): WeaponId[] | 
   return 'pending'
 }
 
-function attacksFor(ctx: EngineContext, modelId: UnitId, weaponId: WeaponId): number {
+export function attacksFor(ctx: EngineContext, modelId: UnitId, weaponId: WeaponId): number {
   const s = ctx.state
   const key = `fi:atk:${modelId}:${weaponId}`
   const cached = readMark(s, key)
@@ -344,7 +345,7 @@ function attackEligibleModels(state: GameState, unitId: UnitId): Model[] {
 }
 
 // canonical enemy unit ids currently on the board (attached leader halves folded into their bodyguard)
-function enemyUnitIdsOnBoard(state: GameState, player: PlayerId): UnitId[] {
+export function enemyUnitIdsOnBoard(state: GameState, player: PlayerId): UnitId[] {
   const out: UnitId[] = []
   for (const u of Object.values(state.units)) {
     if (u.player === player || u.location !== 'board' || u.bodyguardUnitId) continue
@@ -355,7 +356,7 @@ function enemyUnitIdsOnBoard(state: GameState, player: PlayerId): UnitId[] {
 
 // R-9.8: `model` may target `enemyId` if within ER of it, or in base contact with a friendly model of its own unit
 // that is itself in base contact with THAT enemy unit specifically.
-function legalTargetsFor(state: GameState, unitId: UnitId, model: Model, enemyIds: UnitId[]): UnitId[] {
+export function legalTargetsFor(state: GameState, unitId: UnitId, model: Model, enemyIds: UnitId[]): UnitId[] {
   const models = unitModelsForCoherency(state, unitId)
   const out: UnitId[] = []
   for (const enemyId of enemyIds) {
@@ -586,6 +587,13 @@ function driveFightUnit(ctx: EngineContext): 'pending' | 'progress' {
     ctx.once(`fi:selWindow:${unitId}`)
   }
 
+  // mortal wounds queued by a pick (Dark Pact, Sacrificial Dagger) wait in an open sequence: resolve them before the unit moves
+  if (fight.subStep === 'pileIn' && s.phaseState.attack) {
+    if (attackService.advance(ctx) === 'pending') return 'pending'
+    const left = s.units[unitId]
+    if (!left || left.location !== 'board') { finishUnit(ctx, unitId, left?.player ?? s.activePlayer); return 'progress' }
+  }
+
   if (fight.subStep === 'pileIn') {
     const r = doPileIn(ctx, unitId)
     if (r === 'pending') return 'pending'
@@ -599,6 +607,8 @@ function driveFightUnit(ctx: EngineContext): 'pending' | 'progress' {
   if (fight.subStep === 'attacks') {
     const r = doAttacks(ctx, unitId)
     if (r === 'pending') return 'pending'
+    // C5: models kept on the board at 0 wounds by Daemonic Fervour make their last attacks now, before this unit consolidates
+    if (resolveDeferredDeaths(ctx) === 'pending') return 'pending'
     fight.subStep = 'consolidate'
   }
   if (fight.subStep === 'consolidate') {
@@ -720,6 +730,9 @@ export const fightModule: PhaseModule = {
         fight.nextToSelect = ctx.opponentOf(s.activePlayer)
         continue
       }
+      // C5 safety net: nothing deferred may outlive the phase (its marks are cleared on exit)
+      if (resolveDeferredDeaths(ctx) === 'pending') return 'pending'
+      purgeDeferredDeaths(ctx)
       return 'done'
     }
   },
@@ -743,6 +756,7 @@ export const fightModule: PhaseModule = {
   },
   handle(ctx, action, pending): Rejection | void {
     const s = ctx.state
+    if (action.type === 'pass' && s.phaseState.attack && pending.kind === 'allocateAttack') return attackService.handler.handle(ctx, action, pending)
     if (action.type === 'pass') return { code: 'E_NOT_AN_OPTION', reason: `fight: pass is not valid for ${pending.kind}` }
     if (pending.kind === 'chooseFightUnit' && action.type === 'chooseFightUnit') {
       const fight = s.phaseState.fight!

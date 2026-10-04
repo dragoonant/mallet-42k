@@ -15,10 +15,11 @@ const FACTION_BLURBS: Record<string, string> = {
   sm: 'Elite armoured warriors, few in number, strong in every fight.',
   ork: 'A rowdy green tide that hits harder the more of them are left standing.',
   necrons: 'Ancient metal soldiers that shrug off damage and climb back to their feet turn after turn.',
+  'chaos-space-marines': 'Fallen warriors who bargain with dark powers: stronger shots and blows, paid for in their own blood.',
 }
 
 // Button order for the factions the game ships; any other faction in the bundle follows alphabetically.
-const FACTION_ORDER = ['sm', 'ork', 'necrons']
+const FACTION_ORDER = ['sm', 'ork', 'necrons', 'chaos-space-marines']
 
 interface FactionChoice {
   id: string

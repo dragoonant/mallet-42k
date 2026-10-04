@@ -1,0 +1,52 @@
+[
+  {
+    "id": "csm.a.dark-pacts",
+    "name": "Dark Pacts",
+    "text": "Each time this unit is selected to shoot or to fight, you may make a Dark Pact for it. It takes a Leadership test; on a failure it suffers D3 mortal wounds. Whether it passed or failed, choose [LETHAL HITS] or [SUSTAINED HITS 1]: until the end of the phase every weapon in the unit has that ability. Fire Overwatch does not offer a Pact.",
+    "trigger": "unitSelectedToShoot",
+    "code": "darkPact",
+    "params": {
+      "optional": true,
+      "windows": ["shooting.unitSelected", "fight.unitSelected"],
+      "leadershipTest": true,
+      "mortalWounds": "D3",
+      "choices": [
+        { "grantWeaponAbility": { "ability": "LETHAL_HITS" } },
+        { "grantWeaponAbility": { "ability": "SUSTAINED_HITS", "value": 1 } }
+      ],
+      "scope": "self",
+      "duration": "untilEndOfPhase",
+      "excludeOverwatch": true
+    }
+  },
+  {
+    "id": "csm.a.sacrificial-dagger",
+    "name": "Sacrificial Dagger",
+    "text": "Once per phase, when this model is selected to shoot or fight, you may have its unit suffer 1 mortal wound. If you do, until the end of the phase this model's Psychic attacks gain +1 to hit and +1 to wound.",
+    "trigger": "unitSelectedToShoot",
+    "code": "sacrificialDagger",
+    "scope": { "who": "bearer" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase",
+    "params": {
+      "optional": true,
+      "windows": ["shooting.unitSelected", "fight.unitSelected"],
+      "mortalWounds": 1,
+      "effect": [
+        { "when": { "weaponAbility": "PSYCHIC" }, "modifyRoll": { "roll": "hit", "value": 1 } },
+        { "when": { "weaponAbility": "PSYCHIC" }, "modifyRoll": { "roll": "wound", "value": 1 } }
+      ]
+    }
+  },
+  {
+    "id": "csm.a.veterans-of-the-long-war",
+    "name": "Veterans of the Long War",
+    "text": "Melee attacks made by models in this unit re-roll a wound roll of 1. If the target is within range of an objective marker, they may re-roll any failed wound roll instead.",
+    "trigger": "woundRoll",
+    "scope": { "who": "self" },
+    "effect": [
+      { "when": { "weaponType": "melee" }, "reroll": "ones" },
+      { "when": { "weaponType": "melee", "targetOnObjective": true }, "reroll": "fails" }
+    ]
+  }
+]
