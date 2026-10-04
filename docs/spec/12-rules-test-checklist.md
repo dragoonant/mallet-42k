@@ -627,3 +627,45 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | AST-039 | AST-2.3 | Orders expire at the start of own next turn even when no new Order is issued |
 | AST-040 | AST-5.1 | Next Wave not offered when no legal set-up exists in the strip (all positions in ER / blocked) |
 | AST-041 | AST-5.2 | Bring It Down: an AM unit that was Battle-shocked when the Stratagem was used gets no hit re-roll against the chosen enemy; a non-shocked AM unit still does; an attached unit with either half Battle-shocked gets none |
+
+## ADE — Adepta Sororitas: Sanctuary Guardians (docs/spec/factions/adepta-sororitas.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| ADE-001 | ADE-1 | patrol loads: 4 units, 26 models, Canoness is WARLORD with Defender of the Faith, attached to Sacresants; default secondary Hallowed Retribution |
+| ADE-002 | ADE-1.1 | Canoness may attach to Battle Sisters Squad instead; not to Arco-flagellants |
+| ADE-003 | ADE-1.2 | Patrol Squads: `splitUnits:['sisters']` → two 5-model units with the listed wargear, each Starting Strength 5; default stays one unit of 10 |
+| ADE-004 | ADE-2.1 | a Miracle die is gained at the start of each turn, both players' turns (one `MiracleDieGained` per turn, value = a D6) |
+| ADE-005 | ADE-2.1 | own ADEPTA SORORITAS unit destroyed → +1 Miracle die; enemy unit destroyed → none |
+| ADE-006 | ADE-2.2 | hit roll substitution: Miracle die 6 replaces one hit die of a boltgun batch → unmodified 6 (critical), die leaves the pool, `MiracleDieSpent` mode substitute |
+| ADE-007 | ADE-2.2 | save substitution when an ADEPTA SORORITAS unit is attacked; substituted value is unmodified, AP still applies |
+| ADE-008 | ADE-2.2 | no `miracleDie` decision for a non-eligible roll (FNP, Hazardous, Desperate Escape, D6 attack count) or an empty pool |
+| ADE-009 | ADE-2.3 | charge roll: at most one of the 2D6 replaced; the other die is rolled |
+| ADE-010 | ADE-2.3 | a substituted die cannot be re-rolled (Command Re-roll / Lead the Righteous refuse that index) |
+| ADE-011 | ADE-2.3 | D3 damage roll is never offered a substitution; D6 damage is |
+| ADE-012 | ADE-2.4, 2.5 | `spentThisPhase` records the unit after a substitution and clears at phase end; a discard (enhancement/stratagem) does not record it; a second substitution for the same unit in the same phase is not offered (`maxSubstitutions` = 1, one die per Act of Faith) |
+| ADE-013 | ADE-2.6 | led Sacresants all destroyed (Canoness survives) → that half's `UnitDestroyed` grants 1 die |
+| ADE-014 | ADE-3 | Defender of the Faith: Canoness Sv 3+ → 2+ and the led unit's models 3+ → 2+ (Sacresants or Battle Sisters) |
+| ADE-015 | ADE-3 | Defender of the Faith OC: discard at own Command phase → bearer's unit +1 OC per model until own next Command phase; pool −1; not offered with empty pool |
+| ADE-016 | ADE-3 | Righteous Fury: bearer's unit Advances then shoots and declares a charge; Falls Back then shoots and charges; Arco-flagellants cannot |
+| ADE-017 | ADE-3 | Righteous Fury charge re-roll after a discard: failed charge may be re-rolled that turn only |
+| ADE-018 | ADE-4 | Hallowed Retribution: Sacresants destroy an enemy unit → +3 VP |
+| ADE-019 | ADE-4 | Hallowed Retribution: killing unit made an Act of Faith earlier that phase → +4 VP; Act of Faith in a previous phase → +3 |
+| ADE-020 | ADE-4 | Hallowed Retribution: enemy unit killed with no `byUnitId` (e.g. its own Hazardous) → 0 VP |
+| ADE-021 | ADE-4 | Consecrated Ground: round 1 → 0; round 2+, unit model within 6" of centre at end of own turn → +3; with WARLORD in it → +4 (not 7); two units → still one award |
+| ADE-022 | ADE-4 | Consecrated Ground: only Battle-shocked units within 6" → 0 VP; opponent's turn end → nothing |
+| ADE-023 | ADE-5 | Ascetic Discipline: unmodified 6 to wound with a boltgun → AP −2 on that attack; non-critical wound keeps AP 0; expires at phase end |
+| ADE-024 | ADE-5 | Ascetic Discipline not offered for a unit already selected to shoot or fight this phase; IS offered in the opponent's Fight phase for an own unit that has not yet fought; not offered in the opponent's Shooting phase |
+| ADE-025 | ADE-5 | A Martyr's Death (Fight): a Sacresant destroyed before it has fought (by any enemy unit attacking the unit this phase), D6 ≥4 → model stays, fights after the destroying unit's attacks, then removed; D6 3 → removed at once |
+| ADE-026 | ADE-5 | A Martyr's Death with a discarded die: D6 3 + 1 → deferred; pool −1 |
+| ADE-027 | ADE-5 | A Martyr's Death (Shooting): deferred Battle Sisters shoot after the enemy unit finishes shooting, then removed; deferred models cannot be allocated further attacks and add no OC |
+| ADE-028 | ADE-5 | A Martyr's Death: the destroyed model has already shot / fought this phase → no D6 for it, removed normally (other models of the unit that have not acted still roll) |
+| ADE-029 | ADE-5 | Holy Radiance: −1 to hit for attacks against the unit (not the unit's own hit rolls) and FNP 5+ per damage point, opponent's Shooting only, until phase end |
+| ADE-030 | ADE-6 | Lead the Righteous: led unit may re-roll any hit die (incl. a success to fish for a Lethal Hits 6); not when the Canoness is not attached |
+| ADE-031 | ADE-6 | Null Rod: FNP 4+ vs a Devastating Wounds mortal and vs a Psychic weapon attack; no FNP vs a normal boltgun attack |
+| ADE-032 | ADE-6 | Simulacrum Imperialis: end of own Command phase, bearer in range of one controlled marker, D6 = 5 → +1 Miracle die of value 5; D6 = 3 → none; bearer dead → no roll; bearer out of range but another model of her unit in range → roll |
+| ADE-033 | ADE-6 | Sworn Protectors: attacks targeting led Sacresants get −1 to wound (their own wound rolls unaffected); unled → no modifier |
+| ADE-034 | ADE-6 | Extremis Trigger Word: triggered → arco-flails A 6 + Hazardous this phase, Hazardous test after attacks; declined → A 4, no Hazardous |
+| ADE-035 | ADE-6 | Arco-flagellants: Sv 7+ means no armour save; FNP 5+ per wound point |
+| ADE-036 | ADE-6 | Condemnor boltgun: wound roll 2+ vs PSYKER is critical → Devastating Wounds mortal; Precision allows allocation to a CHARACTER in an attached unit |
+| ADE-037 | ADE-6 | combi-weapon Anti-Infantry 4+: unmodified 4 to wound vs INFANTRY is critical → Devastating Wounds |
+| ADE-038 | ADE-6 | Ministorum flamer / heavy flamer: Torrent auto-hits D6 attacks, Ignores Cover; hallowed mace Lethal Hits auto-wounds on a critical hit |
