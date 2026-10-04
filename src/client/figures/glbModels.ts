@@ -21,6 +21,12 @@ export const ENABLED_GLB_SLUGS: readonly string[] = [
   'skorpekh-destroyer',
   'canoptek-doomstalker',
   'canoptek-scarab',
+  'aranis-zarkan',
+  'possessed',
+  'legionary-champion',
+  'legionary',
+  'cultist-champion',
+  'cultist',
 ]
 
 export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
