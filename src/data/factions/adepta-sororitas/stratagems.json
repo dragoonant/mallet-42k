@@ -1,0 +1,62 @@
+[
+  {
+    "id": "ade.s.ascetic-discipline",
+    "faction": "adepta-sororitas",
+    "name": "Ascetic Discipline",
+    "text": "Use in your Shooting phase, or in either player\u0027s Fight phase, for one of your ADEPTA SORORITAS units that has not yet been selected to shoot or fight this phase. Until the end of the phase, an attack by a model in that unit that scores a Critical Wound has its AP improved by 2.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["shooting", "fight"],
+    "window": ["shooting.start", "shooting.attacksResolved", "fight.start", "fight.attacksResolved"],
+    "who": "either",
+    "condition": { "any": [ { "phase": "shooting", "ownTurn": true }, { "phase": "fight" } ] },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "ADEPTA SORORITAS" }, "state": "notYetActivated", "count": 1 }
+    ],
+    "effect": { "critWoundAp": 2 },
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "ade.s.a-martyrs-death",
+    "faction": "adepta-sororitas",
+    "name": "A Martyr\u0027s Death",
+    "text": "Use just after an enemy unit selects targets (opponent's Shooting, or any Fight phase) when one of your ADEPTA SORORITAS units is a target. You may discard a Miracle die. Until phase end, when a model in that unit is destroyed before acting, roll a D6 (+1 if you discarded): on 4+ it stays, shoots or fights after the enemy unit finishes, then is removed.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["shooting", "fight"],
+    "window": ["shooting.targetsDeclared", "fight.targetsDeclared"],
+    "who": "either",
+    "condition": { "any": [ { "phase": "shooting", "ownTurn": false }, { "phase": "fight" } ] },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "ADEPTA SORORITAS" }, "state": "targetedByAttack", "count": 1 }
+    ],
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase",
+    "code": "aMartyrsDeath",
+    "params": { "threshold": 4, "discardBonus": 1, "discardsMiracleDie": true, "perModelGate": true }
+  },
+  {
+    "id": "ade.s.holy-radiance",
+    "faction": "adepta-sororitas",
+    "name": "Holy Radiance",
+    "text": "Use just after an enemy unit selects its targets in the opponent\u0027s Shooting phase, when one of your ADEPTA SORORITAS units is a target. Until the end of the phase, attacks that target your unit get -1 to hit, and models in your unit have a 5+ Feel No Pain save against those attacks.",
+    "cost": 1,
+    "category": "epicDeed",
+    "phases": ["shooting"],
+    "window": "shooting.targetsDeclared",
+    "who": "either",
+    "condition": { "phase": "shooting", "ownTurn": false },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "ADEPTA SORORITAS" }, "state": "targetedByAttack", "count": 1 }
+    ],
+    "effect": [
+      { "modifyRoll": { "roll": "hit", "value": -1 } },
+      { "feelNoPain": 5 }
+    ],
+    "scope": { "who": "attacker" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  }
+]

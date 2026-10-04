@@ -358,6 +358,9 @@
         "leaderAttached": {
           "type": "boolean"
         },
+        "mortalWound": {
+          "type": "boolean"
+        },
         "roll": {
           "$ref": "#/$defs/RangeBound"
         },
@@ -575,6 +578,10 @@
         },
         "lethalOn": {
           "$ref": "#/$defs/RollTarget"
+        },
+        "critWoundAp": {
+          "type": "integer",
+          "minimum": 1
         }
       },
       "not": {
@@ -922,6 +929,7 @@
             "selectedToFight",
             "notYetFought",
             "notYetShot",
+            "notYetActivated",
             "targetedByAttack",
             "chargedThisTurn",
             "justDestroyed",

@@ -13,6 +13,7 @@ import type { BipedConfig, BodyProps } from './types'
 const ORK_SKIN = '#6f8f3f'
 const MARINE_SKIN = '#c9a074'
 const DAEMON_SKIN = '#8c7d9a'
+const PALE_SKIN = '#e6cdb4'
 const VISOR = '#15171c'
 
 const HIP_Y = 0.32
@@ -139,18 +140,19 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
   const armRadius = 0.06 * bulk
   const headRadius = Math.min(0.3, 0.19 + 0.02 * (bulk - 1))
 
-  const skinColor = config.skin === 'ork' ? ORK_SKIN : config.skin === 'marine' ? MARINE_SKIN : config.skin === 'daemon' ? DAEMON_SKIN : undefined
-  const limb = config.limbColor === 'metal' ? colors.metal : config.limbColor === 'skin' && skinColor ? skinColor : colors.secondary
-  const torsoCol = config.torsoColor === 'secondary' ? colors.secondary : colors.primary
+  const skinColor = config.skin === 'ork' ? ORK_SKIN : config.skin === 'marine' ? MARINE_SKIN : config.skin === 'daemon' ? DAEMON_SKIN : config.skin === 'pale' ? PALE_SKIN : undefined
+  const limb = config.limbColor === 'metal' ? colors.metal : config.limbColor === 'primary' ? colors.primary : config.limbColor === 'skin' && skinColor ? skinColor : colors.secondary
+  const legColor = config.legColor === 'trim' ? colors.trim : colors.primary
+  const torsoCol = config.bareTorso ? (skinColor ?? colors.secondary) : config.torsoColor === 'secondary' ? colors.secondary : colors.primary
 
   return (
     <group ref={bodyRef}>
       <group ref={legLRef} position={[-hipOffsetX, HIP_Y, 0]}>
-        <LimbSegment length={HIP_Y} radius={legRadius} color={colors.primary} />
+        <LimbSegment length={HIP_Y} radius={legRadius} color={legColor} />
         <EndBlock size={0.09 * bulk} color={colors.trim} />
       </group>
       <group ref={legRRef} position={[hipOffsetX, HIP_Y, 0]}>
-        <LimbSegment length={HIP_Y} radius={legRadius} color={colors.primary} />
+        <LimbSegment length={HIP_Y} radius={legRadius} color={legColor} />
         <EndBlock size={0.09 * bulk} color={colors.trim} />
       </group>
 
@@ -189,10 +191,23 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
           </mesh>
         )}
         <TyranidExtras config={config} colors={colors} torsoWidth={torsoWidth} torsoDepth={torsoDepth} torsoHeight={TORSO_H} />
+        {config.tabard && (
+          <>
+            {/* a long bone-coloured tabard hanging over the front of the torso and past the hips */}
+            <mesh position={[0, TORSO_H * 0.3, torsoDepth / 2 + 0.012]}>
+              <GBox args={[torsoWidth * 0.42, TORSO_H * 1.15, 0.02]} />
+              <StdMat color={colors.secondary} roughness={0.8} />
+            </mesh>
+            <mesh position={[0, TORSO_H * 0.55, torsoDepth / 2 + 0.024]}>
+              <GBox args={[torsoWidth * 0.12, TORSO_H * 0.3, 0.012]} />
+              <StdMat color={colors.trim} roughness={0.6} />
+            </mesh>
+          </>
+        )}
         {config.hasCape && (
           <mesh position={[0, TORSO_H * 0.35, -torsoDepth / 2 - 0.02]} rotation={[0.25, 0, 0]}>
             <GBox args={[torsoWidth * 0.9, TORSO_H * 1.4, 0.02]} />
-            <StdMat color={colors.secondary} roughness={0.8} />
+            <StdMat color={config.capeColor === 'trim' ? colors.trim : colors.secondary} roughness={0.8} />
           </mesh>
         )}
 
@@ -225,6 +240,12 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
 
           <group ref={headRef} position={[0, NECK_H + headRadius, 0]}>
             <HeadBody shape={config.headShape} colors={colors} skinColor={skinColor} radius={headRadius} />
+            {config.halo && (
+              <mesh position={[0, headRadius * 0.25, -headRadius * 1.15]} rotation={[Math.PI / 2, 0, 0]}>
+                <GCylinder args={[headRadius * 1.15, headRadius * 1.15, 0.015, 18]} />
+                <StdMat color={colors.metal} emissive={colors.metal} emissiveIntensity={1.4} metalness={0.5} roughness={0.35} />
+              </mesh>
+            )}
           </group>
         </group>
       </group>
@@ -440,6 +461,70 @@ function HeadBody({
     case 'tyranid-prime-head':
     case 'tyranid-brute-head':
       return <TyranidHead shape={shape} colors={colors} radius={radius} />
+    case 'sister-bob': {
+      // Pale face under a white bob: a hair cap sitting back and high, plus two side curtains; a dark
+      // brow band keeps the face reading from the front.
+      const face = skinColor ?? PALE_SKIN
+      return (
+        <group>
+          <HeadBlob radius={radius} color={face} />
+          <mesh position={[0, radius * 0.22, -radius * 0.18]} scale={[1, 0.95, 1]}>
+            <GSphere args={[radius * 1.1, 14, 10]} />
+            <StdMat color={colors.decal} roughness={0.75} />
+          </mesh>
+          <mesh position={[-radius * 0.98, -radius * 0.18, -radius * 0.05]}>
+            <GBox args={[radius * 0.32, radius * 0.85, radius * 1.15]} />
+            <StdMat color={colors.decal} roughness={0.75} />
+          </mesh>
+          <mesh position={[radius * 0.98, -radius * 0.18, -radius * 0.05]}>
+            <GBox args={[radius * 0.32, radius * 0.85, radius * 1.15]} />
+            <StdMat color={colors.decal} roughness={0.75} />
+          </mesh>
+          <mesh position={[-radius * 0.32, -radius * 0.05, radius * 0.93]}>
+            <GBox args={[radius * 0.2, radius * 0.2, radius * 0.1]} />
+            <StdMat color={VISOR} roughness={0.4} />
+          </mesh>
+          <mesh position={[radius * 0.32, -radius * 0.05, radius * 0.93]}>
+            <GBox args={[radius * 0.2, radius * 0.2, radius * 0.1]} />
+            <StdMat color={VISOR} roughness={0.4} />
+          </mesh>
+        </group>
+      )
+    }
+    case 'sister-hood':
+      // Celestian guardian: a crimson hood wrapped over a brass-trimmed helm with a narrow dark visor slit.
+      return (
+        <group>
+          <HeadBlob radius={radius * 1.08} color={colors.trim} />
+          <mesh position={[0, -radius * 0.05, radius * 0.95]}>
+            <GBox args={[radius * 0.95, radius * 0.3, radius * 0.18]} />
+            <StdMat color={VISOR} roughness={0.25} />
+          </mesh>
+          <mesh position={[0, radius * 0.7, radius * 0.3]}>
+            <GBox args={[radius * 0.3, radius * 0.3, radius * 0.9]} />
+            <StdMat color={colors.metal} metalness={0.6} roughness={0.4} />
+          </mesh>
+        </group>
+      )
+    case 'arco-mask':
+      // Arco-flagellant: pale stitched head under a brass hood-mask that covers the eyes, with a bare, hunched look.
+      return (
+        <group>
+          <HeadBlob radius={radius} color={skinColor ?? PALE_SKIN} />
+          <mesh position={[0, radius * 0.1, radius * 0.55]}>
+            <GBox args={[radius * 1.7, radius * 0.5, radius * 0.9]} />
+            <StdMat color={colors.metal} metalness={0.6} roughness={0.4} />
+          </mesh>
+          <mesh position={[0, radius * 0.6, 0]}>
+            <GBox args={[radius * 0.3, radius * 0.5, radius * 1.4]} />
+            <StdMat color={colors.metal} metalness={0.6} roughness={0.4} />
+          </mesh>
+          <mesh position={[0, -radius * 0.45, radius * 0.75]}>
+            <GBox args={[radius * 0.7, radius * 0.08, radius * 0.1]} />
+            <StdMat color={VISOR} roughness={0.5} />
+          </mesh>
+        </group>
+      )
     case 'generic-head':
     default:
       return <HeadBlob radius={radius} color={colors.secondary} />

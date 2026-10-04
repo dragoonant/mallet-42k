@@ -162,7 +162,7 @@ export const Figure = memo(function Figure({
   const datasheet = bundle?.datasheets[datasheetId]
   const factionData = bundle?.factions[faction]
 
-  const { archetype, kit } = useMemo(() => resolveFigureKit(datasheetId, datasheet), [datasheetId, datasheet])
+  const { archetype, kit } = useMemo(() => resolveFigureKit(datasheetId, datasheet, modelId), [datasheetId, datasheet, modelId])
   const base = useMemo(() => resolveBase(datasheet, archetype), [datasheet, archetype])
   const colors = useMemo(() => resolvePaintColors(factionData), [factionData])
 

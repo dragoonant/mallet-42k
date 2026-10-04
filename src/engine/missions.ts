@@ -10,6 +10,7 @@
 import { alphaXenoformAmount, chitinousTideAmount } from './factions/tyranids'
 import type { MissionRule, ScoringRule, TimingWindowId } from '../data/types'
 import { OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE, pointInPolygon, whollyWithinPolygon, withinObjectiveRange } from './geometry'
+import { consecratedGroundAmount, hallowedRetributionAmount } from './factions/adepta-sororitas'
 import { hookService } from './hooks-impl'
 import { leaderService } from './leaders'
 import { liveClaimers, pruneClaim, recordClaim } from './objectives'
@@ -360,9 +361,25 @@ function markedForExecutionDestroyed(ctx: EngineContext, info: { unitId: UnitId 
   }
 }
 
+// Hallowed Retribution (ADE-4): kill-triggered like Treasures of Aeons, but for either player's turn (who:'both') and
+// with the amount decided in factions/adepta-sororitas.ts (3 VP, 4 when the killer performed an Act of Faith this phase)
+function hallowedRetributionUnitDestroyed(ctx: EngineContext, info: { unitId: UnitId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: string | null }): void {
+  const s = ctx.state
+  const pid = info.byPlayer
+  if (!pid) return
+  const rule = rulesFor(s, pid).find((r) => r.rule === 'custom' && r.code === 'hallowedRetribution' && s.round >= r.rounds.from && s.round <= r.rounds.to)
+  if (!rule) return
+  const raw = hallowedRetributionAmount(s, info, rule.pointsPer)
+  const amount = Math.min(raw, rule.cap - (s.players[pid].vpBySource[rule.id] ?? 0))
+  if (amount <= 0) return
+  awardVp(ctx, pid, amount, rule.id)
+  s.mission.scored.push({ ruleId: rule.id, player: pid, round: s.round, turn: s.activePlayer, amount })
+}
+
 function unitDestroyedHook(ctx: EngineContext, info: { unitId: UnitId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: string | null }): void {
   treasuresUnitDestroyed(ctx, info)
   markedForExecutionDestroyed(ctx, info)
+  hallowedRetributionUnitDestroyed(ctx, info)
 }
 
 function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): number {
@@ -377,6 +394,7 @@ function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): num
     case 'stompEmScore': return stompEmScoreAmount(s, rule, pid)
     case 'properLootin': return properLootinAmount(ctx, rule, pid)
     case 'bagTheBigUnScore': return bagTheBigUnAmount(s, rule, pid)
+    case 'consecratedGround': return consecratedGroundAmount(s, pid, rule.pointsPer)
     default: return 0
   }
 }

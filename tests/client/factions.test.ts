@@ -69,6 +69,41 @@ describe('faction selection', () => {
   }, 60000)
 })
 
+describe('adepta sororitas figures', () => {
+  const sheets = Object.values(bundle.datasheets).filter((d) => d.id.startsWith('ade.'))
+
+  it('the bundle carries the adepta sororitas datasheets', () => {
+    expect(sheets.length).toBeGreaterThan(0)
+  })
+
+  for (const ds of sheets) {
+    for (const m of ds.composition) {
+      it(`${ds.id}/${m.modelId} resolves to a sororitas kit with a body config`, () => {
+        const { kit } = resolveFigureKit(ds.id, ds, m.modelId)
+        expect(kit.startsWith('ade-'), kit).toBe(true)
+        if (BODY_KIND[kit] === 'biped') expect(BIPED_CONFIG[kit], kit).toBeDefined()
+      })
+    }
+
+    it(`${ds.id} falls back to the procedural figure while no GLB is enabled`, () => {
+      for (const m of ds.composition) expect(glbSlugFor(ds.id, m.modelId), m.modelId).toBeUndefined()
+    })
+  }
+
+  it('the per-model kits read as different silhouettes (weapons / head differ across a mixed squad)', () => {
+    const squad = ['superior', 'sister-flamer', 'sister-heavy-flamer', 'sister-simulacrum', 'sister'].map(
+      (m) => resolveFigureKit('ade.battle-sisters-squad', undefined, m).kit,
+    )
+    expect(new Set(squad).size).toBe(5)
+    const shapes = squad.map((k) => `${BIPED_CONFIG[k]!.rightWeapon}/${BIPED_CONFIG[k]!.leftWeapon}`)
+    expect(new Set(shapes).size).toBe(5)
+  })
+
+  it('an unknown model of a sororitas datasheet still gets the datasheet kit', () => {
+    expect(resolveFigureKit('ade.battle-sisters-squad', undefined, 'mystery').kit).toBe('ade-sister')
+  })
+})
+
 describe('necron figures', () => {
   const necronSheets = Object.values(bundle.datasheets).filter((d) => d.id.startsWith('nec.'))
 

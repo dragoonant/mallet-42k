@@ -395,6 +395,132 @@ export function WeaponMesh({ shape, colors, hand }: { shape: WeaponShape; colors
           </mesh>
         </group>
       )
+    case 'flamer':
+    case 'heavy-flamer': {
+      // Sister's flamer: a stubby nozzle over a fuel canister, with a small pilot flame at the tip. The heavy
+      // version is bigger, with a wide nozzle and twin tanks.
+      const heavy = shape === 'heavy-flamer'
+      return (
+        <group scale={heavy ? 1.7 : 1.4}>
+          <mesh position={[0, 0.01, 0.17]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[heavy ? 0.042 : 0.032, heavy ? 0.05 : 0.038, 0.26, 8]} />
+            <StdMat color={colors.metal} metalness={0.6} roughness={0.4} />
+          </mesh>
+          <mesh position={[0, 0.01, 0.015]}>
+            <GBox args={[0.06, 0.08, 0.12]} />
+            <StdMat color={colors.primary} roughness={0.5} metalness={0.3} />
+          </mesh>
+          <mesh position={[heavy ? -0.04 : 0, -0.07, 0.08]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.035, 0.035, 0.14, 8]} />
+            <StdMat color={colors.trim} roughness={0.5} metalness={0.3} />
+          </mesh>
+          {heavy && (
+            <mesh position={[0.04, -0.07, 0.08]} rotation={[Math.PI / 2, 0, 0]}>
+              <GCylinder args={[0.035, 0.035, 0.14, 8]} />
+              <StdMat color={colors.trim} roughness={0.5} metalness={0.3} />
+            </mesh>
+          )}
+          <mesh position={[0, 0.01, 0.33]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCone args={[0.026, 0.07, 6]} />
+            <StdMat color="#ff9a3c" emissive="#ff9a3c" emissiveIntensity={1.8} />
+          </mesh>
+        </group>
+      )
+    }
+    case 'power-sword':
+      // A straight glowing blade on a brass crossguard — the Sisters' melee silhouette.
+      return (
+        <group scale={1.4}>
+          <mesh position={[0, 0, -0.01]}>
+            <GBox args={[0.035, 0.035, 0.1]} />
+            <StdMat color={colors.metal} metalness={0.6} roughness={0.4} />
+          </mesh>
+          <mesh position={[0, 0, 0.05]}>
+            <GBox args={[0.02, 0.1, 0.025]} />
+            <StdMat color={colors.metal} metalness={0.6} roughness={0.4} />
+          </mesh>
+          <mesh position={[0, 0, 0.23]}>
+            <GBox args={[0.014, 0.05, 0.34]} />
+            <StdMat color={colors.decal} emissive={colors.decal} emissiveIntensity={0.9} />
+          </mesh>
+        </group>
+      )
+    case 'mace':
+      // Flanged brass mace: a short haft ending in a chunky ribbed head.
+      return (
+        <group scale={1.5}>
+          <mesh position={[0, 0, 0.12]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.018, 0.018, 0.28, 6]} />
+            <StdMat color={colors.primary} metalness={0.5} roughness={0.5} />
+          </mesh>
+          <mesh position={[0, 0, 0.29]}>
+            <GBox args={[0.1, 0.1, 0.1]} />
+            <StdMat color={colors.metal} metalness={0.7} roughness={0.35} />
+          </mesh>
+          <mesh position={[0, 0, 0.29]} rotation={[0, 0, Math.PI / 4]}>
+            <GBox args={[0.1, 0.1, 0.1]} />
+            <StdMat color={colors.metal} metalness={0.7} roughness={0.35} />
+          </mesh>
+        </group>
+      )
+    case 'tower-shield':
+      // Held out in front of the arm: dark plate, crimson rim, brass boss.
+      return (
+        <group position={[0.06, 0.1, 0.06]}>
+          <mesh>
+            <GBox args={[0.2, 0.34, 0.03]} />
+            <StdMat color={colors.trim} roughness={0.5} metalness={0.3} />
+          </mesh>
+          <mesh position={[0, 0, 0.012]}>
+            <GBox args={[0.15, 0.28, 0.03]} />
+            <StdMat color={colors.primary} roughness={0.5} metalness={0.3} />
+          </mesh>
+          <mesh position={[0, 0.02, 0.035]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.04, 0.04, 0.02, 10]} />
+            <StdMat color={colors.metal} metalness={0.7} roughness={0.35} />
+          </mesh>
+        </group>
+      )
+    case 'flails':
+      // A segmented metal whip drooping forward from the arm, ending in a spiked weight (the forearm is the weapon).
+      return (
+        <group scale={1.3}>
+          <mesh position={[0, -0.02, 0.1]} rotation={[Math.PI / 2 - 0.1, 0, 0]}>
+            <GCylinder args={[0.022, 0.022, 0.22, 6]} />
+            <StdMat color={colors.metal} metalness={0.7} roughness={0.35} />
+          </mesh>
+          <mesh position={[0, -0.07, 0.26]} rotation={[Math.PI / 2 + 0.5, 0, 0]}>
+            <GCylinder args={[0.018, 0.018, 0.18, 6]} />
+            <StdMat color={colors.metal} metalness={0.7} roughness={0.35} />
+          </mesh>
+          <mesh position={[0, -0.15, 0.33]}>
+            <GCone args={[0.04, 0.09, 6]} />
+            <StdMat color={colors.trim} metalness={0.4} roughness={0.5} />
+          </mesh>
+        </group>
+      )
+    case 'banner':
+      // The Simulacrum: a tall pole standing up from the hand, a winged brass top and crimson streamers.
+      return (
+        <group>
+          <mesh position={[0, 0.28, 0]}>
+            <GCylinder args={[0.014, 0.014, 0.62, 6]} />
+            <StdMat color={colors.metal} metalness={0.7} roughness={0.35} />
+          </mesh>
+          <mesh position={[0, 0.62, 0]}>
+            <GBox args={[0.2, 0.05, 0.03]} />
+            <StdMat color={colors.metal} metalness={0.7} roughness={0.35} emissive={colors.metal} emissiveIntensity={0.3} />
+          </mesh>
+          <mesh position={[0, 0.66, 0]}>
+            <GCone args={[0.03, 0.08, 5]} />
+            <StdMat color={colors.metal} metalness={0.7} roughness={0.35} />
+          </mesh>
+          <mesh position={[0, 0.46, 0.02]}>
+            <GBox args={[0.1, 0.22, 0.012]} />
+            <StdMat color={colors.trim} roughness={0.8} />
+          </mesh>
+        </group>
+      )
     case 'none':
     default:
       return <EndBlock size={0.09} color={hand} />

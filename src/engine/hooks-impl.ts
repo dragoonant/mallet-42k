@@ -24,7 +24,7 @@ import { frozenClosestEligible, snapshotClosestEligible } from './factions/tyran
 import { leaderService } from './leaders'
 import type { DecisionHandler, EngineContext, WindowTrigger } from './modules'
 import { keywordsOf, modelStats, unitModels } from './state'
-import type { ActiveEffect, GameState, ModelId, PlayerId, RuntimeAbility, RuntimeWeapon, Unit, UnitId } from './types'
+import type { ActiveEffect, DiceRoll, GameState, ModelId, PlayerId, RuntimeAbility, RuntimeWeapon, Unit, UnitId } from './types'
 
 // the hook-specific part of a HookContext; the service fills in state/phase/activePlayer/source/unitId/hook per descriptor.
 // hooks.ts HookContextFor<K> is `never` for contexts shared by several hooks (AttackRollHookContext, …) because Extract
@@ -68,7 +68,8 @@ export interface HookQueries {
   // attacks by this unit's player against the Oath of Moment target (either half of an attached unit)
   isOathTarget(state: GameState, attackerUnitId: UnitId, targetUnitId: UnitId): boolean
   // R-4.7 forced Battle-shock test (Piston-driven Brutality, Bestial Bellow): 2D6 + modifiers ≥ best Ld; returns passed
-  battleShockTest(ctx: EngineContext, unitId: UnitId, source: string, modifier?: number): boolean
+  // returns 'pending' only for source 'command' (re-entrant): an Act of Faith decision (Miracle die on one of the 2D6) is open
+  battleShockTest(ctx: EngineContext, unitId: UnitId, source: string, modifier?: number): boolean | 'pending'
   // CSM Dark Pacts: 2D6 (+modifier) >= best Ld of the unit's board models (both halves). NOT a Battle-shock test: no
   // onBattleShockTest hooks, no state change. Rolls with purpose 'ability'; emits AbilityTriggered. Returns passed.
   leadershipTest(ctx: EngineContext, unitId: UnitId, source: string, modifier?: number): boolean
@@ -100,6 +101,9 @@ const asList = (e: Effect | Effect[] | undefined): Effect[] => (e === undefined 
 export function codeHookFor(name: string | null | undefined): EngineCodeHook | null {
   return name ? (codeHooks[name] ?? null) : null
 }
+
+// hooks at which some registered code hook `produce`s results (looked up lazily: code-hooks and the faction modules import each other)
+const PRODUCER_HOOKS = { has: (hook: HookName): boolean => Object.values(codeHooks).some((c) => c.producesAt?.includes(hook)) }
 
 export function sourcesFor(state: GameState): HookSourceEntry[] {
   const out: HookSourceEntry[] = []
@@ -160,6 +164,8 @@ export interface ConditionEnv {
   attack: AttackContext | null
   roll: RollContext | null
   weapon: RuntimeWeapon | null
+  // onFeelNoPainRoll only: the point being saved is a mortal wound
+  mortal?: boolean
 }
 
 function unitKeywordsAny(state: GameState, unitId: UnitId): string[] {
@@ -221,6 +227,8 @@ export function evaluateCondition(env: ConditionEnv, c: Condition | null | undef
   if (c.unitFellBack !== undefined && !(h && (h.turn.moveType === 'fallBack') === c.unitFellBack)) return false
   if (c.unitCharged !== undefined && !(h && h.turn.chargedThisTurn === c.unitCharged)) return false
   if (c.unitBattleShocked !== undefined && !(h && h.battleShocked === c.unitBattleShocked)) return false
+  // E2: only onFeelNoPainRoll sets `mortal`; every other hook sees false
+  if (c.mortalWound !== undefined && (env.mortal === true) !== c.mortalWound) return false
   if (c.leaderAttached !== undefined && !(h && leaderService.isAttached(state, h.id) === c.leaderAttached)) return false
   // [interp] roll bounds compare the unmodified die (modifiers are folded by the caller after collection)
   if (c.roll !== undefined && !(env.roll && bound(env.roll.unmodified, c.roll))) return false
@@ -263,13 +271,15 @@ function keyApplies(entry: HookSourceEntry, key: keyof Effect, effect: Effect, h
   if (spec?.hooks && !spec.hooks.includes(hook)) return false
   switch (key) {
     case 'when': return false
-    case 'reroll': return triggerHook(entry) === hook || (entry.trigger === null && !!spec?.hooks)
+    // a granted ActiveEffect of a hooks-restricted code (Resonant Focus, Righteous Fury) applies at the hooks it lists
+    case 'reroll': return triggerHook(entry) === hook || (!!spec?.hooks && (entry.trigger === null || entry.active !== null))
     case 'modifyRoll': return ROLL_HOOK[effect.modifyRoll!.roll] === hook
     case 'autoResult': return ROLL_HOOK[effect.autoResult!.roll] === hook
     case 'ignoreModifiers': return effect.ignoreModifiers === 'all' ? hook === 'onHitRoll' || hook === 'onWoundRoll' : ROLL_HOOK[effect.ignoreModifiers!] === hook
     case 'invuln': case 'ignoreCover': return hook === 'onSaveRoll'
     case 'feelNoPain': return hook === 'onFeelNoPainRoll'
     case 'lethalOn': case 'stealth': return hook === 'onHitRoll'
+    case 'critWoundAp': return hook === 'onWoundRoll'
     case 'mortalWounds': return triggerHook(entry) === hook && (hook === 'onHitRoll' || hook === 'onWoundRoll' || hook === 'onDamage')
     case 'damageReduction': case 'halveDamage': return hook === 'onDamage'
     case 'extraAttacks': return hook === 'onAttackCount'
@@ -370,7 +380,7 @@ export function matchEffects(state: GameState, hook: HookName, data: Data, keys?
   for (const entry of sourcesFor(state)) {
     if (entry.effects.length === 0 || !gateOpen(state, entry, data)) continue
     const holder = state.units[entry.holderUnitId]
-    const env: ConditionEnv = { state, holder, player: holder.player, attack: data.attack ?? null, roll: data.roll ?? null, weapon: data.weapon ?? null }
+    const env: ConditionEnv = { state, holder, player: holder.player, attack: data.attack ?? null, roll: data.roll ?? null, weapon: data.weapon ?? null, mortal: data.mortal === true }
     if (!evaluateCondition(env, entry.when)) continue
     const usedKeys = new Set<string>()
     entry.effects.forEach((effect, index) => {
@@ -412,6 +422,7 @@ function resultFor(ctx: EngineContext | null, state: GameState, hook: HookName, 
     case 'ignoreCover': return { kind: 'roll', ignoreCover: true }
     case 'feelNoPain': return { kind: 'roll', feelNoPain: e.feelNoPain }
     case 'lethalOn': return { kind: 'roll', critThreshold: e.lethalOn }
+    case 'critWoundAp': return { kind: 'roll', critWoundAp: e.critWoundAp }
     case 'stealth': return data.attack?.kind === 'ranged' ? { kind: 'roll', modifier: -1 } : null
     case 'mortalWounds': {
       const mw = e.mortalWounds!
@@ -493,6 +504,15 @@ export const hookService: HookService & HookQueries = {
     for (const m of matchEffects(ctx.state, hook, d)) {
       const result = resultFor(ctx, ctx.state, hook, d, m)
       if (result) out.push({ source: m.entry.source, result: result as HookResultFor<typeof hook> })
+    }
+    // code hooks without a declarative form answer for themselves (A Martyr's Death: deferRemoval at onModelDestroyed)
+    if (PRODUCER_HOOKS.has(hook)) {
+      for (const entry of sourcesFor(ctx.state)) {
+        const spec = codeHookFor(entry.code)
+        if (!spec?.produce || !spec.producesAt?.includes(hook) || !entry.active) continue
+        const result = spec.produce(ctx, entry, d)
+        if (result) out.push({ source: entry.source, result: result as HookResultFor<typeof hook> })
+      }
     }
     return out
   },
@@ -677,7 +697,16 @@ export const hookService: HookService & HookQueries = {
         const spec = codeHookFor(entry.code)
         if (spec?.battleShockDice) extraDice = Math.max(extraDice, spec.battleShockDice(s, unitId, entry))
       }
-      const roll = ctx.roll({ purpose: 'battleShock', player: unit.player, count: 2 + extraDice, mode: 'sum', modifiers, unitId, commandRerollable: false })
+      const spec = { purpose: 'battleShock', player: unit.player, count: 2 + extraDice, mode: 'sum', modifiers, unitId, commandRerollable: false, needed: ld } as const
+      // ADE-2.2: a Battle-shock 2D6 may take one Miracle die. Only the Command-phase test is re-entrant, so only it can pause
+      // for the decision; tests forced by an ability / stratagem mid-resolution roll straight through.
+      let roll: DiceRoll | null
+      if (source === 'command') {
+        roll = ctx.rollOnce(`battleShock:${unitId}:${source}`, spec)
+        if (!roll) return 'pending'
+      } else {
+        roll = ctx.roll(spec)
+      }
       total = rollSum(roll)
       passed = total >= ld
     }

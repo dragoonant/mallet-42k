@@ -737,6 +737,8 @@ export const chargeModule: PhaseModule = {
   handle(ctx, action, pending): Rejection | void {
     const s = ctx.state
     if (action.type === 'pass') {
+      // a Precision allocation (canPass) is declined with a pass: the attack sequence answers it
+      if (pending.kind === 'allocateAttack' && s.phaseState.attack) return attackService.handler.handle(ctx, action, pending)
       if (pending.kind === 'chooseUnitToActivate') { ctx.once('ch:donePhase'); return }
       return { code: 'E_NOT_AN_OPTION', reason: `charge: pass is not valid for ${pending.kind}` }
     }

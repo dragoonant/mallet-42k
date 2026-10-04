@@ -62,6 +62,54 @@
               ]
             }
           },
+          "patrolSquads": {
+            "type": "array",
+            "description": "Patrol Squads: the parts this unit splits into at Declare Battle Formations (PlayerSetup.splitUnits); each part is a unit of its own with this wargear",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "ref": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9-]+$"
+                },
+                "size": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "wargear": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "modelId": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9-]+$"
+                      },
+                      "count": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "weapons": {
+                        "$ref": "common.schema.json#/$defs/IdList"
+                      }
+                    },
+                    "required": [
+                      "modelId",
+                      "count",
+                      "weapons"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "ref",
+                "size",
+                "wargear"
+              ]
+            }
+          },
           "attachTo": {
             "type": "string",
             "pattern": "^[a-z0-9-]+$"

@@ -77,6 +77,8 @@ export interface Condition {
   unitCharged?: boolean
   unitBattleShocked?: boolean
   leaderAttached?: boolean
+  // onFeelNoPainRoll only: the point being saved is a mortal wound
+  mortalWound?: boolean
   roll?: RangeBound
   round?: RangeBound
   oathTarget?: boolean
@@ -115,6 +117,8 @@ export interface Effect {
   chargeAfterFallBack?: true
   stealth?: true
   lethalOn?: RollTarget
+  // AP improves by this much for an attack whose unmodified wound roll was a critical wound
+  critWoundAp?: number
 }
 export type EffectList = Effect | Effect[]
 
@@ -150,7 +154,7 @@ export interface TargetSpec {
   role: 'unit' | 'model'
   owner: 'friendly' | 'enemy'
   filter?: { keyword?: Keyword; notKeyword?: Keyword; within?: { of: 'previousTarget' | 'self' | 'objective' | 'controlledObjective'; inches: number } }
-  state?: 'selectedToShoot' | 'selectedToFight' | 'notYetFought' | 'notYetShot' | 'targetedByAttack' | 'chargedThisTurn' | 'justDestroyed'
+  state?: 'selectedToShoot' | 'selectedToFight' | 'notYetFought' | 'notYetShot' | 'notYetActivated' | 'targetedByAttack' | 'chargedThisTurn' | 'justDestroyed'
     | 'inEngagement' | 'belowHalf' | 'battleShocked' | 'justMoved'
   count?: number
   // destroyed units are also legal targets (Tyranids Teeming Broods); every other stratagem leaves this off
@@ -285,6 +289,8 @@ export interface PatrolUnitData {
   datasheet: Id
   size: number
   wargear?: { modelId: string; count: number; weapons: Id[] }[]
+  // Patrol Squads: parts this unit may split into at Declare Battle Formations (PlayerSetup.splitUnits)
+  patrolSquads?: { ref: string; size: number; wargear: { modelId: string; count: number; weapons: Id[] }[] }[]
   attachTo?: string
   enhancement?: Id
 }

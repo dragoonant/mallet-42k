@@ -208,6 +208,13 @@ function stateOk(env: StratagemEnv, u: Unit, spec: TargetSpec): boolean {
       const shooter = state.phaseState.attack?.attackerUnitId
       return halves.every((h) => !h.turn.shotThisPhase && !activated.has(h.id) && h.id !== shooter)
     }
+    case 'notYetActivated': {
+      // phase-agnostic: not yet selected to shoot or fight this phase (and not the unit currently activating)
+      const fight = state.phaseState.fight
+      const activated = new Set(state.phaseState.activated)
+      return halves.every((h) => !h.turn.shotThisPhase && !h.turn.foughtThisPhase && !activated.has(h.id)
+        && !(fight?.fought.includes(h.id)) && fight?.currentUnitId !== h.id && state.phaseState.attack?.attackerUnitId !== h.id)
+    }
     case 'targetedByAttack': {
       const set = targetedSet(state, trigger)
       return halves.some((h) => set.has(h.id))

@@ -1,0 +1,63 @@
+[
+  {
+    "id": "ade.a.acts-of-faith",
+    "name": "Acts of Faith",
+    "text": "Keep a pool of Miracle dice. Gain one (roll a D6; the value is fixed) at the start of every turn and whenever one of your units with this ability is destroyed. Just before a roll for such a unit (Advance, Battle-shock, Charge, Damage, Hit, Save or Wound), spend a die in place of one die of that roll; it counts as unmodified. Once per unit per phase.",
+    "trigger": "always",
+    "code": "actsOfFaith",
+    "params": { "gainAtTurnStart": true, "gainOnUnitDestroyed": true, "maxSubstitutions": 1, "maxPerUnitPerPhase": 1, "purposes": ["advance", "battleShock", "charge", "damage", "hit", "save", "wound"] }
+  },
+  {
+    "id": "ade.a.lead-the-righteous",
+    "name": "Lead the Righteous",
+    "text": "While this model leads a unit, any hit roll for an attack made by a model in that unit may be re-rolled.",
+    "trigger": "hitRoll",
+    "when": { "leaderAttached": true },
+    "effect": { "reroll": "all" },
+    "scope": { "who": "self" }
+  },
+  {
+    "id": "ade.a.null-rod",
+    "name": "Null Rod",
+    "text": "Models in the bearer's unit have a 4+ Feel No Pain save against mortal wounds and against damage from Psychic weapon attacks.",
+    "trigger": "feelNoPainRoll",
+    "when": { "any": [ { "weaponAbility": "PSYCHIC" }, { "mortalWound": true } ] },
+    "effect": { "feelNoPain": 4 },
+    "scope": { "who": "self" }
+  },
+  {
+    "id": "ade.a.sworn-protectors",
+    "name": "Sworn Protectors",
+    "text": "While an ADEPTA SORORITAS CHARACTER leads this unit, each attack that targets it suffers -1 to its wound roll.",
+    "trigger": "woundRoll",
+    "when": { "leaderAttached": true },
+    "effect": { "modifyRoll": { "roll": "wound", "value": -1 } },
+    "scope": { "who": "attacker" }
+  },
+  {
+    "id": "ade.a.simulacrum-imperialis",
+    "name": "Simulacrum Imperialis",
+    "text": "At the end of your Command phase, if the model carrying this relic is alive, roll one D6 for each objective marker you control that any model of its unit is within range of. On a 4 or more, gain a Miracle die whose value is that roll.",
+    "trigger": "phaseEnd",
+    "when": { "phase": "command", "ownTurn": true },
+    "scope": { "who": "bearer" },
+    "code": "simulacrumImperialis",
+    "params": { "modelId": "sister-simulacrum", "dieThreshold": 4, "perObjective": true }
+  },
+  {
+    "id": "ade.a.extremis-trigger-word",
+    "name": "Extremis Trigger Word",
+    "text": "Each time this unit is selected to fight, you may speak the trigger word. If you do, until the end of the phase its arco-flails have 6 Attacks and gain [HAZARDOUS].",
+    "trigger": "unitSelectedToFight",
+    "code": "extremisTriggerWord",
+    "params": {
+      "window": "fight.unitSelected",
+      "grant": [
+        { "when": { "weaponId": "ade.w.arco-flails" }, "setStat": { "stat": "A", "value": 6 } },
+        { "when": { "weaponType": "melee" }, "grantWeaponAbility": { "ability": "HAZARDOUS" } }
+      ],
+      "scope": "self",
+      "duration": "untilEndOfPhase"
+    }
+  }
+]

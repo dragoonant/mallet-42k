@@ -19,9 +19,10 @@ const SM = 'sm'
 const NEC = 'necrons'
 const CSM = 'chaos-space-marines'
 const TYR = 'tyranids'
+const ADE = 'adepta-sororitas'
 
 /** The engine faction id a weapon's own id prefix belongs to. */
-const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : SM)
+const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : SM)
 
 function lookupFor(faction: string): SoundLookup {
   return { weapon: (id) => bundle.weapons[id], factionOfUnit: () => faction }
@@ -104,13 +105,45 @@ const EXPECTED: Record<string, WeaponFlavour> = {
   'tyr.w.leapers-talons': 'chain',
 }
 
+// Adepta Sororitas weapons, by datasheet NAME (lower-cased) so the check holds whatever id spelling the data uses.
+// Exhaustive over the faction's weapons once its data is in the bundle: a new weapon has to be classified here.
+const ADE_BY_NAME: Record<string, WeaponFlavour> = {
+  'condemnor boltgun': 'bolter',
+  'bolt pistol': 'bolter',
+  boltgun: 'bolter',
+  'combi-weapon': 'bolter',
+  'ministorum flamer': 'flame',
+  'ministorum heavy flamer': 'flame',
+  'hallowed chainsword': 'chain',
+  'power weapon': 'chain',
+  'close combat weapon': 'chain',
+  'hallowed mace': 'crush',
+  'arco-flails': 'chain',
+}
+const adeWeapons = Object.entries(bundle.weapons).filter(([id]) => id.startsWith('ade.'))
+
 describe('weapon flavour', () => {
   it('covers every weapon in the data bundle (a new weapon has to be classified here)', () => {
-    expect(Object.keys(EXPECTED).sort()).toEqual(Object.keys(bundle.weapons).sort())
+    const known = Object.keys(EXPECTED).concat(adeWeapons.map(([id]) => id))
+    expect(known.sort()).toEqual(Object.keys(bundle.weapons).sort())
   })
 
   it('the faction ids this classifier is tuned for are the ones the data actually declares', () => {
-    for (const id of [NEC, ORK, SM, CSM, TYR]) expect(Object.keys(bundle.factions), id).toContain(id)
+    for (const id of [NEC, ORK, SM, CSM, TYR, ADE]) expect(Object.keys(bundle.factions), id).toContain(id)
+  })
+
+  it('every adepta-sororitas weapon is classified, by name', () => {
+    for (const [id, weapon] of adeWeapons) {
+      const expected = ADE_BY_NAME[weapon.name.toLowerCase()]
+      expect(expected, `${id} (${weapon.name}) needs an entry in ADE_BY_NAME`).toBeDefined()
+      expect(weaponFlavour(id, weapon, ADE), id).toBe(expected)
+    }
+  })
+
+  it("a sister's flamer and mace voice as themselves even with no datasheet to read", () => {
+    expect(weaponFlavour('ade.w.ministorum-flamer', undefined, ADE)).toBe('flame')
+    expect(weaponFlavour('ade.w.hallowed-mace', undefined, ADE)).toBe('crush')
+    expect(weaponFlavour('ade.w.boltgun', undefined, ADE)).toBe('bolter')
   })
 
   for (const [id, expected] of Object.entries(EXPECTED)) {

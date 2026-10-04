@@ -10,7 +10,8 @@
 import type { Effect, Scope, TimingWindowId } from '../data/types'
 import type { Action } from './actions'
 import { distance, withinEngagementRange, withinObjectiveRange, OBJECTIVE_MARKER_RADIUS } from './geometry'
-import type { AttackContext, CodeHook, HookName } from './hooks'
+import { adeptaSororitasHooks } from './factions/adepta-sororitas'
+import type { AttackContext, CodeHook, HookName, HookResult } from './hooks'
 import { chaosSpaceMarinesHooks } from './factions/chaos-space-marines'
 import { hookService, type HookSourceEntry } from './hooks-impl'
 import { leaderService } from './leaders'
@@ -62,6 +63,10 @@ export interface EngineCodeHook extends CodeHook {
     offer(ctx: EngineContext, window: TimingWindowId, key: string): boolean
     handle(ctx: EngineContext, action: Action, pending: PendingDecision): Rejection | void
   }
+  // answers collect() at `producesAt` for a source with no declarative form (A Martyr's Death returns a deferRemoval
+  // request for the destroyed model). Called with the hook-specific data; null = nothing to report.
+  producesAt?: HookName[]
+  produce?(ctx: EngineContext, entry: HookSourceEntry, data: Record<string, unknown>): HookResult | null
   // ---- stratagems ----
   reaction?: ReactionKind
   // friendly unit candidates come from Reserves instead of the battlefield
@@ -703,6 +708,9 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   markedForExecution: missionHook('markedForExecution', 'onUnitDestroyed'),
   synapseBattleShock, shadowInTheWarp, secretionGoadShoot, secretionGoadFight, skulkingHorrors, disruptionBombardment,
   deathBlow, stratagemCostOverride, patrolSquads, voraciousAssaultHit, teemingBroods, alphaXenoform, chitinousTide,
+  ...adeptaSororitasHooks,
+  hallowedRetribution: missionHook('hallowedRetribution', 'onUnitDestroyed'),
+  consecratedGround: missionHook('consecratedGround', 'onTurnEnd'),
   breakTheirSpirit: missionHook('breakTheirSpirit', 'onBattleShockTest'),
   claimSites: missionHook('claimSites'),
   irradiatedPowerCells: missionHook('irradiatedPowerCells'),

@@ -79,7 +79,7 @@ function runBattleShockTests(ctx: EngineContext): AdvanceResult {
       }
     }
     if (ctx.window('command.battleShock', unitId, ctx.order.only(s.activePlayer), { unitId })) return 'pending'
-    hookService.battleShockTest(ctx, unitId, 'command')
+    if (hookService.battleShockTest(ctx, unitId, 'command') === 'pending') return 'pending'
     s.phaseState.marks.push(TESTED_PREFIX + unitId)
     setSelected(ctx, null)
   }

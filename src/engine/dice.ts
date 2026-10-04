@@ -73,6 +73,8 @@ export interface RollSpec {
   commandRerollable?: boolean
   // display only: the d6 each die needs (hit/wound/save fast-rolls)
   needed?: number
+  // E1: Miracle die values that replace the first dice (recorded in DiceRoll.substituted, never re-rollable)
+  substitute?: number[]
 }
 
 export function netModifier(modifiers: RollModifier[] | undefined, cap: number | null | undefined): number {
@@ -102,6 +104,8 @@ export function makeRoll(rng: Rng, spec: RollSpec, id: string): DiceRoll {
   if (!Number.isInteger(count) || count < 1) throw new EngineInvariantError('makeRoll: count must be ≥ 1', { spec })
   const dice: number[] = []
   for (let i = 0; i < count; i++) dice.push(rng.roll(sides))
+  const substitute = (spec.substitute ?? []).slice(0, count)
+  substitute.forEach((v, i) => { dice[i] = v })
   return {
     id,
     purpose: spec.purpose,
@@ -117,6 +121,7 @@ export function makeRoll(rng: Rng, spec: RollSpec, id: string): DiceRoll {
     targetUnitId: spec.targetUnitId ?? null,
     commandRerollable: spec.commandRerollable ?? true,
     ...(spec.needed !== undefined ? { needed: spec.needed } : {}),
+    ...(substitute.length > 0 ? { substituted: substitute.map((_, i) => i) } : {}),
   }
 }
 
@@ -140,7 +145,7 @@ export function rollDiceExpr(rng: Rng, expr: DiceExpr, spec: Omit<RollSpec, 'sid
 
 // R-1.6: a die is never re-rolled more than once. `rerolled` lists die indexes already re-rolled.
 export function canReroll(roll: DiceRoll, index: number): boolean {
-  return index >= 0 && index < roll.dice.length && !(roll.rerolled ?? []).includes(index)
+  return index >= 0 && index < roll.dice.length && !(roll.rerolled ?? []).includes(index) && !(roll.substituted ?? []).includes(index)
 }
 
 export interface RerollResult { roll: DiceRoll; before: number[]; after: number[] }

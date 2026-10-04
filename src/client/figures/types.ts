@@ -43,6 +43,14 @@ export type KitId =
   | 'tyr-termagant'
   | 'tyr-barbgaunt'
   | 'tyr-leaper'
+  | 'ade-canoness'
+  | 'ade-sister'
+  | 'ade-sister-superior'
+  | 'ade-sister-flamer'
+  | 'ade-sister-heavy-flamer'
+  | 'ade-sister-simulacrum'
+  | 'ade-sacresant'
+  | 'ade-arco'
   | 'generic-infantry'
   | 'generic-heavy'
   | 'generic-monster'
@@ -60,7 +68,7 @@ export interface PaintColors {
 
 /** Body geometry + weapon dressing for a biped kit (infantry/heavy/monster archetypes — every
  *  datasheet in this data set that isn't a flyer resolves to a biped). */
-export type HeadShape = 'marine-helmet' | 'terminator-helmet' | 'ork-head' | 'ork-boss-head' | 'necron-skull' | 'necron-lord' | 'tyranid-head' | 'tyranid-prime-head' | 'tyranid-brute-head' | 'generic-head'
+export type HeadShape = 'marine-helmet' | 'terminator-helmet' | 'ork-head' | 'ork-boss-head' | 'necron-skull' | 'necron-lord' | 'sister-bob' | 'sister-hood' | 'arco-mask' | 'tyranid-head' | 'tyranid-prime-head' | 'tyranid-brute-head' | 'generic-head'
   | 'chaos-helmet' | 'chaos-sorcerer' | 'possessed-head' | 'cultist-hood'
 export type WeaponShape =
   | 'none'
@@ -85,6 +93,13 @@ export type WeaponShape =
   | 'fleshborer'
   | 'barblauncher'
   | 'torrent-maw'
+  | 'flamer'
+  | 'heavy-flamer'
+  | 'power-sword'
+  | 'mace'
+  | 'tower-shield'
+  | 'flails'
+  | 'banner'
 export type ShoulderPad = 'none' | 'small' | 'large'
 
 export interface BipedConfig {
@@ -95,9 +110,9 @@ export interface BipedConfig {
   hasBackpack: boolean
   shoulderPads: ShoulderPad
   hasCape: boolean
-  skin: 'marine' | 'ork' | 'daemon' | 'none' // 'none' = fully helmeted/armoured, no bare skin rendered
+  skin: 'marine' | 'ork' | 'daemon' | 'pale' | 'none' // 'none' = fully helmeted/armoured, no bare skin rendered
   /** Which paint slot the arms use (default 'secondary'). Necron kits take 'metal' so the green stays a glow accent. */
-  limbColor?: 'secondary' | 'metal' | 'skin'
+  limbColor?: 'secondary' | 'metal' | 'primary' | 'skin'
   /** A small glowing core on the chest (paintScheme.secondary, emissive). */
   chestCore?: boolean
   /** A brass chest plate with a violet-glow sigil (paintScheme.trim + decal). */
@@ -114,6 +129,14 @@ export interface BipedConfig {
   extraArms?: boolean
   /** Torso pitch forward, in radians — a hunched, predatory stance. */
   hunch?: number
+  /** Sororitas dressing: a glowing halo disc behind the head, a bone-coloured tabard over the torso front,
+   *  the cape in trim colour (crimson) rather than secondary, bare skin for the torso (Arco-flagellants),
+   *  and the leg colour (a crimson loincloth reads from the trim slot). */
+  halo?: boolean
+  tabard?: boolean
+  capeColor?: 'secondary' | 'trim'
+  bareTorso?: boolean
+  legColor?: 'primary' | 'trim'
 }
 
 export interface VehicleConfig {

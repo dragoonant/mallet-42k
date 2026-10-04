@@ -1,7 +1,7 @@
 // Game state construction and bookkeeping (W1-A): createGameState resolves Runtime* from the DataBundle, builds board,
 // objectives, players, units and models; helpers for hashing, cloning and common lookups.
 import type {
-  AbilityDescriptor, AbilityRef, CombatPatrolData, DataBundle, DatasheetData, MissionData, Stats, WeaponData,
+  AbilityDescriptor, AbilityRef, CombatPatrolData, DataBundle, DatasheetData, MissionData, PatrolUnitData, Stats, WeaponData,
 } from '../data/types'
 import type { CoreAbilityName } from '../data/types'
 import { parseDiceExpr } from './dice'
@@ -19,7 +19,7 @@ import {
 export const DEFAULT_HEIGHT_BY_ARCHETYPE: Record<string, number> = { infantry: 1.6, heavy: 2.0, monster: 3.5, vehicle: 3.0 }
 
 export function emptyPhaseState(): PhaseState {
-  return { activated: [], windowsOpened: [], marks: [], attack: null, charge: null, fight: null, battleShockQueue: [], lastRoll: null }
+  return { activated: [], windowsOpened: [], marks: [], attack: null, charge: null, fight: null, battleShockQueue: [], lastRoll: null, deferredRemovals: [] }
 }
 
 export function emptyTurnState(): UnitTurnState {
@@ -95,7 +95,8 @@ export function isDeferredDead(state: GameState, modelId: ModelId): boolean {
   return state.phaseState.marks.some((m) => m.startsWith('deferredDeath:') && m.includes(needle))
 }
 
-export function unitModels(state: GameState, unitId: UnitId): Model[] {
+// every model record of the unit, including E4 deferred-removal models (0 W, awaiting their last activation) but not C5 marked ones
+export function unitModelsAll(state: GameState, unitId: UnitId): Model[] {
   const unit = state.units[unitId]
   if (!unit) throw new EngineInvariantError(`unknown unit ${unitId}`)
   const out: Model[] = []
@@ -106,6 +107,12 @@ export function unitModels(state: GameState, unitId: UnitId): Model[] {
     out.push(m)
   }
   return out
+}
+
+// the unit's living models: models whose removal is deferred (A Martyr's Death) are excluded everywhere — they cannot be
+// targeted or allocated attacks, have no OC and do not count for coherency
+export function unitModels(state: GameState, unitId: UnitId): Model[] {
+  return unitModelsAll(state, unitId).filter((m) => !m.removalDeferred)
 }
 
 // attached units are one unit for coherency (R-10.1, LEAD-004): includes the attached leader / bodyguard models
@@ -359,16 +366,28 @@ export function createGameState(setup: GameSetup, bundle: DataBundle, seed: stri
 
     const refs = new Set<string>()
     let warlordUnitId: UnitId | null = null
-    for (const pu of patrol.units) {
+    // E5 Patrol Squads: units named in splitUnits are replaced by their listed parts (each its own unit)
+    const split = new Set(ps.splitUnits ?? [])
+    for (const ref of split) {
+      const base = patrol.units.find((u) => u.ref === ref)
+      if (!base?.patrolSquads?.length) throw new EngineInvariantError(`splitUnits: '${ref}' is not a Patrol Squads unit of patrol '${patrol.id}'`)
+    }
+    const patrolUnits: (PatrolUnitData & { fromSplit: boolean })[] = patrol.units.flatMap((pu): (PatrolUnitData & { fromSplit: boolean })[] => (split.has(pu.ref) && pu.patrolSquads
+      ? pu.patrolSquads.map((part) => ({ ref: part.ref, datasheet: pu.datasheet, size: part.size, wargear: part.wargear, fromSplit: true, ...(pu.enhancement ? { enhancement: pu.enhancement } : {}) }))
+      : [{ ...pu, fromSplit: false }]))
+    for (const pu of patrolUnits) {
       if (refs.has(pu.ref)) throw new EngineInvariantError(`patrol '${patrol.id}': duplicate unit ref '${pu.ref}'`)
       refs.add(pu.ref)
       const ds = addDatasheet(pu.datasheet)
       const data = bundle.datasheets[pu.datasheet]
       const unitId = unitIdFor(pid, pu.ref)
       // composition counts: defaults, with the difference absorbed by the last non-champion entry
-      const counts = data.composition.map((c) => c.default)
+      // (a Patrol Squads part takes its model counts from its own wargear list, outside the datasheet's min/max)
+      const counts = pu.fromSplit
+        ? data.composition.map((c) => (pu.wargear ?? []).filter((w) => w.modelId === c.modelId).reduce((n, w) => n + w.count, 0))
+        : data.composition.map((c) => c.default)
       let diff = pu.size - counts.reduce((a, b) => a + b, 0)
-      for (let i = data.composition.length - 1; i >= 0 && diff !== 0; i--) {
+      for (let i = data.composition.length - 1; i >= 0 && diff !== 0 && !pu.fromSplit; i--) {
         const c = data.composition[i]
         if (c.champion) continue
         const target = Math.max(c.min, Math.min(c.max, counts[i] + diff))
@@ -456,6 +475,7 @@ export function createGameState(setup: GameSetup, bundle: DataBundle, seed: stri
       id: pid, name: ps.name, faction: faction.id, patrolId: patrol.id, side: null, cp: 0, vp: 0, vpBySource: {}, cpGainedThisRound: 0,
       stratagemUses: [], oncePerBattleUsed: [], enhancementId: enh.id, secondaryId: secondary.id, warlordUnitId, oathTargetUnitId: null,
       waaagh: { used: false, activeRound: null }, commandRerollLocked: false, battleReadyVp: ps.battleReadyVp ?? 0, secondaryState: {},
+      miracle: { dice: [], spentThisPhase: [] },
     }
   }
 

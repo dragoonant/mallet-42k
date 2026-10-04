@@ -220,6 +220,17 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Sim | `npm run sim -- --games 6 --seed 5`: 6 games, 0 violations, all finished at round 5; tyranids 1 win (necrons 2, ork 1, chaos-space-marines 1, 1 draw overall). No balance tuning. sim-core now also accepts fight-on-death deferred models at 0 wounds |
 | Known gaps | No GLB models (procedural figures); the bot ignores Tyranid stratagems and picks; Death Blow (`deathblow.ts`) and the Chaos deferred-death mechanism (`fight-on-death.ts`) are two parallel implementations that could be unified; rulings in `docs/needs-rules-check.md` under "tyranids build" (TYR-01 to TYR-21) |
 
+## Adepta Sororitas (M10 — Sanctuary Guardians patrol, playable)
+
+| Area | State |
+|---|---|
+| Patrol | Canoness Adalya (attached to Celestian Sacresants), Battle Sisters Squad (10), Arco-flagellants (10); secondaries Hallowed Retribution / Consecrated Ground. Data in `src/data/factions/adepta-sororitas/`; schema gained `Condition.mortalWound`, `Effect.critWoundAp`, `TargetSpec.state 'notYetActivated'` |
+| Engine hooks | `src/engine/miracle.ts` (Miracle dice: gain on destroyed units, `miracleDie` substitution decision raised from `rollOnce`/`rollBatchD6`), `src/engine/deferred.ts` (A Martyr's Death deferred removal + last-stand activation, `Model.removalDeferred`, new FightSubStep `deferred`), `src/engine/factions/adepta-sororitas.ts` (Acts of Faith, Defender of the Faith, Righteous Fury, Simulacrum Imperialis, Extremis Trigger Word, Hallowed Retribution, Consecrated Ground), critical-wound AP in `attack.ts`, FNP against mortal wounds, optional Patrol Squads split (`PlayerSetup.splitUnits`, no UI) |
+| Client | Miracle dice row in the player badge, Acts of Faith / Martyr's Death / Extremis prompts, procedural figure kits (Sisters, Sacresants, Canoness, Arco-flagellants), bolter/flamer sound and VFX classes |
+| Verification | `npm run typecheck`, `npm run validate:data`, `npm run build` green; `npm test` 1145 passing (46 files, incl. `tests/engine/adepta-sororitas*.test.ts`, `tests/data/adepta-sororitas.test.ts`); `tests/e2e/adepta-sororitas.spec.ts` starts the faction vs bot, deploys through the UI, stands still, shoots in round 1 (screenshots `e2e-out/m10-adepta-sororitas-0*.png`) |
+| Sim | `npm run sim -- --games 6 --seed 5`: 6 games, 0 violations, mean 5.0 rounds, all finished; adepta-sororitas played 5 of 6 games: 2 wins (chaos-space-marines 1, necrons 1, sm 1, tyranids 1). `SIM_FACTION=adepta-sororitas --games 12 --seed 11`: 3 wins, 0 violations. No balance tuning |
+| Known gaps | No GLB models; Battle-shock Acts of Faith only on the Command-phase test; D3 damage cannot take a Miracle die; one substitution per batch of hit/wound rolls; no UI to choose Patrol Squads splitting; the bot spends Miracle dice by a simple policy; A Martyr's Death uses its own deferral (`Model.removalDeferred`, `src/engine/deferred.ts`) beside the Tyranid Death Blow (`pendingRemoval`) and Daemonic Fervour (`deferredDeath:` marks); rulings in `docs/needs-rules-check.md` under "Adepta Sororitas build" (RC-ADE-01 to 22) |
+
 ## Not yet built
 
 - Anything beyond M8 (see Client tables for what M3/M6/M8 cover); AI Monte Carlo/hard tier, generated models, scale-up, multiplayer, Phase B glTF animation/asset pipeline for figures (see PLAN.md, docs/spec/30-figures.md §9)

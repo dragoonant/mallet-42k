@@ -85,6 +85,23 @@ const KNOWN_KIT: Record<string, KitId> = {
   'tyr.termagants': 'tyr-termagant',
   'tyr.barbgaunts': 'tyr-barbgaunt',
   'tyr.von-ryans-leapers': 'tyr-leaper',
+  'ade.canoness-adalya': 'ade-canoness',
+  'ade.battle-sisters-squad': 'ade-sister',
+  'ade.celestian-sacresants': 'ade-sacresant',
+  'ade.arco-flagellants': 'ade-arco',
+}
+
+/** Models of a mixed unit that look different from the rest of it (a flamer sister is not a rifle sister), keyed
+ *  `<datasheet id>/<datasheet modelId>`. A model not listed here takes its datasheet's kit above. */
+const KNOWN_KIT_BY_MODEL: Record<string, KitId> = {
+  'ade.canoness-adalya/canoness': 'ade-canoness',
+  'ade.battle-sisters-squad/superior': 'ade-sister-superior',
+  'ade.battle-sisters-squad/sister-flamer': 'ade-sister-flamer',
+  'ade.battle-sisters-squad/sister-heavy-flamer': 'ade-sister-heavy-flamer',
+  'ade.battle-sisters-squad/sister-simulacrum': 'ade-sister-simulacrum',
+  'ade.battle-sisters-squad/sister': 'ade-sister',
+  'ade.celestian-sacresants/sacresant': 'ade-sacresant',
+  'ade.arco-flagellants/arco': 'ade-arco',
 }
 
 const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
@@ -108,6 +125,14 @@ const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
   'tyr-termagant': 'infantry',
   'tyr-barbgaunt': 'infantry',
   'tyr-leaper': 'infantry',
+  'ade-canoness': 'infantry',
+  'ade-sister': 'infantry',
+  'ade-sister-superior': 'infantry',
+  'ade-sister-flamer': 'infantry',
+  'ade-sister-heavy-flamer': 'infantry',
+  'ade-sister-simulacrum': 'infantry',
+  'ade-sacresant': 'infantry',
+  'ade-arco': 'infantry',
   'generic-infantry': 'infantry',
   'generic-heavy': 'heavy',
   'generic-monster': 'monster',
@@ -124,8 +149,8 @@ const GENERIC_KIT_FOR_ARCHETYPE: Record<ArchetypeKind, KitId> = {
 /** Every datasheet this kit was built for resolves directly; an id it has never seen falls back
  *  to a generic look for whatever archetype the data says it is (or plain infantry if the data
  *  hasn't loaded either) — new datasheets always render as *something*. */
-export function resolveFigureKit(datasheetId: string, datasheet?: DatasheetData): { archetype: ArchetypeKind; kit: KitId } {
-  const known = KNOWN_KIT[datasheetId]
+export function resolveFigureKit(datasheetId: string, datasheet?: DatasheetData, modelId?: string): { archetype: ArchetypeKind; kit: KitId } {
+  const known = (modelId ? KNOWN_KIT_BY_MODEL[`${datasheetId}/${modelId}`] : undefined) ?? KNOWN_KIT[datasheetId]
   if (known) return { archetype: KIT_ARCHETYPE[known], kit: known }
   const archetype: ArchetypeKind = datasheet?.figure.archetype ?? 'infantry'
   return { archetype, kit: GENERIC_KIT_FOR_ARCHETYPE[archetype] }

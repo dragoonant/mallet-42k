@@ -1,7 +1,7 @@
 // GameEvent union emitted by the reducer; the only channel to UI, dice log and AI (00-arch §5). JSON-serialisable.
 import type {
   AttackKind, DiceRoll, GameResult, Id, ModelId, MoveType, ObjectiveId, OutOfPhaseMove, Path, PendingDecision,
-  Phase, PlayerId, Rejection, StratagemId, TimingWindowId, UnitId, Vec3, WeaponId,
+  Phase, PlayerId, Rejection, RollPurpose, StratagemId, TimingWindowId, UnitId, Vec3, WeaponId,
 } from './types'
 
 export interface EventBase { seq: number; round: number; turn: PlayerId; phase: Phase; player: PlayerId }
@@ -81,8 +81,14 @@ export interface AbilityTriggered extends EventBase { type: 'AbilityTriggered'; 
 // Reanimation Protocols (necrons): a wound regained / a destroyed model put back (docs/spec/factions/necrons.md NEC-2.2)
 export interface WoundsRegained extends EventBase { type: 'WoundsRegained'; unitId: UnitId; modelId: ModelId; amount: number; source: Id }
 export interface ModelReturned extends EventBase { type: 'ModelReturned'; unitId: UnitId; modelId: ModelId; pos: Vec3; source: Id }
-// Death Blow (tyranids): the model is not removed yet; ModelDestroyed follows once it has fought or declined
+// Death Blow (tyranids) and A Martyr's Death (adepta sororitas): the model is not removed yet; ModelDestroyed follows once it has fought/shot or declined
 export interface ModelRemovalDeferred extends EventBase { type: 'ModelRemovalDeferred'; unitId: UnitId; modelId: ModelId; source: Id }
+// Adepta Sororitas (E1): Miracle dice gained / spent
+export interface MiracleDieGained extends EventBase { type: 'MiracleDieGained'; player: PlayerId; value: number; source: string }
+export interface MiracleDieSpent extends EventBase {
+  type: 'MiracleDieSpent'; player: PlayerId; value: number; mode: 'substitute' | 'discard'
+  unitId: UnitId | null; rollId: string | null; purpose: RollPurpose | null; source: string
+}
 export interface EffectExpired extends EventBase { type: 'EffectExpired'; effectId: string; unitId: UnitId | null }
 
 // dice: one per physical roll, always emitted even when a family event covers it
@@ -106,7 +112,7 @@ export type GameEvent =
   | AttackSequenceStarted | TargetsDeclared | HitRolled | WoundRolled | AttackAllocated | SaveRolled | DamageApplied | FeelNoPainRolled
   | ModelDestroyed | UnitDestroyed | HazardousTested | DeadlyDemiseRolled | AttackSequenceEnded | LeaderDetached
   | ChargeDeclared | ChargeRolled | ChargeFailed | ChargeMoved | PiledIn | Consolidated | FightUnitSelected
-  | StratagemUsed | StratagemWindowOpened | StratagemWindowClosed | AbilityTriggered | WoundsRegained | ModelReturned | ModelRemovalDeferred | EffectExpired
+  | StratagemUsed | StratagemWindowOpened | StratagemWindowClosed | AbilityTriggered | WoundsRegained | ModelReturned | MiracleDieGained | MiracleDieSpent | ModelRemovalDeferred | EffectExpired
   | DiceRolled | DiceRerolled
   | ObjectiveControlChanged | ObjectiveSecured | ObjectiveRemoved | VpScored
   | ActionRejected | DecisionRequested

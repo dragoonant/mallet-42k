@@ -25,6 +25,7 @@ import { weaponService } from './weapons'
 import { transportService } from './transports'
 import { objectiveService } from './objectives'
 import { missionService } from './missions'
+import { miracleHandler } from './miracle'
 
 export * from './types'
 export * from './actions'
@@ -42,6 +43,7 @@ export {
 } from './state'
 export { createEngine, registerDataBundle, getDataBundle, checkActionShape, advanceGame, createContext, requireUnit } from './reducer'
 export { rollOff, setupModule } from './setup'
+export * from './miracle'
 export type { TerrainService } from './terrain'
 export type { LosService } from './los'
 export type { HookService, HookData } from './hooks-impl'
@@ -93,6 +95,7 @@ export const DEFAULT_MODULES: ModuleTable = {
     stompTarget: missionService.handler,
     bagTarget: missionService.handler,
     treasureObjective: missionService.handler,
+    miracleDie: miracleHandler,
   },
 }
 

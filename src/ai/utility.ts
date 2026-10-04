@@ -464,11 +464,13 @@ function stratagemScore(state: GameState, player: PlayerId, pending: PendingDeci
     for (const u of boardUnitsOf(state, player)) if (hasAnyMeleeWeapon(state, u.id)) best = Math.max(best, unitMeleeDamage(state, u.id, trigger, {}))
     return best * unitValue(state, trigger) * 0.025 - cost * 1.0
   }
-  if ((id.endsWith('go-to-ground') || id.endsWith('smokescreen') || id.endsWith('gene-wrought-resilience')) && targetTrigger) {
-    const mine = state.units[targetTrigger]
+  if ((id.endsWith('go-to-ground') || id.endsWith('smokescreen') || id.endsWith('gene-wrought-resilience') || id.endsWith('holy-radiance') || id.endsWith('a-martyrs-death')) && (targetTrigger || targets.unitIds?.[0])) {
+    const unitId = targets.unitIds?.[0] ?? targetTrigger
+    if (!unitId) return -Infinity
+    const mine = state.units[unitId]
     if (mine?.player !== player) return -Infinity
-    const totalW = unitModels(state, targetTrigger).reduce((s, m) => s + m.woundsRemaining, 0)
-    const val = unitValue(state, targetTrigger)
+    const totalW = unitModels(state, unitId).reduce((s, m) => s + m.woundsRemaining, 0)
+    const val = unitValue(state, unitId)
     return val > 20 && totalW > 0 ? val * 0.02 - cost * 1.5 : -Infinity
   }
   // Tyranid Hyper-Reactive: -1 to hit against the attack that just targeted our INFANTRY — worth it when the incoming damage is big.
@@ -499,6 +501,26 @@ function stratagemScore(state: GameState, player: PlayerId, pending: PendingDeci
     const missing = unit.startingStrength - unit.models.length
     if (missing < 2) return -Infinity
     return Math.min(missing, 3.5) * 0.8 - cost * 0.5
+  }
+  // Ascetic Discipline (Adepta Sororitas): AP improves by 2 on critical wounds for the chosen unit this phase; use it on a
+  // unit with real output against whatever it can hit (Shooting: nearest enemy in range; Fight: an engaged enemy).
+  if (id.endsWith('ascetic-discipline')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId) return -Infinity
+    let dmg = 0, val = 0
+    if (state.phase === 'shooting') {
+      for (const e of boardUnitsOf(state, other(player))) {
+        const d = unitRangedDamage(state, unitId, e.id)
+        if (d * unitValue(state, e.id) > dmg * val) { dmg = d; val = unitValue(state, e.id) }
+      }
+    } else {
+      for (const e of engagedEnemyUnits(state, player, unitId)) {
+        const d = unitMeleeDamage(state, unitId, e, {})
+        if (d * unitValue(state, e) > dmg * val) { dmg = d; val = unitValue(state, e) }
+      }
+    }
+    if (dmg < 2) return -Infinity
+    return dmg * val * 0.006 - cost
   }
   // Tank Shock: mortal wounds = min(6, T dice at 5+); use when it meaningfully hurts what we just charged.
   if (id.endsWith('tank-shock')) {
@@ -735,6 +757,46 @@ function rerollOfferAnswer(state: GameState, pending: PendingDecision, options: 
   return failed.length > 0 ? { ...reroll, dieIndexes: failed } : keep
 }
 
+// Adepta Sororitas Acts of Faith: spend a pool die in place of one die of a D6 roll only when it changes the outcome.
+// The decision data carries the roll's target (needed, already net of AP / cover for saves), the net modifier and, for saves,
+// the weapon's max Damage. Policy (lowest die that qualifies is used, so the best dice stay in the pool):
+//  - save: only vs Damage >= 2, needed >= 3, and the die itself clears needed (a 5 vs AP-3 does nothing);
+//  - hit / wound: needed >= 4 and the die clears it;
+//  - charge / battle-shock (2D6): only when an average roll is not enough (needed > 7 - modifier) and the die plus an
+//    average second die (3.5) reaches needed;
+//  - advance: a 6 only; damage: never. With no 'needed' in the data, fall back to a flat bar.
+interface MiracleData { purpose?: string; pool?: number[]; needed?: number | null; modifier?: number; damage?: number | null }
+const MIRACLE_FLAT_BAR: Record<string, number> = { charge: 5, battleShock: 5, save: 5, wound: 5, hit: 5, advance: 6, damage: 7 }
+function miracleWorthIt(d: MiracleData, v: number): boolean {
+  const purpose = d.purpose ?? ''
+  const needed = d.needed ?? null
+  const mod = d.modifier ?? 0
+  if (purpose === 'advance') return v >= 6
+  if (purpose === 'damage') return false
+  if (needed === null) return v >= (MIRACLE_FLAT_BAR[purpose] ?? 7)
+  if (purpose === 'save') return (d.damage ?? 2) >= 2 && needed >= 3 && v >= needed
+  if (purpose === 'hit' || purpose === 'wound') return needed >= 4 && v >= needed
+  if (purpose === 'charge' || purpose === 'battleShock') {
+    const target = needed - mod
+    return target > 7 && v + 3.5 >= target
+  }
+  return false
+}
+function miracleDieAnswer(pending: PendingDecision, options: Action[]): Action | null {
+  if (pending.kind !== 'chooseOption' || pending.context.topic !== 'miracleDie') return null
+  const data = pending.context.data as MiracleData
+  const skip = options.find((o) => o.type === 'chooseOption' && o.optionId === 'skip') ?? null
+  const pool = data.pool ?? []
+  let best: Action | null = null
+  let bestValue = 7
+  for (const o of options) {
+    if (o.type !== 'chooseOption' || !o.optionId.startsWith('use')) continue
+    const v = pool[(o.dieIndexes ?? [])[0]]
+    if (v !== undefined && v < bestValue && miracleWorthIt(data, v)) { best = o; bestValue = v }
+  }
+  return best ?? skip
+}
+
 export class UtilityDecider implements Decider {
   private rng: Rng
 
@@ -751,6 +813,8 @@ export class UtilityDecider implements Decider {
     if (options.length === 0) throw new Error(`UtilityDecider: no legal action for decision ${pending.id} (${pending.kind})`)
     if (options.length === 1) return options[0]
     const state = view.state
+    const miracle = miracleDieAnswer(pending, options)
+    if (miracle) return miracle
     const offer = rerollOfferAnswer(state, pending, options)
     if (offer) return offer
     const scored = options.map((a) => ({ a, s: scoreAction(state, view.player, pending, a) }))

@@ -1,0 +1,23 @@
+{
+  "id": "adepta-sororitas",
+  "name": "Adepta Sororitas",
+  "factionKeyword": "ADEPTA SORORITAS",
+  "armyRule": "ade.a.acts-of-faith",
+  "detachments": [
+    {
+      "id": "ade.d.combat-patrol",
+      "name": "Combat Patrol",
+      "rule": "ade.a.acts-of-faith",
+      "stratagems": ["ade.s.ascetic-discipline", "ade.s.a-martyrs-death", "ade.s.holy-radiance"],
+      "enhancements": ["ade.e.defender-of-the-faith", "ade.e.righteous-fury"]
+    }
+  ],
+  "paintScheme": {
+    "primary": "#1c1c22",
+    "secondary": "#c8c2b4",
+    "trim": "#a3242c",
+    "metal": "#b9a36a",
+    "decal": "#f2efe6"
+  },
+  "combatPatrols": ["ade.cp.sanctuary-guardians"]
+}

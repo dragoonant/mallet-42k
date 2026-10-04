@@ -34,7 +34,7 @@ function hasAbility(weapon: WeaponData | undefined, name: string): boolean {
  *  gun sounds like when nothing more specific matched. */
 export function weaponFlavour(weaponId: string, weapon: WeaponData | undefined, faction: string): WeaponFlavour {
   const text = `${weaponId} ${weapon?.name ?? ''}`.toLowerCase()
-  const melee = weapon ? weapon.type === 'melee' : /choppa|klaw|fist|weapon$|blade|scythe/.test(text)
+  const melee = weapon ? weapon.type === 'melee' : /choppa|klaw|fist|weapon$|blade|scythe|mace|flail|sword/.test(text)
   const psychic = hasAbility(weapon, 'PSYCHIC') || /smite|witchfire|warp|psychic/.test(text)
   // Gauss weapons flay with a green energy bolt rather than a bullet, so they voice and trace as an energy
   // weapon; the psychic zap is the closest thing in the SFX palette.
@@ -46,8 +46,8 @@ export function weaponFlavour(weaponId: string, weapon: WeaponData | undefined, 
     if (psychic || /force/.test(text)) return 'force'
     // Tyranid claws, talons and teeth rend and slash, so they voice as the cutting sound; only a klaw/fist
     // (or a plain crushing profile) is the heavy crunch.
-    if (/fist|klaw|hammer|maul|crush|limbs|mutation/.test(text)) return 'crush'
-    if (/choppa|chain|sword|blade|axe|knife|claw|talon|teeth|maw|hyperphase|mandible/.test(text)) return 'chain'
+    if (/fist|klaw|hammer|maul|mace|crush|limbs|mutation/.test(text)) return 'crush'
+    if (/choppa|chain|sword|blade|axe|knife|claw|talon|teeth|maw|hyperphase|mandible|flail|whip/.test(text)) return 'chain'
     return strength >= 8 ? 'crush' : 'chain'
   }
 

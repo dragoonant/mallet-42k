@@ -71,7 +71,7 @@ still gate it so bespoke hooks stay cheap. A descriptor with `code` may omit `ef
 Condition keys (all optional): `phase`, `ownTurn`, `attackerKeyword`, `attackerNotKeyword`, `targetKeyword` (Keyword or Keyword[] = any of),
 `targetNotKeyword`, `weaponType (ranged|melee)`, `weaponAbility`, `weaponId`, `range ({within:n} | "half")`,
 `targetInCover`, `targetOnObjective`, `unitOnObjective`, `unitBelowHalf`, `unitStationary`, `unitAdvanced`,
-`targetBelowStartingStrength`, `targetBelowHalf`, `targetIsClosestEligible` (Tyranids: Feeding Frenzy / Voracious Assault), `unitFellBack`, `unitCharged`, `unitBattleShocked`, `leaderAttached`, `roll ({gte,lte, unmodified?})`,
+`targetBelowStartingStrength`, `targetBelowHalf`, `targetIsClosestEligible` (Tyranids: Feeding Frenzy / Voracious Assault), `unitFellBack`, `unitCharged`, `unitBattleShocked`, `leaderAttached`, `mortalWound` (onFeelNoPainRoll only: the point saved is a mortal wound), `roll ({gte,lte, unmodified?})`,
 `round ({gte,lte})`, `oathTarget` (target is the marked unit), `strengthVsToughness (gt|gte|eq|lte|lt|double|half — attack S vs target T)`, `any`, `not`.
 
 Effect keys (any subset; unknown keys rejected):
@@ -101,6 +101,7 @@ Effect keys (any subset; unknown keys rejected):
 | `shootAfterAdvance` / `shootAfterFallBack` / `chargeAfterAdvance` / `chargeAfterFallBack` | true | |
 | `stealth` | true | −1 to hit for ranged attacks targeting the unit |
 | `lethalOn` | `5+` etc | override ability threshold |
+| `critWoundAp` | int ≥1 | AP improves by n for an attack whose unmodified wound roll was a critical wound |
 
 Core abilities that are flags rather than rules text go on the datasheet as `coreAbilities:[{ability, value?}]` with
 enum `DEEP_STRIKE SCOUTS INFILTRATORS LONE_OPERATIVE LEADER STEALTH DEADLY_DEMISE FIRING_DECK FEEL_NO_PAIN FIGHTS_FIRST`.
@@ -155,7 +156,7 @@ Unit-level state in the engine (`wounds`, `battleShocked`, `moved`, `advanced`) 
 | `who` | `active \| reactive \| either` | whose turn it may be used in |
 | `condition` | Condition | use-time gating (e.g. the target unit must have been selected as a target) |
 | `when` | Condition | application-time gating per triggered attack/roll, same semantics as `AbilityDescriptor.when` |
-| `targets` | TargetSpec[] | `{role: unit\|model, owner: friendly\|enemy, filter:{keyword?, notKeyword?, within?:{of: previousTarget\|self\|objective\|controlledObjective, inches}}, state?: selectedToShoot\|targetedByAttack\|chargedThisTurn\|justDestroyed\|inEngagement\|belowHalf\|notYetFought|notYetShot, count?:int, includeDestroyed?:bool}`; `within.of: controlledObjective` restricts to a marker the active player currently controls (vs. `objective` = any marker in range) |
+| `targets` | TargetSpec[] | `{role: unit\|model, owner: friendly\|enemy, filter:{keyword?, notKeyword?, within?:{of: previousTarget\|self\|objective\|controlledObjective, inches}}, state?: selectedToShoot\|targetedByAttack\|chargedThisTurn\|justDestroyed\|inEngagement\|belowHalf\|notYetFought|notYetShot|notYetActivated, count?:int, includeDestroyed?:bool}`; `within.of: controlledObjective` restricts to a marker the active player currently controls (vs. `objective` = any marker in range) |
 | `effect` | Effect \| Effect[] | applied to `targets[0]` unless `scope` says otherwise |
 | `scope`, `duration`, `limit` | as abilities | default `limit: oncePerPhase` (core: one use per stratagem per phase) |
 | `code` | hook name | escape hatch |
@@ -168,7 +169,7 @@ Unit-level state in the engine (`wounds`, `battleShocked`, `moved`, `advanced`) 
 
 `faction`: `{id, name, factionKeyword, armyRule: Id, detachments:[{id, name, rule: Id, stratagems: Id[], enhancements: Id[]}], paintScheme:{primary, secondary, trim, metal, decal} (hex), combatPatrols: Id[]}`.
 
-`combat-patrol`: `{id, faction, name, detachment?, warlord: ref, units:[{ref, datasheet, size, wargear?: [{modelId, count, weapons: Id[]}], attachTo?: ref, enhancement?: Id}], stratagems: Id[], enhancements: [{id, default}], secondaries: [{id, name, text, default, scoring: ScoringRule[]}]}`. `ref` is unique inside the patrol and becomes the engine `unitId` prefix. `attachTo` references another unit's `ref` (leader attachment chosen at setup; the setup UI may change it within `leader.attachTo`). Exactly one enhancement and one secondary have `default: true`; the player may swap to the optional one at setup (11-combat-patrol CP-1.4/1.5).
+`combat-patrol`: `{id, faction, name, detachment?, warlord: ref, units:[{ref, datasheet, size, wargear?: [{modelId, count, weapons: Id[]}], patrolSquads?: [{ref, size, wargear: [{modelId, count, weapons: Id[]}]}], attachTo?: ref, enhancement?: Id}], stratagems: Id[], enhancements: [{id, default}], secondaries: [{id, name, text, default, scoring: ScoringRule[]}]}`. `ref` is unique inside the patrol and becomes the engine `unitId` prefix. `attachTo` references another unit's `ref` (leader attachment chosen at setup; the setup UI may change it within `leader.attachTo`). Exactly one enhancement and one secondary have `default: true`; the player may swap to the optional one at setup (11-combat-patrol CP-1.4/1.5).
 
 ## 9. Missions
 

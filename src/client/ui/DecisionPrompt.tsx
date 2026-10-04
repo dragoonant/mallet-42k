@@ -189,6 +189,41 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
     },
   },
   {
+    match: /defender-of-the-faith/,
+    info: {
+      title: 'Defender of the Faith',
+      hint: `Throw away one Miracle die to give the bearer's unit +1 Objective Control until your next Command phase, or keep your dice for Acts of Faith.`,
+    },
+  },
+  {
+    match: /righteous-fury/,
+    info: {
+      title: 'Righteous Fury',
+      hint: `Throw away one Miracle die so the bearer's unit may re-roll its charge rolls for the rest of this turn, or keep your dice for Acts of Faith.`,
+    },
+  },
+  {
+    match: /martyrs?-death/,
+    info: {
+      title: "A Martyr's Death",
+      hint: `Throw away one Miracle die to make each fallen model's last-stand roll easier by 1 (it succeeds on a 3+ instead of a 4+). A model that has not yet acted and passes the roll gets to shoot or fight before it is removed.`,
+    },
+  },
+  {
+    match: /extremis|trigger-word/,
+    info: {
+      title: 'Speak the trigger word?',
+      hint: 'Until the end of this phase the arco-flails strike 6 times each, but every melee attack the unit makes risks a Hazardous test, so some of them may fall.',
+    },
+  },
+  {
+    match: /simulacrum/,
+    info: {
+      title: 'Simulacrum Imperialis',
+      hint: `At the end of your Command phase, for each objective you hold that the banner bearer's unit stands on, roll a die: a 4 or more earns a Miracle die showing that number.`,
+    },
+  },
+  {
     match: /reanimation/,
     info: {
       title: 'Reanimation Protocols',
@@ -200,7 +235,33 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
 /** Engine prompts with topic 'other' carry no abilityId; they name themselves through data.choice instead. */
 const CHOICE_PROMPT_KEYS: Record<string, string> = { deathBlow: 'death-blow', patrolSquads: 'patrol-squads' }
 
+/** Adepta Sororitas' Acts of Faith arrive as a chooseOption with topic 'miracleDie' and data
+ *  { purpose, unitId, count, maxSubstitutions, pool } (docs/spec/factions/adepta-sororitas.md §7). The topic is
+ *  matched as a string so the client builds whether or not the engine's ChooseOptionTopic union lists it yet. */
+const MIRACLE_TOPIC = 'miracleDie'
+const ROLL_PURPOSE_LABEL: Record<string, string> = {
+  advance: 'Advance',
+  battleShock: 'Battle-shock',
+  charge: 'charge',
+  damage: 'damage',
+  hit: 'hit',
+  wound: 'wound',
+  save: 'saving',
+}
+function miraclePool(data: Record<string, unknown> | undefined): number[] {
+  const pool = data?.pool
+  return Array.isArray(pool) ? pool.filter((v): v is number => typeof v === 'number') : []
+}
+
 function chooseOptionInfoFor(context: { topic: ChooseOptionTopic; abilityId: string | null; data?: Record<string, unknown> }): { title: string; hint: string } | undefined {
+  if ((context.topic as string) === MIRACLE_TOPIC) {
+    const purpose = typeof context.data?.purpose === 'string' ? ROLL_PURPOSE_LABEL[context.data.purpose] ?? context.data.purpose : 'this'
+    const pool = miraclePool(context.data)
+    return {
+      title: `Act of Faith: ${purpose} roll`,
+      hint: `Spend one of your Miracle dice (${pool.length > 0 ? pool.join(', ') : 'none left'}) and its number counts as the roll instead of a fresh die. Modifiers still apply after, and a spent die is gone. Or roll as normal and keep them.`,
+    }
+  }
   const choice = context.data && typeof context.data.choice === 'string' ? CHOICE_PROMPT_KEYS[context.data.choice] : undefined
   const key = context.abilityId ?? choice ?? null
   const byAbility = key ? ABILITY_PROMPT_INFO.find((a) => a.match.test(key)) : undefined
@@ -330,6 +391,13 @@ function labelForOption(pending: PendingDecision, state: GameState, events: read
     case 'chooseOption': {
       // The engine labels these "remove M:boy#3" — a model id; say which figure it is instead.
       if (MODEL_PICK_TOPICS.has(pending.context.topic) && state.models[o.id]) return modelLabel(state, o.id)
+      if ((pending.context.topic as string) === MIRACLE_TOPIC) {
+        if (o.id === 'skip') return 'Roll normally'
+        const pool = miraclePool(pending.context.data)
+        const idx = o.action.type === 'chooseOption' ? o.action.dieIndexes : undefined
+        const picked = idx?.map((i) => pool[i]).filter((v): v is number => typeof v === 'number')
+        return picked && picked.length > 0 ? `Spend a Miracle die (${picked.join(', ')})` : 'Spend a Miracle die'
+      }
       if (pending.context.topic === 'razeObjective' || pending.context.topic === 'recoverObjective' || pending.context.topic === 'treasureObjective') return objectiveLabel(o.id)
       return abilityOptionLabel(pending.context.abilityId, o)
     }

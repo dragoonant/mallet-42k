@@ -480,6 +480,46 @@ export function Hud() {
   )
 }
 
+/** True when the player's army has Acts of Faith: Adepta Sororitas patrol, or any of their units carries the
+ *  ability or the faction keyword. Not inferred from `player.miracle`, which the engine initialises for everyone. */
+function hasActsOfFaith(state: GameState, id: PlayerId): boolean {
+  if (state.players[id].faction === 'adepta-sororitas') return true
+  const isAof = (s: string) => /acts[-_ ]?of[-_ ]?faith/i.test(s)
+  return Object.values(state.units).some((u) => {
+    if (u.player !== id) return false
+    const ds = state.datasheets[u.datasheetId]
+    if (!ds) return false
+    return (
+      ds.abilities.some((ab) => {
+        const rt = state.abilities[ab] as ({ code?: string; name?: string } | undefined)
+        return isAof(String(ab)) || (rt != null && (isAof(rt.code ?? '') || isAof(rt.name ?? '')))
+      }) ||
+      [...ds.factionKeywords, ...ds.keywords].some((k) => String(k).toUpperCase() === 'ADEPTA SORORITAS')
+    )
+  })
+}
+
+/** Adepta Sororitas' pool of Miracle dice (their Acts of Faith rule): a row of small pips showing each saved
+ *  die's fixed value. Renders nothing for an army without the rule. */
+function MiracleDice({ dice: diceIn, id, enabled }: { dice: number[] | undefined; id: PlayerId; enabled: boolean }) {
+  if (!enabled) return null
+  const dice = diceIn ?? []
+  return (
+    <div style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 4 }} data-testid={`hud-miracle-${id}`} title="Miracle dice: spend one in place of a roll (Acts of Faith)">
+      <span>Miracle</span>
+      {dice.length === 0 && <span style={mutedText}>none</span>}
+      {dice.map((v, i) => (
+        <span
+          key={i}
+          style={{ minWidth: 18, height: 18, lineHeight: '18px', textAlign: 'center', borderRadius: 4, background: '#f2efe6', color: '#1c1c22', fontWeight: 700, fontSize: 12 }}
+        >
+          {v}
+        </span>
+      ))}
+    </div>
+  )
+}
+
 function PlayerBadge({ id, state }: { id: PlayerId; state: GameState }) {
   const bundle = useGameStore((s) => s.bundle)
   const [open, setOpen] = useState(false)
@@ -495,6 +535,7 @@ function PlayerBadge({ id, state }: { id: PlayerId; state: GameState }) {
       <div style={{ fontSize: 13 }} data-testid={`hud-cp-${id}`}>
         CP {p.cp}
       </div>
+      <MiracleDice dice={(p as { miracle?: { dice?: number[] } }).miracle?.dice} id={id} enabled={hasActsOfFaith(state, id)} />
       <button style={vpButton} data-testid={`hud-vp-${id}`} onClick={() => setOpen((v) => !v)}>
         VP {p.vp} {scored.length > 0 ? (open ? '▲' : '▼') : ''}
       </button>

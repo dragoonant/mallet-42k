@@ -22,6 +22,7 @@
 //   than one); multi-profile melee weapons are not offered a `weaponProfile` choice — the model's first profile in
 //   its `weapons` list is used. Neither situation occurs anywhere in the Combat Patrol data this engine ships with.
 import { filterValid, optionActions, repairCoherency } from './legal'
+import { resolveDeferredActivations } from '../deferred'
 import {
   EPS, ENGAGEMENT_H, OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE, basesOverlap, checkPlacements, dist2D, distance,
   emptyMoveConstraints, horizontalGap, inBaseContact, pathCrossesModels, unitsWithinEngagementRange, whollyOnBoard,
@@ -445,7 +446,45 @@ function validateDeclareTargets(pending: Extract<PendingDecision, { kind: 'decla
 function applyDeclareTargets(ctx: EngineContext, action: Extract<Action, { type: 'declareTargets' }>): void {
   const declared: DeclaredTarget[] = action.targets.map((t: WeaponTarget) => ({ modelId: t.modelId, weaponId: t.weaponId, targetUnitId: t.targetUnitId, profileGroup: t.profileGroup ?? null, attacks: t.attacks ?? null }))
   attackService.begin(ctx, { kind: 'melee', attackerUnitId: action.unitId, overwatch: false, targets: declared })
-  ctx.once(`fi:declared:${action.unitId}`)
+  // E4: a deferred last stand is not the unit's own activation, so its own declare step stays open for later
+  if (deferredOpen(ctx.state, action.unitId)) ctx.once(`fidef:${action.unitId}:begun`)
+  else ctx.once(`fi:declared:${action.unitId}`)
+}
+
+// ---------- E4: deferred last-stand fighting (A Martyr's Death) ----------
+const defKey = (unitId: UnitId): string => `fidef:${unitId}`
+function deferredOpen(state: GameState, unitId: UnitId): boolean {
+  return state.phaseState.marks.includes(`${defKey(unitId)}:open`) && !state.phaseState.marks.includes(`${defKey(unitId)}:begun`)
+}
+
+// the deferred models of `entry` fight once, after the destroying unit's attacks (no pile-in, no consolidation), against
+// enemies in Engagement Range only: 'pending' while their declareTargets decision is open, 'done' when resolved / nothing to hit
+export function deferredFightStep(ctx: EngineContext, entry: { unitId: UnitId; modelIds: UnitId[] }): 'pending' | 'done' {
+  const s = ctx.state
+  const key = defKey(entry.unitId)
+  if (ctx.marked(`${key}:begun`)) return 'done'
+  const player = s.units[entry.unitId].player
+  const models = entry.modelIds.map((id) => s.models[id]).filter((m): m is Model => !!m)
+  for (const m of models) if (resolveModelWeapons(ctx, m.id) === 'pending') return 'pending'
+  const enemyIds = enemyUnitIdsOnBoard(s, player)
+  const weapons: DeclareTargetsDecision['context']['weapons'] = []
+  for (const m of models) {
+    for (const weaponId of resolveModelWeapons(ctx, m.id) as WeaponId[]) {
+      const weapon = weaponService.effectiveWeapon(s, m.id, weaponId)
+      const legalTargets = enemyIds.filter((e) => (leaderService.combinedModels ? leaderService.combinedModels(s, e) : unitModels(s, e)).some((em) => horizontalGap(m, em) <= ENGAGEMENT_H + EPS && Math.abs(m.pos.y - em.pos.y) <= 5 + EPS))
+      // a deferred model with nothing in Engagement Range simply does not fight (a listed weapon would have to declare its attacks)
+      if (legalTargets.length === 0) continue
+      weapons.push({ modelId: m.id, weaponId, profileGroup: weapon.profileGroup ?? null, legalTargets, attacks: attacksFor(ctx, m.id, weaponId) })
+    }
+  }
+  if (!weapons.some((w) => w.legalTargets.length > 0)) { ctx.once(`${key}:begun`); return 'done' }
+  if (!ctx.once(`${key}:open`)) return 'pending'
+  const engagedWith = [...new Set(weapons.flatMap((w) => w.legalTargets))]
+  ctx.decide({
+    kind: 'declareTargets', player, window: 'fight.unitSelected', canPass: false,
+    context: { unitId: entry.unitId, attackKind: 'melee', overwatch: false, weapons, engagedWith },
+  })
+  return 'pending'
 }
 
 function doAttacks(ctx: EngineContext, unitId: UnitId): 'pending' | 'progress' {
@@ -629,6 +668,12 @@ function driveFightUnit(ctx: EngineContext): 'pending' | 'progress' {
     if (r === 'pending') return 'pending'
     // C5: models kept on the board at 0 wounds by Daemonic Fervour make their last attacks now, before this unit consolidates
     if (resolveDeferredDeaths(ctx) === 'pending') return 'pending'
+    fight.subStep = 'deferred'
+  }
+  if (fight.subStep === 'deferred') {
+    // E4: a deferred last-stand attack (A Martyr's Death) already in progress, then any still to open
+    if (s.phaseState.attack && attackService.advance(ctx) === 'pending') return 'pending'
+    if (resolveDeferredActivations(ctx, unitId) === 'awaiting') return 'pending'
     fight.subStep = 'consolidate'
   }
   if (fight.subStep === 'consolidate') {
@@ -780,8 +825,11 @@ export const fightModule: PhaseModule = {
   },
   handle(ctx, action, pending): Rejection | void {
     const s = ctx.state
-    if (action.type === 'pass' && s.phaseState.attack && pending.kind === 'allocateAttack') return attackService.handler.handle(ctx, action, pending)
-    if (action.type === 'pass') return { code: 'E_NOT_AN_OPTION', reason: `fight: pass is not valid for ${pending.kind}` }
+    if (action.type === 'pass') {
+      // a Precision allocation (canPass) is declined with a pass: the attack sequence answers it
+      if (s.phaseState.attack && pending.kind === 'allocateAttack') return attackService.handler.handle(ctx, action, pending)
+      return { code: 'E_NOT_AN_OPTION', reason: `fight: pass is not valid for ${pending.kind}` }
+    }
     if (pending.kind === 'chooseFightUnit' && action.type === 'chooseFightUnit') {
       const fight = s.phaseState.fight!
       const co = consumeReaction(s, 'counterOffensive', action.unitId)

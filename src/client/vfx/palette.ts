@@ -46,6 +46,7 @@ const FACTION_COLOR: Record<string, string> = {
   necrons: '#39ff6a',
   'chaos-space-marines': '#c25a7a',
   tyranids: '#c14ee0',
+  'adepta-sororitas': '#ff6a5a',
 }
 
 const NEUTRAL_MELEE_COLOR = '#e8e8f0'

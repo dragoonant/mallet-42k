@@ -36,6 +36,8 @@
 //   the sequence starts (which for the Shooting phase is the instant targets are declared), and `doHitBatch` reads
 //   only those marks — never `leaderService`/`los` live — for these two modifiers.
 import type { DiceExpr, WeaponAbilityName } from '../data/types'
+import { deferModelRemoval } from './deferred'
+import { miracleGate } from './miracle'
 import { canReroll, clampHitWoundModifier, clampStat, dieSucceeds, netModifier, parseDiceExpr, rollSum, woundRollNeeded } from './dice'
 import type { RollSpec } from './dice'
 import { distance } from './geometry'
@@ -50,7 +52,7 @@ import type { AttackRollContext } from './events'
 import {
   EngineInvariantError,
   type AttackGroup, type AttackKind, type AttackSequenceState, type CurrentAttack, type DeclaredTarget, type DiceRoll, type GameState, type GroupBatch,
-  type Model, type ModelId, type Phase, type PlayerId, type RuntimeWeapon, type UnitId, type Vec3, type WeaponId, type WoundSlot,
+  type Model, type ModelId, type Phase, type PlayerId, type RuntimeWeapon, type Unit, type UnitId, type Vec3, type WeaponId, type WoundSlot,
 } from './types'
 
 export interface AttackBegin { kind: AttackKind; attackerUnitId: UnitId; overwatch: boolean; targets: DeclaredTarget[] }
@@ -316,7 +318,10 @@ function rollBatchD6(ctx: EngineContext, key: string, hook: 'onHitRoll' | 'onWou
   }
   const prefix = `roll:${key}=`
   if (!s.phaseState.marks.some((m) => m.startsWith(prefix))) {
-    const fresh = ctx.roll(spec)
+    // E1: an Act of Faith may replace one die of this batch before it is rolled
+    const gate = miracleGate(ctx, key, spec)
+    if (gate === 'pending') return 'pending'
+    const fresh = ctx.roll(gate ? { ...spec, substitute: gate } : spec)
     s.phaseState.marks.push(prefix + fresh.id)
   }
   if (ctx.once(`autoReroll:${key}`)) {
@@ -672,13 +677,23 @@ interface SaveSetup {
 
 // Everything about how `modelId` saves against this group's weapon, minus the die. The engine picks the save that
 // needs the LOWER roll (a tie goes to armour) — the old armour-or-invulnerable prompt is gone (M9).
-function saveSetup(ctx: EngineContext, group: AttackGroup, attackerModelId: ModelId, modelId: ModelId, rawCover: boolean): SaveSetup | null {
+// E3: AP improvement from the attacker's effects for an attack whose unmodified wound roll was a critical wound
+function critWoundApFor(ctx: EngineContext, actx: AttackContext): number {
+  const s = ctx.state
+  const fake = fakeRoll('wound', s.units[actx.attackerUnitId].player, actx.attackerUnitId, actx.attackerModelId)
+  const results = ctx.services.hooks.collect(ctx, 'onWoundRoll', { attack: actx, roll: { purpose: 'wound', roll: fake, dieIndex: 0, unmodified: 6, rerolled: false } })
+    .map((r) => r.result).filter(isRoll)
+  return results.reduce((n, r) => n + (r.critWoundAp ?? 0), 0)
+}
+
+function saveSetup(ctx: EngineContext, group: AttackGroup, attackerModelId: ModelId, modelId: ModelId, rawCover: boolean, critical = false): SaveSetup | null {
   const a = attackSeq(ctx)
   const s = ctx.state
   const model = s.models[modelId]
   if (!model) return null
-  const weapon = weaponService.effectiveWeapon(s, attackerModelId, group.weaponId)
-  const actx = buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, attackerModelId, weapon, group.targetUnitId, modelId, rawCover)
+  const baseWeapon = weaponService.effectiveWeapon(s, attackerModelId, group.weaponId)
+  const actx = buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, attackerModelId, baseWeapon, group.targetUnitId, modelId, rawCover)
+  const weapon = critical ? { ...baseWeapon, AP: baseWeapon.AP - critWoundApFor(ctx, actx) } : baseWeapon
   const preFake = fakeRoll('save', s.units[model.unitId].player, model.unitId, modelId)
   const preResults = collectSaveMods(ctx, actx, preFake)
   const ignoreCoverHook = preResults.some((r) => r.ignoreCover)
@@ -732,7 +747,7 @@ function doSaveStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pendi
   const modelId = cur.allocatedModelId as ModelId
   const model = s.models[modelId]
   if (!model) { finishSlot(ctx, gi, group); return 'progress' }
-  const setup = saveSetup(ctx, group, cur.attackerModelId, modelId, cur.cover)
+  const setup = saveSetup(ctx, group, cur.attackerModelId, modelId, cur.cover, cur.wound?.critical === true)
   if (!setup) { finishSlot(ctx, gi, group); return 'progress' }
   const { actx, kind, needed } = setup
   // Published on the attack so the client can show the real numbers (also for a Command Re-roll offer on an
@@ -779,6 +794,8 @@ function saveBatchTarget(ctx: EngineContext, lead: number): number | null {
   const b = group.batch as GroupBatch
   const weapon = weaponService.effectiveWeapon(s, group.attackerModelIds[0], group.weaponId)
   if (hasAbility(weapon, 'PRECISION')) return null
+  // E3: a critical wound that improves AP needs its own save target, so those volleys keep per-attack save rolls
+  if (b.queue.some((w) => w.wound.critical && critWoundApFor(ctx, buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, w.attackerModelId, weaponService.effectiveWeapon(s, w.attackerModelId, group.weaponId), group.targetUnitId, null, false)) > 0)) return null
   const eligible = leaderService.allocatableModels ? leaderService.allocatableModels(s, group.targetUnitId) : unitModels(s, group.targetUnitId).map((m) => m.id)
   if (eligible.length === 0) return null
   const attackers = [...new Set(b.queue.map((w) => w.attackerModelId))]
@@ -818,14 +835,14 @@ function doSaveBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
 
 // ---------- Feel No Pain (R-10.5) ----------
 
-function bestFeelNoPain(ctx: EngineContext, model: Model, actx: AttackContext): number | null {
+function bestFeelNoPain(ctx: EngineContext, model: Model, actx: AttackContext, mortal = false): number | null {
   const s = ctx.state
   const ds = datasheetOf(s, model.unitId)
   let best: number | null = null
   const core = ds.coreAbilities.find((c) => c.ability === 'FEEL_NO_PAIN')
   if (core) best = toNumber(core.value) || 6
   const fake = fakeRoll('fnp', s.units[model.unitId].player, model.unitId, model.id)
-  const results = ctx.services.hooks.collect(ctx, 'onFeelNoPainRoll', { attack: actx, roll: { purpose: 'fnp', roll: fake, dieIndex: 0, unmodified: 0, rerolled: false } })
+  const results = ctx.services.hooks.collect(ctx, 'onFeelNoPainRoll', { attack: actx, roll: { purpose: 'fnp', roll: fake, dieIndex: 0, unmodified: 0, rerolled: false }, mortal })
     .map((r) => r.result).filter(isRoll)
   for (const r of results) if (r.feelNoPain !== undefined) best = best === null ? r.feelNoPain : Math.min(best, r.feelNoPain)
   return best
@@ -836,7 +853,7 @@ function bestFeelNoPain(ctx: EngineContext, model: Model, actx: AttackContext): 
 // plain, non-reentrant roll is safe here.
 function applyOnePoint(ctx: EngineContext, model: Model, actx: AttackContext, source: AttackRollContext | { abilityId: string } | { stratagemId: string }, mortal: boolean): boolean {
   const s = ctx.state
-  const threshold = bestFeelNoPain(ctx, model, actx)
+  const threshold = bestFeelNoPain(ctx, model, actx, mortal)
   let ignored = false
   if (threshold !== null) {
     const roll = ctx.roll({ purpose: 'fnp', player: s.units[model.unitId].player, sides: 6, count: 1, mode: 'perDie', unitId: model.unitId, modelId: model.id, commandRerollable: false })
@@ -1055,7 +1072,7 @@ function rollDeadlyDemise(ctx: EngineContext, model: Model, valueExpr: DiceExpr)
 
 // prefixes that only ever mean something WITHIN the one attack sequence that wrote them — stale entries left over
 // from an earlier, already-finished sequence in the same phase must never leak into a new one (SHOOT-046-dice)
-const SEQUENCE_SCOPED_MARK_PREFIXES = ['roll:', 'rerollOffered:', 'autoReroll:', 'precisionDeclined:','hazardous:', 'groupTouched:', 'mortalAlloc:', 'mortalBatchSeq:', 'blastCount:', 'pendingDetach:', 'bgntAttacker', 'bgntTarget:', 'indirectNoLos:']
+const SEQUENCE_SCOPED_MARK_PREFIXES = ['roll:', 'miracle:', 'miracleAsk:', 'rerollOffered:', 'autoReroll:', 'precisionDeclined:','hazardous:', 'groupTouched:', 'mortalAlloc:', 'mortalBatchSeq:', 'blastCount:', 'pendingDetach:', 'bgntAttacker', 'bgntTarget:', 'indirectNoLos:']
 
 export const attackService: AttackService = {
   begin(ctx, spec) {
@@ -1306,7 +1323,7 @@ export const attackService: AttackService = {
   destroyModel(ctx, modelId, by) {
     const s = ctx.state
     const model = s.models[modelId]
-    if (!model) return
+    if (!model || model.removalDeferred) return
     const attacked = by.unitId !== null && (by.kind === 'ranged' || by.kind === 'melee') && s.units[by.unitId]?.player !== s.units[model.unitId]?.player
     // C4: leave a death-reaction request (before removal/deferral), opened by `advance` once this attack's damage has resolved
     if (attacked && by.unitId) {
@@ -1342,31 +1359,64 @@ export const attackService: AttackService = {
     const ds = datasheetOf(s, model.unitId)
     const demise = ds.coreAbilities.find((c) => c.ability === 'DEADLY_DEMISE')
     if (demise) rollDeadlyDemise(ctx, model, demise.value ?? 'D3')
+    // E4: onModelDestroyed hooks are collected BEFORE the model leaves the table; a deferRemoval request keeps it there
+    // (at 0 W, announced as destroyed, untargetable, no OC) until the destroying unit has finished (A Martyr's Death)
+    const deferral = (by.unitId && (s.phase === 'shooting' || s.phase === 'fight'))
+      ? ctx.services.hooks.collect(ctx, 'onModelDestroyed', { destroyedUnitId: unit.id, destroyedModelId: modelId, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
+        .map((r) => r.result).find((r): r is EffectRequest => r.kind === 'request' && r.deferRemoval !== undefined)?.deferRemoval
+      : undefined
+    if (deferral) {
+      model.woundsRemaining = 0
+      deferModelRemoval(ctx, modelId, deferral.kind, deferral.afterUnitId, 'aMartyrsDeath')
+      announceDestroyed(ctx, model, unit, by)
+      return
+    }
     const nowDestroyed = removeModel(s, modelId)
-    ctx.emit({ type: 'ModelDestroyed', unitId: unit.id, modelId, byPlayer: by.player, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
-    ctx.services.hooks.run(ctx, 'onModelDestroyed', { destroyedUnitId: unit.id, destroyedModelId: modelId, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
-    // secondaries (e.g. Wrath of the Emperor) key off which of the killer's own models scored the kill; only a
-    // model-attributed kill counts (mortal wounds / self-inflicted losses carry by.player/by.modelId null).
-    // Reset once per phase by the scoring rule that reads it (missions.ts wrathOfTheEmperorAmount).
-    if (by.player && by.modelId) {
-      const secondaryState = s.players[by.player].secondaryState
-      const killsThisPhase = (secondaryState.killsThisPhase as Record<string, number> | undefined) ?? {}
-      killsThisPhase[by.modelId] = (killsThisPhase[by.modelId] ?? 0) + 1
-      secondaryState.killsThisPhase = killsThisPhase
-    }
-    if (nowDestroyed) {
-      unit.destroyedBy = { player: by.player ?? s.activePlayer, kind: by.kind, round: s.round, unitId: by.unitId, modelId: by.modelId }
-      ctx.emit({ type: 'UnitDestroyed', unitId: unit.id, byPlayer: by.player, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
-      ctx.services.hooks.run(ctx, 'onUnitDestroyed', { destroyedUnitId: unit.id, destroyedModelId: null, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
-      ctx.services.missions.unitDestroyed?.(ctx, { unitId: unit.id, byPlayer: by.player, byUnitId: by.unitId, byModelId: by.modelId })
-      if (leaderService.isAttached(s, unit.id) && leaderService.detach) {
-        // SHOOT-048/LEAD-014/R-10.1: the leader/bodyguard split happens only once the attacking unit's WHOLE
-        // sequence has finished — detaching now would immediately break leaderService.halves()/allocatableModels()
-        // for the rest of this same volley (and any still-queued mortal wounds), throwing the remainder away
-        // instead of routing it onto the attached CHARACTER. Defer to a mark; advance() detaches at sequence end.
-        if (ctx.state.phaseState.attack) ctx.once(`pendingDetach:${unit.id}`)
-        else leaderService.detach(ctx, unit.id)
-      }
-    }
+    announceDestroyed(ctx, model, unit, by, nowDestroyed)
   },
+}
+
+// E4: the deferred model finally leaves the table (its last shooting / fight is done): remove it and, when it was the
+// unit's last model, emit UnitDestroyed (and the Miracle die that goes with it). ModelDestroyed was announced at 0 W.
+export function finishMartyrRemoval(ctx: EngineContext, modelId: ModelId, by: DestroyedBy): void {
+  const s = ctx.state
+  const model = s.models[modelId]
+  if (!model) return
+  const unit = s.units[model.unitId]
+  model.removalDeferred = false
+  const nowDestroyed = removeModel(s, modelId)
+  if (nowDestroyed) destroyUnitTail(ctx, unit, by)
+}
+
+function announceDestroyed(ctx: EngineContext, model: Model, unit: Unit, by: DestroyedBy, nowDestroyed = false): void {
+  const s = ctx.state
+  const modelId = model.id
+  ctx.emit({ type: 'ModelDestroyed', unitId: unit.id, modelId, byPlayer: by.player, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
+  ctx.services.hooks.run(ctx, 'onModelDestroyed', { destroyedUnitId: unit.id, destroyedModelId: modelId, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
+  // secondaries (e.g. Wrath of the Emperor) key off which of the killer's own models scored the kill; only a
+  // model-attributed kill counts (mortal wounds / self-inflicted losses carry by.player/by.modelId null).
+  // Reset once per phase by the scoring rule that reads it (missions.ts wrathOfTheEmperorAmount).
+  if (by.player && by.modelId) {
+    const secondaryState = s.players[by.player].secondaryState
+    const killsThisPhase = (secondaryState.killsThisPhase as Record<string, number> | undefined) ?? {}
+    killsThisPhase[by.modelId] = (killsThisPhase[by.modelId] ?? 0) + 1
+    secondaryState.killsThisPhase = killsThisPhase
+  }
+  if (nowDestroyed) destroyUnitTail(ctx, unit, by)
+}
+
+function destroyUnitTail(ctx: EngineContext, unit: Unit, by: DestroyedBy): void {
+  const s = ctx.state
+  unit.destroyedBy = { player: by.player ?? s.activePlayer, kind: by.kind, round: s.round, unitId: by.unitId, modelId: by.modelId }
+  ctx.emit({ type: 'UnitDestroyed', unitId: unit.id, byPlayer: by.player, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
+  ctx.services.hooks.run(ctx, 'onUnitDestroyed', { destroyedUnitId: unit.id, destroyedModelId: null, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
+  ctx.services.missions.unitDestroyed?.(ctx, { unitId: unit.id, byPlayer: by.player, byUnitId: by.unitId, byModelId: by.modelId })
+  if (leaderService.isAttached(s, unit.id) && leaderService.detach) {
+    // SHOOT-048/LEAD-014/R-10.1: the leader/bodyguard split happens only once the attacking unit's WHOLE
+    // sequence has finished — detaching now would immediately break leaderService.halves()/allocatableModels()
+    // for the rest of this same volley (and any still-queued mortal wounds), throwing the remainder away
+    // instead of routing it onto the attached CHARACTER. Defer to a mark; advance() detaches at sequence end.
+    if (ctx.state.phaseState.attack) ctx.once(`pendingDetach:${unit.id}`)
+    else leaderService.detach(ctx, unit.id)
+  }
 }

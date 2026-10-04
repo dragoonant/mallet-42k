@@ -23,6 +23,7 @@
 // `attack.begin` the instant this module calls it from `handle`'s `declareTargets` case — see attack.ts's module
 // header — so it survives the engaging enemy dying or moving away mid-volley (SHOOT-005-timing).
 import { filterValid, optionActions, passAction } from './legal'
+import { resolveDeferredActivations } from '../deferred'
 import type { WeaponTarget } from '../actions'
 import { distance, EPS } from '../geometry'
 import { hookService } from '../hooks-impl'
@@ -35,7 +36,7 @@ import { boardUnitsOf, datasheetOf, hasCoreAbility, hasKeyword, unitModels } fro
 import type { Action } from '../actions'
 import {
   EngineInvariantError,
-  type DeclaredTarget, type GameState, type Id, type ModelId, type PendingDecision, type PlayerId,
+  type DeclaredTarget, type GameState, type Id, type Model, type ModelId, type PendingDecision, type PlayerId,
   type Rejection, type RuntimeWeapon, type UnitId, type WeaponId,
 } from '../types'
 
@@ -152,11 +153,12 @@ function weaponUsableThisActivation(state: GameState, firingUnitId: UnitId, weap
   return true
 }
 
-export function buildShootingWeaponEntries(ctx: EngineContext, firingUnitId: UnitId): ShootingWeaponEntry[] {
+// `models` overrides the firing models (E4: a unit's deferred last-stand models shoot alone)
+export function buildShootingWeaponEntries(ctx: EngineContext, firingUnitId: UnitId, models?: Model[]): ShootingWeaponEntry[] {
   const s = ctx.state
   const candidates = enemyCanonicalUnits(s, s.units[firingUnitId].player)
   const out: ShootingWeaponEntry[] = []
-  for (const m of leaderService.combinedModels(s, firingUnitId)) {
+  for (const m of models ?? leaderService.combinedModels(s, firingUnitId)) {
     for (const wid of m.weapons) {
       const w = weaponService.effectiveWeapon(s, m.id, wid)
       if (!w || w.kind !== 'ranged') continue
@@ -283,11 +285,37 @@ function doResolve(ctx: EngineContext): 'pending' | 'selectUnit' {
   if (ctx.window('shooting.targetsDeclared', unitId, ctx.order.defensive(opponent), { unitId })) return 'pending'
   if (s.phaseState.attack && attackService.advance(ctx) === 'pending') return 'pending'
   if (ctx.window('shooting.attacksResolved', unitId, ctx.order.active(), { unitId })) return 'pending'
+  // E4: models kept on the table by A Martyr's Death shoot now, then leave
+  if (resolveDeferredActivations(ctx, unitId) === 'awaiting') return 'pending'
   writeMark(s, 'sh:resolveUnit', null)
   return 'selectUnit'
 }
 
 const ATTACK_CHOOSE_TOPICS = new Set(['saveType', 'hazardousCasualty', 'rerollOffer'])
+
+// ---------- E4: deferred last-stand shooting (A Martyr's Death) ----------
+const defKey = (unitId: UnitId): string => `shdef:${unitId}`
+function deferredOpen(state: GameState, unitId: UnitId): boolean {
+  return state.phaseState.marks.includes(`${defKey(unitId)}:open`) && !state.phaseState.marks.includes(`${defKey(unitId)}:begun`)
+}
+
+// the deferred models of `entry` shoot once, after the destroying unit finished: 'pending' while their declareTargets
+// decision / attack is open, 'done' once resolved (or when nothing can be shot)
+export function deferredShootStep(ctx: EngineContext, entry: { unitId: UnitId; modelIds: ModelId[] }): 'pending' | 'done' {
+  const s = ctx.state
+  const key = defKey(entry.unitId)
+  if (ctx.marked(`${key}:begun`)) return 'done'
+  const models = entry.modelIds.map((id) => s.models[id]).filter((m): m is Model => !!m)
+  const weapons = buildShootingWeaponEntries(ctx, entry.unitId, models)
+  if (!weapons.some((w) => w.legalTargets.length > 0)) { ctx.once(`${key}:begun`); return 'done' }
+  if (!ctx.once(`${key}:open`)) return 'pending'
+  const engagedWith = enemyCanonicalUnits(s, s.units[entry.unitId].player).filter((t) => leaderService.unitsInEngagement(s, entry.unitId, t))
+  ctx.decide({
+    kind: 'declareTargets', player: s.units[entry.unitId].player, window: 'shooting.start', canPass: true,
+    context: { unitId: entry.unitId, attackKind: 'ranged', overwatch: false, weapons, engagedWith },
+  })
+  return 'pending'
+}
 
 
 // ---------- legal-action candidates (W1-G): one declaration per target unit (every weapon able to hit it), plus pass ----------
@@ -373,6 +401,7 @@ export const shootingModule: PhaseModule = {
     if (action.type === 'pass') {
       if (s.phaseState.attack && pending.kind === 'allocateAttack') return attackService.handler.handle(ctx, action, pending)
       if (pending.kind === 'chooseUnitToActivate') { writeMark(s, 'sh:ended', '1'); return }
+      if (pending.kind === 'declareTargets' && deferredOpen(s, pending.context.unitId)) { ctx.once(`${defKey(pending.context.unitId)}:begun`); return }
       if (pending.kind === 'declareTargets') { writeMark(s, 'sh:cur', null); s.step = 'selectUnit'; return }
       return { code: 'E_NOT_AN_OPTION', reason: `shooting: pass is not valid for ${pending.kind}` }
     }
@@ -381,6 +410,14 @@ export const shootingModule: PhaseModule = {
         if (!s.phaseState.activated.includes(id)) s.phaseState.activated.push(id)
       }
       writeMark(s, 'sh:cur', action.unitId)
+      return
+    }
+    if (pending.kind === 'declareTargets' && action.type === 'declareTargets' && deferredOpen(s, action.unitId)) {
+      // E4: the deferred models' last stand — the shot does not count as the unit's activation
+      ctx.once(`${defKey(action.unitId)}:begun`)
+      if (action.targets.length === 0) return
+      const targets: DeclaredTarget[] = action.targets.map((t) => ({ modelId: t.modelId, weaponId: t.weaponId, targetUnitId: t.targetUnitId, profileGroup: t.profileGroup ?? null, attacks: null }))
+      attackService.begin(ctx, { kind: 'ranged', attackerUnitId: action.unitId, overwatch: false, targets })
       return
     }
     if (pending.kind === 'declareTargets' && action.type === 'declareTargets') {
