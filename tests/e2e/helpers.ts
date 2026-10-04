@@ -384,7 +384,7 @@ export async function startGameVsBot(page: Page, seed: string): Promise<void> {
   const { expect } = await import('@playwright/test')
   await page.goto('/')
   await expect(page.getByTestId('start-game')).toBeVisible()
-  await page.getByRole('button', { name: 'Space Marines' }).click()
+  await page.getByRole('button', { name: 'Space Marines', exact: true }).click()
   await page.getByRole('button', { name: 'Bot', exact: true }).click()
   await page.getByTestId('setup-seed').fill(seed)
   await page.getByTestId('start-game').click()
