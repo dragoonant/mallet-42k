@@ -209,6 +209,17 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all 6 finished; chaos-space-marines in 4 games: 2 wins, 2 losses (ork 2, necrons 1, sm 1 overall). No balance tuning |
 | Known gaps | No GLB models; bot ignores the CSM stratagems and Dark Pact is answered by the generic chooser; rulings in `docs/needs-rules-check.md` under "chaos-space-marines build" (CSM-01 to CSM-18) |
 
+## Tyranids (M10 — Vardenghast Swarm patrol, playable)
+
+| Area | State |
+|---|---|
+| Patrol | Terror of Vardenghast (Winged Tyranid Prime), Psychophage, Termagants (Patrol Squads split), Barbgaunts, Von Ryan's Leapers; secondaries Alpha Xenoform / Chitinous Tide. Data in `src/data/factions/tyranids/` |
+| Engine hooks | `src/engine/factions/tyranids.ts` (Synapse battle-shock dice, Shadow in the Warp, Secretion Goad, Skulking Horrors, Disruption Bombardment, Death Blow, Pouncing Leap cost override, Patrol Squads, Voracious Assault, Teeming Broods, Alpha Xenoform, Chitinous Tide, closest-eligible snapshot); `src/engine/deathblow.ts` (deferred removal via Model.pendingRemoval); `state.ts` spawnUnitCopy and hasCoreAbility; Infiltrators deployment and a reinforcements step in Strategic Reserves arrivals |
+| Client | Start-screen faction button, procedural Tyranid figure kits (`TyranidParts.tsx`), Infiltrators placement validation, weapon flavour, prompt text, palette |
+| Verification | `npm run typecheck`, `npm run validate:data`, `npm run build` green; `npm test` 1049 passing (43 files, incl. `tests/engine/tyranids*.test.ts`, `tests/data/tyranids.test.ts`); `tests/e2e/tyranids.spec.ts` starts Tyranids vs bot, deploys through the UI (Leapers infiltrate), reaches the first Shooting phase (screenshots `e2e-out/m10-tyranids-0*.png`) |
+| Sim | `npm run sim -- --games 6 --seed 5`: 6 games, 0 violations, all finished at round 5; tyranids 1 win (necrons 2, ork 1, chaos-space-marines 1, 1 draw overall). No balance tuning. sim-core now also accepts fight-on-death deferred models at 0 wounds |
+| Known gaps | No GLB models (procedural figures); the bot ignores Tyranid stratagems and picks; Death Blow (`deathblow.ts`) and the Chaos deferred-death mechanism (`fight-on-death.ts`) are two parallel implementations that could be unified; rulings in `docs/needs-rules-check.md` under "tyranids build" (TYR-01 to TYR-21) |
+
 ## Not yet built
 
 - Anything beyond M8 (see Client tables for what M3/M6/M8 cover); AI Monte Carlo/hard tier, generated models, scale-up, multiplayer, Phase B glTF animation/asset pipeline for figures (see PLAN.md, docs/spec/30-figures.md §9)

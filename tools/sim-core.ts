@@ -85,7 +85,8 @@ function checkState(s: GameState, prev: { ordinal: number; phaseIdx: number; rou
     const W = modelStats(s, m).W
     if (m.woundsRemaining > W) fail(`model ${m.id} wounds ${m.woundsRemaining} > W ${W}`)
     // a Death Blow model awaiting its fight sits at 0 wounds with pendingRemoval set (removed right after it fights)
-    if (m.woundsRemaining <= 0 && !m.pendingRemoval) fail(`model ${m.id} at ${m.woundsRemaining} wounds but not destroyed`)
+    const deferredFightOnDeath = s.phaseState.marks.some((x) => x.startsWith("deferredDeath:") && x.includes(`"modelId":"${m.id}"`))
+    if (m.woundsRemaining <= 0 && !m.pendingRemoval && !deferredFightOnDeath) fail(`model ${m.id} at ${m.woundsRemaining} wounds but not destroyed`)
   }
   for (const u of Object.values(s.units)) {
     if (u.location === 'destroyed' && u.models.length > 0) fail(`unit ${u.id} destroyed but still has models`)
