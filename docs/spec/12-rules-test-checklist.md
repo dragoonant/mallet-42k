@@ -582,3 +582,48 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | TYR-038 | TYR-6 | Leapers fight in the Fights First step without having charged; Psychophage FNP 5+ and Deadly Demise 1 resolve |
 | TYR-039 | TYR-6 | psychoclastic torrent auto-hits and ignores cover; the maw's Anti-Psyker 4+ makes a 4+ wound roll vs a PSYKER critical, triggering Devastating Wounds |
 | TYR-040 | TYR-1 | patrol loads: 5 units, 30 models, the Prime is WARLORD with Psychostatic Veil; default secondary Alpha Xenoform |
+
+## AST — Astra Militarum: Karsk's Gunners (docs/spec/factions/astra-militarum.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| AST-001 | AST-1 | patrol loads: 5 units, 28 models; Karsk unit is WARLORD with Command Laurels borne by the Karsk model and attached to `shock-a`; default secondary Hold the Line; Sentinel can use Smokescreen, no unit can use Grenade |
+| AST-002 | AST-2.1 | own `command.end`: Order offered for REGIMENT units within 6" of Karsk only; never in the opponent's Command phase |
+| AST-003 | AST-2.1 | Karsk model destroyed, veterans alive → no Order offered |
+| AST-004 | AST-2.5 | Take Aim!: lasgun hits on 3+ (was 4+) until the start of own next turn, then 4+ again |
+| AST-005 | AST-2.5 | Move! Move! Move!: M 6 → 9; an Advance adds its roll on top |
+| AST-006 | AST-2.5 | Take Cover!: Shock Troops 5+ → 4+, Battery 4+ → 3+, Sentinel 2+ stays 2+, a 3+ model stays 3+ |
+| AST-007 | AST-2.3 | a second Order issued to an ordered unit replaces the first (`EffectExpired` for the old one) |
+| AST-008 | AST-2.4 | ordered unit fails a battle-shock test → Order removed at once (save/BS back to datasheet value) |
+| AST-009 | AST-2.4 | Order issued at `command.end` to a unit that failed battle-shock earlier that phase still applies |
+| AST-010 | AST-2.2 | unattached Command Squad Karsk is not an eligible target; attached Karsk + Shock Troops is (Karsk's own models gain the Order) |
+| AST-011 | AST-3.1 | Command Laurels: +1 CP in own Command phase while Karsk is on the board; discarded when the R-4.2 cap is already used; none after Karsk dies |
+| AST-012 | AST-3.1 | Command Laurels: one Order reaches every friendly AM unit on the board (Sentinel 30" away, unattached Command Squad included) |
+| AST-013 | AST-3.0 | enhancement bearer is the Karsk model: veterans alive and Karsk dead → no Laurels CP, no Gunnery aura |
+| AST-014 | AST-3.2 | Gunnery Officer: Battery within 6" of Karsk's unit → re-roll offered for the bombast D6 and for the D6 of malleus D6+6; beyond 6" → not offered |
+| AST-015 | AST-3.2 | Gunnery Officer: Battery in aura and never attacked → enemy ranged attacker 13" away cannot target it, 11" away can |
+| AST-016 | AST-3.2 | Gunnery Officer Lone Operative lost after the Battery model has made any attack (incl. Overwatch) or when the aura breaks |
+| AST-017 | AST-3.2 | Gunnery Officer: +1 CP; Orders limited to 1 unit within 6" (no Laurels broadcast) |
+| AST-018 | AST-4.1 | Hold the Line at end of opponent's turn: no enemy wholly within 6" of own DZ → 5 VP; one enemy wholly within 6" but not wholly in DZ → 3 VP; enemy wholly in DZ → 0 VP |
+| AST-019 | AST-4.1 | Hold the Line ignores Battle-shocked enemies and units with one model outside the region; never scored at the end of own turn |
+| AST-020 | AST-4.2 | Methodical Destruction: round-start pick lists canonical enemy units (attached pair once, Reserves included); target destroyed that round by any cause → 4 VP at round end; survives → 0 |
+| AST-021 | AST-4.2 | Methodical Destruction on an attached pair: only the bodyguard destroyed → 0 VP; both halves → 4 VP |
+| AST-022 | AST-5.1 | Send in the Next Wave: offered in own Movement phase only when a CADIAN SHOCK TROOPS unit is destroyed; new unit has 10 models with the original per-model loadouts (sergeant chainsword, flamer, meltagun), full wounds, new ids |
+| AST-023 | AST-5.1 | Next Wave placement: outside the 9" edge strip or within Engagement Range is rejected; new unit counts as arrived (no further move; may shoot); opponent gets the Fire Overwatch window |
+| AST-024 | AST-5.1 | Next Wave usable in round 1; the same destroyed unit may be targeted again in a later turn; never offered for Command Squad Karsk or the Battery |
+| AST-025 | AST-5.2 | Bring It Down: AM attacks against the chosen enemy re-roll hit rolls (fails auto, successes offered); attacks against other units do not; ends at phase end; the re-roll actually fires (code hook `bringItDown` present) |
+| AST-026 | AST-5.3 | Artillery Strike at the opponent's `command.start`: that turn enemy M 6 → 3 and 5 → 3, Advance 5 → 3, no charge declarations, ranged hit −1 (melee unaffected); all gone at turn end |
+| AST-027 | AST-5.3 | Artillery Strike: once per battle; costs 2 CP; not offered in own turn or with no OFFICER model on the board; applies to a unit arriving from Reserves that turn |
+| AST-028 | AST-6.5 | Rearm, Reload, Fire: Battery with an Order and Remained Stationary → bombast/malleus Sustained Hits 1; moved, or no Order → none; lasgun never; Overwatch in the opponent's turn → none |
+| AST-029 | AST-6.6 | Patrol Squads: split → two 1-model Battery units (ids `…:battery`, `…:battery-2`, SS 1 each); unsplit → one 2-model unit |
+| AST-030 | AST-6.2 | Medi-pack: Karsk's attached unit has FNP 6+ while the medic lives; medic destroyed → no FNP |
+| AST-031 | AST-6.3 | Regimental Standard: Shock Troops OC 3, veterans/Karsk OC 2 while the bearer lives; bearer destroyed → base OC |
+| AST-032 | AST-6.1 | allocation into attached Karsk + Shock Troops: veterans and troopers allocatable, Karsk not while a Shock Trooper lives |
+| AST-033 | AST-6.1 | Precision / Epic Challenge pick only Karsk among the Command Squad; Artillery Strike target list = Karsk model only |
+| AST-034 | AST-6.7 | Mobile Hunter-killers: Sentinel wound re-roll vs VEHICLE/MONSTER targets, none vs INFANTRY |
+| AST-035 | AST-6.7 | Sentinel: hunter-killer One Shot; plasma cannon supercharge Hazardous; Deadly Demise 1 on destruction |
+| AST-036 | AST-6 | weapons: meltagun +2 D at half range; frag Blast vs 10 models +2 attacks; bombast Indirect Fire at a non-visible target; flamer Torrent ignores cover; lasgun Rapid Fire 1 |
+| AST-037 | AST-6.6 | Gunnery Officer + split Battery: each 1-model unit is tested separately for the aura and Lone Operative |
+| AST-038 | AST-2.5 | Take Aim! has no effect on Torrent weapons or melee WS |
+| AST-039 | AST-2.3 | Orders expire at the start of own next turn even when no new Order is issued |
+| AST-040 | AST-5.1 | Next Wave not offered when no legal set-up exists in the strip (all positions in ER / blocked) |
+| AST-041 | AST-5.2 | Bring It Down: an AM unit that was Battle-shocked when the Stratagem was used gets no hit re-roll against the chosen enemy; a non-shocked AM unit still does; an attached unit with either half Battle-shocked gets none |
