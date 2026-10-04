@@ -400,14 +400,41 @@ describe('Miracle die option ids and forced Battle-shock tests', () => {
     expect(s.players.A.miracle.dice).toEqual([5, 5])
   })
 
-  it('ADE-039 ADE-2.2: a Battle-shock test forced by an ability / stratagem rolls straight through (no miracleDie decision)', () => {
+  it('ADE-039 ADE-2.2: a Battle-shock test forced by an ability / stratagem opens a miracleDie decision; the spent die replaces one die and the test finishes on the answer', () => {
     const s = makeState()
     s.players.A.miracle.dice = [6]
     placeUnit(s, SIS, { x: 0, z: 0, gap: 0.3 })
-    const { ctx } = ctxOf(s, [1, 1])
-    expect(hookService.battleShockTest(ctx, SIS, 'some-ability')).toBe(false)
-    expect(s.pending).toBeNull()
+    const { ctx, events } = ctxOf(s, [1, 1])
+    expect(hookService.battleShockTest(ctx, SIS, 'some-ability')).toBe('pending')
+    expect(s.pending && (s.pending as ChooseOptionDecision).context.topic).toBe('miracleDie')
+    expect(of(events, 'BattleShockTested')).toHaveLength(0)
+    answer(ctx, 'use:0')
+    // 6 (Miracle die) + 1 = 7 against the unit's Leadership: passed, die spent, no stale gate marks left
+    const tested = of(events, 'BattleShockTested')
+    expect(tested).toHaveLength(1)
+    expect(tested[0].roll).toBe(7)
+    expect(tested[0].passed).toBe(true)
+    expect(s.units[SIS].battleShocked).toBe(false)
+    expect(s.players.A.miracle.dice).toEqual([])
+    expect(s.phaseState.marks.some((m) => m.startsWith('bsresume:') || m.startsWith('miracle:battleShock'))).toBe(false)
+  })
+
+  it('ADE-039 ADE-2.2: declining the Miracle die rolls the forced Battle-shock test normally; an already-pending decision or an empty pool never pauses', () => {
+    const s = makeState()
+    s.players.A.miracle.dice = [6]
+    placeUnit(s, SIS, { x: 0, z: 0, gap: 0.3 })
+    const { ctx, events } = ctxOf(s, [1, 1])
+    expect(hookService.battleShockTest(ctx, SIS, 'some-ability')).toBe('pending')
+    answer(ctx, 'skip')
+    expect(of(events, 'BattleShockTested')[0]).toMatchObject({ roll: 2, passed: false })
+    expect(s.units[SIS].battleShocked).toBe(true)
     expect(s.players.A.miracle.dice).toEqual([6])
+    // empty pool: straight through
+    const t = makeState()
+    placeUnit(t, SIS, { x: 0, z: 0, gap: 0.3 })
+    const c2 = ctxOf(t, [1, 1])
+    expect(hookService.battleShockTest(c2.ctx, SIS, 'some-ability')).toBe(false)
+    expect(t.pending).toBeNull()
   })
 })
 

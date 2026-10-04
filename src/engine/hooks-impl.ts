@@ -14,6 +14,7 @@
 import type { Condition, DiceExpr, Effect, Scope, StatName, TimingWindowId, Trigger, WeaponAbility } from '../data/types'
 import { codeHooks, type EngineCodeHook } from './code-hooks'
 import { clampStat, parseDiceExpr, rollSum } from './dice'
+import { miracleGate } from './miracle'
 import { withinObjectiveRange, OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE } from './geometry'
 import {
   TRIGGER_HOOK,
@@ -698,14 +699,32 @@ export const hookService: HookService & HookQueries = {
         if (spec?.battleShockDice) extraDice = Math.max(extraDice, spec.battleShockDice(s, unitId, entry))
       }
       const spec = { purpose: 'battleShock', player: unit.player, count: 2 + extraDice, mode: 'sum', modifiers, unitId, commandRerollable: false, needed: ld } as const
-      // ADE-2.2: a Battle-shock 2D6 may take one Miracle die. Only the Command-phase test is re-entrant, so only it can pause
-      // for the decision; tests forced by an ability / stratagem mid-resolution roll straight through.
+      // ADE-2.2: a Battle-shock 2D6 may take one Miracle die. The Command-phase test is re-entrant (rollOnce). A test forced by an
+      // ability / stratagem is a one-shot call: it parks its parameters in a `bsresume:` mark, opens the `miracleDie` decision, and
+      // the Miracle handler re-invokes this function once answered (the done mark then feeds `substitute`). When another decision
+      // is already pending the test rolls straight through (RULING in docs/needs-rules-check.md).
       let roll: DiceRoll | null
       if (source === 'command') {
         roll = ctx.rollOnce(`battleShock:${unitId}:${source}`, spec)
         if (!roll) return 'pending'
       } else {
-        roll = ctx.roll(spec)
+        const key = `battleShock:${unitId}:${source}`
+        const marks = s.phaseState.marks
+        const done = marks.some((m) => m.startsWith(`miracle:${key}=`))
+        let substitute: number[] | null = null
+        if (done || !s.pending) {
+          const gate = miracleGate(ctx, key, spec)
+          if (gate === 'pending') {
+            marks.push(`bsresume:${key}=${unitId}|${source}|${modifier}`)
+            return 'pending'
+          }
+          substitute = gate
+        }
+        roll = ctx.roll(substitute ? { ...spec, substitute } : spec)
+        // a finished gate must not leak into a later test with the same source this phase
+        for (let i = marks.length - 1; i >= 0; i--) {
+          if (marks[i].startsWith(`miracle:${key}=`) || marks[i].startsWith(`bsresume:${key}=`) || marks[i] === `miracleAsk:${key}`) marks.splice(i, 1)
+        }
       }
       total = rollSum(roll)
       passed = total >= ld

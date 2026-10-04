@@ -181,10 +181,21 @@ export const miracleHandler: DecisionHandler = {
     if (action.type !== 'chooseOption' || pending.kind !== 'chooseOption') return
     const data = pending.context.data as { key: string; unitId: UnitId | null }
     const marks = ctx.state.phaseState.marks
-    if (action.optionId === 'skip') { marks.push(`miracle:${data.key}=skip`); return }
-    const p = pool(ctx.state, pending.player)
-    const [value] = p.dice.splice(usedIndex(action, p.dice.length) as number, 1)
-    if (data.unitId && !p.spentThisPhase.includes(data.unitId)) p.spentThisPhase.push(data.unitId)
-    marks.push(`miracle:${data.key}=${value}`)
+    if (action.optionId === 'skip') {
+      marks.push(`miracle:${data.key}=skip`)
+    } else {
+      const p = pool(ctx.state, pending.player)
+      const [value] = p.dice.splice(usedIndex(action, p.dice.length) as number, 1)
+      if (data.unitId && !p.spentThisPhase.includes(data.unitId)) p.spentThisPhase.push(data.unitId)
+      marks.push(`miracle:${data.key}=${value}`)
+    }
+    // a Battle-shock test forced by an ability / stratagem is not re-entrant: it left a resume mark, so finish the test now
+    const resumePrefix = `bsresume:${data.key}=`
+    const resume = marks.find((m) => m.startsWith(resumePrefix))
+    if (resume) {
+      const [unitId, source, modifier] = resume.slice(resumePrefix.length).split('|')
+      marks.splice(marks.indexOf(resume), 1)
+      ctx.services.hooks.battleShockTest?.(ctx, unitId, source, Number(modifier))
+    }
   },
 }
