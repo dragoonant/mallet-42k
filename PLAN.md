@@ -64,6 +64,16 @@ Difficulty = scoring noise + lookahead depth.
 | M9 | Scale up | 1000/2000 pt army builder, more factions |
 | Later | Multiplayer | Action-log sync (WebRTC or small relay) |
 
+### Owner todo: figure customisation (added 2026-10-03)
+- **Army painter.** Players pick a major and a minor colour per army. Procedural figures already read
+  `PaintColors` from the faction, so they only need a picker. GLB figures have baked textures, so they need
+  a shader that swaps the two dominant hue bands for the chosen colours.
+- **Custom bases.** Change each unit's base colour/finish. GLB bases are a separate plain black cylinder
+  that `finalize_model.py` adds, so they can be recoloured or swapped at render time.
+- **Weapons match the unit card.** Each figure shows the loadout picked on its datasheet (a WYSIWYG rule).
+  GLBs are single fused meshes, so this needs either one GLB per loadout variant (concept image →
+  Hunyuan, mapped by model + loadout) or separately generated weapons attached to hand sockets.
+
 ---
 
 # Build strategy — M0→M5 on a token budget (Fable main loop)
