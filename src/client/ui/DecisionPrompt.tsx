@@ -88,7 +88,7 @@ const KIND_TITLE: Partial<Record<PendingDecision['kind'], string>> = {
  *  own KIND_TITLE was one generic label for every mission/secondary/rules-engine pick (M6 gap). */
 const CHOOSE_OPTION_INFO: Partial<Record<ChooseOptionTopic, { title: string; hint: string }>> = {
   razeObjective: { title: 'Raze an objective?', hint: 'Destroys a marker you hold with no enemy nearby — it stops scoring VP for anyone, for the rest of the battle.' },
-  recoverObjective: { title: 'Recover intelligence?', hint: 'Spends a look at a marker you hold to gain a Command Point.' },
+  recoverObjective: { title: 'Recover intelligence?', hint: 'Search one marker you control for intel to gain 1 Command Point (needs your Warlord on the battlefield). Each marker can be searched only once per battle (by either side), and it keeps scoring VP as normal. Pass to save the marker for later.' },
   treasureObjective: { title: 'Choose the treasure marker', hint: "Pick a marker in no man's land. If a Necron model destroys an enemy that was near it (or near the marker in your own zone) when the phase began, you score 3 VP." },
   stompTarget: { title: "Pick a Stomp 'Em target", hint: "Name a surviving enemy unit now — score if an ORKS model destroys it in melee by the end of this round." },
   bagTarget: { title: "Pick a Bag the Big 'Un target", hint: 'Name an enemy model now — score if it is destroyed by the end of this round.' },
@@ -293,6 +293,15 @@ function chooseOptionInfoFor(
   if (context.topic === 'abilityChoice' && !context.abilityId && state && options) {
     const picks = options.filter((o) => o.id !== 'decline')
     if (picks.length > 0 && picks.every((o) => state.units[o.id] && state.units[o.id].player !== player)) return METHODICAL_INFO
+  }
+  // Retrieve Intelligence only pays out while the Warlord is on the board — say so, since a search without one is wasted.
+  if (context.topic === 'recoverObjective' && state && player && state.players[player as PlayerId]) {
+    const info = CHOOSE_OPTION_INFO.recoverObjective!
+    const warlord = state.units[state.players[player as PlayerId].warlordUnitId]
+    const status = warlord?.location === 'board'
+      ? 'Your Warlord is on the battlefield: searching now gains 1 CP.'
+      : 'Your Warlord is NOT on the battlefield: searching now gains nothing and still uses up the marker. You probably want to pass.'
+    return { title: info.title, hint: `${status} ${info.hint}` }
   }
   return CHOOSE_OPTION_INFO[context.topic]
 }
