@@ -27,6 +27,11 @@ export const ENABLED_GLB_SLUGS: readonly string[] = [
   'legionary',
   'cultist-champion',
   'cultist',
+  'terror-of-vardenghast',
+  'psychophage',
+  'termagant',
+  'barbgaunt',
+  'von-ryan-leaper',
 ]
 
 export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
