@@ -74,8 +74,8 @@ describe('necron figures', () => {
       if (body === 'biped') expect(BIPED_CONFIG[kit], kit).toBeDefined()
     })
 
-    it(`${ds.id} falls back to the procedural figure while no GLB is enabled`, () => {
-      for (const m of ds.composition) expect(glbSlugFor(ds.id, m.modelId), m.modelId).toBeUndefined()
+    it(`${ds.id} uses its generated GLB model`, () => {
+      for (const m of ds.composition) expect(glbSlugFor(ds.id, m.modelId), m.modelId).toBeDefined()
     })
   }
 })
