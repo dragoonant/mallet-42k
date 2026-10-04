@@ -151,6 +151,7 @@ const DEATH_TRIM: Partial<Record<SfxId, number>> = {
   'death-astra-militarum': 0.45,
   'death-chaos-space-marines': 0.4,
   'death-orks': 0.5,
+  'death-space-marines': 0.6,
 }
 
 function deathSound(faction: string): EventSound {

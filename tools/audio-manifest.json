@@ -100,8 +100,8 @@
     {
       "id": "death-space-marines",
       "kind": "sfx",
-      "prompt": "A towering armoured cyborg soldier groans in pain through a helmet voice amplifier: a deep low-pitched male grunt, heavily band-limited like a military radio with metallic resonance, slight digital distortion and electronic crackle, then heavy power armour crashes onto stone, no music",
-      "durationSeconds": 1.6,
+      "prompt": "A giant armoured super-soldier is mortally wounded and lets out a long, powerful, defiant dying roar that strains and breaks into a drawn-out agonised groan, his deep bass male voice heard through a helmet voice amplifier: band-limited like a military radio, metallic resonance, slight digital crackle. Then he drops to his knees and massive power armour crashes heavily onto stone. Epic, weighty, no music",
+      "durationSeconds": 3,
       "promptInfluence": 0.7
     },
     {
