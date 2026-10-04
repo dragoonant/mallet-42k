@@ -30,6 +30,11 @@ export interface AttackOptions {
   cover?: boolean // target has the Benefit of Cover against this attack
   hitMod?: number
   woundMod?: number
+  hitOn6?: boolean // hits land only on an unmodified 6 (Fire Overwatch)
+  invuln?: number // granted invulnerable save (stratagem); the better of this and the datasheet's applies
+  fnp?: number // granted Feel No Pain (stratagem); the better of this and the datasheet's applies
+  strMod?: number // added to the attacking weapon's Strength (e.g. Disruption Fields)
+  woundModHighS?: number // wound-roll modifier applied only when the weapon's Strength exceeds the target's Toughness
 }
 
 export interface AttackEstimate { damage: number; modelsKilled: number }
@@ -73,7 +78,7 @@ export function expectedAttack(
   if (weaponService.hasAbility(weapon, 'RAPID_FIRE') && opts.inHalfRange) n += abilityValueMean(weapon, 'RAPID_FIRE')
 
   const torrent = weaponService.hasAbility(weapon, 'TORRENT')
-  const pHit = torrent ? 1 : rollP(weapon.skill, opts.hitMod ?? 0)
+  const pHit = torrent ? 1 : opts.hitOn6 ? 1 / 6 : rollP(weapon.skill, opts.hitMod ?? 0)
   const pCrit = torrent ? 0 : 1 / 6
 
   let hits = n * pHit
@@ -82,9 +87,10 @@ export function expectedAttack(
   if (weaponService.hasAbility(weapon, 'LETHAL_HITS')) { autoWoundHits = n * pCrit; hits -= n * pCrit }
   hits = Math.max(0, hits)
 
-  let woundTarget = woundRollNeeded(weapon.S, tStats.T)
+  const strength = weapon.S + (opts.strMod ?? 0)
+  let woundTarget = woundRollNeeded(strength, tStats.T)
   if (opts.charged && weaponService.hasAbility(weapon, 'LANCE')) woundTarget -= 1
-  let woundMod = opts.woundMod ?? 0
+  let woundMod = (opts.woundMod ?? 0) + (strength > tStats.T ? (opts.woundModHighS ?? 0) : 0)
   const anti = weapon.abilities.find((a) => a.ability === 'ANTI' && a.keyword && tKeywords.includes(a.keyword))
   let pCritWound = pCrit
   if (anti?.value !== undefined) {
@@ -111,7 +117,8 @@ export function expectedAttack(
   let svArmour = tStats.Sv - weapon.AP
   if (opts.cover && !ignoresCover && !(tStats.Sv <= 3 && weapon.AP === 0)) svArmour -= 1
   const effArmour = Math.max(2, Math.min(7, svArmour))
-  const effInvuln = dsInvuln !== null ? Math.max(2, Math.min(7, dsInvuln)) : 7
+  const invulnSources = [dsInvuln, opts.invuln ?? null].filter((v): v is number => v !== null)
+  const effInvuln = invulnSources.length > 0 ? Math.max(2, Math.min(7, Math.min(...invulnSources))) : 7
   const effSave = Math.min(effArmour, effInvuln)
   const pFailSave = effSave >= 7 ? 1 : Math.max(0, Math.min(1, (effSave - 1) / 6))
 

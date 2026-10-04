@@ -4,25 +4,25 @@
 // specific simplifications). `easy` picks randomly among the top 3 scored actions; `normal` always takes the best.
 import {
   DEFAULT_SERVICES, boardModelsOf, boardUnitsOf, deploymentZone, distance, hasKeyword, legalActions, modelProfile,
-  modelStats, unitModels, withinEngagementRange, withinObjectiveRange,
+  modelStats, unitModels, validate, basesOverlap, type Footprint, whollyOnBoard, whollyWithinPolygon, pointInPolygon, withinEngagementRange, withinObjectiveRange,
   type Action, type DeclareChargeAction, type DeclareMoveAction, type DeclareTargetsAction, type Decider,
   type DeployUnitAction, type GameState, type ModelPlacement, type ObjectiveId, type PendingDecision, type PlayerId,
   type PlayerView, type Polygon, type UnitId, type UseStratagemAction,
 } from '../engine'
 import type { ScoringRule } from '../data/types'
 import { createRng, restoreRng, type Rng } from '../engine/rng'
-import { effectiveCost } from '../engine/stratagems'
+import { commandRerollScore, scoreStratagemOrReaction } from './stratagems'
 import {
   bestMeleeWeapon, bestRangedRangeOfUnit, bestRangedWeapon, expectedAttack, hasAnyMeleeWeapon, hasAnyRangedWeapon,
   sumExpectedAttacks, threatAt, unitMeleeDamage, unitRangedDamage, unitValue,
 } from './expected'
+import { buildFormation, shapeRoleScore, shapesForRole, type FormationModel, type FormationRole, type FormationShape } from './formations'
 
 export type Difficulty = 'easy' | 'normal'
 
 const ENGAGEMENT_H = 1 // mirrors src/engine/geometry.ts ENGAGEMENT_H (not re-exported by name conflict-safe here)
-const HOLD_CP_SCORE = 1 // baseline "do nothing" score for stratagem/reaction windows and command re-rolls
 
-function other(p: PlayerId): PlayerId { return p === 'A' ? 'B' : 'A' }
+export function other(p: PlayerId): PlayerId { return p === 'A' ? 'B' : 'A' }
 
 function polyCentroid(poly: Polygon): { x: number; z: number } {
   if (poly.length === 0) return { x: 0, z: 0 }
@@ -58,7 +58,7 @@ function ruleObjectiveIds(state: GameState, rule: ScoringRule): ObjectiveId[] {
 // mission's scored centre markers apart from a non-scoring home marker, or know whose home matters to whom).
 // Rules that repeat the same points across round-range variants (r2-4/r5-first/r5-second) are deduped by rule
 // type (max, not sum) since they don't stack simultaneously; distinct rule types add.
-function objectiveScoreWeight(state: GameState, player: PlayerId, objectiveId: ObjectiveId): number {
+export function objectiveScoreWeight(state: GameState, player: PlayerId, objectiveId: ObjectiveId): number {
   const obj = state.objectives[objectiveId]
   if (!obj) return 1
   const opp = other(player)
@@ -112,7 +112,7 @@ function objectivePull(state: GameState, player: PlayerId, pos: { x: number; z: 
 }
 
 // crude edge-to-edge gap from a point to the nearest enemy unit (no model-vs-model measurement, just a probe point)
-function nearestEnemyFromPoint(state: GameState, player: PlayerId, pos: { x: number; z: number }): { gap: number; unitId: UnitId } | null {
+export function nearestEnemyFromPoint(state: GameState, player: PlayerId, pos: { x: number; z: number }): { gap: number; unitId: UnitId } | null {
   let best: { gap: number; unitId: UnitId } | null = null
   for (const u of boardUnitsOf(state, other(player))) {
     for (const m of unitModels(state, u.id)) {
@@ -124,7 +124,7 @@ function nearestEnemyFromPoint(state: GameState, player: PlayerId, pos: { x: num
 }
 
 // real edge-to-edge gap between two units' models (used once positions are actually known, e.g. for a charge)
-function nearestEnemyUnit(state: GameState, player: PlayerId, unitId: UnitId): { gap: number; unitId: UnitId } | null {
+export function nearestEnemyUnit(state: GameState, player: PlayerId, unitId: UnitId): { gap: number; unitId: UnitId } | null {
   const mine = unitModels(state, unitId)
   if (mine.length === 0) return null
   let best: { gap: number; unitId: UnitId } | null = null
@@ -137,14 +137,14 @@ function nearestEnemyUnit(state: GameState, player: PlayerId, unitId: UnitId): {
   return best
 }
 
-function minGapBetweenUnits(state: GameState, a: UnitId, b: UnitId): number {
+export function minGapBetweenUnits(state: GameState, a: UnitId, b: UnitId): number {
   const as = unitModels(state, a), bs = unitModels(state, b)
   let gap = Infinity
   for (const x of as) for (const y of bs) gap = Math.min(gap, distance(x, y))
   return gap
 }
 
-function centerOfUnit(state: GameState, unitId: UnitId): { x: number; z: number } | null {
+export function centerOfUnit(state: GameState, unitId: UnitId): { x: number; z: number } | null {
   const models = unitModels(state, unitId)
   if (models.length === 0) return null
   let x = 0, z = 0
@@ -154,7 +154,7 @@ function centerOfUnit(state: GameState, unitId: UnitId): { x: number; z: number 
 
 // enemy units currently within Engagement Range of unitId (used to check whether a fight-phase stratagem is
 // actually about to matter, e.g. Veteran Instincts / Epic Challenge)
-function engagedEnemyUnits(state: GameState, player: PlayerId, unitId: UnitId): UnitId[] {
+export function engagedEnemyUnits(state: GameState, player: PlayerId, unitId: UnitId): UnitId[] {
   const mine = unitModels(state, unitId)
   const out: UnitId[] = []
   for (const u of boardUnitsOf(state, other(player))) {
@@ -166,7 +166,7 @@ function engagedEnemyUnits(state: GameState, player: PlayerId, unitId: UnitId): 
 
 // 2D6 ≥ n probability table (40-ai.md §5)
 const CHARGE_PROB: Record<number, number> = { 2: 1, 3: 0.972, 4: 0.917, 5: 0.833, 6: 0.722, 7: 0.583, 8: 0.417, 9: 0.278, 10: 0.167, 11: 0.083, 12: 0.028 }
-function chargeProb(needed: number): number {
+export function chargeProb(needed: number): number {
   if (needed <= 2) return 1
   if (needed >= 12) return needed === 12 ? CHARGE_PROB[12] : 0
   return CHARGE_PROB[needed] ?? 0.417
@@ -438,291 +438,6 @@ function scoreDeclareCharge(state: GameState, player: PlayerId, action: DeclareC
   return p * payoff - (1 - p) * 0.4
 }
 
-// Named stratagems this tier-1 AI actually models; everything else defaults to holding CP (spec §5: "hold CP by
-// default; use one only when its modelled value beats a threshold"). `action.targets` carries the concrete
-// (unit/model) choice legalActions() already bound for this specific option, so branches read from there instead
-// of re-deriving candidates — each scored option can name a different target.
-function stratagemScore(state: GameState, player: PlayerId, pending: PendingDecision, action: UseStratagemAction, cost: number): number {
-  const id = action.stratagemId
-  const targets = action.targets ?? {}
-  const cp = state.players[player].cp
-  if (cp < cost) return -Infinity
-  const trigger = pending.kind === 'reactionWindow' ? pending.context.enemyUnitId : pending.kind === 'stratagemWindow' ? pending.context.trigger.unitId : null
-  const targetTrigger = pending.kind === 'stratagemWindow' ? pending.context.trigger.targetUnitId : null
-  if (id.endsWith('fire-overwatch') && trigger) {
-    let best = 0
-    for (const u of boardUnitsOf(state, player)) best = Math.max(best, unitRangedDamage(state, u.id, trigger, { hitMod: -1 }))
-    return best * unitValue(state, trigger) * 0.03 - cost * 1.5
-  }
-  if (id.endsWith('heroic-intervention') && trigger) {
-    const bestUnit = boardUnitsOf(state, player).find((u) => hasAnyMeleeWeapon(state, u.id) && minGapBetweenUnits(state, u.id, trigger) <= 6 + 3)
-    if (!bestUnit) return -Infinity
-    return unitMeleeDamage(state, bestUnit.id, trigger, { charged: true }) * unitValue(state, trigger) * 0.02 - cost * 1.2
-  }
-  if (id.endsWith('counter-offensive') && trigger) {
-    let best = 0
-    for (const u of boardUnitsOf(state, player)) if (hasAnyMeleeWeapon(state, u.id)) best = Math.max(best, unitMeleeDamage(state, u.id, trigger, {}))
-    return best * unitValue(state, trigger) * 0.025 - cost * 1.0
-  }
-  if ((id.endsWith('go-to-ground') || id.endsWith('smokescreen') || id.endsWith('gene-wrought-resilience') || id.endsWith('holy-radiance') || id.endsWith('a-martyrs-death')) && (targetTrigger || targets.unitIds?.[0])) {
-    const unitId = targets.unitIds?.[0] ?? targetTrigger
-    if (!unitId) return -Infinity
-    const mine = state.units[unitId]
-    if (mine?.player !== player) return -Infinity
-    const totalW = unitModels(state, unitId).reduce((s, m) => s + m.woundsRemaining, 0)
-    const val = unitValue(state, unitId)
-    return val > 20 && totalW > 0 ? val * 0.02 - cost * 1.5 : -Infinity
-  }
-  // Tyranid Hyper-Reactive: -1 to hit against the attack that just targeted our INFANTRY — worth it when the incoming damage is big.
-  if (id.endsWith('hyper-reactive')) {
-    const mine = targets.unitIds?.[0]
-    if (!mine || !trigger || state.units[trigger]?.player === player) return -Infinity
-    const dmg = state.phase === 'fight' ? unitMeleeDamage(state, trigger, mine, {}) : unitRangedDamage(state, trigger, mine, {})
-    return dmg * 0.3 * unitValue(state, mine) * 0.03 - cost
-  }
-  // Voracious Assault: re-roll hits against the closest eligible target for one of our not-yet-activated units.
-  if (id.endsWith('voracious-assault')) {
-    const unitId = targets.unitIds?.[0]
-    if (!unitId) return -Infinity
-    const enemy = nearestEnemyUnit(state, player, unitId)
-    if (!enemy) return -Infinity
-    const melee = state.phase === 'fight'
-    if (!(melee ? hasAnyMeleeWeapon(state, unitId) : hasAnyRangedWeapon(state, unitId))) return -Infinity
-    if (melee && enemy.gap > ENGAGEMENT_H) return -Infinity
-    const dmg = melee ? unitMeleeDamage(state, unitId, enemy.unitId, {}) : unitRangedDamage(state, unitId, enemy.unitId, {})
-    return dmg * 0.4 * unitValue(state, enemy.unitId) * 0.03 - cost
-  }
-  // Teeming Broods: bring back up to D6 models, or re-spawn a destroyed Termagants brood (it must be able to arrive by round 3).
-  if (id.endsWith('teeming-broods')) {
-    const unitId = targets.unitIds?.[0]
-    const unit = unitId ? state.units[unitId] : undefined
-    if (!unit) return -Infinity
-    if (unit.location === 'destroyed') return state.round <= 2 ? 3.5 - cost * 0.5 : -Infinity
-    const missing = unit.startingStrength - unit.models.length
-    if (missing < 2) return -Infinity
-    return Math.min(missing, 3.5) * 0.8 - cost * 0.5
-  }
-  // Ascetic Discipline (Adepta Sororitas): AP improves by 2 on critical wounds for the chosen unit this phase; use it on a
-  // unit with real output against whatever it can hit (Shooting: nearest enemy in range; Fight: an engaged enemy).
-  if (id.endsWith('ascetic-discipline')) {
-    const unitId = targets.unitIds?.[0]
-    if (!unitId) return -Infinity
-    let dmg = 0, val = 0
-    if (state.phase === 'shooting') {
-      for (const e of boardUnitsOf(state, other(player))) {
-        const d = unitRangedDamage(state, unitId, e.id)
-        if (d * unitValue(state, e.id) > dmg * val) { dmg = d; val = unitValue(state, e.id) }
-      }
-    } else {
-      for (const e of engagedEnemyUnits(state, player, unitId)) {
-        const d = unitMeleeDamage(state, unitId, e, {})
-        if (d * unitValue(state, e) > dmg * val) { dmg = d; val = unitValue(state, e) }
-      }
-    }
-    if (dmg < 2) return -Infinity
-    return dmg * val * 0.006 - cost
-  }
-  // Tank Shock: mortal wounds = min(6, T dice at 5+); use when it meaningfully hurts what we just charged.
-  if (id.endsWith('tank-shock')) {
-    const enemyUnitId = targets.unitIds?.[1]
-    const vehicleModelId = targets.modelIds?.[0]
-    if (!enemyUnitId || !vehicleModelId) return -Infinity
-    const model = state.models[vehicleModelId]
-    if (!model) return -Infinity
-    const expectedMortalWounds = Math.min(6, modelStats(state, model).T * (2 / 6))
-    return expectedMortalWounds * unitValue(state, enemyUnitId) * 0.02 - cost
-  }
-  // Grenade: 6 dice at 4+ ~= 3 expected mortal wounds; worth more when that's likely to outright kill a model
-  // (no CP unit currently has GRENADES, so this only ever fires if the roster data changes).
-  if (id.endsWith('.grenade')) {
-    const enemyUnitId = targets.unitIds?.[1] ?? targetTrigger
-    if (!enemyUnitId) return -Infinity
-    const expectedMortalWounds = 6 * (3 / 6)
-    const models = unitModels(state, enemyUnitId)
-    const weakestW = models.length > 0 ? Math.min(...models.map((m) => modelStats(state, m).W)) : 1
-    const killsAModel = expectedMortalWounds >= weakestW
-    return expectedMortalWounds * unitValue(state, enemyUnitId) * 0.02 * (killsAModel ? 1.5 : 0.8) - cost
-  }
-  // Veteran Instincts: reroll 1s normally, reroll any wound vs MONSTER/VEHICLE — the big reroll-all case is the
-  // one worth spending CP on; a plain reroll-ones against rank-and-file is only worth it against a juicy target.
-  if (id.endsWith('veteran-instincts')) {
-    const unitId = targets.unitIds?.[0]
-    if (!unitId) return -Infinity
-    const enemies = engagedEnemyUnits(state, player, unitId)
-    let bestDmg = 0, bestEnemyId: UnitId | null = null, bestIsMonsterVehicle = false
-    for (const e of enemies) {
-      const dmg = unitMeleeDamage(state, unitId, e, {})
-      if (dmg > bestDmg) { bestDmg = dmg; bestEnemyId = e; bestIsMonsterVehicle = hasKeyword(state, e, 'MONSTER') || hasKeyword(state, e, 'VEHICLE') }
-    }
-    if (!bestEnemyId) return -Infinity
-    if (!bestIsMonsterVehicle && bestDmg < 4) return -Infinity // reroll-ones on a weak fight isn't worth 1 CP
-    const bonusFrac = bestIsMonsterVehicle ? 0.5 : 0.15
-    return bestDmg * bonusFrac * unitValue(state, bestEnemyId) * 0.02 - cost
-  }
-  // Epic Challenge: Precision lets our Character snipe the enemy's attached leader directly instead of whatever
-  // model would normally be allocated to — only worth it when there's actually a leader there to snipe.
-  if (id.endsWith('epic-challenge')) {
-    const enemyUnitId = targets.unitIds?.[0]
-    const modelId = targets.modelIds?.[0]
-    if (!enemyUnitId || !modelId) return -Infinity
-    const leaderId = state.units[enemyUnitId]?.attachedLeaderId
-    if (!leaderId) return -Infinity
-    const wid = bestMeleeWeapon(state, modelId)
-    if (!wid) return -Infinity
-    const dmg = expectedAttack(state, modelId, wid, leaderId, {}).damage
-    if (dmg <= 0) return -Infinity
-    return dmg * unitValue(state, leaderId) * 0.03 - cost
-  }
-  // Insane Bravery: oncePerBattle, so only worth burning on a battle-shock test that would actually hurt — a
-  // unit sitting on an objective that scores, or a high-value unit we can't afford to see fall back/flee.
-  if (id.endsWith('insane-bravery')) {
-    const unitId = targets.unitIds?.[0] ?? trigger
-    if (!unitId) return -Infinity
-    const models = unitModels(state, unitId)
-    if (models.length === 0) return -Infinity
-    const onValuableObjective = Object.values(state.objectives).some((o) => !o.removed
-      && objectiveScoreWeight(state, player, o.id) > 1 && models.some((m) => withinObjectiveRange(m, o)))
-    const val = unitValue(state, unitId)
-    if (!onValuableObjective && val < 15) return -Infinity
-    return val * (onValuableObjective ? 0.06 : 0.02) - cost
-  }
-  // Rapid Ingress: bring a reserved unit on now instead of next Reinforcements — worth it when a valuable
-  // objective is still uncontested and we can put a body on/near it immediately.
-  if (id.endsWith('rapid-ingress')) {
-    const unitId = targets.unitIds?.[0]
-    if (!unitId) return -Infinity
-    const hasValuableUnclaimed = Object.values(state.objectives).some((o) => !o.removed
-      && objectiveScoreWeight(state, player, o.id) > 1 && DEFAULT_SERVICES.objectives.controller(state, o.id) !== player)
-    if (!hasValuableUnclaimed) return -Infinity
-    return unitValue(state, unitId) * 0.03 - cost
-  }
-  // Duty and Honour: keeps a held objective "ours" even if the unit later moves off/dies — worth it only for an
-  // objective that actually scores and that the enemy could plausibly contest soon.
-  if (id.endsWith('duty-and-honour')) {
-    const unitId = targets.unitIds?.[0]
-    if (!unitId) return -Infinity
-    const models = unitModels(state, unitId)
-    let bestWeight = 0, threatened = false
-    for (const o of Object.values(state.objectives)) {
-      if (o.removed || DEFAULT_SERVICES.objectives.controller(state, o.id) !== player) continue
-      if (!models.some((m) => withinObjectiveRange(m, o))) continue
-      const weight = objectiveScoreWeight(state, player, o.id)
-      if (weight <= bestWeight) continue
-      const enemy = nearestEnemyFromPoint(state, player, o.pos)
-      bestWeight = weight
-      threatened = !!enemy && enemy.gap <= 16 // roughly a turn's move+charge away
-    }
-    if (bestWeight <= 1 || !threatened) return -Infinity
-    return bestWeight * 2 - cost
-  }
-  // Get Stuck In: extends this unit's pile-in/consolidate to 6" — worth it when that extra reach can drag it
-  // into a second fight or onto a valuable objective it couldn't reach with the normal 3".
-  if (id.endsWith('get-stuck-in')) {
-    const unitId = targets.unitIds?.[0]
-    if (!unitId || !hasAnyMeleeWeapon(state, unitId)) return -Infinity
-    const center = centerOfUnit(state, unitId)
-    if (!center) return -Infinity
-    let extraReach = false
-    for (const u of boardUnitsOf(state, other(player))) {
-      const gap = minGapBetweenUnits(state, unitId, u.id)
-      if (gap > ENGAGEMENT_H && gap <= 6) extraReach = true
-    }
-    for (const o of Object.values(state.objectives)) {
-      if (o.removed || objectiveScoreWeight(state, player, o.id) <= 1) continue
-      const d = Math.hypot(o.pos.x - center.x, o.pos.z - center.z)
-      if (d > 3 && d <= 6) extraReach = true
-    }
-    if (!extraReach) return -Infinity
-    return unitValue(state, unitId) * 0.02 - cost
-  }
-  // Brutal but Kunnin': only unlocks anything if the unit actually Fell Back this turn — otherwise it can
-  // already declare a charge normally and the stratagem does nothing.
-  if (id.endsWith('brutal-but-kunnin')) {
-    const unitId = targets.unitIds?.[0]
-    if (!unitId) return -Infinity
-    const unit = state.units[unitId]
-    if (!unit || unit.turn.moveType !== 'fallBack') return -Infinity
-    const enemy = nearestEnemyUnit(state, player, unitId)
-    if (!enemy) return -Infinity
-    const myModels = unitModels(state, unitId)
-    if (myModels.length === 0) return -Infinity
-    const stats = modelStats(state, myModels[0])
-    const needed = Math.max(0, Math.ceil(enemy.gap - ENGAGEMENT_H))
-    if (needed > stats.M + 12) return -Infinity
-    const p = chargeProb(needed)
-    const dmg = unitMeleeDamage(state, unitId, enemy.unitId, { charged: true })
-    return p * dmg * unitValue(state, enemy.unitId) * 0.02 - cost
-  }
-  // Krump da Gitz!: free D6" surge toward whoever just shot us — only worth triggering when it sets up a
-  // realistic charge next turn (otherwise it just drags the unit further from where it wants to be).
-  if (id.endsWith('krump-da-gitz')) {
-    const unitId = targets.unitIds?.[0] ?? targetTrigger
-    if (!unitId || !hasAnyMeleeWeapon(state, unitId)) return -Infinity
-    const enemy = nearestEnemyUnit(state, player, unitId)
-    if (!enemy) return -Infinity
-    const myModels = unitModels(state, unitId)
-    if (myModels.length === 0) return -Infinity
-    const stats = modelStats(state, myModels[0])
-    const afterGap = Math.max(0, enemy.gap - 3.5) // average D6
-    const needed = Math.max(0, Math.ceil(afterGap - ENGAGEMENT_H))
-    if (needed > stats.M + 3.5) return -Infinity // still not a plausible charge next turn
-    return unitValue(state, enemy.unitId) * 0.015 - cost
-  }
-  // Astra Militarum: Send in the Next Wave brings a whole destroyed squad back at full strength at our edge — always worth 1 CP.
-  if (id.endsWith('send-in-the-next-wave')) return 3.5 - cost
-  // Bring It Down: re-roll hit rolls for every Astra Militarum unit against one enemy unit; worth it when our guns can hurt it.
-  if (id.endsWith('bring-it-down')) {
-    const enemyId = targets.unitIds?.[0]
-    if (!enemyId) return -Infinity
-    let dmg = 0
-    for (const u of boardUnitsOf(state, player)) {
-      if (!hasKeyword(state, u.id, 'ASTRA MILITARUM') || u.battleShocked) continue
-      dmg += unitRangedDamage(state, u.id, enemyId, {})
-    }
-    if (dmg < 2) return -Infinity
-    return dmg * 0.3 * unitValue(state, enemyId) * 0.03 - cost * 1.2
-  }
-  // Artillery Strike: once per battle, 2 CP — hampers every enemy unit's movement, charges and shooting for a turn. Spend it
-  // when the enemy is close enough to matter and we can still afford to keep a CP in hand.
-  if (id.endsWith('artillery-strike')) {
-    if (cp < cost + 1) return -Infinity
-    let near = 0
-    for (const e of boardUnitsOf(state, other(player))) {
-      for (const u of boardUnitsOf(state, player)) if (minGapBetweenUnits(state, u.id, e.id) <= 30) { near++; break }
-    }
-    return near >= 2 ? 1.5 + near * 0.3 : -Infinity
-  }
-  return -Infinity // unmodelled stratagem: hold CP
-}
-
-function scoreStratagemOrReaction(state: GameState, player: PlayerId, pending: PendingDecision, action: Action): number {
-  if (action.type === 'pass') return HOLD_CP_SCORE
-  if (action.type !== 'useStratagem') return 0
-  const strat = state.stratagems[action.stratagemId]
-  // per-target cost (Pouncing Leap makes Heroic Intervention free for the Leapers)
-  const cost = strat ? effectiveCost(state, player, strat, action.targets?.unitIds ?? []) : 1
-  return stratagemScore(state, player, pending, action, cost)
-}
-
-function scoreCommandReroll(pending: PendingDecision, action: Action): number {
-  if (action.type === 'pass') return HOLD_CP_SCORE
-  if (action.type !== 'commandReroll' || pending.kind !== 'commandReroll') return 0
-  const roll = pending.context.roll
-  // M9 fast-rolled hit / wound / save batches: the stratagem re-rolls ONE die — only ever a failing one (the lowest, since
-  // every failing die is equally likely to turn, prefer the one nearest to passing last). Spending stays conservative
-  // (always below HOLD_CP_SCORE), exactly as it was for single dice: the bot holds its CP unless a charge/advance needs it.
-  if (action.dieIndex !== undefined && (roll.purpose === 'hit' || roll.purpose === 'wound' || roll.purpose === 'save')) {
-    const needed = roll.needed ?? 4
-    const die = roll.dice[action.dieIndex]
-    if (die === undefined || (die !== 1 && die >= needed)) return -1
-    return 0.5 - (die - 1) * 0.01
-  }
-  const sum = roll.final.reduce((a, b) => a + b, 0)
-  if (pending.context.roll.purpose === 'charge' && sum < 8) return 3
-  if (pending.context.roll.purpose === 'advance' && sum <= 2) return 1.5
-  return 0.2
-}
-
 function scoreChooseOption(state: GameState, pending: PendingDecision, action: Action): number {
   if (action.type !== 'chooseOption' || pending.kind !== 'chooseOption') return 0
   const option = pending.options.find((o) => o.action.type === 'chooseOption' && o.action.optionId === action.optionId)
@@ -778,7 +493,7 @@ function scoreAction(state: GameState, player: PlayerId, pending: PendingDecisio
     case 'stratagemWindow': return scoreStratagemOrReaction(state, player, pending, action)
     case 'reactionWindow': return scoreStratagemOrReaction(state, player, pending, action)
     case 'chooseOption': return scoreChooseOption(state, pending, action)
-    case 'commandReroll': return scoreCommandReroll(pending, action)
+    case 'commandReroll': return commandRerollScore(state, player, pending, action)
     case 'confirm': return 0
     default: return 0
   }
@@ -848,6 +563,100 @@ function miracleDieAnswer(pending: PendingDecision, options: Action[]): Action |
   return best ?? skip
 }
 
+// ---- formation deployment / arrival (shape generators: src/ai/formations.ts) ----
+function formationRole(state: GameState, unitId: UnitId, n: number): FormationRole {
+  const unit = state.units[unitId]
+  if (n <= 1) return 'solo'
+  if (unit.attachedLeaderId) return 'leaderBlock'
+  const ranged = hasAnyRangedWeapon(state, unitId)
+  const range = ranged ? bestRangedRangeOfUnit(state, unitId) : null
+  if (!ranged || (range !== null && range <= 12)) return 'melee'
+  return 'ranged'
+}
+
+function chooseFormationDeployment(state: GameState, player: PlayerId, pending: Extract<PendingDecision, { kind: 'deployUnit' }>, rng: Rng): DeployUnitAction | null {
+  const arrival = state.phase !== 'setup' && state.phase !== 'deployment'
+  const zone = pending.constraints.region ?? pending.context.zone
+  if (zone.length < 3) return null
+  const xs = zone.map((p) => p.x), zs = zone.map((p) => p.z)
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minZ = Math.min(...zs), maxZ = Math.max(...zs)
+  const enemyBoard = boardModelsOf(state, other(player))
+  let enemyC = { x: 0, z: 0 }
+  if (enemyBoard.length > 0) enemyC = placementsCenter(enemyBoard.map((m) => ({ modelId: m.id, pos: m.pos })))
+  else { try { enemyC = polyCentroid(deploymentZone(state, other(player))) } catch { /* sides unset */ } }
+  const objs = Object.values(state.objectives).filter((o) => !o.removed)
+  // candidate units: setup drops one unit at a time (an attached Leader rides with its bodyguard); an arrival is one group answer
+  const groups: { unitId: UnitId; models: FormationModel[]; reserve: boolean }[] = []
+  if (arrival) {
+    const models = pending.context.unitIds.flatMap((id) => (state.units[id] ? unitModels(state, id) : []))
+    groups.push({ unitId: pending.context.unitIds[0], models: models.map((m) => ({ id: m.id, base: m.base })), reserve: false })
+  } else {
+    for (const id of pending.context.unitIds) {
+      const u = state.units[id]
+      if (!u || u.bodyguardUnitId) continue
+      const own = unitModels(state, id)
+      const lead = u.attachedLeaderId && state.units[u.attachedLeaderId] ? unitModels(state, u.attachedLeaderId) : []
+      groups.push({ unitId: id, models: [...own, ...lead].map((m) => ({ id: m.id, base: m.base })), reserve: pending.context.reservesAllowed.includes(id) })
+    }
+  }
+  if (groups.length === 0) return null
+  const myReserves = Object.values(state.units).filter((u) => u.player === player && u.location === 'reserves').length
+  const xStep = 2.5, zStep = 1 // a Combat Patrol zone is only ~5" deep: fine in z so a 2-3 rank block can sit anywhere in it
+  const occupied: Footprint[] = [...boardModelsOf(state, player), ...enemyBoard]
+  type Cand = { action: DeployUnitAction; score: number }
+  const cands: Cand[] = []
+  for (const g of groups) {
+    if (g.models.length === 0) continue
+    const role = formationRole(state, g.unitId, g.models.length)
+    const heavy = g.models.length === 1 || hasKeyword(state, g.unitId, 'VEHICLE') || hasKeyword(state, g.unitId, 'MONSTER')
+    let shapes: FormationShape[] = heavy && g.models.length > 1 ? ['block'] : shapesForRole(role, g.models.length)
+    const stats = modelStats(state, unitModels(state, g.unitId)[0])
+    const rangeOf = hasAnyRangedWeapon(state, g.unitId) ? bestRangedRangeOfUnit(state, g.unitId) : null
+    // only cheap (1 W, 5+ or worse save), short-ranged mobs are screening-line material
+    if (g.models.length >= 8 && stats.W === 1 && stats.Sv >= 5 && (rangeOf === null || rangeOf <= 18) && !heavy) shapes = [...shapes, 'line']
+    const meleeOnly = hasAnyMeleeWeapon(state, g.unitId) && !hasAnyRangedWeapon(state, g.unitId)
+    let unitBest = -Infinity
+    for (let z = minZ + 1; z <= maxZ - 1 + 1e-9; z += zStep) {
+      for (let x = minX + 1; x <= maxX - 1 + 1e-9; x += xStep) {
+        if (!pointInPolygon({ x, z }, zone)) continue
+        const toEnemy = Math.atan2(enemyC.z - z, enemyC.x - x)
+        const facings = [toEnemy]
+        let nearObj: { x: number; z: number } | null = null, nd = Infinity
+        for (const o of objs) { const d = Math.hypot(o.pos.x - x, o.pos.z - z); if (d < nd) { nd = d; nearObj = o.pos } }
+        if (nearObj && nd > 3) {
+          const fo = Math.atan2(nearObj.z - z, nearObj.x - x)
+          if (Math.abs(Math.atan2(Math.sin(fo - toEnemy), Math.cos(fo - toEnemy))) > 0.35) facings.push(fo)
+        }
+        const dEnemy = Math.hypot(enemyC.x - x, enemyC.z - z)
+        const inTerrain = Object.values(state.board.pieces).some((pc) => pointInPolygon({ x, z }, pc.footprint))
+        for (const shape of shapes) {
+          for (const facing of facings) {
+            const placements = buildFormation(shape, g.models, { x, z }, facing)
+            if (!placements) continue
+            const feet = placements.map((p, i) => ({ pos: p.pos, facing, base: g.models[i].base }))
+            if (!feet.every((f) => whollyWithinPolygon(f, zone) && whollyOnBoard(f, state.board) && !occupied.some((o) => basesOverlap(f, o)))) continue
+            const action: DeployUnitAction = { type: 'deployUnit', player, decisionId: pending.id, unitId: g.unitId, placements }
+            let score = scoreDeployUnit(state, player, action) + shapeRoleScore(shape === 'line' ? 'screen' : role, shape)
+            if (role === 'ranged') { score += Math.min(dEnemy, 36) * 0.03; if (inTerrain) score += 0.8 }
+            else if (role === 'melee' && !meleeOnly) score += Math.max(0, 36 - dEnemy) * 0.02
+            if (arrival && role !== 'ranged') score += Math.max(0, 24 - dEnemy) * 0.05
+            score += rng.next() * 0.6
+            cands.push({ action, score })
+            if (score > unitBest) unitBest = score
+          }
+        }
+      }
+    }
+    // Deep Strike: at most one unit held back per player at setup, only when the placed options are unremarkable
+    if (!arrival && g.reserve && myReserves === 0 && role !== 'solo' && unitBest > -Infinity && !hasKeyword(state, g.unitId, 'CHARACTER')) {
+      cands.push({ action: { type: 'deployUnit', player, decisionId: pending.id, unitId: g.unitId, placements: [], toReserves: true }, score: unitBest - 1.5 + 2 * rng.next() * (role === 'melee' ? 1 : 0.5) })
+    }
+  }
+  cands.sort((a, b) => b.score - a.score)
+  for (const c of cands.slice(0, 80)) if (validate(state, c.action) === null) return c.action
+  return null
+}
+
 export class UtilityDecider implements Decider {
   private rng: Rng
 
@@ -862,6 +671,10 @@ export class UtilityDecider implements Decider {
   async decide(view: PlayerView, pending: PendingDecision, legal: Action[] | null): Promise<Action> {
     const options = legal ?? legalActions(view.state, pending) ?? []
     if (options.length === 0) throw new Error(`UtilityDecider: no legal action for decision ${pending.id} (${pending.kind})`)
+    if (pending.kind === 'deployUnit') {
+      const formed = chooseFormationDeployment(view.state, view.player, pending, this.rng)
+      if (formed) return formed
+    }
     if (options.length === 1) return options[0]
     const state = view.state
     const miracle = miracleDieAnswer(pending, options)
@@ -870,7 +683,9 @@ export class UtilityDecider implements Decider {
     if (offer) return offer
     const scored = options.map((a) => ({ a, s: scoreAction(state, view.player, pending, a) }))
     scored.sort((x, y) => y.s - x.s)
-    if (this.difficulty === 'easy') {
+    // CP spends are never a random pick from the top 3: a bad random stratagem wastes scarce CP
+    const cpDecision = pending.kind === 'stratagemWindow' || pending.kind === 'reactionWindow' || pending.kind === 'commandReroll'
+    if (this.difficulty === 'easy' && !cpDecision) {
       const top = scored.slice(0, Math.min(3, scored.length))
       const idx = Math.floor(this.rng.next() * top.length) % top.length
       return top[idx].a
