@@ -1,5 +1,5 @@
 {
-  "_comment": "Owned by the audio task (src/client/audio/**, tools/gen-audio.ts, public/audio/**). All prompts/lines are original wording \u2014 no Games Workshop text. Run `npx tsx tools/gen-audio.ts` to (re)generate missing files into public/audio/<id>.mp3.",
+  "_comment": "Owned by the audio task (src/client/audio/**, tools/gen-audio.ts, public/audio/**). All prompts/lines are original wording — no Games Workshop text. Run `npx tsx tools/gen-audio.ts` to (re)generate missing files into public/audio/<id>.mp3.",
   "voice": {
     "voiceId": "SOYHLrjzK2X1ezoPC6cr",
     "voiceName": "Harry - Fierce Warrior",
@@ -31,7 +31,7 @@
       "id": "flamer",
       "kind": "sfx",
       "prompt": "A whoosh and roar of a short burst of flame from a flamethrower",
-      "durationSeconds": 1.0,
+      "durationSeconds": 1,
       "promptInfluence": 0.5
     },
     {
@@ -87,7 +87,7 @@
       "id": "marine-shout",
       "kind": "sfx",
       "prompt": "A disciplined gruff soldier shouting a battle command",
-      "durationSeconds": 1.0,
+      "durationSeconds": 1,
       "promptInfluence": 0.45
     },
     {
@@ -96,6 +96,55 @@
       "prompt": "A short pained grunt and metallic collapse as a soldier falls",
       "durationSeconds": 0.6,
       "promptInfluence": 0.5
+    },
+    {
+      "id": "death-space-marines",
+      "kind": "sfx",
+      "prompt": "A deep-voiced armoured male warrior gives a short stifled groan through a helmet grille, then heavy ceramite armour crashes onto rubble, no music",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "death-orks",
+      "kind": "sfx",
+      "prompt": "A huge brutish green monster gives a guttural gargling bellow that chokes off into a dopey grunt, then a heavy meaty thud on the ground, no music",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "death-necrons",
+      "kind": "sfx",
+      "prompt": "A metal robot skeleton shutting down: a distorted electronic whine sliding down in pitch with crackling static and a hollow metallic clatter of falling limbs, no voice, no music",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "death-tyranids",
+      "kind": "sfx",
+      "prompt": "An alien insect beast lets out a wet chittering screech that gurgles away, chitin cracking and a slimy collapse, no music",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "death-astra-militarum",
+      "kind": "sfx",
+      "prompt": "A human male soldier cries out in pain, a short anguished yell, then rifle and backpack gear clatter as he hits the dirt, no music",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "death-adepta-sororitas",
+      "kind": "sfx",
+      "prompt": "A young woman warrior gives a short sharp pained cry, clearly female voice, then light armour clanks as she falls to the ground, no music",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "death-chaos-space-marines",
+      "kind": "sfx",
+      "prompt": "A monstrous corrupted male warrior snarls a distorted demonic death rattle that echoes unnaturally, then heavy spiked armour crashes down, no music",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.6
     },
     {
       "id": "vehicle-explosion",
@@ -185,7 +234,7 @@
       "id": "victory-fanfare",
       "kind": "sfx",
       "prompt": "A triumphant heroic brass fanfare celebrating victory",
-      "durationSeconds": 2.0,
+      "durationSeconds": 2,
       "promptInfluence": 0.45
     },
     {
@@ -262,6 +311,419 @@
       "id": "narr-your-turn",
       "kind": "voice",
       "text": "Your turn."
+    },
+    {
+      "id": "wpn-bolt-pistol",
+      "kind": "sfx",
+      "prompt": "A single heavy pistol shot firing a rocket-propelled explosive shell: a sharp loud crack, a short whoosh, then a punchy small detonation, no music",
+      "durationSeconds": 0.8,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-boltgun",
+      "kind": "sfx",
+      "prompt": "Three rapid shots from a large rifle firing self-propelled explosive shells: each a punchy crack followed instantly by a sharp exploding bang, heavy recoil, no music",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-condemnor-boltgun",
+      "kind": "sfx",
+      "prompt": "A heavy rifle with a crossbow rail firing one explosive shell: a metallic twang, a loud crack and a sharp detonation, no music",
+      "durationSeconds": 1,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-combi-weapon",
+      "kind": "sfx",
+      "prompt": "A heavy rifle fires two explosive shells with booming cracks, then a second barrel spits a short hissing burst, mechanical clank, no music",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-storm-bolter",
+      "kind": "sfx",
+      "prompt": "A twin-barrelled heavy rifle firing a fast burst of explosive shells: rapid booming cracks each followed by a small blast, brass clinking, no music",
+      "durationSeconds": 1.3,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-heavy-bolter",
+      "kind": "sfx",
+      "prompt": "A heavy mounted machine gun pounding out thunderous explosive shells: deep booming reports and a string of shell detonations, no music",
+      "durationSeconds": 1.5,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-lasgun",
+      "kind": "sfx",
+      "prompt": "A sci-fi laser rifle firing two crisp snapping energy shots, sharp zapping cracks with a slight ozone hiss, no music",
+      "durationSeconds": 0.8,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-laspistol",
+      "kind": "sfx",
+      "prompt": "A small laser pistol firing a single thin high-pitched zap, no music",
+      "durationSeconds": 0.6,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-plasma-pistol",
+      "kind": "sfx",
+      "prompt": "A plasma pistol charging with a brief whine then firing a hot crackling bolt of plasma with a sizzling hiss, no music",
+      "durationSeconds": 1,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-plasma-gun",
+      "kind": "sfx",
+      "prompt": "A plasma rifle with a rising electrical whine then a heavy searing blast of superheated plasma and a venting steam hiss, no music",
+      "durationSeconds": 1.3,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-plasma-cannon",
+      "kind": "sfx",
+      "prompt": "A massive plasma cannon powering up with a deep hum then discharging a thunderous sizzling energy blast that detonates, coolant venting, no music",
+      "durationSeconds": 1.8,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-autogun",
+      "kind": "sfx",
+      "prompt": "A drum-fed automatic rifle firing a rapid rattling burst of ordinary bullets, mechanical clatter, no music",
+      "durationSeconds": 1,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-autopistol",
+      "kind": "sfx",
+      "prompt": "A cheap automatic pistol spraying a quick rattling burst of small bullets, no music",
+      "durationSeconds": 0.8,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-flamer",
+      "kind": "sfx",
+      "prompt": "A flamethrower igniting with a click and a roaring whoosh of liquid fire spraying out, crackling flames, no music",
+      "durationSeconds": 1.5,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-heavy-flamer",
+      "kind": "sfx",
+      "prompt": "A large heavy flamethrower unleashing a deep roaring torrent of burning fuel, intense crackling fire, no music",
+      "durationSeconds": 1.8,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-pyreblaster",
+      "kind": "sfx",
+      "prompt": "A powerful flame projector belching a pressurised jet of burning fuel with a roaring whoosh and hissing nozzle, no music",
+      "durationSeconds": 1.6,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-grenade-launcher",
+      "kind": "sfx",
+      "prompt": "A grenade launcher firing with a hollow thunk, then a grenade exploding a short distance away, no music",
+      "durationSeconds": 1.5,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-meltagun",
+      "kind": "sfx",
+      "prompt": "A heat-ray gun firing: a sharp rising electric whine then a searing roaring hiss of metal being vaporised, no music",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-bombast-field-gun",
+      "kind": "sfx",
+      "prompt": "An artillery field gun firing a large shell: a huge cannon boom with echo and a distant explosion, no music",
+      "durationSeconds": 2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-malleus-rocket-launcher",
+      "kind": "sfx",
+      "prompt": "A shoulder rocket launcher firing: ignition pop, a screaming rocket whoosh, then an explosion, no music",
+      "durationSeconds": 1.8,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-hunter-killer-missile",
+      "kind": "sfx",
+      "prompt": "A vehicle-mounted guided missile launching with a sharp hiss and rushing roar, then a heavy explosion, no music",
+      "durationSeconds": 2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-rite-of-possession",
+      "kind": "sfx",
+      "prompt": "A dark sorcerous spell: whispering demonic voices rising into a crackling burst of unholy energy, no music",
+      "durationSeconds": 1.5,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-smite",
+      "kind": "sfx",
+      "prompt": "A psychic warrior unleashes mind lightning: crackling electric arcs and a deep resonant energy thunderclap, no music",
+      "durationSeconds": 1.3,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-tachyon-arrow",
+      "kind": "sfx",
+      "prompt": "An alien energy bow firing a single beam: a high piercing electronic charge-up then a deafening crackling discharge, no music",
+      "durationSeconds": 1.5,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-gauss-flayer",
+      "kind": "sfx",
+      "prompt": "An alien robot rifle firing a green energy beam that strips matter apart: an eerie electronic hum and a crackling disintegrating buzz, no music",
+      "durationSeconds": 1,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-gauss-reaper",
+      "kind": "sfx",
+      "prompt": "A short-barrelled alien energy weapon spraying a rapid flurry of buzzing disintegration beams, no music",
+      "durationSeconds": 1.1,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-doomsday-blaster",
+      "kind": "sfx",
+      "prompt": "A colossal alien energy cannon charging with a deep rising electronic drone then a cataclysmic booming discharge, no music",
+      "durationSeconds": 2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-shoota",
+      "kind": "sfx",
+      "prompt": "A crude scrap-built machine gun firing a loud chaotic rattling burst with clanking loose parts, no music",
+      "durationSeconds": 1,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-slugga",
+      "kind": "sfx",
+      "prompt": "A crude oversized scrap pistol firing three loud uneven bangs with rattling loose parts, no music",
+      "durationSeconds": 0.9,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-big-shoota",
+      "kind": "sfx",
+      "prompt": "A heavy crude scrap-metal machine gun hammering out a long loud rattling burst with a clanking ammo feed, no music",
+      "durationSeconds": 1.4,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-rokkit-launcha",
+      "kind": "sfx",
+      "prompt": "A crude scrap rocket launcher firing a wobbly rocket with a sputtering whoosh, then a messy explosion, no music",
+      "durationSeconds": 1.8,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-kopta-rokkits",
+      "kind": "sfx",
+      "prompt": "Two small crude rockets launched from a buzzing flying machine, sputtering whooshes and twin explosions, no music",
+      "durationSeconds": 1.8,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-kustom-mega-blasta",
+      "kind": "sfx",
+      "prompt": "A crude scrap energy cannon sparking and humming unstably then firing a loud fizzing plasma blast with a crackle, no music",
+      "durationSeconds": 1.5,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-assault-cannon",
+      "kind": "sfx",
+      "prompt": "A rotary multi-barrel cannon spinning up with a whir then firing an extremely rapid roaring stream of heavy rounds, no music",
+      "durationSeconds": 1.6,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-psychoclastic-torrent",
+      "kind": "sfx",
+      "prompt": "A monstrous alien brain creature unleashes a psychic scream: a warbling shriek and a roaring wave of mind energy, no music",
+      "durationSeconds": 1.5,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-fleshborer",
+      "kind": "sfx",
+      "prompt": "An organic alien gun spitting a burst of living beetles: wet squelching pops and a chittering buzz, no music",
+      "durationSeconds": 1,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-barblauncher",
+      "kind": "sfx",
+      "prompt": "An organic alien launcher lobbing a cluster of barbed spines with a wet heavy thwump and scattered impacts, no music",
+      "durationSeconds": 1.3,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-choppa",
+      "kind": "sfx",
+      "prompt": "A crude heavy cleaver-sword swung hard: a fast whooshing sword swing and a ringing metal clang, no music",
+      "durationSeconds": 0.8,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-big-choppa",
+      "kind": "sfx",
+      "prompt": "A huge two-handed jagged axe-sword swung with a heavy whoosh then a meaty chopping clang, no music",
+      "durationSeconds": 1,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-uge-choppa",
+      "kind": "sfx",
+      "prompt": "An enormous crude cleaver swept in a massive slow whoosh ending in a crushing chop, no music",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-power-weapon",
+      "kind": "sfx",
+      "prompt": "An energised sword swung through the air with a humming crackling buzz and an electric slash, no music",
+      "durationSeconds": 0.9,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-relic-weapon",
+      "kind": "sfx",
+      "prompt": "An ancient blessed blade swung with a bright ringing hum and a powerful slicing strike, no music",
+      "durationSeconds": 1,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-accursed-weapon",
+      "kind": "sfx",
+      "prompt": "A cursed daemonic blade swung with a whispering demonic hiss and a sharp slicing clang, no music",
+      "durationSeconds": 1,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-overlords-blade",
+      "kind": "sfx",
+      "prompt": "An alien energy glaive swung with a resonant electronic hum and a crisp metallic slash, no music",
+      "durationSeconds": 1,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-power-fist",
+      "kind": "sfx",
+      "prompt": "A huge powered gauntlet punching: an electric crackle, a heavy hydraulic whoosh and a bone-crunching impact, no music",
+      "durationSeconds": 1,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-dread-klaw",
+      "kind": "sfx",
+      "prompt": "A giant hydraulic walker claw snapping shut, servos whining, then a massive crushing crunch of metal, no music",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-force-weapon",
+      "kind": "sfx",
+      "prompt": "A psychic blade swung with a surge of crackling lightning and a heavy impact, no music",
+      "durationSeconds": 1,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-staff-of-possession",
+      "kind": "sfx",
+      "prompt": "A sorcerer staff striking with a dark resonant thrum and whispering voices, no music",
+      "durationSeconds": 1,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-hallowed-mace",
+      "kind": "sfx",
+      "prompt": "A heavy flanged mace swung with a whoosh and a deep blunt armour-denting clang, no music",
+      "durationSeconds": 0.9,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-arco-flails",
+      "kind": "sfx",
+      "prompt": "Whirling mechanical flails and lashing chains whipping and slashing frantically, buzzing motors, no music",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-close-combat-weapon",
+      "kind": "sfx",
+      "prompt": "A quick brawling melee strike: a rifle-butt swing and a knife swipe with a dull punching thud, no music",
+      "durationSeconds": 0.7,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-spinnin-blades",
+      "kind": "sfx",
+      "prompt": "Whirling rotor blades slicing through the air with a fast buzzing whirr and clanging hits, no music",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-hyperphase-weapons",
+      "kind": "sfx",
+      "prompt": "Alien phasing blades slicing with a shimmering electronic hum and sharp crackling cuts, no music",
+      "durationSeconds": 1,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-feeder-mandibles",
+      "kind": "sfx",
+      "prompt": "Metal robot jaws snapping and slicing with rapid clicking metallic clacks, no music",
+      "durationSeconds": 0.9,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-doomstalker-limbs",
+      "kind": "sfx",
+      "prompt": "A giant robotic walker stabbing with heavy metal legs, servo whine and clanking impacts, no music",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-talons",
+      "kind": "sfx",
+      "prompt": "Huge bony alien scything claws slashing through the air with a sharp swish and a wet slicing hit, no music",
+      "durationSeconds": 0.9,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-claws-and-teeth",
+      "kind": "sfx",
+      "prompt": "A small snarling alien beast clawing and biting: hissing, chitin clicks and a wet tearing bite, no music",
+      "durationSeconds": 0.9,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-hideous-mutations",
+      "kind": "sfx",
+      "prompt": "A mutated monster lashing with fleshy tentacles and bony growths, wet slapping whips and a gurgle, no music",
+      "durationSeconds": 1,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "wpn-brutal-assault-weapon",
+      "kind": "sfx",
+      "prompt": "A crude spiked cleaver hacked down hard with a heavy whoosh and a grinding metallic chop, no music",
+      "durationSeconds": 0.9,
+      "promptInfluence": 0.6
     }
   ]
 }

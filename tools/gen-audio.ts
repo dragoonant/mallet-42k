@@ -20,7 +20,7 @@ const OUT_DIR = join(REPO_ROOT, 'public', 'audio')
 // Hard budget for this generation run, in ElevenLabs "credits" (the character_count unit shared by
 // both the sound-generation and text-to-speech endpoints on this account). This is a ceiling on
 // spend for THIS run, independent of whatever the account's total remaining balance is.
-const RUN_BUDGET_CREDITS = 9000
+const RUN_BUDGET_CREDITS = 12000
 // Stop starting new generations once fewer than this many credits are left in the run budget, since
 // we can't know a request's exact cost until after it completes.
 const SAFETY_MARGIN_CREDITS = 200

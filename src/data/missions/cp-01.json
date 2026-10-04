@@ -1,7 +1,7 @@
 {
   "id": "mission.cp-01",
   "name": "Clash of Patrols",
-  "text": "Two forces meet across open ground with four markers scattered between the deployment zones; both sides race to secure them, and from the second round the player whose turn it is may recover intel from a marker they hold for a Command Point while their Warlord is on the field.",
+  "text": "Four markers lie between the deployment zones; each one you control scores 5 VP (max 15 per turn). Retrieve Intelligence: from round 2, at the start of your Command phase you may search one marker you control that nobody has searched yet, gaining 1 CP if your Warlord is on the battlefield. Each marker can be searched once per battle by either side. Searching doesn't remove it; it still scores.",
   "format": "combatPatrol",
   "board": { "w": 44, "h": 30 },
   "deploymentZones": {
