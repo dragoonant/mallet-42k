@@ -100,16 +100,16 @@
     {
       "id": "death-space-marines",
       "kind": "sfx",
-      "prompt": "A deep-voiced armoured male warrior gives a short stifled groan through a helmet grille, then heavy ceramite armour crashes onto rubble, no music",
-      "durationSeconds": 1.2,
-      "promptInfluence": 0.6
+      "prompt": "A towering armoured cyborg soldier groans in pain through a helmet voice amplifier: a deep low-pitched male grunt, heavily band-limited like a military radio with metallic resonance, slight digital distortion and electronic crackle, then heavy power armour crashes onto stone, no music",
+      "durationSeconds": 1.6,
+      "promptInfluence": 0.7
     },
     {
       "id": "death-orks",
       "kind": "sfx",
-      "prompt": "A huge brutish green monster gives a guttural gargling bellow that chokes off into a dopey grunt, then a heavy meaty thud on the ground, no music",
-      "durationSeconds": 1.2,
-      "promptInfluence": 0.6
+      "prompt": "A huge hulking brute with a very deep gravelly voice bellows a furious dying roar, like an enraged giant thug yelling ARGH, then a heavy body slams into the dirt. Deep, loud, angry, no croaking, no music",
+      "durationSeconds": 1.6,
+      "promptInfluence": 0.7
     },
     {
       "id": "death-necrons",
@@ -142,9 +142,9 @@
     {
       "id": "death-chaos-space-marines",
       "kind": "sfx",
-      "prompt": "A monstrous corrupted male warrior snarls a distorted demonic death rattle that echoes unnaturally, then heavy spiked armour crashes down, no music",
-      "durationSeconds": 1.2,
-      "promptInfluence": 0.6
+      "prompt": "A corrupted armoured cyborg warrior screams through a broken helmet voice amplifier: a deep low male scream, harsh radio distortion and static crackle, with a second inhuman demonic voice growling underneath, then heavy spiked armour crashes down, no music",
+      "durationSeconds": 1.6,
+      "promptInfluence": 0.7
     },
     {
       "id": "vehicle-explosion",
