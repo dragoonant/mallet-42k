@@ -92,7 +92,11 @@ export interface Effect {
   when?: Condition
   reroll?: 'ones' | 'fails' | 'all' | 'oneDie'
   modifyRoll?: { roll: RollName; value: number }
-  modifyStat?: { stat: StatName; value: number }
+  modifyStat?: { stat: StatName; value: number; cap?: number }
+  // C6 (Astra Militarum Artillery Strike): halve a stat (rounded up, before additive modifiers), halve an Advance roll, forbid a charge
+  halveStat?: StatName
+  halveRoll?: 'advance'
+  forbid?: 'charge'
   setStat?: { stat: StatName; value: DiceExpr }
   invuln?: RollTarget
   feelNoPain?: RollTarget
@@ -213,6 +217,7 @@ export interface Composition {
   max: number
   default: number
   champion?: boolean
+  keywords?: Keyword[]
   base: Base
   statsOverride?: PartialStats
   weapons: { default: Id[]; options?: WargearOption[] }

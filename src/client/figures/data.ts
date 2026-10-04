@@ -89,6 +89,10 @@ const KNOWN_KIT: Record<string, KitId> = {
   'ade.battle-sisters-squad': 'ade-sister',
   'ade.celestian-sacresants': 'ade-sacresant',
   'ade.arco-flagellants': 'ade-arco',
+  'am.cadian-shock-troops': 'am-guardsman',
+  'am.command-squad-karsk': 'am-veteran',
+  'am.armoured-sentinels': 'am-sentinel',
+  'am.field-ordnance-battery': 'am-field-gun',
 }
 
 /** Models of a mixed unit that look different from the rest of it (a flamer sister is not a rifle sister), keyed
@@ -102,6 +106,14 @@ const KNOWN_KIT_BY_MODEL: Record<string, KitId> = {
   'ade.battle-sisters-squad/sister': 'ade-sister',
   'ade.celestian-sacresants/sacresant': 'ade-sacresant',
   'ade.arco-flagellants/arco': 'ade-arco',
+  'am.cadian-shock-troops/sergeant': 'am-sergeant',
+  'am.cadian-shock-troops/trooper': 'am-guardsman',
+  'am.command-squad-karsk/karsk': 'am-officer',
+  'am.command-squad-karsk/veteran': 'am-veteran',
+  'am.command-squad-karsk/veteran-medic': 'am-medic',
+  'am.command-squad-karsk/veteran-standard': 'am-standard',
+  'am.field-ordnance-battery/gun-bombast': 'am-field-gun',
+  'am.field-ordnance-battery/gun-malleus': 'am-rocket-battery',
 }
 
 const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
@@ -133,6 +145,15 @@ const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
   'ade-sister-simulacrum': 'infantry',
   'ade-sacresant': 'infantry',
   'ade-arco': 'infantry',
+  'am-guardsman': 'infantry',
+  'am-sergeant': 'infantry',
+  'am-officer': 'infantry',
+  'am-veteran': 'infantry',
+  'am-medic': 'infantry',
+  'am-standard': 'infantry',
+  'am-sentinel': 'vehicle',
+  'am-field-gun': 'heavy',
+  'am-rocket-battery': 'heavy',
   'generic-infantry': 'infantry',
   'generic-heavy': 'heavy',
   'generic-monster': 'monster',

@@ -324,6 +324,42 @@ export function WeaponMesh({ shape, colors, hand }: { shape: WeaponShape; colors
           </mesh>
         </group>
       )
+    case 'lasgun':
+      // Long slim barrel, a tan stock and a bright emitter at the muzzle.
+      return (
+        <group scale={1.4}>
+          <Barrel length={0.36} radius={0.02} color={colors.metal} />
+          <mesh position={[0, 0, 0.36]}>
+            <GBox args={[0.035, 0.035, 0.04]} />
+            <StdMat color="#ff6a4a" emissive="#ff6a4a" emissiveIntensity={1.2} />
+          </mesh>
+          <mesh position={[0, -0.005, 0.04]}>
+            <GBox args={[0.05, 0.07, 0.14]} />
+            <StdMat color={colors.primary} roughness={0.6} />
+          </mesh>
+          <mesh position={[0, -0.01, -0.09]}>
+            <GBox args={[0.04, 0.07, 0.12]} />
+            <StdMat color={colors.secondary} roughness={0.8} />
+          </mesh>
+        </group>
+      )
+    case 'plasma-pistol':
+      return (
+        <group scale={1.5}>
+          <mesh position={[0, 0, 0.07]}>
+            <GBox args={[0.06, 0.07, 0.15]} />
+            <StdMat color={colors.metal} metalness={0.5} roughness={0.45} />
+          </mesh>
+          <mesh position={[0, 0.045, 0.08]}>
+            <GBox args={[0.035, 0.025, 0.1]} />
+            <StdMat color="#59c8ff" emissive="#59c8ff" emissiveIntensity={1.6} />
+          </mesh>
+          <mesh position={[0, -0.05, -0.005]}>
+            <GBox args={[0.04, 0.06, 0.04]} />
+            <StdMat color={colors.trim} roughness={0.5} />
+          </mesh>
+        </group>
+      )
     case 'rending-claws':
       // A little fan of three short hooked claws on a bony fist.
       return (
@@ -518,6 +554,25 @@ export function WeaponMesh({ shape, colors, hand }: { shape: WeaponShape; colors
           <mesh position={[0, 0.46, 0.02]}>
             <GBox args={[0.1, 0.22, 0.012]} />
             <StdMat color={colors.trim} roughness={0.8} />
+          </mesh>
+        </group>
+      )
+    case 'plasma-cannon':
+      // Sentinel heavy plasma gun: thick barrel with glowing coil rings and a rear power block.
+      return (
+        <group scale={1.7}>
+          <Barrel length={0.36} radius={0.05} color={colors.metal} />
+          <mesh position={[0, 0, 0.14]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.065, 0.065, 0.04, 10]} />
+            <StdMat color="#59c8ff" emissive="#59c8ff" emissiveIntensity={1.5} />
+          </mesh>
+          <mesh position={[0, 0, 0.27]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.065, 0.065, 0.04, 10]} />
+            <StdMat color="#59c8ff" emissive="#59c8ff" emissiveIntensity={1.5} />
+          </mesh>
+          <mesh position={[0, 0.02, 0.0]}>
+            <GBox args={[0.12, 0.12, 0.2]} />
+            <StdMat color={colors.primary} roughness={0.5} metalness={0.3} />
           </mesh>
         </group>
       )

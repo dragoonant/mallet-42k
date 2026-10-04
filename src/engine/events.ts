@@ -38,7 +38,7 @@ export interface UnitAdvanced extends EventBase { type: 'UnitAdvanced'; unitId: 
 export interface UnitFellBack extends EventBase { type: 'UnitFellBack'; unitId: UnitId }
 export interface UnitRemainedStationary extends EventBase { type: 'UnitRemainedStationary'; unitId: UnitId }
 export interface DesperateEscapeRolled extends EventBase { type: 'DesperateEscapeRolled'; unitId: UnitId; dice: number[]; casualties: number }
-export interface ReinforcementsArrived extends EventBase { type: 'ReinforcementsArrived'; unitId: UnitId; via: 'deepStrike' | 'strategicReserves' | 'rapidIngress' }
+export interface ReinforcementsArrived extends EventBase { type: 'ReinforcementsArrived'; unitId: UnitId; via: 'deepStrike' | 'strategicReserves' | 'rapidIngress' | 'nextWave' }
 export interface UnitLostInReserves extends EventBase { type: 'UnitLostInReserves'; unitId: UnitId }
 export interface CoherencyCulled extends EventBase { type: 'CoherencyCulled'; unitId: UnitId; modelIds: ModelId[] }
 

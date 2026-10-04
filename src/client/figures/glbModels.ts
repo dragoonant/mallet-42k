@@ -71,6 +71,16 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'ade.battle-sisters-squad/sister': 'battle-sister',
   'ade.celestian-sacresants/sacresant': 'celestian-sacresant',
   'ade.arco-flagellants/arco': 'arco-flagellant',
+  // Astra Militarum: no GLBs yet, same arrangement as the Necrons above (slug unlisted in ENABLED_GLB_SLUGS = procedural).
+  'am.cadian-shock-troops/sergeant': 'cadian-sergeant',
+  'am.cadian-shock-troops/trooper': 'cadian-trooper',
+  'am.command-squad-karsk/karsk': 'lord-marshal-karsk',
+  'am.command-squad-karsk/veteran': 'cadian-veteran',
+  'am.command-squad-karsk/veteran-medic': 'cadian-medic',
+  'am.command-squad-karsk/veteran-standard': 'cadian-standard-bearer',
+  'am.field-ordnance-battery/gun-bombast': 'bombast-field-gun',
+  'am.field-ordnance-battery/gun-malleus': 'malleus-rocket-battery',
+  'am.armoured-sentinels/sentinel': 'armoured-sentinel',
 }
 
 /** The enabled GLB slug for a model type, or undefined (use the procedural figure). */

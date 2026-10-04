@@ -51,6 +51,15 @@ export type KitId =
   | 'ade-sister-simulacrum'
   | 'ade-sacresant'
   | 'ade-arco'
+  | 'am-guardsman'
+  | 'am-sergeant'
+  | 'am-officer'
+  | 'am-veteran'
+  | 'am-medic'
+  | 'am-standard'
+  | 'am-sentinel'
+  | 'am-field-gun'
+  | 'am-rocket-battery'
   | 'generic-infantry'
   | 'generic-heavy'
   | 'generic-monster'
@@ -70,6 +79,7 @@ export interface PaintColors {
  *  datasheet in this data set that isn't a flyer resolves to a biped). */
 export type HeadShape = 'marine-helmet' | 'terminator-helmet' | 'ork-head' | 'ork-boss-head' | 'necron-skull' | 'necron-lord' | 'sister-bob' | 'sister-hood' | 'arco-mask' | 'tyranid-head' | 'tyranid-prime-head' | 'tyranid-brute-head' | 'generic-head'
   | 'chaos-helmet' | 'chaos-sorcerer' | 'possessed-head' | 'cultist-hood'
+  | 'guard-helmet' | 'officer-cap' | 'sentinel-cab'
 export type WeaponShape =
   | 'none'
   | 'bolt-rifle'
@@ -100,6 +110,10 @@ export type WeaponShape =
   | 'tower-shield'
   | 'flails'
   | 'banner'
+  | 'lasgun'
+  | 'plasma-pistol'
+  | 'power-sword'
+  | 'plasma-cannon'
 export type ShoulderPad = 'none' | 'small' | 'large'
 
 export interface BipedConfig {
@@ -137,6 +151,13 @@ export interface BipedConfig {
   capeColor?: 'secondary' | 'trim'
   bareTorso?: boolean
   legColor?: 'primary' | 'trim'
+  /** A red cross patch on the chest (paintScheme.decal): the Guard medic's mark. */
+  chestCross?: boolean
+}
+
+/** Towed/emplaced gun with its crew (Astra Militarum Field Ordnance Battery): a long barrel or a rocket rack. */
+export interface ArtilleryConfig {
+  barrel: 'field-gun' | 'rocket-rack'
 }
 
 export interface VehicleConfig {

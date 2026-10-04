@@ -9,6 +9,7 @@
 // Oath of Moment / Waaagh!. Per-rule "done" marks (`phaseState.marks`) make every step idempotent across that resume.
 import { alphaXenoformAmount, chitinousTideAmount } from './factions/tyranids'
 import type { MissionRule, ScoringRule, TimingWindowId } from '../data/types'
+import { holdTheLineAmount, methodicalDestructionAmount, methodicalDestructionOffer } from './factions/astra-militarum'
 import { OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE, pointInPolygon, whollyWithinPolygon, withinObjectiveRange } from './geometry'
 import { consecratedGroundAmount, hallowedRetributionAmount } from './factions/adepta-sororitas'
 import { hookService } from './hooks-impl'
@@ -168,7 +169,7 @@ function rulesFor(s: GameState, pid: PlayerId): ScoringRule[] {
 }
 
 // ScoringRule-shaped "pick" instances (pointsPer 0): raise a decision instead of computing an amount
-const PICK_CODES = new Set(['stompEmPick', 'bagPick', 'treasuresOfAeonsPick'])
+const PICK_CODES = new Set(['stompEmPick', 'bagPick', 'treasuresOfAeonsPick', 'methodicalDestructionPick'])
 
 // ---------- generic ScoringRule.rule amounts ----------
 function tierPoints(tiers: Record<string, number>, die: number): number {
@@ -395,6 +396,8 @@ function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): num
     case 'properLootin': return properLootinAmount(ctx, rule, pid)
     case 'bagTheBigUnScore': return bagTheBigUnAmount(s, rule, pid)
     case 'consecratedGround': return consecratedGroundAmount(s, pid, rule.pointsPer)
+    case 'holdTheLine': return holdTheLineAmount(s, rule, pid)
+    case 'methodicalDestructionScore': return methodicalDestructionAmount(s, rule, pid)
     default: return 0
   }
 }
@@ -495,6 +498,7 @@ function runPick(ctx: EngineContext, rule: ScoringRule, pid: PlayerId, key: stri
   if (rule.code === 'stompEmPick') stompEmPickRule(ctx, rule, pid, key)
   else if (rule.code === 'treasuresOfAeonsPick') treasuresPickRule(ctx, rule, pid, key)
   else if (rule.code === 'bagPick') bagPickRule(ctx, rule, pid, key)
+  else if (rule.code === 'methodicalDestructionPick') methodicalDestructionOffer(ctx, pid, rule.when, key)
 }
 
 // ---------- MissionRule (non-scoring) codes ----------

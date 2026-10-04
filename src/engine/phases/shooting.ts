@@ -91,7 +91,8 @@ function enemyCanonicalUnits(state: GameState, firingPlayer: PlayerId): UnitId[]
 }
 function isLoneOperative(state: GameState, unitId: UnitId): boolean {
   if (leaderService.isAttached(state, unitId)) return false
-  return hasCoreAbility(state, unitId, 'LONE_OPERATIVE')
+  // datasheet / effect-granted Lone Operative, plus any granted by a code hook (Gunnery Officer)
+  return hasCoreAbility(state, unitId, 'LONE_OPERATIVE') || hookService.hasCoreAbility(state, unitId, 'LONE_OPERATIVE')
 }
 
 // ---------- R-6.4/R-6.2/R-6.3/R-6.9 target legality for one (firing model, weapon, candidate target) ----------

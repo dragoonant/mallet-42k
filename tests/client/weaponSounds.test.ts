@@ -20,9 +20,10 @@ const NEC = 'necrons'
 const CSM = 'chaos-space-marines'
 const TYR = 'tyranids'
 const ADE = 'adepta-sororitas'
+const AM = 'astra-militarum'
 
 /** The engine faction id a weapon's own id prefix belongs to. */
-const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : SM)
+const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : SM)
 
 function lookupFor(faction: string): SoundLookup {
   return { weapon: (id) => bundle.weapons[id], factionOfUnit: () => faction }
@@ -103,6 +104,30 @@ const EXPECTED: Record<string, WeaponFlavour> = {
   'tyr.w.chitinous-claws-and-teeth-termagant': 'chain',
   'tyr.w.chitinous-claws-and-teeth-barbgaunt': 'chain',
   'tyr.w.leapers-talons': 'chain',
+  'am.w.bolt-pistol': 'bolter',
+  'am.w.lasgun': 'bolter',
+  'am.w.laspistol': 'bolter',
+  'am.w.plasma-pistol': 'heavy',
+  'am.w.plasma-pistol-supercharge': 'heavy',
+  'am.w.drum-fed-autogun': 'bolter',
+  'am.w.flamer': 'flame',
+  'am.w.grenade-launcher-frag': 'heavy',
+  'am.w.grenade-launcher-krak': 'heavy',
+  'am.w.meltagun': 'flame',
+  'am.w.plasma-gun': 'heavy',
+  'am.w.plasma-gun-supercharge': 'heavy',
+  'am.w.bombast-field-gun': 'heavy',
+  'am.w.malleus-rocket-launcher': 'heavy',
+  'am.w.hunter-killer-missile': 'heavy',
+  'am.w.plasma-cannon': 'heavy',
+  'am.w.plasma-cannon-supercharge': 'heavy',
+  'am.w.power-weapon': 'chain',
+  'am.w.power-fist': 'crush',
+  'am.w.close-combat-weapon-command': 'chain',
+  'am.w.chainsword': 'chain',
+  'am.w.close-combat-weapon': 'chain',
+  'am.w.battery-close-combat-weapons': 'chain',
+  'am.w.close-combat-weapon-sentinel': 'crush',
 }
 
 // Adepta Sororitas weapons, by datasheet NAME (lower-cased) so the check holds whatever id spelling the data uses.
@@ -129,7 +154,7 @@ describe('weapon flavour', () => {
   })
 
   it('the faction ids this classifier is tuned for are the ones the data actually declares', () => {
-    for (const id of [NEC, ORK, SM, CSM, TYR, ADE]) expect(Object.keys(bundle.factions), id).toContain(id)
+    for (const id of [NEC, ORK, SM, CSM, TYR, ADE, AM]) expect(Object.keys(bundle.factions), id).toContain(id)
   })
 
   it('every adepta-sororitas weapon is classified, by name', () => {
@@ -164,6 +189,7 @@ describe('weapon flavour', () => {
     expect(weaponFlavour('mystery.gun', undefined, SM)).toBe('bolter')
     expect(weaponFlavour('mystery.gun', undefined, NEC)).toBe('psychic')
     expect(weaponFlavour('mystery.gun', undefined, TYR)).toBe('shoota')
+    expect(weaponFlavour('mystery.gun', undefined, AM)).toBe('bolter')
     // the store's own setup keys ('orks'/'space-marines') classify the same way, in case a caller
     // ever passes one of those instead
     expect(weaponFlavour('mystery.gun', undefined, 'orks')).toBe('shoota')
@@ -204,6 +230,13 @@ describe('firing sounds', () => {
     expect(soundIds(declared(['tyr.w.psychoclastic-torrent']), TYR)).toEqual(['flamer'])
     expect(soundIds(declared(['tyr.w.chitinous-claws-and-teeth-termagant'], 'fight'), TYR)).toEqual(['melee-chainsword'])
     expect(soundIds(declared(['tyr.w.leapers-talons'], 'fight'), TYR)).toEqual(['melee-chainsword'])
+  })
+
+  it('a guard line fires rifle-crack lasguns, its gunners the heavy sound', () => {
+    expect(soundIds(declared(['am.w.lasgun', 'am.w.lasgun']), AM)).toEqual(['bolter-burst'])
+    expect(soundIds(declared(['am.w.bombast-field-gun']), AM)).toEqual(['heavy-gun'])
+    expect(soundIds(declared(['am.w.flamer']), AM)).toEqual(['flamer'])
+    expect(soundIds(declared(['am.w.close-combat-weapon-sentinel'], 'fight'), AM)).toEqual(['power-klaw-crunch'])
   })
 
   it('each weapon type sounds like itself', () => {

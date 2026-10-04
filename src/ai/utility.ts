@@ -668,6 +668,30 @@ function stratagemScore(state: GameState, player: PlayerId, pending: PendingDeci
     if (needed > stats.M + 3.5) return -Infinity // still not a plausible charge next turn
     return unitValue(state, enemy.unitId) * 0.015 - cost
   }
+  // Astra Militarum: Send in the Next Wave brings a whole destroyed squad back at full strength at our edge — always worth 1 CP.
+  if (id.endsWith('send-in-the-next-wave')) return 3.5 - cost
+  // Bring It Down: re-roll hit rolls for every Astra Militarum unit against one enemy unit; worth it when our guns can hurt it.
+  if (id.endsWith('bring-it-down')) {
+    const enemyId = targets.unitIds?.[0]
+    if (!enemyId) return -Infinity
+    let dmg = 0
+    for (const u of boardUnitsOf(state, player)) {
+      if (!hasKeyword(state, u.id, 'ASTRA MILITARUM') || u.battleShocked) continue
+      dmg += unitRangedDamage(state, u.id, enemyId, {})
+    }
+    if (dmg < 2) return -Infinity
+    return dmg * 0.3 * unitValue(state, enemyId) * 0.03 - cost * 1.2
+  }
+  // Artillery Strike: once per battle, 2 CP — hampers every enemy unit's movement, charges and shooting for a turn. Spend it
+  // when the enemy is close enough to matter and we can still afford to keep a CP in hand.
+  if (id.endsWith('artillery-strike')) {
+    if (cp < cost + 1) return -Infinity
+    let near = 0
+    for (const e of boardUnitsOf(state, other(player))) {
+      for (const u of boardUnitsOf(state, player)) if (minGapBetweenUnits(state, u.id, e.id) <= 30) { near++; break }
+    }
+    return near >= 2 ? 1.5 + near * 0.3 : -Infinity
+  }
   return -Infinity // unmodelled stratagem: hold CP
 }
 
@@ -718,6 +742,21 @@ function scoreChooseOption(state: GameState, pending: PendingDecision, action: A
   }
   const label = (option?.label ?? '').toLowerCase()
   if (/(skip|none|decline)/.test(label)) score -= 1
+  const code = (pending.context.data as { code?: string }).code
+  // Astra Militarum Voice of Command: prefer Take Aim! on gunlines, Move! Move! Move! on units that need to cross the board,
+  // Take Cover! on units with a poor save under fire; an Order to every unit (Command Laurels) is always good value.
+  if (code === 'voiceOfCommand' && action.optionId !== 'decline') {
+    const order = typeof hint.order === 'string' ? hint.order : ''
+    const unitId = hintUnitId
+    const shooter = unitId ? hasAnyRangedWeapon(state, unitId) : true
+    if (order.endsWith('take-aim')) score += shooter ? 2.5 : 0.5
+    else if (order.endsWith('move-move-move')) score += 1.2
+    else if (order.endsWith('take-cover')) score += 1.6
+    if (unitId) score += unitValue(state, unitId) * 0.01
+    else score += 2
+  }
+  // Methodical Destruction: the VP only come if the pick dies this round, so mark the unit most likely to die (cheapest on the board).
+  if (code === 'methodicalDestructionPick' && hintUnitId) score = -unitValue(state, hintUnitId) * 0.03
   return score
 }
 
@@ -747,7 +786,17 @@ function scoreAction(state: GameState, player: PlayerId, pending: PendingDecisio
 // (none in practice — failures are re-rolled automatically — so it keeps), never a die that already succeeded.
 function rerollOfferAnswer(state: GameState, pending: PendingDecision, options: Action[]): Action | null {
   if (pending.kind !== 'chooseOption' || pending.context.topic !== 'rerollOffer') return null
-  const data = pending.context.data as { rollId?: string; dieIndexes?: number[]; needed?: number }
+  const data = pending.context.data as { rollId?: string; dieIndexes?: number[]; needed?: number; purpose?: string }
+  // Gunnery Officer: re-roll the dice that set a weapon's number of attacks when they came up low (3 or less on average)
+  if (data.purpose === 'attacks' && Array.isArray(data.dieIndexes)) {
+    const roll = state.phaseState.lastRoll
+    const reroll = options.find((o) => o.type === 'chooseOption' && o.optionId === 'reroll')
+    const keep = options.find((o) => o.type === 'chooseOption' && o.optionId === 'keep')
+    if (!roll || roll.id !== data.rollId || !reroll || !keep) return null
+    const dice = data.dieIndexes.map((i) => roll.dice[i]).filter((d) => typeof d === 'number')
+    const avg = dice.length > 0 ? dice.reduce((a, b) => a + b, 0) / dice.length : 4
+    return avg <= 3 ? reroll : keep
+  }
   if (typeof data.needed !== 'number' || !Array.isArray(data.dieIndexes)) return null
   const roll = state.phaseState.lastRoll
   const reroll = options.find((o) => o.type === 'chooseOption' && o.optionId === 'reroll')

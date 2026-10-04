@@ -1,0 +1,88 @@
+[
+  {
+    "id": "am.field-ordnance-battery",
+    "faction": "astra-militarum",
+    "name": "Field Ordnance Battery",
+    "keywords": [
+      "INFANTRY",
+      "ARTILLERY",
+      "IMPERIUM",
+      "REGIMENT",
+      "FIELD ORDNANCE BATTERY"
+    ],
+    "factionKeywords": [
+      "ASTRA MILITARUM"
+    ],
+    "stats": {
+      "M": 4,
+      "T": 5,
+      "Sv": 4,
+      "W": 6,
+      "Ld": 7,
+      "OC": 2
+    },
+    "composition": [
+      {
+        "modelId": "gun-bombast",
+        "name": "Bombast field gun & crew",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 100
+        },
+        "weapons": {
+          "default": [
+            "am.w.bombast-field-gun",
+            "am.w.lasgun",
+            "am.w.laspistol",
+            "am.w.battery-close-combat-weapons"
+          ]
+        },
+        "figure": {
+          "archetype": "heavy",
+          "kit": "generic-heavy"
+        }
+      },
+      {
+        "modelId": "gun-malleus",
+        "name": "Malleus rocket launcher & crew",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 100
+        },
+        "weapons": {
+          "default": [
+            "am.w.malleus-rocket-launcher",
+            "am.w.lasgun",
+            "am.w.laspistol",
+            "am.w.battery-close-combat-weapons"
+          ]
+        },
+        "figure": {
+          "archetype": "heavy",
+          "kit": "generic-heavy"
+        }
+      }
+    ],
+    "abilities": [
+      "am.a.rearm-reload-fire",
+      "am.a.patrol-squads"
+    ],
+    "coreAbilities": [],
+    "points": [
+      {
+        "models": 2,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "heavy",
+      "kit": "generic-heavy"
+    }
+  }
+]

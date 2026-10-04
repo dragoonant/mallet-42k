@@ -184,6 +184,18 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
             </mesh>
           </>
         )}
+        {config.chestCross && (
+          <group position={[0, TORSO_H * 0.55, torsoDepth / 2 + 0.008]}>
+            <mesh>
+              <GBox args={[torsoWidth * 0.5, torsoWidth * 0.14, 0.02]} />
+              <StdMat color={colors.decal} roughness={0.6} />
+            </mesh>
+            <mesh>
+              <GBox args={[torsoWidth * 0.14, torsoWidth * 0.5, 0.02]} />
+              <StdMat color={colors.decal} roughness={0.6} />
+            </mesh>
+          </group>
+        )}
         {config.hasBackpack && (
           <mesh position={[0, TORSO_H * 0.62, -torsoDepth / 2 - 0.05 * bulk]}>
             <GBox args={[torsoWidth * 0.7, TORSO_H * 0.65, 0.1 * bulk]} />
@@ -487,6 +499,80 @@ function HeadBody({
           <mesh position={[radius * 0.32, -radius * 0.05, radius * 0.93]}>
             <GBox args={[radius * 0.2, radius * 0.2, radius * 0.1]} />
             <StdMat color={VISOR} roughness={0.4} />
+          </mesh>
+        </group>
+      )
+    }
+    case 'guard-helmet':
+      // Bare human face under a rounded olive helmet with a pale brim and a red unit stripe.
+      return (
+        <group>
+          <HeadBlob radius={radius} color={skinColor ?? MARINE_SKIN} />
+          <mesh position={[0, radius * 0.28, 0]} scale={[1, 0.8, 1.04]}>
+            <GSphere args={[radius * 1.1, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.5]} />
+            <StdMat color={colors.primary} roughness={0.6} />
+          </mesh>
+          <mesh position={[0, radius * 0.3, 0]}>
+            <GCylinder args={[radius * 1.14, radius * 1.14, radius * 0.1, 14]} />
+            <StdMat color={colors.metal} roughness={0.55} metalness={0.3} />
+          </mesh>
+          <mesh position={[0, radius * 0.62, radius * 0.5]}>
+            <GBox args={[radius * 0.28, radius * 0.1, radius * 0.7]} />
+            <StdMat color={colors.decal} roughness={0.6} />
+          </mesh>
+        </group>
+      )
+    case 'officer-cap':
+      // Officer peaked cap: flat crown, gold band and a visor over a bare face.
+      return (
+        <group>
+          <HeadBlob radius={radius} color={skinColor ?? MARINE_SKIN} />
+          <mesh position={[0, radius * 0.62, 0]}>
+            <GCylinder args={[radius * 1.1, radius * 0.98, radius * 0.5, 14]} />
+            <StdMat color={colors.primary} roughness={0.6} />
+          </mesh>
+          <mesh position={[0, radius * 0.42, 0]}>
+            <GCylinder args={[radius * 1.12, radius * 1.12, radius * 0.1, 14]} />
+            <StdMat color={colors.trim} roughness={0.35} metalness={0.7} />
+          </mesh>
+          <mesh position={[0, radius * 0.4, radius * 0.95]}>
+            <GBox args={[radius * 1.2, radius * 0.06, radius * 0.5]} />
+            <StdMat color={VISOR} roughness={0.3} />
+          </mesh>
+          <mesh position={[0, radius * 0.66, radius * 1.05]}>
+            <GBox args={[radius * 0.3, radius * 0.3, radius * 0.06]} />
+            <StdMat color={colors.decal} roughness={0.5} />
+          </mesh>
+        </group>
+      )
+    case 'sentinel-cab': {
+      // A walker boxy cockpit: armoured hull, dark viewport slit, sensor mast and a top hatch.
+      const r = radius * 1.35
+      return (
+        <group position={[0, r * 0.1, 0]}>
+          <mesh>
+            <GBox args={[r * 2.1, r * 1.5, r * 1.9]} />
+            <StdMat color={colors.primary} roughness={0.55} metalness={0.2} />
+          </mesh>
+          <mesh position={[0, r * 0.1, r * 0.96]}>
+            <GBox args={[r * 1.6, r * 0.55, r * 0.1]} />
+            <StdMat color={VISOR} roughness={0.2} metalness={0.5} />
+          </mesh>
+          <mesh position={[0, -r * 0.55, 0]}>
+            <GBox args={[r * 2.2, r * 0.16, r * 2.0]} />
+            <StdMat color={colors.trim} roughness={0.45} metalness={0.5} />
+          </mesh>
+          <mesh position={[r * 0.55, r * 0.95, -r * 0.2]}>
+            <GCylinder args={[r * 0.05, r * 0.05, r * 0.7, 6]} />
+            <StdMat color={colors.metal} metalness={0.6} />
+          </mesh>
+          <mesh position={[0, r * 0.82, r * 0.1]}>
+            <GCylinder args={[r * 0.4, r * 0.4, r * 0.18, 10]} />
+            <StdMat color={colors.metal} metalness={0.5} roughness={0.5} />
+          </mesh>
+          <mesh position={[-r * 1.02, 0, 0]}>
+            <GBox args={[r * 0.06, r * 0.5, r * 0.5]} />
+            <StdMat color={colors.decal} roughness={0.6} />
           </mesh>
         </group>
       )

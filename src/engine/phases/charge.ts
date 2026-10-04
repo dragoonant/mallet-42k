@@ -97,6 +97,8 @@ function candidateTargets(state: GameState, unitId: UnitId): UnitId[] {
 function canDeclareCharge(state: GameState, unitId: UnitId): boolean {
   if (hasKeyword(state, unitId, 'AIRCRAFT')) return false
   if (leaderService.inEngagementWithEnemy?.(state, unitId)) return false
+  // C6: a forbid:'charge' effect (Artillery Strike) stops the unit declaring any charge
+  if (leaderService.halves(state, unitId).some((id) => hookService.chargeForbidden(state, id))) return false
   const moveType = state.units[unitId].turn.moveType
   if ((moveType === 'advance' || moveType === 'fallBack') && !(hookService.eligibilityFor?.(state, unitId, 'charge') ?? false)) return false
   return candidateTargets(state, unitId).length > 0

@@ -71,6 +71,8 @@ export interface RuntimeModelProfile {
   height: number
   stats: Stats
   weapons: WeaponId[]
+  // model-only keywords (Composition.keywords, e.g. a Command Squad's CHARACTER/OFFICER sergeant); absent for most models
+  keywords?: Keyword[]
 }
 
 export interface RuntimeDatasheet {
@@ -172,6 +174,8 @@ export interface ActiveEffect {
   sourceUnitId: UnitId | null
   effect: EffectList
   scope: Scope
+  // scope 'bearer' only: the single model the effect belongs to (Epic Challenge); absent = every model of the holder
+  bearerModelId?: ModelId
   expires: { kind: 'phaseEnd' | 'turnEnd' | 'nextOwnTurn' | 'roundEnd' | 'battle'; round: number; player: PlayerId | null }
   when: AbilityDescriptor['when'] | null
 }

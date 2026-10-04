@@ -45,7 +45,7 @@ import type { AttackContext, EffectRequest, RollModifierResult } from './hooks'
 import { leaderService } from './leaders'
 import type { AdvanceResult, DecisionHandler, EngineContext } from './modules'
 import { tryDeathBlow } from './deathblow'
-import { datasheetOf, hasKeyword, keywordsOf, modelStats, removeModel, unitModels } from './state'
+import { datasheetOf, hasKeyword, keywordsOf, modelKeywordsOf, modelStats, recordModelAttacked, removeModel, unitModels } from './state'
 import { weaponService } from './weapons'
 import { fightOnDeathThreshold } from './fight-on-death'
 import type { AttackRollContext } from './events'
@@ -176,6 +176,20 @@ function computeAttackCount(ctx: EngineContext, gi: number, group: AttackGroup, 
         modifiers, unitId: attackSeq(ctx).attackerUnitId, modelId: attackerModelId, weaponId: group.weaponId, commandRerollable: true,
       })
       if (!roll) return 'pending'
+      // C4: a source (Gunnery Officer) lets the attacker's player re-roll the Attacks roll once (a die is never re-rolled twice)
+      const source = ctx.services.hooks.attackCountRerollSource?.(s, attackerModelId, weapon) ?? null
+      if (source && roll.dice.some((_, i) => canReroll(roll, i)) && ctx.once(`attackCountOffered:${gi}`)) {
+        const player = attackerUnit.player
+        ctx.decide({
+          kind: 'chooseOption', player, window: 'any.rollMade', canPass: false,
+          context: { topic: 'rerollOffer', unitId: attackSeq(ctx).attackerUnitId, abilityId: source, data: { rollId: roll.id, dieIndexes: roll.dice.map((_, i) => i), needed: null, purpose: 'attacks', key: `attacks:${gi}`, source } },
+          options: [
+            { id: 'reroll', label: 'Re-roll', action: { type: 'chooseOption', player, decisionId: '', optionId: 'reroll' } },
+            { id: 'keep', label: 'Keep', action: { type: 'chooseOption', player, decisionId: '', optionId: 'keep' } },
+          ],
+        })
+        return 'pending'
+      }
       base = rollSum(roll)
     }
   }
@@ -191,7 +205,10 @@ function computeAttackCount(ctx: EngineContext, gi: number, group: AttackGroup, 
   for (const { result } of ctx.services.hooks.collect(ctx, 'onAttackCount', { attack: actx, attacks: base })) {
     if (result.kind === 'attacks' && result.delta) base += result.delta
   }
-  return clampStat('A', base)
+  const total = clampStat('A', base)
+  // C5: once a model's attack count for a weapon is at least 1 it has attacked (Lone Operative from Gunnery Officer lapses)
+  if (total >= 1) for (const id of group.attackerModelIds) recordModelAttacked(s, id)
+  return total
 }
 
 // ---------- current-attack lifecycle ----------
@@ -603,7 +620,7 @@ function doAllocateStage(ctx: EngineContext, gi: number, group: AttackGroup): 'p
     // wounds) on a visible attached CHARACTER that normal allocation would shield. Offered as an allocateAttack
     // decision to the attacker (options = those CHARACTER models; pass = allocate normally). A CHARACTER picked this
     // way bypasses the R-6.13 wounded/allocated-first rule, which governs only the defender's normal allocation.
-    const chars = leaderService.halves(s, targetUnitId).flatMap((id) => unitModels(s, id)).filter((m) => hasKeyword(s, m.unitId, 'CHARACTER'))
+    const chars = leaderService.halves(s, targetUnitId).flatMap((id) => unitModels(s, id)).filter((m) => modelKeywordsOf(s, m.id).includes('CHARACTER'))
     const visibleCharacterIds = chars.filter((m) => !eligible.includes(m.id) && ctx.services.los.visible(s, cur.attackerModelId, m.id)).map((m) => m.id)
     if (visibleCharacterIds.length > 0) {
       const attacker = s.units[a.attackerUnitId].player
@@ -1009,7 +1026,7 @@ function tickHazardous(ctx: EngineContext): 'pending' | 'progress' | 'none' {
   }
   const candidates = (leaderService.combinedModels ? leaderService.combinedModels(s, a.attackerUnitId) : unitModels(s, a.attackerUnitId)).filter((m) => m.weapons.includes(weaponId))
   const wounded = candidates.filter((m) => m.woundsRemaining < modelStats(s, m).W)
-  const nonChar = candidates.filter((m) => !hasKeyword(s, m.unitId, 'CHARACTER'))
+  const nonChar = candidates.filter((m) => !modelKeywordsOf(s, m.id).includes('CHARACTER'))
   const pool = wounded.length > 0 ? wounded : nonChar.length > 0 ? nonChar : candidates
   if (pool.length === 0) {
     ctx.emit({ type: 'HazardousTested', unitId: a.attackerUnitId, weaponId, die, failed: true, modelId: null })
@@ -1072,7 +1089,7 @@ function rollDeadlyDemise(ctx: EngineContext, model: Model, valueExpr: DiceExpr)
 
 // prefixes that only ever mean something WITHIN the one attack sequence that wrote them — stale entries left over
 // from an earlier, already-finished sequence in the same phase must never leak into a new one (SHOOT-046-dice)
-const SEQUENCE_SCOPED_MARK_PREFIXES = ['roll:', 'miracle:', 'miracleAsk:', 'rerollOffered:', 'autoReroll:', 'precisionDeclined:','hazardous:', 'groupTouched:', 'mortalAlloc:', 'mortalBatchSeq:', 'blastCount:', 'pendingDetach:', 'bgntAttacker', 'bgntTarget:', 'indirectNoLos:']
+const SEQUENCE_SCOPED_MARK_PREFIXES = ['roll:', 'attackCountOffered:', 'miracle:', 'miracleAsk:', 'rerollOffered:', 'autoReroll:', 'precisionDeclined:','hazardous:', 'groupTouched:', 'mortalAlloc:', 'mortalBatchSeq:', 'blastCount:', 'pendingDetach:', 'bgntAttacker', 'bgntTarget:', 'indirectNoLos:']
 
 export const attackService: AttackService = {
   begin(ctx, spec) {
@@ -1099,6 +1116,8 @@ export const attackService: AttackService = {
       for (const weaponId of order) {
         for (const e of entries.filter((x) => x.weaponId === weaponId)) {
           groups.push({ weaponId, targetUnitId, attackerModelIds: [e.modelId], attacks: e.attacks ?? 0, resolved: 0, devastatingPending: 0 })
+          // C5: a declared attack count (melee) of at least 1 means the model attacks; rolled counts are recorded in computeAttackCount
+          if ((e.attacks ?? 0) >= 1) recordModelAttacked(ctx.state, e.modelId)
         }
       }
       // WEAP-006-selection/attached: snapshot the combined (both-halves) model count now, at target selection, so
@@ -1296,7 +1315,7 @@ export const attackService: AttackService = {
             const roll = s.phaseState.lastRoll
             if (!roll || roll.id !== data.rollId) throw new EngineInvariantError('rerollOffer: roll is no longer current', { rollId: data.rollId })
             // M9: the player may pick a subset of the offered dice (validated in the reducer); absent = every offered die
-            ctx.reroll(roll, action.dieIndexes ?? data.dieIndexes, 'rerollOffer')
+            ctx.reroll(roll, action.dieIndexes ?? data.dieIndexes, (data as { source?: string }).source ?? 'rerollOffer')
           }
           return
         }

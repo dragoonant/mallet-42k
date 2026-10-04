@@ -107,6 +107,11 @@ const CHOOSE_OPTION_INFO: Partial<Record<ChooseOptionTopic, { title: string; hin
   chooseSide: { title: 'Choose your side', hint: 'Pick which deployment zone your army sets up in.' },
 }
 
+const METHODICAL_INFO = {
+  title: 'Methodical Destruction target',
+  hint: 'Name one enemy unit that is still alive. If it has been destroyed by the end of this battle round, by anyone or anything, you score 4 VP.',
+}
+
 /** Necron rules reach the player as chooseOption prompts with the generic 'abilityChoice' (or 'other') topic, so
  *  the ability id is what says which rule is asking. Own-words text; matched by id fragment so a renamed
  *  prefix or a variant of the same rule still reads right. */
@@ -224,6 +229,17 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
     },
   },
   {
+    match: /voice-of-command/,
+    info: {
+      title: 'Issue an Order?',
+      hint: 'Your officer barks one Order at a friendly unit nearby. It lasts until your next Command phase, or until the unit is battle-shocked, and a new Order replaces the old one. Move! Move! Move! adds 3" of Move; Take Aim! makes ranged attacks hit one step easier; Take Cover! improves saves by 1 (never past 3+).',
+    },
+  },
+  {
+    match: /methodical-destruction/,
+    info: METHODICAL_INFO,
+  },
+  {
     match: /reanimation/,
     info: {
       title: 'Reanimation Protocols',
@@ -253,7 +269,12 @@ function miraclePool(data: Record<string, unknown> | undefined): number[] {
   return Array.isArray(pool) ? pool.filter((v): v is number => typeof v === 'number') : []
 }
 
-function chooseOptionInfoFor(context: { topic: ChooseOptionTopic; abilityId: string | null; data?: Record<string, unknown> }): { title: string; hint: string } | undefined {
+function chooseOptionInfoFor(
+  context: { topic: ChooseOptionTopic; abilityId: string | null; data?: Record<string, unknown> },
+  options?: readonly { id: string }[],
+  state?: GameState,
+  player?: string,
+): { title: string; hint: string } | undefined {
   if ((context.topic as string) === MIRACLE_TOPIC) {
     const purpose = typeof context.data?.purpose === 'string' ? ROLL_PURPOSE_LABEL[context.data.purpose] ?? context.data.purpose : 'this'
     const pool = miraclePool(context.data)
@@ -265,7 +286,29 @@ function chooseOptionInfoFor(context: { topic: ChooseOptionTopic; abilityId: str
   const choice = context.data && typeof context.data.choice === 'string' ? CHOICE_PROMPT_KEYS[context.data.choice] : undefined
   const key = context.abilityId ?? choice ?? null
   const byAbility = key ? ABILITY_PROMPT_INFO.find((a) => a.match.test(key)) : undefined
-  return byAbility?.info ?? CHOOSE_OPTION_INFO[context.topic]
+  if (byAbility) return byAbility.info
+  // Order offers carry ids like "am.order.take-aim@A:shock-a" whichever ability id the engine attaches.
+  if (options?.some((o) => ORDER_OPTION.test(o.id))) return ABILITY_PROMPT_INFO.find((a) => a.match.test('voice-of-command'))?.info
+  // Methodical Destruction is a mission-hook pick: no ability id, and every option names an enemy unit.
+  if (context.topic === 'abilityChoice' && !context.abilityId && state && options) {
+    const picks = options.filter((o) => o.id !== 'decline')
+    if (picks.length > 0 && picks.every((o) => state.units[o.id] && state.units[o.id].player !== player)) return METHODICAL_INFO
+  }
+  return CHOOSE_OPTION_INFO[context.topic]
+}
+
+/** Voice of Command option ids: "<order id>@<unit id>" for one unit, "<order id>@all" for Command Laurels. */
+const ORDER_OPTION = /^[^@]*order[^@]*@/i
+
+/** "Take Aim! — Cadian Shock Troops" for an order option, or null when the id is not one. */
+function orderOptionLabel(state: GameState, optionId: string): string | null {
+  if (!ORDER_OPTION.test(optionId)) return null
+  const at = optionId.indexOf('@')
+  const orderId = optionId.slice(0, at)
+  const target = optionId.slice(at + 1)
+  const orderName = state.abilities[orderId]?.name ?? prettifyId(orderId)
+  const targetName = target === 'all' ? 'every Astra Militarum unit' : state.units[target]?.name ?? prettifyId(target)
+  return `${orderName} — ${targetName}`
 }
 
 /** "Pass" is the engine's word for declining, but for some prompts it reads as giving something up
@@ -398,6 +441,8 @@ function labelForOption(pending: PendingDecision, state: GameState, events: read
         const picked = idx?.map((i) => pool[i]).filter((v): v is number => typeof v === 'number')
         return picked && picked.length > 0 ? `Spend a Miracle die (${picked.join(', ')})` : 'Spend a Miracle die'
       }
+      const orderLabel = orderOptionLabel(state, o.id)
+      if (orderLabel) return orderLabel
       if (pending.context.topic === 'razeObjective' || pending.context.topic === 'recoverObjective' || pending.context.topic === 'treasureObjective') return objectiveLabel(o.id)
       return abilityOptionLabel(pending.context.abilityId, o)
     }
@@ -782,7 +827,7 @@ export function DecisionPrompt() {
   // Hover help for whichever option the pointer has rested on.
   const activeHelp = helpForAction(state, listItems.find((it) => it.id === helpFor)?.action)
 
-  const chooseOptionInfo = pending.kind === 'chooseOption' ? chooseOptionInfoFor(pending.context) : undefined
+  const chooseOptionInfo = pending.kind === 'chooseOption' ? chooseOptionInfoFor(pending.context, pending.options, state, pending.player) : undefined
 
   // Both re-roll prompts (Command Re-roll, and an ability's own rerollOffer) are answered in the
   // interactive dice tray (RerollTray.tsx) instead of this panel's text and buttons: the whole roll is shown

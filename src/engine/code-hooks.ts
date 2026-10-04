@@ -7,8 +7,9 @@
 // Gitz!) cannot be resolved inside a stratagem decision: they need the phase modules' placement / attack decisions.
 // Using them records a request in phaseState.marks (`reaction:<json>`); the owning module reads it with
 // `pendingReactions(state)` after its ctx.window(...) call returns false and removes it with `consumeReaction`.
-import type { Effect, Scope, TimingWindowId } from '../data/types'
+import type { CoreAbility, Effect, Scope, TimingWindowId } from '../data/types'
 import type { Action } from './actions'
+import { astraMilitarumHooks } from './factions/astra-militarum'
 import { distance, withinEngagementRange, withinObjectiveRange, OBJECTIVE_MARKER_RADIUS } from './geometry'
 import { adeptaSororitasHooks } from './factions/adepta-sororitas'
 import type { AttackContext, CodeHook, HookName, HookResult } from './hooks'
@@ -19,8 +20,8 @@ import type { EngineContext, Services, WindowTrigger } from './modules'
 import * as tyr from './factions/tyranids'
 import { keywordsOf, modelStats, unitModels } from './state'
 import type {
-  ChooseOptionDecision, ChooseOptionTopic, GameState, PendingDecision, PlayerId, ReactionWindowDecision, Rejection,
-  RuntimeStratagem, Unit, UnitId,
+  ChooseOptionDecision, ChooseOptionTopic, GameState, ModelId, PendingDecision, PlayerId, ReactionWindowDecision, Rejection,
+  RuntimeStratagem, RuntimeWeapon, Unit, UnitId,
 } from './types'
 
 export type ReactionKind = ReactionWindowDecision['context']['reaction']
@@ -46,10 +47,17 @@ export interface EngineCodeHook extends CodeHook {
   gate?(state: GameState, holder: Unit, entry: HookSourceEntry, data?: Record<string, unknown>): boolean
   // extra Battle-shock dice this source gives the testing unit (Tyranid Synapse); the highest value among sources is rolled
   battleShockDice?(state: GameState, testUnitId: UnitId, entry: HookSourceEntry): number
+  // gate for the ActiveEffects a stratagem hook granted (ordinary `gate` is skipped for those): Bring It Down limits its
+  // re-roll to the attackers snapshotted at use time
+  gateActive?(state: GameState, entry: HookSourceEntry, data?: Record<string, unknown>): boolean
   // replaces the source's own scope (Resonant Focus: the enhancement data has no scope, which would default to `bearer`)
   forceScope?: Scope
   // like `gate`, but also consulted for effects an ActiveEffect carries (stratagem grants), where `gate` is skipped (Vindictive Strategy)
   gateEffect?(state: GameState, holder: Unit, entry: HookSourceEntry, data?: Record<string, unknown>): boolean
+  // C4: true when this source lets its player re-roll the Attacks (A) roll of `weapon` fired by `attackerModelId`
+  rerollsAttackCount?(state: GameState, entry: HookSourceEntry, attackerModelId: ModelId, weapon: RuntimeWeapon): boolean
+  // C5: core abilities this source currently grants to `unitId` (Gunnery Officer: LONE_OPERATIVE)
+  grantsCoreAbility?(state: GameState, entry: HookSourceEntry, unitId: UnitId): CoreAbility['ability'][]
   // answers a chooseOption whose context.data.code names this hook, when the hook has no `pick` of its own
   answer?(ctx: EngineContext, action: Action, pending: PendingDecision): Rejection | void
   // side effects at the descriptor's trigger hook, after its `when` passed (Piston-driven Brutality)
@@ -71,6 +79,8 @@ export interface EngineCodeHook extends CodeHook {
   reaction?: ReactionKind
   // friendly unit candidates come from Reserves instead of the battlefield
   reserves?: boolean
+  // friendly unit candidates come from destroyed units (Send in the Next Wave)
+  destroyedTargets?: boolean
   // the hook grants the declarative effect itself (not to targets[0])
   grantsItself?: boolean
   // one option per objective marker (Duty and Honour)
@@ -81,7 +91,7 @@ export interface EngineCodeHook extends CodeHook {
 
 // ---------- reactions recorded for the phase modules ----------
 export interface ReactionRequest {
-  kind: ReactionKind | 'surge'
+  kind: ReactionKind | 'surge' | 'nextWave'
   stratagemId: string
   player: PlayerId
   // the reacting / moving friendly unit
@@ -405,9 +415,11 @@ const epicChallenge: EngineCodeHook = {
   },
   apply(ctx, env, t) {
     const model = ctx.state.models[t.ids[1]]
-    ctx.services.effects.grant(ctx, model.unitId, env.stratagem.effect ?? [], {
+    const active = ctx.services.effects.grant(ctx, model.unitId, env.stratagem.effect ?? [], {
       sourceAbilityId: env.stratagem.id, sourceUnitId: model.unitId, scope: { who: 'bearer' }, duration: env.stratagem.duration ?? 'untilEndOfPhase', when: env.stratagem.when ?? null,
     })
+    // only the picked model (per-model keywords, AST-033) carries the effect, not its whole unit
+    active.bearerModelId = model.id
   },
 }
 
@@ -727,6 +739,9 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   supplyLines: missionHook('supplyLines'),
   sweepingRaidEndgameBonus: missionHook('sweepingRaidEndgameBonus'),
   wrathOfTheEmperor: missionHook('wrathOfTheEmperor'),
+  // astra-militarum (docs/spec/factions/astra-militarum.md §7): voiceOfCommand, commandLaurels, gunneryOfficer, requireActiveOrder,
+  // wargearBearerAlive, holdTheLine, methodicalDestructionPick/Score, sendInTheNextWave, bringItDown, artilleryStrike
+  ...astraMilitarumHooks(),
 }
 
 export type { ChooseOptionDecision }

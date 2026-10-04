@@ -1,0 +1,472 @@
+[
+  {
+    "id": "am.w.bolt-pistol",
+    "name": "Bolt pistol",
+    "type": "ranged",
+    "range": 12,
+    "A": 1,
+    "skill": 4,
+    "S": 4,
+    "AP": 0,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "PISTOL"
+      }
+    ],
+    "figure": {
+      "part": "am.weapon.bolt-pistol",
+      "hands": 1
+    }
+  },
+  {
+    "id": "am.w.lasgun",
+    "name": "Lasgun",
+    "type": "ranged",
+    "range": 24,
+    "A": 1,
+    "skill": 4,
+    "S": 3,
+    "AP": 0,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "RAPID_FIRE",
+        "value": 1
+      }
+    ],
+    "figure": {
+      "part": "am.weapon.lasgun",
+      "hands": 2
+    }
+  },
+  {
+    "id": "am.w.laspistol",
+    "name": "Laspistol",
+    "type": "ranged",
+    "range": 12,
+    "A": 1,
+    "skill": 4,
+    "S": 3,
+    "AP": 0,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "PISTOL"
+      }
+    ],
+    "figure": {
+      "part": "am.weapon.laspistol",
+      "hands": 1
+    }
+  },
+  {
+    "id": "am.w.plasma-pistol",
+    "name": "Plasma pistol (standard)",
+    "type": "ranged",
+    "range": 12,
+    "A": 1,
+    "skill": 4,
+    "S": 7,
+    "AP": -2,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "PISTOL"
+      }
+    ],
+    "figure": {
+      "part": "am.weapon.plasma-pistol",
+      "hands": 1
+    },
+    "profileGroup": "am.w.plasma-pistol"
+  },
+  {
+    "id": "am.w.plasma-pistol-supercharge",
+    "name": "Plasma pistol (supercharge)",
+    "type": "ranged",
+    "range": 12,
+    "A": 1,
+    "skill": 4,
+    "S": 8,
+    "AP": -3,
+    "D": 2,
+    "abilities": [
+      {
+        "ability": "PISTOL"
+      },
+      {
+        "ability": "HAZARDOUS"
+      }
+    ],
+    "figure": {
+      "part": "am.weapon.plasma-pistol",
+      "hands": 1
+    },
+    "profileGroup": "am.w.plasma-pistol"
+  },
+  {
+    "id": "am.w.drum-fed-autogun",
+    "name": "Drum-fed autogun",
+    "type": "ranged",
+    "range": 24,
+    "A": 2,
+    "skill": 4,
+    "S": 3,
+    "AP": 0,
+    "D": 1,
+    "abilities": [],
+    "figure": {
+      "part": "am.weapon.drum-fed-autogun",
+      "hands": 2
+    }
+  },
+  {
+    "id": "am.w.flamer",
+    "name": "Flamer",
+    "type": "ranged",
+    "range": 12,
+    "A": "D6",
+    "skill": null,
+    "S": 4,
+    "AP": 0,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "TORRENT"
+      },
+      {
+        "ability": "IGNORES_COVER"
+      }
+    ],
+    "figure": {
+      "part": "am.weapon.flamer",
+      "hands": 2
+    }
+  },
+  {
+    "id": "am.w.grenade-launcher-frag",
+    "name": "Grenade launcher (frag)",
+    "type": "ranged",
+    "range": 24,
+    "A": "D3",
+    "skill": 4,
+    "S": 4,
+    "AP": 0,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "BLAST"
+      }
+    ],
+    "figure": {
+      "part": "am.weapon.grenade-launcher",
+      "hands": 2
+    },
+    "profileGroup": "am.w.grenade-launcher"
+  },
+  {
+    "id": "am.w.grenade-launcher-krak",
+    "name": "Grenade launcher (krak)",
+    "type": "ranged",
+    "range": 24,
+    "A": 1,
+    "skill": 4,
+    "S": 9,
+    "AP": -2,
+    "D": "D3",
+    "abilities": [],
+    "figure": {
+      "part": "am.weapon.grenade-launcher",
+      "hands": 2
+    },
+    "profileGroup": "am.w.grenade-launcher"
+  },
+  {
+    "id": "am.w.meltagun",
+    "name": "Meltagun",
+    "type": "ranged",
+    "range": 12,
+    "A": 1,
+    "skill": 4,
+    "S": 9,
+    "AP": -4,
+    "D": "D6",
+    "abilities": [
+      {
+        "ability": "MELTA",
+        "value": 2
+      }
+    ],
+    "figure": {
+      "part": "am.weapon.meltagun",
+      "hands": 2
+    }
+  },
+  {
+    "id": "am.w.plasma-gun",
+    "name": "Plasma gun (standard)",
+    "type": "ranged",
+    "range": 24,
+    "A": 1,
+    "skill": 4,
+    "S": 7,
+    "AP": -2,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "RAPID_FIRE",
+        "value": 1
+      }
+    ],
+    "figure": {
+      "part": "am.weapon.plasma-gun",
+      "hands": 2
+    },
+    "profileGroup": "am.w.plasma-gun"
+  },
+  {
+    "id": "am.w.plasma-gun-supercharge",
+    "name": "Plasma gun (supercharge)",
+    "type": "ranged",
+    "range": 24,
+    "A": 1,
+    "skill": 4,
+    "S": 8,
+    "AP": -3,
+    "D": 2,
+    "abilities": [
+      {
+        "ability": "RAPID_FIRE",
+        "value": 1
+      },
+      {
+        "ability": "HAZARDOUS"
+      }
+    ],
+    "figure": {
+      "part": "am.weapon.plasma-gun",
+      "hands": 2
+    },
+    "profileGroup": "am.w.plasma-gun"
+  },
+  {
+    "id": "am.w.bombast-field-gun",
+    "name": "Bombast field gun",
+    "type": "ranged",
+    "range": 48,
+    "A": "D6",
+    "skill": 5,
+    "S": 7,
+    "AP": -1,
+    "D": 2,
+    "abilities": [
+      {
+        "ability": "BLAST"
+      },
+      {
+        "ability": "HEAVY"
+      },
+      {
+        "ability": "INDIRECT_FIRE"
+      }
+    ],
+    "figure": {
+      "part": "am.weapon.bombast-field-gun"
+    }
+  },
+  {
+    "id": "am.w.malleus-rocket-launcher",
+    "name": "Malleus rocket launcher",
+    "type": "ranged",
+    "range": 48,
+    "A": "D6+6",
+    "skill": 5,
+    "S": 6,
+    "AP": -1,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "BLAST"
+      },
+      {
+        "ability": "HEAVY"
+      }
+    ],
+    "figure": {
+      "part": "am.weapon.malleus-rocket-launcher"
+    }
+  },
+  {
+    "id": "am.w.hunter-killer-missile",
+    "name": "Hunter-killer missile",
+    "type": "ranged",
+    "range": 48,
+    "A": 1,
+    "skill": 4,
+    "S": 14,
+    "AP": -3,
+    "D": "D6",
+    "abilities": [
+      {
+        "ability": "ONE_SHOT"
+      }
+    ],
+    "figure": {
+      "part": "am.weapon.hunter-killer-missile"
+    }
+  },
+  {
+    "id": "am.w.plasma-cannon",
+    "name": "Plasma cannon (standard)",
+    "type": "ranged",
+    "range": 36,
+    "A": "D3",
+    "skill": 4,
+    "S": 7,
+    "AP": -2,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "BLAST"
+      }
+    ],
+    "figure": {
+      "part": "am.weapon.plasma-cannon"
+    },
+    "profileGroup": "am.w.plasma-cannon"
+  },
+  {
+    "id": "am.w.plasma-cannon-supercharge",
+    "name": "Plasma cannon (supercharge)",
+    "type": "ranged",
+    "range": 36,
+    "A": "D3",
+    "skill": 4,
+    "S": 8,
+    "AP": -3,
+    "D": 2,
+    "abilities": [
+      {
+        "ability": "BLAST"
+      },
+      {
+        "ability": "HAZARDOUS"
+      }
+    ],
+    "figure": {
+      "part": "am.weapon.plasma-cannon"
+    },
+    "profileGroup": "am.w.plasma-cannon"
+  },
+  {
+    "id": "am.w.power-weapon",
+    "name": "Power weapon",
+    "type": "melee",
+    "range": 0,
+    "A": 3,
+    "skill": 4,
+    "S": 4,
+    "AP": -2,
+    "D": 1,
+    "abilities": [],
+    "figure": {
+      "part": "am.weapon.power-weapon",
+      "hands": 1
+    }
+  },
+  {
+    "id": "am.w.power-fist",
+    "name": "Power fist",
+    "type": "melee",
+    "range": 0,
+    "A": 3,
+    "skill": 4,
+    "S": 6,
+    "AP": -2,
+    "D": 2,
+    "abilities": [],
+    "figure": {
+      "part": "am.weapon.power-fist",
+      "hands": 1
+    }
+  },
+  {
+    "id": "am.w.close-combat-weapon-command",
+    "name": "Close combat weapon",
+    "type": "melee",
+    "range": 0,
+    "A": 2,
+    "skill": 4,
+    "S": 3,
+    "AP": 0,
+    "D": 1,
+    "abilities": [],
+    "figure": {
+      "part": "am.weapon.close-combat-weapon-command",
+      "hands": 1
+    }
+  },
+  {
+    "id": "am.w.chainsword",
+    "name": "Chainsword",
+    "type": "melee",
+    "range": 0,
+    "A": 3,
+    "skill": 4,
+    "S": 3,
+    "AP": 0,
+    "D": 1,
+    "abilities": [],
+    "figure": {
+      "part": "am.weapon.chainsword",
+      "hands": 1
+    }
+  },
+  {
+    "id": "am.w.close-combat-weapon",
+    "name": "Close combat weapon",
+    "type": "melee",
+    "range": 0,
+    "A": 1,
+    "skill": 4,
+    "S": 3,
+    "AP": 0,
+    "D": 1,
+    "abilities": [],
+    "figure": {
+      "part": "am.weapon.close-combat-weapon",
+      "hands": 1
+    }
+  },
+  {
+    "id": "am.w.battery-close-combat-weapons",
+    "name": "Battery close combat weapons",
+    "type": "melee",
+    "range": 0,
+    "A": 3,
+    "skill": 4,
+    "S": 3,
+    "AP": 0,
+    "D": 1,
+    "abilities": [],
+    "figure": {
+      "part": "am.weapon.battery-close-combat-weapons"
+    }
+  },
+  {
+    "id": "am.w.close-combat-weapon-sentinel",
+    "name": "Close combat weapon",
+    "type": "melee",
+    "range": 0,
+    "A": 2,
+    "skill": 4,
+    "S": 6,
+    "AP": 0,
+    "D": 1,
+    "abilities": [],
+    "figure": {
+      "part": "am.weapon.close-combat-weapon-sentinel"
+    }
+  }
+]

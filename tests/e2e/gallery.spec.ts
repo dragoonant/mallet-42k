@@ -158,3 +158,10 @@ test('gallery filtered to Chaos Space Marines', async ({ page }) => {
   await settle(page)
   await page.screenshot({ path: 'e2e-out/14-chaos-space-marines.png' })
 })
+
+test('gallery filtered to Astra Militarum', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await page.goto('/?gallery&faction=astra-militarum')
+  await settle(page)
+  await page.screenshot({ path: 'e2e-out/14-astra-militarum.png' })
+})

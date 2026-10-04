@@ -7,7 +7,7 @@ import type { CoreAbilityName } from '../data/types'
 import { parseDiceExpr } from './dice'
 import { mmToInch, transformPolygon } from './geometry'
 import { hookService } from './hooks-impl'
-import { otherPlayer } from './modules'
+import { otherPlayer, type EngineContext } from './modules'
 import { createRng } from './rng'
 import {
   EngineInvariantError,
@@ -156,9 +156,32 @@ export function modelProfile(state: GameState, model: Model): RuntimeModelProfil
 
 export function modelStats(state: GameState, model: Model): Stats { return modelProfile(state, model).stats }
 
+// C1: keywords of one model = datasheet keywords + faction keywords + the model's own composition keywords
+export function modelKeywordsOf(state: GameState, modelId: ModelId): string[] {
+  const model = state.models[modelId]
+  if (!model) throw new EngineInvariantError(`modelKeywordsOf: unknown model ${modelId}`)
+  const ds = datasheetOf(state, model.unitId)
+  const own = ds.models.find((m) => m.modelId === model.datasheetModelId)?.keywords
+  return own && own.length > 0 ? [...new Set([...ds.keywords, ...ds.factionKeywords, ...own])] : [...ds.keywords, ...ds.factionKeywords]
+}
+
+// a unit's keywords: the union over its living models' keywords (datasheet-wide union when it has no models)
 export function keywordsOf(state: GameState, unitId: UnitId): string[] {
   const ds = datasheetOf(state, unitId)
-  return [...ds.keywords, ...ds.factionKeywords]
+  const base = [...ds.keywords, ...ds.factionKeywords]
+  if (!ds.models.some((m) => m.keywords && m.keywords.length > 0)) return base
+  const unit = state.units[unitId]
+  const out = new Set(base)
+  if (unit && unit.models.length > 0) {
+    for (const id of unit.models) {
+      const model = state.models[id]
+      const k = model ? ds.models.find((m) => m.modelId === model.datasheetModelId)?.keywords : undefined
+      if (k) for (const w of k) out.add(w)
+    }
+  } else {
+    for (const m of ds.models) for (const w of m.keywords ?? []) out.add(w)
+  }
+  return [...out]
 }
 
 export function hasKeyword(state: GameState, unitId: UnitId, keyword: string): boolean { return keywordsOf(state, unitId).includes(keyword) }
@@ -227,6 +250,54 @@ export function spawnUnitCopy(state: GameState, sourceUnitId: UnitId, modelCount
   return unit
 }
 
+// C3 (Send in the Next Wave): a fresh copy of a destroyed unit, at full strength, set aside in Reserves. The new unit has id
+// `${source}~${n}`; its models are rebuilt from the source's living and destroyed models (same datasheet model, weapons,
+// base and height, full Wounds, no one-shot weapons used). No leader link, enhancement or warlord flag.
+export function spawnDestroyedUnitCopy(ctx: EngineContext, sourceUnitId: UnitId): Unit {
+  const s = ctx.state
+  const src = s.units[sourceUnitId]
+  if (!src) throw new EngineInvariantError(`spawnDestroyedUnitCopy: unknown unit ${sourceUnitId}`)
+  const prefix = `${sourceUnitId}~`
+  const n = 1 + Object.keys(s.units).filter((id) => id.startsWith(prefix)).length
+  const newId = `${prefix}${n}`
+  const indexOf = (id: string): number => Number(id.slice(id.lastIndexOf('#') + 1))
+  const byId = new Map<string, Model>()
+  for (const m of src.destroyedModels ?? []) byId.set(m.id, m)
+  for (const id of src.models) if (s.models[id]) byId.set(id, s.models[id])
+  const sources = [...byId.values()].sort((a, b) => indexOf(a.id) - indexOf(b.id))
+  const ds = datasheetOf(s, sourceUnitId)
+  const modelIds: ModelId[] = []
+  sources.forEach((m, i) => {
+    const id = modelIdFor(newId, i)
+    const profile = ds.models.find((p) => p.modelId === m.datasheetModelId)
+    s.models[id] = {
+      id, unitId: newId, datasheetModelId: m.datasheetModelId, pos: { x: 0, y: 0, z: 0 }, facing: 0, base: { ...m.base }, height: m.height,
+      woundsRemaining: profile ? profile.stats.W : m.woundsRemaining, weapons: [...m.weapons], oneShotUsed: [],
+      flags: { allocatedThisPhase: false, inBaseContactWithEnemy: false, desperateEscapeTested: false },
+    }
+    modelIds.push(id)
+  })
+  const unit: Unit = {
+    id: newId, player: src.player, ref: `${src.ref}~${n}`, datasheetId: src.datasheetId, name: src.name, models: modelIds,
+    startingStrength: src.startingStrength, location: 'reserves', attachedLeaderId: null, bodyguardUnitId: null, battleShocked: false,
+    battleShockExpiresRound: null, turn: emptyTurnState(), effects: [], enhancementId: null, isWarlord: false, deepStrikeWith: null,
+    destroyedBy: null, destroyedModels: [],
+  }
+  s.units[newId] = unit
+  ctx.emit({ type: 'UnitDeployed', unitId: newId, toReserves: true, player: src.player })
+  return unit
+}
+
+// C5: which models have made at least one attack this battle (Gunnery Officer's Lone Operative lapses once a model has
+// attacked); kept in mission.custom so the frozen GameState type is unchanged
+export function recordModelAttacked(state: GameState, modelId: ModelId): void {
+  const list = (state.mission.custom.attackedModelIds as ModelId[] | undefined) ?? []
+  if (!list.includes(modelId)) state.mission.custom.attackedModelIds = [...list, modelId]
+}
+export function modelHasAttacked(state: GameState, modelId: ModelId): boolean {
+  return ((state.mission.custom.attackedModelIds as ModelId[] | undefined) ?? []).includes(modelId)
+}
+
 // P4: sides chosen → player.side, objective homes (mission 'A' = attacker, 'B' = defender)
 export function assignSides(state: GameState, attacker: PlayerId): void {
   const defender = otherPlayer(attacker)
@@ -284,6 +355,7 @@ function toRuntimeDatasheet(ds: DatasheetData, abilityIds: string[], leaderEffec
     height: DEFAULT_HEIGHT_BY_ARCHETYPE[c.figure?.archetype ?? ds.figure.archetype] ?? 1.6,
     stats: { ...ds.stats, ...(c.statsOverride ?? {}) },
     weapons: [...c.weapons.default],
+    ...(c.keywords && c.keywords.length > 0 ? { keywords: [...c.keywords] } : {}),
   }))
   return {
     id: ds.id, name: ds.name, faction: ds.faction, keywords: ds.keywords, factionKeywords: ds.factionKeywords, stats: ds.stats,
@@ -305,6 +377,13 @@ function buildBoard(bundle: DataBundle, layoutId: string, mission: MissionData):
     }
   }
   return { w: mission.board.w, h: mission.board.h, pieces, layoutId }
+}
+
+// C1: the enhancement bearer is the first model with the CHARACTER keyword, else the unit's first model
+function enhancementBearer(unit: Unit, ds: RuntimeDatasheet, models: Record<ModelId, Model>): ModelId {
+  const hasChar = (id: ModelId): boolean => ds.keywords.includes('CHARACTER') || ds.factionKeywords.includes('CHARACTER')
+    || (ds.models.find((m) => m.modelId === models[id].datasheetModelId)?.keywords ?? []).includes('CHARACTER')
+  return unit.models.find(hasChar) ?? unit.models[0]
 }
 
 export function createGameState(setup: GameSetup, bundle: DataBundle, seed: string, engineVersion: string): GameState {
@@ -329,7 +408,12 @@ export function createGameState(setup: GameSetup, bundle: DataBundle, seed: stri
     validateDescriptorDice(d)
     let id = d.id
     if (abilities[id] && bearerModelId !== null && abilities[id].bearerModelId !== bearerModelId) id = `${d.id}@${bearerModelId}`
-    if (!abilities[id]) abilities[id] = { ...d, id, source, bearerModelId }
+    if (!abilities[id]) {
+      abilities[id] = { ...d, id, source, bearerModelId }
+      // abilities that hand out other abilities as granted effects (Orders) register those too, so their params are readable
+      const orderIds = d.params?.orderIds
+      if (Array.isArray(orderIds)) for (const oid of orderIds) if (typeof oid === 'string') addAbility(oid, 'core')
+    }
     return id
   }
   const addWeapon = (id: string): void => {
@@ -362,7 +446,9 @@ export function createGameState(setup: GameSetup, bundle: DataBundle, seed: stri
     if (!secondary) throw new EngineInvariantError(`secondary '${ps.secondaryId}' is not offered by patrol '${patrol.id}'`)
     secondaries[pid] = secondary.scoring
     for (const sid of patrol.stratagems) stratagems[sid] = req(bundle.stratagems, sid, 'stratagem')
-    addAbility(faction.armyRule, 'core')
+    const armyRuleId = addAbility(faction.armyRule, 'core')
+    // Orders (Astra Militarum Voice of Command) are ability records that sit on no datasheet and are only granted as ActiveEffects
+    for (const orderId of (abilities[armyRuleId].params?.orderIds as string[] | undefined) ?? []) addAbility(orderId, 'core')
 
     const refs = new Set<string>()
     let warlordUnitId: UnitId | null = null
@@ -430,7 +516,8 @@ export function createGameState(setup: GameSetup, bundle: DataBundle, seed: stri
     // enhancement on the warlord (CP-1.4)
     const enh = req(bundle.enhancements, ps.enhancementId, 'enhancement')
     const wl = units[warlordUnitId]
-    const wlKeywords = [...datasheets[wl.datasheetId].keywords, ...datasheets[wl.datasheetId].factionKeywords]
+    const wlDs = datasheets[wl.datasheetId]
+    const wlKeywords = [...wlDs.keywords, ...wlDs.factionKeywords, ...wl.models.flatMap((id) => wlDs.models.find((m) => m.modelId === models[id].datasheetModelId)?.keywords ?? [])]
     for (const k of enh.restriction.keyword ?? []) if (!wlKeywords.includes(k)) throw new EngineInvariantError(`enhancement '${enh.id}' requires keyword ${k} on the warlord`)
     for (const k of enh.restriction.notKeyword ?? []) if (wlKeywords.includes(k)) throw new EngineInvariantError(`enhancement '${enh.id}' cannot be taken by a ${k} warlord`)
     if (enh.choice) {
@@ -446,7 +533,7 @@ export function createGameState(setup: GameSetup, bundle: DataBundle, seed: stri
     }
     wl.enhancementId = enh.id
     const enhDescriptor = resolveAbility(bundle, enh.effect)
-    const enhAbilityId = addAbility({ ...enhDescriptor, scope: enhDescriptor.scope ?? { who: 'bearer' } }, 'enhancement', wl.models[0])
+    const enhAbilityId = addAbility({ ...enhDescriptor, scope: enhDescriptor.scope ?? { who: 'bearer' } }, 'enhancement', enhancementBearer(wl, wlDs, models))
     void enhAbilityId
 
     // leader attachments (R-10.1)

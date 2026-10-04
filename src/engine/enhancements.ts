@@ -3,6 +3,7 @@
 // Tellyporta-style `choice` pairs Unit.deepStrikeWith). Scope handling lives in hooks-impl: `bearer` = only that
 // model's weapons/rolls, `self` = the whole attached unit (leader + bodyguard).
 import { leaderService } from './leaders'
+import { modelKeywordsOf } from './state'
 import type { GameState, ModelId, PlayerId, RuntimeAbility, UnitId } from './types'
 
 export interface EnhancementService {
@@ -14,7 +15,9 @@ export interface EnhancementService {
 export const enhancementService: EnhancementService = {
   bearerModelId(state, player) {
     const wl = state.units[state.players[player].warlordUnitId]
-    return wl && wl.models.length > 0 ? wl.models[0] : null
+    if (!wl || wl.models.length === 0) return null
+    // C1: the first model carrying CHARACTER (per-model keywords), else the unit's first model
+    return wl.models.find((id) => modelKeywordsOf(state, id).includes('CHARACTER')) ?? wl.models[0]
   },
   abilitiesFor(state, unitId) {
     const unit = state.units[unitId]

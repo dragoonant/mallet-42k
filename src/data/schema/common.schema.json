@@ -435,12 +435,26 @@
             },
             "value": {
               "type": "integer"
+            },
+            "cap": {
+              "type": "integer",
+              "description": "this modifier never takes the stat past `cap` (Sv/BS/WS/Ld: never lower than cap; other stats: never higher)"
             }
           },
           "required": [
             "stat",
             "value"
           ]
+        },
+        "halveStat": {
+          "$ref": "#/$defs/StatName",
+          "description": "stat halved (rounded up) before additive modifiers"
+        },
+        "halveRoll": {
+          "const": "advance"
+        },
+        "forbid": {
+          "const": "charge"
         },
         "setStat": {
           "type": "object",

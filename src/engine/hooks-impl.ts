@@ -11,7 +11,7 @@
 // holder is attacked, the attacker's roll is modified — Gene-wrought Resilience), `target` flips it the other way.
 // Non-attack hooks use their subject unit (charging unit, testing unit, queried model …); phase hooks the holder.
 // The same source (ability id / stratagem id) contributes each effect key at most once per evaluation (R-10.11).
-import type { Condition, DiceExpr, Effect, Scope, StatName, TimingWindowId, Trigger, WeaponAbility } from '../data/types'
+import type { Condition, CoreAbility, DiceExpr, Effect, Scope, StatName, TimingWindowId, Trigger, WeaponAbility } from '../data/types'
 import { codeHooks, type EngineCodeHook } from './code-hooks'
 import { clampStat, parseDiceExpr, rollSum } from './dice'
 import { miracleGate } from './miracle'
@@ -78,6 +78,14 @@ export interface HookQueries {
   gainCp(ctx: EngineContext, player: PlayerId, amount: number, source: string): number
   // raise the next window-keyed pick (Oath / Waaagh!) for this occurrence if one is due; true when a decision is pending
   offerPicks(ctx: EngineContext, window: TimingWindowId, key: string): boolean
+  // C4: id of the ability that lets this attacker's player re-roll the Attacks roll of `weapon`, or null
+  attackCountRerollSource(state: GameState, attackerModelId: ModelId, weapon: RuntimeWeapon): string | null
+  // C5: datasheet core abilities plus those currently granted by code hooks (grantsCoreAbility)
+  hasCoreAbility(state: GameState, unitId: UnitId, ability: CoreAbility['ability']): boolean
+  // C6: Advance roll after halveRoll:'advance' effects (rounded up) and onAdvanceRoll modifiers, floor 0
+  advanceRollFor(state: GameState, unitId: UnitId, rolled: number): number
+  // C6: a forbid:'charge' effect is active on the unit
+  chargeForbidden(state: GameState, unitId: UnitId): boolean
 }
 export interface HookService extends Partial<HookQueries> {}
 
@@ -147,7 +155,7 @@ export function sourcesFor(state: GameState): HookSourceEntry[] {
       const ab = state.abilities[e.sourceAbilityId]
       out.push({
         source: { kind: strat ? 'stratagem' : ab?.source === 'enhancement' ? 'enhancement' : 'ability', id: e.sourceAbilityId, unitId: unit.id, modelId: null },
-        holderUnitId: unit.id, bearerModelId: null, trigger: strat ? null : (ab?.trigger ?? null), when: e.when ?? null,
+        holderUnitId: unit.id, bearerModelId: e.bearerModelId ?? null, trigger: strat ? null : (ab?.trigger ?? null), when: e.when ?? null,
         effects: asList(e.effect), scope: e.scope, code: strat?.code ?? ab?.code ?? null, params: strat?.params ?? ab?.params ?? {},
         ability: null, active: e,
       })
@@ -286,7 +294,9 @@ function keyApplies(entry: HookSourceEntry, key: keyof Effect, effect: Effect, h
     case 'extraAttacks': return hook === 'onAttackCount'
     case 'cp': case 'vp': return triggerHook(entry) === hook
     case 'move': return hook === 'onMove' && triggerHook(entry) === hook
-    case 'modifyStat': case 'setStat': case 'grantWeaponAbility': case 'grantKeyword': return hook === 'onStatQuery'
+    case 'modifyStat': case 'setStat': case 'halveStat': case 'grantWeaponAbility': case 'grantKeyword': return hook === 'onStatQuery'
+    case 'halveRoll': return hook === 'onAdvanceRoll'
+    case 'forbid': return hook === 'onEligibility'
     default: return (ELIGIBILITY_KEYS as readonly string[]).includes(key) && hook === 'onEligibility'
   }
 }
@@ -357,6 +367,7 @@ function keyIdentity(key: keyof Effect, e: Effect): string {
   switch (key) {
     case 'modifyStat': return `${key}:${e.modifyStat!.stat}`
     case 'setStat': return `${key}:${e.setStat!.stat}`
+    case 'halveStat': return `${key}:${e.halveStat}`
     case 'modifyRoll': return `${key}:${e.modifyRoll!.roll}`
     case 'autoResult': return `${key}:${e.autoResult!.roll}`
     case 'grantWeaponAbility': return `${key}:${JSON.stringify(e.grantWeaponAbility)}`
@@ -370,7 +381,7 @@ export interface EffectMatch { entry: HookSourceEntry; effect: Effect; key: keyo
 function gateOpen(state: GameState, entry: HookSourceEntry, data?: Record<string, unknown>): boolean {
   const spec = codeHookFor(entry.code)
   if (spec?.gateEffect && !spec.gateEffect(state, state.units[entry.holderUnitId], entry, data)) return false
-  if (entry.active) return true
+  if (entry.active) return !spec?.gateActive || spec.gateActive(state, entry, data)
   return !spec?.gate || spec.gate(state, state.units[entry.holderUnitId], entry, data)
 }
 
@@ -437,7 +448,9 @@ function resultFor(ctx: EngineContext | null, state: GameState, hook: HookName, 
     case 'extraAttacks': return { kind: 'attacks', delta: diceValue(ctx, e.extraAttacks!, holder.player, holder.id) }
     case 'cp': return { kind: 'request', cp: e.cp }
     case 'vp': return { kind: 'request', vp: { amount: e.vp!, source: m.entry.source.id } }
-    case 'modifyStat': return e.modifyStat!.stat === data.stat ? { kind: 'stat', delta: e.modifyStat!.value } : null
+    case 'modifyStat': return e.modifyStat!.stat === data.stat ? { kind: 'stat', delta: e.modifyStat!.value, ...(e.modifyStat!.cap !== undefined ? { cap: e.modifyStat!.cap } : {}) } : null
+    case 'halveStat': return e.halveStat === data.stat ? { kind: 'stat', halve: true } : null
+    case 'halveRoll': case 'forbid': return null
     case 'setStat': {
       if (e.setStat!.stat !== data.stat) return null
       return { kind: 'stat', set: diceValue(ctx, e.setStat!.value, holder.player, holder.id) }
@@ -613,13 +626,30 @@ export const hookService: HookService & HookQueries = {
     const data: Data = { queryUnitId: q.unitId, queryModelId: q.modelId, weapon: q.weapon, stat: q.stat }
     let set: number | null = null
     let delta = 0
-    for (const m of matchEffects(state, 'onStatQuery', data, new Set<keyof Effect>(['modifyStat', 'setStat']))) {
+    let halve = false
+    const capped: { delta: number; cap: number }[] = []
+    for (const m of matchEffects(state, 'onStatQuery', data, new Set<keyof Effect>(['modifyStat', 'setStat', 'halveStat']))) {
       const r = resultFor(null, state, 'onStatQuery', data, m)
       if (!r || r.kind !== 'stat') continue
       if (r.set !== undefined) set = r.set
-      if (r.delta !== undefined) delta += r.delta
+      if (r.halve) halve = true
+      if (r.delta !== undefined) {
+        if (r.cap !== undefined) capped.push({ delta: r.delta, cap: r.cap })
+        else delta += r.delta
+      }
     }
-    return clampStat(q.stat, (set ?? base) + delta)
+    // C6: halving (rounded up) comes before additive deltas; a capped modifier never takes the stat past its cap
+    let v = set ?? base
+    if (halve) v = Math.ceil(v / 2)
+    v += delta
+    const lowerIsBetter = q.stat === 'Sv' || q.stat === 'BS' || q.stat === 'WS' || q.stat === 'Ld'
+    const toward = lowerIsBetter ? -1 : 1
+    for (const c of capped) {
+      if (c.delta * toward <= 0) { v += c.delta; continue }
+      if ((v - c.cap) * toward >= 0) continue // already at or past the cap: contributes nothing
+      v = lowerIsBetter ? Math.max(v + c.delta, c.cap) : Math.min(v + c.delta, c.cap)
+    }
+    return clampStat(q.stat, v)
   },
 
   weaponAbilitiesFor(state, modelId, weapon) {
@@ -639,6 +669,44 @@ export const hookService: HookService & HookQueries = {
     const data: Data = { queryUnitId: unitId, queryModelId: null, weapon: null, stat: 'OC' }
     const extra = matchEffects(state, 'onStatQuery', data, new Set<keyof Effect>(['grantKeyword'])).map((m) => m.effect.grantKeyword!)
     return [...new Set([...base, ...extra])]
+  },
+
+  attackCountRerollSource(state, attackerModelId, weapon) {
+    for (const entry of sourcesFor(state)) {
+      const spec = codeHookFor(entry.code)
+      if (!spec?.rerollsAttackCount || entry.active) continue
+      if (!gateOpen(state, entry)) continue
+      if (spec.rerollsAttackCount(state, entry, attackerModelId, weapon)) return entry.source.id
+    }
+    return null
+  },
+
+  hasCoreAbility(state, unitId, ability) {
+    const unit = state.units[unitId]
+    const ds = unit ? state.datasheets[unit.datasheetId] : undefined
+    if (!ds) return false
+    if (ds.coreAbilities.some((c) => c.ability === ability)) return true
+    for (const entry of sourcesFor(state)) {
+      const spec = codeHookFor(entry.code)
+      if (!spec?.grantsCoreAbility || entry.active) continue
+      if (!gateOpen(state, entry)) continue
+      if (spec.grantsCoreAbility(state, entry, unitId).includes(ability)) return true
+    }
+    return false
+  },
+
+  advanceRollFor(state, unitId, rolled) {
+    const data: Data = { movingUnitId: unitId, roll: null }
+    const matches = matchEffects(state, 'onAdvanceRoll', data, new Set<keyof Effect>(['halveRoll', 'modifyRoll']))
+    let v = rolled
+    if (matches.some((m) => m.key === 'halveRoll')) v = Math.ceil(v / 2)
+    for (const m of matches) if (m.key === 'modifyRoll') v += m.effect.modifyRoll!.value
+    return Math.max(0, v)
+  },
+
+  chargeForbidden(state, unitId) {
+    const data: Data = { queryUnitId: unitId, check: 'charge' }
+    return matchEffects(state, 'onEligibility', data, new Set<keyof Effect>(['forbid'])).some((m) => m.effect.forbid === 'charge')
   },
 
   eligibilityFor(state, unitId, check) {
@@ -734,6 +802,10 @@ export const hookService: HookService & HookQueries = {
       for (const id of halves) {
         s.units[id].battleShocked = true
         s.units[id].battleShockExpiresRound = shockExpiryRound(s, unit.player)
+        // C7: effects flagged params.endsOnBattleShock (Astra Militarum Orders) end when the unit becomes Battle-shocked
+        const keep = s.units[id].effects.filter((e) => s.abilities[e.sourceAbilityId]?.params?.endsOnBattleShock !== true)
+        for (const e of s.units[id].effects) if (!keep.includes(e)) ctx.emit({ type: 'EffectExpired', effectId: e.id, unitId: id, player: s.units[id].player })
+        s.units[id].effects = keep
       }
       ctx.emit({ type: 'BattleShocked', unitId, player: unit.player })
     }

@@ -5,7 +5,7 @@
 import { distance, unitsWithinEngagementRange, withinEngagementRange } from './geometry'
 import { losService } from './los'
 import type { EngineContext } from './modules'
-import { datasheetOf, keywordsOf, modelStats, unitModels } from './state'
+import { datasheetOf, keywordsOf, modelKeywordsOf, modelStats, unitModels } from './state'
 import { weaponService } from './weapons'
 import type { GameState, Model, ModelId, PlayerId, Unit, UnitId } from './types'
 
@@ -201,7 +201,7 @@ export const leaderService: LeaderService & LeaderQueries = {
     const visible = new Set(opts.visibleCharacterIds ?? [])
     return all.filter((m) => {
       if (m.unitId === bodyguardId) return true
-      const character = keywordsOf(state, m.unitId).includes('CHARACTER')
+      const character = modelKeywordsOf(state, m.id).includes('CHARACTER')
       if (!character) return true
       return !!opts.precision && visible.has(m.id)
     }).map((m) => m.id)

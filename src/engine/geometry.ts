@@ -135,6 +135,14 @@ export function whollyWithinPolygon(m: Footprint, poly: Polygon): boolean {
   return true
 }
 
+// every base edge point lies inside `poly` or within `n` of its boundary (Hold the Line, Astra Militarum AST-4.x)
+export function whollyWithinOfPolygon(m: Footprint, poly: Polygon, n: number): boolean {
+  const ok = (p: Vec2): boolean => pointInPolygon(p, poly) || pointToPolygonEdge(p, poly) <= n + EPS
+  if (!ok(m.pos)) return false
+  for (const e of baseEdgePoints(m)) if (!ok(e)) return false
+  return true
+}
+
 export function partlyWithinPolygon(m: Footprint, poly: Polygon): boolean {
   if (pointInPolygon(m.pos, poly)) return true
   for (const e of baseEdgePoints(m)) if (pointInPolygon(e, poly)) return true
@@ -388,4 +396,58 @@ export function emptyMoveConstraints(maxDistance: number, overrides: Partial<Mov
 export function transformPolygon(poly: Polygon, pos: Vec2, rot: number): Polygon {
   const c = Math.cos(rot), s = Math.sin(rot)
   return poly.map((p) => ({ x: roundPos(pos.x + p.x * c - p.z * s), z: roundPos(pos.z + p.x * s + p.z * c) }))
+}
+
+// "Your battlefield edge" for a deployment zone: the board-perimeter segments that lie on the zone's boundary; returns the
+// part of the board within `depth` of them. One edge gives a rectangle; two adjacent edges (a corner zone) give an
+// L-shaped hexagon. A board side where the zone only touches a short stub (under half the longest side's length) is
+// ignored, so a full-width strip is not widened by the zone's short ends. Other shapes fall back to the longest side.
+export function battlefieldEdgeStrip(board: Pick<Board, 'w' | 'h'>, zone: Polygon, depth: number): Polygon {
+  const hw = board.w / 2, hh = board.h / 2
+  type Side = 'L' | 'R' | 'T' | 'B'
+  const spans: Record<Side, [number, number] | null> = { L: null, R: null, T: null, B: null }
+  const total: Record<Side, number> = { L: 0, R: 0, T: 0, B: 0 }
+  const sideOf = (a: Vec2, b: Vec2): Side | null => {
+    if (Math.abs(a.x + hw) < 1e-6 && Math.abs(b.x + hw) < 1e-6) return 'L'
+    if (Math.abs(a.x - hw) < 1e-6 && Math.abs(b.x - hw) < 1e-6) return 'R'
+    if (Math.abs(a.z + hh) < 1e-6 && Math.abs(b.z + hh) < 1e-6) return 'T'
+    if (Math.abs(a.z - hh) < 1e-6 && Math.abs(b.z - hh) < 1e-6) return 'B'
+    return null
+  }
+  for (let i = 0; i < zone.length; i++) {
+    const a = zone[i], b = zone[(i + 1) % zone.length]
+    const side = sideOf(a, b)
+    if (!side) continue
+    const vertical = side === 'L' || side === 'R'
+    const lo = Math.min(vertical ? a.z : a.x, vertical ? b.z : b.x), hi = Math.max(vertical ? a.z : a.x, vertical ? b.z : b.x)
+    const cur = spans[side]
+    spans[side] = cur ? [Math.min(cur[0], lo), Math.max(cur[1], hi)] : [lo, hi]
+    total[side] += hi - lo
+  }
+  const sides = (Object.keys(spans) as Side[]).filter((s) => spans[s] !== null)
+  if (sides.length === 0) return zone
+  const longest = Math.max(...sides.map((s) => total[s]))
+  let kept = sides.filter((s) => total[s] >= longest / 2)
+  const adjacent = (a: Side, b: Side): boolean => (a === 'L' || a === 'R') !== (b === 'L' || b === 'R')
+  if (kept.length > 2 || (kept.length === 2 && !adjacent(kept[0], kept[1]))) kept = [kept.sort((a, b) => total[b] - total[a])[0]]
+  const rect = (s: Side): { x0: number; x1: number; z0: number; z1: number } => {
+    const [lo, hi] = spans[s]!
+    const dx = Math.min(depth, board.w), dz = Math.min(depth, board.h)
+    switch (s) {
+      case 'L': return { x0: -hw, x1: -hw + dx, z0: lo, z1: hi }
+      case 'R': return { x0: hw - dx, x1: hw, z0: lo, z1: hi }
+      case 'T': return { x0: lo, x1: hi, z0: -hh, z1: -hh + dz }
+      case 'B': return { x0: lo, x1: hi, z0: hh - dz, z1: hh }
+    }
+  }
+  const rectPoly = (r: { x0: number; x1: number; z0: number; z1: number }): Polygon => [{ x: r.x0, z: r.z0 }, { x: r.x1, z: r.z0 }, { x: r.x1, z: r.z1 }, { x: r.x0, z: r.z1 }]
+  if (kept.length === 1) return rectPoly(rect(kept[0]))
+  // two adjacent edges: the union of their two rectangles as one L-shaped hexagon (both run into the shared corner)
+  const v = rect(kept.find((s) => s === 'L' || s === 'R')!), h = rect(kept.find((s) => s === 'T' || s === 'B')!)
+  const left = v.x0 < 0, top = h.z0 < 0
+  const cx = left ? -hw : hw, cz = top ? -hh : hh
+  // far ends of the two arms and the inner corner of the L
+  const armX = left ? h.x1 : h.x0, armZ = top ? v.z1 : v.z0
+  const innerX = left ? v.x1 : v.x0, innerZ = top ? h.z1 : h.z0
+  return [{ x: cx, z: cz }, { x: armX, z: cz }, { x: armX, z: innerZ }, { x: innerX, z: innerZ }, { x: innerX, z: armZ }, { x: cx, z: armZ }]
 }

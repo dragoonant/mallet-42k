@@ -38,7 +38,8 @@ export * from './geometry'
 export * from './modules'
 export {
   emptyPhaseState, emptyTurnState, hashState, canonicalJson, cloneForStep, unitModels, unitModelsForCoherency, unitsOf,
-  boardUnitsOf, boardModelsOf, enemyModelsOnBoard, datasheetOf, modelProfile, modelStats, keywordsOf, hasKeyword, setModelPos,
+  boardUnitsOf, boardModelsOf, enemyModelsOnBoard, datasheetOf, modelProfile, modelStats, keywordsOf, modelKeywordsOf, hasKeyword, setModelPos,
+  spawnUnitCopy, spawnDestroyedUnitCopy, recordModelAttacked, modelHasAttacked,
   removeModel, assignSides, deploymentZone, unitIdFor, modelIdFor, createGameState,
 } from './state'
 export { createEngine, registerDataBundle, getDataBundle, checkActionShape, advanceGame, createContext, requireUnit } from './reducer'

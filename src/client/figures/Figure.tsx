@@ -9,13 +9,14 @@ import type { Group } from 'three'
 import type { ThreeEvent } from '@react-three/fiber'
 import { resolveBase, resolveFigureKit, resolvePaintColors, useDataBundle } from './data'
 import { SwarmBody } from './SwarmBody'
-import { BODY_KIND, BIPED_CONFIG, VEHICLE_CONFIG } from './kitConfigs'
+import { BODY_KIND, BIPED_CONFIG, VEHICLE_CONFIG, ARTILLERY_CONFIG } from './kitConfigs'
 import { BaseDisc, BASE_THICKNESS } from './BaseDisc'
 import { GlbBody } from './GlbBody'
 import { glbSlugFor } from './glbModels'
 import { useGlbInstance } from './glbLoader'
 import { BipedBody } from './BipedBody'
 import { VehicleBody } from './VehicleBody'
+import { ArtilleryBody } from './ArtilleryBody'
 import type { Pose, FigureAction, FigureActionKind } from './types'
 
 const POSITION_EASE_PER_SEC = 10
@@ -178,6 +179,8 @@ export const Figure = memo(function Figure({
       {!glb && <group position={[0, BASE_THICKNESS, 0]} scale={[base.height, base.height, base.height]}>
         {bodyKind === 'swarm' ? (
           <SwarmBody colors={colors} pose={pose} seed={seedRef.current} />
+        ) : bodyKind === 'artillery' ? (
+          <ArtilleryBody config={ARTILLERY_CONFIG[kit] ?? { barrel: 'field-gun' }} colors={colors} pose={pose} seed={seedRef.current} />
         ) : bodyKind === 'vehicle' ? (
           <VehicleBody config={VEHICLE_CONFIG[kit] ?? { weapon: 'none', hasRotor: false }} colors={colors} pose={pose} seed={seedRef.current} />
         ) : (

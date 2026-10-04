@@ -302,12 +302,12 @@ export async function tryBoardPlacement(
     await clearToast(page)
     await resetOpenDraft(page)
     const ok = await clickCanvasAt(page, project({ x: p.x, y: 0, z: p.z }, cam, W, H), W, H)
-    if (!ok) continue
+    if (!ok) { note?.(label + ': click miss ' + p.x + ',' + p.z); continue }
     await page.waitForTimeout(120)
     const confirm = page.getByTestId('btn-confirm')
-    if (!(await confirm.isVisible().catch(() => false))) continue
+    if (!(await confirm.isVisible().catch(() => false))) { note?.(label + ': no confirm ' + p.x + ',' + p.z); continue }
     if (!(await confirm.isEnabled().catch(() => false))) {
-      if (!retryFormations || !(await tryAlternateFormationForCoherency(page, confirm))) continue
+      if (!retryFormations || !(await tryAlternateFormationForCoherency(page, confirm))) { note?.(label + ': confirm disabled ' + p.x + ',' + p.z); continue }
     }
     await confirm.click()
     const after = await waitChange(page, id)

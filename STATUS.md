@@ -231,6 +231,17 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Sim | `npm run sim -- --games 6 --seed 5`: 6 games, 0 violations, mean 5.0 rounds, all finished; adepta-sororitas played 5 of 6 games: 2 wins (chaos-space-marines 1, necrons 1, sm 1, tyranids 1). `SIM_FACTION=adepta-sororitas --games 12 --seed 11`: 3 wins, 0 violations. No balance tuning |
 | Known gaps | No GLB models; Battle-shock Acts of Faith only on the Command-phase test; D3 damage cannot take a Miracle die; one substitution per batch of hit/wound rolls; no UI to choose Patrol Squads splitting; the bot spends Miracle dice by a simple policy; A Martyr's Death uses its own deferral (`Model.removalDeferred`, `src/engine/deferred.ts`) beside the Tyranid Death Blow (`pendingRemoval`) and Daemonic Fervour (`deferredDeath:` marks); rulings in `docs/needs-rules-check.md` under "Adepta Sororitas build" (RC-ADE-01 to 22) |
 
+## Astra Militarum (M10 - Karsk's Gunners patrol, playable)
+
+| Area | State |
+|---|---|
+| Patrol | Command Squad Karsk, 2 x Cadian Shock Troops, Field Ordnance Battery (splittable into two 1-model Patrol Squads), Armoured Sentinels; secondaries Hold the Line / Methodical Destruction. Data in `src/data/factions/astra-militarum/` |
+| Engine hooks | `src/engine/factions/astra-militarum.ts` (Voice of Command Orders, Command Laurels, Gunnery Officer, Rearm Reload Fire, Take Cover/Take Aim/Move Move Move, Send in the Next Wave, Bring It Down, Artillery Strike, Hold the Line, Methodical Destruction). Patrol Squads reuse the Tyranid `patrolSquads` marker ability (Battery sizes [1,1], `splitPatrolSquad`). New core pieces: `spawnDestroyedUnitCopy` (Send in the Next Wave; Tyranid `spawnUnitCopy` stays), `hookService.hasCoreAbility` (code-hook granted core abilities), capped/halved stat modifiers, advance-roll modifiers, `battlefieldEdgeStrip`. Fixed: a declined Precision allocation (pass) is delegated to the attack service in Movement/Charge; destroyed units are exempt from the Battle-shocked stratagem-target check |
+| Client | Start-screen faction button, procedural Guardsman/officer/medic/standard figures, Sentinel walker and `ArtilleryBody` (field gun and rocket rack), Orders and Methodical Destruction prompt text, weapon flavour, palette |
+| Verification | `npm run typecheck`, `npm run validate:data` (80 files), `npm run build` green; `npm test` 1266 passing (49 files, incl. `tests/engine/astra-militarum*.test.ts`, `tests/data/astra-militarum.test.ts`); `tests/e2e/astra-militarum.spec.ts` starts AM vs bot, deploys through the UI and reaches round 1 Shooting (screenshots `e2e-out/m10-astra-militarum-0{1,2,3}-*.png`) |
+| Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all 6 finished (round 5); astra-militarum appears in game 0 only (as B vs adepta-sororitas) and won it 50-5; the rest of that seed is other pairings (sororitas 3, chaos-space-marines 1, ork 1 wins). An earlier pre-sororitas run of the same seed had astra-militarum winning 6 of 6. No balance tuning |
+| Known gaps | No GLB models (procedural only); the bot ignores the AM stratagems and Orders; rulings in `docs/needs-rules-check.md` under "astra-militarum build" (AM-01 to AM-21) |
+
 ## Not yet built
 
 - Anything beyond M8 (see Client tables for what M3/M6/M8 cover); AI Monte Carlo/hard tier, generated models, scale-up, multiplayer, Phase B glTF animation/asset pipeline for figures (see PLAN.md, docs/spec/30-figures.md §9)

@@ -24,6 +24,7 @@
         "max": { "type": "integer", "minimum": 1 },
         "default": { "type": "integer", "minimum": 0 },
         "champion": { "type": "boolean" },
+        "keywords": { "$ref": "common.schema.json#/$defs/KeywordList" },
         "base": { "$ref": "common.schema.json#/$defs/Base" },
         "statsOverride": { "$ref": "common.schema.json#/$defs/PartialStats" },
         "weapons": {

@@ -22,7 +22,7 @@
 // Transports (R-5.17–R-5.20): no Combat Patrol datasheet has one, so embark/disembark are implemented in
 // transports.ts as bookkeeping + legality predicates only — not wired into an interactive decision here. See issues.
 import { centroid, filterValid, formationPlacements, optionActions, repairCoherency, translatePlacements, unitVector } from './legal'
-import { dist2D } from '../geometry'
+import { battlefieldEdgeStrip, dist2D } from '../geometry'
 import { rollSum } from '../dice'
 import {
   EPS, anyWithinEngagementRange, checkPlacements, emptyMoveConstraints, horizontalGap, isCoherent,
@@ -40,6 +40,7 @@ import {
   boardModelsOf, boardUnitsOf, datasheetOf, deploymentZone, enemyModelsOnBoard, hasKeyword, keywordsOf, modelStats, removeModel,
   setModelPos, unitModels, unitModelsForCoherency,
 } from '../state'
+import { autoDeployPlacements } from '../setup'
 import type { Action, ModelPlacement } from '../actions'
 import {
   EngineInvariantError,
@@ -421,6 +422,8 @@ function cullStrandedReserves(ctx: EngineContext, endOfRound3 = false): void {
   const destroyStrandedUnit = (unitId: UnitId): void => {
     const u = s.units[unitId]
     if (!u || u.location !== 'reserves') return
+    // C3: a unit spawned by Send in the Next Wave never waits in Reserves (it arrives at once), so it is not culled
+    if (pendingReactions(s, 'nextWave').some((r) => r.unitId === unitId)) return
     const player = u.player
     ctx.emit({ type: 'UnitLostInReserves', unitId, player })
     let destroyed = false
@@ -441,13 +444,23 @@ function cullStrandedReserves(ctx: EngineContext, endOfRound3 = false): void {
   }
 }
 
-function resolveArrival(state: GameState, groupIds: UnitId[], placements: ModelPlacement[], via: 'deepStrike' | 'rapidIngress' | 'strategicReserves' = 'deepStrike'):
+// C3: Send in the Next Wave arrives within 9" of the player's own battlefield edge, outside Engagement Range of every enemy,
+// in coherency (instead of the 9" gap from enemies that Deep Strike needs)
+function nextWaveZone(state: GameState, player: PlayerId): Polygon {
+  return battlefieldEdgeStrip(state.board, deploymentZone(state, player), 9)
+}
+
+function resolveArrival(state: GameState, groupIds: UnitId[], placements: ModelPlacement[], via: 'deepStrike' | 'rapidIngress' | 'strategicReserves' | 'nextWave' = 'deepStrike'):
   { rejection: Rejection } | { rejection: null; resolved: ResolvedPlacement[] } {
   const models = groupIds.flatMap((id) => unitModels(state, id))
   const player = state.units[groupIds[0]].player
   const enemies = enemyModelsOnBoard(state, player)
   const otherFriendly = boardModelsOf(state, player)
-  const constraints = via === 'strategicReserves' ? strategicReservesConstraints(state, player) : emptyMoveConstraints(9999, { minDistanceFromEnemies: 9, coherency: false })
+  const constraints = via === 'strategicReserves'
+    ? strategicReservesConstraints(state, player)
+    : via === 'nextWave'
+      ? emptyMoveConstraints(9999, { region: nextWaveZone(state, player), mustEndOutsideEngagement: true, coherency: false })
+      : emptyMoveConstraints(9999, { minDistanceFromEnemies: 9, coherency: false })
   const result = checkPlacements({ unitModels: models, placements, constraints, otherFriendly, enemies, board: state.board })
   if (result.rejection) return result
   // MOVE-021-terrain/air: a Deep Strike (or Rapid Ingress) arrival is still an "end a move here" placement — it may
@@ -483,18 +496,33 @@ function resolveArrival(state: GameState, groupIds: UnitId[], placements: ModelP
 
 function validateArrival(state: GameState, action: Action, pending: Extract<PendingDecision, { kind: 'deployUnit' }>): Rejection | null {
   if (action.type !== 'deployUnit') return optionCheck(pending, action)
-  if (action.toReserves) return null
+  if (action.toReserves) {
+    // a Send in the Next Wave copy must be set up at once (it has no Reserves to wait in)
+    if (readMark(state, 'mv:arriveVia') === 'nextWave') return { code: 'E_NOT_AN_OPTION', reason: 'a Next Wave unit must be set up now; it cannot go to Reserves' }
+    return null
+  }
   const groupIds = pending.context.unitIds
   const needed = new Set(groupIds.flatMap((id) => state.units[id].models))
   const provided = new Set(action.placements.map((p) => p.modelId))
   for (const id of needed) if (!provided.has(id)) return { code: 'E_OUT_OF_RANGE', reason: `arrival must place every model of ${groupIds.join(' & ')} together`, details: { missing: id } }
   for (const id of provided) if (!needed.has(id)) return { code: 'E_SCHEMA', reason: `model ${id} is not part of this arrival` }
-  const r = resolveArrival(state, groupIds, action.placements, (readMark(state, 'mv:arriveVia') ?? 'deepStrike') as 'deepStrike' | 'rapidIngress' | 'strategicReserves')
+  const r = resolveArrival(state, groupIds, action.placements, (readMark(state, 'mv:arriveVia') ?? 'deepStrike') as 'deepStrike' | 'rapidIngress' | 'strategicReserves' | 'nextWave')
   return r.rejection
 }
 
-function raiseArrivalDecision(ctx: EngineContext, unitId: UnitId, player: PlayerId, via: 'deepStrike' | 'rapidIngress' | 'strategicReserves'): void {
+function raiseArrivalDecision(ctx: EngineContext, unitId: UnitId, player: PlayerId, via: 'deepStrike' | 'rapidIngress' | 'strategicReserves' | 'nextWave'): void {
   const s = ctx.state
+  if (via === 'nextWave') {
+    // C3: one freshly spawned unit; it must be placed (no going back to Reserves)
+    writeMark(s, 'mv:arriveGroup', JSON.stringify([unitId]))
+    writeMark(s, 'mv:arriveVia', via)
+    ctx.decide({
+      kind: 'deployUnit', player, window: 'movement.reinforcements', canPass: false,
+      context: { unitIds: [unitId], zone: nextWaveZone(s, player), infiltrators: [], reservesAllowed: [] },
+      constraints: emptyMoveConstraints(9999, { region: nextWaveZone(s, player), mustEndOutsideEngagement: true, coherency: false }),
+    })
+    return
+  }
   // MOVE-021-attached: an attached Leader+Bodyguard pair arrives together (leaderService.halves), on top of any
   // Tellyporta deepStrikeWith pairing (two independent units) — both apply, though Combat Patrol never combines them.
   const halves = reservesHalves(s, unitId)
@@ -552,6 +580,13 @@ function doReinforcementsStep(ctx: EngineContext): AdvanceResult {
     const req = reqs[0]
     consumeReaction(s, 'rapidIngress', req.unitId)
     raiseArrivalDecision(ctx, req.unitId, req.player, 'rapidIngress')
+    return 'pending'
+  }
+  const waves = pendingReactions(s, 'nextWave')
+  if (waves.length > 0) {
+    const req = waves[0]
+    consumeReaction(s, 'nextWave', req.unitId)
+    raiseArrivalDecision(ctx, req.unitId, req.player, 'nextWave')
     return 'pending'
   }
   if (s.round === 3 && s.activePlayer !== s.firstPlayer) cullStrandedReserves(ctx, true)
@@ -614,8 +649,10 @@ function doDeclare(ctx: EngineContext): 'pending' | 'move' | 'select' {
   if (unit.turn.moveType === 'advance' && unit.turn.advanceRoll === null) {
     const roll = ctx.rollOnce(`advance:${unitId}`, { purpose: 'advance', player: unit.player, sides: 6, count: 1, mode: 'sum', unitId })
     if (roll === null) return 'pending'
-    setAdvanceRoll(s, unitId, rollSum(roll))
-    ctx.emit({ type: 'UnitAdvanced', unitId, roll: rollSum(roll), player: unit.player })
+    // C6: halveRoll:'advance' effects (Artillery Strike) and onAdvanceRoll modifiers adjust the roll before it is added to M
+    const advance = hookService.advanceRollFor(s, unitId, rollSum(roll))
+    setAdvanceRoll(s, unitId, advance)
+    ctx.emit({ type: 'UnitAdvanced', unitId, roll: advance, player: unit.player })
   }
   if (ctx.window('movement.moveStarted', unitId, ctx.order.only(otherPlayer(unit.player)), { unitId })) return 'pending'
   if (drainOverwatch(ctx, unitId) === 'pending') return 'pending'
@@ -785,10 +822,18 @@ function arrivalCandidates(state: GameState, pending: Extract<PendingDecision, {
   const spacing = 2 * rad + 0.2
   const cols = Math.ceil(Math.sqrt(models.length))
   const rows = Math.ceil(models.length / cols)
-  const poly = boardPolygon(state)
+  const nextWave = readMark(state, 'mv:arriveVia') === 'nextWave'
+  const poly = nextWave ? pending.context.zone : boardPolygon(state)
   const minX = Math.min(...poly.map((p) => p.x)), maxX = Math.max(...poly.map((p) => p.x))
   const minZ = Math.min(...poly.map((p) => p.z)), maxZ = Math.max(...poly.map((p) => p.z))
   const out: Action[] = []
+  if (nextWave) {
+    const auto = autoDeployPlacements(models, poly, boardModelsOf(state, pending.player), enemyModelsOnBoard(state, pending.player))
+    if (auto) {
+      const action: Action = { type: 'deployUnit', player: pending.player, decisionId: pending.id, unitId: groupIds[0], placements: auto }
+      if (validateArrival(state, action, pending) === null) return [action]
+    }
+  }
   for (let z0 = minZ + rad + 0.1; z0 + (rows - 1) * spacing + rad < maxZ && out.length < 3; z0 += 3) {
     for (let x0 = minX + rad + 0.1; x0 + (cols - 1) * spacing + rad < maxX && out.length < 3; x0 += 3) {
       const placements: ModelPlacement[] = models.map((m, i) => ({ modelId: m.id, pos: { x: x0 + (i % cols) * spacing, y: 0, z: z0 + Math.floor(i / cols) * spacing }, facing: m.facing }))
@@ -905,7 +950,7 @@ export const movementModule: PhaseModule = {
     }
     if (pending.kind === 'deployUnit' && action.type === 'deployUnit') {
       const groupIds = pending.context.unitIds
-      const via = (readMark(s, 'mv:arriveVia') ?? 'deepStrike') as 'deepStrike' | 'rapidIngress' | 'strategicReserves'
+      const via = (readMark(s, 'mv:arriveVia') ?? 'deepStrike') as 'deepStrike' | 'rapidIngress' | 'strategicReserves' | 'nextWave'
       writeMark(s, 'mv:arriveVia', null)
       writeMark(s, 'mv:arriveGroup', null)
       if (action.toReserves) return

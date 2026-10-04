@@ -94,7 +94,7 @@ export interface RollModifierResult {
   // onWoundRoll: AP improves by this much for an attack whose unmodified wound roll was a critical wound (ADE Ascetic Discipline)
   critWoundAp?: number
 }
-export interface StatModifierResult { kind: 'stat'; delta?: number; set?: number }
+export interface StatModifierResult { kind: 'stat'; delta?: number; set?: number; cap?: number; halve?: boolean }
 export interface AttackCountResult { kind: 'attacks'; delta?: number }
 export interface DamageModifierResult { kind: 'damage'; delta?: number; halve?: boolean; reduction?: number; set?: number }
 export interface EligibilityResult { kind: 'eligibility'; allow?: boolean; deny?: boolean }
@@ -172,6 +172,9 @@ export const EFFECT_HOOKS: Record<keyof Effect, HookName[]> = {
   reroll: ['onHitRoll', 'onWoundRoll', 'onSaveRoll', 'onDamageRoll', 'onChargeRoll', 'onAdvanceRoll', 'onBattleShockTest'],
   modifyRoll: ['onHitRoll', 'onWoundRoll', 'onSaveRoll', 'onDamageRoll', 'onChargeRoll', 'onAdvanceRoll', 'onBattleShockTest'],
   modifyStat: ['onStatQuery'],
+  halveStat: ['onStatQuery'],
+  halveRoll: ['onAdvanceRoll'],
+  forbid: ['onEligibility'],
   setStat: ['onStatQuery'],
   invuln: ['onSaveRoll'],
   feelNoPain: ['onFeelNoPainRoll'],

@@ -4,8 +4,9 @@ import { describe, expect, it } from 'vitest'
 import { loadBundle } from '../../src/data'
 import { resolveFactionId, useGameStore } from '../../src/client/store/game'
 import { resolveFigureKit } from '../../src/client/figures/data'
-import { BODY_KIND, BIPED_CONFIG } from '../../src/client/figures/kitConfigs'
+import { BODY_KIND, BIPED_CONFIG, ARTILLERY_CONFIG } from '../../src/client/figures/kitConfigs'
 import { glbSlugFor } from '../../src/client/figures/glbModels'
+import { weaponIconKind, WEAPON_ICON_KINDS } from '../../src/client/ui/weaponIcons'
 
 const bundle = await loadBundle()
 
@@ -60,6 +61,16 @@ describe('faction selection', () => {
     await useGameStore.getState().newGame({ playerFaction: 'orks', opponentFaction: 'tyranids', opponent: 'hotseat', seed: 'ork-vs-tyr' })
     expect(useGameStore.getState().state!.players.B.faction).toBe('tyranids')
   }, 120000)
+
+  it('astra-militarum can be picked for either seat, by bare faction id', async () => {
+    expect(resolveFactionId('astra-militarum')).toBe('astra-militarum')
+    await useGameStore.getState().newGame({ playerFaction: 'astra-militarum', opponentFaction: 'orks', opponent: 'hotseat', seed: 'am-vs-ork' })
+    let s = useGameStore.getState().state!
+    expect([s.players.A.faction, s.players.B.faction]).toEqual(['astra-militarum', 'ork'])
+    await useGameStore.getState().newGame({ playerFaction: 'necrons', opponentFaction: 'astra-militarum', opponent: 'hotseat', seed: 'nec-vs-am' })
+    s = useGameStore.getState().state!
+    expect([s.players.A.faction, s.players.B.faction]).toEqual(['necrons', 'astra-militarum'])
+  }, 60000)
 
   it('with no opponent chosen, the default is still a different faction', async () => {
     await useGameStore.getState().newGame({ playerFaction: 'orks', opponent: 'hotseat', seed: 'default-opp-ork' })
@@ -183,5 +194,38 @@ describe('tyranid figures', () => {
 
   it('the faction paint scheme is declared, so figures are painted in it', () => {
     expect(bundle.factions.tyranids.paintScheme.primary).toBeTruthy()
+  })
+})
+
+describe('astra militarum figures', () => {
+  const amSheets = Object.values(bundle.datasheets).filter((d) => d.id.startsWith('am.'))
+
+  it('there are astra militarum datasheets to check', () => {
+    expect(amSheets.length).toBe(4)
+  })
+
+  for (const ds of amSheets) {
+    for (const m of ds.composition) {
+      it(`${ds.id}/${m.modelId} resolves to its own am- kit with a body config`, () => {
+        const { kit } = resolveFigureKit(ds.id, ds, m.modelId)
+        expect(kit.startsWith('am-'), kit).toBe(true)
+        const body = BODY_KIND[kit]
+        if (body === 'biped') expect(BIPED_CONFIG[kit], kit).toBeDefined()
+        if (body === 'artillery') expect(ARTILLERY_CONFIG[kit], kit).toBeDefined()
+      })
+
+      it(`${ds.id}/${m.modelId} falls back to the procedural figure while no GLB is enabled`, () => {
+        expect(glbSlugFor(ds.id, m.modelId)).toBeUndefined()
+      })
+    }
+  }
+
+  it('the two guns of the battery are different kits, and rank shows in the command squad', () => {
+    expect(resolveFigureKit('am.field-ordnance-battery', undefined, 'gun-bombast').kit).not.toBe(resolveFigureKit('am.field-ordnance-battery', undefined, 'gun-malleus').kit)
+    expect(resolveFigureKit('am.command-squad-karsk', undefined, 'karsk').kit).not.toBe(resolveFigureKit('am.command-squad-karsk', undefined, 'veteran').kit)
+  })
+
+  it('every astra militarum weapon resolves to a known icon', () => {
+    for (const w of Object.values(bundle.weapons).filter((x) => x.id.startsWith('am.'))) expect(WEAPON_ICON_KINDS).toContain(weaponIconKind(w))
   })
 })

@@ -193,7 +193,7 @@ export function deployFacing(zone: Polygon): number {
 // a simple, always-legal placement for `unitId`'s models wholly within `zone` and clear of everything already placed —
 // used by legalActions() so a generic Decider (AI, autoplay tests) can drive deployUnit without solving placement
 // itself; returns null only if the zone genuinely has no room left (raster scan of its bounding box)
-function autoDeployPlacements(models: Model[], zone: Polygon, otherFriendly: Model[], enemies: Model[]): ModelPlacement[] | null {
+export function autoDeployPlacements(models: Model[], zone: Polygon, otherFriendly: Model[], enemies: Model[]): ModelPlacement[] | null {
   const facing = deployFacing(zone)
   // a small inward safety pad keeps candidates well clear of the zone/board edge, avoiding floating-point boundary
   // ambiguity in pointInPolygon (exact edge points are not reliably "inside" under ray-casting)

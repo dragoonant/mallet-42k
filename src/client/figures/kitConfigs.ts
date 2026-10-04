@@ -1,8 +1,8 @@
 // Per-kit visual dressing (30-figures.md §2/§4 flavour, not rules data). Keyed by KitId so
 // Figure.tsx can go straight from resolveFigureKit() to "what does this look like".
-import type { BipedConfig, KitId, VehicleConfig } from './types'
+import type { ArtilleryConfig, BipedConfig, KitId, VehicleConfig } from './types'
 
-export const BODY_KIND: Record<KitId, 'biped' | 'vehicle' | 'swarm'> = {
+export const BODY_KIND: Record<KitId, 'biped' | 'vehicle' | 'swarm' | 'artillery'> = {
   'sm-tacticus': 'biped',
   'sm-terminator': 'biped',
   'ork-boy': 'biped',
@@ -23,6 +23,15 @@ export const BODY_KIND: Record<KitId, 'biped' | 'vehicle' | 'swarm'> = {
   'tyr-termagant': 'biped',
   'tyr-barbgaunt': 'biped',
   'tyr-leaper': 'biped',
+  'am-guardsman': 'biped',
+  'am-sergeant': 'biped',
+  'am-officer': 'biped',
+  'am-veteran': 'biped',
+  'am-medic': 'biped',
+  'am-standard': 'biped',
+  'am-sentinel': 'biped',
+  'am-field-gun': 'artillery',
+  'am-rocket-battery': 'artillery',
   'generic-infantry': 'biped',
   'generic-heavy': 'biped',
   'generic-monster': 'biped',
@@ -252,6 +261,81 @@ export const BIPED_CONFIG: Partial<Record<KitId, BipedConfig>> = {
     dorsalSpines: true,
     hunch: 0.25,
   },
+  // Astra Militarum: olive fatigues and brimmed helmets on bare-faced humans, lasguns with tan stocks. Rank shows in
+  // the head and kit (cap and sword for the officer, a banner for the standard bearer), never in bulk.
+  'am-guardsman': {
+    headShape: 'guard-helmet',
+    rightWeapon: 'lasgun',
+    leftWeapon: 'none',
+    bulk: 1,
+    hasBackpack: true,
+    shoulderPads: 'none',
+    hasCape: false,
+    skin: 'marine',
+  },
+  'am-sergeant': {
+    headShape: 'guard-helmet',
+    rightWeapon: 'lasgun',
+    leftWeapon: 'power-sword',
+    bulk: 1.05,
+    hasBackpack: true,
+    shoulderPads: 'small',
+    hasCape: false,
+    skin: 'marine',
+  },
+  'am-officer': {
+    headShape: 'officer-cap',
+    rightWeapon: 'plasma-pistol',
+    leftWeapon: 'power-sword',
+    bulk: 1.1,
+    hasBackpack: false,
+    shoulderPads: 'small',
+    hasCape: true,
+    skin: 'marine',
+  },
+  'am-veteran': {
+    headShape: 'guard-helmet',
+    rightWeapon: 'lasgun',
+    leftWeapon: 'none',
+    bulk: 1.08,
+    hasBackpack: true,
+    shoulderPads: 'small',
+    hasCape: false,
+    skin: 'marine',
+  },
+  'am-medic': {
+    headShape: 'guard-helmet',
+    rightWeapon: 'none',
+    leftWeapon: 'none',
+    bulk: 1.08,
+    hasBackpack: true,
+    shoulderPads: 'small',
+    hasCape: false,
+    skin: 'marine',
+    chestCross: true,
+  },
+  'am-standard': {
+    headShape: 'guard-helmet',
+    rightWeapon: 'banner',
+    leftWeapon: 'none',
+    bulk: 1.08,
+    hasBackpack: true,
+    shoulderPads: 'small',
+    hasCape: false,
+    skin: 'marine',
+  },
+  // Armoured Sentinel: a two-legged walker, so it reuses the biped rig at a heavy bulk with a boxy cab for a head.
+  'am-sentinel': {
+    headShape: 'sentinel-cab',
+    rightWeapon: 'plasma-cannon',
+    leftWeapon: 'twin-claw',
+    bulk: 1.9,
+    hasBackpack: true,
+    shoulderPads: 'none',
+    hasCape: false,
+    skin: 'none',
+    limbColor: 'metal',
+  },
   'generic-infantry': {
     headShape: 'generic-head',
     rightWeapon: 'bolt-rifle',
@@ -386,6 +470,11 @@ export const BIPED_CONFIG: Partial<Record<KitId, BipedConfig>> = {
     bareTorso: true,
     legColor: 'trim',
   },
+}
+
+export const ARTILLERY_CONFIG: Partial<Record<KitId, ArtilleryConfig>> = {
+  'am-field-gun': { barrel: 'field-gun' },
+  'am-rocket-battery': { barrel: 'rocket-rack' },
 }
 
 export const VEHICLE_CONFIG: Partial<Record<KitId, VehicleConfig>> = {

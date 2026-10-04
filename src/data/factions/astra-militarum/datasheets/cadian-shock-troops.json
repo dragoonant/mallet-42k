@@ -1,0 +1,84 @@
+[
+  {
+    "id": "am.cadian-shock-troops",
+    "faction": "astra-militarum",
+    "name": "Cadian Shock Troops",
+    "keywords": [
+      "INFANTRY",
+      "BATTLELINE",
+      "IMPERIUM",
+      "REGIMENT",
+      "PLATOON",
+      "CADIAN",
+      "CADIAN SHOCK TROOPS"
+    ],
+    "factionKeywords": [
+      "ASTRA MILITARUM"
+    ],
+    "stats": {
+      "M": 6,
+      "T": 3,
+      "Sv": 5,
+      "W": 1,
+      "Ld": 7,
+      "OC": 2
+    },
+    "composition": [
+      {
+        "modelId": "sergeant",
+        "name": "Shock Troops Sergeant",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "champion": true,
+        "base": {
+          "shape": "round",
+          "mm": 25
+        },
+        "weapons": {
+          "default": [
+            "am.w.laspistol",
+            "am.w.chainsword"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "generic-infantry"
+        }
+      },
+      {
+        "modelId": "trooper",
+        "name": "Shock Trooper",
+        "min": 9,
+        "max": 9,
+        "default": 9,
+        "base": {
+          "shape": "round",
+          "mm": 25
+        },
+        "weapons": {
+          "default": [
+            "am.w.lasgun",
+            "am.w.close-combat-weapon"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "generic-infantry"
+        }
+      }
+    ],
+    "abilities": [],
+    "coreAbilities": [],
+    "points": [
+      {
+        "models": 10,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "infantry",
+      "kit": "generic-infantry"
+    }
+  }
+]

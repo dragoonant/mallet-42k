@@ -1,0 +1,32 @@
+{
+  "id": "astra-militarum",
+  "name": "Astra Militarum",
+  "factionKeyword": "ASTRA MILITARUM",
+  "armyRule": "am.a.voice-of-command",
+  "detachments": [
+    {
+      "id": "am.d.combat-patrol",
+      "name": "Combat Patrol",
+      "rule": "am.a.voice-of-command",
+      "stratagems": [
+        "am.s.send-in-the-next-wave",
+        "am.s.bring-it-down",
+        "am.s.artillery-strike"
+      ],
+      "enhancements": [
+        "am.e.command-laurels",
+        "am.e.gunnery-officer"
+      ]
+    }
+  ],
+  "paintScheme": {
+    "primary": "#55653a",
+    "secondary": "#9b7e52",
+    "trim": "#c8a24a",
+    "metal": "#7c8085",
+    "decal": "#a8322f"
+  },
+  "combatPatrols": [
+    "am.cp.karsks-gunners"
+  ]
+}

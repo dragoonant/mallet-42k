@@ -18,7 +18,7 @@ import { evaluateCondition, hookService } from './hooks-impl'
 import { leaderService } from './leaders'
 import { losService } from './los'
 import type { DecisionHandler, DecisionSpec, EngineContext, Services, WindowTrigger } from './modules'
-import { unitModels } from './state'
+import { keywordsOf, modelKeywordsOf, unitModels } from './state'
 import type {
   CommandRerollDecision, DecisionOption, DiceRoll, GameState, Model, PendingDecision, PlayerId, Rejection, RuntimeStratagem,
   StratagemId, Unit, UnitId,
@@ -269,6 +269,9 @@ function candidates(env: StratagemEnv, spec: TargetSpec, prevId: string | null):
         // Teeming Broods: a destroyed unit is a legal target; every other stratagem leaves includeDestroyed off
       } else if (friendly && code?.reserves) {
         if (u.location !== 'reserves') continue
+      } else if (friendly && code?.destroyedTargets) {
+        // C3: Send in the Next Wave targets one of the player's own destroyed units
+        if (u.location !== 'destroyed') continue
       } else if (u.location !== 'board') continue
       // attached pairs are offered once, under the bodyguard id
       if (u.bodyguardUnitId && state.units[u.bodyguardUnitId]?.location === u.location) continue
@@ -284,10 +287,16 @@ function candidates(env: StratagemEnv, spec: TargetSpec, prevId: string | null):
   } else {
     for (const u of units) {
       if (u.location !== 'board') continue
-      if (!keywordOk(state, [u.id], spec)) continue
       if (friendly && leaderService.halves(state, u.id).some((id) => state.units[id].battleShocked)) continue
       if (!stateOk(env, u, spec)) continue
-      for (const m of unitModels(state, u.id)) if (withinOk(env, [m], spec, prevId)) out.push(m.id)
+      // C1: a model-role target's keyword filter reads the model's own keywords (plus unit-level granted ones)
+      const granted = hookService.keywordsFor(state, u.id).filter((k) => !keywordsOf(state, u.id).includes(k))
+      for (const m of unitModels(state, u.id)) {
+        const mk = [...modelKeywordsOf(state, m.id), ...granted]
+        if (spec.filter?.keyword && !mk.includes(spec.filter.keyword)) continue
+        if (spec.filter?.notKeyword && mk.includes(spec.filter.notKeyword)) continue
+        if (withinOk(env, [m], spec, prevId)) out.push(m.id)
+      }
     }
   }
   return out
@@ -577,6 +586,7 @@ function validateUse(state: GameState, services: Services, action: UseStratagemA
   for (const id of tuple.ids) {
     const u = unitOfTargetId(state, id)
     if (!u) return { code: 'E_INVALID_TARGET', reason: `unknown target ${id}` }
+    // a destroyed unit (Send in the Next Wave's target) is exempt, as in enumeration
     if (state.units[u].player === action.player && state.units[u].location !== 'destroyed' && leaderService.halves(state, u).some((h) => state.units[h].battleShocked)) {
       return { code: 'E_INVALID_TARGET', reason: 'R-11.2: cannot target your own Battle-shocked unit with a stratagem' }
     }

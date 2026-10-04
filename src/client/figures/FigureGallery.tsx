@@ -47,6 +47,13 @@ const GALLERY_ENTRIES: GalleryEntry[] = [
   { datasheetId: 'ade.battle-sisters-squad', faction: 'adepta-sororitas', label: 'Battle Sister', modelId: 'sister' },
   { datasheetId: 'ade.celestian-sacresants', faction: 'adepta-sororitas', label: 'Celestian Sacresant', modelId: 'sacresant' },
   { datasheetId: 'ade.arco-flagellants', faction: 'adepta-sororitas', label: 'Arco-flagellant', modelId: 'arco' },
+  { datasheetId: 'am.cadian-shock-troops', modelId: 'trooper', faction: 'astra-militarum', label: 'Shock Troops' },
+  { datasheetId: 'am.cadian-shock-troops', modelId: 'sergeant', faction: 'astra-militarum', label: 'Shock Sergeant' },
+  { datasheetId: 'am.command-squad-karsk', modelId: 'karsk', faction: 'astra-militarum', label: 'Lord Marshal Karsk' },
+  { datasheetId: 'am.command-squad-karsk', modelId: 'veteran-standard', faction: 'astra-militarum', label: 'Standard Bearer' },
+  { datasheetId: 'am.field-ordnance-battery', modelId: 'gun-bombast', faction: 'astra-militarum', label: 'Field Gun' },
+  { datasheetId: 'am.field-ordnance-battery', modelId: 'gun-malleus', faction: 'astra-militarum', label: 'Rocket Battery' },
+  { datasheetId: 'am.armoured-sentinels', modelId: 'sentinel', faction: 'astra-militarum', label: 'Armoured Sentinel' },
 ]
 
 // Figures are true tabletop-miniature scale (~1-2 world-inches tall — see resolveBase), so packing
