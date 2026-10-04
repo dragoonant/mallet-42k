@@ -628,6 +628,12 @@ function chooseFormationDeployment(state: GameState, player: PlayerId, pending: 
     }
   }
   if (groups.length === 0) return null
+  // a shallow zone (Combat Patrol: ~5" deep) runs out of room for big bases if small units go down first and sprawl:
+  // while any big-based unit (> 3" across) is still undeployed, deploy only those
+  if (!arrival && groups.length > 1 && Math.min(maxX - minX, maxZ - minZ) < 8) {
+    const rad = (g: { models: FormationModel[] }): number => Math.max(...g.models.map((m) => Math.max(m.base.radius, m.base.radius2 ?? 0)))
+    if (groups.some((g) => rad(g) >= 1.5)) for (let i = groups.length - 1; i >= 0; i--) if (rad(groups[i]) < 1.5) groups.splice(i, 1)
+  }
   const myReserves = Object.values(state.units).filter((u) => u.player === player && u.location === 'reserves').length
   const xStep = 2.5, zStep = 1 // a Combat Patrol zone is only ~5" deep: fine in z so a 2-3 rank block can sit anywhere in it
   const occupied: Footprint[] = [...boardModelsOf(state, player), ...enemyBoard]
@@ -637,7 +643,8 @@ function chooseFormationDeployment(state: GameState, player: PlayerId, pending: 
     if (g.models.length === 0) continue
     const role = formationRole(state, g.unitId, g.models.length)
     const heavy = g.models.length === 1 || hasKeyword(state, g.unitId, 'VEHICLE') || hasKeyword(state, g.unitId, 'MONSTER')
-    let shapes: FormationShape[] = heavy && g.models.length > 1 ? ['block'] : shapesForRole(role, g.models.length)
+    // heavy multi-model units use a block, but a shallow zone needs the one-rank line / zig-zag as well
+    let shapes: FormationShape[] = heavy && g.models.length > 1 ? ['block', 'line'] : shapesForRole(role, g.models.length)
     const stats = modelStats(state, unitModels(state, g.unitId)[0])
     const rangeOf = hasAnyRangedWeapon(state, g.unitId) ? bestRangedRangeOfUnit(state, g.unitId) : null
     // only cheap (1 W, 5+ or worse save), short-ranged mobs are screening-line material
@@ -698,6 +705,15 @@ export class UtilityDecider implements Decider {
 
   async decide(view: PlayerView, pending: PendingDecision, legal: Action[] | null): Promise<Action> {
     const options = legal ?? legalActions(view.state, pending) ?? []
+    if (options.length === 0 && pending.kind === 'deployUnit') {
+      // never throw on deployment: try the AI formations, then hold a Deep Strike-capable unit in Reserves
+      const formed = chooseFormationDeployment(view.state, view.player, pending, this.rng)
+      if (formed) return formed
+      for (const unitId of pending.context.reservesAllowed) {
+        const a: DeployUnitAction = { type: 'deployUnit', player: view.player, decisionId: pending.id, unitId, placements: [], toReserves: true }
+        if (validate(view.state, a) === null) return a
+      }
+    }
     if (options.length === 0) throw new Error(`UtilityDecider: no legal action for decision ${pending.id} (${pending.kind})`)
     if (pending.kind === 'deployUnit') {
       const formed = chooseFormationDeployment(view.state, view.player, pending, this.rng)
