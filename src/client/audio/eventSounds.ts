@@ -16,7 +16,7 @@ import type { PlayerId, Phase } from '../../engine/types'
 import type { WeaponData } from '../../data/types'
 import { weaponFlavour, type WeaponFlavour } from '../weaponFlavour'
 import type { AudioManager, PlayOptions } from './manager'
-import type { SfxId, SoundId, VoiceId } from './manifest'
+import { SFX_IDS, type SfxId, type SoundId, type VoiceId } from './manifest'
 
 export interface EventSound {
   id: SoundId
@@ -59,6 +59,57 @@ export interface SoundLookup {
   factionOfUnit(unitId: string): string
 }
 
+/** Every weapon in the bundle has its own sound (public/audio/wpn-<slug>.mp3). A weapon id matches the
+ *  longest slug it contains, so 'am.w.plasma-gun-supercharge' is the plasma gun and 'tyr.w.leapers-talons'
+ *  is the talons; profile variants share their weapon's sound. Chainswords and the power klaw keep the
+ *  original assets (the owner likes them). An id that matches nothing falls back to its flavour sound.
+ *  Trims pull the loudest generated assets back toward the rest of the palette (decoded RMS, see
+ *  WEAPON_TRIM); re-measure if an asset is regenerated. */
+const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
+  ...SFX_IDS.filter((id) => id.startsWith('wpn-')).map((id) => [id.slice(4), id] as const),
+  ['chainsword', 'melee-chainsword'] as const,
+  ['power-klaw', 'power-klaw-crunch'] as const,
+].sort((a, b) => b[0].length - a[0].length)
+
+const WEAPON_TRIM: Partial<Record<SfxId, number>> = {
+  'wpn-assault-cannon': 0.3,
+  'wpn-autogun': 0.73,
+  'wpn-barblauncher': 0.75,
+  'wpn-big-choppa': 0.64,
+  'wpn-big-shoota': 0.57,
+  'wpn-bombast-field-gun': 0.41,
+  'wpn-close-combat-weapon': 0.64,
+  'wpn-doomsday-blaster': 0.35,
+  'wpn-flamer': 0.44,
+  'wpn-force-weapon': 0.68,
+  'wpn-gauss-flayer': 0.68,
+  'wpn-gauss-reaper': 0.65,
+  'wpn-grenade-launcher': 0.72,
+  'wpn-heavy-bolter': 0.39,
+  'wpn-heavy-flamer': 0.41,
+  'wpn-hunter-killer-missile': 0.38,
+  'wpn-lasgun': 0.72,
+  'wpn-malleus-rocket-launcher': 0.62,
+  'wpn-meltagun': 0.59,
+  'wpn-plasma-cannon': 0.69,
+  'wpn-plasma-gun': 0.67,
+  'wpn-plasma-pistol': 0.69,
+  'wpn-psychoclastic-torrent': 0.33,
+  'wpn-pyreblaster': 0.59,
+  'wpn-rite-of-possession': 0.7,
+  'wpn-rokkit-launcha': 0.47,
+  'wpn-shoota': 0.39,
+  'wpn-uge-choppa': 0.8,
+}
+
+export function weaponSound(weaponId: string): { id: SfxId; volume?: number } | undefined {
+  const name = weaponId.slice(weaponId.indexOf('.w.') + 1)
+  const hit = WEAPON_SLUGS.find(([slug]) => name.includes(slug))
+  if (!hit) return undefined
+  const volume = WEAPON_TRIM[hit[1]]
+  return volume === undefined ? { id: hit[1] } : { id: hit[1], volume }
+}
+
 /** The distinct weapon sounds for one TargetsDeclared, in declaration order. Deduped by sound, so a
  *  squad whose models all fire the same gun gets one shot sound rather than ten stacked (the manager
  *  would throttle them anyway — see MAX_CONCURRENT_PER_ID — but then the *count* would depend on
@@ -68,7 +119,8 @@ function firingSounds(event: Extract<GameEvent, { type: 'TargetsDeclared' }>, lo
   const seen = new Set<SfxId>()
   const out: EventSound[] = []
   for (const target of event.targets) {
-    const { id, volume = 1 } = FLAVOUR_SOUND[weaponFlavour(target.weaponId, lookup?.weapon(target.weaponId), faction)]
+    const { id, volume = 1 } =
+      weaponSound(target.weaponId) ?? FLAVOUR_SOUND[weaponFlavour(target.weaponId, lookup?.weapon(target.weaponId), faction)]
     if (seen.has(id)) continue
     seen.add(id)
     // Second and later weapons in the same declaration duck further, so two guns firing together
@@ -93,8 +145,17 @@ const DEATH_SOUND: Record<string, SfxId> = {
   'chaos-space-marines': 'death-chaos-space-marines',
 }
 
+/** Measured decoded RMS runs 0.05-0.40 across these; the loud three are pulled back toward ~0.15. */
+const DEATH_TRIM: Partial<Record<SfxId, number>> = {
+  'death-adepta-sororitas': 0.7,
+  'death-astra-militarum': 0.45,
+  'death-chaos-space-marines': 0.4,
+}
+
 function deathSound(faction: string): EventSound {
-  return { id: DEATH_SOUND[faction] ?? 'model-death' }
+  const id = DEATH_SOUND[faction] ?? 'model-death'
+  const volume = DEATH_TRIM[id]
+  return volume === undefined ? { id } : { id, opts: { volume } }
 }
 
 /** Sounds to play for one engine event. `perspective` (the human seat) is optional — omit it to get

@@ -38,6 +38,65 @@ export type SfxId =
   | 'ui-error'
   | 'victory-fanfare'
   | 'defeat-sting'
+  | 'wpn-bolt-pistol'
+  | 'wpn-boltgun'
+  | 'wpn-condemnor-boltgun'
+  | 'wpn-combi-weapon'
+  | 'wpn-storm-bolter'
+  | 'wpn-heavy-bolter'
+  | 'wpn-lasgun'
+  | 'wpn-laspistol'
+  | 'wpn-plasma-pistol'
+  | 'wpn-plasma-gun'
+  | 'wpn-plasma-cannon'
+  | 'wpn-autogun'
+  | 'wpn-autopistol'
+  | 'wpn-flamer'
+  | 'wpn-heavy-flamer'
+  | 'wpn-pyreblaster'
+  | 'wpn-grenade-launcher'
+  | 'wpn-meltagun'
+  | 'wpn-bombast-field-gun'
+  | 'wpn-malleus-rocket-launcher'
+  | 'wpn-hunter-killer-missile'
+  | 'wpn-rite-of-possession'
+  | 'wpn-smite'
+  | 'wpn-tachyon-arrow'
+  | 'wpn-gauss-flayer'
+  | 'wpn-gauss-reaper'
+  | 'wpn-doomsday-blaster'
+  | 'wpn-shoota'
+  | 'wpn-slugga'
+  | 'wpn-big-shoota'
+  | 'wpn-rokkit-launcha'
+  | 'wpn-kopta-rokkits'
+  | 'wpn-kustom-mega-blasta'
+  | 'wpn-assault-cannon'
+  | 'wpn-psychoclastic-torrent'
+  | 'wpn-fleshborer'
+  | 'wpn-barblauncher'
+  | 'wpn-choppa'
+  | 'wpn-big-choppa'
+  | 'wpn-uge-choppa'
+  | 'wpn-power-weapon'
+  | 'wpn-relic-weapon'
+  | 'wpn-accursed-weapon'
+  | 'wpn-overlords-blade'
+  | 'wpn-power-fist'
+  | 'wpn-dread-klaw'
+  | 'wpn-force-weapon'
+  | 'wpn-staff-of-possession'
+  | 'wpn-hallowed-mace'
+  | 'wpn-arco-flails'
+  | 'wpn-close-combat-weapon'
+  | 'wpn-spinnin-blades'
+  | 'wpn-hyperphase-weapons'
+  | 'wpn-feeder-mandibles'
+  | 'wpn-doomstalker-limbs'
+  | 'wpn-talons'
+  | 'wpn-claws-and-teeth'
+  | 'wpn-hideous-mutations'
+  | 'wpn-brutal-assault-weapon'
 
 export type VoiceId =
   | 'narr-battle-round-one'
@@ -118,6 +177,65 @@ export const SFX_IDS: readonly SfxId[] = [
   'ui-error',
   'victory-fanfare',
   'defeat-sting',
+  'wpn-bolt-pistol',
+  'wpn-boltgun',
+  'wpn-condemnor-boltgun',
+  'wpn-combi-weapon',
+  'wpn-storm-bolter',
+  'wpn-heavy-bolter',
+  'wpn-lasgun',
+  'wpn-laspistol',
+  'wpn-plasma-pistol',
+  'wpn-plasma-gun',
+  'wpn-plasma-cannon',
+  'wpn-autogun',
+  'wpn-autopistol',
+  'wpn-flamer',
+  'wpn-heavy-flamer',
+  'wpn-pyreblaster',
+  'wpn-grenade-launcher',
+  'wpn-meltagun',
+  'wpn-bombast-field-gun',
+  'wpn-malleus-rocket-launcher',
+  'wpn-hunter-killer-missile',
+  'wpn-rite-of-possession',
+  'wpn-smite',
+  'wpn-tachyon-arrow',
+  'wpn-gauss-flayer',
+  'wpn-gauss-reaper',
+  'wpn-doomsday-blaster',
+  'wpn-shoota',
+  'wpn-slugga',
+  'wpn-big-shoota',
+  'wpn-rokkit-launcha',
+  'wpn-kopta-rokkits',
+  'wpn-kustom-mega-blasta',
+  'wpn-assault-cannon',
+  'wpn-psychoclastic-torrent',
+  'wpn-fleshborer',
+  'wpn-barblauncher',
+  'wpn-choppa',
+  'wpn-big-choppa',
+  'wpn-uge-choppa',
+  'wpn-power-weapon',
+  'wpn-relic-weapon',
+  'wpn-accursed-weapon',
+  'wpn-overlords-blade',
+  'wpn-power-fist',
+  'wpn-dread-klaw',
+  'wpn-force-weapon',
+  'wpn-staff-of-possession',
+  'wpn-hallowed-mace',
+  'wpn-arco-flails',
+  'wpn-close-combat-weapon',
+  'wpn-spinnin-blades',
+  'wpn-hyperphase-weapons',
+  'wpn-feeder-mandibles',
+  'wpn-doomstalker-limbs',
+  'wpn-talons',
+  'wpn-claws-and-teeth',
+  'wpn-hideous-mutations',
+  'wpn-brutal-assault-weapon',
 ]
 
 export const ALL_SOUND_IDS: readonly SoundId[] = [...SFX_IDS, ...VOICE_IDS, ...MUSIC_IDS]

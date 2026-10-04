@@ -6,7 +6,9 @@
 import { describe, expect, it } from 'vitest'
 import { loadBundle } from '../../src/data'
 import { weaponFlavour, isRangedFlavour, type WeaponFlavour } from '../../src/client/weaponFlavour'
-import { soundsForEvent, type SoundLookup } from '../../src/client/audio/eventSounds'
+import { soundsForEvent, weaponSound, type SoundLookup } from '../../src/client/audio/eventSounds'
+import { SFX_IDS } from '../../src/client/audio/manifest'
+import { existsSync } from 'node:fs'
 import type { GameEvent } from '../../src/engine/events'
 
 const bundle = await loadBundle()
@@ -200,73 +202,54 @@ describe('weapon flavour', () => {
 })
 
 describe('firing sounds', () => {
-  it('a marine squad firing bolters is the bolt-gun sound, not the generic one', () => {
-    expect(soundIds(declared(['sm.w.storm-bolter']), SM)).toEqual(['bolter-burst'])
+  it('every weapon in the data bundle has its own sound, and the file exists', () => {
+    for (const id of Object.keys(bundle.weapons)) {
+      const sound = weaponSound(id)
+      expect(sound, id).toBeDefined()
+      expect(SFX_IDS).toContain(sound!.id)
+      expect(existsSync(`public/audio/${sound!.id}.mp3`), sound!.id).toBe(true)
+    }
   })
 
-  it('an ork mob firing shootas is the ork gun sound', () => {
-    expect(soundIds(declared(['ork.w.shoota', 'ork.w.shoota']), ORK)).toEqual(['shoota-spray'])
+  it('bolt weapons are explosive shells, each with its own report', () => {
+    expect(soundIds(declared(['sm.w.storm-bolter']), SM)).toEqual(['wpn-storm-bolter'])
+    expect(soundIds(declared(['csm.w.boltgun', 'csm.w.boltgun']), CSM)).toEqual(['wpn-boltgun'])
+    expect(soundIds(declared(['csm.w.heavy-bolter']), CSM)).toEqual(['wpn-heavy-bolter'])
+    expect(soundIds(declared(['ade.w.condemnor-boltgun']), ADE)).toEqual(['wpn-condemnor-boltgun'])
+    expect(soundIds(declared(['csm.w.bolt-pistol-cultist-champion']), CSM)).toEqual(['wpn-bolt-pistol'])
   })
 
-  it('a necron gauss line is the energy sound, its big guns the heavy one', () => {
-    expect(soundIds(declared(['nec.w.gauss-flayer', 'nec.w.gauss-flayer']), NEC)).toEqual(['psychic-zap'])
-    expect(soundIds(declared(['nec.w.doomsday-blaster']), NEC)).toEqual(['heavy-gun'])
-    expect(soundIds(declared(['nec.w.doomstalker-limbs'], 'fight'), NEC)).toEqual(['power-klaw-crunch'])
+  it('choppas swing like blades, chainswords keep the chainsword, flamers roar', () => {
+    expect(soundIds(declared(['ork.w.choppa'], 'fight'), ORK)).toEqual(['wpn-choppa'])
+    expect(soundIds(declared(['ork.w.big-choppa'], 'fight'), ORK)).toEqual(['wpn-big-choppa'])
+    expect(soundIds(declared(['ork.w.uge-choppa'], 'fight'), ORK)).toEqual(['wpn-uge-choppa'])
+    expect(soundIds(declared(['am.w.chainsword'], 'fight'), AM)).toEqual(['melee-chainsword'])
+    expect(soundIds(declared(['ade.w.hallowed-chainsword'], 'fight'), ADE)).toEqual(['melee-chainsword'])
+    expect(soundIds(declared(['ade.w.ministorum-flamer']), ADE)).toEqual(['wpn-flamer'])
+    expect(soundIds(declared(['ade.w.ministorum-heavy-flamer']), ADE)).toEqual(['wpn-heavy-flamer'])
+    expect(soundIds(declared(['sm.w.pyreblaster']), SM)).toEqual(['wpn-pyreblaster'])
   })
 
-  it('chaos marines: bolters thump, autoguns rattle, the staff crackles, meltaguns burn', () => {
-    expect(soundIds(declared(['csm.w.boltgun', 'csm.w.boltgun']), CSM)).toEqual(['bolter-burst'])
-    expect(soundIds(declared(['csm.w.autopistol', 'csm.w.autopistol']), CSM)).toEqual(['shoota-spray'])
-    expect(soundIds(declared(['csm.w.meltagun']), CSM)).toEqual(['flamer'])
-    expect(soundIds(declared(['csm.w.heavy-bolter']), CSM)).toEqual(['heavy-gun'])
-    expect(soundIds(declared(['csm.w.rite-of-possession']), CSM)).toEqual(['psychic-zap'])
-    expect(soundIds(declared(['csm.w.staff-of-possession'], 'fight'), CSM)).toEqual(['psychic-zap'])
-    expect(soundIds(declared(['csm.w.hideous-mutations'], 'fight'), CSM)).toEqual(['power-klaw-crunch'])
-  })
-
-  it('a tyranid brood spits a wet spray, lobs barbs heavily and slashes in melee', () => {
-    expect(soundIds(declared(['tyr.w.fleshborer', 'tyr.w.fleshborer']), TYR)).toEqual(['shoota-spray'])
-    expect(soundIds(declared(['tyr.w.barblauncher']), TYR)).toEqual(['heavy-gun'])
-    expect(soundIds(declared(['tyr.w.psychoclastic-torrent']), TYR)).toEqual(['flamer'])
-    expect(soundIds(declared(['tyr.w.chitinous-claws-and-teeth-termagant'], 'fight'), TYR)).toEqual(['melee-chainsword'])
-    expect(soundIds(declared(['tyr.w.leapers-talons'], 'fight'), TYR)).toEqual(['melee-chainsword'])
-  })
-
-  it('a guard line fires rifle-crack lasguns, its gunners the heavy sound', () => {
-    expect(soundIds(declared(['am.w.lasgun', 'am.w.lasgun']), AM)).toEqual(['bolter-burst'])
-    expect(soundIds(declared(['am.w.bombast-field-gun']), AM)).toEqual(['heavy-gun'])
-    expect(soundIds(declared(['am.w.flamer']), AM)).toEqual(['flamer'])
-    expect(soundIds(declared(['am.w.close-combat-weapon-sentinel'], 'fight'), AM)).toEqual(['power-klaw-crunch'])
-  })
-
-  it('each weapon type sounds like itself', () => {
-    expect(soundIds(declared(['sm.w.pyreblaster']), SM)).toEqual(['flamer'])
-    expect(soundIds(declared(['sm.w.assault-cannon']), SM)).toEqual(['heavy-gun'])
-    expect(soundIds(declared(['sm.w.smite']), SM)).toEqual(['psychic-zap'])
-    expect(soundIds(declared(['sm.w.force-weapon'], 'fight'), SM)).toEqual(['psychic-zap'])
-    expect(soundIds(declared(['sm.w.power-fist'], 'fight'), SM)).toEqual(['power-klaw-crunch'])
-    expect(soundIds(declared(['ork.w.rokkit-launcha']), ORK)).toEqual(['heavy-gun'])
+  it('profile variants share their weapon\'s sound', () => {
+    expect(soundIds(declared(['am.w.plasma-gun-supercharge']), AM)).toEqual(['wpn-plasma-gun'])
+    expect(soundIds(declared(['nec.w.twin-gauss-flayer']), NEC)).toEqual(['wpn-gauss-flayer'])
+    expect(soundIds(declared(['tyr.w.leapers-talons'], 'fight'), TYR)).toEqual(['wpn-talons'])
     expect(soundIds(declared(['ork.w.power-klaw'], 'fight'), ORK)).toEqual(['power-klaw-crunch'])
-    expect(soundIds(declared(['ork.w.choppa'], 'fight'), ORK)).toEqual(['melee-chainsword'])
+  })
+
+  it('an unknown weapon falls back to its flavour sound', () => {
+    expect(soundIds(declared(['mystery.w.flame-thing']), SM)).toEqual(['flamer'])
   })
 
   it('ten models firing the same gun is one shot sound, not ten', () => {
     const tenBoyz = declared(Array.from({ length: 10 }, () => 'ork.w.shoota'))
-    expect(soundIds(tenBoyz, ORK)).toEqual(['shoota-spray'])
+    expect(soundIds(tenBoyz, ORK)).toEqual(['wpn-shoota'])
   })
 
   it('a squad firing two different weapons plays both, with the second ducked', () => {
     const mixed = soundsForEvent(declared(['sm.w.storm-bolter', 'sm.w.pyreblaster']), 'A', lookupFor(SM))
-    expect(mixed.map((s) => s.id)).toEqual(['bolter-burst', 'flamer'])
-    expect(mixed[0].opts?.volume).toBeUndefined() // first weapon, no trim of its own
-    expect(mixed[1].opts?.volume).toBeLessThan(0.58) // flamer's own trim, ducked again for being second
-  })
-
-  it('the loud assets are trimmed so one faction\'s guns do not drown the other\'s', () => {
-    const ork = soundsForEvent(declared(['ork.w.shoota']), 'A', lookupFor(ORK))[0]
-    const marine = soundsForEvent(declared(['sm.w.storm-bolter']), 'A', lookupFor(SM))[0]
-    expect(ork.opts?.volume).toBeLessThan(1)
-    expect(marine.opts?.volume ?? 1).toBe(1)
+    expect(mixed.map((s) => s.id)).toEqual(['wpn-storm-bolter', 'wpn-pyreblaster'])
+    expect(mixed[1].opts?.volume).toBeLessThan(mixed[0].opts?.volume ?? 1)
   })
 
   it('AttackSequenceStarted no longer voices the shot itself (TargetsDeclared does)', () => {
@@ -274,8 +257,21 @@ describe('firing sounds', () => {
     expect(soundsForEvent(started, 'A', lookupFor(SM))).toEqual([])
   })
 
-  it('without a lookup, firing still makes a sound (faction-less fallback)', () => {
-    expect(soundsForEvent(declared(['sm.w.storm-bolter']), 'A').map((s) => s.id)).toEqual(['bolter-burst'])
-    expect(soundsForEvent(declared(['ork.w.big-shoota']), 'A').map((s) => s.id)).toEqual(['shoota-spray'])
+  it('without a lookup, firing still makes the weapon\'s own sound', () => {
+    expect(soundsForEvent(declared(['ork.w.big-shoota']), 'A').map((s) => s.id)).toEqual(['wpn-big-shoota'])
+  })
+})
+
+describe('death sounds', () => {
+  const died = (unitId: string) => ({ type: 'ModelDestroyed', seq: 1, round: 1, turn: 'A', phase: 'shooting', unitId, modelId: 'm1', byPlayer: 'B', byUnitId: null, byModelId: null, kind: 'ranged' }) as unknown as GameEvent
+  const lookup = (faction: string): SoundLookup => ({ weapon: () => undefined, factionOfUnit: () => faction })
+  it('each faction dies in its own voice', () => {
+    expect(soundsForEvent(died('u'), 'A', lookup(ADE))[0].id).toBe('death-adepta-sororitas')
+    expect(soundsForEvent(died('u'), 'A', lookup(ORK))[0].id).toBe('death-orks')
+    expect(soundsForEvent(died('u'), 'A', lookup(SM))[0].id).toBe('death-space-marines')
+    expect(soundsForEvent(died('u'), 'A', lookup(NEC))[0].id).toBe('death-necrons')
+  })
+  it('an unknown faction falls back to the generic death', () => {
+    expect(soundsForEvent(died('u'), 'A')[0].id).toBe('model-death')
   })
 })
