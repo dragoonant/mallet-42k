@@ -122,6 +122,9 @@ interface UiState {
   helpOpen: boolean
   /** Settings popover (src/client/ui/SettingsPanel.tsx) — audio mix + animation-speed/dice/ambient. */
   settingsOpen: boolean
+  /** Army painter modal (src/client/ui/PainterPanel.tsx). */
+  painterOpen: boolean
+  togglePainter: () => void
   /** Board point the camera should smoothly centre on next — a fresh object every call so
    *  CameraRig's effect fires even when re-focusing the same spot (src/client/board/CameraRig.tsx). */
   focusTarget: Vec2 | null
@@ -192,6 +195,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   losOn: false,
   helpOpen: false,
   settingsOpen: false,
+  painterOpen: false,
   focusTarget: null,
   formationKind: 'line',
   formationFacing: 0,
@@ -216,6 +220,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   clearMeasure: () => set({ measureAnchor: null, measureLine: null }),
   toggleLos: () => set((s) => ({ losOn: !s.losOn })),
   toggleHelp: () => set((s) => ({ helpOpen: !s.helpOpen })),
+  togglePainter: () => set((s) => ({ painterOpen: !s.painterOpen })),
   toggleSettings: () => set((s) => ({ settingsOpen: !s.settingsOpen })),
   cycleBattlefield: () =>
     set((s) => {

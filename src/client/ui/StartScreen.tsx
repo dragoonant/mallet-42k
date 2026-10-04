@@ -7,6 +7,7 @@ import { loadBundle } from '../../data'
 import type { DataBundle } from '../../data/types'
 import { AI_DIFFICULTY_OPTIONS, DEFAULT_AI_DIFFICULTY, resolveFactionId, splittablePatrolRefs, useGameStore, type AiDifficulty, type FactionKey, type OpponentKind } from '../store/game'
 import { primaryScoringSummary } from './labels'
+import { PainterPanel } from './PainterPanel'
 import { buttonActive, buttonBase, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 
 // Own-words one-liners per faction id. A faction with no entry here still appears (name only), so a new
@@ -97,6 +98,7 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
     })
     return ids.map((id) => ({ id, label: bundle.factions[id].name, blurb: FACTION_BLURBS[id] ?? '' }))
   }, [bundle])
+  const [painting, setPainting] = useState(false)
   const factionId = resolveFactionId(faction)
   const activeFaction = factions.find((f) => f.id === factionId)
   const missionData = bundle?.missions[`mission.${mission}`]
@@ -237,12 +239,17 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
           </button>
         </div>
 
+        <button style={buttonBase} data-testid="open-painter" onClick={() => setPainting(true)}>
+          Paint army
+        </button>
+
         {error && <p style={errorText}>{error}</p>}
 
         <button style={{ ...buttonPrimary, marginTop: 8, padding: '12px 16px', fontSize: 15 }} data-testid="start-game" disabled={loading} onClick={() => void start()}>
           {loading ? 'Loading…' : 'Start Battle'}
         </button>
       </div>
+      {painting && <PainterPanel factions={factions} initialFaction={factionId} onClose={() => setPainting(false)} />}
     </div>
   )
 }

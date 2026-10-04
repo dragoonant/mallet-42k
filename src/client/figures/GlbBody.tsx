@@ -4,9 +4,12 @@
 import { useEffect, useRef } from 'react'
 import type { Group, Object3D } from 'three'
 import { usePoseFrame, clamp01, easeOut, useMaterialFader } from './anim'
+import { useThree } from '@react-three/fiber'
+import { applyGlbPaint } from './glbPaint'
+import { paintKey, type ArmyPaint } from './paint'
 import type { Pose } from './types'
 
-export function GlbBody({ object, pose, seed }: { object: Object3D; pose: Pose; seed: number }) {
+export function GlbBody({ object, pose, seed, faction, paint }: { object: Object3D; pose: Pose; seed: number; faction: string; paint?: ArmyPaint }) {
   const bodyRef = useRef<Group>(null!)
   const fade = useMaterialFader(bodyRef)
 
@@ -18,6 +21,16 @@ export function GlbBody({ object, pose, seed }: { object: Object3D; pose: Pose; 
       body.remove(object)
     }
   }, [object])
+
+  // Army painter: recolour this instance's materials (clones, never the shared cache); no-op when unpainted.
+  const invalidate = useThree((s) => s.invalidate)
+  const pKey = paintKey(paint)
+  useEffect(() => {
+    const restore = applyGlbPaint(object, faction, paint)
+    invalidate()
+    return restore
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [object, faction, pKey, invalidate])
 
   usePoseFrame(pose, (t, since) => {
     const body = bodyRef.current

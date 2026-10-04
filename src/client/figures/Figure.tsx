@@ -7,6 +7,7 @@ import { useFrame } from '@react-three/fiber'
 import { requestFrame } from './anim'
 import type { Group } from 'three'
 import type { ThreeEvent } from '@react-three/fiber'
+import { applyPaintToColors, resolveBaseStyle, useArmyPaint } from './paint'
 import { resolveBase, resolveFigureKit, resolvePaintColors, useDataBundle } from './data'
 import { SwarmBody } from './SwarmBody'
 import { BODY_KIND, BIPED_CONFIG, VEHICLE_CONFIG, ARTILLERY_CONFIG } from './kitConfigs'
@@ -165,7 +166,9 @@ export const Figure = memo(function Figure({
 
   const { archetype, kit } = useMemo(() => resolveFigureKit(datasheetId, datasheet, modelId), [datasheetId, datasheet, modelId])
   const base = useMemo(() => resolveBase(datasheet, archetype), [datasheet, archetype])
-  const colors = useMemo(() => resolvePaintColors(factionData), [factionData])
+  const paint = useArmyPaint(faction)
+  const colors = useMemo(() => applyPaintToColors(resolvePaintColors(factionData), paint), [factionData, paint])
+  const baseStyle = useMemo(() => resolveBaseStyle(paint), [paint])
 
   const bodyKind = BODY_KIND[kit]
   const isMoving = moving ?? autoMoving
@@ -174,8 +177,8 @@ export const Figure = memo(function Figure({
 
   return (
     <group ref={groupRef} onClick={onClick}>
-      <BaseDisc radiusX={base.radiusX} radiusZ={base.radiusZ} colors={colors} selected={selected} highlighted={highlighted} hovered={hovered} glbBody={!!glb} />
-      {glb && <GlbBody object={glb} pose={pose} seed={seedRef.current} />}
+      <BaseDisc radiusX={base.radiusX} radiusZ={base.radiusZ} colors={colors} selected={selected} highlighted={highlighted} hovered={hovered} glbBody={!!glb} baseStyle={baseStyle} />
+      {glb && <GlbBody object={glb} pose={pose} seed={seedRef.current} faction={faction} paint={paint} />}
       {!glb && <group position={[0, BASE_THICKNESS, 0]} scale={[base.height, base.height, base.height]}>
         {bodyKind === 'swarm' ? (
           <SwarmBody colors={colors} pose={pose} seed={seedRef.current} />
