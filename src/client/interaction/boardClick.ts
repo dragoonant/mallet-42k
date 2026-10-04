@@ -11,6 +11,7 @@ import { useUiStore, type PlacementDraft } from '../ui/uiStore'
 import { combinedUnitModels, modelsAnchor, type Anchor2D } from './geometry'
 import { directionFacing, formationPlacementsForUnit, zoneFacing, type FormationKind, type FormationPlacement } from './formations'
 import { placementInfo } from './decisions'
+import { deployUnitInfiltrates, inInfiltratorArea } from './formationValidation'
 
 /** Average of a convex polygon's own vertices — always interior for the rectangle/triangle deployment
  *  zones Combat Patrol missions use — used as the "pull toward here" target when a click-drafted
@@ -163,6 +164,22 @@ export function computeBoardClickDraft(
     // rotating/reshaping as a last resort (see clampAnchorToZone) rather than leaving an unconfirmable
     // red preview. When that changed the facing/kind actually used, reflect it in the formation picker
     // so what's on screen matches what the player would see if they'd picked it themselves.
+    // An Infiltrators unit (engine-flagged in context.infiltrators) may be set up outside the zone: when
+    // the raw click already forms a valid drop in the infiltration area (and does not fit the zone), keep
+    // it where it was clicked instead of pulling it back into the zone.
+    if (deployUnitInfiltrates(state, deployTargetUnitId)) {
+      const raw = formationPlacementsForUnit(state, deployTargetUnitId, point, facing, kind)
+      if (raw.length > 0 && !formationFitsZone(state, models, raw, pending.context.zone)) {
+        const byId = new Map(models.map((m) => [m.id, m]))
+        const fps = raw.flatMap((p) => {
+          const m = byId.get(p.modelId)
+          return m ? [{ pos: p.pos, facing: p.facing, base: m.base }] : []
+        })
+        if (inInfiltratorArea(state, pending.player, fps)) {
+          return { decisionId: pending.id, unitId: deployTargetUnitId, anchor: point, placements: raw }
+        }
+      }
+    }
     const clamped = clampAnchorToZone(state, deployTargetUnitId, models, point, facing, kind, pending.context.zone)
     if (clamped.placements.length === 0) return null
     if (clamped.facing !== facing || ui.formationFacingAuto) ui.setFormationFacing(clamped.facing, true)

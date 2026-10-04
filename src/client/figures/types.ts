@@ -38,6 +38,11 @@ export type KitId =
   | 'csm-zarkan'
   | 'csm-possessed'
   | 'csm-cultist'
+  | 'tyr-prime'
+  | 'tyr-psychophage'
+  | 'tyr-termagant'
+  | 'tyr-barbgaunt'
+  | 'tyr-leaper'
   | 'generic-infantry'
   | 'generic-heavy'
   | 'generic-monster'
@@ -55,7 +60,7 @@ export interface PaintColors {
 
 /** Body geometry + weapon dressing for a biped kit (infantry/heavy/monster archetypes — every
  *  datasheet in this data set that isn't a flyer resolves to a biped). */
-export type HeadShape = 'marine-helmet' | 'terminator-helmet' | 'ork-head' | 'ork-boss-head' | 'necron-skull' | 'necron-lord' | 'generic-head'
+export type HeadShape = 'marine-helmet' | 'terminator-helmet' | 'ork-head' | 'ork-boss-head' | 'necron-skull' | 'necron-lord' | 'tyranid-head' | 'tyranid-prime-head' | 'tyranid-brute-head' | 'generic-head'
   | 'chaos-helmet' | 'chaos-sorcerer' | 'possessed-head' | 'cultist-hood'
 export type WeaponShape =
   | 'none'
@@ -75,6 +80,11 @@ export type WeaponShape =
   | 'ritual-staff'
   | 'mutant-claw'
   | 'rusty-blade'
+  | 'scything-talons'
+  | 'rending-claws'
+  | 'fleshborer'
+  | 'barblauncher'
+  | 'torrent-maw'
 export type ShoulderPad = 'none' | 'small' | 'large'
 
 export interface BipedConfig {
@@ -94,6 +104,16 @@ export interface BipedConfig {
   chestPlate?: boolean
   /** Which paint slot the torso uses (default 'primary'). Robed cultists take 'secondary'. */
   torsoColor?: 'primary' | 'secondary'
+  /** Tyranid dressing: a swept-back crest of spines on the back (decal-coloured tips). */
+  dorsalSpines?: boolean
+  /** Tyranid dressing: a tapering tail behind the hips. */
+  tail?: boolean
+  /** Tyranid dressing: a pair of membrane wings behind the shoulders (Winged Prime). */
+  wings?: boolean
+  /** Tyranid dressing: a second, smaller pair of grasping arms below the main pair. */
+  extraArms?: boolean
+  /** Torso pitch forward, in radians — a hunched, predatory stance. */
+  hunch?: number
 }
 
 export interface VehicleConfig {

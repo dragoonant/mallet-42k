@@ -59,8 +59,12 @@ export function makeSimSetup(bundle: DataBundle, gameIndex: number, dataVersion:
   // index also steps once per full pairing cycle so a pairing does not always meet the same mission
   const pairs: [string, string][] = []
   for (const x of patrols) for (const y of patrols) if (x !== y) pairs.push([x, y])
-  const [p0, p1] = patrols.length === 2 ? (gameIndex % 2 === 0 ? [patrols[0], patrols[1]] : [patrols[1], patrols[0]]) : pairs[gameIndex % pairs.length]
-  const missionIndex = patrols.length === 2 ? gameIndex : gameIndex + Math.floor(gameIndex / pairs.length)
+  // SIM_FACTION=tyranids: only pairings that include that faction's roster (every game then exercises it)
+  const only = process.env.SIM_FACTION
+  const wanted = only ? pairs.filter(([x, y]) => bundle.patrols[x].faction === only || bundle.patrols[y].faction === only) : pairs
+  if (wanted.length === 0) throw new Error(`sim: no roster pairing includes faction ${only}`)
+  const [p0, p1] = patrols.length === 2 ? (gameIndex % 2 === 0 ? [patrols[0], patrols[1]] : [patrols[1], patrols[0]]) : wanted[gameIndex % wanted.length]
+  const missionIndex = patrols.length === 2 ? gameIndex : gameIndex + Math.floor(gameIndex / wanted.length)
   return {
     missionId: MISSIONS[missionIndex % MISSIONS.length],
     terrainLayoutId: Object.keys(bundle.terrainLayouts ?? {}).sort()[0] ?? 'terrain.cp-01',
@@ -80,7 +84,8 @@ function checkState(s: GameState, prev: { ordinal: number; phaseIdx: number; rou
     if (!unit) { fail(`model ${m.id} belongs to missing unit ${m.unitId}`); continue }
     const W = modelStats(s, m).W
     if (m.woundsRemaining > W) fail(`model ${m.id} wounds ${m.woundsRemaining} > W ${W}`)
-    if (m.woundsRemaining <= 0) fail(`model ${m.id} at ${m.woundsRemaining} wounds but not destroyed`)
+    // a Death Blow model awaiting its fight sits at 0 wounds with pendingRemoval set (removed right after it fights)
+    if (m.woundsRemaining <= 0 && !m.pendingRemoval) fail(`model ${m.id} at ${m.woundsRemaining} wounds but not destroyed`)
   }
   for (const u of Object.values(s.units)) {
     if (u.location === 'destroyed' && u.models.length > 0) fail(`unit ${u.id} destroyed but still has models`)

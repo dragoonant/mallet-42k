@@ -183,6 +183,7 @@ Event families (all events carry `seq`, `turn`, `phase`, `player`):
 | charge | `ChargeDeclared`, `ChargeRolled`, `ChargeFailed`, `ChargeMoved`, `PiledIn`, `Consolidated` |
 | stratagem | `StratagemUsed`, `StratagemWindowOpened`, `StratagemWindowClosed`, `AbilityTriggered` (id, source, effect summary) |
 | reanimation (M10, necrons) | `WoundsRegained` { unitId, modelId, amount, source }, `ModelReturned` { unitId, modelId, pos, source } — emitted by Reanimation Protocols (docs/spec/factions/necrons.md NEC-2.2); `Unit.destroyedModels` (snapshot of every removed model, filled by `state.removeModel`) is what a returned model is taken from |
+| death blow (M11, tyranids) | `ModelRemovalDeferred` { unitId, modelId, source } — the model is not removed yet (`Model.pendingRemoval` = { byPlayer, byUnitId, byModelId, kind, source }); `ModelDestroyed` / `UnitDestroyed` follow, with the stored attribution, once it has fought or declined (docs/spec/factions/tyranids.md TYR-6.1). Also `RollModifierResult.extraDice` (hooks.ts): extra dice for `onBattleShockTest` (Synapse) |
 | dice | `DiceRolled` { purpose, dice: number[], modifiers, final } — one per physical roll, always emitted even when also covered by a family event |
 | objectives | `ObjectiveControlChanged`, `VpScored` (source, amount) |
 | meta | `ActionRejected` { code, reason }, `DecisionRequested` { pending } |

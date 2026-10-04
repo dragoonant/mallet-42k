@@ -18,9 +18,10 @@ const ORK = 'ork'
 const SM = 'sm'
 const NEC = 'necrons'
 const CSM = 'chaos-space-marines'
+const TYR = 'tyranids'
 
 /** The engine faction id a weapon's own id prefix belongs to. */
-const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : SM)
+const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : SM)
 
 function lookupFor(faction: string): SoundLookup {
   return { weapon: (id) => bundle.weapons[id], factionOfUnit: () => faction }
@@ -93,6 +94,14 @@ const EXPECTED: Record<string, WeaponFlavour> = {
   'csm.w.accursed-weapon': 'chain',
   'csm.w.close-combat-weapon': 'chain',
   'csm.w.brutal-assault-weapon': 'chain',
+  'tyr.w.psychoclastic-torrent': 'flame',
+  'tyr.w.fleshborer': 'shoota',
+  'tyr.w.barblauncher': 'heavy',
+  'tyr.w.prime-talons': 'chain',
+  'tyr.w.talons-and-betentacled-maw': 'chain',
+  'tyr.w.chitinous-claws-and-teeth-termagant': 'chain',
+  'tyr.w.chitinous-claws-and-teeth-barbgaunt': 'chain',
+  'tyr.w.leapers-talons': 'chain',
 }
 
 describe('weapon flavour', () => {
@@ -101,7 +110,7 @@ describe('weapon flavour', () => {
   })
 
   it('the faction ids this classifier is tuned for are the ones the data actually declares', () => {
-    for (const id of [NEC, ORK, SM, CSM]) expect(Object.keys(bundle.factions), id).toContain(id)
+    for (const id of [NEC, ORK, SM, CSM, TYR]) expect(Object.keys(bundle.factions), id).toContain(id)
   })
 
   for (const [id, expected] of Object.entries(EXPECTED)) {
@@ -121,6 +130,7 @@ describe('weapon flavour', () => {
     expect(weaponFlavour('mystery.gun', undefined, ORK)).toBe('shoota')
     expect(weaponFlavour('mystery.gun', undefined, SM)).toBe('bolter')
     expect(weaponFlavour('mystery.gun', undefined, NEC)).toBe('psychic')
+    expect(weaponFlavour('mystery.gun', undefined, TYR)).toBe('shoota')
     // the store's own setup keys ('orks'/'space-marines') classify the same way, in case a caller
     // ever passes one of those instead
     expect(weaponFlavour('mystery.gun', undefined, 'orks')).toBe('shoota')
@@ -153,6 +163,14 @@ describe('firing sounds', () => {
     expect(soundIds(declared(['csm.w.rite-of-possession']), CSM)).toEqual(['psychic-zap'])
     expect(soundIds(declared(['csm.w.staff-of-possession'], 'fight'), CSM)).toEqual(['psychic-zap'])
     expect(soundIds(declared(['csm.w.hideous-mutations'], 'fight'), CSM)).toEqual(['power-klaw-crunch'])
+  })
+
+  it('a tyranid brood spits a wet spray, lobs barbs heavily and slashes in melee', () => {
+    expect(soundIds(declared(['tyr.w.fleshborer', 'tyr.w.fleshborer']), TYR)).toEqual(['shoota-spray'])
+    expect(soundIds(declared(['tyr.w.barblauncher']), TYR)).toEqual(['heavy-gun'])
+    expect(soundIds(declared(['tyr.w.psychoclastic-torrent']), TYR)).toEqual(['flamer'])
+    expect(soundIds(declared(['tyr.w.chitinous-claws-and-teeth-termagant'], 'fight'), TYR)).toEqual(['melee-chainsword'])
+    expect(soundIds(declared(['tyr.w.leapers-talons'], 'fight'), TYR)).toEqual(['melee-chainsword'])
   })
 
   it('each weapon type sounds like itself', () => {

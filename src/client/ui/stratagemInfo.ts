@@ -59,11 +59,14 @@ const WINDOW_TIMING: Partial<Record<string, string>> = {
   'fight.start': 'before a unit is picked to fight',
   'fight.targetsDeclared': 'when an enemy unit picks its targets',
   'attack.modelDestroyed': 'when an attack destroys one of your models',
+  'shooting.targetsDeclared': 'when an enemy picks shooting targets',
+  'movement.reinforcements': 'in the Reinforcements step',
 }
 
 export function stratagemTimingLabel(s: RuntimeStratagem): string {
   const windows = Array.isArray(s.window) ? s.window : [s.window]
-  const named = windows.map((w) => WINDOW_TIMING[w]).find((w) => !!w)
+  // Several windows can share one phrasing ('picks shooting/fight targets'); show each distinct one once, at most two.
+  const named = [...new Set(windows.map((w) => WINDOW_TIMING[w]).filter((w): w is string => !!w))].slice(0, 2).join(' or ')
   if (named) return named
   if (s.phases.includes('any')) return 'any phase'
   return `${s.phases.join('/')} phase`

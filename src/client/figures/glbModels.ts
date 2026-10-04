@@ -56,6 +56,12 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'csm.legionaries/boltgun': 'legionary',
   'csm.cultist-mob/champion': 'cultist-champion',
   'csm.cultist-mob/cultist': 'cultist',
+  // Tyranids: no GLBs yet; same deal as the Necrons above (procedural kits in kitConfigs.ts draw them).
+  'tyr.terror-of-vardenghast/prime': 'terror-of-vardenghast',
+  'tyr.psychophage/psychophage': 'psychophage',
+  'tyr.termagants/termagant': 'termagant',
+  'tyr.barbgaunts/barbgaunt': 'barbgaunt',
+  'tyr.von-ryans-leapers/leaper': 'von-ryan-leaper',
 }
 
 /** The enabled GLB slug for a model type, or undefined (use the procedural figure). */

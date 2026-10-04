@@ -14,6 +14,7 @@ describe('faction selection', () => {
     expect(resolveFactionId('space-marines')).toBe('sm')
     expect(resolveFactionId('orks')).toBe('ork')
     expect(resolveFactionId('necrons')).toBe('necrons')
+    expect(resolveFactionId('tyranids')).toBe('tyranids')
     expect(resolveFactionId('ork')).toBe('ork')
   })
 
@@ -50,6 +51,15 @@ describe('faction selection', () => {
     s = useGameStore.getState().state!
     expect([s.players.A.faction, s.players.B.faction]).toEqual(['chaos-space-marines', 'chaos-space-marines'])
   }, 60000)
+  it('newGame seats Tyranids against each other faction and in a mirror', async () => {
+    for (const opp of ['space-marines', 'orks', 'necrons', 'tyranids']) {
+      await useGameStore.getState().newGame({ playerFaction: 'tyranids', opponentFaction: opp, opponent: 'hotseat', seed: `tyr-vs-${opp}` })
+      const s = useGameStore.getState().state!
+      expect([s.players.A.faction, s.players.B.faction], opp).toEqual(['tyranids', resolveFactionId(opp)])
+    }
+    await useGameStore.getState().newGame({ playerFaction: 'orks', opponentFaction: 'tyranids', opponent: 'hotseat', seed: 'ork-vs-tyr' })
+    expect(useGameStore.getState().state!.players.B.faction).toBe('tyranids')
+  }, 120000)
 
   it('with no opponent chosen, the default is still a different faction', async () => {
     await useGameStore.getState().newGame({ playerFaction: 'orks', opponent: 'hotseat', seed: 'default-opp-ork' })
@@ -106,5 +116,37 @@ describe('chaos space marine figures', () => {
 
   it('an unknown future datasheet still gets a generic kit, never nothing', () => {
     expect(resolveFigureKit('csm.future-unit', undefined).kit.startsWith('generic-')).toBe(true)
+  })
+})
+
+describe('tyranid figures', () => {
+  const tyrSheets = Object.values(bundle.datasheets).filter((d) => d.id.startsWith('tyr.'))
+
+  it('there are tyranid datasheets to check', () => {
+    expect(tyrSheets.length).toBe(5)
+  })
+
+  it('every tyranid unit gets its own kit, and the five kits look different', () => {
+    const kits = tyrSheets.map((ds) => resolveFigureKit(ds.id, ds).kit)
+    for (const k of kits) expect(k.startsWith('tyr-'), k).toBe(true)
+    expect(new Set(kits).size).toBe(tyrSheets.length)
+    const heads = new Set(kits.map((k) => BIPED_CONFIG[k]?.headShape))
+    expect(heads.size).toBeGreaterThanOrEqual(3)
+  })
+
+  for (const ds of tyrSheets) {
+    it(`${ds.id} resolves to a tyranid kit with a body config`, () => {
+      const { kit } = resolveFigureKit(ds.id, ds)
+      expect(BODY_KIND[kit]).toBeDefined()
+      if (BODY_KIND[kit] === 'biped') expect(BIPED_CONFIG[kit], kit).toBeDefined()
+    })
+
+    it(`${ds.id} falls back to the procedural figure while no GLB is enabled`, () => {
+      for (const m of ds.composition) expect(glbSlugFor(ds.id, m.modelId), m.modelId).toBeUndefined()
+    })
+  }
+
+  it('the faction paint scheme is declared, so figures are painted in it', () => {
+    expect(bundle.factions.tyranids.paintScheme.primary).toBeTruthy()
   })
 })

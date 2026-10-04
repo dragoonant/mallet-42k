@@ -302,6 +302,99 @@ export function WeaponMesh({ shape, colors, hand }: { shape: WeaponShape; colors
           </mesh>
         </group>
       )
+    case 'scything-talons':
+      // Two long, down-curved bone-blades side by side, dark chitin edge with a coloured root.
+      return (
+        <group scale={1.6}>
+          <mesh position={[0, 0, 0.0]}>
+            <GBox args={[0.09, 0.09, 0.08]} />
+            <StdMat color={colors.primary} roughness={0.5} />
+          </mesh>
+          <mesh position={[-0.025, 0.03, 0.2]} rotation={[0.18, 0, 0]}>
+            <GBox args={[0.022, 0.1, 0.34]} />
+            <StdMat color={colors.metal} roughness={0.3} metalness={0.5} />
+          </mesh>
+          <mesh position={[0.025, 0.0, 0.18]} rotation={[0.05, 0, 0]}>
+            <GBox args={[0.022, 0.08, 0.3]} />
+            <StdMat color={colors.metal} roughness={0.3} metalness={0.5} />
+          </mesh>
+          <mesh position={[0, -0.03, 0.04]}>
+            <GBox args={[0.07, 0.02, 0.06]} />
+            <StdMat color={colors.trim} roughness={0.5} />
+          </mesh>
+        </group>
+      )
+    case 'rending-claws':
+      // A little fan of three short hooked claws on a bony fist.
+      return (
+        <group scale={1.4}>
+          <EndBlock size={0.08} color={colors.primary} />
+          {[-0.035, 0, 0.035].map((x) => (
+            <mesh key={x} position={[x, -0.03, 0.11]} rotation={[Math.PI / 2, 0, 0]}>
+              <GCone args={[0.014, 0.12, 5]} />
+              <StdMat color={colors.metal} roughness={0.35} metalness={0.5} />
+            </mesh>
+          ))}
+        </group>
+      )
+    case 'fleshborer':
+      // A living beetle-gun: a plump purple body with a short bony muzzle and a glowing green sac.
+      return (
+        <group scale={1.4}>
+          <mesh position={[0, 0, 0.07]} scale={[1, 0.9, 1.5]}>
+            <GSphere args={[0.06, 8, 6]} />
+            <StdMat color={colors.secondary} roughness={0.55} />
+          </mesh>
+          <mesh position={[0, 0.0, 0.2]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCone args={[0.025, 0.1, 6]} />
+            <StdMat color={colors.primary} roughness={0.5} />
+          </mesh>
+          <mesh position={[0, 0.05, 0.05]}>
+            <GSphere args={[0.025, 6, 5]} />
+            <StdMat color={colors.decal} emissive={colors.decal} emissiveIntensity={1.1} />
+          </mesh>
+        </group>
+      )
+    case 'barblauncher':
+      // The Barbgaunt's launcher: a thick barrel of bone-plate, a bulging acid sac at the back, red muzzle ring.
+      return (
+        <group scale={1.7}>
+          <mesh position={[0, 0, 0.16]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.05, 0.065, 0.32, 8]} />
+            <StdMat color={colors.primary} roughness={0.5} />
+          </mesh>
+          <mesh position={[0, 0, 0.33]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.058, 0.058, 0.04, 8]} />
+            <StdMat color={colors.trim} roughness={0.5} />
+          </mesh>
+          <mesh position={[0, 0.0, 0.0]}>
+            <GSphere args={[0.085, 8, 6]} />
+            <StdMat color={colors.secondary} roughness={0.55} />
+          </mesh>
+          <mesh position={[0, 0.07, 0.06]}>
+            <GSphere args={[0.035, 6, 5]} />
+            <StdMat color={colors.decal} emissive={colors.decal} emissiveIntensity={1.2} />
+          </mesh>
+        </group>
+      )
+    case 'torrent-maw':
+      // The Psychophage's torrent: a flared, glowing green throat on a fleshy bulb.
+      return (
+        <group scale={1.9}>
+          <mesh position={[0, 0, 0.04]}>
+            <GSphere args={[0.085, 8, 6]} />
+            <StdMat color={colors.secondary} roughness={0.55} />
+          </mesh>
+          <mesh position={[0, 0, 0.19]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.1, 0.055, 0.2, 8]} />
+            <StdMat color={colors.primary} roughness={0.5} />
+          </mesh>
+          <mesh position={[0, 0, 0.3]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.085, 0.085, 0.012, 8]} />
+            <StdMat color={colors.decal} emissive={colors.decal} emissiveIntensity={1.6} />
+          </mesh>
+        </group>
+      )
     case 'none':
     default:
       return <EndBlock size={0.09} color={hand} />

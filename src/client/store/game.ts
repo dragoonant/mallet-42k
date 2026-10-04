@@ -41,7 +41,7 @@ import { critWouldPay, dieOutcomes, offerIndexes, rollForOffer } from '../ui/rer
 import { isAnnouncementHolding } from '../presentation/announceStore'
 
 // ---------- setup defaults ----------
-/** A faction picked on the start screen: a legacy setup key ('space-marines', 'orks', 'necrons') or any
+/** A faction picked on the start screen: a legacy setup key ('space-marines', 'orks', 'necrons', 'tyranids') or any
  *  faction id the data bundle declares. resolveFactionId() maps either to the engine faction id. */
 export type FactionKey = string
 export type OpponentKind = 'bot' | 'hotseat'
@@ -63,7 +63,7 @@ function makeBotDecider(difficulty: AiDifficulty, seed: string): Decider {
 
 /** Legacy setup keys -> engine faction ids. A key not listed is taken to already BE a faction id, so a
  *  faction added to the data bundle is selectable with no client edit. */
-export const FACTION_ID: Record<string, Id> = { 'space-marines': 'sm', orks: 'ork', necrons: 'necrons' }
+export const FACTION_ID: Record<string, Id> = { 'space-marines': 'sm', orks: 'ork', necrons: 'necrons', tyranids: 'tyranids' }
 export function resolveFactionId(key: FactionKey): Id {
   return FACTION_ID[key] ?? key
 }

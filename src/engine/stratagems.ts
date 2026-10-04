@@ -88,6 +88,46 @@ function commandRerollStratagem(state: GameState): RuntimeStratagem | null {
   return Object.values(state.stratagems).find(isCommandReroll) ?? null
 }
 
+// Pouncing Leap (Tyranids): an ability with code stratagemCostOverride on a target unit changes the cost of one named
+// stratagem and may waive its per-phase / per-turn limits (docs/spec/factions/tyranids.md 7.1 item 9)
+function costOverridesFor(state: GameState, player: PlayerId, s: RuntimeStratagem, targetUnitIds: UnitId[]): { cost: number; ignoreLimit: boolean }[] {
+  const out: { cost: number; ignoreLimit: boolean }[] = []
+  for (const id of targetUnitIds) {
+    const u = state.units[id]
+    if (!u || u.player !== player) continue
+    for (const half of leaderService.halves(state, id)) {
+      const ds = state.datasheets[state.units[half]?.datasheetId]
+      if (!ds) continue
+      for (const aid of ds.abilities) {
+        const a = state.abilities[aid]
+        if (a?.code !== 'stratagemCostOverride' || a.params?.stratagemId !== s.id) continue
+        out.push({ cost: Number(a.params.cost ?? s.cost), ignoreLimit: a.params.ignoreLimit === true })
+      }
+    }
+  }
+  return out
+}
+
+// CP the player pays for s on these targets (the cheapest applicable override, else the printed cost)
+export function effectiveCost(state: GameState, player: PlayerId, s: RuntimeStratagem, targetUnitIds: UnitId[]): number {
+  const o = costOverridesFor(state, player, s, targetUnitIds)
+  return o.length === 0 ? s.cost : Math.min(...o.map((x) => x.cost))
+}
+
+// true when a target unit's ability waives the once-per-phase / once-per-turn limit for s
+export function ignoresLimit(state: GameState, player: PlayerId, s: RuntimeStratagem, targetUnitIds: UnitId[]): boolean {
+  return costOverridesFor(state, player, s, targetUnitIds).some((x) => x.ignoreLimit)
+}
+
+// does any unit of the player carry an override for s (cheap pre-check before the per-tuple evaluation)
+function hasAnyOverride(state: GameState, player: PlayerId, s: RuntimeStratagem): boolean {
+  return Object.values(state.units).some((u) => u.player === player && costOverridesFor(state, player, s, [u.id]).length > 0)
+}
+
+function unitTargetIds(state: GameState, s: RuntimeStratagem, t: StratagemTuple): UnitId[] {
+  return tupleToTargets(state, s, t).unitIds ?? []
+}
+
 function limitUsed(state: GameState, player: PlayerId, s: RuntimeStratagem): boolean {
   const p = state.players[player]
   const uses = p.stratagemUses.filter((u) => u.stratagemId === s.id)
@@ -152,13 +192,21 @@ function targetedSet(state: GameState, trigger: WindowTrigger): Set<UnitId> {
 function stateOk(env: StratagemEnv, u: Unit, spec: TargetSpec): boolean {
   const { state, trigger } = env
   const halves = leaderService.halves(state, u.id).map((id) => state.units[id])
-  switch (spec.state) {
+  // a stratagem that works in two phases (Voracious Assault) names the state per phase in params.stateByPhase
+  const byPhase = env.stratagem.params?.stateByPhase as Record<string, TargetSpec['state']> | undefined
+  switch (byPhase?.[state.phase] ?? spec.state) {
     case undefined: return true
     case 'selectedToShoot': case 'selectedToFight': case 'chargedThisTurn': case 'justMoved':
       return leaderService.sameUnit(state, u.id, trigger.unitId)
     case 'notYetFought': {
       const fight = state.phaseState.fight
       return halves.every((h) => !h.turn.foughtThisPhase && !(fight?.fought.includes(h.id)) && fight?.currentUnitId !== h.id)
+    }
+    // Shooting counterpart of notYetFought: no half is the current shooter or has been selected / has shot this phase
+    case 'notYetShot': {
+      const activated = new Set(state.phaseState.activated)
+      const shooter = state.phaseState.attack?.attackerUnitId
+      return halves.every((h) => !h.turn.shotThisPhase && !activated.has(h.id) && h.id !== shooter)
     }
     case 'targetedByAttack': {
       const set = targetedSet(state, trigger)
@@ -210,6 +258,8 @@ function candidates(env: StratagemEnv, spec: TargetSpec, prevId: string | null):
     for (const u of units) {
       if (spec.state === 'justDestroyed') {
         if (u.location !== 'destroyed') continue
+      } else if (spec.includeDestroyed && u.location === 'destroyed') {
+        // Teeming Broods: a destroyed unit is a legal target; every other stratagem leaves includeDestroyed off
       } else if (friendly && code?.reserves) {
         if (u.location !== 'reserves') continue
       } else if (u.location !== 'board') continue
@@ -218,7 +268,7 @@ function candidates(env: StratagemEnv, spec: TargetSpec, prevId: string | null):
       const halves = leaderService.halves(state, u.id).filter((id) => state.units[id].location === u.location)
       if (!keywordOk(state, halves, spec)) continue
       // R-11.2: a player cannot target their own Battle-shocked unit with a stratagem
-      if (friendly && halves.some((id) => state.units[id].battleShocked)) continue
+      if (friendly && u.location !== 'destroyed' && halves.some((id) => state.units[id].battleShocked)) continue
       if (!stateOk(env, u, spec)) continue
       if (u.location === 'board' && !withinOk(env, boardModelsOfUnit(state, u.id), spec, prevId)) continue
       if (u.location !== 'board' && spec.filter?.within) continue
@@ -323,9 +373,18 @@ function offersFor(state: GameState, services: Services, player: PlayerId, windo
     if (isCommandReroll(s) || !ownedBy(state, s, player)) continue
     const code = codeOf(s)
     if (stage !== null && (stage === 'reaction') !== !!code?.reaction) continue
-    if (s.cost > p.cp || !timingOk(state, player, s, window, trigger) || limitUsed(state, player, s)) continue
+    if (!timingOk(state, player, s, window, trigger)) continue
+    const blocked = s.cost > p.cp || limitUsed(state, player, s)
+    if (blocked && !hasAnyOverride(state, player, s)) continue
     const env: StratagemEnv = { state, services, player, stratagem: s, window, trigger }
-    for (const tuple of enumerate(env)) out.push({ stratagem: s, tuple })
+    for (const tuple of enumerate(env)) {
+      if (blocked) {
+        // only a Pouncing-Leap style override can make this affordable / un-limited for this target tuple
+        const ids = unitTargetIds(state, s, tuple)
+        if (effectiveCost(state, player, s, ids) > p.cp || (limitUsed(state, player, s) && !ignoresLimit(state, player, s, ids))) continue
+      }
+      out.push({ stratagem: s, tuple })
+    }
   }
   return out
 }
@@ -336,7 +395,7 @@ function useAction(state: GameState, player: PlayerId, o: Offer): UseStratagemAc
 
 function optionOf(state: GameState, player: PlayerId, o: Offer): DecisionOption {
   const ids = [...o.tuple.ids, ...(o.tuple.objectiveId ? [o.tuple.objectiveId] : [])]
-  return { id: `${o.stratagem.id}|${ids.join(',')}`, label: `${o.stratagem.name} (${o.stratagem.cost} CP): ${ids.join(', ')}`, action: useAction(state, player, o) }
+  return { id: `${o.stratagem.id}|${ids.join(',')}`, label: `${o.stratagem.name} (${effectiveCost(state, player, o.stratagem, unitTargetIds(state, o.stratagem, o.tuple))} CP): ${ids.join(', ')}`, action: useAction(state, player, o) }
 }
 
 function offer(ctx: EngineContext, rec: WindowRecord): boolean {
@@ -454,13 +513,14 @@ function validateCommandReroll(state: GameState, action: { rollId: string; dieIn
 function pay(ctx: EngineContext, player: PlayerId, s: RuntimeStratagem, targets: StratagemTargets): void {
   const st = ctx.state
   const p = st.players[player]
-  if (s.cost !== 0) {
-    p.cp -= s.cost
-    ctx.emit({ type: 'CpChanged', delta: -s.cost, total: p.cp, source: s.id, player })
+  const cost = effectiveCost(st, player, s, targets.unitIds ?? [])
+  if (cost !== 0) {
+    p.cp -= cost
+    ctx.emit({ type: 'CpChanged', delta: -cost, total: p.cp, source: s.id, player })
   }
   p.stratagemUses.push({ stratagemId: s.id, round: st.round, turn: st.activePlayer, phase: st.phase })
   if (s.limit === 'oncePerBattle' && !p.oncePerBattleUsed.includes(s.id)) p.oncePerBattleUsed.push(s.id)
-  ctx.emit({ type: 'StratagemUsed', stratagemId: s.id, cost: s.cost, targets: { unitIds: targets.unitIds ?? [], modelIds: targets.modelIds ?? [], objectiveId: targets.objectiveId ?? null }, player })
+  ctx.emit({ type: 'StratagemUsed', stratagemId: s.id, cost, targets: { unitIds: targets.unitIds ?? [], modelIds: targets.modelIds ?? [], objectiveId: targets.objectiveId ?? null }, player })
 }
 
 function applyStratagem(ctx: EngineContext, rec: WindowRecord, s: RuntimeStratagem, tuple: StratagemTuple): void {
@@ -500,14 +560,17 @@ function validateUse(state: GameState, services: Services, action: UseStratagemA
   const code = codeOf(s)
   if ((pending.kind === 'reactionWindow') !== !!code?.reaction) return { code: 'E_NOT_AN_OPTION', reason: `${s.name} is not offered in a ${pending.kind}` }
   if (!timingOk(state, action.player, s, rec.window, rec.trigger)) return { code: 'E_NOT_AN_OPTION', reason: `${s.name} cannot be used in ${rec.window} now` }
-  if (limitUsed(state, action.player, s)) return { code: 'E_STRATAGEM_USED', reason: `${s.name} was already used (${s.limit ?? 'oncePerPhase'})` }
-  if (state.players[action.player].cp < s.cost) return { code: 'E_INSUFFICIENT_CP', reason: `${s.name} costs ${s.cost} CP` }
   const tuple = targetsToTuple(s, action.targets)
   if (!tuple) return { code: 'E_INVALID_TARGET', reason: 'targets do not match the stratagem target specification' }
+  // cost and limit are per target tuple (Pouncing Leap: 0 CP and no per-phase limit for a Leapers target)
+  const targetUnits = unitTargetIds(state, s, tuple)
+  if (limitUsed(state, action.player, s) && !ignoresLimit(state, action.player, s, targetUnits)) return { code: 'E_STRATAGEM_USED', reason: `${s.name} was already used (${s.limit ?? 'oncePerPhase'})` }
+  const cost = effectiveCost(state, action.player, s, targetUnits)
+  if (state.players[action.player].cp < cost) return { code: 'E_INSUFFICIENT_CP', reason: `${s.name} costs ${cost} CP` }
   for (const id of tuple.ids) {
     const u = unitOfTargetId(state, id)
     if (!u) return { code: 'E_INVALID_TARGET', reason: `unknown target ${id}` }
-    if (state.units[u].player === action.player && leaderService.halves(state, u).some((h) => state.units[h].battleShocked)) {
+    if (state.units[u].player === action.player && state.units[u].location !== 'destroyed' && leaderService.halves(state, u).some((h) => state.units[h].battleShocked)) {
       return { code: 'E_INVALID_TARGET', reason: 'R-11.2: cannot target your own Battle-shocked unit with a stratagem' }
     }
   }

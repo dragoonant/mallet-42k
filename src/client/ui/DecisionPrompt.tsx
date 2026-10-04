@@ -147,6 +147,48 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
     },
   },
   {
+    match: /shadow-in-the-warp/,
+    info: {
+      title: 'Shadow in the Warp',
+      hint: 'One use for the whole battle: every enemy unit on the board takes a battle-shock test right now. Fire it when it will hurt most, or hold it.',
+    },
+  },
+  {
+    match: /secretion-goad/,
+    info: {
+      title: 'Secretion Goad',
+      hint: 'Once per turn: a nearby Tyranid unit that is about to shoot or fight gets 1 better AP on all its weapons until the end of the phase. Use it now or save it for a better unit.',
+    },
+  },
+  {
+    match: /death-blow/,
+    info: {
+      title: 'Death Blow',
+      hint: 'This model was struck down before it fought. Its death is put on hold if a D6 shows 4+; it then gets its attacks once the attackers finish, and only after that is it removed.',
+    },
+  },
+  {
+    match: /skulking-horrors/,
+    info: {
+      title: 'Skulking Horrors',
+      hint: 'An enemy just ended a move close to this unit. It may slip away on a free move of up to D6 inches (once a turn, and only while it is not locked in melee). Move, or stay put.',
+    },
+  },
+  {
+    match: /disruption-bombardment/,
+    info: {
+      title: 'Disruption Bombardment',
+      hint: 'Pick an enemy infantry unit this unit hit. Until the end of their next turn it moves 2 inches slower and rolls 2 lower when it advances or charges.',
+    },
+  },
+  {
+    match: /patrol-squads/,
+    info: {
+      title: 'Patrol Squads',
+      hint: 'Split this brood into two units of 10 before deployment, or keep it as one big unit of 20. Each half keeps every ability.',
+    },
+  },
+  {
     match: /reanimation/,
     info: {
       title: 'Reanimation Protocols',
@@ -155,8 +197,13 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
   },
 ]
 
-function chooseOptionInfoFor(context: { topic: ChooseOptionTopic; abilityId: string | null }): { title: string; hint: string } | undefined {
-  const byAbility = context.abilityId ? ABILITY_PROMPT_INFO.find((a) => a.match.test(context.abilityId!)) : undefined
+/** Engine prompts with topic 'other' carry no abilityId; they name themselves through data.choice instead. */
+const CHOICE_PROMPT_KEYS: Record<string, string> = { deathBlow: 'death-blow', patrolSquads: 'patrol-squads' }
+
+function chooseOptionInfoFor(context: { topic: ChooseOptionTopic; abilityId: string | null; data?: Record<string, unknown> }): { title: string; hint: string } | undefined {
+  const choice = context.data && typeof context.data.choice === 'string' ? CHOICE_PROMPT_KEYS[context.data.choice] : undefined
+  const key = context.abilityId ?? choice ?? null
+  const byAbility = key ? ABILITY_PROMPT_INFO.find((a) => a.match.test(key)) : undefined
   return byAbility?.info ?? CHOOSE_OPTION_INFO[context.topic]
 }
 

@@ -15,6 +15,7 @@ import { chaosSpaceMarinesHooks } from './factions/chaos-space-marines'
 import { hookService, type HookSourceEntry } from './hooks-impl'
 import { leaderService } from './leaders'
 import type { EngineContext, Services, WindowTrigger } from './modules'
+import * as tyr from './factions/tyranids'
 import { keywordsOf, modelStats, unitModels } from './state'
 import type {
   ChooseOptionDecision, ChooseOptionTopic, GameState, PendingDecision, PlayerId, ReactionWindowDecision, Rejection,
@@ -42,6 +43,8 @@ export interface EngineCodeHook extends CodeHook {
   // false → the ability's own declarative effects are inactive right now (Waaagh! lives in ActiveEffects; Dead 'ard)
   // `data` is the hook-specific context (attack / roll ...) when evaluated for a roll hook; Resonant Focus reads the attack
   gate?(state: GameState, holder: Unit, entry: HookSourceEntry, data?: Record<string, unknown>): boolean
+  // extra Battle-shock dice this source gives the testing unit (Tyranid Synapse); the highest value among sources is rolled
+  battleShockDice?(state: GameState, testUnitId: UnitId, entry: HookSourceEntry): number
   // replaces the source's own scope (Resonant Focus: the enhancement data has no scope, which would default to `bearer`)
   forceScope?: Scope
   // like `gate`, but also consulted for effects an ActiveEffect carries (stratagem grants), where `gate` is skipped (Vindictive Strategy)
@@ -635,6 +638,55 @@ function missionHook(name: string, hook: HookName = 'onPhaseEnd'): EngineCodeHoo
   return { name, kind: 'mission', hook, run: noop }
 }
 
+// ---------- tyranids (docs/spec/factions/tyranids.md §7); bodies in factions/tyranids.ts, called lazily (import cycle) ----------
+const synapseBattleShock: EngineCodeHook = {
+  name: 'synapseBattleShock', kind: 'ability', hook: 'onBattleShockTest', run: noop,
+  battleShockDice: (state, testUnitId, entry) => tyr.synapseExtraDice(state, testUnitId, entry),
+}
+
+const shadowInTheWarp: EngineCodeHook = {
+  name: 'shadowInTheWarp', kind: 'ability', hook: 'onCommandPhase', run: noop,
+  pick: { window: 'command.start', topic: 'abilityChoice', offer: (ctx, w, k) => tyr.shadowOffer(ctx, w, k), handle: (ctx, a, p) => tyr.shadowHandle(ctx, a, p) },
+}
+
+const secretionGoadShoot: EngineCodeHook = {
+  name: 'secretionGoadShoot', kind: 'ability', hook: 'onTargetsDeclared', run: noop,
+  pick: { window: 'shooting.targetsDeclared', topic: 'abilityChoice', offer: (ctx, w, k) => tyr.goadShootOffer(ctx, w, k), handle: (ctx, a, p) => tyr.goadHandle(ctx, a, p) },
+}
+
+const secretionGoadFight: EngineCodeHook = {
+  name: 'secretionGoadFight', kind: 'ability', hook: 'onUnitSelectedToFight', run: noop,
+  pick: { window: 'fight.unitSelected', topic: 'abilityChoice', offer: (ctx, w, k) => tyr.goadFightOffer(ctx, w, k), handle: (ctx, a, p) => tyr.goadHandle(ctx, a, p) },
+}
+
+const skulkingHorrors: EngineCodeHook = {
+  name: 'skulkingHorrors', kind: 'ability', hook: 'onMove', run: noop,
+  pick: { window: 'movement.unitMoved', topic: 'abilityChoice', offer: (ctx, w, k) => tyr.skulkingOffer(ctx, w, k), handle: (ctx, a, p) => tyr.skulkingHandle(ctx, a, p) },
+}
+
+const disruptionBombardment: EngineCodeHook = {
+  name: 'disruptionBombardment', kind: 'ability', hook: 'onUnitSelectedToShoot', run: noop,
+  pick: { window: 'shooting.attacksResolved', topic: 'abilityChoice', offer: (ctx, w, k) => tyr.disruptionOffer(ctx, w, k), handle: (ctx, a, p) => tyr.disruptionHandle(ctx, a, p) },
+}
+
+// marker abilities: the logic lives in the engine (deathblow.ts, stratagems.ts effectiveCost, setup.ts splitPatrolSquad)
+const deathBlow: EngineCodeHook = { name: 'deathBlow', kind: 'ability', hook: 'onModelDestroyed', run: noop }
+const stratagemCostOverride: EngineCodeHook = { name: 'stratagemCostOverride', kind: 'ability', hook: 'onCharge', run: noop }
+const patrolSquads: EngineCodeHook = { name: 'patrolSquads', kind: 'ability', hook: 'onDeployment', run: noop }
+
+// Voracious Assault: the re-roll is declarative (descriptor 'when' targetIsClosestEligible); the hook only lets the stratagem's
+// ActiveEffect re-roll apply at the hit roll
+const voraciousAssaultHit: EngineCodeHook = { name: 'voraciousAssaultHit', kind: 'stratagem', hook: 'onHitRoll', run: noop, hooks: ['onHitRoll'] }
+
+const teemingBroods: EngineCodeHook = {
+  name: 'teemingBroods', kind: 'stratagem', hook: 'onReinforcements', run: noop,
+  apply: (ctx, env, t) => tyr.teemingBroodsApply(ctx, env.stratagem.id, env.player, t.ids[0]),
+}
+
+// secondaries are scored in missions.ts (custom amounts); names registered for data validation
+const alphaXenoform = missionHook('alphaXenoform')
+const chitinousTide = missionHook('chitinousTide', 'onTurnEnd')
+
 export const codeHooks: Record<string, EngineCodeHook> = {
   oathOfMomentPick, waaaghCall, deadArdFeelNoPain, pistonDrivenBrutality, tellyportaGrant, veteranInstincts,
   fireOverwatch, heroicInterventionCharge, rapidIngressArrival, counterOffensive, epicChallenge, tankShockMortalWounds,
@@ -642,6 +694,8 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   reanimationProtocols, resonantFocusPick, resonantFocusReroll, requireFriendlyKeywordOnBoard, plasmacyteSurge,
   ...chaosSpaceMarinesHooks,
   markedForExecution: missionHook('markedForExecution', 'onUnitDestroyed'),
+  synapseBattleShock, shadowInTheWarp, secretionGoadShoot, secretionGoadFight, skulkingHorrors, disruptionBombardment,
+  deathBlow, stratagemCostOverride, patrolSquads, voraciousAssaultHit, teemingBroods, alphaXenoform, chitinousTide,
   breakTheirSpirit: missionHook('breakTheirSpirit', 'onBattleShockTest'),
   claimSites: missionHook('claimSites'),
   irradiatedPowerCells: missionHook('irradiatedPowerCells'),

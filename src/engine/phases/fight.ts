@@ -35,6 +35,7 @@ import { purgeDeferredDeaths, resolveDeferredDeaths } from '../fight-on-death'
 import { terrainService } from '../terrain'
 import { weaponService } from '../weapons'
 import { pendingReactions, consumeReaction } from '../code-hooks'
+import { finishDeferredRemovalOfUnit, pendingDeathBlowUnits } from '../deathblow'
 import { notImplementedHandle, otherPlayer, type EngineContext, type PhaseModule } from '../modules'
 import { boardUnitsOf, enemyModelsOnBoard, unitModels, unitModelsForCoherency } from '../state'
 import type { Action, ModelPlacement, WeaponTarget } from '../actions'
@@ -81,7 +82,8 @@ function eligibleToFight(state: GameState, unitId: UnitId): boolean {
 
 function hasFightsFirst(state: GameState, unitId: UnitId): boolean {
   const halves = leaderService.halves?.(state, unitId) ?? [unitId]
-  return halves.every((id) => state.units[id]?.turn.fightsFirst || (hookService.eligibilityFor?.(state, id, 'fightFirst') ?? false))
+  return halves.every((id) => state.units[id]?.turn.fightsFirst || (hookService.eligibilityFor?.(state, id, 'fightFirst') ?? false)
+    || (state.datasheets[state.units[id]?.datasheetId]?.coreAbilities.some((c) => c.ability === 'FIGHTS_FIRST') ?? false))
 }
 
 // R-9.3: the Fights First step's membership is fixed the moment step 1 starts — a unit that only becomes eligible
@@ -527,6 +529,20 @@ function doFightSelect(ctx: EngineContext): 'pending' | 'nextStep' | 'done' {
   if (fight.step === 'fightsFirst' && readMark(s, FF_SNAPSHOT_KEY) === null) {
     writeMark(s, FF_SNAPSHOT_KEY, JSON.stringify(computeFfSnapshotIds(s)))
   }
+  // Death Blow (TYR-6.1): the attacking unit's activation is over, so every model whose removal was deferred may now fight
+  // (optional: use / decline), out of alternation; declining removes it at once. Anything still pending is removed at phase end.
+  for (const unitId of pendingDeathBlowUnits(s)) {
+    const owner = s.units[unitId].player
+    ctx.decide({
+      kind: 'chooseOption', player: owner, window: 'fight.start', canPass: false,
+      context: { topic: 'other', unitId, abilityId: null, data: { choice: 'deathBlow', unitId } },
+      options: [
+        { id: 'fight', label: `Death Blow: fight with ${s.units[unitId].name} before it is removed`, action: { type: 'chooseOption', player: owner, decisionId: '', optionId: 'fight' } },
+        { id: 'decline', label: 'Decline: remove the model now', action: { type: 'chooseOption', player: owner, decisionId: '', optionId: 'decline' } },
+      ],
+    })
+    return 'pending'
+  }
   const co = pendingReactions(s, 'counterOffensive')[0]
   if (co) {
     ctx.decide({
@@ -553,6 +569,8 @@ function doFightSelect(ctx: EngineContext): 'pending' | 'nextStep' | 'done' {
   return 'pending'
 }
 
+function owner(state: GameState, unitId: UnitId): PlayerId { return state.units[unitId].player }
+
 function finishUnit(ctx: EngineContext, unitId: UnitId, player: PlayerId): void {
   const s = ctx.state
   const fight = s.phaseState.fight!
@@ -571,6 +589,8 @@ function finishUnit(ctx: EngineContext, unitId: UnitId, player: PlayerId): void 
   }
   fight.currentUnitId = null
   fight.subStep = 'select'
+  // Death Blow: the model is removed once it has fought
+  finishDeferredRemovalOfUnit(ctx, unitId)
 }
 
 function driveFightUnit(ctx: EngineContext): 'pending' | 'progress' {
@@ -714,6 +734,10 @@ export const fightModule: PhaseModule = {
     s.phaseState.fight = { step: 'fightsFirst', subStep: 'select', currentUnitId: null, fought: [], nextToSelect: ctx.opponentOf(s.activePlayer), counterOffensive: false }
     s.phaseState.attack = null
   },
+  exit(ctx) {
+    // safety net: a Death Blow model still pending when the phase ends is removed
+    for (const unitId of pendingDeathBlowUnits(ctx.state)) finishDeferredRemovalOfUnit(ctx, unitId)
+  },
   advance(ctx) {
     const s = ctx.state
     for (;;) {
@@ -765,6 +789,22 @@ export const fightModule: PhaseModule = {
       fight.currentUnitId = action.unitId
       fight.subStep = 'pileIn'
       ctx.emit({ type: 'FightUnitSelected', unitId: action.unitId, step: fight.step })
+      return
+    }
+    if (pending.kind === 'chooseOption' && pending.context.topic === 'other' && (pending.context.data as { choice?: string }).choice === 'deathBlow' && action.type === 'chooseOption') {
+      const unitId = (pending.context.data as { unitId: UnitId }).unitId
+      const fight = s.phaseState.fight!
+      const unit = s.units[unitId]
+      // a unit that cannot fight any more (gone from the board, or no longer engaged) simply loses the model
+      if (action.optionId !== 'fight' || !unit || unit.location !== 'board' || unit.turn.foughtThisPhase || !eligibleToFight(s, unitId)) {
+        finishDeferredRemovalOfUnit(ctx, unitId)
+        return
+      }
+      // a pure insertion into the alternation (like Counter-offensive): the next selector is restored when the unit finishes
+      if (readMark(s, COUNTER_RESUME_KEY) === null) writeMark(s, COUNTER_RESUME_KEY, fight.nextToSelect)
+      fight.currentUnitId = unitId
+      fight.subStep = 'pileIn'
+      ctx.emit({ type: 'FightUnitSelected', unitId, step: fight.step, player: owner(s, unitId) })
       return
     }
     if (pending.kind === 'pileIn' && action.type === 'pileIn') return applyPileIn(ctx, action.unitId, action)

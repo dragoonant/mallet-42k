@@ -11,6 +11,7 @@ import {
 } from '../engine'
 import type { ScoringRule } from '../data/types'
 import { createRng, restoreRng, type Rng } from '../engine/rng'
+import { effectiveCost } from '../engine/stratagems'
 import {
   bestMeleeWeapon, bestRangedRangeOfUnit, bestRangedWeapon, expectedAttack, hasAnyMeleeWeapon, hasAnyRangedWeapon,
   sumExpectedAttacks, threatAt, unitMeleeDamage, unitRangedDamage, unitValue,
@@ -470,6 +471,35 @@ function stratagemScore(state: GameState, player: PlayerId, pending: PendingDeci
     const val = unitValue(state, targetTrigger)
     return val > 20 && totalW > 0 ? val * 0.02 - cost * 1.5 : -Infinity
   }
+  // Tyranid Hyper-Reactive: -1 to hit against the attack that just targeted our INFANTRY — worth it when the incoming damage is big.
+  if (id.endsWith('hyper-reactive')) {
+    const mine = targets.unitIds?.[0]
+    if (!mine || !trigger || state.units[trigger]?.player === player) return -Infinity
+    const dmg = state.phase === 'fight' ? unitMeleeDamage(state, trigger, mine, {}) : unitRangedDamage(state, trigger, mine, {})
+    return dmg * 0.3 * unitValue(state, mine) * 0.03 - cost
+  }
+  // Voracious Assault: re-roll hits against the closest eligible target for one of our not-yet-activated units.
+  if (id.endsWith('voracious-assault')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId) return -Infinity
+    const enemy = nearestEnemyUnit(state, player, unitId)
+    if (!enemy) return -Infinity
+    const melee = state.phase === 'fight'
+    if (!(melee ? hasAnyMeleeWeapon(state, unitId) : hasAnyRangedWeapon(state, unitId))) return -Infinity
+    if (melee && enemy.gap > ENGAGEMENT_H) return -Infinity
+    const dmg = melee ? unitMeleeDamage(state, unitId, enemy.unitId, {}) : unitRangedDamage(state, unitId, enemy.unitId, {})
+    return dmg * 0.4 * unitValue(state, enemy.unitId) * 0.03 - cost
+  }
+  // Teeming Broods: bring back up to D6 models, or re-spawn a destroyed Termagants brood (it must be able to arrive by round 3).
+  if (id.endsWith('teeming-broods')) {
+    const unitId = targets.unitIds?.[0]
+    const unit = unitId ? state.units[unitId] : undefined
+    if (!unit) return -Infinity
+    if (unit.location === 'destroyed') return state.round <= 2 ? 3.5 - cost * 0.5 : -Infinity
+    const missing = unit.startingStrength - unit.models.length
+    if (missing < 2) return -Infinity
+    return Math.min(missing, 3.5) * 0.8 - cost * 0.5
+  }
   // Tank Shock: mortal wounds = min(6, T dice at 5+); use when it meaningfully hurts what we just charged.
   if (id.endsWith('tank-shock')) {
     const enemyUnitId = targets.unitIds?.[1]
@@ -623,7 +653,8 @@ function scoreStratagemOrReaction(state: GameState, player: PlayerId, pending: P
   if (action.type === 'pass') return HOLD_CP_SCORE
   if (action.type !== 'useStratagem') return 0
   const strat = state.stratagems[action.stratagemId]
-  const cost = strat?.cost ?? 1
+  // per-target cost (Pouncing Leap makes Heroic Intervention free for the Leapers)
+  const cost = strat ? effectiveCost(state, player, strat, action.targets?.unitIds ?? []) : 1
   return stratagemScore(state, player, pending, action, cost)
 }
 

@@ -1,0 +1,24 @@
+[
+  {
+    "id": "tyr.barbgaunts",
+    "faction": "tyranids",
+    "name": "Barbgaunts",
+    "keywords": ["INFANTRY", "GREAT DEVOURER", "BARBGAUNTS"],
+    "factionKeywords": ["TYRANIDS"],
+    "stats": { "M": 6, "T": 4, "Sv": 4, "W": 2, "Ld": 8, "OC": 1 },
+    "composition": [
+      {
+        "modelId": "barbgaunt",
+        "name": "Barbgaunt",
+        "min": 5, "max": 5, "default": 5,
+        "base": { "shape": "round", "mm": 40 },
+        "weapons": { "default": ["tyr.w.barblauncher", "tyr.w.chitinous-claws-and-teeth-barbgaunt"] },
+        "figure": { "archetype": "infantry", "kit": "tyr-barbgaunt" }
+      }
+    ],
+    "abilities": ["tyr.a.synapse", "tyr.a.disruption-bombardment"],
+    "coreAbilities": [],
+    "points": [ { "models": 5, "points": 0 } ],
+    "figure": { "archetype": "infantry", "kit": "tyr-barbgaunt" }
+  }
+]

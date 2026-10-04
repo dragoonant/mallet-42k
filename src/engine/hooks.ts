@@ -88,6 +88,8 @@ export interface RollModifierResult {
   ignoreCover?: boolean
   invuln?: number
   feelNoPain?: number
+  // honoured for onBattleShockTest only: extra dice rolled on top of the usual 2D6 (Tyranid Synapse)
+  extraDice?: number
 }
 export interface StatModifierResult { kind: 'stat'; delta?: number; set?: number }
 export interface AttackCountResult { kind: 'attacks'; delta?: number }

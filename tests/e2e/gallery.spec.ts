@@ -40,6 +40,13 @@ test('gallery filtered to Necrons', async ({ page }) => {
   await page.screenshot({ path: 'e2e-out/13-necrons.png' })
 })
 
+test('gallery filtered to Tyranids', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await page.goto('/?gallery&faction=tyranids')
+  await settle(page)
+  await page.screenshot({ path: 'e2e-out/14-tyranids.png' })
+})
+
 test('board close-up over a group of deployed models', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await page.goto('/')

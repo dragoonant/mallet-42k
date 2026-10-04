@@ -1,0 +1,45 @@
+[
+  {
+    "id": "tyr.e.psychostatic-veil",
+    "faction": "tyranids",
+    "name": "Psychostatic Veil",
+    "text": "The bearer gains Lone Operative and a 4+ invulnerable save, and every melee attack that targets the bearer takes -1 to its hit roll.",
+    "cost": 0,
+    "restriction": { "keyword": ["WINGED TYRANID PRIME"] },
+    "effect": {
+      "id": "tyr.e.psychostatic-veil.effect",
+      "name": "Psychostatic Veil",
+      "text": "4+ invulnerable save, Lone Operative, and -1 to hit for melee attacks that target the bearer.",
+      "trigger": "always",
+      "effect": [
+        { "invuln": 4 },
+        { "grantKeyword": "LONE OPERATIVE" },
+        { "when": { "weaponType": "melee" }, "modifyRoll": { "roll": "hit", "value": -1 } }
+      ],
+      "scope": { "who": "attacker" }
+    }
+  },
+  {
+    "id": "tyr.e.secretion-goad",
+    "faction": "tyranids",
+    "name": "Secretion Goad",
+    "text": "Once per turn, when a friendly TYRANIDS unit with a model within 6 inches of the bearer (the bearer's own unit included) is selected to shoot or to fight, you may improve the AP of that unit's weapons by 1 until the end of the phase. Works in either player's turn.",
+    "cost": 0,
+    "restriction": { "keyword": ["WINGED TYRANID PRIME"] },
+    "effect": {
+      "id": "tyr.e.secretion-goad.effect",
+      "name": "Secretion Goad",
+      "text": "Once per turn, improve the AP of a nearby friendly TYRANIDS unit's weapons by 1 for the phase when it is selected to shoot or fight.",
+      "trigger": "targetsDeclared",
+      "scope": { "who": "bearer" },
+      "code": "secretionGoadShoot",
+      "params": {
+        "range": 6, "limit": "oncePerTurn", "sharedMark": "goad",
+        "shoot": { "pickWindow": "shooting.targetsDeclared", "pickTopic": "abilityChoice" },
+        "fight": { "code": "secretionGoadFight", "pickWindow": "fight.unitSelected", "pickTopic": "abilityChoice" },
+        "grant": [ { "modifyStat": { "stat": "AP", "value": -1 } } ],
+        "duration": "untilEndOfPhase"
+      }
+    }
+  }
+]

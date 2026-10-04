@@ -20,6 +20,7 @@ import {
   type AttackContext, type EffectRequest, type EffectSource, type HookContext, type HookContextBase, type HookContextFor, type HookName,
   type HookRegistry, type HookResult, type HookResultFor, type RollContext,
 } from './hooks'
+import { frozenClosestEligible, snapshotClosestEligible } from './factions/tyranids'
 import { leaderService } from './leaders'
 import type { DecisionHandler, EngineContext, WindowTrigger } from './modules'
 import { keywordsOf, modelStats, unitModels } from './state'
@@ -202,6 +203,15 @@ export function evaluateCondition(env: ConditionEnv, c: Condition | null | undef
     if (c.range === 'half' ? !attack.halfRange : attack.range > c.range.within + 1e-6) return false
   }
   if (c.targetInCover !== undefined && !(attack && attack.inCover === c.targetInCover)) return false
+  // Tyranids: Feeding Frenzy (target below Starting Strength / Below Half-strength) and Voracious Assault (closest eligible target)
+  if (c.targetBelowStartingStrength !== undefined && !(attack && leaderService.isBelowStartingStrength(state, attack.targetUnitId) === c.targetBelowStartingStrength)) return false
+  if (c.targetBelowHalf !== undefined && !(attack && leaderService.isBelowHalfStrength(state, attack.targetUnitId) === c.targetBelowHalf)) return false
+  if (c.targetIsClosestEligible !== undefined) {
+    if (!attack) return false
+    // TYR-5.2: fixed when the unit declared its targets (snapshotClosestEligible); the live board only when no declaration was recorded
+    const closest = frozenClosestEligible(state, attack.attackerUnitId, attack.kind) ?? leaderService.closestEligibleTargets(state, attack.attackerUnitId, attack.kind)
+    if (closest.includes(leaderService.canonicalUnitId(state, attack.targetUnitId)) !== c.targetIsClosestEligible) return false
+  }
   if (c.targetOnObjective !== undefined && !(attack && unitOnObjective(state, attack.targetUnitId) === c.targetOnObjective)) return false
   const h = holder
   if (c.unitOnObjective !== undefined && !(h && unitOnObjective(state, h.id) === c.unitOnObjective)) return false
@@ -490,6 +500,10 @@ export const hookService: HookService & HookQueries = {
   run(ctx, hook, data) {
     const s = ctx.state
     const d = data as unknown as Data
+    if (hook === 'onTargetsDeclared') {
+      const td = data as unknown as { attackerUnitId: UnitId; kind: 'ranged' | 'melee' }
+      snapshotClosestEligible(ctx, td.attackerUnitId, td.kind)
+    }
     for (const { source, result } of hookService.collect(ctx, hook, data)) {
       if ((result as HookResult).kind === 'request') hookService.apply(ctx, source, result as EffectRequest)
     }
@@ -657,7 +671,13 @@ export const hookService: HookService & HookQueries = {
       passed = false
     } else {
       const modifiers = [...(modifier !== 0 ? [{ source, value: modifier }] : []), ...results.filter((r) => r.result.kind === 'roll' && (r.result as { modifier?: number }).modifier).map((r) => ({ source: r.source.id, value: (r.result as { modifier: number }).modifier }))]
-      const roll = ctx.roll({ purpose: 'battleShock', player: unit.player, count: 2, mode: 'sum', modifiers, unitId, commandRerollable: false })
+      // Tyranid Synapse: sources may add dice (the highest single contribution applies), RollModifierResult.extraDice
+      let extraDice = Math.max(0, ...rolls.map((r) => r.extraDice ?? 0))
+      for (const entry of sourcesFor(s)) {
+        const spec = codeHookFor(entry.code)
+        if (spec?.battleShockDice) extraDice = Math.max(extraDice, spec.battleShockDice(s, unitId, entry))
+      }
+      const roll = ctx.roll({ purpose: 'battleShock', player: unit.player, count: 2 + extraDice, mode: 'sum', modifiers, unitId, commandRerollable: false })
       total = rollSum(roll)
       passed = total >= ld
     }

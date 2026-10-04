@@ -1,0 +1,76 @@
+[
+  {
+    "id": "tyr.a.synapse",
+    "name": "Synapse",
+    "text": "While this unit has a model within 6 inches of a friendly model with the SYNAPSE keyword (or is itself a SYNAPSE unit), it is in Synapse Range, and its Battle-shock tests are rolled on three dice added together instead of two.",
+    "trigger": "battleShockTest",
+    "code": "synapseBattleShock",
+    "params": { "range": 6, "keyword": "SYNAPSE", "extraDice": 1 }
+  },
+  {
+    "id": "tyr.a.shadow-in-the-warp",
+    "name": "Shadow in the Warp",
+    "text": "Once per battle, in either player's Command phase, while this model is on the battlefield, you may make every enemy unit on the battlefield take a Battle-shock test.",
+    "trigger": "commandPhase",
+    "limit": "oncePerBattle",
+    "code": "shadowInTheWarp",
+    "params": { "pickWindow": "command.start", "pickTopic": "abilityChoice", "eitherPlayersPhase": true }
+  },
+  {
+    "id": "tyr.a.death-blow",
+    "name": "Death Blow",
+    "text": "If a melee attack destroys this model before it has fought this phase, roll a D6: on a 4+, it is not removed yet. After the attacking unit has finished all its attacks, you may fight with this model, and only then is it removed.",
+    "trigger": "modelDestroyed",
+    "code": "deathBlow",
+    "params": { "rollOn": 4, "attackKind": "melee", "requiresNotFought": true }
+  },
+  {
+    "id": "tyr.a.feeding-frenzy",
+    "name": "Feeding Frenzy",
+    "text": "Each melee attack this model makes against a unit below its Starting Strength gets +1 to its hit roll; if that unit is also Below Half-strength, the attack gets +1 to its wound roll as well.",
+    "trigger": "hitRoll",
+    "when": { "weaponType": "melee" },
+    "effect": [
+      { "when": { "targetBelowStartingStrength": true }, "modifyRoll": { "roll": "hit", "value": 1 } },
+      { "when": { "targetBelowHalf": true }, "modifyRoll": { "roll": "wound", "value": 1 } }
+    ],
+    "scope": { "who": "self" }
+  },
+  {
+    "id": "tyr.a.skulking-horrors",
+    "name": "Skulking Horrors",
+    "text": "Once per turn, when an enemy unit ends a Normal, Advance or Fall Back move within 9 inches of this unit, and this unit is not within Engagement Range of any enemy unit, this unit may make a Normal move of up to D6 inches.",
+    "trigger": "unitMoved",
+    "limit": "oncePerTurn",
+    "code": "skulkingHorrors",
+    "params": { "pickWindow": "movement.unitMoved", "pickTopic": "abilityChoice", "range": 9, "distance": "D6", "moveTypes": ["normal", "advance", "fallBack"] }
+  },
+  {
+    "id": "tyr.a.disruption-bombardment",
+    "name": "Disruption Bombardment",
+    "text": "In your Shooting phase, after this unit has shot, pick one enemy INFANTRY unit that it hit with at least one attack. Until the end of your opponent's next turn, that unit has -2 to its Move characteristic and -2 to its Advance and Charge rolls.",
+    "trigger": "unitSelectedToShoot",
+    "code": "disruptionBombardment",
+    "params": {
+      "pickWindow": "shooting.attacksResolved", "pickTopic": "abilityChoice", "targetKeyword": "INFANTRY",
+      "grant": [ { "modifyStat": { "stat": "M", "value": -2 } }, { "modifyRoll": { "roll": "advance", "value": -2 } }, { "modifyRoll": { "roll": "charge", "value": -2 } } ],
+      "duration": "untilNextTurn"
+    }
+  },
+  {
+    "id": "tyr.a.pouncing-leap",
+    "name": "Pouncing Leap",
+    "text": "The Heroic Intervention stratagem costs 0 CP when used on this unit, and it may be used on this unit even if that stratagem was already used this phase on another unit.",
+    "trigger": "always",
+    "code": "stratagemCostOverride",
+    "params": { "stratagemId": "core.s.heroic-intervention", "cost": 0, "ignoreLimit": true }
+  },
+  {
+    "id": "tyr.a.patrol-squads",
+    "name": "Patrol Squads",
+    "text": "When you declare battle formations, before any unit is set up, this unit may be split into two units of 10 models each. Each half keeps all of its abilities.",
+    "trigger": "always",
+    "code": "patrolSquads",
+    "params": { "sizes": [10, 10] }
+  }
+]

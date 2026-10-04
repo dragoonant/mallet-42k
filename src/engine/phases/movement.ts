@@ -37,7 +37,7 @@ import { terrainService } from '../terrain'
 import { transportService } from '../transports'
 import { notImplementedHandle, otherPlayer, type AdvanceResult, type EngineContext, type PhaseModule } from '../modules'
 import {
-  boardModelsOf, boardUnitsOf, datasheetOf, enemyModelsOnBoard, hasKeyword, keywordsOf, modelStats, removeModel,
+  boardModelsOf, boardUnitsOf, datasheetOf, deploymentZone, enemyModelsOnBoard, hasKeyword, keywordsOf, modelStats, removeModel,
   setModelPos, unitModels, unitModelsForCoherency,
 } from '../state'
 import type { Action, ModelPlacement } from '../actions'
@@ -123,10 +123,13 @@ function buildMoveConstraints(state: GameState, unitId: UnitId, moveType: MoveTy
 // Escape re-validation of already-submitted placements (MOVE-011-coherency): a casualty chosen after submission may
 // break coherency of the remaining models, which is not a re-validation failure — R-2.6's end-of-turn coherency cull
 // (owned elsewhere) is what actually enforces coherency once casualties are done being picked.
-function resolveMove(state: GameState, unitId: UnitId, moveType: MoveType, placements: ModelPlacement[], opts: { skipCoherency?: boolean } = {}):
+function resolveMove(state: GameState, unitId: UnitId, moveType: MoveType, placements: ModelPlacement[], opts: { skipCoherency?: boolean; distance?: number } = {}):
   { rejection: Rejection } | { rejection: null; resolved: ResolvedPlacement[] } {
   const models = unitModelsForCoherency(state, unitId)
-  const { perModel, pivot } = moveAllowance(state, unitId)
+  const allowance = moveAllowance(state, unitId)
+  const { pivot } = allowance
+  // a reactive move (Skulking Horrors) is capped at the rolled distance instead of the unit's Move characteristic
+  const perModel = opts.distance === undefined ? allowance.perModel : Object.fromEntries(models.map((m) => [m.id, opts.distance as number]))
   const enemies = enemyModelsOnBoard(state, state.units[unitId].player)
   const otherFriendly = friendlyOthers(state, unitId)
   const max = Object.values(perModel).reduce((a, b) => Math.max(a, b), 0)
@@ -147,8 +150,8 @@ function resolveMove(state: GameState, unitId: UnitId, moveType: MoveType, place
 // movement.moveStarted) and moves no model at all may end its move as it stands — otherwise a declared Normal/Advance
 // move could have no legal answer at all. The end-of-turn coherency cull (R-2.6) resolves it. Any placement that
 // actually moves a model still has to end coherent.
-function moveRejection(state: GameState, unitId: UnitId, moveType: MoveType, placements: ModelPlacement[]): Rejection | null {
-  const r = resolveMove(state, unitId, moveType, placements)
+function moveRejection(state: GameState, unitId: UnitId, moveType: MoveType, placements: ModelPlacement[], distance?: number): Rejection | null {
+  const r = resolveMove(state, unitId, moveType, placements, distance === undefined ? {} : { distance })
   if (r.rejection?.code !== 'E_COHERENCY') return r.rejection
   const models = unitModelsForCoherency(state, unitId)
   const stays = placements.every((p) => {
@@ -156,7 +159,47 @@ function moveRejection(state: GameState, unitId: UnitId, moveType: MoveType, pla
     return m !== undefined && Math.hypot(p.pos.x - m.pos.x, p.pos.y - m.pos.y, p.pos.z - m.pos.z) <= 1e-3
   })
   if (!stays || isCoherent(models)) return r.rejection
-  return resolveMove(state, unitId, moveType, placements, { skipCoherency: true }).rejection
+  return resolveMove(state, unitId, moveType, placements, { skipCoherency: true, ...(distance === undefined ? {} : { distance }) }).rejection
+}
+
+// ---------- Reactive Normal move (Tyranid Skulking Horrors, docs/spec/factions/tyranids.md 7.1 item 4) ----------
+const REACTIVE_KEY = 'mv:reactive'
+interface ReactiveMove { unitId: UnitId; distance: number; source: string }
+function readReactive(state: GameState): ReactiveMove | null {
+  const raw = readMark(state, REACTIVE_KEY)
+  return raw === null ? null : (JSON.parse(raw) as ReactiveMove)
+}
+
+// opens a moveUnit decision {moveType:'normal'} for the unit's owner (the non-active player) with maxDistance = distance and
+// Normal-move constraints; the interrupted activation resumes afterwards (phase marks keep its place); never writes
+// unit.turn.moveType. The owner may also pass (stay put).
+export function startReactiveMove(ctx: EngineContext, unitId: UnitId, distance: number, source: string): void {
+  const s = ctx.state
+  const unit = s.units[unitId]
+  if (!unit || unit.location !== 'board' || !(distance > 0)) return
+  writeMark(s, REACTIVE_KEY, JSON.stringify({ unitId, distance, source } satisfies ReactiveMove))
+  const perModel: Record<ModelId, number> = Object.fromEntries(unitModelsForCoherency(s, unitId).map((m) => [m.id, distance]))
+  ctx.decide({
+    kind: 'moveUnit', player: unit.player, window: 'movement.unitMoved', canPass: true,
+    context: { unitId, moveType: 'normal', advanceRoll: null },
+    constraints: emptyMoveConstraints(distance, { perModel, mustEndOutsideEngagement: true, coherency: true }),
+  })
+}
+
+function reactiveCandidates(state: GameState, pending: Extract<PendingDecision, { kind: 'moveUnit' }>, rv: ReactiveMove): Action[] {
+  const models = unitModelsForCoherency(state, rv.unitId)
+  const out: Action[] = []
+  if (models.length > 0) {
+    const allow = Math.max(0, rv.distance - 0.02)
+    const mk = (placements: ModelPlacement[]): Action => ({ type: 'moveUnit', player: pending.player, decisionId: pending.id, unitId: rv.unitId, placements })
+    const cands: Action[] = []
+    for (const frac of [1, 0.5]) {
+      for (let i = 0; i < 8; i++) cands.push(mk(translatePlacements(models, Math.cos((Math.PI * i) / 4) * allow * frac, Math.sin((Math.PI * i) / 4) * allow * frac)))
+    }
+    out.push(...filterValid(cands, (a) => (a.type === 'moveUnit' ? moveRejection(state, rv.unitId, 'normal', a.placements, rv.distance) : null), 3))
+  }
+  out.push({ type: 'pass', player: pending.player, decisionId: pending.id })
+  return out
 }
 
 function checkPaths(state: GameState, moveType: MoveType, result: { rejection: null; resolved: ResolvedPlacement[] }, enemies: Footprint[], otherFriendly: Model[], flyOf: (m: Model) => boolean):
@@ -333,6 +376,25 @@ function hasDeepStrike(state: GameState, unitId: UnitId): boolean {
 }
 
 // ---------- Reserves / reinforcements (R-5.11–R-5.14) ----------
+// Deep Strike (own ability or a Tellyporta pairing) arrives by Deep Strike; every other unit in Reserves (a Teeming Broods copy)
+// arrives as Strategic Reserves (R-5.15)
+export function reserveRouteFor(state: GameState, unitId: UnitId): 'deepStrike' | 'strategicReserves' {
+  const u = state.units[unitId]
+  const halves = reservesHalves(state, unitId)
+  const groupIds = halves.length > 0 ? halves : [unitId]
+  return groupIds.every((id) => hasDeepStrike(state, id)) || u?.deepStrikeWith != null ? 'deepStrike' : 'strategicReserves'
+}
+
+// R-5.15: wholly within 6" of a battlefield edge (the board inset by 6" on every side is forbidden), not inside the enemy
+// deployment zone in battle round 2, more than 9" horizontally from every enemy model
+export function strategicReservesConstraints(state: GameState, player: PlayerId): MoveConstraints {
+  const hw = state.board.w / 2, hh = state.board.h / 2, inset = 6
+  const inner: Polygon = [{ x: -hw + inset, z: -hh + inset }, { x: hw - inset, z: -hh + inset }, { x: hw - inset, z: hh - inset }, { x: -hw + inset, z: hh - inset }]
+  const forbidden: Polygon[] = [inner]
+  if (state.round === 2) forbidden.push(deploymentZone(state, otherPlayer(player)))
+  return emptyMoveConstraints(9999, { region: boardPolygon(state), forbidden, minDistanceFromEnemies: 9, coherency: false })
+}
+
 function eligibleArrivals(state: GameState, player: PlayerId): UnitId[] {
   const seen = new Set<UnitId>()
   const out: UnitId[] = []
@@ -343,8 +405,6 @@ function eligibleArrivals(state: GameState, player: PlayerId): UnitId[] {
     if (state.round < 2 || state.round > 3) continue
     const halves = reservesHalves(state, u.id)
     const groupIds = halves.length > 0 ? halves : [u.id]
-    const canDeepStrike = groupIds.every((id) => hasDeepStrike(state, id)) || u.deepStrikeWith !== null
-    if (!canDeepStrike) continue
     for (const id of groupIds) seen.add(id)
     if (u.deepStrikeWith) seen.add(u.deepStrikeWith)
     out.push(u.id)
@@ -381,13 +441,13 @@ function cullStrandedReserves(ctx: EngineContext, endOfRound3 = false): void {
   }
 }
 
-function resolveArrival(state: GameState, groupIds: UnitId[], placements: ModelPlacement[]):
+function resolveArrival(state: GameState, groupIds: UnitId[], placements: ModelPlacement[], via: 'deepStrike' | 'rapidIngress' | 'strategicReserves' = 'deepStrike'):
   { rejection: Rejection } | { rejection: null; resolved: ResolvedPlacement[] } {
   const models = groupIds.flatMap((id) => unitModels(state, id))
   const player = state.units[groupIds[0]].player
   const enemies = enemyModelsOnBoard(state, player)
   const otherFriendly = boardModelsOf(state, player)
-  const constraints = emptyMoveConstraints(9999, { minDistanceFromEnemies: 9, coherency: false })
+  const constraints = via === 'strategicReserves' ? strategicReservesConstraints(state, player) : emptyMoveConstraints(9999, { minDistanceFromEnemies: 9, coherency: false })
   const result = checkPlacements({ unitModels: models, placements, constraints, otherFriendly, enemies, board: state.board })
   if (result.rejection) return result
   // MOVE-021-terrain/air: a Deep Strike (or Rapid Ingress) arrival is still an "end a move here" placement — it may
@@ -429,11 +489,11 @@ function validateArrival(state: GameState, action: Action, pending: Extract<Pend
   const provided = new Set(action.placements.map((p) => p.modelId))
   for (const id of needed) if (!provided.has(id)) return { code: 'E_OUT_OF_RANGE', reason: `arrival must place every model of ${groupIds.join(' & ')} together`, details: { missing: id } }
   for (const id of provided) if (!needed.has(id)) return { code: 'E_SCHEMA', reason: `model ${id} is not part of this arrival` }
-  const r = resolveArrival(state, groupIds, action.placements)
+  const r = resolveArrival(state, groupIds, action.placements, (readMark(state, 'mv:arriveVia') ?? 'deepStrike') as 'deepStrike' | 'rapidIngress' | 'strategicReserves')
   return r.rejection
 }
 
-function raiseArrivalDecision(ctx: EngineContext, unitId: UnitId, player: PlayerId, via: 'deepStrike' | 'rapidIngress'): void {
+function raiseArrivalDecision(ctx: EngineContext, unitId: UnitId, player: PlayerId, via: 'deepStrike' | 'rapidIngress' | 'strategicReserves'): void {
   const s = ctx.state
   // MOVE-021-attached: an attached Leader+Bodyguard pair arrives together (leaderService.halves), on top of any
   // Tellyporta deepStrikeWith pairing (two independent units) — both apply, though Combat Patrol never combines them.
@@ -447,7 +507,7 @@ function raiseArrivalDecision(ctx: EngineContext, unitId: UnitId, player: Player
   ctx.decide({
     kind: 'deployUnit', player, window: 'movement.reinforcements', canPass: false,
     context: { unitIds: groupIds, zone: boardPolygon(s), infiltrators: [], reservesAllowed: groupIds },
-    constraints: emptyMoveConstraints(9999, { minDistanceFromEnemies: 9, coherency: false }),
+    constraints: via === 'strategicReserves' ? strategicReservesConstraints(s, player) : emptyMoveConstraints(9999, { minDistanceFromEnemies: 9, coherency: false }),
   })
 }
 
@@ -474,10 +534,17 @@ function doReinforcementsStep(ctx: EngineContext): AdvanceResult {
   } else {
     queue = JSON.parse(queueRaw)
   }
+  // the active player's own stratagem window for this step (Teeming Broods). The arrival queue above is already fixed, so a
+  // unit created in this window cannot arrive in the step it was created
+  if (ctx.window('movement.reinforcements', 'step', ctx.order.only(s.activePlayer), {})) return 'pending'
   if (queue.length > 0) {
-    writeMark(s, 'mv:arriveQueue', JSON.stringify(queue.slice(1)))
-    raiseArrivalDecision(ctx, queue[0], s.activePlayer, 'deepStrike')
-    return 'pending'
+    // a Teeming Broods copy or a destroyed unit may have changed the queue's head
+    const head = queue.find((id) => s.units[id]?.location === 'reserves')
+    writeMark(s, 'mv:arriveQueue', JSON.stringify(head === undefined ? [] : queue.slice(queue.indexOf(head) + 1)))
+    if (head !== undefined) {
+      raiseArrivalDecision(ctx, head, s.activePlayer, reserveRouteFor(s, head))
+      return 'pending'
+    }
   }
   if (ctx.window('movement.end', 'end', ctx.order.active())) return 'pending'
   const reqs = pendingReactions(s, 'rapidIngress')
@@ -734,7 +801,10 @@ function arrivalCandidates(state: GameState, pending: Extract<PendingDecision, {
 }
 
 function movementLegalActions(state: GameState, pending: PendingDecision): Action[] | null {
-  if (pending.kind === 'moveUnit') return moveUnitCandidates(state, pending)
+  if (pending.kind === 'moveUnit') {
+    const rv = readReactive(state)
+    return rv && rv.unitId === pending.context.unitId ? reactiveCandidates(state, pending, rv) : moveUnitCandidates(state, pending)
+  }
   if (pending.kind === 'deployUnit') return arrivalCandidates(state, pending)
   return optionActions(pending)
 }
@@ -779,6 +849,8 @@ export const movementModule: PhaseModule = {
     if (pending.kind === 'moveUnit') {
       if (action.type !== 'moveUnit') return optionCheck(pending, action)
       if (action.unitId !== pending.context.unitId) return { code: 'E_INVALID_TARGET', reason: 'placements are for the wrong unit', details: { expected: pending.context.unitId } }
+      const rv = readReactive(state)
+      if (rv && rv.unitId === action.unitId) return moveRejection(state, action.unitId, 'normal', action.placements, rv.distance)
       return moveRejection(state, action.unitId, pending.context.moveType, action.placements)
     }
     if (pending.kind === 'deployUnit') return validateArrival(state, action, pending)
@@ -787,6 +859,7 @@ export const movementModule: PhaseModule = {
   handle(ctx, action, pending): Rejection | void {
     const s = ctx.state
     if (action.type === 'pass') {
+      if (pending.kind === 'moveUnit' && readReactive(s)) { writeMark(s, REACTIVE_KEY, null); return }
       if (pending.kind === 'chooseUnitToActivate') { s.step = 'reinforcements'; return }
       return { code: 'E_NOT_AN_OPTION', reason: `movement: pass is not valid for ${pending.kind}` }
     }
@@ -801,6 +874,19 @@ export const movementModule: PhaseModule = {
       return
     }
     if (pending.kind === 'moveUnit' && action.type === 'moveUnit') {
+      const rv = readReactive(s)
+      if (rv && rv.unitId === action.unitId) {
+        // reactive Normal move: apply it now, leave the interrupted activation (and unit.turn.moveType) untouched
+        const result = resolveMove(s, rv.unitId, 'normal', action.placements, { distance: rv.distance })
+        if (result.rejection) return result.rejection
+        writeMark(s, REACTIVE_KEY, null)
+        for (const r of result.resolved) setModelPos(s.models[r.model.id], r.to, r.facing)
+        ctx.emit({
+          type: 'UnitMoved', unitId: rv.unitId, moveType: 'normal',
+          paths: Object.fromEntries(result.resolved.filter((r) => r.distance > EPS).map((r) => [r.model.id, r.path])), player: pending.player,
+        })
+        return
+      }
       writeMark(s, 'mv:placements', JSON.stringify(action.placements))
       return
     }
@@ -817,11 +903,11 @@ export const movementModule: PhaseModule = {
     }
     if (pending.kind === 'deployUnit' && action.type === 'deployUnit') {
       const groupIds = pending.context.unitIds
-      const via = (readMark(s, 'mv:arriveVia') ?? 'deepStrike') as 'deepStrike' | 'rapidIngress'
+      const via = (readMark(s, 'mv:arriveVia') ?? 'deepStrike') as 'deepStrike' | 'rapidIngress' | 'strategicReserves'
       writeMark(s, 'mv:arriveVia', null)
       writeMark(s, 'mv:arriveGroup', null)
       if (action.toReserves) return
-      const result = resolveArrival(s, groupIds, action.placements)
+      const result = resolveArrival(s, groupIds, action.placements, via)
       if (result.rejection) throw new EngineInvariantError('movement: stored arrival placements failed re-validation', { rejection: result.rejection })
       for (const r of result.resolved) setModelPos(s.models[r.model.id], r.to, r.facing)
       for (const uid of groupIds) {

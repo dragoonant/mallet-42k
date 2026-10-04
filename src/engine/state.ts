@@ -3,8 +3,10 @@
 import type {
   AbilityDescriptor, AbilityRef, CombatPatrolData, DataBundle, DatasheetData, MissionData, Stats, WeaponData,
 } from '../data/types'
+import type { CoreAbilityName } from '../data/types'
 import { parseDiceExpr } from './dice'
 import { mmToInch, transformPolygon } from './geometry'
+import { hookService } from './hooks-impl'
 import { otherPlayer } from './modules'
 import { createRng } from './rng'
 import {
@@ -154,6 +156,16 @@ export function keywordsOf(state: GameState, unitId: UnitId): string[] {
 
 export function hasKeyword(state: GameState, unitId: UnitId, keyword: string): boolean { return keywordsOf(state, unitId).includes(keyword) }
 
+// core ability on the datasheet, or granted by an active grantKeyword effect whose text equals the ability name (space and
+// underscore forms are the same name: Psychostatic Veil grants 'LONE OPERATIVE', the datasheet says LONE_OPERATIVE)
+export function hasCoreAbility(state: GameState, unitId: UnitId, ability: CoreAbilityName): boolean {
+  const ds = state.datasheets[state.units[unitId]?.datasheetId]
+  if (ds?.coreAbilities.some((c) => c.ability === ability)) return true
+  const norm = (s: string) => s.toUpperCase().replace(/[\s_]+/g, '_')
+  const want = norm(ability)
+  return (hookService.keywordsFor?.(state, unitId) ?? keywordsOf(state, unitId)).some((k) => norm(k) === want)
+}
+
 // ---------- mutation helpers (draft state only) ----------
 export function setModelPos(model: Model, pos: Vec3, facing?: number): void {
   model.pos = { x: Math.round(pos.x * 1000) / 1000, y: Math.round(pos.y * 1000) / 1000, z: Math.round(pos.z * 1000) / 1000 }
@@ -174,6 +186,38 @@ export function removeModel(state: GameState, modelId: ModelId): boolean {
     return true
   }
   return false
+}
+
+// Teeming Broods (Tyranids): a brand-new unit `${sourceUnitId}~${n}` (n = 1 + copies made so far) of the same datasheet and wargear as
+// the source's first model (a destroyed source keeps its models in destroyedModels), modelCount models at full wounds,
+// location 'reserves', startingStrength = modelCount, no effects / enhancement / leader. The source unit is left untouched.
+export function spawnUnitCopy(state: GameState, sourceUnitId: UnitId, modelCount: number): Unit {
+  const src = state.units[sourceUnitId]
+  if (!src) throw new EngineInvariantError(`spawnUnitCopy: unknown unit ${sourceUnitId}`)
+  const template = (src.models.length > 0 ? state.models[src.models[0]] : undefined) ?? src.destroyedModels?.[0]
+  if (!template) throw new EngineInvariantError(`spawnUnitCopy: unit ${sourceUnitId} has no model to copy`)
+  const prefix = `${sourceUnitId}~`
+  const made = Object.keys(state.units).filter((id) => id.startsWith(prefix) && /^\d+$/.test(id.slice(prefix.length))).length
+  const id: UnitId = `${prefix}${made + 1}`
+  const profile = state.datasheets[src.datasheetId].models.find((m) => m.modelId === template.datasheetModelId)
+  const W = profile?.stats.W ?? template.woundsRemaining
+  const modelIds: ModelId[] = []
+  for (let i = 0; i < modelCount; i++) {
+    const mid = modelIdFor(id, i)
+    state.models[mid] = {
+      id: mid, unitId: id, datasheetModelId: template.datasheetModelId, pos: { x: 0, y: 0, z: 0 }, facing: 0, base: { ...template.base },
+      height: template.height, woundsRemaining: W, weapons: [...template.weapons], oneShotUsed: [],
+      flags: { allocatedThisPhase: false, inBaseContactWithEnemy: false, desperateEscapeTested: false },
+    }
+    modelIds.push(mid)
+  }
+  const unit: Unit = {
+    id, player: src.player, ref: `${src.ref}~${made + 1}`, datasheetId: src.datasheetId, name: src.name, models: modelIds, startingStrength: modelCount,
+    location: 'reserves', attachedLeaderId: null, bodyguardUnitId: null, battleShocked: false, battleShockExpiresRound: null,
+    turn: emptyTurnState(), effects: [], enhancementId: null, isWarlord: false, deepStrikeWith: null, destroyedBy: null, destroyedModels: [],
+  }
+  state.units[id] = unit
+  return unit
 }
 
 // P4: sides chosen → player.side, objective homes (mission 'A' = attacker, 'B' = defender)

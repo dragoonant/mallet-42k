@@ -31,7 +31,7 @@ import { losService } from '../los'
 import { attackService } from '../attack'
 import { weaponService } from '../weapons'
 import { notImplementedHandle, otherPlayer, type AdvanceResult, type EngineContext, type PhaseModule } from '../modules'
-import { boardUnitsOf, datasheetOf, hasKeyword, unitModels } from '../state'
+import { boardUnitsOf, datasheetOf, hasCoreAbility, hasKeyword, unitModels } from '../state'
 import type { Action } from '../actions'
 import {
   EngineInvariantError,
@@ -90,7 +90,7 @@ function enemyCanonicalUnits(state: GameState, firingPlayer: PlayerId): UnitId[]
 }
 function isLoneOperative(state: GameState, unitId: UnitId): boolean {
   if (leaderService.isAttached(state, unitId)) return false
-  return datasheetOf(state, unitId).coreAbilities.some((c) => c.ability === 'LONE_OPERATIVE')
+  return hasCoreAbility(state, unitId, 'LONE_OPERATIVE')
 }
 
 // ---------- R-6.4/R-6.2/R-6.3/R-6.9 target legality for one (firing model, weapon, candidate target) ----------

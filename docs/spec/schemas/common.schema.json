@@ -331,6 +331,15 @@
         "unitBelowHalf": {
           "type": "boolean"
         },
+        "targetBelowStartingStrength": {
+          "type": "boolean"
+        },
+        "targetBelowHalf": {
+          "type": "boolean"
+        },
+        "targetIsClosestEligible": {
+          "type": "boolean"
+        },
         "unitStationary": {
           "type": "boolean"
         },
@@ -912,6 +921,7 @@
             "selectedToShoot",
             "selectedToFight",
             "notYetFought",
+            "notYetShot",
             "targetedByAttack",
             "chargedThisTurn",
             "justDestroyed",
@@ -924,6 +934,9 @@
         "count": {
           "type": "integer",
           "minimum": 1
+        },
+        "includeDestroyed": {
+          "type": "boolean"
         }
       },
       "required": [

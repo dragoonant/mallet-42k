@@ -81,6 +81,8 @@ export interface AbilityTriggered extends EventBase { type: 'AbilityTriggered'; 
 // Reanimation Protocols (necrons): a wound regained / a destroyed model put back (docs/spec/factions/necrons.md NEC-2.2)
 export interface WoundsRegained extends EventBase { type: 'WoundsRegained'; unitId: UnitId; modelId: ModelId; amount: number; source: Id }
 export interface ModelReturned extends EventBase { type: 'ModelReturned'; unitId: UnitId; modelId: ModelId; pos: Vec3; source: Id }
+// Death Blow (tyranids): the model is not removed yet; ModelDestroyed follows once it has fought or declined
+export interface ModelRemovalDeferred extends EventBase { type: 'ModelRemovalDeferred'; unitId: UnitId; modelId: ModelId; source: Id }
 export interface EffectExpired extends EventBase { type: 'EffectExpired'; effectId: string; unitId: UnitId | null }
 
 // dice: one per physical roll, always emitted even when a family event covers it
@@ -104,7 +106,7 @@ export type GameEvent =
   | AttackSequenceStarted | TargetsDeclared | HitRolled | WoundRolled | AttackAllocated | SaveRolled | DamageApplied | FeelNoPainRolled
   | ModelDestroyed | UnitDestroyed | HazardousTested | DeadlyDemiseRolled | AttackSequenceEnded | LeaderDetached
   | ChargeDeclared | ChargeRolled | ChargeFailed | ChargeMoved | PiledIn | Consolidated | FightUnitSelected
-  | StratagemUsed | StratagemWindowOpened | StratagemWindowClosed | AbilityTriggered | WoundsRegained | ModelReturned | EffectExpired
+  | StratagemUsed | StratagemWindowOpened | StratagemWindowClosed | AbilityTriggered | WoundsRegained | ModelReturned | ModelRemovalDeferred | EffectExpired
   | DiceRolled | DiceRerolled
   | ObjectiveControlChanged | ObjectiveSecured | ObjectiveRemoved | VpScored
   | ActionRejected | DecisionRequested

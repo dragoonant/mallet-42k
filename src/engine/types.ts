@@ -131,6 +131,9 @@ export interface ModelFlags {
   desperateEscapeTested: boolean
 }
 
+// Tyranid Death Blow: a model whose removal is deferred until it has had its chance to fight (docs/spec/factions/tyranids.md TYR-6.1)
+export interface PendingRemoval { byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: ModelId | null; kind: AttackKind | 'mortal' | 'other'; source: Id }
+
 export interface Model {
   id: ModelId
   unitId: UnitId
@@ -143,6 +146,8 @@ export interface Model {
   weapons: WeaponId[]
   oneShotUsed: WeaponId[]
   flags: ModelFlags
+  // set while a Death Blow removal is deferred; such a model is skipped by allocation, OC, coherency and target lists
+  pendingRemoval?: PendingRemoval | null
 }
 
 export interface UnitTurnState {

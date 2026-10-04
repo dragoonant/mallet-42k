@@ -80,6 +80,11 @@ const KNOWN_KIT: Record<string, KitId> = {
   'csm.possessed': 'csm-possessed',
   'csm.legionaries': 'csm-legionary',
   'csm.cultist-mob': 'csm-cultist',
+  'tyr.terror-of-vardenghast': 'tyr-prime',
+  'tyr.psychophage': 'tyr-psychophage',
+  'tyr.termagants': 'tyr-termagant',
+  'tyr.barbgaunts': 'tyr-barbgaunt',
+  'tyr.von-ryans-leapers': 'tyr-leaper',
 }
 
 const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
@@ -98,6 +103,11 @@ const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
   'csm-zarkan': 'heavy',
   'csm-possessed': 'heavy',
   'csm-cultist': 'infantry',
+  'tyr-prime': 'heavy',
+  'tyr-psychophage': 'monster',
+  'tyr-termagant': 'infantry',
+  'tyr-barbgaunt': 'infantry',
+  'tyr-leaper': 'infantry',
   'generic-infantry': 'infantry',
   'generic-heavy': 'heavy',
   'generic-monster': 'monster',

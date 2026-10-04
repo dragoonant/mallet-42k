@@ -65,6 +65,10 @@ function describe(e: GameEvent, state: GameState): string | null {
       return `${unitName(state, e.unitId)} takes ${e.amount}${e.mortal ? ' mortal' : ''} damage${attackerFrom(state, e.source)}`
     case 'ModelDestroyed':
       return `A model of ${unitName(state, e.unitId)} falls${e.byUnitId ? ` to ${unitName(state, e.byUnitId)}` : ''}`
+    case 'ModelReturned':
+      return `A model of ${unitName(state, e.unitId)} claws its way back`
+    case 'ModelRemovalDeferred':
+      return `A model of ${unitName(state, e.unitId)} refuses to fall yet — it gets one last swing`
     case 'UnitDestroyed':
       return `${unitName(state, e.unitId)} is wiped out${e.byUnitId ? ` by ${unitName(state, e.byUnitId)}` : ''}`
     case 'BattleShocked':

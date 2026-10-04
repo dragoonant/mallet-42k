@@ -1,0 +1,25 @@
+[
+  {
+    "id": "tyr.von-ryans-leapers",
+    "faction": "tyranids",
+    "name": "Von Ryan's Leapers",
+    "keywords": ["INFANTRY", "GREAT DEVOURER", "VANGUARD INVADER", "VON RYAN'S LEAPERS"],
+    "factionKeywords": ["TYRANIDS"],
+    "stats": { "M": 10, "T": 5, "Sv": 4, "W": 3, "Ld": 8, "OC": 1 },
+    "invuln": 6,
+    "composition": [
+      {
+        "modelId": "leaper",
+        "name": "Von Ryan's Leaper",
+        "min": 3, "max": 3, "default": 3,
+        "base": { "shape": "round", "mm": 40 },
+        "weapons": { "default": ["tyr.w.leapers-talons"] },
+        "figure": { "archetype": "infantry", "kit": "tyr-leaper" }
+      }
+    ],
+    "abilities": ["tyr.a.synapse", "tyr.a.pouncing-leap"],
+    "coreAbilities": [ { "ability": "FIGHTS_FIRST" }, { "ability": "INFILTRATORS" }, { "ability": "STEALTH" } ],
+    "points": [ { "models": 3, "points": 0 } ],
+    "figure": { "archetype": "infantry", "kit": "tyr-leaper" }
+  }
+]

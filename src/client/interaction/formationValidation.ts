@@ -5,9 +5,14 @@ import {
   DEFAULT_SERVICES,
   basesOverlap,
   coherencyNeighboursNeeded,
+  deploymentZone,
   dist2D,
+  enemyModelsOnBoard,
+  horizontalGap,
   inCoherencyRange,
   isCoherent,
+  otherPlayer,
+  partlyWithinPolygon,
   whollyOnBoard,
   whollyWithinPolygon,
   type Footprint,
@@ -15,6 +20,7 @@ import {
   type Model,
   type ModelId,
   type MoveConstraints,
+  type PlayerId,
   type Polygon,
   type UnitId,
   type Vec3,
@@ -31,6 +37,30 @@ export interface ValidationResult {
   /** Short, deduplicated reasons for a "why Confirm is disabled" banner; empty when `ok`. */
   reasons: string[]
   links: CoherencyLink[]
+}
+
+/** True when every footprint sits in the Infiltrators set-up area (R-10.7): wholly on the battlefield,
+ *  more than 9" from the enemy deployment zone (grown by 9" as a bounding rectangle, exactly as the
+ *  engine's setup.ts infiltratorConstraints does) and more than 9" from every enemy model. */
+export function inInfiltratorArea(state: GameState, player: PlayerId, fps: Footprint[]): boolean {
+  const dz = deploymentZone(state, otherPlayer(player))
+  const r = 9 + 1e-3
+  const xs = dz.map((p) => p.x)
+  const zs = dz.map((p) => p.z)
+  const x0 = Math.min(...xs) - r, x1 = Math.max(...xs) + r, z0 = Math.min(...zs) - r, z1 = Math.max(...zs) + r
+  const grown: Polygon = [{ x: x0, z: z0 }, { x: x1, z: z0 }, { x: x1, z: z1 }, { x: x0, z: z1 }]
+  const enemies = enemyModelsOnBoard(state, player).map((m): Footprint => ({ pos: m.pos, facing: m.facing, base: m.base }))
+  for (const f of fps) {
+    if (!whollyOnBoard(f, state.board)) return false
+    if (partlyWithinPolygon(f, grown)) return false
+    if (enemies.some((e) => horizontalGap(f, e) <= 9 + 1e-3)) return false
+  }
+  return true
+}
+
+/** True when the pending deploy decision flags `unitId` as an Infiltrators unit. */
+export function deployUnitInfiltrates(state: GameState, unitId: UnitId): boolean {
+  return state.pending?.kind === 'deployUnit' && state.pending.context.infiltrators.includes(unitId)
 }
 
 function footprintOf(model: Model, p: DraftPlacement): Footprint {
@@ -114,8 +144,14 @@ export function validateDraft(
   const pendingDeploy = state.pending?.kind === 'deployUnit' ? state.pending : null
   const region: Polygon | null = constraints?.region ?? pendingDeploy?.context.zone ?? null
   const regionLabel = pendingDeploy && pendingDeploy.window === 'deployment.unit' ? 'your deployment zone' : 'the allowed area'
+  // Infiltrators (R-10.7): a unit the engine flagged may instead be set up anywhere wholly on the board
+  // more than 9" from the enemy zone and models. The engine tries the zone first, then that area, for the
+  // whole drop, so the same all-or-nothing choice is made here.
+  const infiltrates = !!pendingDeploy && !constraints && models.some((m) => pendingDeploy.context.infiltrators.includes(m.unitId))
+  const allInZone = !region || finals.every((f) => whollyWithinPolygon(f.fp, region))
+  const useInfiltration = infiltrates && !allInZone && !!pendingDeploy && inInfiltratorArea(state, pendingDeploy.player, finals.map((f) => f.fp))
   for (const f of finals) {
-    if (region && !whollyWithinPolygon(f.fp, region)) {
+    if (region && !useInfiltration && !whollyWithinPolygon(f.fp, region)) {
       addReason(perModel, f.modelId, `outside ${regionLabel}`)
       reasonSet.add(`Part of the unit is outside ${regionLabel}`)
     }
@@ -123,6 +159,17 @@ export function validateDraft(
       addReason(perModel, f.modelId, 'outside the battlefield')
       reasonSet.add('part of the unit is outside the battlefield')
     }
+    // forbidden regions (a Strategic Reserves arrival: the 6" edge band, plus the enemy zone in round 2)
+    for (const poly of constraints?.forbidden ?? []) {
+      if (partlyWithinPolygon(f.fp, poly)) {
+        addReason(perModel, f.modelId, 'inside a forbidden area')
+        reasonSet.add('Part of the unit is inside a forbidden area (too close to a board edge, or in the enemy zone)')
+        break
+      }
+    }
+  }
+  if (infiltrates && !allInZone && !useInfiltration) {
+    reasonSet.add('Infiltrators must be wholly on the board and more than 9" from the enemy zone and models')
   }
 
   // move allowance (straight-line distance — a close approximation of the engine's own pivot-aware

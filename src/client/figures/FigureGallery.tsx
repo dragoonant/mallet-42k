@@ -32,6 +32,11 @@ const GALLERY_ENTRIES: GalleryEntry[] = [
   { datasheetId: 'csm.possessed', faction: 'chaos-space-marines', label: 'Possessed' },
   { datasheetId: 'csm.legionaries', faction: 'chaos-space-marines', label: 'Legionaries' },
   { datasheetId: 'csm.cultist-mob', faction: 'chaos-space-marines', label: 'Cultist Mob' },
+  { datasheetId: 'tyr.termagants', faction: 'tyranids', label: 'Termagants' },
+  { datasheetId: 'tyr.barbgaunts', faction: 'tyranids', label: 'Barbgaunts' },
+  { datasheetId: 'tyr.von-ryans-leapers', faction: 'tyranids', label: "Von Ryan's Leapers" },
+  { datasheetId: 'tyr.terror-of-vardenghast', faction: 'tyranids', label: 'Terror of Vardenghast' },
+  { datasheetId: 'tyr.psychophage', faction: 'tyranids', label: 'Psychophage' },
 ]
 
 // Figures are true tabletop-miniature scale (~1-2 world-inches tall — see resolveBase), so packing

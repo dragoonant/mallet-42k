@@ -42,6 +42,7 @@ import { distance } from './geometry'
 import type { AttackContext, EffectRequest, RollModifierResult } from './hooks'
 import { leaderService } from './leaders'
 import type { AdvanceResult, DecisionHandler, EngineContext } from './modules'
+import { tryDeathBlow } from './deathblow'
 import { datasheetOf, hasKeyword, keywordsOf, modelStats, removeModel, unitModels } from './state'
 import { weaponService } from './weapons'
 import { fightOnDeathThreshold } from './fight-on-death'
@@ -197,7 +198,7 @@ function computeAttackCount(ctx: EngineContext, gi: number, group: AttackGroup, 
 // window. Every model of every half of an attached unit has to be gone (halves() is [] for a unit that no longer exists).
 function targetGone(ctx: EngineContext, targetUnitId: UnitId): boolean {
   const s = ctx.state
-  return leaderService.halves(s, targetUnitId).every((id) => !s.units[id] || unitModels(s, id).length === 0)
+  return leaderService.halves(s, targetUnitId).every((id) => !s.units[id] || unitModels(s, id).every((m) => !!m.pendingRemoval))
 }
 
 function freshDevastatingAttack(gi: number, attackerModelId: ModelId): CurrentAttack {
@@ -404,6 +405,8 @@ export function unitsHitByWeapon(state: GameState, attackerUnitId: UnitId, weapo
   }
   return out
 }
+// phase mark `hit:<attacker>><target>`: the attacker scored at least one hit on the target this phase (Tyranid Disruption Bombardment)
+function recordHit(ctx: EngineContext, attackerUnitId: UnitId, targetUnitId: UnitId): void { ctx.once(`hit:${attackerUnitId}>${targetUnitId}`) }
 
 function doHitBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
   const a = attackSeq(ctx)
@@ -422,6 +425,7 @@ function doHitBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
       for (let i = 0; i < g.attacks; i++) {
         batch.hits.push({ groupIndex: j, attackerModelId: model, die: 0, final: 0, critical: false, lethal: false, extra: false })
         ctx.emit({ type: 'HitRolled', attack: rollAttackCtx(actx), die: 0, final: 0, hit: true, critical: false, extraHits: 0, auto: true })
+        recordHit(ctx, a.attackerUnitId, g.targetUnitId)
       }
       continue
     }
@@ -441,6 +445,7 @@ function doHitBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
       ctx.emit({ type: 'HitRolled', attack: rollAttackCtx(dies[i].actx), die: r.unmodified, final: r.final, hit: r.success, critical: r.critical, extraHits, auto: false, rollId: res.rollId, dieIndex: i })
       if (!r.success) return
       noteHitBy(s, a.attackerUnitId, weapon.id, a.groups[gi].targetUnitId)
+      recordHit(ctx, a.attackerUnitId, a.groups[gi].targetUnitId)
       const lethal = r.critical && hasAbility(weapon, 'LETHAL_HITS')
       batch.hits.push({ groupIndex: gi, attackerModelId: model, die: r.unmodified, final: r.final, critical: r.critical, lethal, extra: false })
       if (lethal) ctx.emit({ type: 'WoundRolled', attack: rollAttackCtx(dies[i].actx), die: 0, final: 0, needed: 0, wounded: true, critical: false, auto: true })
@@ -1332,6 +1337,8 @@ export const attackService: AttackService = {
     const model = s.models[modelId]
     if (!model) return
     const unit = s.units[model.unitId]
+    // Death Blow (tyranids): a deferred removal is finished later by finishDeferredRemoval, which calls back into here
+    if (tryDeathBlow(ctx, model, by)) return
     const ds = datasheetOf(s, model.unitId)
     const demise = ds.coreAbilities.find((c) => c.ability === 'DEADLY_DEMISE')
     if (demise) rollDeadlyDemise(ctx, model, demise.value ?? 'D3')

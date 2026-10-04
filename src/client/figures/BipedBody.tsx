@@ -6,6 +6,7 @@ import { GBox, GCone, GCylinder, GSphere, StdMat } from './shared'
 import { useRef } from 'react'
 import type { Group } from 'three'
 import { EndBlock, HeadBlob, LimbSegment, WeaponMesh } from './primitives'
+import { TyranidExtras, TyranidHead } from './TyranidParts'
 import { usePoseFrame, clamp01, easeOut, useMaterialFader } from './anim'
 import type { BipedConfig, BodyProps } from './types'
 
@@ -21,6 +22,7 @@ const NECK_H = 0.03
 
 export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: BipedConfig }) {
   const { bulk } = config
+  const hunch = config.hunch ?? 0
   const bodyRef = useRef<Group>(null!)
   const torsoRef = useRef<Group>(null!)
   const headRef = useRef<Group>(null!)
@@ -122,6 +124,11 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
         break
       }
     }
+    // A forward-pitched, predatory stance (Tyranid kits): lean the torso, keep the head level-ish.
+    if (hunch && pose !== 'death') {
+      torso.rotation.x += hunch
+      head.rotation.x -= hunch * 0.7
+    }
   })
 
   const hipOffsetX = 0.09 * bulk
@@ -181,6 +188,7 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
             <StdMat color={colors.metal} metalness={0.4} roughness={0.6} />
           </mesh>
         )}
+        <TyranidExtras config={config} colors={colors} torsoWidth={torsoWidth} torsoDepth={torsoDepth} torsoHeight={TORSO_H} />
         {config.hasCape && (
           <mesh position={[0, TORSO_H * 0.35, -torsoDepth / 2 - 0.02]} rotation={[0.25, 0, 0]}>
             <GBox args={[torsoWidth * 0.9, TORSO_H * 1.4, 0.02]} />
@@ -428,6 +436,10 @@ function HeadBody({
           </mesh>
         </group>
       )
+    case 'tyranid-head':
+    case 'tyranid-prime-head':
+    case 'tyranid-brute-head':
+      return <TyranidHead shape={shape} colors={colors} radius={radius} />
     case 'generic-head':
     default:
       return <HeadBlob radius={radius} color={colors.secondary} />

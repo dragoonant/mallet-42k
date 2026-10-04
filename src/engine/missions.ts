@@ -7,6 +7,7 @@
 // again for this occurrence, so `missionService.handler` resumes the same occurrence itself (via `window`/`key` carried
 // in the decision's `context.data`) once the pick is answered, mirroring the pattern `hookService.offerPicks` uses for
 // Oath of Moment / Waaagh!. Per-rule "done" marks (`phaseState.marks`) make every step idempotent across that resume.
+import { alphaXenoformAmount, chitinousTideAmount } from './factions/tyranids'
 import type { MissionRule, ScoringRule, TimingWindowId } from '../data/types'
 import { OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE, pointInPolygon, whollyWithinPolygon, withinObjectiveRange } from './geometry'
 import { hookService } from './hooks-impl'
@@ -369,6 +370,8 @@ function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): num
   switch (rule.code) {
     case 'reclaimAndDominate': return reclaimAndDominateAmount(s, rule, pid)
     case 'wrathOfTheEmperor': return wrathOfTheEmperorAmount(s, rule, pid)
+    case 'alphaXenoform': return alphaXenoformAmount(s, rule, pid)
+    case 'chitinousTide': return chitinousTideAmount(s, rule, pid, (id) => holds(ctx, id, pid))
     case 'shockTactics': return shockTacticsAmount(ctx, rule, pid)
     case 'sweepingRaidEndgameBonus': return sweepingRaidBonusAmount(ctx, rule, pid)
     case 'stompEmScore': return stompEmScoreAmount(s, rule, pid)

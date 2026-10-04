@@ -65,6 +65,12 @@ export interface Condition {
   targetOnObjective?: boolean
   unitOnObjective?: boolean
   unitBelowHalf?: boolean
+  // target's combined current models (attached pair included) are below its combined Starting Strength (Tyranids Feeding Frenzy)
+  targetBelowStartingStrength?: boolean
+  // target unit is Below Half-strength (leaderService.isBelowHalfStrength)
+  targetBelowHalf?: boolean
+  // the attack targets the closest eligible enemy unit (Tyranids Voracious Assault, TYR-5.2)
+  targetIsClosestEligible?: boolean
   unitStationary?: boolean
   unitAdvanced?: boolean
   unitFellBack?: boolean
@@ -144,9 +150,11 @@ export interface TargetSpec {
   role: 'unit' | 'model'
   owner: 'friendly' | 'enemy'
   filter?: { keyword?: Keyword; notKeyword?: Keyword; within?: { of: 'previousTarget' | 'self' | 'objective' | 'controlledObjective'; inches: number } }
-  state?: 'selectedToShoot' | 'selectedToFight' | 'notYetFought' | 'targetedByAttack' | 'chargedThisTurn' | 'justDestroyed'
+  state?: 'selectedToShoot' | 'selectedToFight' | 'notYetFought' | 'notYetShot' | 'targetedByAttack' | 'chargedThisTurn' | 'justDestroyed'
     | 'inEngagement' | 'belowHalf' | 'battleShocked' | 'justMoved'
   count?: number
+  // destroyed units are also legal targets (Tyranids Teeming Broods); every other stratagem leaves this off
+  includeDestroyed?: boolean
 }
 
 export interface PaintScheme { primary: Hex; secondary: Hex; trim: Hex; metal: Hex; decal: Hex }

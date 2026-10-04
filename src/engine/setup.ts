@@ -3,10 +3,10 @@
 import { basesOverlap, checkPlacements, emptyMoveConstraints, whollyWithinPolygon, type Footprint, type ResolvedPlacement } from './geometry'
 import type { EngineContext, PhaseModule } from './modules'
 import { otherPlayer } from './modules'
-import { assignSides, boardModelsOf, deploymentZone, unitModels, setModelPos } from './state'
+import { assignSides, boardModelsOf, deploymentZone, hasCoreAbility, unitModels, setModelPos } from './state'
 import type { Action, DeployUnitAction, ModelPlacement } from './actions'
 import type {
-  DeployUnitDecision, GameState, Model, PendingDecision, PlayerId, Polygon, Rejection, Unit, UnitId,
+  DeployUnitDecision, GameState, Model, MoveConstraints, PendingDecision, PlayerId, Polygon, Rejection, Unit, UnitId,
 } from './types'
 
 // R-1.4: each player rolls 1D6, higher wins, ties re-roll; never modified or re-rolled
@@ -38,6 +38,80 @@ function comboModels(state: GameState, unit: Unit): Model[] {
 }
 function comboCanDeepStrike(state: GameState, unit: Unit): boolean {
   return comboUnits(state, unit).every((u) => canDeepStrike(state, u))
+}
+
+// ---------- Infiltrators (R-10.7) ----------
+function comboInfiltrates(state: GameState, unit: Unit): boolean {
+  return comboUnits(state, unit).every((u) => hasCoreAbility(state, u.id, 'INFILTRATORS'))
+}
+
+// an Infiltrators unit may instead be set up anywhere wholly on the battlefield more than 9" horizontally from the enemy
+// deployment zone and from every enemy model (R-10.7). The zone is grown by 9" as a bounding rectangle (exact for the
+// rectangular Combat Patrol zones); minDistanceFromEnemies covers the models.
+function infiltratorConstraints(state: GameState, player: PlayerId): MoveConstraints {
+  const dz = deploymentZone(state, otherPlayer(player))
+  const r = 9 + 1e-3
+  const xs = dz.map((p) => p.x), zs = dz.map((p) => p.z)
+  const x0 = Math.min(...xs) - r, x1 = Math.max(...xs) + r, z0 = Math.min(...zs) - r, z1 = Math.max(...zs) + r
+  return emptyMoveConstraints(1e9, {
+    region: null, mustEndOutsideEngagement: false, minDistanceFromEnemies: 9,
+    forbidden: [[{ x: x0, z: z0 }, { x: x1, z: z0 }, { x: x1, z: z1 }, { x: x0, z: z1 }]],
+  })
+}
+
+// ---------- Patrol Squads (Tyranid Termagants) ----------
+// keeps `unitId` for the first sizes[0] models and moves the rest into new units `${unitId}~a`, `~b`, … (sizes[i] models each);
+// every unit gets startingStrength = its size. Only legal while the unit is still in Reserves-to-be-deployed (before setup).
+// Returns the ids in order. A size list that does not add up to the unit's model count leaves the unit untouched ([unitId]).
+export function splitPatrolSquad(state: GameState, unitId: UnitId, sizes: number[]): UnitId[] {
+  const unit = state.units[unitId]
+  if (!unit || sizes.length < 2 || sizes.some((n) => n < 1) || sizes.reduce((a, b) => a + b, 0) !== unit.models.length) return [unitId]
+  const ids: UnitId[] = [unitId]
+  const all = [...unit.models]
+  unit.models = all.slice(0, sizes[0])
+  unit.startingStrength = sizes[0]
+  let at = sizes[0]
+  for (let i = 1; i < sizes.length; i++) {
+    const id: UnitId = `${unitId}~${String.fromCharCode(96 + i)}`
+    const mine = all.slice(at, at + sizes[i])
+    at += sizes[i]
+    const copy: Unit = structuredClone(unit)
+    copy.id = id
+    copy.ref = `${unit.ref}~${String.fromCharCode(96 + i)}`
+    copy.models = mine
+    copy.startingStrength = sizes[i]
+    copy.isWarlord = false
+    copy.enhancementId = null
+    copy.attachedLeaderId = null
+    copy.bodyguardUnitId = null
+    copy.destroyedModels = []
+    copy.effects = []
+    for (const mid of mine) state.models[mid].unitId = id
+    state.units[id] = copy
+    ids.push(id)
+  }
+  return ids
+}
+
+// units of the player with a patrolSquads ability that have not been offered the split yet
+function squadCandidates(state: GameState, player: PlayerId): Unit[] {
+  return Object.values(state.units).filter((u) => {
+    if (u.player !== player || u.location !== 'reserves' || u.ref.includes('~')) return false
+    if (state.phaseState.marks.includes(`squads:${u.id}`)) return false
+    const ds = state.datasheets[u.datasheetId]
+    return ds.abilities.some((a) => state.abilities[a]?.code === 'patrolSquads')
+  })
+}
+function squadSizes(state: GameState, unit: Unit): number[] | null {
+  const ds = state.datasheets[unit.datasheetId]
+  for (const a of ds.abilities) {
+    const ab = state.abilities[a]
+    if (ab?.code === 'patrolSquads' && Array.isArray(ab.params?.sizes)) {
+      const sizes = (ab.params!.sizes as unknown[]).map(Number)
+      if (sizes.reduce((x, y) => x + y, 0) === unit.models.length) return sizes
+    }
+  }
+  return null
 }
 
 // MISSION-027-reserves: mark that a unit's deployment decision (board placement or Reserves) has been resolved, so it
@@ -89,14 +163,20 @@ function resolveDeploy(
     return { rejection: null, toReserves: true }
   }
   const placements: ModelPlacement[] = action.placements
-  const result = checkPlacements({
+  const check = (constraints: MoveConstraints) => checkPlacements({
     unitModels: comboModels(state, unit),
     placements,
-    constraints: pending.constraints,
+    constraints,
     otherFriendly: boardModelsOf(state, pending.player),
     enemies: boardModelsOf(state, otherPlayer(pending.player)),
     board: state.board,
   })
+  let result = check(pending.constraints)
+  // R-10.7 Infiltrators: a unit that cannot be set up in its own zone may use the wider infiltration area instead
+  if (result.rejection && pending.context.infiltrators.includes(unit.id)) {
+    const alt = check(infiltratorConstraints(state, pending.player))
+    if (!alt.rejection) result = alt
+  }
   if (result.rejection) return { rejection: result.rejection }
   return { rejection: null, toReserves: false, resolved: result.resolved }
 }
@@ -171,12 +251,29 @@ export const setupModule: PhaseModule = {
           return sidesChosen(s) ? 'done' : 'pending'
         // ---- phase 'deployment' ----
         case 'deploy': {
+          // Declare Battle Formations (Tyranid Patrol Squads): before any unit is set up, offer each owner the split
+          for (const owner of ['A', 'B'] as PlayerId[]) {
+            const unit = squadCandidates(s, owner)[0]
+            if (!unit) continue
+            const sizes = squadSizes(s, unit)
+            s.phaseState.marks.push(`squads:${unit.id}`)
+            if (!sizes) continue
+            ctx.decide({
+              kind: 'chooseOption', player: owner, window: 'deployment.unit', canPass: false,
+              context: { topic: 'other', unitId: unit.id, abilityId: null, data: { choice: 'patrolSquads', sizes } },
+              options: [
+                { id: 'keep', label: `Keep ${unit.name} as one unit of ${unit.models.length}`, action: { type: 'chooseOption', player: owner, decisionId: '', optionId: 'keep' } },
+                { id: 'split', label: `Split ${unit.name} into units of ${sizes.join(' and ')}`, action: { type: 'chooseOption', player: owner, decisionId: '', optionId: 'split' } },
+              ],
+            })
+            return 'pending'
+          }
           const pid = deploymentTurnPlayer(s)
           if (pid === null) { s.step = 'rollOffFirstTurn'; continue }
           const unitIds = remainingToDeploy(s, pid)
           ctx.decide({
             kind: 'deployUnit', player: pid, window: 'deployment.unit', canPass: false,
-            context: { unitIds, zone: deploymentZone(s, pid), infiltrators: [], reservesAllowed: unitIds.filter((id) => comboCanDeepStrike(s, s.units[id])) },
+            context: { unitIds, zone: deploymentZone(s, pid), infiltrators: unitIds.filter((id) => comboInfiltrates(s, s.units[id])), reservesAllowed: unitIds.filter((id) => comboCanDeepStrike(s, s.units[id])) },
             constraints: emptyMoveConstraints(1e9, { region: deploymentZone(s, pid), mustEndOutsideEngagement: false }),
           })
           return 'pending'
@@ -321,6 +418,15 @@ export const setupModule: PhaseModule = {
     if (pending.kind === 'chooseOption' && pending.context.topic === 'other' && (pending.context.data as { choice?: string }).choice === 'firstTurn' && action.type === 'chooseOption') {
       const chosen: PlayerId = action.optionId === 'self' ? pending.player : otherPlayer(pending.player)
       s.phaseState.marks.push(`firstTurnChoice:${chosen}`)
+      return
+    }
+    if (pending.kind === 'chooseOption' && pending.context.topic === 'other' && (pending.context.data as { choice?: string }).choice === 'patrolSquads' && action.type === 'chooseOption') {
+      if (action.optionId === 'split' && pending.context.unitId) {
+        const sizes = ((pending.context.data as { sizes?: number[] }).sizes ?? []).map(Number)
+        const ids = splitPatrolSquad(s, pending.context.unitId, sizes)
+        for (const id of ids) s.phaseState.marks.push(`squads:${id}`)
+        ctx.emit({ type: 'AbilityTriggered', abilityId: 'tyr.a.patrol-squads', sourceUnitId: pending.context.unitId, targetUnitId: null, summary: `split into ${ids.join(', ')}`, player: pending.player })
+      }
       return
     }
     if (pending.kind === 'deployUnit' && action.type === 'deployUnit') {
