@@ -102,3 +102,52 @@ describe('AI deployment uses formations', () => {
     }
   }, 60000)
 })
+
+describe('AI deployment spreads out near objectives', () => {
+  // Regression: every Space Marine unit used to pile onto the one in-zone marker (objective pull saturated, weak crowding)
+  it('formation: Space Marine units do not all deploy in one spot and stay within reach of objectives', async () => {
+    const bundle = await loadBundle()
+    const patrols = Object.keys(bundle.patrols).sort()
+    const sm = patrols.find((p) => bundle.patrols[p].faction === 'sm') as string
+    const opp = patrols.find((p) => bundle.patrols[p].faction === 'necrons') as string
+    const setup = (id: string, name: string) => {
+      const patrol = bundle.patrols[id]
+      return {
+        name, faction: patrol.faction, patrolId: id,
+        enhancementId: (patrol.enhancements.find((e) => e.default) ?? patrol.enhancements[0]).id,
+        secondaryId: (patrol.secondaries.find((s) => s.default) ?? patrol.secondaries[0]).id,
+        attachments: [], reserves: [], battleReadyVp: 0,
+      }
+    }
+    const spreads: number[] = [], dists: number[] = []
+    for (const seed of ['d1', 'd2', 'd3']) {
+      const gameSetup = {
+        missionId: 'mission.cp-02',
+        terrainLayoutId: Object.keys(bundle.terrainLayouts ?? {}).sort()[0] ?? 'terrain.cp-01',
+        players: { A: setup(sm, 'A'), B: setup(opp, 'B') },
+        sides: 'rollOff' as const, firstTurn: 'rollOff' as const, dataVersion: bundle.version,
+      }
+      const deciders = { A: new UtilityDecider('normal', seed + 'A'), B: new UtilityDecider('normal', seed + 'B') }
+      let r: StepResult = createGame(gameSetup, seed, bundle)
+      let n = 0
+      while (r.pending && (r.state.phase === 'setup' || r.state.phase === 'deployment') && n++ < 400) {
+        const pending = r.pending
+        r = step(r.state, await deciders[pending.player as PlayerId].decide(view(r.state, pending.player), pending, legalActions(r.state, pending)))
+      }
+      const objs = Object.values(r.state.objectives)
+      const cs = Object.values(r.state.units).filter((u) => u.player === 'A' && u.location === 'board').map((u) => {
+        const ms = unitModels(r.state, u.id)
+        return { x: ms.reduce((a, m) => a + m.pos.x, 0) / ms.length, z: ms.reduce((a, m) => a + m.pos.z, 0) / ms.length }
+      })
+      expect(cs.length).toBeGreaterThanOrEqual(3)
+      let maxPair = 0
+      for (const a of cs) for (const b of cs) maxPair = Math.max(maxPair, Math.hypot(a.x - b.x, a.z - b.z))
+      spreads.push(maxPair)
+      for (const c of cs) dists.push(Math.min(...objs.map((o) => Math.hypot(o.pos.x - c.x, o.pos.z - c.z))))
+      // not all in one corner of the board: the units' centroids cover a clearly wider area than one blob
+      expect(maxPair, seed).toBeGreaterThan(10)
+    }
+    expect(spreads.reduce((a, b) => a + b, 0) / spreads.length).toBeGreaterThan(12)
+    expect(dists.reduce((a, b) => a + b, 0) / dists.length).toBeLessThan(7)
+  }, 60000)
+})

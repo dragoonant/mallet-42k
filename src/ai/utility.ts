@@ -234,23 +234,51 @@ function scorePosition(state: GameState, player: PlayerId, unitId: UnitId, place
   return score
 }
 
+// Deployment-only objective pull. objectivePull's flat "+6*weight when within 3 inch" bonus is fine for a unit that is
+// already moving, but at deployment it is the whole story: under holdObjectives every marker (home ones included) has
+// weight ~3, so the single in-zone marker is worth ~+18 on top of ~15, every unit piles onto it, and the deployment looks
+// like one blob in one spot. So here (a) each marker's value shrinks with every friendly unit already parked within 6
+// inch of it, which spreads units across the markers they can reach, and (b) pure shooters only get a fraction of the
+// on-marker bonus, they just need to stay within a move of it with a fire lane.
+function deployObjectivePull(state: GameState, player: PlayerId, unitId: UnitId, pos: { x: number; z: number }, onMarkerShare: number): number {
+  let score = 0
+  const mates = boardUnitsOf(state, player).filter((u) => u.id !== unitId).map((u) => centerOfUnit(state, u.id)).filter((c): c is { x: number; z: number } => c !== null)
+  for (const obj of Object.values(state.objectives)) {
+    if (obj.removed) continue
+    const controller = DEFAULT_SERVICES.objectives.controller(state, obj.id)
+    const weight = objectiveScoreWeight(state, player, obj.id)
+    const base = (controller === player ? 3 : controller === other(player) ? 8 : 5) * weight
+    const covered = mates.filter((c) => Math.hypot(c.x - obj.pos.x, c.z - obj.pos.z) <= 6).length
+    const share = 1 / (1 + 0.9 * covered)
+    const d = Math.hypot(obj.pos.x - pos.x, obj.pos.z - pos.z)
+    score += (base / (1 + d / 6)) * share
+    if (d <= 3) score += (controller === player ? 1 : 6) * weight * share * onMarkerShare
+  }
+  return score
+}
+
 function scoreDeployUnit(state: GameState, player: PlayerId, action: DeployUnitAction): number {
   if (action.toReserves) return 0.5
   const center = placementsCenter(action.placements)
-  let score = objectivePull(state, player, center)
+  const meleeOnly = hasAnyMeleeWeapon(state, action.unitId) && !hasAnyRangedWeapon(state, action.unitId)
+  const shooter = hasAnyRangedWeapon(state, action.unitId) && !meleeOnly
+  let score = deployObjectivePull(state, player, action.unitId, center, shooter ? 0.3 : 1)
   score -= threatAt(state, player, center) * 2
   const zoneCentroid = polyCentroid(deploymentZone(state, other(player)))
-  const meleeOnly = hasAnyMeleeWeapon(state, action.unitId) && !hasAnyRangedWeapon(state, action.unitId)
   if (meleeOnly) {
     const dToEnemy = Math.hypot(center.x - zoneCentroid.x, center.z - zoneCentroid.z)
     score += Math.max(0, 40 - dToEnemy) * 0.03
   }
+  // friendly units already deployed: keep a spread (centre-to-centre), a unit-level term on top of model overlap
   let crowd = 0
-  for (const m of boardModelsOf(state, player)) {
-    const d = Math.hypot(m.pos.x - center.x, m.pos.z - center.z)
-    if (d < 6) crowd += 6 - d
+  for (const u of boardUnitsOf(state, player)) {
+    if (u.id === action.unitId) continue
+    const c = centerOfUnit(state, u.id)
+    if (!c) continue
+    const d = Math.hypot(c.x - center.x, c.z - center.z)
+    if (d < 8) crowd += 8 - d
   }
-  score -= crowd * 0.1
+  score -= crowd * 0.4
   // A deployment right in a board-edge corner can leave a unit with almost no room to maneuver later — every
   // "move toward the objective" direction ends up crossing the board edge or a ruin wall that's often tucked into
   // that same corner, so the unit ends up stuck in place move after move despite still having full Move stat.
