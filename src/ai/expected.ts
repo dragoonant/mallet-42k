@@ -213,24 +213,31 @@ export function bestRangedWeapon(state: GameState, modelId: ModelId): { weaponId
 
 // crude per-position threat: sum of enemy units' best-weapon expected damage against a probe unit, discounted
 // by whether the enemy is currently within its own threat range of the probe's position (2D). Cheap on purpose.
-export function threatAt(state: GameState, forPlayer: PlayerId, pos: { x: number; z: number }): number {
-  const enemies = boardModelsOf(state, forPlayer === 'A' ? 'B' : 'A')
-  let total = 0
+export interface ThreatSource { x: number; z: number; value: number; reach: number }
+// one entry per enemy unit on the board (first model's position), precomputed so scoring many candidate positions is cheap
+export function threatSources(state: GameState, forPlayer: PlayerId): ThreatSource[] {
+  const out: ThreatSource[] = []
   const seen = new Set<UnitId>()
-  for (const m of enemies) {
+  for (const m of boardModelsOf(state, forPlayer === 'A' ? 'B' : 'A')) {
     if (seen.has(m.unitId)) continue
     seen.add(m.unitId)
-    const unit = state.units[m.unitId]
-    const val = unitValue(state, unit.id)
     const stats = modelStats(state, m)
-    const dx = m.pos.x - pos.x, dz = m.pos.z - pos.z
-    const dist = Math.hypot(dx, dz)
     const ranged = bestRangedWeapon(state, m.id)
-    const reach = ranged ? ranged.range : stats.M + 3.5 // melee: move + average charge
-    const scale = reach <= 0 ? 0 : Math.max(0, Math.min(1, (reach + 6 - dist) / (reach + 6)))
-    total += val * 0.02 * scale
+    out.push({ x: m.pos.x, z: m.pos.z, value: unitValue(state, m.unitId), reach: ranged ? ranged.range : stats.M + 3.5 }) // melee: move + average charge
+  }
+  return out
+}
+export function threatFrom(sources: ThreatSource[], pos: { x: number; z: number }): number {
+  let total = 0
+  for (const s of sources) {
+    const dist = Math.hypot(s.x - pos.x, s.z - pos.z)
+    const scale = s.reach <= 0 ? 0 : Math.max(0, Math.min(1, (s.reach + 6 - dist) / (s.reach + 6)))
+    total += s.value * 0.02 * scale
   }
   return total
+}
+export function threatAt(state: GameState, forPlayer: PlayerId, pos: { x: number; z: number }): number {
+  return threatFrom(threatSources(state, forPlayer), pos)
 }
 
 // aggregate: each of the attacker's living models fires/swings with its single best weapon of that kind at

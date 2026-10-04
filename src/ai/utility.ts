@@ -14,7 +14,7 @@ import { createRng, restoreRng, type Rng } from '../engine/rng'
 import { commandRerollScore, scoreStratagemOrReaction } from './stratagems'
 import {
   bestMeleeWeapon, bestRangedRangeOfUnit, bestRangedWeapon, expectedAttack, hasAnyMeleeWeapon, hasAnyRangedWeapon,
-  sumExpectedAttacks, threatAt, unitMeleeDamage, unitRangedDamage, unitValue,
+  sumExpectedAttacks, threatAt, threatFrom, threatSources, type ThreatSource, unitMeleeDamage, unitRangedDamage, unitValue,
 } from './expected'
 import { buildFormation, shapeRoleScore, shapesForRole, type FormationModel, type FormationRole, type FormationShape } from './formations'
 
@@ -257,13 +257,13 @@ function deployObjectivePull(state: GameState, player: PlayerId, unitId: UnitId,
   return score
 }
 
-function scoreDeployUnit(state: GameState, player: PlayerId, action: DeployUnitAction): number {
+function scoreDeployUnit(state: GameState, player: PlayerId, action: DeployUnitAction, threats?: ThreatSource[]): number {
   if (action.toReserves) return 0.5
   const center = placementsCenter(action.placements)
   const meleeOnly = hasAnyMeleeWeapon(state, action.unitId) && !hasAnyRangedWeapon(state, action.unitId)
   const shooter = hasAnyRangedWeapon(state, action.unitId) && !meleeOnly
   let score = deployObjectivePull(state, player, action.unitId, center, shooter ? 0.3 : 1)
-  score -= threatAt(state, player, center) * 2
+  score -= (threats ? threatFrom(threats, center) : threatAt(state, player, center)) * 2
   const zoneCentroid = polyCentroid(deploymentZone(state, other(player)))
   if (meleeOnly) {
     const dToEnemy = Math.hypot(center.x - zoneCentroid.x, center.z - zoneCentroid.z)
@@ -637,6 +637,7 @@ function chooseFormationDeployment(state: GameState, player: PlayerId, pending: 
   const myReserves = Object.values(state.units).filter((u) => u.player === player && u.location === 'reserves').length
   const xStep = 2.5, zStep = 1 // a Combat Patrol zone is only ~5" deep: fine in z so a 2-3 rank block can sit anywhere in it
   const occupied: Footprint[] = [...boardModelsOf(state, player), ...enemyBoard]
+  const threats = threatSources(state, player)
   type Cand = { action: DeployUnitAction; score: number }
   const cands: Cand[] = []
   for (const g of groups) {
@@ -671,7 +672,7 @@ function chooseFormationDeployment(state: GameState, player: PlayerId, pending: 
             const feet = placements.map((p, i) => ({ pos: p.pos, facing, base: g.models[i].base }))
             if (!feet.every((f) => whollyWithinPolygon(f, zone) && whollyOnBoard(f, state.board) && !occupied.some((o) => basesOverlap(f, o)))) continue
             const action: DeployUnitAction = { type: 'deployUnit', player, decisionId: pending.id, unitId: g.unitId, placements }
-            let score = scoreDeployUnit(state, player, action) + shapeRoleScore(shape === 'line' ? 'screen' : role, shape)
+            let score = scoreDeployUnit(state, player, action, threats) + shapeRoleScore(shape === 'line' ? 'screen' : role, shape)
             if (role === 'ranged') { score += Math.min(dEnemy, 36) * 0.03; if (inTerrain) score += 0.8 }
             else if (role === 'melee' && !meleeOnly) score += Math.max(0, 36 - dEnemy) * 0.02
             if (arrival && role !== 'ranged') score += Math.max(0, 24 - dEnemy) * 0.05

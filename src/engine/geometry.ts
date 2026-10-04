@@ -27,6 +27,13 @@ export type Footprint = Pick<Model, 'pos' | 'facing' | 'base'>
 
 export function isRound(base: ModelBase): boolean { return base.shape === 'round' || base.radius2 === undefined }
 
+// radius of the circle that contains the whole base outline (exact bound for cheap far-apart early-outs)
+function boundRadius(base: ModelBase): number { return base.radius2 === undefined ? base.radius : Math.max(base.radius, base.radius2) }
+// true when the bounding circles of a and b are more than `n` apart horizontally, so the true gap is certainly > n
+function farApart(a: Footprint, b: Footprint, n: number): boolean {
+  return dist2D(a.pos, b.pos) - boundRadius(a.base) - boundRadius(b.base) > n + 1e-3
+}
+
 // sampled outline of the base in world XZ (oval: major axis along `facing`)
 // pure-function memo (W1-G perf: oval gap tests rebuild the same outline thousands of times per charge search); the
 // returned array is shared — callers only read it
@@ -59,7 +66,8 @@ export function pointToSegment(p: Vec2, a: Vec2, b: Vec2): number {
   const l2 = abx * abx + abz * abz
   let t = l2 === 0 ? 0 : ((p.x - a.x) * abx + (p.z - a.z) * abz) / l2
   t = Math.max(0, Math.min(1, t))
-  return Math.hypot(p.x - (a.x + t * abx), p.z - (a.z + t * abz))
+  const dx = p.x - (a.x + t * abx), dz = p.z - (a.z + t * abz)
+  return Math.sqrt(dx * dx + dz * dz)
 }
 
 export function pointToPolygonEdge(p: Vec2, poly: Polygon): number {
@@ -78,15 +86,14 @@ export function pointInPolygon(p: Vec2, poly: Polygon): boolean {
 }
 
 // signed horizontal distance from a point to the base outline (negative inside)
-export function signedDistanceToBase(p: Vec2, m: Footprint): number {
+export function signedDistanceToBase(p: Vec2, m: Footprint, edgeHint?: Vec2[]): number {
   if (isRound(m.base)) return dist2D(p, m.pos) - m.base.radius
   const r1 = m.base.radius, r2 = m.base.radius2 as number
   const c = Math.cos(-m.facing), s = Math.sin(-m.facing)
   const dx = p.x - m.pos.x, dz = p.z - m.pos.z
   const lx = dx * c - dz * s, lz = dx * s + dz * c
   const rr = (lx * lx) / (r1 * r1) + (lz * lz) / (r2 * r2)
-  const edge = baseEdgePoints(m)
-  const d = pointToPolygonEdge(p, edge)
+  const d = pointToPolygonEdge(p, edgeHint ?? baseEdgePoints(m))
   return rr < 1 ? -d : d
 }
 
@@ -95,8 +102,9 @@ export function horizontalGap(a: Footprint, b: Footprint): number {
   if (isRound(a.base) && isRound(b.base)) return Math.max(0, dist2D(a.pos, b.pos) - a.base.radius - b.base.radius)
   if (signedDistanceToBase(a.pos, b) < 0 || signedDistanceToBase(b.pos, a) < 0) return 0
   let best = Infinity
-  for (const p of baseEdgePoints(a)) best = Math.min(best, signedDistanceToBase(p, b))
-  for (const p of baseEdgePoints(b)) best = Math.min(best, signedDistanceToBase(p, a))
+  const ea = baseEdgePoints(a), eb = baseEdgePoints(b)
+  for (const p of ea) best = Math.min(best, signedDistanceToBase(p, b, eb))
+  for (const p of eb) best = Math.min(best, signedDistanceToBase(p, a, ea))
   return Math.max(0, best)
 }
 
@@ -158,6 +166,7 @@ export function whollyOnBoard(m: Footprint, board: Pick<Board, 'w' | 'h'>): bool
 // bases overlap when their outlines intersect horizontally at the same level (models on different floors may overlap in plan)
 export function basesOverlap(a: Footprint, b: Footprint, verticalTolerance = 0.25): boolean {
   if (verticalGap(a, b) > verticalTolerance) return false
+  if (farApart(a, b, 0)) return false
   if (isRound(a.base) && isRound(b.base)) return dist2D(a.pos, b.pos) < a.base.radius + b.base.radius - EPS
   if (signedDistanceToBase(a.pos, b) < -EPS || signedDistanceToBase(b.pos, a) < -EPS) return true
   for (const p of baseEdgePoints(a)) if (signedDistanceToBase(p, b) < -EPS) return true
@@ -171,6 +180,7 @@ export function inBaseContact(a: Footprint, b: Footprint, tolerance = 0.01): boo
 
 // ---------- engagement range (R-2.3) ----------
 export function withinEngagementRange(a: Footprint, b: Footprint): boolean {
+  if (farApart(a, b, ENGAGEMENT_H)) return false
   return horizontalGap(a, b) <= ENGAGEMENT_H + EPS && verticalGap(a, b) <= ENGAGEMENT_V + EPS
 }
 
@@ -188,6 +198,7 @@ export function anyWithinEngagementRange(m: Footprint, others: Footprint[]): boo
 export function coherencyNeighboursNeeded(modelCount: number): number { return modelCount >= 7 ? 2 : 1 }
 
 export function inCoherencyRange(a: Footprint, b: Footprint): boolean {
+  if (farApart(a, b, COHERENCY_H)) return false
   return horizontalGap(a, b) <= COHERENCY_H + EPS && verticalGap(a, b) <= COHERENCY_V + EPS
 }
 
