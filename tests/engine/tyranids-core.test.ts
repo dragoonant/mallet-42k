@@ -250,6 +250,8 @@ describe('Teeming Broods spawn and Strategic Reserves (TYR-5.4)', () => {
     placeUnit(s, PRIME, [[0, -12]])
     placeUnit(s, TERM, { x: -5, z: -12 })
     const ids = () => stratagemService.options(s, 'A', 'movement.reinforcements', {}).filter((x) => x.stratagemId === 'tyr.s.teeming-broods').map((x) => x.targets.unitIds?.[0])
+    expect(ids()).toEqual([]) // a full-strength unit has nothing to return, so the stratagem is not offered at all
+    removeModel(s, s.units[TERM].models[0]) // one model lost: up to D6 can return
     expect(ids()).toEqual([TERM])
     for (const m of [...s.units[TERM].models]) removeModel(s, m)
     expect(s.units[TERM].location).toBe('destroyed')

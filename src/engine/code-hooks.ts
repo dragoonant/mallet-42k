@@ -680,6 +680,13 @@ const voraciousAssaultHit: EngineCodeHook = { name: 'voraciousAssaultHit', kind:
 
 const teemingBroods: EngineCodeHook = {
   name: 'teemingBroods', kind: 'stratagem', hook: 'onReinforcements', run: noop,
+  // only offered when something could return: a destroyed unit (a new copy joins) or an on-board unit below Starting Strength
+  check(env, t) {
+    const u = env.state.units[t.ids[0]]
+    if (!u) return false
+    if (u.location === 'destroyed') return true
+    return u.location === 'board' && u.destroyedModels.length > 0 && u.models.length < u.startingStrength
+  },
   apply: (ctx, env, t) => tyr.teemingBroodsApply(ctx, env.stratagem.id, env.player, t.ids[0]),
 }
 
