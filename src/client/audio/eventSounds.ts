@@ -79,6 +79,24 @@ function firingSounds(event: Extract<GameEvent, { type: 'TargetsDeclared' }>, lo
   return out
 }
 
+/** Each faction dies in its own voice: a Sister's cry, an Ork's bellow, a Necron's power-down whine.
+ *  Unknown factions (or no lookup) fall back to the original generic soldier death. */
+const DEATH_SOUND: Record<string, SfxId> = {
+  sm: 'death-space-marines',
+  'space-marines': 'death-space-marines',
+  ork: 'death-orks',
+  orks: 'death-orks',
+  necrons: 'death-necrons',
+  tyranids: 'death-tyranids',
+  'astra-militarum': 'death-astra-militarum',
+  'adepta-sororitas': 'death-adepta-sororitas',
+  'chaos-space-marines': 'death-chaos-space-marines',
+}
+
+function deathSound(faction: string): EventSound {
+  return { id: DEATH_SOUND[faction] ?? 'model-death' }
+}
+
 /** Sounds to play for one engine event. `perspective` (the human seat) is optional — omit it to get
  *  every sound regardless of whose turn it is; pass it to also get "your turn"/victory-or-defeat
  *  lines correct for that seat. `lookup` is what makes firing sounds weapon-accurate. */
@@ -111,7 +129,7 @@ export function soundsForEvent(event: GameEvent, perspective?: PlayerId, lookup?
       return [{ id: 'hit-impact' }]
 
     case 'ModelDestroyed':
-      return [{ id: 'model-death' }]
+      return [deathSound(lookup?.factionOfUnit(event.unitId) ?? '')]
 
     case 'UnitDestroyed':
       return [{ id: 'narr-unit-destroyed' }]

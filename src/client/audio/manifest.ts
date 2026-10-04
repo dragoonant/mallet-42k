@@ -17,6 +17,13 @@ export type SfxId =
   | 'ork-war-cry'
   | 'marine-shout'
   | 'model-death'
+  | 'death-space-marines'
+  | 'death-orks'
+  | 'death-necrons'
+  | 'death-tyranids'
+  | 'death-astra-militarum'
+  | 'death-adepta-sororitas'
+  | 'death-chaos-space-marines'
   | 'vehicle-explosion'
   | 'charge-rumble'
   | 'dice-rattle'
@@ -90,6 +97,13 @@ export const SFX_IDS: readonly SfxId[] = [
   'ork-war-cry',
   'marine-shout',
   'model-death',
+  'death-space-marines',
+  'death-orks',
+  'death-necrons',
+  'death-tyranids',
+  'death-astra-militarum',
+  'death-adepta-sororitas',
+  'death-chaos-space-marines',
   'vehicle-explosion',
   'charge-rumble',
   'dice-rattle',

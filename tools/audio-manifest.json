@@ -1,5 +1,5 @@
 {
-  "_comment": "Owned by the audio task (src/client/audio/**, tools/gen-audio.ts, public/audio/**). All prompts/lines are original wording \u2014 no Games Workshop text. Run `npx tsx tools/gen-audio.ts` to (re)generate missing files into public/audio/<id>.mp3.",
+  "_comment": "Owned by the audio task (src/client/audio/**, tools/gen-audio.ts, public/audio/**). All prompts/lines are original wording — no Games Workshop text. Run `npx tsx tools/gen-audio.ts` to (re)generate missing files into public/audio/<id>.mp3.",
   "voice": {
     "voiceId": "SOYHLrjzK2X1ezoPC6cr",
     "voiceName": "Harry - Fierce Warrior",
@@ -31,7 +31,7 @@
       "id": "flamer",
       "kind": "sfx",
       "prompt": "A whoosh and roar of a short burst of flame from a flamethrower",
-      "durationSeconds": 1.0,
+      "durationSeconds": 1,
       "promptInfluence": 0.5
     },
     {
@@ -87,7 +87,7 @@
       "id": "marine-shout",
       "kind": "sfx",
       "prompt": "A disciplined gruff soldier shouting a battle command",
-      "durationSeconds": 1.0,
+      "durationSeconds": 1,
       "promptInfluence": 0.45
     },
     {
@@ -96,6 +96,55 @@
       "prompt": "A short pained grunt and metallic collapse as a soldier falls",
       "durationSeconds": 0.6,
       "promptInfluence": 0.5
+    },
+    {
+      "id": "death-space-marines",
+      "kind": "sfx",
+      "prompt": "A deep-voiced armoured male warrior gives a short stifled groan through a helmet grille, then heavy ceramite armour crashes onto rubble, no music",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "death-orks",
+      "kind": "sfx",
+      "prompt": "A huge brutish green monster gives a guttural gargling bellow that chokes off into a dopey grunt, then a heavy meaty thud on the ground, no music",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "death-necrons",
+      "kind": "sfx",
+      "prompt": "A metal robot skeleton shutting down: a distorted electronic whine sliding down in pitch with crackling static and a hollow metallic clatter of falling limbs, no voice, no music",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "death-tyranids",
+      "kind": "sfx",
+      "prompt": "An alien insect beast lets out a wet chittering screech that gurgles away, chitin cracking and a slimy collapse, no music",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "death-astra-militarum",
+      "kind": "sfx",
+      "prompt": "A human male soldier cries out in pain, a short anguished yell, then rifle and backpack gear clatter as he hits the dirt, no music",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "death-adepta-sororitas",
+      "kind": "sfx",
+      "prompt": "A young woman warrior gives a short sharp pained cry, clearly female voice, then light armour clanks as she falls to the ground, no music",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "death-chaos-space-marines",
+      "kind": "sfx",
+      "prompt": "A monstrous corrupted male warrior snarls a distorted demonic death rattle that echoes unnaturally, then heavy spiked armour crashes down, no music",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.6
     },
     {
       "id": "vehicle-explosion",
@@ -185,7 +234,7 @@
       "id": "victory-fanfare",
       "kind": "sfx",
       "prompt": "A triumphant heroic brass fanfare celebrating victory",
-      "durationSeconds": 2.0,
+      "durationSeconds": 2,
       "promptInfluence": 0.45
     },
     {
