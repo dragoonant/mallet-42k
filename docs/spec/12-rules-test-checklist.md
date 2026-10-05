@@ -670,3 +670,34 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | ADE-037 | ADE-6 | combi-weapon Anti-Infantry 4+: unmodified 4 to wound vs INFANTRY is critical → Devastating Wounds |
 | ADE-038 | ADE-6 | Ministorum flamer / heavy flamer: Torrent auto-hits D6 attacks, Ignores Cover; hallowed mace Lethal Hits auto-wounds on a critical hit |
 | ADE-039 | ADE-2.2 | limitation: a Battle-shock test forced mid-resolution (source other than `command`) rolls its 2D6 straight through and never raises a `miracleDie` decision, even with a non-empty pool; the Command-phase test does |
+
+## GRE — Grey Knights: Aurellios' Banishers (docs/spec/factions/grey-knights.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| GRE-001 | GRE-1 | patrol loads (default): 3 units, 11 models; Librarian is WARLORD with Banishment Stone, attached to Terminators; default secondary Champion of Titan |
+| GRE-002 | GRE-1.1, 1.2 | `unitChoices:{heavy:'dreadknight'}` → 3 units, 7 models, no Terminator unit exists (not in Reserves), Librarian unattached; an unknown ref throws EngineInvariantError |
+| GRE-003 | GRE-2.1 | end of opponent's turn: pick offered to the Grey Knights player only, candidates exclude units in Engagement Range and the Dreadknight; picking removes the unit (`location:'reserves'`, `UnitRemovedFromBattlefield`); decline leaves the board unchanged |
+| GRE-004 | GRE-2.1 | only one unit per opponent turn; no pick offered at the end of the Grey Knights player's own turn |
+| GRE-005 | GRE-2.1 | attached Librarian + Terminators picked → both halves removed and later arrive together, still attached |
+| GRE-006 | GRE-2.2 | next own Movement: Reinforcements requires set-up >9" from every enemy model; a placement at 8.9" is rejected; on success `ReinforcementsArrived{via:'teleportAssault'}` and the unit cannot make a further move but may shoot and charge |
+| GRE-007 | GRE-2.3 | Grey Knights moving second: removed at end of round-1 opponent turn → arrives in own round-1 Movement; removed in round 3/4 → arrives in round 4/5 and is never culled by the round-3 Reserves cull |
+| GRE-008 | GRE-2.4 | Grey Knights first, unit removed at end of round 5 → destroyed at battle end before `battle.end` scoring (UnitLostInReserves, null attribution) |
+| GRE-009 | GRE-2.5 | No Escape scored at a turn end with the teleporting unit still counted on its marker; the removal happens after scoring |
+| GRE-010 | GRE-2.6 | passing the mandatory arrival destroys the teleporting unit |
+| GRE-011 | GRE-2.7 | Grey Knights with only a teleporting unit left at the opponent's turn end → not tabled; battle continues |
+| GRE-012 | GRE-3.1 | Banishment Stone: bearer's force weapon kills an enemy CHARACTER model, D6 2 → +1 CP; D6 1 → no CP; Terminator kills the CHARACTER → no roll; a second gain in the same round discarded by R-4.2 |
+| GRE-013 | GRE-3.1 | Banishment Stone: bearer kills a non-CHARACTER model → no roll |
+| GRE-014 | GRE-3.2 | Dominating Aura: bearer OC 3 (Terminators unchanged at 2); Battle-shocked → 0 |
+| GRE-015 | GRE-4.1 | Champion of Titan: Warlord kills an enemy CHARACTER model → +6 VP; two in one phase → +12; a CHARACTER killed by the Strike Squad → 0; a non-CHARACTER killed by the Warlord → 0 |
+| GRE-016 | GRE-4.1 | Champion of Titan scores in the opponent's Fight phase too, and for a CHARACTER leader inside an enemy attached unit |
+| GRE-017 | GRE-4.2 | No Escape: end of opponent's turn, controlling both edge-closest markers → +10; only one → 0; at the end of own turn → 0 |
+| GRE-018 | GRE-4.2 | No Escape scores at most once per battle (second qualifying turn end → 0); a razed marker is skipped for "closest" |
+| GRE-019 | GRE-5.1 | Vindictive Strategy: S5 vs Strike Squad T4 → −1 to wound; S4 → no change; offered in opponent's Shooting and either Fight phase, not in own Shooting; not offered for the Dreadknight |
+| GRE-020 | GRE-5.2 | Violent Unbinding: Strike Squad model destroyed before fighting, D6 4 → stays at 0 W, fights after the enemy unit's attacks, then removed; D6 3 → removed at once |
+| GRE-021 | GRE-5.2 | Violent Unbinding: a model of a unit that already fought this phase → no roll |
+| GRE-022 | GRE-5.3 | Daemonic Fervour (2 CP): in the opponent's Fight phase, unit in Engagement Range → that turn's Teleport Assault pick offers it; without the stratagem it is excluded; the grant does not carry to a later turn |
+| GRE-023 | GRE-5.3 | Daemonic Fervour not offered in own Fight phase, nor for a unit not in Engagement Range, nor for the Dreadknight |
+| GRE-024 | GRE-6.1 | Sanctic Hood: attached Terminators/Librarian get FNP 4+ vs a Psychic weapon attack (incl. its Devastating Wounds mortals); no FNP vs a bolter; Librarian not attached → no FNP; mortal wounds from an enemy Psychic ability also get FNP 4+ |
+| GRE-025 | GRE-6.2 | Hammerhand: after a successful charge Terminator force weapons and the attached Librarian's force weapon have Lethal Hits (critical hit auto-wounds) until end of turn; next turn without a charge → none; Heroic Intervention charge also triggers it |
+| GRE-026 | GRE-6.3 | Dreadknight at 4 W → −1 to hit on heavy psycannon and greatsword; at 5 W → no modifier; destroyed → Deadly Demise D3 on 6 |
+| GRE-027 | GRE-6 | weapons: Purge Soul focused profile Hazardous test after shooting and Precision allocation to a CHARACTER; psilencer Sustained Hits 1; storm bolter Rapid Fire 2 at half range; greatsword strike D6 damage |
