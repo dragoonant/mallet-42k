@@ -74,6 +74,8 @@ export function useMaterialFader(groupRef: RefObject<Object3D>): (opacity: numbe
         // Materials are shared between figures (shared.tsx): fade this figure's own clones.
         const own = mats.map((m) => {
           const c = m.clone()
+          c.onBeforeCompile = m.onBeforeCompile // keep the army-painter shader patch (clone() drops it)
+          c.customProgramCacheKey = m.customProgramCacheKey
           c.transparent = true
           found.push(c)
           return c

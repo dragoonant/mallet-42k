@@ -221,6 +221,54 @@ export function autoDeployPlacements(models: Model[], zone: Polygon, otherFriend
   return out
 }
 
+// last-resort placement search for crowded or shallow zones: start each model chain at a fine grid spot, then grow the unit
+// outward from already-placed models (rings of candidate spots a hair apart), so lines, zig-zags and diagonals are all reachable.
+// Returns the first chain the caller's check accepts (the caller runs the real validation: coherency, overlaps, region).
+export function chainDeployPlacements(
+  models: Model[], zone: Polygon, otherFriendly: Model[], enemies: Model[], accept: (p: ModelPlacement[]) => boolean,
+): ModelPlacement[] | null {
+  if (models.length === 0) return null
+  const facing = deployFacing(zone)
+  const xs = zone.map((p) => p.x), zs = zone.map((p) => p.z)
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minZ = Math.min(...zs), maxZ = Math.max(...zs)
+  const blockers: Footprint[] = [...otherFriendly, ...enemies]
+  const free = (c: Footprint, mine: Footprint[]): boolean =>
+    whollyWithinPolygon(c, zone) && !mine.some((o) => basesOverlap(c, o)) && !blockers.some((o) => basesOverlap(c, o))
+  const rOf = (m: Model): number => Math.max(m.base.radius, m.base.radius2 ?? 0)
+  const angles: number[] = []
+  for (let a = 0; a < 360; a += 10) angles.push((a * Math.PI) / 180)
+  for (let z = minZ; z <= maxZ + 1e-9; z += 0.5) {
+    for (let x = minX; x <= maxX + 1e-9; x += 0.5) {
+      const first: Footprint = { pos: { x, y: 0, z }, facing, base: models[0].base }
+      if (!free(first, [])) continue
+      const mine: Footprint[] = [first]
+      let ok = true
+      for (let i = 1; i < models.length && ok; i++) {
+        let placed: Footprint | null = null
+        // prefer the latest-placed models as anchors so the unit snakes along the zone
+        for (let k = mine.length - 1; k >= 0 && !placed; k--) {
+          const anchor = mine[k]
+          const anchorR = Math.max(anchor.base.radius, anchor.base.radius2 ?? 0)
+          for (const extra of [0.05, 0.5, 1.2]) {
+            const dist = anchorR + rOf(models[i]) + extra
+            for (const a of angles) {
+              const cand: Footprint = { pos: { x: anchor.pos.x + Math.cos(a) * dist, y: 0, z: anchor.pos.z + Math.sin(a) * dist }, facing, base: models[i].base }
+              if (free(cand, mine)) { placed = cand; break }
+            }
+            if (placed) break
+          }
+        }
+        if (!placed) ok = false
+        else mine.push(placed)
+      }
+      if (!ok) continue
+      const out = mine.map((f, i) => ({ modelId: models[i].id, pos: f.pos, facing }))
+      if (accept(out)) return out
+    }
+  }
+  return null
+}
+
 export const setupModule: PhaseModule = {
   name: 'setup',
 
@@ -376,7 +424,7 @@ export const setupModule: PhaseModule = {
       }
       // W1-G: the raster scan can wrap a unit across a row gap left by earlier drops (out of coherency) — fall back to
       // a compact square block slid across the zone, accepting the first one the real validation accepts
-      if (models.length === 0) return []
+      if (models.length === 0) return comboCanDeepStrike(state, state.units[unitId]) ? [{ ...mk([]), toReserves: true }] : []
       const rad = Math.max(...models.map((m) => Math.max(m.base.radius, m.base.radius2 ?? 0)))
       const spacing = 2 * rad + 0.2
       const minX = Math.min(...zone.map((p) => p.x)), maxX = Math.max(...zone.map((p) => p.x))
@@ -392,6 +440,12 @@ export const setupModule: PhaseModule = {
           }
         }
       }
+      // shallow or crowded zone: grow the unit model-by-model from fine-grid starts (lines, zig-zags, diagonals)
+      const chained = chainDeployPlacements(models, zone, boardModelsOf(state, pending.player), boardModelsOf(state, otherPlayer(pending.player)),
+        (p) => resolveDeploy(state, mk(p), pending).rejection === null)
+      if (chained) return [mk(chained)]
+      // truly no room on the board: a Deep Strike unit may be held in Reserves instead
+      if (comboCanDeepStrike(state, state.units[unitId])) return [{ ...mk([]), toReserves: true }]
       return []
     }
     if (pending.kind === 'moveUnit') {

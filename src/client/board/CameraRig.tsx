@@ -3,7 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
-import { BOARD_DEPTH_IN, BOARD_WIDTH_IN } from './Board'
+import { useBoardSize } from './Board'
 import { initCameraModifiers, isSpaceHeld } from './cameraModifiers'
 
 const OVERVIEW_POLAR = THREE.MathUtils.degToRad(55)
@@ -25,16 +25,23 @@ export interface CameraRigProps {
   /** Board point (inches) to smoothly recentre the orbit target on — pass a fresh object each time
    *  (even for the same point) to retrigger; consumed once and then left alone. */
   focusTarget?: { x: number; z: number } | null
+  /** View the board from the -z edge instead of the default +z edge (the viewer's deployment zone sits
+   *  on the -z half). Flipping it swings the camera 180° about the board centre; manual orbiting in
+   *  between is left alone. */
+  viewFromFar?: boolean
 }
 
 /** Orbit camera clamped above the board (never dips below the mat) with a top-down toggle and a
  *  smooth "focus on this point" request (uiStore.focusTarget, driven by the HUD's Focus button/key F). */
-export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150, focusTarget = null }: CameraRigProps) {
+export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150, focusTarget = null, viewFromFar = false }: CameraRigProps) {
   const controls = useRef<OrbitControlsImpl | null>(null)
   const targetPolar = useRef(OVERVIEW_POLAR)
   const pendingFocus = useRef<{ x: number; z: number } | null>(null)
   const { camera, gl } = useThree()
   const invalidate = useThree((s) => s.invalidate)
+  const boardSize = useBoardSize()
+  const boardRef = useRef(boardSize)
+  boardRef.current = boardSize
 
   useEffect(() => {
     targetPolar.current = topDown ? TOP_DOWN_POLAR : OVERVIEW_POLAR
@@ -69,6 +76,18 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
       window.removeEventListener('pointerdown', onPointerDownCapture, { capture: true })
     }
   }, [gl])
+
+  // The Canvas starts the camera on the +z edge; track which edge we last put it on.
+  const appliedFar = useRef(false)
+  useEffect(() => {
+    const c = controls.current
+    if (!c || appliedFar.current === viewFromFar) return
+    appliedFar.current = viewFromFar
+    camera.position.set(-camera.position.x, camera.position.y, -camera.position.z)
+    c.target.set(-c.target.x, 0, -c.target.z)
+    c.update()
+    invalidate()
+  }, [viewFromFar, camera, invalidate])
 
   useEffect(() => {
     if (focusTarget) pendingFocus.current = { x: focusTarget.x, z: focusTarget.z }
@@ -120,8 +139,8 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
     }
 
     // Keep the orbit target over (or just past the edge of) the board.
-    c.target.x = THREE.MathUtils.clamp(c.target.x, -BOARD_WIDTH_IN / 2 - TARGET_MARGIN, BOARD_WIDTH_IN / 2 + TARGET_MARGIN)
-    c.target.z = THREE.MathUtils.clamp(c.target.z, -BOARD_DEPTH_IN / 2 - TARGET_MARGIN, BOARD_DEPTH_IN / 2 + TARGET_MARGIN)
+    c.target.x = THREE.MathUtils.clamp(c.target.x, -boardRef.current.w / 2 - TARGET_MARGIN, boardRef.current.w / 2 + TARGET_MARGIN)
+    c.target.z = THREE.MathUtils.clamp(c.target.z, -boardRef.current.h / 2 - TARGET_MARGIN, boardRef.current.h / 2 + TARGET_MARGIN)
     c.target.y = 0
 
     const current = c.getPolarAngle()

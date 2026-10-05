@@ -74,7 +74,7 @@ async function runDeployOnlyBody(page: Page, W: number, H: number, screenshotPat
 
   await page.goto('/')
   await expect(page.getByTestId('start-game')).toBeVisible()
-  await page.getByRole('button', { name: 'Space Marines' }).click()
+  await page.getByRole('button', { name: 'Space Marines', exact: true }).click()
   await page.getByRole('button', { name: 'Bot', exact: true }).click()
   await page.getByTestId('setup-seed').fill('deploy-only-1')
   await page.getByTestId('start-game').click()

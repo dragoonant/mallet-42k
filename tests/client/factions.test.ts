@@ -96,8 +96,8 @@ describe('adepta sororitas figures', () => {
       })
     }
 
-    it(`${ds.id} falls back to the procedural figure while no GLB is enabled`, () => {
-      for (const m of ds.composition) expect(glbSlugFor(ds.id, m.modelId), m.modelId).toBeUndefined()
+    it(`${ds.id} uses its enabled SD figure GLB`, () => {
+      for (const m of ds.composition) expect(glbSlugFor(ds.id, m.modelId), m.modelId).toBeDefined()
     })
   }
 
@@ -155,8 +155,8 @@ describe('chaos space marine figures', () => {
       if (body === 'biped') expect(BIPED_CONFIG[kit], kit).toBeDefined()
     })
 
-    it(`${ds.id} falls back to the procedural figure while no GLB is enabled`, () => {
-      for (const m of ds.composition) expect(glbSlugFor(ds.id, m.modelId), m.modelId).toBeUndefined()
+    it(`${ds.id} uses its enabled SD figure GLB`, () => {
+      for (const m of ds.composition) expect(glbSlugFor(ds.id, m.modelId), m.modelId).toBeDefined()
     })
   }
 
@@ -187,8 +187,8 @@ describe('tyranid figures', () => {
       if (BODY_KIND[kit] === 'biped') expect(BIPED_CONFIG[kit], kit).toBeDefined()
     })
 
-    it(`${ds.id} falls back to the procedural figure while no GLB is enabled`, () => {
-      for (const m of ds.composition) expect(glbSlugFor(ds.id, m.modelId), m.modelId).toBeUndefined()
+    it(`${ds.id} uses its enabled SD figure GLB`, () => {
+      for (const m of ds.composition) expect(glbSlugFor(ds.id, m.modelId), m.modelId).toBeDefined()
     })
   }
 
@@ -214,8 +214,8 @@ describe('astra militarum figures', () => {
         if (body === 'artillery') expect(ARTILLERY_CONFIG[kit], kit).toBeDefined()
       })
 
-      it(`${ds.id}/${m.modelId} falls back to the procedural figure while no GLB is enabled`, () => {
-        expect(glbSlugFor(ds.id, m.modelId)).toBeUndefined()
+      it(`${ds.id}/${m.modelId} uses its enabled SD figure GLB`, () => {
+        expect(glbSlugFor(ds.id, m.modelId)).toBeDefined()
       })
     }
   }

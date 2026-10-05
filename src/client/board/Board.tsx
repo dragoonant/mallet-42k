@@ -6,10 +6,18 @@ import { extrudedPolygonGeometry } from './geometry'
 import { useThree } from '@react-three/fiber'
 import { BATTLEFIELDS, useBattlefieldPBR } from './terrainAssets'
 import { useUiStore } from '../ui/uiStore'
-import { SIDE_COLOR, type DeploymentZones } from './types'
+import { useGameStore } from '../store/game'
+import { SIDE_COLOR, type DeploymentZones, type PlayerId } from './types'
 
 export const BOARD_WIDTH_IN = 44
 export const BOARD_DEPTH_IN = 30
+
+/** Board size in inches from the live game state (the mission's board); the 44x30 defaults when no game exists. */
+export function useBoardSize(): { w: number; h: number } {
+  const w = useGameStore((s) => s.state?.board.w ?? BOARD_WIDTH_IN)
+  const h = useGameStore((s) => s.state?.board.h ?? BOARD_DEPTH_IN)
+  return { w, h }
+}
 const ZONE_TINT_HEIGHT = 0.015
 const ZONE_TINT_THICKNESS = 0.01
 
@@ -58,12 +66,19 @@ export interface BoardProps {
   width?: number
   depth?: number
   deploymentZones?: DeploymentZones
+  /** Player deploying in the mission's attacker zone (`deploymentZones.A`); each zone is tinted in its
+   *  occupant's colour. Before sides are chosen this defaults to A. */
+  attacker?: PlayerId
   /** Fires with a board-space point (inches, board-centred) on pointer move/click over the mat. */
   onBoardPointer?: (point: { x: number; z: number }, kind: 'move' | 'down' | 'up') => void
 }
 
 /** The 44"x30" battle mat: textured ground plane and deployment-zone tint (§50-client §4). */
-export function Board({ width = BOARD_WIDTH_IN, depth = BOARD_DEPTH_IN, deploymentZones, onBoardPointer }: BoardProps) {
+export function Board({ width: widthProp, depth: depthProp, deploymentZones, attacker = 'A', onBoardPointer }: BoardProps) {
+  const size = useBoardSize()
+  const width = widthProp ?? size.w
+  const depth = depthProp ?? size.h
+  const defender: PlayerId = attacker === 'A' ? 'B' : 'A'
   const dragging = useRef(false)
 
   const zoneGeometries = useMemo(() => {
@@ -107,10 +122,10 @@ export function Board({ width = BOARD_WIDTH_IN, depth = BOARD_DEPTH_IN, deployme
       {zoneGeometries && (
         <>
           <mesh position={[0, ZONE_TINT_HEIGHT, 0]} geometry={zoneGeometries.A}>
-            <meshBasicMaterial color={SIDE_COLOR.A} transparent opacity={0.16} side={THREE.DoubleSide} depthWrite={false} />
+            <meshBasicMaterial color={SIDE_COLOR[attacker]} transparent opacity={0.16} side={THREE.DoubleSide} depthWrite={false} />
           </mesh>
           <mesh position={[0, ZONE_TINT_HEIGHT, 0]} geometry={zoneGeometries.B}>
-            <meshBasicMaterial color={SIDE_COLOR.B} transparent opacity={0.16} side={THREE.DoubleSide} depthWrite={false} />
+            <meshBasicMaterial color={SIDE_COLOR[defender]} transparent opacity={0.16} side={THREE.DoubleSide} depthWrite={false} />
           </mesh>
         </>
       )}

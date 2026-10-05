@@ -6,6 +6,7 @@ import { DoubleSide, type Mesh, type MeshBasicMaterial } from 'three'
 import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 import type { PaintColors } from './types'
+import type { ResolvedBase } from './paint'
 
 export const BASE_THICKNESS = 0.12
 
@@ -38,6 +39,7 @@ export function BaseDisc({
   highlighted,
   hovered,
   glbBody,
+  baseStyle,
 }: {
   radiusX: number
   radiusZ: number
@@ -47,6 +49,8 @@ export function BaseDisc({
   hovered?: boolean
   /** A GLB figure brings its own base disc: skip ours and draw a flat team-coloured ring just outside it. */
   glbBody?: boolean
+  /** Army-painter base (ground colour + rim); null/undefined = the stock look. */
+  baseStyle?: ResolvedBase | null
 }) {
   return (
     <group scale={[radiusX, 1, radiusZ]}>
@@ -59,11 +63,11 @@ export function BaseDisc({
         <>
           <mesh position={[0, BASE_THICKNESS / 2, 0]}>
             <GCylinder args={[1, 1, BASE_THICKNESS, 24]} />
-            <StdMat color={colors.trim} roughness={0.7} />
+            <StdMat color={baseStyle?.rim ?? colors.trim} roughness={0.7} />
           </mesh>
           <mesh position={[0, BASE_THICKNESS + 0.002, 0]}>
             <GCylinder args={[0.92, 0.92, 0.006, 24]} />
-            <StdMat color={colors.secondary} roughness={0.75} />
+            <StdMat color={baseStyle?.color ?? colors.secondary} roughness={0.75} />
           </mesh>
         </>
       )}

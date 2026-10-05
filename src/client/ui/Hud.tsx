@@ -287,6 +287,7 @@ function ToolButtons() {
   const toggleTopDown = useUiStore((s) => s.toggleTopDown)
   const toggleHelp = useUiStore((s) => s.toggleHelp)
   const toggleSettings = useUiStore((s) => s.toggleSettings)
+  const togglePainter = useUiStore((s) => s.togglePainter)
   const focusCamera = useUiStore((s) => s.focusCamera)
   const width = useWindowWidth()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -358,6 +359,15 @@ function ToolButtons() {
         onClick={toggleHelp}
       >
         ?
+      </button>
+      <button
+        style={toolBtn}
+        data-testid="btn-painter"
+        aria-label="Paint army"
+        title="Paint army: pick major/minor colours and a base style for your forces."
+        onClick={togglePainter}
+      >
+        🎨
       </button>
       <button
         style={settingsOpen ? toolBtnActive : toolBtn}
