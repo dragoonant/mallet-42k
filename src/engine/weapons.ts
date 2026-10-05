@@ -2,7 +2,7 @@
 // abilities (grantWeaponAbility effects) are merged by `effectiveWeapon` via services.hooks onStatQuery.
 import type { DiceExpr, WeaponAbilityName } from '../data/types'
 import { parseDiceExpr } from './dice'
-import { hookService } from './hooks-impl'
+import { codeHookFor, hookService, sourcesFor } from './hooks-impl'
 import type { GameState, ModelId, RuntimeWeapon, WeaponId } from './types'
 
 export interface WeaponService {
@@ -12,6 +12,8 @@ export interface WeaponService {
   effectiveWeapon(state: GameState, modelId: ModelId, weaponId: WeaponId): RuntimeWeapon
   // one entry per profile group: [groupId | weaponId, profile weapon ids]
   profileGroups(state: GameState, weaponIds: WeaponId[]): { group: string; weaponIds: WeaponId[] }[]
+  // C4: false iff some code-hook source says (weaponAvailable) this weapon cannot be used by the model right now
+  isAvailable(state: GameState, modelId: ModelId, weaponId: WeaponId): boolean
 }
 
 export const weaponService: WeaponService = {
@@ -40,6 +42,14 @@ export const weaponService: WeaponService = {
     const A: DiceExpr = parsedA.count === 0 ? q('A', parsedA.flat) : base.A
     if (abilities === base.abilities && skill === base.skill && S === base.S && AP === base.AP && range === base.range && A === base.A) return base
     return { ...base, abilities, skill, S, AP, range, A }
+  },
+  isAvailable(state, modelId, weaponId) {
+    for (const entry of sourcesFor(state)) {
+      const spec = codeHookFor(entry.code)
+      if (!spec?.weaponAvailable || entry.active) continue
+      if (spec.weaponAvailable(state, entry, modelId, weaponId) === false) return false
+    }
+    return true
   },
   profileGroups(state, weaponIds) {
     const groups = new Map<string, WeaponId[]>()

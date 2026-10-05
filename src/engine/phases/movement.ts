@@ -29,10 +29,12 @@ import {
   pathCrossesModels, pathEntersEngagement, pivotCost as pivotCostFor, samplePath, whollyOnBoard,
   type Footprint, type ResolvedPlacement,
 } from '../geometry'
+import type { TimingWindowId } from '../../data/types'
 import { hookService } from '../hooks-impl'
 import { leaderService } from '../leaders'
 import { pendingReactions, consumeReaction } from '../code-hooks'
 import { attackService } from '../attack'
+import { weaponService } from '../weapons'
 import { terrainService } from '../terrain'
 import { transportService } from '../transports'
 import { clearTeleport, destroyTeleportingUnit, isTeleporting } from '../teleport'
@@ -175,16 +177,52 @@ function readReactive(state: GameState): ReactiveMove | null {
 // opens a moveUnit decision {moveType:'normal'} for the unit's owner (the non-active player) with maxDistance = distance and
 // Normal-move constraints; the interrupted activation resumes afterwards (phase marks keep its place); never writes
 // unit.turn.moveType. The owner may also pass (stay put).
-export function startReactiveMove(ctx: EngineContext, unitId: UnitId, distance: number, source: string): void {
+// C6: `window` is the timing window the decision is raised under (default 'movement.unitMoved'; T'au Rapid Repositioning: 'phase.end').
+export function startReactiveMove(ctx: EngineContext, unitId: UnitId, distance: number, source: string, window: TimingWindowId = 'movement.unitMoved'): void {
   const s = ctx.state
   const unit = s.units[unitId]
   if (!unit || unit.location !== 'board' || !(distance > 0)) return
   writeMark(s, REACTIVE_KEY, JSON.stringify({ unitId, distance, source } satisfies ReactiveMove))
   const perModel: Record<ModelId, number> = Object.fromEntries(unitModelsForCoherency(s, unitId).map((m) => [m.id, distance]))
   ctx.decide({
-    kind: 'moveUnit', player: unit.player, window: 'movement.unitMoved', canPass: true,
+    kind: 'moveUnit', player: unit.player, window, canPass: true,
     context: { unitId, moveType: 'normal', advanceRoll: null },
     constraints: emptyMoveConstraints(distance, { perModel, mustEndOutsideEngagement: true, coherency: true }),
+  })
+}
+
+// C6: legal actions for a reactive move decision, or null when the pending decision is not one (callers fall through)
+export function reactiveMoveLegalActions(state: GameState, pending: PendingDecision): Action[] | null {
+  if (pending.kind !== 'moveUnit') return null
+  const rv = readReactive(state)
+  return rv && rv.unitId === pending.context.unitId ? reactiveCandidates(state, pending, rv) : null
+}
+
+// C6: validation of a reactive move answer; undefined when the pending decision is not a reactive move
+export function validateReactiveMove(state: GameState, action: Action, pending: PendingDecision): Rejection | null | undefined {
+  if (pending.kind !== 'moveUnit') return undefined
+  const rv = readReactive(state)
+  if (!rv || rv.unitId !== pending.context.unitId) return undefined
+  if (action.type !== 'moveUnit') return null
+  if (action.unitId !== rv.unitId) return { code: 'E_INVALID_TARGET', reason: 'placements are for the wrong unit', details: { expected: rv.unitId } }
+  return moveRejection(state, rv.unitId, 'normal', action.placements, rv.distance)
+}
+
+// C6: applies a reactive move answer (the interrupted activation and unit.turn.moveType stay untouched); null = not a reactive move
+export function handleReactiveMove(ctx: EngineContext, action: Action, pending: PendingDecision): Rejection | void | null {
+  if (pending.kind !== 'moveUnit') return null
+  const s = ctx.state
+  const rv = readReactive(s)
+  if (!rv || rv.unitId !== pending.context.unitId) return null
+  if (action.type === 'pass') { writeMark(s, REACTIVE_KEY, null); return }
+  if (action.type !== 'moveUnit') return null
+  const result = resolveMove(s, rv.unitId, 'normal', action.placements, { distance: rv.distance })
+  if (result.rejection) return result.rejection
+  writeMark(s, REACTIVE_KEY, null)
+  for (const r of result.resolved) setModelPos(s.models[r.model.id], r.to, r.facing)
+  ctx.emit({
+    type: 'UnitMoved', unitId: rv.unitId, moveType: 'normal',
+    paths: Object.fromEntries(result.resolved.filter((r) => r.distance > EPS).map((r) => [r.model.id, r.path])), player: pending.player,
   })
 }
 
@@ -274,6 +312,7 @@ export function overwatchTargets(state: GameState, shooterUnitId: UnitId, target
         if (!w || w.kind !== 'ranged') continue
         // [ONE SHOT]: a weapon already fired this battle is never a legal Overwatch choice either
         if (w.abilities.some((a) => a.ability === 'ONE_SHOT') && m.oneShotUsed.includes(wid)) continue
+        if (!weaponService.isAvailable(state, m.id, wid)) continue // C4
         out.push({ modelId: m.id, weaponId: wid, targetUnitId, profileGroup: w.profileGroup, attacks: null })
       }
     }
@@ -292,7 +331,7 @@ function drainOverwatch(ctx: EngineContext, moverUnitId: UnitId): AdvanceResult 
     consumeReaction(ctx.state, 'overwatch', req.unitId)
     const targets = overwatchTargets(ctx.state, req.unitId, moverUnitId)
     if (targets.length === 0) continue
-    attackService.begin(ctx, { kind: 'ranged', attackerUnitId: req.unitId, overwatch: true, targets })
+    attackService.begin(ctx, { kind: 'ranged', attackerUnitId: req.unitId, overwatch: true, targets, overwatchHitOn: hookService.overwatchHitOnFor!(ctx.state, req.unitId, req.stratagemId) })
   }
 }
 

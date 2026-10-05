@@ -500,6 +500,18 @@ function scoreChooseOption(state: GameState, pending: PendingDecision, action: A
     if (unitId) score += unitValue(state, unitId) * 0.01
     else score += 2
   }
+  // T'au For the Greater Good: always worth naming an Observer; an Observer with a Markerlight (cover ignored) is hinted higher
+  if (code === 'forTheGreaterGood' && action.optionId !== 'decline') {
+    // value of the pick = the guided unit's expected damage on the Spotted enemy at BS-1, minus what it loses (BS+1) shooting
+    // anything else, so the AI marks the enemy it will actually shoot; a Markerlight Observer also strips cover.
+    const guided = pending.context.unitId
+    const obsId = action.optionId.split('@')[0]
+    if (hintUnitId && guided && state.units[guided]) {
+      const gain = unitRangedDamage(state, guided, hintUnitId, { skillShift: -1 }) * unitValue(state, hintUnitId) * 0.02
+      const markerlight = hasKeyword(state, obsId, 'MARKERLIGHT') || (hint.priority as number) >= 3
+      score += 0.5 + gain * (markerlight ? 1.3 : 1)
+    } else score += 1.5
+  }
   // Grey Knights Teleport Assault: skip it when the battle ends before the unit's next Movement phase (round 5, GK moved first);
   // otherwise teleport the most valuable unit, since the arrival is a free >9" redeployment.
   if (code === 'teleportAssaultPick') {

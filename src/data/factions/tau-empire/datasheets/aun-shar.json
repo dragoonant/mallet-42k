@@ -1,0 +1,25 @@
+[
+  {
+    "id": "tau.aun-shar",
+    "faction": "tau-empire",
+    "name": "Aun'Shar",
+    "keywords": ["INFANTRY", "CHARACTER", "FLY", "ETHEREAL", "AUN'SHAR"],
+    "factionKeywords": ["T'AU EMPIRE"],
+    "stats": { "M": 6, "T": 3, "Sv": 5, "W": 3, "Ld": 6, "OC": 1 },
+    "invuln": 5,
+    "composition": [
+      {
+        "modelId": "aun-shar",
+        "name": "Aun'Shar",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 25 },
+        "weapons": { "default": ["tau.w.honour-stave"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      }
+    ],
+    "abilities": ["tau.a.coordinated-leadership", "tau.a.hover-drone"],
+    "coreAbilities": [],
+    "points": [ { "models": 1, "points": 0 } ],
+    "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+  }
+]

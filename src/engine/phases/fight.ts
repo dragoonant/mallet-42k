@@ -438,6 +438,8 @@ function validateDeclareTargets(pending: Extract<PendingDecision, { kind: 'decla
   }
   for (const [key, total] of totals) {
     if (total <= 0) continue
+    // a model with no legal target (not within Engagement Range of any enemy) simply makes no attacks
+    if ((pending.context.weapons.find((w) => `${w.modelId}|${w.weaponId}` === key)?.legalTargets.length ?? 1) === 0) continue
     if ((sums.get(key) ?? 0) !== total) return { code: 'E_SCHEMA', reason: `attacks for ${key} must sum to ${total}`, details: { key, total } }
   }
   return null

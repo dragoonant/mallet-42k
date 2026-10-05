@@ -253,6 +253,17 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all 6 finished (round 5); grey-knights 1 win (one each for astra-militarum, chaos-space-marines, necrons, adepta-sororitas, sm). No balance tuning |
 | Known gaps | No GLB models or generated weapon sounds; bot ignores GK stratagems and only uses a simple Teleport Assault heuristic; Psychic ability mortals not tagged beyond text convention; rulings in `docs/needs-rules-check.md` under "grey-knights build" (GK-01 to GK-20) |
 
+## T'au Empire (M10 - Protectors of Aun'shar patrol, playable)
+
+| Area | State |
+|---|---|
+| Patrol | Aun'Shar, Shas'nel D'tano, Strike Team, Stealth Battlesuits, Ghostkeel Battlesuit; secondaries Kauyon Lure / Leadership Caste. Data in `src/data/factions/tau-empire/` |
+| Engine hooks | `src/engine/factions/tau-empire.ts`: For the Greater Good (observer pick, BS step, ignore cover), Stealth Marker Drone, DS8 Support Turret, DS13/DS15 enhancements, Laser-Marked Targets, Defensive Fusillade, Kauyon Lure and Leadership Caste scoring; shared engine additions C1-C7 (skill delta, shotThisTurn, weaponAvailable, reactive-move helpers) |
+| Client | Start-screen entry, procedural figures (Ghostkeel on the biped rig at bulk 2.2), weapon flavour/sounds reused, palette |
+| Verification | typecheck, `validate:data` (101 files), `build` green; `npm test` 1585 passing (60 files); `tests/e2e/tau-empire.spec.ts` starts T'au vs bot, deploys through the UI and reaches round 1 Shooting (`e2e-out/m10-tau-empire-0{1,2,3}-*.png`, figures visible) |
+| Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all finished; plain rotation never pairs tau-empire, so `SIM_FACTION=tau-empire` run: 6 games, 0 violations, all finished (round 5), tau-empire 5 wins (adepta-sororitas 1). No balance tuning |
+| Known gaps | No GLB models or generated weapon sounds; bot never plays Rapid Repositioning; Strike Team marker drone and Stealth support system cosmetic; rulings in `docs/needs-rules-check.md` under "tau-empire build" (TAU-01 to TAU-23) |
+
 ## Not yet built
 
 - Anything beyond M8 (see Client tables for what M3/M6/M8 cover); AI Monte Carlo/hard tier, generated models, scale-up, multiplayer, Phase B glTF animation/asset pipeline for figures (see PLAN.md, docs/spec/30-figures.md §9)

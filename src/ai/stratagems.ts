@@ -158,6 +158,19 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
   const roundsLeft = Math.max(0, BATTLE_ROUNDS - state.round)
   if (id.endsWith('fire-overwatch') && trigger) return overwatchGain(state, player, action, trigger)
   if (id.endsWith('heroic-intervention') && trigger) return heroicGain(state, player, action, trigger)
+  // T'au Laser-Marked Targets: a free overwatch-style volley at the charger plus -2 to its Charge roll
+  if (id.endsWith('laser-marked-targets') && trigger) {
+    const g = overwatchGain(state, player, action, trigger)
+    return Number.isFinite(g) ? g + unitValue(state, trigger) * 0.02 + 0.5 : 0.5
+  }
+  // T'au Defensive Fusillade: lets an engaged unit that has not shot fire its ranged weapons (as Pistols) into the units holding it
+  if (id.endsWith('defensive-fusillade')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId || !hasAnyRangedWeapon(state, unitId)) return -Infinity
+    let best = 0
+    for (const e of engagedEnemyUnits(state, player, unitId)) best = Math.max(best, unitRangedDamage(state, unitId, e, {}) * unitValue(state, e) * 0.03)
+    return best > 0 ? best : -Infinity
+  }
   if (id.endsWith('counter-offensive') && trigger) {
     const bound = mineOf(state, player, targets.unitIds)
     const candidates = bound ? [bound] : boardUnitsOf(state, player).map((u) => u.id)

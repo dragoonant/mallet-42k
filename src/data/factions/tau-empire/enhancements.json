@@ -1,0 +1,54 @@
+[
+  {
+    "id": "tau.e.ds13-experimental-drone",
+    "faction": "tau-empire",
+    "name": "DS13 Experimental Drone",
+    "text": "The bearer gains Lone Operative and Stealth. While a friendly T'AU EMPIRE INFANTRY unit is within 6 inches of the bearer, its models have their Save improved by 1 and a 5+ Feel No Pain.",
+    "cost": 0,
+    "restriction": { "keyword": ["AUN'SHAR"] },
+    "effect": [
+      {
+        "id": "tau.e.ds13-experimental-drone.effect",
+        "name": "DS13 Experimental Drone",
+        "text": "The bearer gains Lone Operative and Stealth.",
+        "trigger": "always",
+        "effect": [ { "grantKeyword": "LONE OPERATIVE" }, { "stealth": true } ],
+        "scope": { "who": "bearer" }
+      },
+      {
+        "id": "tau.e.ds13-experimental-drone.aura",
+        "name": "DS13 Experimental Drone (aura)",
+        "text": "Friendly INFANTRY within 6 inches of the bearer improve Save by 1 and have Feel No Pain 5+.",
+        "trigger": "always",
+        "effect": [ { "modifyStat": { "stat": "Sv", "value": -1 } }, { "feelNoPain": 5 } ],
+        "scope": { "who": "friendly", "within": 6, "keyword": "INFANTRY" }
+      }
+    ]
+  },
+  {
+    "id": "tau.e.ds15-experimental-drone",
+    "faction": "tau-empire",
+    "name": "DS15 Experimental Drone",
+    "text": "The bearer gains Lone Operative and Stealth. While a friendly T'AU EMPIRE unit is within 6 inches of the bearer, ranged weapons of its models have Lethal Hits.",
+    "cost": 0,
+    "restriction": { "keyword": ["AUN'SHAR"] },
+    "effect": [
+      {
+        "id": "tau.e.ds15-experimental-drone.effect",
+        "name": "DS15 Experimental Drone",
+        "text": "The bearer gains Lone Operative and Stealth.",
+        "trigger": "always",
+        "effect": [ { "grantKeyword": "LONE OPERATIVE" }, { "stealth": true } ],
+        "scope": { "who": "bearer" }
+      },
+      {
+        "id": "tau.e.ds15-experimental-drone.aura",
+        "name": "DS15 Experimental Drone (aura)",
+        "text": "Friendly units within 6 inches of the bearer have Lethal Hits on ranged weapons.",
+        "trigger": "always",
+        "effect": { "when": { "weaponType": "ranged" }, "grantWeaponAbility": { "ability": "LETHAL_HITS" } },
+        "scope": { "who": "friendly", "within": 6 }
+      }
+    ]
+  }
+]

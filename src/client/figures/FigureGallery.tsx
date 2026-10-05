@@ -63,6 +63,12 @@ const GALLERY_ENTRIES: GalleryEntry[] = [
   { datasheetId: 'gk.brotherhood-terminator-squad', faction: 'grey-knights', label: 'Brotherhood Terminators' },
   { datasheetId: 'gk.librarian-aurellios', faction: 'grey-knights', label: 'Librarian Aurellios' },
   { datasheetId: 'gk.nemesis-dreadknight', faction: 'grey-knights', label: 'Nemesis Dreadknight' },
+  { datasheetId: 'tau.strike-team', modelId: 'fire-warrior-rifle', faction: 'tau-empire', label: 'Fire Warrior' },
+  { datasheetId: 'tau.strike-team', modelId: 'shasui', faction: 'tau-empire', label: "Shas'ui" },
+  { datasheetId: 'tau.shasnel-dtano', modelId: 'fireblade', faction: 'tau-empire', label: "Shas'nel D'tano" },
+  { datasheetId: 'tau.aun-shar', modelId: 'aun-shar', faction: 'tau-empire', label: "Aun'Shar" },
+  { datasheetId: 'tau.stealth-battlesuits', modelId: 'shasvre', faction: 'tau-empire', label: 'Stealth Battlesuit' },
+  { datasheetId: 'tau.ghostkeel', modelId: 'ghostkeel', faction: 'tau-empire', label: 'Ghostkeel' },
 ]
 
 // Figures are true tabletop-miniature scale (~1-2 world-inches tall — see resolveBase), so packing

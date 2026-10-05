@@ -139,6 +139,13 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
     },
   },
   {
+    match: /for-the-greater-good/i,
+    info: {
+      title: 'For the Greater Good',
+      hint: "Pair this unit with a friendly Observer and an enemy both can see. This unit's shots at that enemy hit one step better, and if the Observer carries a markerlight they ignore cover too. The Observer can still shoot later this phase, but without a partner of its own. Decline to shoot unaided.",
+    },
+  },
+  {
     match: /plasmacyte/,
     info: {
       title: 'Release the plasmacyte?',
@@ -321,6 +328,17 @@ function chooseOptionInfoFor(
   return CHOOSE_OPTION_INFO[context.topic]
 }
 
+/** For the Greater Good options are "<observer id>@<spotted enemy id>": say who watches and who is marked. */
+function pairOptionLabel(state: GameState, abilityId: string | null, optionId: string): string | null {
+  if (!abilityId || !/for-the-greater-good/i.test(abilityId)) return null
+  const at = optionId.indexOf('@')
+  if (at < 0) return null
+  const observer = state.units[optionId.slice(0, at)]
+  const spotted = state.units[optionId.slice(at + 1)]
+  if (!observer || !spotted) return null
+  return `Observer: ${observer.name} — Spotted: ${spotted.name}`
+}
+
 /** Voice of Command option ids: "<order id>@<unit id>" for one unit, "<order id>@all" for Command Laurels. */
 const ORDER_OPTION = /^[^@]*order[^@]*@/i
 
@@ -465,6 +483,8 @@ function labelForOption(pending: PendingDecision, state: GameState, events: read
         const picked = idx?.map((i) => pool[i]).filter((v): v is number => typeof v === 'number')
         return picked && picked.length > 0 ? `Spend a Miracle die (${picked.join(', ')})` : 'Spend a Miracle die'
       }
+      const pairLabel = pairOptionLabel(state, pending.context.abilityId, o.id)
+      if (pairLabel) return pairLabel
       const orderLabel = orderOptionLabel(state, o.id)
       if (orderLabel) return orderLabel
       if (pending.context.topic === 'razeObjective' || pending.context.topic === 'recoverObjective' || pending.context.topic === 'treasureObjective') return objectiveLabel(o.id)

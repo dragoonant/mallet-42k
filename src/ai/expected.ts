@@ -9,6 +9,7 @@
 import { diceExprMean, parseDiceExpr, woundRollNeeded } from '../engine/dice'
 import { boardModelsOf, datasheetOf, hasKeyword, keywordsOf, modelStats, unitModels } from '../engine/state'
 import { weaponService } from '../engine/weapons'
+import { hookService } from '../engine/hooks-impl'
 import type { GameState, ModelId, PlayerId, RuntimeWeapon, UnitId, WeaponId } from '../engine/types'
 
 // clamp a hit/wound probability the way the core rules do: unmodified 6 always succeeds, unmodified 1 always
@@ -27,6 +28,7 @@ function abilityValueMean(weapon: RuntimeWeapon, ability: Parameters<typeof weap
 export interface AttackOptions {
   charged?: boolean // this attacker's unit charged this turn (LANCE, some Waaagh-style bonuses)
   inHalfRange?: boolean // RAPID_FIRE / MELTA bonuses
+  skillShift?: number // extra BS/WS shift applied on top of hook deltas (a hypothetical For the Greater Good pick); negative = better
   cover?: boolean // target has the Benefit of Cover against this attack
   hitMod?: number
   woundMod?: number
@@ -78,7 +80,10 @@ export function expectedAttack(
   if (weaponService.hasAbility(weapon, 'RAPID_FIRE') && opts.inHalfRange) n += abilityValueMean(weapon, 'RAPID_FIRE')
 
   const torrent = weaponService.hasAbility(weapon, 'TORRENT')
-  const pHit = torrent ? 1 : opts.hitOn6 ? 1 / 6 : rollP(weapon.skill, opts.hitMod ?? 0)
+  // BS/WS-number shifts (T'au For the Greater Good) change the stat itself, not a capped hit modifier
+  const skillDelta = hookService.skillDeltaFor(state, attackerModelId, weapon, targetUnitId, { kind: weapon.kind === 'melee' ? 'melee' : 'ranged', overwatch: false }) + (opts.skillShift ?? 0)
+  const skill = Math.min(6, Math.max(2, weapon.skill + skillDelta))
+  const pHit = torrent ? 1 : opts.hitOn6 ? 1 / 6 : rollP(skill, opts.hitMod ?? 0)
   const pCrit = torrent ? 0 : 1 / 6
 
   let hits = n * pHit

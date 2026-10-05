@@ -1,0 +1,23 @@
+{
+  "id": "tau-empire",
+  "name": "T'au Empire",
+  "factionKeyword": "T'AU EMPIRE",
+  "armyRule": "tau.a.for-the-greater-good",
+  "detachments": [
+    {
+      "id": "tau.d.protectors-of-aun-shar",
+      "name": "Protectors of Aun'shar",
+      "rule": "tau.a.for-the-greater-good",
+      "stratagems": ["tau.s.defensive-fusillade", "tau.s.rapid-repositioning", "tau.s.laser-marked-targets"],
+      "enhancements": ["tau.e.ds13-experimental-drone", "tau.e.ds15-experimental-drone"]
+    }
+  ],
+  "paintScheme": {
+    "primary": "#d8cdb2",
+    "secondary": "#2e6a86",
+    "trim": "#d9762b",
+    "metal": "#6f7884",
+    "decal": "#1c2a33"
+  },
+  "combatPatrols": ["tau.cp.protectors-of-aun-shar"]
+}

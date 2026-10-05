@@ -164,7 +164,7 @@ Unit-level state in the engine (`wounds`, `battleShocked`, `moved`, `advanced`) 
 
 ## 7. Enhancements
 
-`{id, faction, detachment?, name, text, cost (pts), restriction:{keyword?: Keyword[], notKeyword?: Keyword[]}, effect: AbilityDescriptor | Id, choice?: {unitKeyword}}` — always attaches to one CHARACTER model; `effect.scope` defaults to `{who: bearer}`. `choice` means the player names one friendly unit with that keyword at setup (`PlayerSetup.enhancementChoice.unitRef`; Tellyporta → BOYZ); `createGame` rejects a missing or mismatched ref.
+`{id, faction, detachment?, name, text, cost (pts), restriction:{keyword?: Keyword[], notKeyword?: Keyword[]}, effect: AbilityDescriptor | AbilityDescriptor[] | Id, choice?: {unitKeyword}}` — always attaches to one CHARACTER model; `effect.scope` defaults to `{who: bearer}`. `choice` means the player names one friendly unit with that keyword at setup (`PlayerSetup.enhancementChoice.unitRef`; Tellyporta → BOYZ); `createGame` rejects a missing or mismatched ref.
 
 ## 8. Factions and combat patrols
 

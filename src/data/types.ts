@@ -274,7 +274,8 @@ export interface EnhancementData {
   text: string
   cost: number
   restriction: { keyword?: Keyword[]; notKeyword?: Keyword[] }
-  effect: AbilityRef
+  // one descriptor, an id, or a list of descriptors (each becomes its own RuntimeAbility)
+  effect: AbilityRef | AbilityDescriptor[]
   // when present the player must name one friendly unit with this keyword at setup (PlayerSetup.enhancementChoice); e.g. Tellyporta → BOYZ
   choice?: { unitKeyword: Keyword }
 }

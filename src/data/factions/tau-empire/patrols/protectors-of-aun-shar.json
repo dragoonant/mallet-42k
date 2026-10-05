@@ -1,0 +1,38 @@
+{
+  "id": "tau.cp.protectors-of-aun-shar",
+  "faction": "tau-empire",
+  "name": "Protectors of Aun'shar",
+  "units": [
+    { "ref": "aunshar", "datasheet": "tau.aun-shar", "size": 1, "enhancement": "tau.e.ds13-experimental-drone" },
+    { "ref": "fireblade", "datasheet": "tau.shasnel-dtano", "size": 1, "attachTo": "strike-team" },
+    { "ref": "strike-team", "datasheet": "tau.strike-team", "size": 10 },
+    { "ref": "stealth", "datasheet": "tau.stealth-battlesuits", "size": 3 },
+    { "ref": "ghostkeel", "datasheet": "tau.ghostkeel", "size": 1 }
+  ],
+  "stratagems": ["tau.s.defensive-fusillade", "tau.s.rapid-repositioning", "tau.s.laser-marked-targets"],
+  "enhancements": [
+    { "id": "tau.e.ds13-experimental-drone", "default": true },
+    { "id": "tau.e.ds15-experimental-drone", "default": false }
+  ],
+  "secondaries": [
+    {
+      "id": "tau.sec.kauyon-lure",
+      "name": "Kauyon Lure",
+      "text": "At the end of your Command phase in battle rounds 2 to 5, score 5 victory points if at least one of your T'AU EMPIRE units that is not Battle-shocked is at least partly within your own deployment zone. Scores once per phase, not per unit.",
+      "default": true,
+      "scoring": [
+        { "id": "kauyon-lure", "when": "command.end", "rounds": { "from": 2, "to": 5 }, "who": "active", "rule": "custom", "pointsPer": 5, "cap": 20, "code": "kauyonLure" }
+      ]
+    },
+    {
+      "id": "tau.sec.leadership-caste",
+      "name": "Leadership Caste",
+      "text": "At the end of the battle, score 20 victory points if your Ethereal model, Aun'Shar, has not been destroyed.",
+      "default": false,
+      "scoring": [
+        { "id": "leadership-caste", "when": "battle.end", "rounds": { "from": 5, "to": 5 }, "rule": "custom", "pointsPer": 20, "cap": 20, "code": "leadershipCaste" }
+      ]
+    }
+  ],
+  "warlord": "aunshar"
+}

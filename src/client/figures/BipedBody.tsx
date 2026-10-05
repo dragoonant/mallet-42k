@@ -577,6 +577,44 @@ function HeadBody({
         </group>
       )
     }
+    case 'tau-helmet':
+      // Smooth domed helm in the armour colour, a wide dark visor band and a small blue sensor stalk.
+      return (
+        <group>
+          <HeadBlob radius={radius} color={colors.primary} />
+          <mesh position={[0, radius * 0.05, radius * 0.88]}>
+            <GBox args={[radius * 1.1, radius * 0.38, radius * 0.2]} />
+            <StdMat color={VISOR} roughness={0.2} metalness={0.4} />
+          </mesh>
+          <mesh position={[radius * 0.75, radius * 0.1, radius * 0.1]}>
+            <GCylinder args={[radius * 0.04, radius * 0.04, radius * 0.9, 6]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={0.9} />
+          </mesh>
+        </group>
+      )
+    case 'tau-ethereal':
+      // Bare pale face under a high, round-crowned hat with an orange band.
+      return (
+        <group>
+          <HeadBlob radius={radius} color={skinColor ?? PALE_SKIN} />
+          <mesh position={[0, radius * 0.7, 0]}>
+            <GCylinder args={[radius * 0.9, radius * 1.05, radius * 0.7, 12]} />
+            <StdMat color={colors.primary} roughness={0.6} />
+          </mesh>
+          <mesh position={[0, radius * 0.4, 0]}>
+            <GCylinder args={[radius * 1.08, radius * 1.08, radius * 0.1, 12]} />
+            <StdMat color={colors.trim} roughness={0.4} metalness={0.4} />
+          </mesh>
+          <mesh position={[-radius * 0.3, 0, radius * 0.93]}>
+            <GBox args={[radius * 0.2, radius * 0.1, radius * 0.1]} />
+            <StdMat color={VISOR} roughness={0.4} />
+          </mesh>
+          <mesh position={[radius * 0.3, 0, radius * 0.93]}>
+            <GBox args={[radius * 0.2, radius * 0.1, radius * 0.1]} />
+            <StdMat color={VISOR} roughness={0.4} />
+          </mesh>
+        </group>
+      )
     case 'sister-hood':
       // Celestian guardian: a crimson hood wrapped over a brass-trimmed helm with a narrow dark visor slit.
       return (

@@ -576,6 +576,78 @@ export function WeaponMesh({ shape, colors, hand }: { shape: WeaponShape; colors
           </mesh>
         </group>
       )
+    case 'pulse-rifle':
+      // Long sleek rifle: grey barrel, a pale body with an orange stripe and a glowing blue muzzle.
+      return (
+        <group scale={1.4}>
+          <Barrel length={0.4} radius={0.022} color={colors.metal} />
+          <mesh position={[0, 0, 0.4]}>
+            <GBox args={[0.035, 0.035, 0.04]} />
+            <StdMat color="#4fc3e8" emissive="#4fc3e8" emissiveIntensity={1.4} />
+          </mesh>
+          <mesh position={[0, 0.01, 0.03]}>
+            <GBox args={[0.05, 0.07, 0.2]} />
+            <StdMat color={colors.primary} roughness={0.5} />
+          </mesh>
+          <mesh position={[0, 0.048, 0.03]}>
+            <GBox args={[0.02, 0.012, 0.18]} />
+            <StdMat color={colors.trim} roughness={0.5} />
+          </mesh>
+        </group>
+      )
+    case 'fusion-blaster':
+      // Short fat barrel with a flared orange muzzle and a cooling jacket.
+      return (
+        <group scale={1.5}>
+          <Barrel length={0.26} radius={0.04} color={colors.metal} />
+          <mesh position={[0, 0, 0.27]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.06, 0.04, 0.06, 8]} />
+            <StdMat color={colors.trim} emissive={colors.trim} emissiveIntensity={1.1} />
+          </mesh>
+          <mesh position={[0, 0.02, 0.02]}>
+            <GBox args={[0.1, 0.1, 0.16]} />
+            <StdMat color={colors.primary} roughness={0.5} metalness={0.2} />
+          </mesh>
+        </group>
+      )
+    case 'burst-cannon':
+      // Three stubby bound barrels and a boxy ammo feed.
+      return (
+        <group scale={1.5}>
+          {[-0.03, 0, 0.03].map((x) => (
+            <mesh key={x} position={[x, x === 0 ? 0.02 : -0.01, 0.15]} rotation={[Math.PI / 2, 0, 0]}>
+              <GCylinder args={[0.014, 0.014, 0.3, 6]} />
+              <StdMat color={colors.metal} metalness={0.6} roughness={0.4} />
+            </mesh>
+          ))}
+          <mesh>
+            <GBox args={[0.1, 0.09, 0.14]} />
+            <StdMat color={colors.primary} roughness={0.5} />
+          </mesh>
+          <mesh position={[0, 0.02, 0.32]}>
+            <GBox args={[0.03, 0.03, 0.03]} />
+            <StdMat color="#4fc3e8" emissive="#4fc3e8" emissiveIntensity={1.3} />
+          </mesh>
+        </group>
+      )
+    case 'honour-stave':
+      // Tall staff topped with a glowing blue crystal and an orange collar.
+      return (
+        <group>
+          <mesh position={[0, 0.28, 0]}>
+            <GCylinder args={[0.014, 0.014, 0.6, 6]} />
+            <StdMat color={colors.metal} metalness={0.6} roughness={0.4} />
+          </mesh>
+          <mesh position={[0, 0.56, 0]}>
+            <GCylinder args={[0.03, 0.02, 0.05, 8]} />
+            <StdMat color={colors.trim} metalness={0.5} roughness={0.4} />
+          </mesh>
+          <mesh position={[0, 0.63, 0]}>
+            <GSphere args={[0.035, 10, 8]} />
+            <StdMat color="#4fc3e8" emissive="#4fc3e8" emissiveIntensity={1.6} />
+          </mesh>
+        </group>
+      )
     case 'none':
     default:
       return <EndBlock size={0.09} color={hand} />

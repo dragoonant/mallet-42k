@@ -49,6 +49,7 @@ const FACTION_COLOR: Record<string, string> = {
   'adepta-sororitas': '#ff6a5a',
   'astra-militarum': '#c8a24a',
   'grey-knights': '#7fb2ff',
+  'tau-empire': '#4fc3e8',
 }
 
 const NEUTRAL_MELEE_COLOR = '#e8e8f0'

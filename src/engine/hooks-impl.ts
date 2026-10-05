@@ -86,6 +86,10 @@ export interface HookQueries {
   advanceRollFor(state: GameState, unitId: UnitId, rolled: number): number
   // C6: a forbid:'charge' effect is active on the unit
   chargeForbidden(state: GameState, unitId: UnitId): boolean
+  // C1: sum of skillDeltaVsTarget answers (signed BS/WS step; -1 = better)
+  skillDeltaFor(state: GameState, attackerModelId: ModelId, weapon: RuntimeWeapon, targetUnitId: UnitId, info: { kind: 'ranged' | 'melee'; overwatch: boolean }): number
+  // C2: lowest overwatchHitOn answer, default 6
+  overwatchHitOnFor(state: GameState, shooterUnitId: UnitId, stratagemId: string): number
 }
 export interface HookService extends Partial<HookQueries> {}
 
@@ -356,7 +360,8 @@ function scopeMatches(state: GameState, entry: HookSourceEntry, party: Party | '
     case 'self': case 'attacker': case 'target':
       return leaderService.sameUnit(state, party.unitId, holder.id)
     case 'bearer':
-      if (entry.bearerModelId) return party.modelId === entry.bearerModelId
+      // a defender party has no model yet at the hit roll (target model is chosen at allocation): fall back to the unit
+      if (entry.bearerModelId) return party.modelId ? party.modelId === entry.bearerModelId : party.unitId === holder.id
       return party.modelId ? holder.models.includes(party.modelId) : party.unitId === holder.id
     case 'friendly': case 'enemy': {
       const other = state.units[party.unitId]
@@ -685,6 +690,29 @@ export const hookService: HookService & HookQueries = {
       if (spec.rerollsAttackCount(state, entry, attackerModelId, weapon)) return entry.source.id
     }
     return null
+  },
+
+  skillDeltaFor(state, attackerModelId, weapon, targetUnitId, info) {
+    let sum = 0
+    for (const entry of sourcesFor(state)) {
+      const spec = codeHookFor(entry.code)
+      if (!spec?.skillDeltaVsTarget || entry.active) continue
+      if (!gateOpen(state, entry)) continue
+      sum += spec.skillDeltaVsTarget(state, entry, attackerModelId, weapon, targetUnitId, info) ?? 0
+    }
+    return sum
+  },
+
+  overwatchHitOnFor(state, shooterUnitId, stratagemId) {
+    let best = 6
+    for (const entry of sourcesFor(state)) {
+      const spec = codeHookFor(entry.code)
+      if (!spec?.overwatchHitOn || entry.active) continue
+      if (!gateOpen(state, entry)) continue
+      const v = spec.overwatchHitOn(state, entry, shooterUnitId, stratagemId)
+      if (v !== null && v < best) best = v
+    }
+    return best
   },
 
   hasCoreAbility(state, unitId, ability) {

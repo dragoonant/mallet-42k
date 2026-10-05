@@ -16,6 +16,7 @@ const SOURCE_HUES: Record<string, { major: string | null; minor: string | null }
   'adepta-sororitas': { major: null, minor: '#a3242c' },
   'astra-militarum': { major: '#55653a', minor: '#9b7e52' },
   'grey-knights': { major: null, minor: '#2f5fb0' },
+  'tau-empire': { major: '#d8cdb2', minor: '#2e6a86' },
 }
 
 function hsv(hex: string): [number, number, number] {

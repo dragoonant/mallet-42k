@@ -97,6 +97,11 @@ const KNOWN_KIT: Record<string, KitId> = {
   'gk.brotherhood-terminator-squad': 'gk-terminator',
   'gk.librarian-aurellios': 'gk-librarian',
   'gk.nemesis-dreadknight': 'gk-dreadknight',
+  'tau.strike-team': 'tau-fire-warrior',
+  'tau.shasnel-dtano': 'tau-fireblade',
+  'tau.aun-shar': 'tau-ethereal',
+  'tau.stealth-battlesuits': 'tau-stealth',
+  'tau.ghostkeel': 'tau-ghostkeel',
 }
 
 /** Models of a mixed unit that look different from the rest of it (a flamer sister is not a rifle sister), keyed
@@ -118,6 +123,11 @@ const KNOWN_KIT_BY_MODEL: Record<string, KitId> = {
   'am.command-squad-karsk/veteran-standard': 'am-standard',
   'am.field-ordnance-battery/gun-bombast': 'am-field-gun',
   'am.field-ordnance-battery/gun-malleus': 'am-rocket-battery',
+  'tau.strike-team/shasui': 'tau-shasui',
+  'tau.strike-team/fire-warrior-rifle': 'tau-fire-warrior',
+  'tau.strike-team/fire-warrior-carbine': 'tau-fire-warrior',
+  'tau.stealth-battlesuits/shasvre': 'tau-stealth',
+  'tau.stealth-battlesuits/shasui': 'tau-stealth',
 }
 
 const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
@@ -162,6 +172,12 @@ const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
   'gk-terminator': 'heavy',
   'gk-librarian': 'heavy',
   'gk-dreadknight': 'monster',
+  'tau-fire-warrior': 'infantry',
+  'tau-shasui': 'infantry',
+  'tau-fireblade': 'infantry',
+  'tau-ethereal': 'infantry',
+  'tau-stealth': 'heavy',
+  'tau-ghostkeel': 'vehicle',
   'generic-infantry': 'infantry',
   'generic-heavy': 'heavy',
   'generic-monster': 'monster',

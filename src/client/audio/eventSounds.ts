@@ -75,6 +75,18 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ['heavy-psycannon', 'psycannon-burst'] as const,
   ['psycannon', 'psycannon-burst'] as const,
   ['greatsword', 'nemesis-force-swing'] as const,
+  // T'au borrow too: pulse weapons crackle like gauss, the burst cannon rattles like a big shoota, fusion blasters
+  // hiss like meltaguns, ion rakers thump like plasma cannons, and the battlesuit fists land like a power fist.
+  ['pulse-rifle', 'wpn-gauss-flayer'] as const,
+  ['pulse-carbine', 'wpn-gauss-flayer'] as const,
+  ['pulse-pistol', 'wpn-laspistol'] as const,
+  ['burst-cannon', 'wpn-big-shoota'] as const,
+  ['fusion-blaster', 'wpn-meltagun'] as const,
+  ['cyclic-ion-raker', 'wpn-plasma-cannon'] as const,
+  ['support-turret-missile', 'wpn-hunter-killer-missile'] as const,
+  ['honour-stave', 'wpn-force-weapon'] as const,
+  ['battlesuit-fists', 'wpn-power-fist'] as const,
+  ['ghostkeel-fists', 'wpn-power-fist'] as const,
 ].sort((a, b) => b[0].length - a[0].length)
 
 const WEAPON_TRIM: Partial<Record<SfxId, number>> = {
@@ -152,6 +164,7 @@ const DEATH_SOUND: Record<string, SfxId> = {
   'adepta-sororitas': 'death-adepta-sororitas',
   'chaos-space-marines': 'death-chaos-space-marines',
   'grey-knights': 'death-grey-knights',
+  'tau-empire': 'death-space-marines',
 }
 
 /** Measured decoded RMS runs 0.05-0.40 across these; the loud three are pulled back toward ~0.15. */

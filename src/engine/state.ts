@@ -544,9 +544,11 @@ export function createGameState(setup: GameSetup, bundle: DataBundle, seed: stri
       throw new EngineInvariantError(`enhancement '${enh.id}' takes no enhancementChoice`)
     }
     wl.enhancementId = enh.id
-    const enhDescriptor = resolveAbility(bundle, enh.effect)
-    const enhAbilityId = addAbility({ ...enhDescriptor, scope: enhDescriptor.scope ?? { who: 'bearer' } }, 'enhancement', enhancementBearer(wl, wlDs, models))
-    void enhAbilityId
+    // C7: a list effect becomes one RuntimeAbility per descriptor (each keeps its own id; default scope bearer)
+    for (const ref of Array.isArray(enh.effect) ? enh.effect : [enh.effect]) {
+      const enhDescriptor = resolveAbility(bundle, ref)
+      addAbility({ ...enhDescriptor, scope: enhDescriptor.scope ?? { who: 'bearer' } }, 'enhancement', enhancementBearer(wl, wlDs, models))
+    }
 
     // leader attachments (R-10.1)
     for (const att of ps.attachments) {

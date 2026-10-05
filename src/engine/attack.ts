@@ -55,7 +55,26 @@ import {
   type Model, type ModelId, type Phase, type PlayerId, type RuntimeWeapon, type Unit, type UnitId, type Vec3, type WeaponId, type WoundSlot,
 } from './types'
 
-export interface AttackBegin { kind: AttackKind; attackerUnitId: UnitId; overwatch: boolean; targets: DeclaredTarget[] }
+// overwatchHitOn (C2): Overwatch hit threshold (default 6); AttackSequenceState is frozen so it rides in the phase mark `atk:owHitOn=<n>`
+export interface AttackBegin { kind: AttackKind; attackerUnitId: UnitId; overwatch: boolean; targets: DeclaredTarget[]; overwatchHitOn?: number }
+
+// C3: canonical units that have started a ranged attack sequence (incl. Overwatch) this turn, per owner, in secondaryState.shotTurn
+export function shotThisTurn(state: GameState, unitId: UnitId): boolean {
+  const u = state.units[unitId]
+  if (!u) return false
+  const rec = state.players[u.player].secondaryState['shotTurn'] as { key: string; unitIds: UnitId[] } | undefined
+  return !!rec && rec.key === `${state.round}:${state.activePlayer}` && rec.unitIds.includes(leaderService.canonicalUnitId(state, unitId))
+}
+function recordShot(state: GameState, unitId: UnitId): void {
+  const u = state.units[unitId]
+  if (!u) return
+  const key = `${state.round}:${state.activePlayer}`
+  const ss = state.players[u.player].secondaryState
+  const rec = ss['shotTurn'] as { key: string; unitIds: UnitId[] } | undefined
+  const canon = leaderService.canonicalUnitId(state, unitId)
+  if (!rec || rec.key !== key) ss['shotTurn'] = { key, unitIds: [canon] }
+  else if (!rec.unitIds.includes(canon)) rec.unitIds = [...rec.unitIds, canon]
+}
 
 export interface DestroyedBy { player: PlayerId | null; unitId: UnitId | null; modelId: ModelId | null; kind: AttackKind | 'mortal' | 'other' }
 
@@ -285,7 +304,7 @@ function leadBatch(a: AttackSequenceState, gi: number): GroupBatch | undefined {
 
 interface D6Eval { unmodified: number; final: number; success: boolean; critical: boolean; kinds: Set<string> }
 
-interface D6Opts { manualMods?: number[]; manualRerolls?: ('ones' | 'fails' | 'all')[]; overwatchAutoSix?: boolean; critBase?: number; source: 'hit' | 'wound'; autoFailAtOrBelow?: number }
+interface D6Opts { manualMods?: number[]; manualRerolls?: ('ones' | 'fails' | 'all')[]; overwatchAutoSix?: boolean; critBase?: number; source: 'hit' | 'wound'; autoFailAtOrBelow?: number; overwatchHitOn?: number }
 
 // everything needed to judge ONE die of a batch (each die belongs to one firing model's attack)
 interface DieCtx { actx: AttackContext; needed: number; opts: D6Opts }
@@ -317,7 +336,7 @@ function evalD6Die(ctx: EngineContext, hook: 'onHitRoll' | 'onWoundRoll', d: Die
   // SHOOT-041/WEAP-020: Indirect Fire vs an unseen target auto-fails an unmodified roll at or below this threshold
   else if (opts.autoFailAtOrBelow !== undefined && unmodified <= opts.autoFailAtOrBelow) success = false
   else if (autoPass || critical) success = true
-  else if (opts.overwatchAutoSix) success = false
+  else if (opts.overwatchAutoSix) success = unmodified >= (opts.overwatchHitOn ?? 6)
   else success = dieSucceeds(unmodified, final, needed, false)
   return { unmodified, final, success, critical, kinds }
 }
@@ -399,7 +418,9 @@ function hitOpts(ctx: EngineContext, a: AttackSequenceState, group: AttackGroup,
       if (attackerEngaged || targetEngaged) manualMods.push(-1)
     }
   }
-  return { manualMods, overwatchAutoSix: a.overwatch, source: 'hit', autoFailAtOrBelow: indirectNoLos ? 3 : undefined }
+  const owMark = s.phaseState.marks.find((m) => m.startsWith('atk:owHitOn='))
+  const overwatchHitOn = a.overwatch && owMark ? Number(owMark.slice('atk:owHitOn='.length)) : undefined
+  return { manualMods, overwatchAutoSix: a.overwatch, source: 'hit', autoFailAtOrBelow: indirectNoLos ? 3 : undefined, overwatchHitOn }
 }
 
 // C3 (CHA Prey on the Weak): phase-scoped record of which enemy canonical units a given weapon has hit this phase. Pushed on every
@@ -453,7 +474,10 @@ function doHitBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
     }
     const opts = hitOpts(ctx, a, g, weapon, model)
     // Overwatch hits only on an unmodified 6, so the roll (and the tray/log reading it) must say 6+, not the weapon's skill
-    const needed = a.overwatch ? 6 : weapon.skill ?? 7
+    // C1: a characteristic step (For the Greater Good) changes the BS/WS itself and is never capped like a hit modifier
+    const needed = a.overwatch ? (opts.overwatchHitOn ?? 6)
+      : weapon.skill === null ? 7
+        : Math.min(6, Math.max(2, weapon.skill + ctx.services.hooks.skillDeltaFor!(s, model, weapon, g.targetUnitId, { kind: a.kind === 'melee' ? 'melee' : 'ranged', overwatch: false })))
     for (let i = 0; i < g.attacks; i++) { dies.push({ actx, needed, opts }); meta.push({ gi: j, model, weapon }) }
   }
   if (dies.length > 0) {
@@ -1104,7 +1128,7 @@ function rollDeadlyDemise(ctx: EngineContext, model: Model, valueExpr: DiceExpr)
 
 // prefixes that only ever mean something WITHIN the one attack sequence that wrote them — stale entries left over
 // from an earlier, already-finished sequence in the same phase must never leak into a new one (SHOOT-046-dice)
-const SEQUENCE_SCOPED_MARK_PREFIXES = ['roll:', 'attackCountOffered:', 'miracle:', 'miracleAsk:', 'rerollOffered:', 'autoReroll:', 'precisionDeclined:','hazardous:', 'groupTouched:', 'mortalAlloc:', 'mortalBatchSeq:', 'blastCount:', 'pendingDetach:', 'bgntAttacker', 'bgntTarget:', 'indirectNoLos:']
+const SEQUENCE_SCOPED_MARK_PREFIXES = ['roll:', 'attackCountOffered:', 'miracle:', 'miracleAsk:', 'rerollOffered:', 'autoReroll:', 'precisionDeclined:','hazardous:', 'groupTouched:', 'mortalAlloc:', 'mortalBatchSeq:', 'blastCount:', 'pendingDetach:', 'bgntAttacker', 'bgntTarget:', 'indirectNoLos:', 'atk:owHitOn=']
 
 export const attackService: AttackService = {
   begin(ctx, spec) {
@@ -1113,7 +1137,11 @@ export const attackService: AttackService = {
     if (spec.targets.some((t) => ctx.state.models[t.modelId]?.oneShotUsed.includes(t.weaponId) && ctx.state.weapons[t.weaponId]?.abilities.some((a) => a.ability === 'ONE_SHOT'))) {
       spec = { ...spec, targets: spec.targets.filter((t) => !(ctx.state.models[t.modelId]?.oneShotUsed.includes(t.weaponId) && ctx.state.weapons[t.weaponId]?.abilities.some((a) => a.ability === 'ONE_SHOT'))) }
     }
+    // C4 backstop: a weapon a code hook currently makes unavailable (DS8 Support Turret) is dropped from any declaration
+    if (spec.targets.some((t) => !weaponService.isAvailable(ctx.state, t.modelId, t.weaponId))) spec = { ...spec, targets: spec.targets.filter((t) => weaponService.isAvailable(ctx.state, t.modelId, t.weaponId)) }
     ctx.state.phaseState.marks = ctx.state.phaseState.marks.filter((m) => !SEQUENCE_SCOPED_MARK_PREFIXES.some((p) => m.startsWith(p)))
+    if (spec.overwatch && spec.overwatchHitOn !== undefined && spec.overwatchHitOn < 6) ctx.state.phaseState.marks.push(`atk:owHitOn=${spec.overwatchHitOn}`)
+    if (spec.kind === 'ranged' && spec.targets.length > 0) recordShot(ctx.state, spec.attackerUnitId)
     const targetUnitIds = [...new Set(spec.targets.map((t) => t.targetUnitId))]
     const groups: AttackGroup[] = []
     // SHOOT-005-timing (R-6.3): Big Guns Never Tire's -1 to hit is decided once, right now — "when targets were

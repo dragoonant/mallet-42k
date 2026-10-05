@@ -64,6 +64,12 @@ export type KitId =
   | 'gk-terminator'
   | 'gk-librarian'
   | 'gk-dreadknight'
+  | 'tau-fire-warrior'
+  | 'tau-shasui'
+  | 'tau-fireblade'
+  | 'tau-ethereal'
+  | 'tau-stealth'
+  | 'tau-ghostkeel'
   | 'generic-infantry'
   | 'generic-heavy'
   | 'generic-monster'
@@ -83,7 +89,7 @@ export interface PaintColors {
  *  datasheet in this data set that isn't a flyer resolves to a biped). */
 export type HeadShape = 'marine-helmet' | 'terminator-helmet' | 'ork-head' | 'ork-boss-head' | 'necron-skull' | 'necron-lord' | 'sister-bob' | 'sister-hood' | 'arco-mask' | 'tyranid-head' | 'tyranid-prime-head' | 'tyranid-brute-head' | 'generic-head'
   | 'chaos-helmet' | 'chaos-sorcerer' | 'possessed-head' | 'cultist-hood'
-  | 'guard-helmet' | 'officer-cap' | 'sentinel-cab'
+  | 'guard-helmet' | 'officer-cap' | 'sentinel-cab' | 'tau-helmet' | 'tau-ethereal'
 export type WeaponShape =
   | 'none'
   | 'bolt-rifle'
@@ -118,6 +124,10 @@ export type WeaponShape =
   | 'plasma-pistol'
   | 'power-sword'
   | 'plasma-cannon'
+  | 'pulse-rifle'
+  | 'fusion-blaster'
+  | 'burst-cannon'
+  | 'honour-stave'
 export type ShoulderPad = 'none' | 'small' | 'large'
 
 export interface BipedConfig {

@@ -10,8 +10,10 @@
 import type { CoreAbility, Effect, Scope, TimingWindowId } from '../data/types'
 import type { Action } from './actions'
 import { astraMilitarumHooks } from './factions/astra-militarum'
+import { tauEmpireHooks } from './factions/tau-empire'
 import { distance, withinEngagementRange, withinObjectiveRange, OBJECTIVE_MARKER_RADIUS } from './geometry'
 import { adeptaSororitasHooks } from './factions/adepta-sororitas'
+import { shotThisTurn } from './attack'
 import type { AttackContext, CodeHook, HookName, HookResult } from './hooks'
 import { chaosSpaceMarinesHooks } from './factions/chaos-space-marines'
 import { greyKnightsHooks } from './factions/grey-knights'
@@ -23,7 +25,7 @@ import { keywordsOf, modelStats, unitModels } from './state'
 import { isTeleporting } from './teleport'
 import type {
   ChooseOptionDecision, ChooseOptionTopic, GameState, ModelId, PendingDecision, PlayerId, ReactionWindowDecision, Rejection,
-  RuntimeStratagem, RuntimeWeapon, Unit, UnitId,
+  RuntimeStratagem, RuntimeWeapon, Unit, UnitId, WeaponId,
 } from './types'
 
 export type ReactionKind = ReactionWindowDecision['context']['reaction']
@@ -60,6 +62,13 @@ export interface EngineCodeHook extends CodeHook {
   rerollsAttackCount?(state: GameState, entry: HookSourceEntry, attackerModelId: ModelId, weapon: RuntimeWeapon): boolean
   // C5: core abilities this source currently grants to `unitId` (Gunnery Officer: LONE_OPERATIVE)
   grantsCoreAbility?(state: GameState, entry: HookSourceEntry, unitId: UnitId): CoreAbility['ability'][]
+  // C1 (T'au For the Greater Good): signed BS/WS step for one attack: -1 = one step better (4+ -> 3+), +1 = one step worse; null/0 = no opinion
+  skillDeltaVsTarget?(state: GameState, entry: HookSourceEntry, attackerModelId: ModelId, weapon: RuntimeWeapon,
+    targetUnitId: UnitId, info: { kind: 'ranged' | 'melee'; overwatch: boolean }): number | null
+  // C2 (T'au Cover Fire): Overwatch hit threshold for the shooter under this stratagem (null = no opinion)
+  overwatchHitOn?(state: GameState, entry: HookSourceEntry, shooterUnitId: UnitId, stratagemId: string): number | null
+  // C4 (T'au DS8 Support Turret): false makes the weapon unavailable to the model (null = no opinion)
+  weaponAvailable?(state: GameState, entry: HookSourceEntry, modelId: ModelId, weaponId: WeaponId): boolean | null
   // answers a chooseOption whose context.data.code names this hook, when the hook has no `pick` of its own
   answer?(ctx: EngineContext, action: Action, pending: PendingDecision): Rejection | void
   // side effects at the descriptor's trigger hook, after its `when` passed (Piston-driven Brutality)
@@ -336,6 +345,7 @@ const fireOverwatch: EngineCodeHook = {
     const notAgainst = (env.stratagem.params?.notAgainstKeyword as string | undefined) ?? 'TITANIC'
     if (unitHasAny(state, enemyId, notAgainst)) return false
     if (!eligibleToShootNow(state, friendlyId)) return false
+    if (shotThisTurn(state, friendlyId)) return false // C3: once per unit per turn (Laser-Marked Targets counts too)
     // R-6.7 Pistol exception: an engaged non-MONSTER/VEHICLE unit may only fire at a unit it is engaged with, not any
     // enemy in range — matters when the reacting unit is engaged with more than one enemy.
     if (!isBigGunsUnit(state, friendlyId) && leaderService.inEngagementWithEnemy(state, friendlyId) && !leaderService.unitsInEngagement(state, friendlyId, enemyId)) return false
@@ -750,6 +760,9 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   // astra-militarum (docs/spec/factions/astra-militarum.md §7): voiceOfCommand, commandLaurels, gunneryOfficer, requireActiveOrder,
   // wargearBearerAlive, holdTheLine, methodicalDestructionPick/Score, sendInTheNextWave, bringItDown, artilleryStrike
   ...astraMilitarumHooks(),
+  // tau-empire (docs/spec/factions/tau-empire.md §7): forTheGreaterGood, forwardObservers, coordinatedLeadership, coverFire, ds8SupportTurret,
+  // kauyonLure, leadershipCaste, rapidRepositioning, laserMarkedTargets
+  ...tauEmpireHooks(),
 }
 
 export type { ChooseOptionDecision }
