@@ -447,7 +447,7 @@ const tankShockMortalWounds: EngineCodeHook = {
   check(env, t) {
     const { state } = env
     const [vehicleUnitId, enemyId, modelId] = t.ids
-    // STRAT-018: only the unit that has just made a Charge move (Heroic Intervention included [interp])
+    // STRAT-018: only the unit that has just made a Charge move in its own Charge phase (RC-041: not Heroic Intervention)
     if (!leaderService.sameUnit(state, vehicleUnitId, env.trigger.unitId)) return false
     const model = state.models[modelId]
     if (!model || !leaderService.sameUnit(state, model.unitId, vehicleUnitId)) return false

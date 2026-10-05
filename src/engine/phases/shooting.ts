@@ -30,7 +30,8 @@ import { hookService } from '../hooks-impl'
 import { leaderService } from '../leaders'
 import { losService } from '../los'
 import { attackService } from '../attack'
-import { handleReactiveMove, reactiveMoveLegalActions, validateReactiveMove } from './movement'
+import { consumeReaction } from '../code-hooks'
+import { handleReactiveMove, resolveSurgeMove, reactiveMoveLegalActions, validateReactiveMove } from './movement'
 import { weaponService } from '../weapons'
 import { notImplementedHandle, otherPlayer, type AdvanceResult, type EngineContext, type PhaseModule } from '../modules'
 import { boardUnitsOf, datasheetOf, hasCoreAbility, hasKeyword, unitModels } from '../state'
@@ -70,7 +71,7 @@ function optionCheck(pending: PendingDecision, action: Action): Rejection | null
 }
 
 // ---------- keyword / engagement helpers (attached-unit aware via leaderService) ----------
-function isBigGunsUnit(state: GameState, unitId: UnitId): boolean {
+export function isBigGunsUnit(state: GameState, unitId: UnitId): boolean {
   return leaderService.halves(state, unitId).some((id) => hasKeyword(state, id, 'MONSTER') || hasKeyword(state, id, 'VEHICLE'))
 }
 function hasPistolWeapon(state: GameState, unitId: UnitId): boolean {
@@ -289,6 +290,8 @@ function doResolve(ctx: EngineContext): 'pending' | 'selectUnit' {
   if (ctx.window('shooting.targetsDeclared', unitId, ctx.order.defensive(opponent), { unitId })) return 'pending'
   if (s.phaseState.attack && attackService.advance(ctx) === 'pending') return 'pending'
   if (ctx.window('shooting.attacksResolved', unitId, ctx.order.active(), { unitId })) return 'pending'
+  // RC-014/061: Krump da Gitz! (queued in the window above) — the targeted unit surges toward the shooter now
+  for (let r = consumeReaction(s, 'surge'); r; r = consumeReaction(s, 'surge')) resolveSurgeMove(ctx, r.unitId, r.distance ?? 0, r.enemyUnitId)
   // E4: models kept on the table by A Martyr's Death shoot now, then leave
   if (resolveDeferredActivations(ctx, unitId) === 'awaiting') return 'pending'
   writeMark(s, 'sh:resolveUnit', null)

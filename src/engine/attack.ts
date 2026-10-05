@@ -10,8 +10,8 @@
 //   groups are ordered target-major then weapon-major so R-6.6 "all attacks vs one target before the next; same
 //   profile together" holds without needing to merge multiple models' rolls into one bucket (Rapid Fire/Melta are
 //   measured per firing model, WEAP-004).
-// - [DEVASTATING WOUNDS] critical wounds are deferred to the end of their OWN group (not the whole unit-vs-target,
-//   which would need cross-group bookkeeping the frozen AttackGroup shape has no room for) via `devastatingPending`.
+// - [DEVASTATING WOUNDS] critical wounds are deferred via `devastatingPending` until every normal attack of the whole
+//   sequence (all targets) is done (RC-026), then allocated as mortal-wound-style damage.
 // - [BLAST] attacks use a per-target model-count snapshot taken in `begin` ("blastCount:<targetUnitId>=<n>" marks,
 //   counting both halves of an attached target via leaderService.combinedModels) so target selection is the single
 //   source of truth even when an earlier group in the SAME sequence has since thinned the same target.
@@ -1221,21 +1221,16 @@ export const attackService: AttackService = {
         if (r === 'pending') return 'pending'
         continue
       }
-      // WEAP-013-order/SHOOT-014-dev (R-6.6): within one target's groups, deferred Devastating Wounds criticals wait
-      // until every group AGAINST THAT TARGET has finished its normal attacks — so mortal wounds from model 1 never
-      // resolve ahead of model 2's still-pending save against the same target — but they must still resolve before
-      // any attack (even a normal one) against a DIFFERENT target. Groups are pushed target-by-target (`begin`), so
-      // find the earliest group with any work left (normal attacks or a deferred critical), then within that
-      // target's groups prefer normal attacks first and only fall back to devastatingPending once none remain.
+      // WEAP-013-order/SHOOT-014-dev (RC-026, R-6.6): deferred Devastating Wounds criticals wait until EVERY group of the
+      // unit's attack (against every target) has finished its normal attacks, so mortal wounds never resolve ahead of any
+      // still-pending normal attack, even one against a different target. Pick the earliest group with normal work left;
+      // only once none remain fall back to the earliest group with a deferred critical (devastatingPending).
       assignRuns(ctx, a)
       let gi = a.current ? a.current.groupIndex : -1
       if (gi === -1) {
-        const firstUnfinished = a.groups.findIndex((g) => groupHasNormalWork(g) || g.devastatingPending > 0)
-        if (firstUnfinished !== -1) {
-          const target = a.groups[firstUnfinished].targetUnitId
-          gi = a.groups.findIndex((g) => g.targetUnitId === target && groupHasNormalWork(g))
-          if (gi === -1) gi = a.groups.findIndex((g) => g.targetUnitId === target && g.devastatingPending > 0)
-        }
+        // RC-026: deferred Devastating Wounds criticals wait for ALL normal attacks of the unit, against every target
+        gi = a.groups.findIndex((g) => groupHasNormalWork(g))
+        if (gi === -1) gi = a.groups.findIndex((g) => g.devastatingPending > 0)
       }
       if (gi === -1) {
         if (a.mortalQueue.length > 0) { const r = drainOneMortalPoint(ctx); if (r === 'pending') return 'pending'; continue }

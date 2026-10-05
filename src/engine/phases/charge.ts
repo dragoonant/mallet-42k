@@ -4,7 +4,7 @@
 // move is applied it is pushed onto a small LIFO stack (`ch:meStack=` mark) of units whose `charge.moveEnded` window
 // (Heroic Intervention, then Tank Shock) is still being drained — a queued Heroic Intervention reuses
 // `phaseState.charge` for its own mini charge (no declare step, no Fights First, no Overwatch) and is itself pushed
-// onto the same stack when its move lands, so a VEHICLE that intervenes can still trigger its own Tank Shock. The
+// onto the same stack when its move lands, (RC-041: Tank Shock is not offered after a Heroic Intervention — out-of-phase). The
 // stack (not the JS call stack) is what survives across `advance()` re-entries — see phases/README §3 rule 1.
 //
 // Documented interpretations (see STATUS/issues):
@@ -37,6 +37,7 @@ import { hookService } from '../hooks-impl'
 import { leaderService } from '../leaders'
 import { attackService } from '../attack'
 import { weaponService } from '../weapons'
+import { defaultOverwatchSelection } from './movement'
 import { terrainService } from '../terrain'
 import { crossesBigFriendly } from './movement'
 import { pendingReactions, consumeReaction } from '../code-hooks'
@@ -474,7 +475,7 @@ export function overwatchTargetsFor(state: GameState, shooterUnitId: UnitId, cha
       }
     }
   }
-  return out
+  return defaultOverwatchSelection(state, out)
 }
 
 function drainChargeOverwatch(ctx: EngineContext, chargerUnitId: UnitId): AdvanceResult {
