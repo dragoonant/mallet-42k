@@ -10,6 +10,8 @@ import {
   isBattlePhase, nextPhase, otherPlayer, type BattlePhase, type DecisionHandler, type DecisionSpec, type EngineContext,
   type EventInput, type ModuleTable, type PhaseModule, type WindowTrigger,
 } from './modules'
+import { flushDeferredRemovals } from './deferred'
+import { clearActsOfFaithPhase, miracleGate, onOwnUnitDestroyed, runActsOfFaithTurnStart } from './miracle'
 import { restoreRng, type Rng } from './rng'
 import { cloneForStep, createGameState, emptyPhaseState, emptyTurnState, hashState, removeModel, unitModelsForCoherency } from './state'
 import {
@@ -73,6 +75,8 @@ function makeContext(draft: GameState, rng: Rng, modules: ModuleTable, rt: StepR
     emit(e) {
       const { player, ...rest } = e
       rt.events.push({ ...(rest as object), ...envelope(player) } as GameEvent)
+      // E1: a destroyed ADEPTA SORORITAS unit earns its owner a Miracle die, wherever the event is emitted
+      if (e.type === 'UnitDestroyed') onOwnUnitDestroyed(ctx, e.unitId)
     },
     roll(spec) {
       const id = `r:${++s.rollCounter}`
@@ -80,6 +84,10 @@ function makeContext(draft: GameState, rng: Rng, modules: ModuleTable, rt: StepR
       s.phaseState.lastRoll = roll
       rt.diceRollIds.push(id)
       ctx.emit({ type: 'DiceRolled', roll, player: spec.player })
+      // E1: a Miracle die replaced the first dice of this roll (the die itself left the pool when it was chosen)
+      for (const v of (spec.substitute ?? []).slice(0, roll.dice.length)) {
+        ctx.emit({ type: 'MiracleDieSpent', player: spec.player, value: v, mode: 'substitute', unitId: spec.unitId ?? null, rollId: id, purpose: spec.purpose, source: 'actsOfFaith' })
+      }
       return roll
     },
     rollExpr(expr: DiceExpr, spec) {
@@ -94,7 +102,9 @@ function makeContext(draft: GameState, rng: Rng, modules: ModuleTable, rt: StepR
       const prefix = `roll:${key}=`
       let rollId = marks().find((m) => m.startsWith(prefix))?.slice(prefix.length) ?? null
       if (rollId === null) {
-        const roll = ctx.roll(spec)
+        const gate = miracleGate(ctx, key, spec)
+        if (gate === 'pending') return null
+        const roll = ctx.roll(gate ? { ...spec, substitute: gate } : spec)
         rollId = roll.id
         marks().push(prefix + rollId)
       }
@@ -104,6 +114,10 @@ function makeContext(draft: GameState, rng: Rng, modules: ModuleTable, rt: StepR
       return last
     },
     reroll(roll, indexes, source) {
+      // E1: a Miracle-die result is never re-rolled (only the other dice of the roll are)
+      const allowed = indexes.filter((i) => !(roll.substituted ?? []).includes(i))
+      if (allowed.length === 0) return roll
+      indexes = allowed
       const r = applyReroll(rng, roll, indexes)
       rt.diceRollIds.push(`${roll.id}#reroll`)
       ctx.emit({ type: 'DiceRerolled', rollId: roll.id, source, before: r.before, after: r.after, indexes: [...new Set(indexes)], player: roll.player })
@@ -272,6 +286,7 @@ function actionKey(a: Action): string {
 }
 
 function badDieIndexes(action: Extract<Action, { type: 'chooseOption' }>, pending: Extract<PendingDecision, { kind: 'chooseOption' }>): Rejection | null {
+  if (pending.context.topic === 'miracleDie') return null // validated by the miracleDie handler
   if (pending.context.topic !== 'rerollOffer' || action.optionId !== 'reroll') return { code: 'E_NOT_AN_OPTION', reason: 'dieIndexes is only valid with a rerollOffer re-roll' }
   const offered = (pending.context.data as { dieIndexes?: number[] }).dieIndexes ?? []
   const picked = action.dieIndexes as number[]
@@ -378,11 +393,13 @@ function enterPhase(ctx: EngineContext, modules: ModuleTable, phase: BattlePhase
 function finishPhaseBody(ctx: EngineContext, modules: ModuleTable, mod: PhaseModule): void {
   const s = ctx.state
   mod.exit?.(ctx)
+  flushDeferredRemovals(ctx)
   if (isBattlePhase(s.phase)) {
     modules.services.hooks.run(ctx, 'onPhaseEnd', {})
     modules.services.objectives.evaluateControl(ctx, 'phaseEnd')
     modules.services.effects.expire(ctx, 'phaseEnd', null)
   }
+  clearActsOfFaithPhase(s)
   ctx.emit({ type: 'PhaseEnded' })
   s.step = 'none'
 }
@@ -414,6 +431,7 @@ function startTurn(ctx: EngineContext, modules: ModuleTable, player: PlayerId): 
     modules.services.effects.expire(ctx, 'nextOwnTurn', player)
     modules.services.objectives.evaluateControl(ctx, 'turnStart')
     modules.services.hooks.run(ctx, 'onTurnStart', {})
+    runActsOfFaithTurnStart(ctx)
   }
   if (s.pending) return
   enterPhase(ctx, modules, 'command')

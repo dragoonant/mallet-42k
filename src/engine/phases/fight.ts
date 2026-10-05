@@ -22,6 +22,7 @@
 //   than one); multi-profile melee weapons are not offered a `weaponProfile` choice — the model's first profile in
 //   its `weapons` list is used. Neither situation occurs anywhere in the Combat Patrol data this engine ships with.
 import { filterValid, optionActions, repairCoherency } from './legal'
+import { resolveDeferredActivations } from '../deferred'
 import {
   EPS, ENGAGEMENT_H, OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE, basesOverlap, checkPlacements, dist2D, distance,
   emptyMoveConstraints, horizontalGap, inBaseContact, pathCrossesModels, unitsWithinEngagementRange, whollyOnBoard,
@@ -31,9 +32,11 @@ import {
 import { hookService } from '../hooks-impl'
 import { leaderService } from '../leaders'
 import { attackService } from '../attack'
+import { purgeDeferredDeaths, resolveDeferredDeaths } from '../fight-on-death'
 import { terrainService } from '../terrain'
 import { weaponService } from '../weapons'
 import { pendingReactions, consumeReaction } from '../code-hooks'
+import { finishDeferredRemovalOfUnit, pendingDeathBlowUnits } from '../deathblow'
 import { notImplementedHandle, otherPlayer, type EngineContext, type PhaseModule } from '../modules'
 import { boardUnitsOf, enemyModelsOnBoard, unitModels, unitModelsForCoherency } from '../state'
 import type { Action, ModelPlacement, WeaponTarget } from '../actions'
@@ -80,7 +83,8 @@ function eligibleToFight(state: GameState, unitId: UnitId): boolean {
 
 function hasFightsFirst(state: GameState, unitId: UnitId): boolean {
   const halves = leaderService.halves?.(state, unitId) ?? [unitId]
-  return halves.every((id) => state.units[id]?.turn.fightsFirst || (hookService.eligibilityFor?.(state, id, 'fightFirst') ?? false))
+  return halves.every((id) => state.units[id]?.turn.fightsFirst || (hookService.eligibilityFor?.(state, id, 'fightFirst') ?? false)
+    || (state.datasheets[state.units[id]?.datasheetId]?.coreAbilities.some((c) => c.ability === 'FIGHTS_FIRST') ?? false))
 }
 
 // R-9.3: the Fights First step's membership is fixed the moment step 1 starts — a unit that only becomes eligible
@@ -298,7 +302,7 @@ function meleeWeaponIdsOf(state: GameState, modelId: UnitId): WeaponId[] {
 // resolved weapon ids this model fights with: its one chosen non-EXTRA-ATTACKS melee weapon (auto-picked when there
 // is only one; a `chooseOption` decision when there is a real choice — never exercised by Combat Patrol data) plus
 // every [EXTRA ATTACKS] melee weapon it carries (R-9.7).
-function resolveModelWeapons(ctx: EngineContext, modelId: UnitId): WeaponId[] | 'pending' {
+export function resolveModelWeapons(ctx: EngineContext, modelId: UnitId): WeaponId[] | 'pending' {
   const s = ctx.state
   const all = meleeWeaponIdsOf(s, modelId)
   const extra = all.filter((w) => weaponService.hasAbility(s.weapons[w], 'EXTRA_ATTACKS'))
@@ -316,7 +320,7 @@ function resolveModelWeapons(ctx: EngineContext, modelId: UnitId): WeaponId[] | 
   return 'pending'
 }
 
-function attacksFor(ctx: EngineContext, modelId: UnitId, weaponId: WeaponId): number {
+export function attacksFor(ctx: EngineContext, modelId: UnitId, weaponId: WeaponId): number {
   const s = ctx.state
   const key = `fi:atk:${modelId}:${weaponId}`
   const cached = readMark(s, key)
@@ -344,7 +348,7 @@ function attackEligibleModels(state: GameState, unitId: UnitId): Model[] {
 }
 
 // canonical enemy unit ids currently on the board (attached leader halves folded into their bodyguard)
-function enemyUnitIdsOnBoard(state: GameState, player: PlayerId): UnitId[] {
+export function enemyUnitIdsOnBoard(state: GameState, player: PlayerId): UnitId[] {
   const out: UnitId[] = []
   for (const u of Object.values(state.units)) {
     if (u.player === player || u.location !== 'board' || u.bodyguardUnitId) continue
@@ -355,7 +359,7 @@ function enemyUnitIdsOnBoard(state: GameState, player: PlayerId): UnitId[] {
 
 // R-9.8: `model` may target `enemyId` if within ER of it, or in base contact with a friendly model of its own unit
 // that is itself in base contact with THAT enemy unit specifically.
-function legalTargetsFor(state: GameState, unitId: UnitId, model: Model, enemyIds: UnitId[]): UnitId[] {
+export function legalTargetsFor(state: GameState, unitId: UnitId, model: Model, enemyIds: UnitId[]): UnitId[] {
   const models = unitModelsForCoherency(state, unitId)
   const out: UnitId[] = []
   for (const enemyId of enemyIds) {
@@ -442,7 +446,45 @@ function validateDeclareTargets(pending: Extract<PendingDecision, { kind: 'decla
 function applyDeclareTargets(ctx: EngineContext, action: Extract<Action, { type: 'declareTargets' }>): void {
   const declared: DeclaredTarget[] = action.targets.map((t: WeaponTarget) => ({ modelId: t.modelId, weaponId: t.weaponId, targetUnitId: t.targetUnitId, profileGroup: t.profileGroup ?? null, attacks: t.attacks ?? null }))
   attackService.begin(ctx, { kind: 'melee', attackerUnitId: action.unitId, overwatch: false, targets: declared })
-  ctx.once(`fi:declared:${action.unitId}`)
+  // E4: a deferred last stand is not the unit's own activation, so its own declare step stays open for later
+  if (deferredOpen(ctx.state, action.unitId)) ctx.once(`fidef:${action.unitId}:begun`)
+  else ctx.once(`fi:declared:${action.unitId}`)
+}
+
+// ---------- E4: deferred last-stand fighting (A Martyr's Death) ----------
+const defKey = (unitId: UnitId): string => `fidef:${unitId}`
+function deferredOpen(state: GameState, unitId: UnitId): boolean {
+  return state.phaseState.marks.includes(`${defKey(unitId)}:open`) && !state.phaseState.marks.includes(`${defKey(unitId)}:begun`)
+}
+
+// the deferred models of `entry` fight once, after the destroying unit's attacks (no pile-in, no consolidation), against
+// enemies in Engagement Range only: 'pending' while their declareTargets decision is open, 'done' when resolved / nothing to hit
+export function deferredFightStep(ctx: EngineContext, entry: { unitId: UnitId; modelIds: UnitId[] }): 'pending' | 'done' {
+  const s = ctx.state
+  const key = defKey(entry.unitId)
+  if (ctx.marked(`${key}:begun`)) return 'done'
+  const player = s.units[entry.unitId].player
+  const models = entry.modelIds.map((id) => s.models[id]).filter((m): m is Model => !!m)
+  for (const m of models) if (resolveModelWeapons(ctx, m.id) === 'pending') return 'pending'
+  const enemyIds = enemyUnitIdsOnBoard(s, player)
+  const weapons: DeclareTargetsDecision['context']['weapons'] = []
+  for (const m of models) {
+    for (const weaponId of resolveModelWeapons(ctx, m.id) as WeaponId[]) {
+      const weapon = weaponService.effectiveWeapon(s, m.id, weaponId)
+      const legalTargets = enemyIds.filter((e) => (leaderService.combinedModels ? leaderService.combinedModels(s, e) : unitModels(s, e)).some((em) => horizontalGap(m, em) <= ENGAGEMENT_H + EPS && Math.abs(m.pos.y - em.pos.y) <= 5 + EPS))
+      // a deferred model with nothing in Engagement Range simply does not fight (a listed weapon would have to declare its attacks)
+      if (legalTargets.length === 0) continue
+      weapons.push({ modelId: m.id, weaponId, profileGroup: weapon.profileGroup ?? null, legalTargets, attacks: attacksFor(ctx, m.id, weaponId) })
+    }
+  }
+  if (!weapons.some((w) => w.legalTargets.length > 0)) { ctx.once(`${key}:begun`); return 'done' }
+  if (!ctx.once(`${key}:open`)) return 'pending'
+  const engagedWith = [...new Set(weapons.flatMap((w) => w.legalTargets))]
+  ctx.decide({
+    kind: 'declareTargets', player, window: 'fight.unitSelected', canPass: false,
+    context: { unitId: entry.unitId, attackKind: 'melee', overwatch: false, weapons, engagedWith },
+  })
+  return 'pending'
 }
 
 function doAttacks(ctx: EngineContext, unitId: UnitId): 'pending' | 'progress' {
@@ -526,6 +568,20 @@ function doFightSelect(ctx: EngineContext): 'pending' | 'nextStep' | 'done' {
   if (fight.step === 'fightsFirst' && readMark(s, FF_SNAPSHOT_KEY) === null) {
     writeMark(s, FF_SNAPSHOT_KEY, JSON.stringify(computeFfSnapshotIds(s)))
   }
+  // Death Blow (TYR-6.1): the attacking unit's activation is over, so every model whose removal was deferred may now fight
+  // (optional: use / decline), out of alternation; declining removes it at once. Anything still pending is removed at phase end.
+  for (const unitId of pendingDeathBlowUnits(s)) {
+    const owner = s.units[unitId].player
+    ctx.decide({
+      kind: 'chooseOption', player: owner, window: 'fight.start', canPass: false,
+      context: { topic: 'other', unitId, abilityId: null, data: { choice: 'deathBlow', unitId } },
+      options: [
+        { id: 'fight', label: `Death Blow: fight with ${s.units[unitId].name} before it is removed`, action: { type: 'chooseOption', player: owner, decisionId: '', optionId: 'fight' } },
+        { id: 'decline', label: 'Decline: remove the model now', action: { type: 'chooseOption', player: owner, decisionId: '', optionId: 'decline' } },
+      ],
+    })
+    return 'pending'
+  }
   const co = pendingReactions(s, 'counterOffensive')[0]
   if (co) {
     ctx.decide({
@@ -552,6 +608,8 @@ function doFightSelect(ctx: EngineContext): 'pending' | 'nextStep' | 'done' {
   return 'pending'
 }
 
+function owner(state: GameState, unitId: UnitId): PlayerId { return state.units[unitId].player }
+
 function finishUnit(ctx: EngineContext, unitId: UnitId, player: PlayerId): void {
   const s = ctx.state
   const fight = s.phaseState.fight!
@@ -570,6 +628,8 @@ function finishUnit(ctx: EngineContext, unitId: UnitId, player: PlayerId): void 
   }
   fight.currentUnitId = null
   fight.subStep = 'select'
+  // Death Blow: the model is removed once it has fought
+  finishDeferredRemovalOfUnit(ctx, unitId)
 }
 
 function driveFightUnit(ctx: EngineContext): 'pending' | 'progress' {
@@ -586,6 +646,13 @@ function driveFightUnit(ctx: EngineContext): 'pending' | 'progress' {
     ctx.once(`fi:selWindow:${unitId}`)
   }
 
+  // mortal wounds queued by a pick (Dark Pact, Sacrificial Dagger) wait in an open sequence: resolve them before the unit moves
+  if (fight.subStep === 'pileIn' && s.phaseState.attack) {
+    if (attackService.advance(ctx) === 'pending') return 'pending'
+    const left = s.units[unitId]
+    if (!left || left.location !== 'board') { finishUnit(ctx, unitId, left?.player ?? s.activePlayer); return 'progress' }
+  }
+
   if (fight.subStep === 'pileIn') {
     const r = doPileIn(ctx, unitId)
     if (r === 'pending') return 'pending'
@@ -599,6 +666,14 @@ function driveFightUnit(ctx: EngineContext): 'pending' | 'progress' {
   if (fight.subStep === 'attacks') {
     const r = doAttacks(ctx, unitId)
     if (r === 'pending') return 'pending'
+    // C5: models kept on the board at 0 wounds by Daemonic Fervour make their last attacks now, before this unit consolidates
+    if (resolveDeferredDeaths(ctx) === 'pending') return 'pending'
+    fight.subStep = 'deferred'
+  }
+  if (fight.subStep === 'deferred') {
+    // E4: a deferred last-stand attack (A Martyr's Death) already in progress, then any still to open
+    if (s.phaseState.attack && attackService.advance(ctx) === 'pending') return 'pending'
+    if (resolveDeferredActivations(ctx, unitId) === 'awaiting') return 'pending'
     fight.subStep = 'consolidate'
   }
   if (fight.subStep === 'consolidate') {
@@ -704,6 +779,10 @@ export const fightModule: PhaseModule = {
     s.phaseState.fight = { step: 'fightsFirst', subStep: 'select', currentUnitId: null, fought: [], nextToSelect: ctx.opponentOf(s.activePlayer), counterOffensive: false }
     s.phaseState.attack = null
   },
+  exit(ctx) {
+    // safety net: a Death Blow model still pending when the phase ends is removed
+    for (const unitId of pendingDeathBlowUnits(ctx.state)) finishDeferredRemovalOfUnit(ctx, unitId)
+  },
   advance(ctx) {
     const s = ctx.state
     for (;;) {
@@ -720,6 +799,9 @@ export const fightModule: PhaseModule = {
         fight.nextToSelect = ctx.opponentOf(s.activePlayer)
         continue
       }
+      // C5 safety net: nothing deferred may outlive the phase (its marks are cleared on exit)
+      if (resolveDeferredDeaths(ctx) === 'pending') return 'pending'
+      purgeDeferredDeaths(ctx)
       return 'done'
     }
   },
@@ -743,7 +825,11 @@ export const fightModule: PhaseModule = {
   },
   handle(ctx, action, pending): Rejection | void {
     const s = ctx.state
-    if (action.type === 'pass') return { code: 'E_NOT_AN_OPTION', reason: `fight: pass is not valid for ${pending.kind}` }
+    if (action.type === 'pass') {
+      // a Precision allocation (canPass) is declined with a pass: the attack sequence answers it
+      if (s.phaseState.attack && pending.kind === 'allocateAttack') return attackService.handler.handle(ctx, action, pending)
+      return { code: 'E_NOT_AN_OPTION', reason: `fight: pass is not valid for ${pending.kind}` }
+    }
     if (pending.kind === 'chooseFightUnit' && action.type === 'chooseFightUnit') {
       const fight = s.phaseState.fight!
       const co = consumeReaction(s, 'counterOffensive', action.unitId)
@@ -751,6 +837,22 @@ export const fightModule: PhaseModule = {
       fight.currentUnitId = action.unitId
       fight.subStep = 'pileIn'
       ctx.emit({ type: 'FightUnitSelected', unitId: action.unitId, step: fight.step })
+      return
+    }
+    if (pending.kind === 'chooseOption' && pending.context.topic === 'other' && (pending.context.data as { choice?: string }).choice === 'deathBlow' && action.type === 'chooseOption') {
+      const unitId = (pending.context.data as { unitId: UnitId }).unitId
+      const fight = s.phaseState.fight!
+      const unit = s.units[unitId]
+      // a unit that cannot fight any more (gone from the board, or no longer engaged) simply loses the model
+      if (action.optionId !== 'fight' || !unit || unit.location !== 'board' || unit.turn.foughtThisPhase || !eligibleToFight(s, unitId)) {
+        finishDeferredRemovalOfUnit(ctx, unitId)
+        return
+      }
+      // a pure insertion into the alternation (like Counter-offensive): the next selector is restored when the unit finishes
+      if (readMark(s, COUNTER_RESUME_KEY) === null) writeMark(s, COUNTER_RESUME_KEY, fight.nextToSelect)
+      fight.currentUnitId = unitId
+      fight.subStep = 'pileIn'
+      ctx.emit({ type: 'FightUnitSelected', unitId, step: fight.step, player: owner(s, unitId) })
       return
     }
     if (pending.kind === 'pileIn' && action.type === 'pileIn') return applyPileIn(ctx, action.unitId, action)

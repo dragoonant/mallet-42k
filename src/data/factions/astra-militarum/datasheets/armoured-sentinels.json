@@ -1,0 +1,71 @@
+[
+  {
+    "id": "am.armoured-sentinels",
+    "faction": "astra-militarum",
+    "name": "Armoured Sentinels",
+    "keywords": [
+      "VEHICLE",
+      "WALKER",
+      "IMPERIUM",
+      "REGIMENT",
+      "SQUADRON",
+      "SMOKE",
+      "ARMOURED SENTINELS"
+    ],
+    "factionKeywords": [
+      "ASTRA MILITARUM"
+    ],
+    "stats": {
+      "M": 8,
+      "T": 8,
+      "Sv": 2,
+      "W": 7,
+      "Ld": 7,
+      "OC": 2
+    },
+    "composition": [
+      {
+        "modelId": "sentinel",
+        "name": "Armoured Sentinel",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 80
+        },
+        "weapons": {
+          "default": [
+            "am.w.hunter-killer-missile",
+            "am.w.plasma-cannon",
+            "am.w.plasma-cannon-supercharge",
+            "am.w.close-combat-weapon-sentinel"
+          ]
+        },
+        "figure": {
+          "archetype": "vehicle",
+          "kit": "generic-vehicle"
+        }
+      }
+    ],
+    "abilities": [
+      "am.a.mobile-hunter-killers"
+    ],
+    "coreAbilities": [
+      {
+        "ability": "DEADLY_DEMISE",
+        "value": 1
+      }
+    ],
+    "points": [
+      {
+        "models": 1,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "vehicle",
+      "kit": "generic-vehicle"
+    }
+  }
+]

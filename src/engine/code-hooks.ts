@@ -7,17 +7,21 @@
 // Gitz!) cannot be resolved inside a stratagem decision: they need the phase modules' placement / attack decisions.
 // Using them records a request in phaseState.marks (`reaction:<json>`); the owning module reads it with
 // `pendingReactions(state)` after its ctx.window(...) call returns false and removes it with `consumeReaction`.
-import type { TimingWindowId } from '../data/types'
+import type { CoreAbility, Effect, Scope, TimingWindowId } from '../data/types'
 import type { Action } from './actions'
+import { astraMilitarumHooks } from './factions/astra-militarum'
 import { distance, withinEngagementRange, withinObjectiveRange, OBJECTIVE_MARKER_RADIUS } from './geometry'
-import type { CodeHook, HookName } from './hooks'
+import { adeptaSororitasHooks } from './factions/adepta-sororitas'
+import type { AttackContext, CodeHook, HookName, HookResult } from './hooks'
+import { chaosSpaceMarinesHooks } from './factions/chaos-space-marines'
 import { hookService, type HookSourceEntry } from './hooks-impl'
 import { leaderService } from './leaders'
 import type { EngineContext, Services, WindowTrigger } from './modules'
+import * as tyr from './factions/tyranids'
 import { keywordsOf, modelStats, unitModels } from './state'
 import type {
-  ChooseOptionDecision, ChooseOptionTopic, GameState, PendingDecision, PlayerId, ReactionWindowDecision, Rejection,
-  RuntimeStratagem, Unit, UnitId,
+  ChooseOptionDecision, ChooseOptionTopic, GameState, ModelId, PendingDecision, PlayerId, ReactionWindowDecision, Rejection,
+  RuntimeStratagem, RuntimeWeapon, Unit, UnitId,
 } from './types'
 
 export type ReactionKind = ReactionWindowDecision['context']['reaction']
@@ -39,20 +43,44 @@ export interface EngineCodeHook extends CodeHook {
   // declarative effects of the source only apply at these hooks (Veteran Instincts: wound rolls only)
   hooks?: HookName[]
   // false → the ability's own declarative effects are inactive right now (Waaagh! lives in ActiveEffects; Dead 'ard)
-  gate?(state: GameState, holder: Unit, entry: HookSourceEntry): boolean
+  // `data` is the hook-specific context (attack / roll ...) when evaluated for a roll hook; Resonant Focus reads the attack
+  gate?(state: GameState, holder: Unit, entry: HookSourceEntry, data?: Record<string, unknown>): boolean
+  // extra Battle-shock dice this source gives the testing unit (Tyranid Synapse); the highest value among sources is rolled
+  battleShockDice?(state: GameState, testUnitId: UnitId, entry: HookSourceEntry): number
+  // gate for the ActiveEffects a stratagem hook granted (ordinary `gate` is skipped for those): Bring It Down limits its
+  // re-roll to the attackers snapshotted at use time
+  gateActive?(state: GameState, entry: HookSourceEntry, data?: Record<string, unknown>): boolean
+  // replaces the source's own scope (Resonant Focus: the enhancement data has no scope, which would default to `bearer`)
+  forceScope?: Scope
+  // like `gate`, but also consulted for effects an ActiveEffect carries (stratagem grants), where `gate` is skipped (Vindictive Strategy)
+  gateEffect?(state: GameState, holder: Unit, entry: HookSourceEntry, data?: Record<string, unknown>): boolean
+  // C4: true when this source lets its player re-roll the Attacks (A) roll of `weapon` fired by `attackerModelId`
+  rerollsAttackCount?(state: GameState, entry: HookSourceEntry, attackerModelId: ModelId, weapon: RuntimeWeapon): boolean
+  // C5: core abilities this source currently grants to `unitId` (Gunnery Officer: LONE_OPERATIVE)
+  grantsCoreAbility?(state: GameState, entry: HookSourceEntry, unitId: UnitId): CoreAbility['ability'][]
+  // answers a chooseOption whose context.data.code names this hook, when the hook has no `pick` of its own
+  answer?(ctx: EngineContext, action: Action, pending: PendingDecision): Rejection | void
   // side effects at the descriptor's trigger hook, after its `when` passed (Piston-driven Brutality)
   runAt?(ctx: EngineContext, entry: HookSourceEntry, data: Record<string, unknown>): void
   // window-keyed pick raised as a chooseOption decision (Oath of Moment, Waaagh!)
   pick?: {
     window: TimingWindowId
+    // further windows the same pick is offered at (Dark Pacts: shooting.unitSelected + fight.unitSelected)
+    windows?: TimingWindowId[]
     topic: ChooseOptionTopic
     offer(ctx: EngineContext, window: TimingWindowId, key: string): boolean
     handle(ctx: EngineContext, action: Action, pending: PendingDecision): Rejection | void
   }
+  // answers collect() at `producesAt` for a source with no declarative form (A Martyr's Death returns a deferRemoval
+  // request for the destroyed model). Called with the hook-specific data; null = nothing to report.
+  producesAt?: HookName[]
+  produce?(ctx: EngineContext, entry: HookSourceEntry, data: Record<string, unknown>): HookResult | null
   // ---- stratagems ----
   reaction?: ReactionKind
   // friendly unit candidates come from Reserves instead of the battlefield
   reserves?: boolean
+  // friendly unit candidates come from destroyed units (Send in the Next Wave)
+  destroyedTargets?: boolean
   // the hook grants the declarative effect itself (not to targets[0])
   grantsItself?: boolean
   // one option per objective marker (Duty and Honour)
@@ -63,7 +91,7 @@ export interface EngineCodeHook extends CodeHook {
 
 // ---------- reactions recorded for the phase modules ----------
 export interface ReactionRequest {
-  kind: ReactionKind | 'surge'
+  kind: ReactionKind | 'surge' | 'nextWave'
   stratagemId: string
   player: PlayerId
   // the reacting / moving friendly unit
@@ -387,9 +415,11 @@ const epicChallenge: EngineCodeHook = {
   },
   apply(ctx, env, t) {
     const model = ctx.state.models[t.ids[1]]
-    ctx.services.effects.grant(ctx, model.unitId, env.stratagem.effect ?? [], {
+    const active = ctx.services.effects.grant(ctx, model.unitId, env.stratagem.effect ?? [], {
       sourceAbilityId: env.stratagem.id, sourceUnitId: model.unitId, scope: { who: 'bearer' }, duration: env.stratagem.duration ?? 'untilEndOfPhase', when: env.stratagem.when ?? null,
     })
+    // only the picked model (per-model keywords, AST-033) carries the effect, not its whole unit
+    active.bearerModelId = model.id
   },
 }
 
@@ -477,19 +507,229 @@ const dutyAndHonour: EngineCodeHook = {
   },
 }
 
+// ---------- necrons (docs/spec/factions/necrons.md §7) ----------
+// Reanimation Protocols: the roll / heal / return work lives in factions/necrons.ts and is called by the Command phase
+// module before command.end (NEC-2.6); the hook only names the ability so the data validates and the descriptor is inert
+// at its own `phaseEnd` trigger (that fires after command.end, too late for primary scoring).
+const reanimationProtocols: EngineCodeHook = { name: 'reanimationProtocols', kind: 'ability', hook: 'onPhaseEnd', run: noop }
+
+function markName(params: Record<string, unknown> | undefined): string { return (params?.markName as string | undefined) ?? 'resonantFocus' }
+
+function resonantBearer(s: GameState, player: PlayerId): { abilityId: string; modelId: string; unitId: UnitId } | null {
+  for (const a of Object.values(s.abilities)) {
+    if (a.source !== 'enhancement' || a.code !== 'resonantFocusReroll' || !a.bearerModelId) continue
+    const model = s.models[a.bearerModelId]
+    const unit = model ? s.units[model.unitId] : undefined
+    if (unit && unit.player === player && unit.location === 'board') return { abilityId: a.id, modelId: a.bearerModelId, unitId: unit.id }
+  }
+  return null
+}
+
+// Protocol of Resonant Focus, pick half: opened at command.start of the bearer's own turn
+const resonantFocusPick: EngineCodeHook = {
+  name: 'resonantFocusPick', kind: 'ability', hook: 'onCommandPhase', run: noop,
+  pick: {
+    window: 'command.start',
+    topic: 'abilityChoice',
+    offer(ctx, window, key) {
+      const s = ctx.state
+      const player = s.activePlayer
+      const mark = `pick:resonant:${s.round}:${player}`
+      if (s.phaseState.marks.includes(mark)) return false
+      const bearer = resonantBearer(s, player)
+      if (!bearer) return false
+      s.phaseState.marks.push(mark)
+      const params = s.abilities[bearer.abilityId].params ?? {}
+      const range = (params.range as number | undefined) ?? 12
+      const bearerModel = s.models[bearer.modelId]
+      const candidates: Unit[] = []
+      for (const e of Object.values(s.units)) {
+        if (e.player === player || e.location !== 'board' || e.bodyguardUnitId) continue
+        const theirs = leaderService.halves(s, e.id).flatMap((id) => s.units[id].location === 'board' ? unitModels(s, id) : [])
+        if (!theirs.some((m) => distance(bearerModel, m) <= range + 1e-6)) continue
+        if (params.requireVisible !== false && !ctx.services.los.unitVisible(s, bearer.modelId, e.id)) continue
+        candidates.push(e)
+      }
+      if (candidates.length === 0) return false
+      ctx.decide({
+        kind: 'chooseOption', player, window, canPass: false,
+        context: { topic: 'abilityChoice', unitId: bearer.unitId, abilityId: bearer.abilityId, data: { window, key, code: 'resonantFocusPick' } },
+        options: candidates.map((u) => ({ id: u.id, label: u.name, action: { type: 'chooseOption', player, decisionId: '', optionId: u.id }, hint: { unitId: u.id } })),
+      })
+      return true
+    },
+    handle(ctx, action, pending) {
+      if (action.type !== 'chooseOption' || pending.kind !== 'chooseOption') return { code: 'E_NOT_AN_OPTION', reason: 'resonant focus expects chooseOption' }
+      const s = ctx.state
+      const unit = s.units[action.optionId]
+      if (!unit || unit.player === pending.player || unit.location !== 'board') return { code: 'E_INVALID_TARGET', reason: 'resonant focus must target an enemy unit on the battlefield' }
+      const target = leaderService.canonicalUnitId(s, unit.id)
+      const params = s.abilities[pending.context.abilityId ?? '']?.params
+      s.players[pending.player].secondaryState[markName(params)] = { unitId: target, round: s.round }
+      const abilityId = pending.context.abilityId ?? 'nec.e.protocol-of-resonant-focus'
+      const keyword = (params?.attackerFactionKeyword as string | undefined) ?? 'NECRONS'
+      const effect = (s.abilities[abilityId]?.effect ?? { reroll: 'ones' }) as Effect
+      // the holder is the enemy unit, so `ownTurn: false` means "the marker's turn"; `round` pins it to this one turn
+      ctx.services.effects.grant(ctx, target, [effect], {
+        sourceAbilityId: abilityId, sourceUnitId: pending.context.unitId ?? null, scope: { who: 'attacker' }, duration: 'untilEndOfTurn',
+        when: { ownTurn: false, attackerKeyword: keyword, round: { gte: s.round, lte: s.round } },
+      })
+      ctx.emit({ type: 'AbilityTriggered', abilityId: pending.context.abilityId ?? 'nec.e.protocol-of-resonant-focus', sourceUnitId: pending.context.unitId, targetUnitId: target, summary: `Protocol of Resonant Focus: ${unit.name} marked`, player: pending.player })
+    },
+  },
+}
+
+// Protocol of Resonant Focus, re-roll half: once the pick is answered the re-roll lives as an ActiveEffect held by the MARKED
+// enemy unit (scope 'attacker' = "attacks whose target is this unit"), gated to friendly NECRONS attackers and to the
+// marker's own turn. It therefore no longer depends on the bearer surviving (NEC-3: "until the end of that turn" once
+// selected; range and visibility matter only at selection). The bearer's own enhancement entry never fires by itself.
+const resonantFocusReroll: EngineCodeHook = {
+  name: 'resonantFocusReroll', kind: 'ability', hook: 'onHitRoll', run: noop, hooks: ['onHitRoll'],
+  gate() { return false },
+}
+
+// Will of the Overlord restriction: only while a model with `params.keyword` (OVERLORD) is on the battlefield
+const requireFriendlyKeywordOnBoard: EngineCodeHook = {
+  name: 'requireFriendlyKeywordOnBoard', kind: 'stratagem', hook: 'onCommandPhase', run: noop,
+  check(env) {
+    const keyword = (env.stratagem.params?.keyword as string | undefined) ?? 'OVERLORD'
+    return Object.values(env.state.units).some((u) => u.player === env.player && u.location === 'board' && u.models.length > 0 && keywordsOf(env.state, u.id).includes(keyword))
+  },
+}
+
+function plasmaUses(s: GameState, player: PlayerId, abilityId: string, unitId: UnitId): number {
+  return s.players[player].oncePerBattleUsed.filter((k) => k.startsWith(`${abilityId}:${unitId}:`)).length
+}
+
+// Plasmacyte: when the carrying unit is selected to fight (window key = the unit id) its owner may spend one charge
+const plasmacyteSurge: EngineCodeHook = {
+  name: 'plasmacyteSurge', kind: 'ability', hook: 'onUnitSelectedToFight', run: noop,
+  pick: {
+    window: 'fight.unitSelected',
+    topic: 'abilityChoice',
+    offer(ctx, window, key) {
+      const s = ctx.state
+      const unit = boardUnit(s, key)
+      if (!unit) return false
+      const abilityId = unitWithAbilityCode(s, unit, 'plasmacyteSurge')
+      if (!abilityId) return false
+      const mark = `pick:plasmacyte:${unit.id}`
+      if (s.phaseState.marks.includes(mark)) return false
+      const charges = (s.abilities[abilityId].params?.charges as number | undefined) ?? 1
+      if (plasmaUses(s, unit.player, abilityId, unit.id) >= charges) return false
+      s.phaseState.marks.push(mark)
+      ctx.decide({
+        kind: 'chooseOption', player: unit.player, window, canPass: false,
+        context: { topic: 'abilityChoice', unitId: unit.id, abilityId, data: { window, key, code: 'plasmacyteSurge' } },
+        options: [
+          { id: 'use', label: 'Spend the plasmacyte (Devastating Wounds)', action: { type: 'chooseOption', player: unit.player, decisionId: '', optionId: 'use' }, hint: { unitId: unit.id, priority: 1 } },
+          { id: 'decline', label: 'Decline', action: { type: 'chooseOption', player: unit.player, decisionId: '', optionId: 'decline' } },
+        ],
+      })
+      return true
+    },
+    handle(ctx, action, pending) {
+      if (action.type !== 'chooseOption' || pending.kind !== 'chooseOption') return { code: 'E_NOT_AN_OPTION', reason: 'plasmacyte expects chooseOption' }
+      if (action.optionId === 'decline') return
+      if (action.optionId !== 'use') return { code: 'E_NOT_AN_OPTION', reason: 'plasmacyte: use or decline' }
+      const s = ctx.state
+      const unit = s.units[pending.context.unitId ?? '']
+      const abilityId = pending.context.abilityId
+      const ability = abilityId ? s.abilities[abilityId] : undefined
+      if (!unit || !abilityId || !ability) return { code: 'E_NOT_AN_OPTION', reason: 'plasmacyte: unit or ability missing' }
+      const params = ability.params ?? {}
+      const used = plasmaUses(s, unit.player, abilityId, unit.id)
+      if (used >= ((params.charges as number | undefined) ?? 1)) return { code: 'E_STRATAGEM_USED', reason: 'no plasmacyte left to spend' }
+      s.players[unit.player].oncePerBattleUsed.push(`${abilityId}:${unit.id}:${used}`)
+      const grant = (params.grant ?? { when: { weaponType: 'melee' }, grantWeaponAbility: { ability: 'DEVASTATING_WOUNDS' } }) as Effect
+      ctx.services.effects.grant(ctx, unit.id, [grant], {
+        sourceAbilityId: abilityId, sourceUnitId: unit.id, scope: { who: 'self' }, duration: (params.duration as 'untilEndOfPhase' | undefined) ?? 'untilEndOfPhase', when: null,
+      })
+      ctx.emit({ type: 'AbilityTriggered', abilityId, sourceUnitId: unit.id, targetUnitId: unit.id, summary: 'Plasmacyte spent: melee weapons gain Devastating Wounds this phase', player: unit.player })
+    },
+  },
+}
+
 // ---------- mission / scoring hooks (implemented in missions.ts; names registered for data validation) ----------
 function missionHook(name: string, hook: HookName = 'onPhaseEnd'): EngineCodeHook {
   return { name, kind: 'mission', hook, run: noop }
 }
 
+// ---------- tyranids (docs/spec/factions/tyranids.md §7); bodies in factions/tyranids.ts, called lazily (import cycle) ----------
+const synapseBattleShock: EngineCodeHook = {
+  name: 'synapseBattleShock', kind: 'ability', hook: 'onBattleShockTest', run: noop,
+  battleShockDice: (state, testUnitId, entry) => tyr.synapseExtraDice(state, testUnitId, entry),
+}
+
+const shadowInTheWarp: EngineCodeHook = {
+  name: 'shadowInTheWarp', kind: 'ability', hook: 'onCommandPhase', run: noop,
+  pick: { window: 'command.start', topic: 'abilityChoice', offer: (ctx, w, k) => tyr.shadowOffer(ctx, w, k), handle: (ctx, a, p) => tyr.shadowHandle(ctx, a, p) },
+}
+
+const secretionGoadShoot: EngineCodeHook = {
+  name: 'secretionGoadShoot', kind: 'ability', hook: 'onTargetsDeclared', run: noop,
+  pick: { window: 'shooting.targetsDeclared', topic: 'abilityChoice', offer: (ctx, w, k) => tyr.goadShootOffer(ctx, w, k), handle: (ctx, a, p) => tyr.goadHandle(ctx, a, p) },
+}
+
+const secretionGoadFight: EngineCodeHook = {
+  name: 'secretionGoadFight', kind: 'ability', hook: 'onUnitSelectedToFight', run: noop,
+  pick: { window: 'fight.unitSelected', topic: 'abilityChoice', offer: (ctx, w, k) => tyr.goadFightOffer(ctx, w, k), handle: (ctx, a, p) => tyr.goadHandle(ctx, a, p) },
+}
+
+const skulkingHorrors: EngineCodeHook = {
+  name: 'skulkingHorrors', kind: 'ability', hook: 'onMove', run: noop,
+  pick: { window: 'movement.unitMoved', topic: 'abilityChoice', offer: (ctx, w, k) => tyr.skulkingOffer(ctx, w, k), handle: (ctx, a, p) => tyr.skulkingHandle(ctx, a, p) },
+}
+
+const disruptionBombardment: EngineCodeHook = {
+  name: 'disruptionBombardment', kind: 'ability', hook: 'onUnitSelectedToShoot', run: noop,
+  pick: { window: 'shooting.attacksResolved', topic: 'abilityChoice', offer: (ctx, w, k) => tyr.disruptionOffer(ctx, w, k), handle: (ctx, a, p) => tyr.disruptionHandle(ctx, a, p) },
+}
+
+// marker abilities: the logic lives in the engine (deathblow.ts, stratagems.ts effectiveCost, setup.ts splitPatrolSquad)
+const deathBlow: EngineCodeHook = { name: 'deathBlow', kind: 'ability', hook: 'onModelDestroyed', run: noop }
+const stratagemCostOverride: EngineCodeHook = { name: 'stratagemCostOverride', kind: 'ability', hook: 'onCharge', run: noop }
+const patrolSquads: EngineCodeHook = { name: 'patrolSquads', kind: 'ability', hook: 'onDeployment', run: noop }
+
+// Voracious Assault: the re-roll is declarative (descriptor 'when' targetIsClosestEligible); the hook only lets the stratagem's
+// ActiveEffect re-roll apply at the hit roll
+const voraciousAssaultHit: EngineCodeHook = { name: 'voraciousAssaultHit', kind: 'stratagem', hook: 'onHitRoll', run: noop, hooks: ['onHitRoll'] }
+
+const teemingBroods: EngineCodeHook = {
+  name: 'teemingBroods', kind: 'stratagem', hook: 'onReinforcements', run: noop,
+  // only offered when something could return: a destroyed unit (a new copy joins) or an on-board unit below Starting Strength
+  check(env, t) {
+    const u = env.state.units[t.ids[0]]
+    if (!u) return false
+    if (u.location === 'destroyed') return true
+    return u.location === 'board' && u.destroyedModels.length > 0 && u.models.length < u.startingStrength
+  },
+  apply: (ctx, env, t) => tyr.teemingBroodsApply(ctx, env.stratagem.id, env.player, t.ids[0]),
+}
+
+// secondaries are scored in missions.ts (custom amounts); names registered for data validation
+const alphaXenoform = missionHook('alphaXenoform')
+const chitinousTide = missionHook('chitinousTide', 'onTurnEnd')
+
 export const codeHooks: Record<string, EngineCodeHook> = {
   oathOfMomentPick, waaaghCall, deadArdFeelNoPain, pistonDrivenBrutality, tellyportaGrant, veteranInstincts,
   fireOverwatch, heroicInterventionCharge, rapidIngressArrival, counterOffensive, epicChallenge, tankShockMortalWounds,
   grenadeMortalWounds, getStuckInDistance, grantBenefitOfCover, dutyAndHonour,
+  reanimationProtocols, resonantFocusPick, resonantFocusReroll, requireFriendlyKeywordOnBoard, plasmacyteSurge,
+  ...chaosSpaceMarinesHooks,
+  markedForExecution: missionHook('markedForExecution', 'onUnitDestroyed'),
+  synapseBattleShock, shadowInTheWarp, secretionGoadShoot, secretionGoadFight, skulkingHorrors, disruptionBombardment,
+  deathBlow, stratagemCostOverride, patrolSquads, voraciousAssaultHit, teemingBroods, alphaXenoform, chitinousTide,
+  ...adeptaSororitasHooks,
+  hallowedRetribution: missionHook('hallowedRetribution', 'onUnitDestroyed'),
+  consecratedGround: missionHook('consecratedGround', 'onTurnEnd'),
   breakTheirSpirit: missionHook('breakTheirSpirit', 'onBattleShockTest'),
   claimSites: missionHook('claimSites'),
   irradiatedPowerCells: missionHook('irradiatedPowerCells'),
   properLootin: missionHook('properLootin'),
+  reclaimAndDominate: missionHook('reclaimAndDominate', 'onTurnEnd'),
+  treasuresOfAeonsPick: missionHook('treasuresOfAeonsPick'),
+  treasuresOfAeonsScore: missionHook('treasuresOfAeonsScore', 'onUnitDestroyed'),
   razeAndRuin: missionHook('razeAndRuin'),
   retrieveIntelligence: missionHook('retrieveIntelligence'),
   sabotageComms: missionHook('sabotageComms', 'onTurnEnd'),
@@ -499,6 +739,9 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   supplyLines: missionHook('supplyLines'),
   sweepingRaidEndgameBonus: missionHook('sweepingRaidEndgameBonus'),
   wrathOfTheEmperor: missionHook('wrathOfTheEmperor'),
+  // astra-militarum (docs/spec/factions/astra-militarum.md §7): voiceOfCommand, commandLaurels, gunneryOfficer, requireActiveOrder,
+  // wargearBearerAlive, holdTheLine, methodicalDestructionPick/Score, sendInTheNextWave, bringItDown, artilleryStrike
+  ...astraMilitarumHooks(),
 }
 
 export type { ChooseOptionDecision }

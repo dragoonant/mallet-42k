@@ -1,0 +1,165 @@
+{
+  "id": "am.cp.karsks-gunners",
+  "faction": "astra-militarum",
+  "name": "Karsk's Gunners",
+  "units": [
+    {
+      "ref": "karsk",
+      "datasheet": "am.command-squad-karsk",
+      "size": 5,
+      "enhancement": "am.e.command-laurels",
+      "attachTo": "shock-a",
+      "wargear": [
+        {
+          "modelId": "veteran",
+          "count": 1,
+          "weapons": [
+            "am.w.bolt-pistol",
+            "am.w.power-fist"
+          ]
+        }
+      ]
+    },
+    {
+      "ref": "shock-a",
+      "datasheet": "am.cadian-shock-troops",
+      "size": 10,
+      "wargear": [
+        {
+          "modelId": "trooper",
+          "count": 1,
+          "weapons": [
+            "am.w.flamer",
+            "am.w.close-combat-weapon"
+          ]
+        },
+        {
+          "modelId": "trooper",
+          "count": 1,
+          "weapons": [
+            "am.w.meltagun",
+            "am.w.close-combat-weapon"
+          ]
+        }
+      ]
+    },
+    {
+      "ref": "shock-b",
+      "datasheet": "am.cadian-shock-troops",
+      "size": 10,
+      "wargear": [
+        {
+          "modelId": "sergeant",
+          "count": 1,
+          "weapons": [
+            "am.w.drum-fed-autogun",
+            "am.w.close-combat-weapon"
+          ]
+        },
+        {
+          "modelId": "trooper",
+          "count": 1,
+          "weapons": [
+            "am.w.grenade-launcher-frag",
+            "am.w.grenade-launcher-krak",
+            "am.w.close-combat-weapon"
+          ]
+        },
+        {
+          "modelId": "trooper",
+          "count": 1,
+          "weapons": [
+            "am.w.plasma-gun",
+            "am.w.plasma-gun-supercharge",
+            "am.w.close-combat-weapon"
+          ]
+        }
+      ]
+    },
+    {
+      "ref": "battery",
+      "datasheet": "am.field-ordnance-battery",
+      "size": 2
+    },
+    {
+      "ref": "sentinel",
+      "datasheet": "am.armoured-sentinels",
+      "size": 1
+    }
+  ],
+  "stratagems": [
+    "am.s.send-in-the-next-wave",
+    "am.s.bring-it-down",
+    "am.s.artillery-strike"
+  ],
+  "enhancements": [
+    {
+      "id": "am.e.command-laurels",
+      "default": true
+    },
+    {
+      "id": "am.e.gunnery-officer",
+      "default": false
+    }
+  ],
+  "secondaries": [
+    {
+      "id": "am.sec.hold-the-line",
+      "name": "Hold the Line",
+      "text": "At the end of each of your opponent's turns, score 5 victory points if no enemy unit that is not Battle-shocked is wholly within 6 inches of your deployment zone, or 3 victory points if none of them is wholly inside the zone itself.",
+      "default": true,
+      "scoring": [
+        {
+          "id": "hold-the-line",
+          "when": "turn.end",
+          "who": "opponent",
+          "rounds": {
+            "from": 1,
+            "to": 5
+          },
+          "rule": "custom",
+          "pointsPer": 3,
+          "cap": 5,
+          "code": "holdTheLine",
+          "params": {
+            "fullPoints": 5,
+            "buffer": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": "am.sec.methodical-destruction",
+      "name": "Methodical Destruction",
+      "text": "At the start of each battle round, pick one enemy unit that has not been destroyed. At the end of that round, score 4 victory points if that unit has been destroyed, by any cause.",
+      "default": false,
+      "scoring": [
+        {
+          "id": "methodical-destruction-pick",
+          "when": "round.start",
+          "rounds": {
+            "from": 1,
+            "to": 5
+          },
+          "rule": "custom",
+          "pointsPer": 0,
+          "cap": 0,
+          "code": "methodicalDestructionPick"
+        },
+        {
+          "id": "methodical-destruction-score",
+          "when": "round.end",
+          "rounds": {
+            "from": 1,
+            "to": 5
+          },
+          "rule": "custom",
+          "pointsPer": 4,
+          "cap": 4,
+          "code": "methodicalDestructionScore"
+        }
+      ]
+    }
+  ],
+  "warlord": "karsk"
+}

@@ -459,3 +459,214 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | SIM-016 | | attached units are never allocated wounds on the CHARACTER while bodyguards live (assert in allocation) |
 | SIM-017 | | objective control events only at phase/turn ends or rule-triggered evaluations |
 | SIM-018 | | all six missions × both roster pairings run without invariant failures |
+
+## NEC — Necrons: Amonhotekh's Guard (docs/spec/factions/necrons.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| NEC-001 | NEC-2.1 | end of own Command phase, Skorpekhs 2/3 models, one at 2W; D3 = 3 → wounded model to 3W, destroyed model returns at 1W, then healed to 2W (source example) |
+| NEC-002 | NEC-2.1 | Reanimation does not fire in the opponent's Command phase nor at any other phase end |
+| NEC-003 | NEC-2.2 | unit at full strength and full wounds → D3 rolled, no state change, no `ModelReturned`/`WoundsRegained` |
+| NEC-004 | NEC-2.2 | heal before return: Warriors 8/10 + attached Overlord at 4/6 W, D3 = 2 → Overlord to 6W, no Warrior returned |
+| NEC-005 | NEC-2.3 | attached Overlord + Warriors roll one D3 (one `DiceRolled` purpose `ability`), Starting Strength 11 |
+| NEC-006 | NEC-2.3 | Overlord destroyed → bodyguard is its own unit; next Reanimation never returns the Overlord |
+| NEC-007 | NEC-2.3 | all Warriors destroyed while led → Overlord alone (SS 1) cannot return Warriors |
+| NEC-008 | NEC-2.3 | a unit with `location: destroyed` never reanimates |
+| NEC-009 | NEC-2.4 | returned Warrior keeps its original id and loadout (a destroyed gauss reaper model returns with gauss reaper) |
+| NEC-010 | NEC-2.4 | returned model is in coherency, on the board, overlaps no base, not in ER of a new enemy unit |
+| NEC-011 | NEC-2.4 | no legal spot (unit boxed in) → step wasted, model stays destroyed |
+| NEC-012 | NEC-2.6 | returned Warriors count for OC in the same `command.end` primary scoring |
+| NEC-013 | NEC-3 | Overriding Control: led Warriors Fall Back then shoot (legal); same unit cannot declare a charge |
+| NEC-014 | NEC-3 | Overriding Control: Skorpekhs (not the bearer's unit) cannot shoot after Falling Back |
+| NEC-015 | NEC-3 | Resonant Focus pick offered at own `command.start` only among enemies within 12" and visible to the bearer |
+| NEC-016 | NEC-3 | Resonant Focus: Doomstalker attack vs marked unit with an unmodified 1 re-rolls; vs another unit no re-roll; re-roll of 2+ not offered |
+| NEC-017 | NEC-3 | Resonant Focus expires at end of turn (opponent's turn: no re-roll) |
+| NEC-018 | NEC-4 | Reclaim and Dominate: Scarabs wholly in enemy DZ at end of own turn → +4 VP once even with two qualifying units |
+| NEC-019 | NEC-4 | Reclaim and Dominate: one model's base partly outside the DZ, or unit Battle-shocked → 0 VP |
+| NEC-020 | NEC-4 | Treasures of Aeons: pick offered at round 1 start among NML markers only |
+| NEC-021 | NEC-4 | Treasures of Aeons: enemy unit within range of the treasure marker at phase start, moves away, destroyed by Warriors that phase → +3 VP |
+| NEC-022 | NEC-4 | Treasures of Aeons: unit within range of the owner's DZ marker at phase start destroyed → +3 VP; unit outside both at phase start but inside when destroyed → 0 VP |
+| NEC-023 | NEC-4 | Treasures of Aeons: kill by Deadly Demise mortal wounds (no `byModelId`) → 0 VP |
+| NEC-024 | NEC-5 | Mercurial Resilience: offered after enemy targets declared in opponent's Shooting; Warriors gain 5+ invuln until phase end; Overlord keeps 4+ |
+| NEC-025 | NEC-5 | Mercurial Resilience in a Fight phase (either turn) after an enemy unit selects targets |
+| NEC-026 | NEC-5 | Disruption Fields: Skorpekh hyperphase S7 → S8; vs T8 now wounds on 4+ (was 5+); ranged weapons unchanged; not offered for a unit that already fought |
+| NEC-027 | NEC-5 | Will of the Overlord: +1 OC per model until start of own next Command phase |
+| NEC-028 | NEC-5 | Will of the Overlord not offered when no OVERLORD model is on the board |
+| NEC-029 | NEC-6 | Implacable Resilience: a D2 attack allocated to the Overlord deals 1; D1 stays 1; Deadly Demise mortal wounds not reduced |
+| NEC-030 | NEC-6 | Plasmacyte: offered when Skorpekhs are selected to fight; used → hyperphase weapons gain Devastating Wounds this phase; never offered again |
+| NEC-031 | NEC-6 | tachyon arrow is One Shot: second shooting phase it is not a legal weapon |
+| NEC-032 | NEC-6 | Doomstalker at 4 W left: −1 to hit on its attacks; at 5 W no modifier |
+| NEC-033 | NEC-6 | Deadly Demise: Scarab model destroyed → D6 roll, on 6 units within 6" take 1 MW; Doomstalker → D3 MW |
+| NEC-034 | NEC-6 | gauss flayer / twin gauss flayer: Lethal Hits auto-wound on critical hit; Rapid Fire 1 at half range; twin-linked re-rolls wound |
+| NEC-035 | NEC-1 | patrol loads: 5 units, 18 models, Overlord is WARLORD with Overriding Control and attached to Warriors; default secondary Reclaim and Dominate |
+| NEC-036 | NEC-3 | Resonant Focus re-roll survives the bearer's death: Overlord destroyed after the mark is placed → marked-unit hit re-roll of 1s still applies (Doomstalker and Warriors), still not vs another unit, gone at turn end |
+| NEC-037 | NEC-6 | a fired One Shot weapon is not a legal Overwatch weapon: after the tachyon arrow is fired it is absent from Fire Overwatch targets in both the Movement and Charge phases, and `attackService.begin` refuses it centrally |
+| NEC-038 | NEC-4 | Treasures of Aeons: a unit finished off by Devastating Wounds from a NECRONS attack near the treasure marker (in range at phase start) → +3 VP, credited to the attacking model |
+
+## CHA — Chaos Space Marines: Zarkan's Daemonkin (docs/spec/factions/chaos-space-marines.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| CHA-001 | CHA-2.1 | Legionaries selected to shoot → Dark Pact offered at `shooting.unitSelected` with lethal / sustained / decline; decline → no Ld roll, no effect |
+| CHA-002 | CHA-2.1 | Possessed selected to fight → Dark Pact offered at `fight.unitSelected` before pile-in |
+| CHA-003 | CHA-2.2 | Pact made, Ld test 2D6 = 7 vs Ld 6+ → pass, no mortal wounds; weapons gain the picked ability until phase end |
+| CHA-004 | CHA-2.2 | Pact made, Ld test fails → D3 mortal wounds on the unit (owner allocates), then the ability is still gained |
+| CHA-005 | CHA-2.2 | Ld test is not a Battle-shock test: failing never sets `battleShocked`, Insane Bravery is not offered, Battle-shock modifiers do not apply |
+| CHA-006 | CHA-2.3 | Lethal Hits pact: boltgun critical hit auto-wounds; Sustained Hits pact: critical hit adds 1 hit; both expire at phase end |
+| CHA-007 | CHA-2.3 | attached Zarkan + Possessed make one Pact: one Ld test using best Ld, ability on both halves' weapons |
+| CHA-008 | CHA-2.3 | Pact mortal wounds destroy the whole unit → no declareTargets, no ability granted |
+| CHA-009 | CHA-2.4 | Fire Overwatch by Legionaries → no Dark Pact prompt |
+| CHA-010 | CHA-3 | Foul Zealotry: Zarkan's unit Pact options are both / decline; `both` grants Lethal Hits and Sustained Hits 1 together |
+| CHA-011 | CHA-3 | Foul Zealotry does not affect Cultists or an un-led unit (pick-one options) |
+| CHA-012 | CHA-3 | Prey on the Weak: Rite of Possession hits enemy unit X → after Zarkan's unit shoots, pick X, X tests Battle-shock with −1 |
+| CHA-013 | CHA-3 | Prey on the Weak: enemy hit only by bolt pistol / Legionary boltguns → no prompt; Rite attacks all miss → no prompt |
+| CHA-014 | CHA-4 | Marked for Execution: opponent WARLORD destroyed in round 2 → +12 VP; in round 4 → +6 VP; never scores twice |
+| CHA-015 | CHA-4 | Marked for Execution: WARLORD killed by its own Hazardous roll still scores |
+| CHA-016 | CHA-4 | Sites of Power: round 1 → 0 VP; round 2, end of own turn, 2 vs 2 markers → +2 VP; 1 vs 2 → 0; 0 vs 0 → +2 |
+| CHA-017 | CHA-5 | Vindictive Strategy: target at Starting Strength → no hit re-roll; one model lost → hit roll of 1 re-rolled, wound roll of 1 not |
+| CHA-018 | CHA-5 | Vindictive Strategy: target below half-strength → hit 1s and wound 1s both re-rolled; attached target uses combined Starting Strength |
+| CHA-019 | CHA-5 | Vindictive Strategy not offered for a unit already selected to shoot / that already fought this phase |
+| CHA-020 | CHA-5 | Violent Unbinding: enemy melee attack destroys Zarkan, attacker within 6" → window opens before the next attack; D6 = 6 → 3 MW to the attacker |
+| CHA-021 | CHA-5 | Violent Unbinding: attacker more than 6" away (shooting) → stratagem not offered; D6 = 1 → no mortal wounds |
+| CHA-022 | CHA-5 | Daemonic Fervour: Possessed targeted in the Fight phase, model destroyed, D6 = 4 → model stays at 0 W, not allocatable, fights after the enemy unit's attacks, then removed |
+| CHA-023 | CHA-5 | Daemonic Fervour: D6 = 3 → removed normally; Possessed already fought this phase → no roll |
+| CHA-024 | CHA-5 | Daemonic Fervour: deferred model has no OC and is skipped by coherency; `UnitDestroyed` only after the last deferred model is removed; kill credited to the attacker |
+| CHA-025 | CHA-6 | Sacrificial Dagger: Zarkan selected to shoot, use → his unit suffers 1 MW; Rite of Possession gets +1 hit and +1 wound this phase; bolt pistol does not |
+| CHA-026 | CHA-6 | Sacrificial Dagger offered at most once per phase and only after the Dark Pact prompt |
+| CHA-027 | CHA-6 | Veterans of the Long War: Legionaries melee wound roll of 1 re-rolled; target within range of a marker → any failed wound roll re-rolled; ranged attacks unaffected |
+| CHA-028 | CHA-6 | Rite of Possession vs a PSYKER target: Anti-PSYKER 2+ → every unmodified wound roll of 2+ is a critical wound; Precision lets the attacker allocate to a visible CHARACTER |
+| CHA-029 | CHA-6 | Zarkan and Possessed have a 5+ invulnerable save (used against AP −3 instead of the 3+ armour) |
+| CHA-030 | CHA-6 | Legionary heavy bolter: Heavy +1 to hit when Remained Stationary; meltagun Melta 2 at half range |
+| CHA-031 | CHA-1 | patrol loads: 4 units, 26 models, Zarkan is WARLORD with Foul Zealotry and attached to Possessed; default secondary Marked for Execution |
+| CHA-032 | CHA-1 | Zarkan may instead attach to Legionaries (pre-game choice); never to Cultists |
+
+## TYR — Tyranids: The Vardenghast Swarm (docs/spec/factions/tyranids.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| TYR-001 | TYR-2.2 | Termagants within 6" of the Prime take a Battle-shock test → one `DiceRolled` with 3 dice, total = sum of 3 |
+| TYR-002 | TYR-2.1 | Termagants 7" from the Prime (no model within 6") → 2D6 test |
+| TYR-003 | TYR-2.3 | Prime destroyed → every Tyranid test is 2D6; the Prime's own test while alive is 3D6 |
+| TYR-004 | TYR-2.1 | an enemy unit within 6" of the Prime tests on 2D6 (Synapse only helps its owner) |
+| TYR-005 | TYR-2.4 | Shadow in the Warp offered at own `command.start`; used → every enemy board unit tests once (attached pair once); never offered again this battle |
+| TYR-006 | TYR-2.5 | Shadow in the Warp offered to the Tyranid player at the opponent's `command.start`; a failed unit stays shocked through that Command phase (OC 0 for its primary scoring) |
+| TYR-007 | TYR-2.4 | Shadow in the Warp not offered while the Prime is in Reserves or destroyed |
+| TYR-008 | TYR-3 | Psychostatic Veil: Prime has a 4+ invuln; melee hit roll vs the Prime gets −1; ranged hit roll unchanged |
+| TYR-009 | TYR-3 | Psychostatic Veil: the Prime cannot be targeted by a ranged attack from 13"; can from 12" (Lone Operative) |
+| TYR-010 | TYR-3 | Secretion Goad: Barbgaunts within 6" of the bearer declare targets → offered; used → barblauncher AP 0 → −1 this phase only |
+| TYR-011 | TYR-3 | Secretion Goad once per turn: after use in Shooting, not offered in that turn's Fight; offered again next turn (incl. the opponent's Fight phase) |
+| TYR-012 | TYR-3 | Secretion Goad not offered for a unit with no model within 6" of the bearer |
+| TYR-013 | TYR-4 | Alpha Xenoform: the Prime kills an enemy model in a phase → +4 VP at that phase end; a kill by Termagants → 0 |
+| TYR-014 | TYR-4 | Alpha Xenoform: Prime destroyed in melee, Death Blow 4+, fights back and kills → +4 VP that phase |
+| TYR-015 | TYR-4 | Chitinous Tide: control a marker 5" outside the enemy DZ at own `turn.end` → +5 VP; 7" outside → 0; centre 6.5" outside (marker edge within 6") → +5 VP; two such markers → still 5 |
+| TYR-016 | TYR-5.1 | Hyper-Reactive after an enemy targets Termagants in the opponent's Shooting → their hit rolls −1 until phase end; not offered for the Psychophage (not INFANTRY) |
+| TYR-017 | TYR-5.1 | Hyper-Reactive in a Fight phase after an enemy unit selects the Leapers as its melee target |
+| TYR-018 | TYR-5.2 | Voracious Assault: Termagants shoot the closest eligible enemy → hit re-roll offered; at a farther unit → none |
+| TYR-019 | TYR-5.2 | Voracious Assault: two enemy units tied for closest → both qualify |
+| TYR-019b | TYR-5.2 | Voracious Assault: offered in either player's Fight phase for a unit not yet selected to fight; in Shooting only in your own phase for a unit not yet selected to shoot (`notYetShot`) |
+| TYR-020 | TYR-5.3 | Teeming Broods on Termagants at 12/20 with D6 = 4 → 16 models; returned models at 1 W, in coherency, not in ER of enemies |
+| TYR-021 | TYR-5.3 | Teeming Broods on a 10-model split unit at 8/10 with D6 = 5 → only 2 return (Starting Strength cap) |
+| TYR-022 | TYR-5.4 | Teeming Broods on a destroyed Termagants unit, 2D6 = 7 → new Reserves unit with 7 models, SS 7; the destroyed unit stays destroyed |
+| TYR-023 | TYR-5.4 | the spawned unit arrives as Strategic Reserves in a later own Movement phase: wholly within 6" of an edge, >9" from enemies, not in the enemy DZ in round 2; cannot arrive in the step it was created |
+| TYR-024 | TYR-5.4 | a spawned unit still in Reserves at the end of round 3 is removed; the opponent gets no kill credit |
+| TYR-025 | TYR-5.5 | Teeming Broods target list includes destroyed TERMAGANTS units; no other stratagem lists destroyed units |
+| TYR-026 | TYR-6.1 | Death Blow: Prime (not yet fought) killed in melee, D6 = 4 → not removed, `ModelRemovalDeferred`; once the attacker's activation ends its controller may fight with it (use/decline), then `ModelDestroyed` credits the original killer; declining removes it at once |
+| TYR-027 | TYR-6.1 | Death Blow: D6 = 3 → removed at once; killed by a ranged attack or mortal wounds → no roll; already fought this phase → no roll |
+| TYR-028 | TYR-6.1 | while removal is pending the Prime takes no further allocated attacks and adds 0 OC |
+| TYR-029 | TYR-6.2 | Feeding Frenzy: Psychophage melee vs a full-strength unit → no modifier; vs 19/20 Termagants → +1 hit; vs 9/20 → +1 hit and +1 wound |
+| TYR-030 | TYR-6.2 | Feeding Frenzy does not apply to the psychoclastic torrent (ranged) |
+| TYR-031 | TYR-6.3 | Skulking Horrors: enemy ends a Normal move 8" from Termagants → offer; used → D6" Normal move by the non-active player; a second enemy move that turn → no offer |
+| TYR-032 | TYR-6.3 | Skulking Horrors not offered when the Termagants are in ER, when the enemy ends 10" away, or after a Charge / Pile-in move |
+| TYR-033 | TYR-6.4 | Disruption Bombardment: Barbgaunts hit enemy INFANTRY → that unit −2 M, −2 Advance, −2 Charge through the opponent's next turn; expires at the start of the Tyranid player's next turn |
+| TYR-034 | TYR-6.4 | Disruption Bombardment: only a VEHICLE/MONSTER was hit, or nothing was hit → no effect |
+| TYR-035 | TYR-6.5 | Pouncing Leap: Heroic Intervention with the Leapers costs 0 CP (offered at 0 CP) and is offered even after HI was used on another unit this phase; Termagants still pay 1 CP |
+| TYR-036 | TYR-6.6 | Patrol Squads: split offered at Declare Battle Formations → two TERMAGANTS units of 10, each SS 10, each with Skulking Horrors |
+| TYR-037 | TYR-6 | Leapers deploy via Infiltrators more than 9" from the enemy DZ and enemy models; 8.9" is rejected |
+| TYR-038 | TYR-6 | Leapers fight in the Fights First step without having charged; Psychophage FNP 5+ and Deadly Demise 1 resolve |
+| TYR-039 | TYR-6 | psychoclastic torrent auto-hits and ignores cover; the maw's Anti-Psyker 4+ makes a 4+ wound roll vs a PSYKER critical, triggering Devastating Wounds |
+| TYR-040 | TYR-1 | patrol loads: 5 units, 30 models, the Prime is WARLORD with Psychostatic Veil; default secondary Alpha Xenoform |
+
+## AST — Astra Militarum: Karsk's Gunners (docs/spec/factions/astra-militarum.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| AST-001 | AST-1 | patrol loads: 5 units, 28 models; Karsk unit is WARLORD with Command Laurels borne by the Karsk model and attached to `shock-a`; default secondary Hold the Line; Sentinel can use Smokescreen, no unit can use Grenade |
+| AST-002 | AST-2.1 | own `command.end`: Order offered for REGIMENT units within 6" of Karsk only; never in the opponent's Command phase |
+| AST-003 | AST-2.1 | Karsk model destroyed, veterans alive → no Order offered |
+| AST-004 | AST-2.5 | Take Aim!: lasgun hits on 3+ (was 4+) until the start of own next turn, then 4+ again |
+| AST-005 | AST-2.5 | Move! Move! Move!: M 6 → 9; an Advance adds its roll on top |
+| AST-006 | AST-2.5 | Take Cover!: Shock Troops 5+ → 4+, Battery 4+ → 3+, Sentinel 2+ stays 2+, a 3+ model stays 3+ |
+| AST-007 | AST-2.3 | a second Order issued to an ordered unit replaces the first (`EffectExpired` for the old one) |
+| AST-008 | AST-2.4 | ordered unit fails a battle-shock test → Order removed at once (save/BS back to datasheet value) |
+| AST-009 | AST-2.4 | Order issued at `command.end` to a unit that failed battle-shock earlier that phase still applies |
+| AST-010 | AST-2.2 | unattached Command Squad Karsk is not an eligible target; attached Karsk + Shock Troops is (Karsk's own models gain the Order) |
+| AST-011 | AST-3.1 | Command Laurels: +1 CP in own Command phase while Karsk is on the board; discarded when the R-4.2 cap is already used; none after Karsk dies |
+| AST-012 | AST-3.1 | Command Laurels: one Order reaches every friendly AM unit on the board (Sentinel 30" away, unattached Command Squad included) |
+| AST-013 | AST-3.0 | enhancement bearer is the Karsk model: veterans alive and Karsk dead → no Laurels CP, no Gunnery aura |
+| AST-014 | AST-3.2 | Gunnery Officer: Battery within 6" of Karsk's unit → re-roll offered for the bombast D6 and for the D6 of malleus D6+6; beyond 6" → not offered |
+| AST-015 | AST-3.2 | Gunnery Officer: Battery in aura and never attacked → enemy ranged attacker 13" away cannot target it, 11" away can |
+| AST-016 | AST-3.2 | Gunnery Officer Lone Operative lost after the Battery model has made any attack (incl. Overwatch) or when the aura breaks |
+| AST-017 | AST-3.2 | Gunnery Officer: +1 CP; Orders limited to 1 unit within 6" (no Laurels broadcast) |
+| AST-018 | AST-4.1 | Hold the Line at end of opponent's turn: no enemy wholly within 6" of own DZ → 5 VP; one enemy wholly within 6" but not wholly in DZ → 3 VP; enemy wholly in DZ → 0 VP |
+| AST-019 | AST-4.1 | Hold the Line ignores Battle-shocked enemies and units with one model outside the region; never scored at the end of own turn |
+| AST-020 | AST-4.2 | Methodical Destruction: round-start pick lists canonical enemy units (attached pair once, Reserves included); target destroyed that round by any cause → 4 VP at round end; survives → 0 |
+| AST-021 | AST-4.2 | Methodical Destruction on an attached pair: only the bodyguard destroyed → 0 VP; both halves → 4 VP |
+| AST-022 | AST-5.1 | Send in the Next Wave: offered in own Movement phase only when a CADIAN SHOCK TROOPS unit is destroyed; new unit has 10 models with the original per-model loadouts (sergeant chainsword, flamer, meltagun), full wounds, new ids |
+| AST-023 | AST-5.1 | Next Wave placement: outside the 9" edge strip or within Engagement Range is rejected; new unit counts as arrived (no further move; may shoot); opponent gets the Fire Overwatch window |
+| AST-024 | AST-5.1 | Next Wave usable in round 1; the same destroyed unit may be targeted again in a later turn; never offered for Command Squad Karsk or the Battery |
+| AST-025 | AST-5.2 | Bring It Down: AM attacks against the chosen enemy re-roll hit rolls (fails auto, successes offered); attacks against other units do not; ends at phase end; the re-roll actually fires (code hook `bringItDown` present) |
+| AST-026 | AST-5.3 | Artillery Strike at the opponent's `command.start`: that turn enemy M 6 → 3 and 5 → 3, Advance 5 → 3, no charge declarations, ranged hit −1 (melee unaffected); all gone at turn end |
+| AST-027 | AST-5.3 | Artillery Strike: once per battle; costs 2 CP; not offered in own turn or with no OFFICER model on the board; applies to a unit arriving from Reserves that turn |
+| AST-028 | AST-6.5 | Rearm, Reload, Fire: Battery with an Order and Remained Stationary → bombast/malleus Sustained Hits 1; moved, or no Order → none; lasgun never; Overwatch in the opponent's turn → none |
+| AST-029 | AST-6.6 | Patrol Squads: split → two 1-model Battery units (ids `…:battery`, `…:battery-2`, SS 1 each); unsplit → one 2-model unit |
+| AST-030 | AST-6.2 | Medi-pack: Karsk's attached unit has FNP 6+ while the medic lives; medic destroyed → no FNP |
+| AST-031 | AST-6.3 | Regimental Standard: Shock Troops OC 3, veterans/Karsk OC 2 while the bearer lives; bearer destroyed → base OC |
+| AST-032 | AST-6.1 | allocation into attached Karsk + Shock Troops: veterans and troopers allocatable, Karsk not while a Shock Trooper lives |
+| AST-033 | AST-6.1 | Precision / Epic Challenge pick only Karsk among the Command Squad; Artillery Strike target list = Karsk model only |
+| AST-034 | AST-6.7 | Mobile Hunter-killers: Sentinel wound re-roll vs VEHICLE/MONSTER targets, none vs INFANTRY |
+| AST-035 | AST-6.7 | Sentinel: hunter-killer One Shot; plasma cannon supercharge Hazardous; Deadly Demise 1 on destruction |
+| AST-036 | AST-6 | weapons: meltagun +2 D at half range; frag Blast vs 10 models +2 attacks; bombast Indirect Fire at a non-visible target; flamer Torrent ignores cover; lasgun Rapid Fire 1 |
+| AST-037 | AST-6.6 | Gunnery Officer + split Battery: each 1-model unit is tested separately for the aura and Lone Operative |
+| AST-038 | AST-2.5 | Take Aim! has no effect on Torrent weapons or melee WS |
+| AST-039 | AST-2.3 | Orders expire at the start of own next turn even when no new Order is issued |
+| AST-040 | AST-5.1 | Next Wave not offered when no legal set-up exists in the strip (all positions in ER / blocked) |
+| AST-041 | AST-5.2 | Bring It Down: an AM unit that was Battle-shocked when the Stratagem was used gets no hit re-roll against the chosen enemy; a non-shocked AM unit still does; an attached unit with either half Battle-shocked gets none |
+
+## ADE — Adepta Sororitas: Sanctuary Guardians (docs/spec/factions/adepta-sororitas.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| ADE-001 | ADE-1 | patrol loads: 4 units, 26 models, Canoness is WARLORD with Defender of the Faith, attached to Sacresants; default secondary Hallowed Retribution |
+| ADE-002 | ADE-1.1 | Canoness may attach to Battle Sisters Squad instead; not to Arco-flagellants |
+| ADE-003 | ADE-1.2 | Patrol Squads: `splitUnits:['sisters']` → two 5-model units with the listed wargear, each Starting Strength 5; default stays one unit of 10 |
+| ADE-004 | ADE-2.1 | a Miracle die is gained at the start of each turn, both players' turns (one `MiracleDieGained` per turn, value = a D6) |
+| ADE-005 | ADE-2.1 | own ADEPTA SORORITAS unit destroyed → +1 Miracle die; enemy unit destroyed → none |
+| ADE-006 | ADE-2.2 | hit roll substitution: Miracle die 6 replaces one hit die of a boltgun batch → unmodified 6 (critical), die leaves the pool, `MiracleDieSpent` mode substitute |
+| ADE-007 | ADE-2.2 | save substitution when an ADEPTA SORORITAS unit is attacked; substituted value is unmodified, AP still applies |
+| ADE-008 | ADE-2.2 | no `miracleDie` decision for a non-eligible roll (FNP, Hazardous, Desperate Escape, D6 attack count) or an empty pool |
+| ADE-009 | ADE-2.3 | charge roll: at most one of the 2D6 replaced; the other die is rolled |
+| ADE-010 | ADE-2.3 | a substituted die cannot be re-rolled (Command Re-roll / Lead the Righteous refuse that index) |
+| ADE-011 | ADE-2.3 | D3 damage roll is never offered a substitution; D6 damage is |
+| ADE-012 | ADE-2.4, 2.5 | `spentThisPhase` records the unit after a substitution and clears at phase end; a discard (enhancement/stratagem) does not record it; a second substitution for the same unit in the same phase is not offered (`maxSubstitutions` = 1, one die per Act of Faith) |
+| ADE-013 | ADE-2.6 | led Sacresants all destroyed (Canoness survives) → that half's `UnitDestroyed` grants 1 die |
+| ADE-014 | ADE-3 | Defender of the Faith: Canoness Sv 3+ → 2+ and the led unit's models 3+ → 2+ (Sacresants or Battle Sisters) |
+| ADE-015 | ADE-3 | Defender of the Faith OC: discard at own Command phase → bearer's unit +1 OC per model until own next Command phase; pool −1; not offered with empty pool |
+| ADE-016 | ADE-3 | Righteous Fury: bearer's unit Advances then shoots and declares a charge; Falls Back then shoots and charges; Arco-flagellants cannot |
+| ADE-017 | ADE-3 | Righteous Fury charge re-roll after a discard: failed charge may be re-rolled that turn only |
+| ADE-018 | ADE-4 | Hallowed Retribution: Sacresants destroy an enemy unit → +3 VP |
+| ADE-019 | ADE-4 | Hallowed Retribution: killing unit made an Act of Faith earlier that phase → +4 VP; Act of Faith in a previous phase → +3 |
+| ADE-020 | ADE-4 | Hallowed Retribution: enemy unit killed with no `byUnitId` (e.g. its own Hazardous) → 0 VP |
+| ADE-021 | ADE-4 | Consecrated Ground: round 1 → 0; round 2+, unit model within 6" of centre at end of own turn → +3; with WARLORD in it → +4 (not 7); two units → still one award |
+| ADE-022 | ADE-4 | Consecrated Ground: only Battle-shocked units within 6" → 0 VP; opponent's turn end → nothing |
+| ADE-023 | ADE-5 | Ascetic Discipline: unmodified 6 to wound with a boltgun → AP −2 on that attack; non-critical wound keeps AP 0; expires at phase end |
+| ADE-024 | ADE-5 | Ascetic Discipline not offered for a unit already selected to shoot or fight this phase; IS offered in the opponent's Fight phase for an own unit that has not yet fought; not offered in the opponent's Shooting phase |
+| ADE-025 | ADE-5 | A Martyr's Death (Fight): a Sacresant destroyed before it has fought (by any enemy unit attacking the unit this phase), D6 ≥4 → model stays, fights after the destroying unit's attacks, then removed; D6 3 → removed at once |
+| ADE-026 | ADE-5 | A Martyr's Death with a discarded die: D6 3 + 1 → deferred; pool −1 |
+| ADE-027 | ADE-5 | A Martyr's Death (Shooting): deferred Battle Sisters shoot after the enemy unit finishes shooting, then removed; deferred models cannot be allocated further attacks and add no OC |
+| ADE-028 | ADE-5 | A Martyr's Death: the destroyed model has already shot / fought this phase → no D6 for it, removed normally (other models of the unit that have not acted still roll) |
+| ADE-029 | ADE-5 | Holy Radiance: −1 to hit for attacks against the unit (not the unit's own hit rolls) and FNP 5+ per damage point, opponent's Shooting only, until phase end |
+| ADE-030 | ADE-6 | Lead the Righteous: led unit may re-roll any hit die (incl. a success to fish for a Lethal Hits 6); not when the Canoness is not attached |
+| ADE-031 | ADE-6 | Null Rod: FNP 4+ vs a Devastating Wounds mortal and vs a Psychic weapon attack; no FNP vs a normal boltgun attack |
+| ADE-032 | ADE-6 | Simulacrum Imperialis: end of own Command phase, bearer in range of one controlled marker, D6 = 5 → +1 Miracle die of value 5; D6 = 3 → none; bearer dead → no roll; bearer out of range but another model of her unit in range → roll |
+| ADE-033 | ADE-6 | Sworn Protectors: attacks targeting led Sacresants get −1 to wound (their own wound rolls unaffected); unled → no modifier |
+| ADE-034 | ADE-6 | Extremis Trigger Word: triggered → arco-flails A 6 + Hazardous this phase, Hazardous test after attacks; declined → A 4, no Hazardous |
+| ADE-035 | ADE-6 | Arco-flagellants: Sv 7+ means no armour save; FNP 5+ per wound point |
+| ADE-036 | ADE-6 | Condemnor boltgun: wound roll 2+ vs PSYKER is critical → Devastating Wounds mortal; Precision allows allocation to a CHARACTER in an attached unit |
+| ADE-037 | ADE-6 | combi-weapon Anti-Infantry 4+: unmodified 4 to wound vs INFANTRY is critical → Devastating Wounds |
+| ADE-038 | ADE-6 | Ministorum flamer / heavy flamer: Torrent auto-hits D6 attacks, Ignores Cover; hallowed mace Lethal Hits auto-wounds on a critical hit |
+| ADE-039 | ADE-2.2 | limitation: a Battle-shock test forced mid-resolution (source other than `command`) rolls its 2D6 straight through and never raises a `miracleDie` decision, even with a non-empty pool; the Command-phase test does |

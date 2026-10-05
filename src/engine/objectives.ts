@@ -98,7 +98,7 @@ export const objectiveService: ObjectiveService = {
       for (const id of objectiveService.modelsInRange(state, objectiveId, player)) {
         const model = state.models[id]
         const unit = state.units[model.unitId]
-        if (unit.battleShocked) continue
+        if (unit.battleShocked || model.pendingRemoval) continue // a Death Blow model awaiting removal adds 0 OC
         const base = modelStats(state, model).OC
         levels[player] += hookService.statFor(state, { unitId: unit.id, modelId: model.id, weapon: null, stat: 'OC' }, base)
       }

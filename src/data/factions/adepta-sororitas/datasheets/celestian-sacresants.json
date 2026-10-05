@@ -1,0 +1,25 @@
+[
+  {
+    "id": "ade.celestian-sacresants",
+    "faction": "adepta-sororitas",
+    "name": "Celestian Sacresants",
+    "keywords": ["INFANTRY", "IMPERIUM", "CELESTIAN SACRESANTS"],
+    "factionKeywords": ["ADEPTA SORORITAS"],
+    "stats": { "M": 6, "T": 3, "Sv": 3, "W": 1, "Ld": 7, "OC": 1 },
+    "invuln": 4,
+    "composition": [
+      {
+        "modelId": "sacresant",
+        "name": "Celestian Sacresant",
+        "min": 5, "max": 5, "default": 5,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["ade.w.bolt-pistol", "ade.w.hallowed-mace"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      }
+    ],
+    "abilities": ["ade.a.acts-of-faith", "ade.a.sworn-protectors"],
+    "coreAbilities": [],
+    "points": [ { "models": 5, "points": 0 } ],
+    "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+  }
+]

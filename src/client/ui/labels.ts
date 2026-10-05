@@ -235,7 +235,7 @@ function rerollTargetText(state: GameState, events: readonly GameEvent[], roll: 
       const S = weapon?.S ?? null
       const T = unitToughness(state, roll.targetUnitId)
       if (S === null || T === null) return ''
-      return ` — S${S} vs T${T}, needs ${woundRollNeeded(S, T)}+`
+      return ` — Strength ${S} vs Toughness ${T}, needs ${woundRollNeeded(S, T)}+`
     }
     case 'save': {
       // The engine publishes the target of the save actually being made (armour or invulnerable,
@@ -245,7 +245,7 @@ function rerollTargetText(state: GameState, events: readonly GameEvent[], roll: 
       if (!targets || !kind || kind === 'none') return ''
       const needed = kind === 'invuln' ? targets.invuln : targets.armour
       if (needed === null) return ''
-      const basis = kind === 'invuln' ? 'invulnerable save' : `armour ${targets.sv}+${targets.ap === 0 ? '' : ` against AP ${targets.ap}`}${targets.cover ? ' in cover' : ''}`
+      const basis = kind === 'invuln' ? 'invulnerable save' : `armour save ${targets.sv}+${targets.ap === 0 ? '' : ` against Armour Penetration ${targets.ap}`}${targets.cover ? ' in cover' : ''}`
       return ` — ${basis} needs ${needed}+`
     }
     default:
@@ -476,9 +476,9 @@ export function shootingTargetHelp(
   const gap = unitGap(state, targets[0] ? (state.models[first.modelId]?.unitId ?? '') : '', targetUnitId)
   lines.push(
     `${targetName}: ${unitModelCount(state, targetUnitId)} model(s)` +
-      (T !== null ? `, T${T}` : '') +
-      (Sv !== null ? `, Sv${Sv}+` : '') +
-      (invuln !== null ? `, ${invuln}++` : '') +
+      (T !== null ? `, Toughness ${T}` : '') +
+      (Sv !== null ? `, Save ${Sv}+` : '') +
+      (invuln !== null ? `, invulnerable save ${invuln}+` : '') +
       (gap !== null ? ` — ${inches(gap)} away` : ''),
   )
 
@@ -497,7 +497,7 @@ export function shootingTargetHelp(
     shown++
     const hit = typeof w.skill === 'number' ? `hits on ${w.skill}+` : 'hits automatically'
     const wound = T === null ? null : `wounds on ${woundRollNeeded(w.S, T)}+`
-    const ap = w.AP === 0 ? 'AP 0' : `AP ${w.AP}`
+    const ap = `Armour Penetration ${w.AP}`
     lines.push(`${count}× ${w.name} — ${w.A} attack(s), ${hit}${wound ? `, ${wound}` : ''}, ${ap}, damage ${w.D}.`)
   }
   return { title: `Shoot ${targetName}`, lines }

@@ -1,0 +1,60 @@
+[
+  {
+    "id": "tyr.s.hyper-reactive",
+    "faction": "tyranids",
+    "name": "Hyper-Reactive",
+    "text": "Use just after an enemy unit selects its targets, in the opponent's Shooting phase or in the Fight phase, when one of your TYRANIDS INFANTRY units is a target. Until the end of the phase, every attack that targets that unit takes -1 to its hit roll.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["shooting", "fight"],
+    "window": ["shooting.targetsDeclared", "fight.targetsDeclared"],
+    "who": "either",
+    "condition": { "any": [ { "phase": "shooting", "ownTurn": false }, { "phase": "fight" } ] },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "INFANTRY" }, "state": "targetedByAttack", "count": 1 }
+    ],
+    "effect": { "modifyRoll": { "roll": "hit", "value": -1 } },
+    "scope": { "who": "attacker" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "tyr.s.voracious-assault",
+    "faction": "tyranids",
+    "name": "Voracious Assault",
+    "text": "Use in your Shooting phase, or in the Fight phase, for one of your TYRANIDS units that has not yet been selected to shoot (or to fight). Until the end of the phase, each attack a model in that unit makes against the closest eligible target may re-roll its hit roll.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["shooting", "fight"],
+    "window": ["shooting.start", "shooting.attacksResolved", "fight.start", "fight.attacksResolved"],
+    "who": "either",
+    "condition": { "any": [ { "phase": "shooting", "ownTurn": true }, { "phase": "fight" } ] },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "TYRANIDS" }, "state": "notYetShot", "count": 1 }
+    ],
+    "effect": { "when": { "targetIsClosestEligible": true }, "reroll": "all" },
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase",
+    "code": "voraciousAssaultHit",
+    "params": { "stateByPhase": { "shooting": "notYetShot", "fight": "notYetFought" } }
+  },
+  {
+    "id": "tyr.s.teeming-broods",
+    "faction": "tyranids",
+    "name": "Teeming Broods",
+    "text": "Use in your Movement phase, during the Reinforcements step, on one of your TERMAGANTS units, even one that has been destroyed. If it is on the battlefield, up to D6 of its destroyed models return to it. If it was destroyed, a new copy of the unit with 2D6 models is added to your army in Strategic Reserves.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["movement"],
+    "window": "movement.reinforcements",
+    "who": "active",
+    "condition": { "phase": "movement" },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "TERMAGANTS" }, "includeDestroyed": true, "count": 1 }
+    ],
+    "limit": "oncePerPhase",
+    "code": "teemingBroods",
+    "params": { "reviveDice": "D6", "respawnDice": "2D6", "respawnCap": 20, "respawnTo": "strategicReserves" }
+  }
+]

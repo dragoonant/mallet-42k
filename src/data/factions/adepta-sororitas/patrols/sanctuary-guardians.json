@@ -1,0 +1,57 @@
+{
+  "id": "ade.cp.sanctuary-guardians",
+  "faction": "adepta-sororitas",
+  "name": "Sanctuary Guardians",
+  "units": [
+    { "ref": "canoness", "datasheet": "ade.canoness-adalya", "size": 1, "enhancement": "ade.e.defender-of-the-faith", "attachTo": "sacresants" },
+    {
+      "ref": "sisters", "datasheet": "ade.battle-sisters-squad", "size": 10,
+      "patrolSquads": [
+        {
+          "ref": "sisters-a", "size": 5,
+          "wargear": [
+            { "modelId": "superior", "count": 1, "weapons": ["ade.w.bolt-pistol", "ade.w.combi-weapon", "ade.w.power-weapon"] },
+            { "modelId": "sister-flamer", "count": 1, "weapons": ["ade.w.bolt-pistol", "ade.w.ministorum-flamer", "ade.w.close-combat-weapon"] },
+            { "modelId": "sister-simulacrum", "count": 1, "weapons": ["ade.w.bolt-pistol", "ade.w.boltgun", "ade.w.close-combat-weapon"] },
+            { "modelId": "sister", "count": 2, "weapons": ["ade.w.bolt-pistol", "ade.w.boltgun", "ade.w.close-combat-weapon"] }
+          ]
+        },
+        {
+          "ref": "sisters-b", "size": 5,
+          "wargear": [
+            { "modelId": "sister-heavy-flamer", "count": 1, "weapons": ["ade.w.bolt-pistol", "ade.w.ministorum-heavy-flamer", "ade.w.close-combat-weapon"] },
+            { "modelId": "sister", "count": 4, "weapons": ["ade.w.bolt-pistol", "ade.w.boltgun", "ade.w.close-combat-weapon"] }
+          ]
+        }
+      ]
+    },
+    { "ref": "sacresants", "datasheet": "ade.celestian-sacresants", "size": 5 },
+    { "ref": "arcos", "datasheet": "ade.arco-flagellants", "size": 10 }
+  ],
+  "stratagems": ["ade.s.ascetic-discipline", "ade.s.a-martyrs-death", "ade.s.holy-radiance"],
+  "enhancements": [
+    { "id": "ade.e.defender-of-the-faith", "default": true },
+    { "id": "ade.e.righteous-fury", "default": false }
+  ],
+  "secondaries": [
+    {
+      "id": "ade.sec.hallowed-retribution",
+      "name": "Hallowed Retribution",
+      "text": "Each time one of your ADEPTA SORORITAS units destroys an enemy unit, score 3 victory points, or 4 if the destroying unit performed an Act of Faith earlier in that same phase. Kills not credited to an attacking unit do not score.",
+      "default": true,
+      "scoring": [
+        { "id": "hallowed-retribution", "when": "any.unitDestroyed", "rounds": { "from": 1, "to": 5 }, "who": "both", "rule": "custom", "pointsPer": 3, "cap": 99, "code": "hallowedRetribution" }
+      ]
+    },
+    {
+      "id": "ade.sec.consecrated-ground",
+      "name": "Consecrated Ground",
+      "text": "From battle round 2, at the end of each of your turns, score 3 victory points if one of your ADEPTA SORORITAS units that is not Battle-shocked has a model within 6 inches of the centre of the battlefield, or 4 if that unit contains your WARLORD. The award is flat, once per turn.",
+      "default": false,
+      "scoring": [
+        { "id": "consecrated-ground", "when": "turn.end", "rounds": { "from": 2, "to": 5 }, "who": "active", "rule": "custom", "pointsPer": 3, "cap": 99, "code": "consecratedGround" }
+      ]
+    }
+  ],
+  "warlord": "canoness"
+}

@@ -43,6 +43,11 @@ export const TRACER_TRAVEL_S: Record<ShotKind, number> = {
 const FACTION_COLOR: Record<string, string> = {
   sm: '#5aa7ff',
   ork: '#8dff5a',
+  necrons: '#39ff6a',
+  'chaos-space-marines': '#c25a7a',
+  tyranids: '#c14ee0',
+  'adepta-sororitas': '#ff6a5a',
+  'astra-militarum': '#c8a24a',
 }
 
 const NEUTRAL_MELEE_COLOR = '#e8e8f0'

@@ -1,0 +1,49 @@
+[
+  {
+    "id": "csm.legionaries",
+    "faction": "chaos-space-marines",
+    "name": "Legionaries",
+    "keywords": ["INFANTRY", "BATTLELINE", "CHAOS", "LEGIONARIES"],
+    "factionKeywords": ["HERETIC ASTARTES"],
+    "stats": { "M": 6, "T": 4, "Sv": 3, "W": 2, "Ld": 6, "OC": 2 },
+    "composition": [
+      {
+        "modelId": "champion",
+        "name": "Aspiring Champion",
+        "min": 1, "max": 1, "default": 1,
+        "champion": true,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["csm.w.plasma-pistol", "csm.w.plasma-pistol-supercharge", "csm.w.accursed-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "sm-tacticus", "parts": { "head": "sm.head.sergeant" } }
+      },
+      {
+        "modelId": "meltagun",
+        "name": "Legionary (meltagun)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["csm.w.bolt-pistol", "csm.w.meltagun", "csm.w.close-combat-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "sm-tacticus" }
+      },
+      {
+        "modelId": "heavy-bolter",
+        "name": "Legionary (heavy bolter)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["csm.w.bolt-pistol", "csm.w.heavy-bolter", "csm.w.close-combat-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "sm-tacticus" }
+      },
+      {
+        "modelId": "boltgun",
+        "name": "Legionary (boltgun)",
+        "min": 7, "max": 7, "default": 7,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["csm.w.bolt-pistol", "csm.w.boltgun", "csm.w.close-combat-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "sm-tacticus" }
+      }
+    ],
+    "abilities": ["csm.a.dark-pacts", "csm.a.veterans-of-the-long-war"],
+    "coreAbilities": [],
+    "points": [ { "models": 10, "points": 0 } ],
+    "figure": { "archetype": "infantry", "kit": "sm-tacticus" }
+  }
+]

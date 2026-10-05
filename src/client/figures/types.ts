@@ -29,6 +29,37 @@ export type KitId =
   | 'ork-warboss'
   | 'ork-deff-dread'
   | 'ork-deffkopta'
+  | 'nec-warrior'
+  | 'nec-overlord'
+  | 'nec-skorpekh'
+  | 'nec-doomstalker'
+  | 'nec-scarab'
+  | 'csm-legionary'
+  | 'csm-zarkan'
+  | 'csm-possessed'
+  | 'csm-cultist'
+  | 'tyr-prime'
+  | 'tyr-psychophage'
+  | 'tyr-termagant'
+  | 'tyr-barbgaunt'
+  | 'tyr-leaper'
+  | 'ade-canoness'
+  | 'ade-sister'
+  | 'ade-sister-superior'
+  | 'ade-sister-flamer'
+  | 'ade-sister-heavy-flamer'
+  | 'ade-sister-simulacrum'
+  | 'ade-sacresant'
+  | 'ade-arco'
+  | 'am-guardsman'
+  | 'am-sergeant'
+  | 'am-officer'
+  | 'am-veteran'
+  | 'am-medic'
+  | 'am-standard'
+  | 'am-sentinel'
+  | 'am-field-gun'
+  | 'am-rocket-battery'
   | 'generic-infantry'
   | 'generic-heavy'
   | 'generic-monster'
@@ -46,7 +77,9 @@ export interface PaintColors {
 
 /** Body geometry + weapon dressing for a biped kit (infantry/heavy/monster archetypes — every
  *  datasheet in this data set that isn't a flyer resolves to a biped). */
-export type HeadShape = 'marine-helmet' | 'terminator-helmet' | 'ork-head' | 'ork-boss-head' | 'generic-head'
+export type HeadShape = 'marine-helmet' | 'terminator-helmet' | 'ork-head' | 'ork-boss-head' | 'necron-skull' | 'necron-lord' | 'sister-bob' | 'sister-hood' | 'arco-mask' | 'tyranid-head' | 'tyranid-prime-head' | 'tyranid-brute-head' | 'generic-head'
+  | 'chaos-helmet' | 'chaos-sorcerer' | 'possessed-head' | 'cultist-hood'
+  | 'guard-helmet' | 'officer-cap' | 'sentinel-cab'
 export type WeaponShape =
   | 'none'
   | 'bolt-rifle'
@@ -57,6 +90,30 @@ export type WeaponShape =
   | 'boss-choppa'
   | 'power-klaw'
   | 'twin-claw'
+  | 'gauss-flayer'
+  | 'warscythe'
+  | 'hyperphase-blade'
+  | 'doomsday-blaster'
+  | 'chaos-bolter'
+  | 'ritual-staff'
+  | 'mutant-claw'
+  | 'rusty-blade'
+  | 'scything-talons'
+  | 'rending-claws'
+  | 'fleshborer'
+  | 'barblauncher'
+  | 'torrent-maw'
+  | 'flamer'
+  | 'heavy-flamer'
+  | 'power-sword'
+  | 'mace'
+  | 'tower-shield'
+  | 'flails'
+  | 'banner'
+  | 'lasgun'
+  | 'plasma-pistol'
+  | 'power-sword'
+  | 'plasma-cannon'
 export type ShoulderPad = 'none' | 'small' | 'large'
 
 export interface BipedConfig {
@@ -67,7 +124,40 @@ export interface BipedConfig {
   hasBackpack: boolean
   shoulderPads: ShoulderPad
   hasCape: boolean
-  skin: 'marine' | 'ork' | 'none' // 'none' = fully helmeted/armoured, no bare skin rendered
+  skin: 'marine' | 'ork' | 'daemon' | 'pale' | 'none' // 'none' = fully helmeted/armoured, no bare skin rendered
+  /** Which paint slot the arms use (default 'secondary'). Necron kits take 'metal' so the green stays a glow accent. */
+  limbColor?: 'secondary' | 'metal' | 'primary' | 'skin'
+  /** A small glowing core on the chest (paintScheme.secondary, emissive). */
+  chestCore?: boolean
+  /** A brass chest plate with a violet-glow sigil (paintScheme.trim + decal). */
+  chestPlate?: boolean
+  /** Which paint slot the torso uses (default 'primary'). Robed cultists take 'secondary'. */
+  torsoColor?: 'primary' | 'secondary'
+  /** Tyranid dressing: a swept-back crest of spines on the back (decal-coloured tips). */
+  dorsalSpines?: boolean
+  /** Tyranid dressing: a tapering tail behind the hips. */
+  tail?: boolean
+  /** Tyranid dressing: a pair of membrane wings behind the shoulders (Winged Prime). */
+  wings?: boolean
+  /** Tyranid dressing: a second, smaller pair of grasping arms below the main pair. */
+  extraArms?: boolean
+  /** Torso pitch forward, in radians — a hunched, predatory stance. */
+  hunch?: number
+  /** Sororitas dressing: a glowing halo disc behind the head, a bone-coloured tabard over the torso front,
+   *  the cape in trim colour (crimson) rather than secondary, bare skin for the torso (Arco-flagellants),
+   *  and the leg colour (a crimson loincloth reads from the trim slot). */
+  halo?: boolean
+  tabard?: boolean
+  capeColor?: 'secondary' | 'trim'
+  bareTorso?: boolean
+  legColor?: 'primary' | 'trim'
+  /** A red cross patch on the chest (paintScheme.decal): the Guard medic's mark. */
+  chestCross?: boolean
+}
+
+/** Towed/emplaced gun with its crew (Astra Militarum Field Ordnance Battery): a long barrel or a rocket rack. */
+export interface ArtilleryConfig {
+  barrel: 'field-gun' | 'rocket-rack'
 }
 
 export interface VehicleConfig {

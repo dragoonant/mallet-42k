@@ -36,19 +36,23 @@
 //   the sequence starts (which for the Shooting phase is the instant targets are declared), and `doHitBatch` reads
 //   only those marks — never `leaderService`/`los` live — for these two modifiers.
 import type { DiceExpr, WeaponAbilityName } from '../data/types'
+import { deferModelRemoval } from './deferred'
+import { miracleGate } from './miracle'
 import { canReroll, clampHitWoundModifier, clampStat, dieSucceeds, netModifier, parseDiceExpr, rollSum, woundRollNeeded } from './dice'
 import type { RollSpec } from './dice'
 import { distance } from './geometry'
 import type { AttackContext, EffectRequest, RollModifierResult } from './hooks'
 import { leaderService } from './leaders'
 import type { AdvanceResult, DecisionHandler, EngineContext } from './modules'
-import { datasheetOf, hasKeyword, keywordsOf, modelStats, removeModel, unitModels } from './state'
+import { tryDeathBlow } from './deathblow'
+import { datasheetOf, hasKeyword, keywordsOf, modelKeywordsOf, modelStats, recordModelAttacked, removeModel, unitModels } from './state'
 import { weaponService } from './weapons'
+import { fightOnDeathThreshold } from './fight-on-death'
 import type { AttackRollContext } from './events'
 import {
   EngineInvariantError,
   type AttackGroup, type AttackKind, type AttackSequenceState, type CurrentAttack, type DeclaredTarget, type DiceRoll, type GameState, type GroupBatch,
-  type Model, type ModelId, type PlayerId, type RuntimeWeapon, type UnitId, type WeaponId, type WoundSlot,
+  type Model, type ModelId, type Phase, type PlayerId, type RuntimeWeapon, type Unit, type UnitId, type Vec3, type WeaponId, type WoundSlot,
 } from './types'
 
 export interface AttackBegin { kind: AttackKind; attackerUnitId: UnitId; overwatch: boolean; targets: DeclaredTarget[] }
@@ -61,6 +65,30 @@ export interface AttackService {
   readonly handler: DecisionHandler
   queueMortalWounds(ctx: EngineContext, targetUnitId: UnitId, count: number, source: string, lostOnDeath: boolean): void
   destroyModel(ctx: EngineContext, modelId: ModelId, by: DestroyedBy): void
+  // C5: the tail of destroyModel (Deadly Demise, removal, ModelDestroyed, kill credit, UnitDestroyed, missions, detach) — also the point at
+  // which a fight-on-death model, deferred until it had fought, is finally removed
+  finishDestroy(ctx: EngineContext, modelId: ModelId, by: DestroyedBy): void
+}
+
+// C4: a model destroyed by an enemy attack leaves a phase-scoped `deathReaction:<json>` request, offered to its owner's death-reaction
+// stratagems (window `attack.modelDestroyed`) once that attack's damage has fully resolved, before the next attack is allocated.
+export interface DeathReactionRequest {
+  modelId: ModelId
+  unitId: UnitId // the destroyed model's unit
+  player: PlayerId // owner of the destroyed model
+  attackerUnitId: UnitId // canonical enemy unit whose attack destroyed it
+  pos: Vec3 // model position at destruction (measurements use this)
+  phase: Phase
+}
+const DEATH_REACTION_PREFIX = 'deathReaction:'
+function deathReactions(state: GameState): DeathReactionRequest[] {
+  const out: DeathReactionRequest[] = []
+  for (const m of state.phaseState.marks) if (m.startsWith(DEATH_REACTION_PREFIX)) out.push(JSON.parse(m.slice(DEATH_REACTION_PREFIX.length)) as DeathReactionRequest)
+  return out
+}
+export function pendingDeathReaction(state: GameState): DeathReactionRequest | null { return deathReactions(state)[0] ?? null }
+export function consumeDeathReaction(state: GameState, modelId: ModelId): void {
+  state.phaseState.marks = state.phaseState.marks.filter((m) => !(m.startsWith(DEATH_REACTION_PREFIX) && (JSON.parse(m.slice(DEATH_REACTION_PREFIX.length)) as DeathReactionRequest).modelId === modelId))
 }
 
 // ---------- small local helpers ----------
@@ -148,6 +176,20 @@ function computeAttackCount(ctx: EngineContext, gi: number, group: AttackGroup, 
         modifiers, unitId: attackSeq(ctx).attackerUnitId, modelId: attackerModelId, weaponId: group.weaponId, commandRerollable: true,
       })
       if (!roll) return 'pending'
+      // C4: a source (Gunnery Officer) lets the attacker's player re-roll the Attacks roll once (a die is never re-rolled twice)
+      const source = ctx.services.hooks.attackCountRerollSource?.(s, attackerModelId, weapon) ?? null
+      if (source && roll.dice.some((_, i) => canReroll(roll, i)) && ctx.once(`attackCountOffered:${gi}`)) {
+        const player = attackerUnit.player
+        ctx.decide({
+          kind: 'chooseOption', player, window: 'any.rollMade', canPass: false,
+          context: { topic: 'rerollOffer', unitId: attackSeq(ctx).attackerUnitId, abilityId: source, data: { rollId: roll.id, dieIndexes: roll.dice.map((_, i) => i), needed: null, purpose: 'attacks', key: `attacks:${gi}`, source } },
+          options: [
+            { id: 'reroll', label: 'Re-roll', action: { type: 'chooseOption', player, decisionId: '', optionId: 'reroll' } },
+            { id: 'keep', label: 'Keep', action: { type: 'chooseOption', player, decisionId: '', optionId: 'keep' } },
+          ],
+        })
+        return 'pending'
+      }
       base = rollSum(roll)
     }
   }
@@ -163,7 +205,10 @@ function computeAttackCount(ctx: EngineContext, gi: number, group: AttackGroup, 
   for (const { result } of ctx.services.hooks.collect(ctx, 'onAttackCount', { attack: actx, attacks: base })) {
     if (result.kind === 'attacks' && result.delta) base += result.delta
   }
-  return clampStat('A', base)
+  const total = clampStat('A', base)
+  // C5: once a model's attack count for a weapon is at least 1 it has attacked (Lone Operative from Gunnery Officer lapses)
+  if (total >= 1) for (const id of group.attackerModelIds) recordModelAttacked(s, id)
+  return total
 }
 
 // ---------- current-attack lifecycle ----------
@@ -172,7 +217,7 @@ function computeAttackCount(ctx: EngineContext, gi: number, group: AttackGroup, 
 // window. Every model of every half of an attached unit has to be gone (halves() is [] for a unit that no longer exists).
 function targetGone(ctx: EngineContext, targetUnitId: UnitId): boolean {
   const s = ctx.state
-  return leaderService.halves(s, targetUnitId).every((id) => !s.units[id] || unitModels(s, id).length === 0)
+  return leaderService.halves(s, targetUnitId).every((id) => !s.units[id] || unitModels(s, id).every((m) => !!m.pendingRemoval))
 }
 
 function freshDevastatingAttack(gi: number, attackerModelId: ModelId): CurrentAttack {
@@ -290,7 +335,10 @@ function rollBatchD6(ctx: EngineContext, key: string, hook: 'onHitRoll' | 'onWou
   }
   const prefix = `roll:${key}=`
   if (!s.phaseState.marks.some((m) => m.startsWith(prefix))) {
-    const fresh = ctx.roll(spec)
+    // E1: an Act of Faith may replace one die of this batch before it is rolled
+    const gate = miracleGate(ctx, key, spec)
+    if (gate === 'pending') return 'pending'
+    const fresh = ctx.roll(gate ? { ...spec, substitute: gate } : spec)
     s.phaseState.marks.push(prefix + fresh.id)
   }
   if (ctx.once(`autoReroll:${key}`)) {
@@ -354,6 +402,34 @@ function hitOpts(ctx: EngineContext, a: AttackSequenceState, group: AttackGroup,
   return { manualMods, overwatchAutoSix: a.overwatch, source: 'hit', autoFailAtOrBelow: indirectNoLos ? 3 : undefined }
 }
 
+// C3 (CHA Prey on the Weak): phase-scoped record of which enemy canonical units a given weapon has hit this phase. Pushed on every
+// successful hit (incl. criticals and Torrent auto-hits), deduplicated; never cleared at sequence end (not in SEQUENCE_SCOPED_MARK_PREFIXES).
+function noteHitBy(s: GameState, attackerUnitId: UnitId, weaponId: WeaponId, targetUnitId: UnitId): void {
+  const mark = `hitBy:${leaderService.canonicalUnitId(s, attackerUnitId)}:${weaponId}:${leaderService.canonicalUnitId(s, targetUnitId)}`
+  if (!s.phaseState.marks.includes(mark)) s.phaseState.marks.push(mark)
+}
+
+// Enemy canonical units the attacker's weapon `weaponDataId` has hit so far this phase (each model's profile counts: matches the weapon id,
+// its shared profileGroup, or the id with the repo's '.w.' segment elided — so 'csm.w.rite-of-possession' and 'csm.rite-of-possession' both work).
+export function unitsHitByWeapon(state: GameState, attackerUnitId: UnitId, weaponDataId: string): UnitId[] {
+  const prefix = `hitBy:${leaderService.canonicalUnitId(state, attackerUnitId)}:`
+  const out: UnitId[] = []
+  for (const m of state.phaseState.marks) {
+    if (!m.startsWith(prefix)) continue
+    const rest = m.slice(prefix.length)
+    const cut = rest.indexOf(':')
+    if (cut < 0) continue
+    const wid = rest.slice(0, cut)
+    const target = rest.slice(cut + 1) as UnitId
+    const w = state.weapons[wid as WeaponId]
+    const hit = wid === weaponDataId || w?.profileGroup === weaponDataId || wid.replace('.w.', '.') === weaponDataId
+    if (hit && !out.includes(target)) out.push(target)
+  }
+  return out
+}
+// phase mark `hit:<attacker>><target>`: the attacker scored at least one hit on the target this phase (Tyranid Disruption Bombardment)
+function recordHit(ctx: EngineContext, attackerUnitId: UnitId, targetUnitId: UnitId): void { ctx.once(`hit:${attackerUnitId}>${targetUnitId}`) }
+
 function doHitBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
   const a = attackSeq(ctx)
   const s = ctx.state
@@ -367,9 +443,11 @@ function doHitBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
     const weapon = weaponService.effectiveWeapon(s, model, g.weaponId)
     const actx = buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, model, weapon, g.targetUnitId, null, false)
     if (hasAbility(weapon, 'TORRENT')) {
+      if (g.attacks > 0) noteHitBy(s, a.attackerUnitId, weapon.id, g.targetUnitId)
       for (let i = 0; i < g.attacks; i++) {
         batch.hits.push({ groupIndex: j, attackerModelId: model, die: 0, final: 0, critical: false, lethal: false, extra: false })
         ctx.emit({ type: 'HitRolled', attack: rollAttackCtx(actx), die: 0, final: 0, hit: true, critical: false, extraHits: 0, auto: true })
+        recordHit(ctx, a.attackerUnitId, g.targetUnitId)
       }
       continue
     }
@@ -390,6 +468,8 @@ function doHitBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
       }
       ctx.emit({ type: 'HitRolled', attack: rollAttackCtx(dies[i].actx), die: r.unmodified, final: r.final, hit: r.success, critical: r.critical, extraHits, auto: false, rollId: res.rollId, dieIndex: i })
       if (!r.success) return
+      noteHitBy(s, a.attackerUnitId, weapon.id, a.groups[gi].targetUnitId)
+      recordHit(ctx, a.attackerUnitId, a.groups[gi].targetUnitId)
       const lethal = r.critical && hasAbility(weapon, 'LETHAL_HITS')
       batch.hits.push({ groupIndex: gi, attackerModelId: model, die: r.unmodified, final: r.final, critical: r.critical, lethal, extra: false })
       if (lethal) ctx.emit({ type: 'WoundRolled', attack: rollAttackCtx(dies[i].actx), die: 0, final: 0, needed: 0, wounded: true, critical: false, auto: true })
@@ -542,7 +622,7 @@ function doAllocateStage(ctx: EngineContext, gi: number, group: AttackGroup): 'p
     // wounds) on a visible attached CHARACTER that normal allocation would shield. Offered as an allocateAttack
     // decision to the attacker (options = those CHARACTER models; pass = allocate normally). A CHARACTER picked this
     // way bypasses the R-6.13 wounded/allocated-first rule, which governs only the defender's normal allocation.
-    const chars = leaderService.halves(s, targetUnitId).flatMap((id) => unitModels(s, id)).filter((m) => hasKeyword(s, m.unitId, 'CHARACTER'))
+    const chars = leaderService.halves(s, targetUnitId).flatMap((id) => unitModels(s, id)).filter((m) => modelKeywordsOf(s, m.id).includes('CHARACTER'))
     const visibleCharacterIds = chars.filter((m) => !eligible.includes(m.id) && ctx.services.los.visible(s, cur.attackerModelId, m.id)).map((m) => m.id)
     if (visibleCharacterIds.length > 0) {
       const attacker = s.units[a.attackerUnitId].player
@@ -616,13 +696,23 @@ interface SaveSetup {
 
 // Everything about how `modelId` saves against this group's weapon, minus the die. The engine picks the save that
 // needs the LOWER roll (a tie goes to armour) — the old armour-or-invulnerable prompt is gone (M9).
-function saveSetup(ctx: EngineContext, group: AttackGroup, attackerModelId: ModelId, modelId: ModelId, rawCover: boolean): SaveSetup | null {
+// E3: AP improvement from the attacker's effects for an attack whose unmodified wound roll was a critical wound
+function critWoundApFor(ctx: EngineContext, actx: AttackContext): number {
+  const s = ctx.state
+  const fake = fakeRoll('wound', s.units[actx.attackerUnitId].player, actx.attackerUnitId, actx.attackerModelId)
+  const results = ctx.services.hooks.collect(ctx, 'onWoundRoll', { attack: actx, roll: { purpose: 'wound', roll: fake, dieIndex: 0, unmodified: 6, rerolled: false } })
+    .map((r) => r.result).filter(isRoll)
+  return results.reduce((n, r) => n + (r.critWoundAp ?? 0), 0)
+}
+
+function saveSetup(ctx: EngineContext, group: AttackGroup, attackerModelId: ModelId, modelId: ModelId, rawCover: boolean, critical = false): SaveSetup | null {
   const a = attackSeq(ctx)
   const s = ctx.state
   const model = s.models[modelId]
   if (!model) return null
-  const weapon = weaponService.effectiveWeapon(s, attackerModelId, group.weaponId)
-  const actx = buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, attackerModelId, weapon, group.targetUnitId, modelId, rawCover)
+  const baseWeapon = weaponService.effectiveWeapon(s, attackerModelId, group.weaponId)
+  const actx = buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, attackerModelId, baseWeapon, group.targetUnitId, modelId, rawCover)
+  const weapon = critical ? { ...baseWeapon, AP: baseWeapon.AP - critWoundApFor(ctx, actx) } : baseWeapon
   const preFake = fakeRoll('save', s.units[model.unitId].player, model.unitId, modelId)
   const preResults = collectSaveMods(ctx, actx, preFake)
   const ignoreCoverHook = preResults.some((r) => r.ignoreCover)
@@ -676,7 +766,7 @@ function doSaveStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pendi
   const modelId = cur.allocatedModelId as ModelId
   const model = s.models[modelId]
   if (!model) { finishSlot(ctx, gi, group); return 'progress' }
-  const setup = saveSetup(ctx, group, cur.attackerModelId, modelId, cur.cover)
+  const setup = saveSetup(ctx, group, cur.attackerModelId, modelId, cur.cover, cur.wound?.critical === true)
   if (!setup) { finishSlot(ctx, gi, group); return 'progress' }
   const { actx, kind, needed } = setup
   // Published on the attack so the client can show the real numbers (also for a Command Re-roll offer on an
@@ -723,6 +813,8 @@ function saveBatchTarget(ctx: EngineContext, lead: number): number | null {
   const b = group.batch as GroupBatch
   const weapon = weaponService.effectiveWeapon(s, group.attackerModelIds[0], group.weaponId)
   if (hasAbility(weapon, 'PRECISION')) return null
+  // E3: a critical wound that improves AP needs its own save target, so those volleys keep per-attack save rolls
+  if (b.queue.some((w) => w.wound.critical && critWoundApFor(ctx, buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, w.attackerModelId, weaponService.effectiveWeapon(s, w.attackerModelId, group.weaponId), group.targetUnitId, null, false)) > 0)) return null
   const eligible = leaderService.allocatableModels ? leaderService.allocatableModels(s, group.targetUnitId) : unitModels(s, group.targetUnitId).map((m) => m.id)
   if (eligible.length === 0) return null
   const attackers = [...new Set(b.queue.map((w) => w.attackerModelId))]
@@ -762,14 +854,14 @@ function doSaveBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
 
 // ---------- Feel No Pain (R-10.5) ----------
 
-function bestFeelNoPain(ctx: EngineContext, model: Model, actx: AttackContext): number | null {
+function bestFeelNoPain(ctx: EngineContext, model: Model, actx: AttackContext, mortal = false): number | null {
   const s = ctx.state
   const ds = datasheetOf(s, model.unitId)
   let best: number | null = null
   const core = ds.coreAbilities.find((c) => c.ability === 'FEEL_NO_PAIN')
   if (core) best = toNumber(core.value) || 6
   const fake = fakeRoll('fnp', s.units[model.unitId].player, model.unitId, model.id)
-  const results = ctx.services.hooks.collect(ctx, 'onFeelNoPainRoll', { attack: actx, roll: { purpose: 'fnp', roll: fake, dieIndex: 0, unmodified: 0, rerolled: false } })
+  const results = ctx.services.hooks.collect(ctx, 'onFeelNoPainRoll', { attack: actx, roll: { purpose: 'fnp', roll: fake, dieIndex: 0, unmodified: 0, rerolled: false }, mortal })
     .map((r) => r.result).filter(isRoll)
   for (const r of results) if (r.feelNoPain !== undefined) best = best === null ? r.feelNoPain : Math.min(best, r.feelNoPain)
   return best
@@ -780,7 +872,7 @@ function bestFeelNoPain(ctx: EngineContext, model: Model, actx: AttackContext): 
 // plain, non-reentrant roll is safe here.
 function applyOnePoint(ctx: EngineContext, model: Model, actx: AttackContext, source: AttackRollContext | { abilityId: string } | { stratagemId: string }, mortal: boolean): boolean {
   const s = ctx.state
-  const threshold = bestFeelNoPain(ctx, model, actx)
+  const threshold = bestFeelNoPain(ctx, model, actx, mortal)
   let ignored = false
   if (threshold !== null) {
     const roll = ctx.roll({ purpose: 'fnp', player: s.units[model.unitId].player, sides: 6, count: 1, mode: 'perDie', unitId: model.unitId, modelId: model.id, commandRerollable: false })
@@ -936,7 +1028,7 @@ function tickHazardous(ctx: EngineContext): 'pending' | 'progress' | 'none' {
   }
   const candidates = (leaderService.combinedModels ? leaderService.combinedModels(s, a.attackerUnitId) : unitModels(s, a.attackerUnitId)).filter((m) => m.weapons.includes(weaponId))
   const wounded = candidates.filter((m) => m.woundsRemaining < modelStats(s, m).W)
-  const nonChar = candidates.filter((m) => !hasKeyword(s, m.unitId, 'CHARACTER'))
+  const nonChar = candidates.filter((m) => !modelKeywordsOf(s, m.id).includes('CHARACTER'))
   const pool = wounded.length > 0 ? wounded : nonChar.length > 0 ? nonChar : candidates
   if (pool.length === 0) {
     ctx.emit({ type: 'HazardousTested', unitId: a.attackerUnitId, weaponId, die, failed: true, modelId: null })
@@ -999,10 +1091,15 @@ function rollDeadlyDemise(ctx: EngineContext, model: Model, valueExpr: DiceExpr)
 
 // prefixes that only ever mean something WITHIN the one attack sequence that wrote them — stale entries left over
 // from an earlier, already-finished sequence in the same phase must never leak into a new one (SHOOT-046-dice)
-const SEQUENCE_SCOPED_MARK_PREFIXES = ['roll:', 'rerollOffered:', 'autoReroll:', 'precisionDeclined:','hazardous:', 'groupTouched:', 'mortalAlloc:', 'mortalBatchSeq:', 'blastCount:', 'pendingDetach:', 'bgntAttacker', 'bgntTarget:', 'indirectNoLos:']
+const SEQUENCE_SCOPED_MARK_PREFIXES = ['roll:', 'attackCountOffered:', 'miracle:', 'miracleAsk:', 'rerollOffered:', 'autoReroll:', 'precisionDeclined:','hazardous:', 'groupTouched:', 'mortalAlloc:', 'mortalBatchSeq:', 'blastCount:', 'pendingDetach:', 'bgntAttacker', 'bgntTarget:', 'indirectNoLos:']
 
 export const attackService: AttackService = {
   begin(ctx, spec) {
+    // [ONE SHOT] backstop: a weapon already fired this battle (Model.oneShotUsed) is dropped from any declaration, so no
+    // caller (shooting, either Overwatch builder, a client-built action) can fire it a second time
+    if (spec.targets.some((t) => ctx.state.models[t.modelId]?.oneShotUsed.includes(t.weaponId) && ctx.state.weapons[t.weaponId]?.abilities.some((a) => a.ability === 'ONE_SHOT'))) {
+      spec = { ...spec, targets: spec.targets.filter((t) => !(ctx.state.models[t.modelId]?.oneShotUsed.includes(t.weaponId) && ctx.state.weapons[t.weaponId]?.abilities.some((a) => a.ability === 'ONE_SHOT'))) }
+    }
     ctx.state.phaseState.marks = ctx.state.phaseState.marks.filter((m) => !SEQUENCE_SCOPED_MARK_PREFIXES.some((p) => m.startsWith(p)))
     const targetUnitIds = [...new Set(spec.targets.map((t) => t.targetUnitId))]
     const groups: AttackGroup[] = []
@@ -1021,6 +1118,8 @@ export const attackService: AttackService = {
       for (const weaponId of order) {
         for (const e of entries.filter((x) => x.weaponId === weaponId)) {
           groups.push({ weaponId, targetUnitId, attackerModelIds: [e.modelId], attacks: e.attacks ?? 0, resolved: 0, devastatingPending: 0 })
+          // C5: a declared attack count (melee) of at least 1 means the model attacks; rolled counts are recorded in computeAttackCount
+          if ((e.attacks ?? 0) >= 1) recordModelAttacked(ctx.state, e.modelId)
         }
       }
       // WEAP-006-selection/attached: snapshot the combined (both-halves) model count now, at target selection, so
@@ -1056,6 +1155,16 @@ export const attackService: AttackService = {
     for (let i = 0; i < MAX_TICKS; i++) {
       const a = ctx.state.phaseState.attack
       if (!a) throw new EngineInvariantError('attack.advance: no active sequence')
+      // C4: the previous attack's damage is fully resolved (nothing current) — offer the death-reaction window before anything else
+      // (more mortal wounds, the next attack's allocation, the end of the sequence). The request is dropped once the window is done.
+      if (!a.current) {
+        const req = pendingDeathReaction(ctx.state)
+        if (req) {
+          if (ctx.window('attack.modelDestroyed', req.modelId, ctx.order.defensive(req.player), { unitId: req.unitId })) return 'pending'
+          consumeDeathReaction(ctx.state, req.modelId)
+          continue
+        }
+      }
       if (a.mortalQueue.length > 0 && !a.current) {
         const r = drainOneMortalPoint(ctx)
         if (r === 'pending') return 'pending'
@@ -1208,7 +1317,7 @@ export const attackService: AttackService = {
             const roll = s.phaseState.lastRoll
             if (!roll || roll.id !== data.rollId) throw new EngineInvariantError('rerollOffer: roll is no longer current', { rollId: data.rollId })
             // M9: the player may pick a subset of the offered dice (validated in the reducer); absent = every offered die
-            ctx.reroll(roll, action.dieIndexes ?? data.dieIndexes, 'rerollOffer')
+            ctx.reroll(roll, action.dieIndexes ?? data.dieIndexes, (data as { source?: string }).source ?? 'rerollOffer')
           }
           return
         }
@@ -1235,35 +1344,100 @@ export const attackService: AttackService = {
   destroyModel(ctx, modelId, by) {
     const s = ctx.state
     const model = s.models[modelId]
+    if (!model || model.removalDeferred) return
+    const attacked = by.unitId !== null && (by.kind === 'ranged' || by.kind === 'melee') && s.units[by.unitId]?.player !== s.units[model.unitId]?.player
+    // C4: leave a death-reaction request (before removal/deferral), opened by `advance` once this attack's damage has resolved
+    if (attacked && by.unitId) {
+      const req: DeathReactionRequest = { modelId, unitId: model.unitId, player: s.units[model.unitId].player, attackerUnitId: leaderService.canonicalUnitId(s, by.unitId), pos: { ...model.pos }, phase: s.phase }
+      s.phaseState.marks.push(DEATH_REACTION_PREFIX + JSON.stringify(req))
+    }
+    // C5: Daemonic Fervour — a model of a fight-on-death unit that has not fought yet may stay, at 0 wounds, to fight once more
+    if (attacked && s.phase === 'fight') {
+      const canon = leaderService.canonicalUnitId(s, model.unitId)
+      const threshold = fightOnDeathThreshold(s, canon)
+      const fought = leaderService.halves(s, canon).some((id) => s.units[id]?.turn.foughtThisPhase || s.phaseState.fight?.fought.includes(id))
+      if (threshold !== null && !fought) {
+        const owner = s.units[model.unitId].player
+        const roll = ctx.roll({ purpose: 'ability', player: owner, sides: 6, count: 1, mode: 'perDie', unitId: model.unitId, modelId, commandRerollable: false })
+        const die = roll.dice[0]
+        if (die >= threshold) {
+          s.phaseState.marks.push(`deferredDeath:${JSON.stringify({ modelId, unitId: model.unitId, attackerUnitId: leaderService.canonicalUnitId(s, by.unitId as UnitId), by })}`)
+          ctx.emit({ type: 'AbilityTriggered', abilityId: 'fight-on-death', sourceUnitId: model.unitId, targetUnitId: null, summary: `${modelId} fights on (rolled ${die}, needed ${threshold}+)`, player: owner })
+          return
+        }
+      }
+    }
+    attackService.finishDestroy(ctx, modelId, by)
+  },
+
+  finishDestroy(ctx, modelId, by) {
+    const s = ctx.state
+    const model = s.models[modelId]
     if (!model) return
     const unit = s.units[model.unitId]
+    // Death Blow (tyranids): a deferred removal is finished later by finishDeferredRemoval, which calls back into here
+    if (tryDeathBlow(ctx, model, by)) return
     const ds = datasheetOf(s, model.unitId)
     const demise = ds.coreAbilities.find((c) => c.ability === 'DEADLY_DEMISE')
     if (demise) rollDeadlyDemise(ctx, model, demise.value ?? 'D3')
+    // E4: onModelDestroyed hooks are collected BEFORE the model leaves the table; a deferRemoval request keeps it there
+    // (at 0 W, announced as destroyed, untargetable, no OC) until the destroying unit has finished (A Martyr's Death)
+    const deferral = (by.unitId && (s.phase === 'shooting' || s.phase === 'fight'))
+      ? ctx.services.hooks.collect(ctx, 'onModelDestroyed', { destroyedUnitId: unit.id, destroyedModelId: modelId, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
+        .map((r) => r.result).find((r): r is EffectRequest => r.kind === 'request' && r.deferRemoval !== undefined)?.deferRemoval
+      : undefined
+    if (deferral) {
+      model.woundsRemaining = 0
+      deferModelRemoval(ctx, modelId, deferral.kind, deferral.afterUnitId, 'aMartyrsDeath')
+      announceDestroyed(ctx, model, unit, by)
+      return
+    }
     const nowDestroyed = removeModel(s, modelId)
-    ctx.emit({ type: 'ModelDestroyed', unitId: unit.id, modelId, byPlayer: by.player, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
-    ctx.services.hooks.run(ctx, 'onModelDestroyed', { destroyedUnitId: unit.id, destroyedModelId: modelId, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
-    // secondaries (e.g. Wrath of the Emperor) key off which of the killer's own models scored the kill; only a
-    // model-attributed kill counts (mortal wounds / self-inflicted losses carry by.player/by.modelId null).
-    // Reset once per phase by the scoring rule that reads it (missions.ts wrathOfTheEmperorAmount).
-    if (by.player && by.modelId) {
-      const secondaryState = s.players[by.player].secondaryState
-      const killsThisPhase = (secondaryState.killsThisPhase as Record<string, number> | undefined) ?? {}
-      killsThisPhase[by.modelId] = (killsThisPhase[by.modelId] ?? 0) + 1
-      secondaryState.killsThisPhase = killsThisPhase
-    }
-    if (nowDestroyed) {
-      unit.destroyedBy = { player: by.player ?? s.activePlayer, kind: by.kind, round: s.round, unitId: by.unitId, modelId: by.modelId }
-      ctx.emit({ type: 'UnitDestroyed', unitId: unit.id, byPlayer: by.player, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
-      ctx.services.hooks.run(ctx, 'onUnitDestroyed', { destroyedUnitId: unit.id, destroyedModelId: null, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
-      if (leaderService.isAttached(s, unit.id) && leaderService.detach) {
-        // SHOOT-048/LEAD-014/R-10.1: the leader/bodyguard split happens only once the attacking unit's WHOLE
-        // sequence has finished — detaching now would immediately break leaderService.halves()/allocatableModels()
-        // for the rest of this same volley (and any still-queued mortal wounds), throwing the remainder away
-        // instead of routing it onto the attached CHARACTER. Defer to a mark; advance() detaches at sequence end.
-        if (ctx.state.phaseState.attack) ctx.once(`pendingDetach:${unit.id}`)
-        else leaderService.detach(ctx, unit.id)
-      }
-    }
+    announceDestroyed(ctx, model, unit, by, nowDestroyed)
   },
+}
+
+// E4: the deferred model finally leaves the table (its last shooting / fight is done): remove it and, when it was the
+// unit's last model, emit UnitDestroyed (and the Miracle die that goes with it). ModelDestroyed was announced at 0 W.
+export function finishMartyrRemoval(ctx: EngineContext, modelId: ModelId, by: DestroyedBy): void {
+  const s = ctx.state
+  const model = s.models[modelId]
+  if (!model) return
+  const unit = s.units[model.unitId]
+  model.removalDeferred = false
+  const nowDestroyed = removeModel(s, modelId)
+  if (nowDestroyed) destroyUnitTail(ctx, unit, by)
+}
+
+function announceDestroyed(ctx: EngineContext, model: Model, unit: Unit, by: DestroyedBy, nowDestroyed = false): void {
+  const s = ctx.state
+  const modelId = model.id
+  ctx.emit({ type: 'ModelDestroyed', unitId: unit.id, modelId, byPlayer: by.player, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
+  ctx.services.hooks.run(ctx, 'onModelDestroyed', { destroyedUnitId: unit.id, destroyedModelId: modelId, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
+  // secondaries (e.g. Wrath of the Emperor) key off which of the killer's own models scored the kill; only a
+  // model-attributed kill counts (mortal wounds / self-inflicted losses carry by.player/by.modelId null).
+  // Reset once per phase by the scoring rule that reads it (missions.ts wrathOfTheEmperorAmount).
+  if (by.player && by.modelId) {
+    const secondaryState = s.players[by.player].secondaryState
+    const killsThisPhase = (secondaryState.killsThisPhase as Record<string, number> | undefined) ?? {}
+    killsThisPhase[by.modelId] = (killsThisPhase[by.modelId] ?? 0) + 1
+    secondaryState.killsThisPhase = killsThisPhase
+  }
+  if (nowDestroyed) destroyUnitTail(ctx, unit, by)
+}
+
+function destroyUnitTail(ctx: EngineContext, unit: Unit, by: DestroyedBy): void {
+  const s = ctx.state
+  unit.destroyedBy = { player: by.player ?? s.activePlayer, kind: by.kind, round: s.round, unitId: by.unitId, modelId: by.modelId }
+  ctx.emit({ type: 'UnitDestroyed', unitId: unit.id, byPlayer: by.player, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
+  ctx.services.hooks.run(ctx, 'onUnitDestroyed', { destroyedUnitId: unit.id, destroyedModelId: null, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
+  ctx.services.missions.unitDestroyed?.(ctx, { unitId: unit.id, byPlayer: by.player, byUnitId: by.unitId, byModelId: by.modelId })
+  if (leaderService.isAttached(s, unit.id) && leaderService.detach) {
+    // SHOOT-048/LEAD-014/R-10.1: the leader/bodyguard split happens only once the attacking unit's WHOLE
+    // sequence has finished — detaching now would immediately break leaderService.halves()/allocatableModels()
+    // for the rest of this same volley (and any still-queued mortal wounds), throwing the remainder away
+    // instead of routing it onto the attached CHARACTER. Defer to a mark; advance() detaches at sequence end.
+    if (ctx.state.phaseState.attack) ctx.once(`pendingDetach:${unit.id}`)
+    else leaderService.detach(ctx, unit.id)
+  }
 }

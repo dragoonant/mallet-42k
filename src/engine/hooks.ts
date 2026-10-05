@@ -58,7 +58,8 @@ export interface UnitSelectedHookContext extends HookContextBase { hook: 'onUnit
 export interface TargetsDeclaredHookContext extends HookContextBase { hook: 'onTargetsDeclared'; attackerUnitId: UnitId; targetUnitIds: UnitId[]; kind: AttackKind }
 export interface AttacksAllocatedHookContext extends HookContextBase { hook: 'onAttacksAllocated'; attack: AttackContext }
 export interface AttackCountHookContext extends HookContextBase { hook: 'onAttackCount'; attack: AttackContext; attacks: number }
-export interface AttackRollHookContext extends HookContextBase { hook: 'onHitRoll' | 'onWoundRoll' | 'onSaveRoll' | 'onDamageRoll' | 'onFeelNoPainRoll'; attack: AttackContext; roll: RollContext }
+// mortal: set only for onFeelNoPainRoll — true when the point being saved is a mortal wound (Condition.mortalWound)
+export interface AttackRollHookContext extends HookContextBase { hook: 'onHitRoll' | 'onWoundRoll' | 'onSaveRoll' | 'onDamageRoll' | 'onFeelNoPainRoll'; attack: AttackContext; roll: RollContext; mortal?: boolean }
 export interface DamageHookContext extends HookContextBase { hook: 'onDamage'; attack: AttackContext | null; targetUnitId: UnitId; targetModelId: ModelId; damage: number; mortal: boolean }
 export interface DestroyedHookContext extends HookContextBase { hook: 'onModelDestroyed' | 'onUnitDestroyed'; destroyedUnitId: UnitId; destroyedModelId: ModelId | null; byUnitId: UnitId | null; byModelId: ModelId | null; kind: AttackKind | 'mortal' | 'other' }
 export interface DeploymentHookContext extends HookContextBase { hook: 'onDeployment' | 'onReinforcements'; deployingUnitId: UnitId }
@@ -88,8 +89,12 @@ export interface RollModifierResult {
   ignoreCover?: boolean
   invuln?: number
   feelNoPain?: number
+  // honoured for onBattleShockTest only: extra dice rolled on top of the usual 2D6 (Tyranid Synapse)
+  extraDice?: number
+  // onWoundRoll: AP improves by this much for an attack whose unmodified wound roll was a critical wound (ADE Ascetic Discipline)
+  critWoundAp?: number
 }
-export interface StatModifierResult { kind: 'stat'; delta?: number; set?: number }
+export interface StatModifierResult { kind: 'stat'; delta?: number; set?: number; cap?: number; halve?: boolean }
 export interface AttackCountResult { kind: 'attacks'; delta?: number }
 export interface DamageModifierResult { kind: 'damage'; delta?: number; halve?: boolean; reduction?: number; set?: number }
 export interface EligibilityResult { kind: 'eligibility'; allow?: boolean; deny?: boolean }
@@ -103,6 +108,9 @@ export interface EffectRequest {
   battleShockTest?: UnitId[]
   openDecision?: { topic: string; unitId: UnitId | null; options: string[] }
   grantEffect?: { unitId: UnitId; effect: Effect; duration: AbilityDescriptor['duration'] }
+  // onModelDestroyed: the model stays on the table (0 W, cannot be targeted, no OC) until `afterUnitId` finishes its
+  // shooting / fight activation; deferred models then shoot/fight once more and are removed (A Martyr's Death, ADE-025)
+  deferRemoval?: { kind: 'ranged' | 'melee'; afterUnitId: UnitId }
   log?: string
 }
 export type HookResult =
@@ -164,6 +172,9 @@ export const EFFECT_HOOKS: Record<keyof Effect, HookName[]> = {
   reroll: ['onHitRoll', 'onWoundRoll', 'onSaveRoll', 'onDamageRoll', 'onChargeRoll', 'onAdvanceRoll', 'onBattleShockTest'],
   modifyRoll: ['onHitRoll', 'onWoundRoll', 'onSaveRoll', 'onDamageRoll', 'onChargeRoll', 'onAdvanceRoll', 'onBattleShockTest'],
   modifyStat: ['onStatQuery'],
+  halveStat: ['onStatQuery'],
+  halveRoll: ['onAdvanceRoll'],
+  forbid: ['onEligibility'],
   setStat: ['onStatQuery'],
   invuln: ['onSaveRoll'],
   feelNoPain: ['onFeelNoPainRoll'],
@@ -187,6 +198,7 @@ export const EFFECT_HOOKS: Record<keyof Effect, HookName[]> = {
   chargeAfterFallBack: ['onEligibility'],
   stealth: ['onHitRoll'],
   lethalOn: ['onHitRoll'],
+  critWoundAp: ['onWoundRoll'],
 }
 
 // hooks a descriptor must be registered at: its trigger's hook plus every hook its effect keys need

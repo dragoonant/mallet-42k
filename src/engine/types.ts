@@ -30,7 +30,7 @@ export type MovementStep = 'select' | 'declare' | 'move' | 'reinforcements'
 export type ShootingStep = 'selectUnit' | 'declareTargets' | 'resolve' | 'hazardous'
 export type ChargeStep = 'declare' | 'roll' | 'overwatch' | 'move'
 export type FightStep = 'fightsFirst' | 'remaining'
-export type FightSubStep = 'select' | 'pileIn' | 'declareTargets' | 'attacks' | 'consolidate'
+export type FightSubStep = 'select' | 'pileIn' | 'declareTargets' | 'attacks' | 'deferred' | 'consolidate'
 export type PhaseStep = SetupStep | CommandStep | MovementStep | ShootingStep | ChargeStep | FightStep | 'none'
 
 export type MoveType = 'normal' | 'advance' | 'fallBack' | 'stationary'
@@ -71,6 +71,8 @@ export interface RuntimeModelProfile {
   height: number
   stats: Stats
   weapons: WeaponId[]
+  // model-only keywords (Composition.keywords, e.g. a Command Squad's CHARACTER/OFFICER sergeant); absent for most models
+  keywords?: Keyword[]
 }
 
 export interface RuntimeDatasheet {
@@ -131,6 +133,9 @@ export interface ModelFlags {
   desperateEscapeTested: boolean
 }
 
+// Tyranid Death Blow: a model whose removal is deferred until it has had its chance to fight (docs/spec/factions/tyranids.md TYR-6.1)
+export interface PendingRemoval { byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: ModelId | null; kind: AttackKind | 'mortal' | 'other'; source: Id }
+
 export interface Model {
   id: ModelId
   unitId: UnitId
@@ -143,6 +148,11 @@ export interface Model {
   weapons: WeaponId[]
   oneShotUsed: WeaponId[]
   flags: ModelFlags
+  // set while a Death Blow removal is deferred; such a model is skipped by allocation, OC, coherency and target lists
+  pendingRemoval?: PendingRemoval | null
+  // E4 (A Martyr's Death): at 0 W, ModelDestroyed already emitted; stays on the table until its deferred activation is
+  // done. Cannot be targeted or allocated attacks, has no OC, and does not count towards unit strength or coherency.
+  removalDeferred?: boolean
 }
 
 export interface UnitTurnState {
@@ -164,6 +174,8 @@ export interface ActiveEffect {
   sourceUnitId: UnitId | null
   effect: EffectList
   scope: Scope
+  // scope 'bearer' only: the single model the effect belongs to (Epic Challenge); absent = every model of the holder
+  bearerModelId?: ModelId
   expires: { kind: 'phaseEnd' | 'turnEnd' | 'nextOwnTurn' | 'roundEnd' | 'battle'; round: number; player: PlayerId | null }
   when: AbilityDescriptor['when'] | null
 }
@@ -191,6 +203,9 @@ export interface Unit {
   deepStrikeWith: UnitId | null
   // modelId: the attacking model for ranged/melee kills; null for mortal wounds, Deadly Demise, culls
   destroyedBy: { player: PlayerId; kind: AttackKind | 'mortal' | 'other'; round: number; unitId: UnitId | null; modelId: ModelId | null } | null
+  // snapshot of every model removed from this unit, oldest first (filled by state.removeModel); Reanimation Protocols
+  // (docs/spec/factions/necrons.md NEC-2.4) puts the most recent one back. Saves from before M10 lack the field.
+  destroyedModels: Model[]
 }
 
 // ---------- players ----------
@@ -218,7 +233,12 @@ export interface Player {
   // secondary bookkeeping; reserved keys: killsThisPhase: Record<ModelId, number> (reset at phase end; Wrath of the Emperor),
   // stompTargetUnitId, bagTargetModelId
   secondaryState: Record<string, unknown>
+  // Adepta Sororitas Acts of Faith (E1): the player's pool of Miracle dice
+  miracle: MiracleState
 }
+
+// values 1..6, pool order = gain order; spentThisPhase = units that made an Act of Faith this phase (reset at phase end)
+export interface MiracleState { dice: number[]; spentThisPhase: UnitId[] }
 
 // ---------- in-flight sequences ----------
 // attacks: melee only — number of this weapon's attacks sent at targetUnitId (a model may split, R-9.7)
@@ -321,6 +341,8 @@ export interface PhaseState {
   fight: FightState | null
   battleShockQueue: UnitId[]
   lastRoll: DiceRoll | null
+  // E4: models at 0 W whose removal waits for `afterUnitId` to finish its shooting / fight activation
+  deferredRemovals: { unitId: UnitId; modelIds: ModelId[]; kind: 'ranged' | 'melee'; afterUnitId: UnitId; source: string }[]
 }
 
 // ---------- dice ----------
@@ -347,6 +369,8 @@ export interface DiceRoll {
   commandRerollable: boolean
   /** Display only: the d6 each die has to reach (hit/wound/save fast-rolls). */
   needed?: number
+  /** E1: die indexes whose value came from a Miracle die; never re-rollable. */
+  substituted?: number[]
 }
 
 // ---------- decisions ----------
@@ -455,11 +479,13 @@ export interface ReactionWindowDecision extends DecisionBase {
 export type ChooseOptionTopic =
   | 'chooseSide' | 'battleShockOrder' | 'desperateEscapeCasualty' | 'coherencyCull' | 'saveType'
   | 'meleeWeapon' | 'weaponProfile' | 'oathTarget' | 'waaagh' | 'razeObjective' | 'recoverObjective'
-  | 'reserveArrival' | 'leaderAttach' | 'hazardousCasualty' | 'rerollOffer' | 'abilityChoice' | 'stompTarget' | 'bagTarget' | 'other'
+  | 'reserveArrival' | 'leaderAttach' | 'hazardousCasualty' | 'rerollOffer' | 'miracleDie' | 'abilityChoice' | 'stompTarget' | 'bagTarget' | 'treasureObjective' | 'other'
 export interface ChooseOptionDecision extends DecisionBase {
   kind: 'chooseOption'
   // rerollOffer: data = { rollId, dieIndexes: number[], needed?, purpose?, key? } (R-6.24); options = reroll / keep; the
   //   `reroll` answer may carry `dieIndexes` (a non-empty subset of data.dieIndexes) to re-roll only those dice
+  // miracleDie (E1, adepta-sororitas): data = { purpose: RollPurpose; unitId; count; maxSubstitutions; pool: number[]; key } raised before
+  //   a D6 roll an Act of Faith may replace; options = skip / use (one `use` per distinct pool value, carrying dieIndexes = [index into pool])
   // saveType: RETIRED (M9) — the engine now picks the save that needs the lower roll (ties: armour); never raised
   context: { topic: ChooseOptionTopic; unitId: UnitId | null; abilityId: Id | null; data: Record<string, unknown> }
   options: DecisionOption[]
@@ -509,6 +535,8 @@ export interface PlayerSetup {
   attachments: { leaderRef: string; bodyguardRef: string }[]
   reserves: string[]
   battleReadyVp: number
+  // E5 Patrol Squads: patrol unit refs to split into their `patrolSquads` parts at Declare Battle Formations
+  splitUnits?: string[]
 }
 
 export interface GameSetup {

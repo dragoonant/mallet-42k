@@ -1,0 +1,24 @@
+[
+  {
+    "id": "nec.canoptek-scarab-swarms",
+    "faction": "necrons",
+    "name": "Canoptek Scarab Swarms",
+    "keywords": ["SWARM", "FLY", "CANOPTEK", "SCARAB SWARMS"],
+    "factionKeywords": ["NECRONS"],
+    "stats": { "M": 9, "T": 2, "Sv": 6, "W": 4, "Ld": 8, "OC": 0 },
+    "composition": [
+      {
+        "modelId": "swarm",
+        "name": "Scarab Swarm",
+        "min": 3, "max": 3, "default": 3,
+        "base": { "shape": "round", "mm": 40 },
+        "weapons": { "default": ["nec.w.feeder-mandibles"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      }
+    ],
+    "abilities": ["nec.a.reanimation-protocols"],
+    "coreAbilities": [ { "ability": "DEADLY_DEMISE", "value": 1 } ],
+    "points": [ { "models": 3, "points": 0 } ],
+    "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+  }
+]

@@ -7,14 +7,17 @@ import { useFrame } from '@react-three/fiber'
 import { requestFrame } from './anim'
 import type { Group } from 'three'
 import type { ThreeEvent } from '@react-three/fiber'
+import { applyPaintToColors, resolveBaseStyle, useArmyPaint } from './paint'
 import { resolveBase, resolveFigureKit, resolvePaintColors, useDataBundle } from './data'
-import { BODY_KIND, BIPED_CONFIG, VEHICLE_CONFIG } from './kitConfigs'
+import { SwarmBody } from './SwarmBody'
+import { BODY_KIND, BIPED_CONFIG, VEHICLE_CONFIG, ARTILLERY_CONFIG } from './kitConfigs'
 import { BaseDisc, BASE_THICKNESS } from './BaseDisc'
 import { GlbBody } from './GlbBody'
 import { glbSlugFor } from './glbModels'
 import { useGlbInstance } from './glbLoader'
 import { BipedBody } from './BipedBody'
 import { VehicleBody } from './VehicleBody'
+import { ArtilleryBody } from './ArtilleryBody'
 import type { Pose, FigureAction, FigureActionKind } from './types'
 
 const POSITION_EASE_PER_SEC = 10
@@ -34,7 +37,7 @@ export interface FigureProps {
   /** Datasheet model type (Model.datasheetModelId, e.g. "sergeant"). Optional; only used to pick a GLB body
    *  (see glbModels.ts) — omit and the procedural figure is always used. */
   modelId?: string
-  /** Faction id, e.g. "sm" | "ork" — resolves the paintScheme. Unknown ids paint neutral grey. */
+  /** Faction id, e.g. "sm" | "ork" | "necrons" — resolves the paintScheme. Unknown ids paint neutral grey. */
   faction: string
   /** Target world position. Figure eases its own group toward it every frame (snapping only on
    *  first mount, so placing a figure never makes it slide in from the origin) instead of
@@ -61,6 +64,8 @@ export interface FigureProps {
   pose?: Pose
   selected?: boolean
   highlighted?: boolean
+  /** Pointer is on this unit's prompt button: a bright pulsing ring, distinct from `highlighted`. */
+  hovered?: boolean
   onClick?: (event: ThreeEvent<MouseEvent>) => void
 }
 
@@ -77,6 +82,7 @@ export const Figure = memo(function Figure({
   pose: poseOverride,
   selected,
   highlighted,
+  hovered,
   onClick,
 }: FigureProps) {
   // `rotationY` is an engine facing — forward along world (cos f, sin f) — but the figure mesh
@@ -158,9 +164,11 @@ export const Figure = memo(function Figure({
   const datasheet = bundle?.datasheets[datasheetId]
   const factionData = bundle?.factions[faction]
 
-  const { archetype, kit } = useMemo(() => resolveFigureKit(datasheetId, datasheet), [datasheetId, datasheet])
+  const { archetype, kit } = useMemo(() => resolveFigureKit(datasheetId, datasheet, modelId), [datasheetId, datasheet, modelId])
   const base = useMemo(() => resolveBase(datasheet, archetype), [datasheet, archetype])
-  const colors = useMemo(() => resolvePaintColors(factionData), [factionData])
+  const paint = useArmyPaint(faction)
+  const colors = useMemo(() => applyPaintToColors(resolvePaintColors(factionData), paint), [factionData, paint])
+  const baseStyle = useMemo(() => resolveBaseStyle(paint), [paint])
 
   const bodyKind = BODY_KIND[kit]
   const isMoving = moving ?? autoMoving
@@ -169,10 +177,14 @@ export const Figure = memo(function Figure({
 
   return (
     <group ref={groupRef} onClick={onClick}>
-      <BaseDisc radiusX={base.radiusX} radiusZ={base.radiusZ} colors={colors} selected={selected} highlighted={highlighted} glbBody={!!glb} />
-      {glb && <GlbBody object={glb} pose={pose} seed={seedRef.current} />}
+      <BaseDisc radiusX={base.radiusX} radiusZ={base.radiusZ} colors={colors} selected={selected} highlighted={highlighted} hovered={hovered} glbBody={!!glb} baseStyle={baseStyle} />
+      {glb && <GlbBody object={glb} pose={pose} seed={seedRef.current} faction={faction} paint={paint} />}
       {!glb && <group position={[0, BASE_THICKNESS, 0]} scale={[base.height, base.height, base.height]}>
-        {bodyKind === 'vehicle' ? (
+        {bodyKind === 'swarm' ? (
+          <SwarmBody colors={colors} pose={pose} seed={seedRef.current} />
+        ) : bodyKind === 'artillery' ? (
+          <ArtilleryBody config={ARTILLERY_CONFIG[kit] ?? { barrel: 'field-gun' }} colors={colors} pose={pose} seed={seedRef.current} />
+        ) : bodyKind === 'vehicle' ? (
           <VehicleBody config={VEHICLE_CONFIG[kit] ?? { weapon: 'none', hasRotor: false }} colors={colors} pose={pose} seed={seedRef.current} />
         ) : (
           <BipedBody

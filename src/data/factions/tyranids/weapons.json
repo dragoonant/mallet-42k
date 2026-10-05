@@ -1,0 +1,18 @@
+[
+  { "id": "tyr.w.psychoclastic-torrent", "name": "Psychoclastic torrent", "type": "ranged", "range": 12, "A": "D6", "skill": null, "S": 6, "AP": -1, "D": 1,
+    "abilities": [ { "ability": "IGNORES_COVER" }, { "ability": "TORRENT" } ], "figure": { "part": "tyr.weapon.psychoclastic-torrent" } },
+  { "id": "tyr.w.fleshborer", "name": "Fleshborer", "type": "ranged", "range": 18, "A": 1, "skill": 4, "S": 5, "AP": 0, "D": 1,
+    "abilities": [ { "ability": "ASSAULT" } ], "figure": { "part": "tyr.weapon.fleshborer", "hands": 2 } },
+  { "id": "tyr.w.barblauncher", "name": "Barblauncher", "type": "ranged", "range": 24, "A": "D6", "skill": 4, "S": 5, "AP": 0, "D": 1,
+    "abilities": [ { "ability": "BLAST" }, { "ability": "HEAVY" } ], "figure": { "part": "tyr.weapon.barblauncher", "hands": 2 } },
+  { "id": "tyr.w.prime-talons", "name": "Prime talons", "type": "melee", "range": 0, "A": 6, "skill": 2, "S": 6, "AP": -1, "D": 2,
+    "abilities": [], "figure": { "part": "tyr.weapon.prime-talons" } },
+  { "id": "tyr.w.talons-and-betentacled-maw", "name": "Talons and betentacled maw", "type": "melee", "range": 0, "A": "D6+1", "skill": 3, "S": 6, "AP": -1, "D": 2,
+    "abilities": [ { "ability": "ANTI", "keyword": "PSYKER", "value": 4 }, { "ability": "DEVASTATING_WOUNDS" } ], "figure": { "part": "tyr.weapon.talons-and-betentacled-maw" } },
+  { "id": "tyr.w.chitinous-claws-and-teeth-termagant", "name": "Chitinous claws and teeth", "type": "melee", "range": 0, "A": 1, "skill": 4, "S": 3, "AP": 0, "D": 1,
+    "abilities": [], "figure": { "part": "tyr.weapon.chitinous-claws-and-teeth", "hands": 1 } },
+  { "id": "tyr.w.chitinous-claws-and-teeth-barbgaunt", "name": "Chitinous claws and teeth", "type": "melee", "range": 0, "A": 1, "skill": 4, "S": 4, "AP": 0, "D": 1,
+    "abilities": [], "figure": { "part": "tyr.weapon.chitinous-claws-and-teeth", "hands": 1 } },
+  { "id": "tyr.w.leapers-talons", "name": "Leaper's talons", "type": "melee", "range": 0, "A": 6, "skill": 3, "S": 5, "AP": -1, "D": 1,
+    "abilities": [], "figure": { "part": "tyr.weapon.leapers-talons" } }
+]

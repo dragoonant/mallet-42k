@@ -1,0 +1,24 @@
+[
+  {
+    "id": "tyr.psychophage",
+    "faction": "tyranids",
+    "name": "Psychophage",
+    "keywords": ["MONSTER", "GREAT DEVOURER", "HARVESTER", "PSYCHOPHAGE"],
+    "factionKeywords": ["TYRANIDS"],
+    "stats": { "M": 8, "T": 9, "Sv": 3, "W": 10, "Ld": 8, "OC": 3 },
+    "composition": [
+      {
+        "modelId": "psychophage",
+        "name": "Psychophage",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "oval", "mm": 120, "mm2": 92 },
+        "weapons": { "default": ["tyr.w.psychoclastic-torrent", "tyr.w.talons-and-betentacled-maw"] },
+        "figure": { "archetype": "monster", "kit": "tyr-psychophage" }
+      }
+    ],
+    "abilities": ["tyr.a.synapse", "tyr.a.feeding-frenzy"],
+    "coreAbilities": [ { "ability": "DEADLY_DEMISE", "value": 1 }, { "ability": "FEEL_NO_PAIN", "value": 5 } ],
+    "points": [ { "models": 1, "points": 0 } ],
+    "figure": { "archetype": "monster", "kit": "tyr-psychophage" }
+  }
+]

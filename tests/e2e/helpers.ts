@@ -302,12 +302,12 @@ export async function tryBoardPlacement(
     await clearToast(page)
     await resetOpenDraft(page)
     const ok = await clickCanvasAt(page, project({ x: p.x, y: 0, z: p.z }, cam, W, H), W, H)
-    if (!ok) continue
+    if (!ok) { note?.(label + ': click miss ' + p.x + ',' + p.z); continue }
     await page.waitForTimeout(120)
     const confirm = page.getByTestId('btn-confirm')
-    if (!(await confirm.isVisible().catch(() => false))) continue
+    if (!(await confirm.isVisible().catch(() => false))) { note?.(label + ': no confirm ' + p.x + ',' + p.z); continue }
     if (!(await confirm.isEnabled().catch(() => false))) {
-      if (!retryFormations || !(await tryAlternateFormationForCoherency(page, confirm))) continue
+      if (!retryFormations || !(await tryAlternateFormationForCoherency(page, confirm))) { note?.(label + ': confirm disabled ' + p.x + ',' + p.z); continue }
     }
     await confirm.click()
     const after = await waitChange(page, id)
@@ -384,7 +384,7 @@ export async function startGameVsBot(page: Page, seed: string): Promise<void> {
   const { expect } = await import('@playwright/test')
   await page.goto('/')
   await expect(page.getByTestId('start-game')).toBeVisible()
-  await page.getByRole('button', { name: 'Space Marines' }).click()
+  await page.getByRole('button', { name: 'Space Marines', exact: true }).click()
   await page.getByRole('button', { name: 'Bot', exact: true }).click()
   await page.getByTestId('setup-seed').fill(seed)
   await page.getByTestId('start-game').click()

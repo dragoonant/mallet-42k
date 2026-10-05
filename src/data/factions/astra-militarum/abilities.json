@@ -1,0 +1,156 @@
+[
+  {
+    "id": "am.a.voice-of-command",
+    "name": "Voice of Command",
+    "text": "At the end of your Command phase, each OFFICER model with this ability may bark one Order at a friendly REGIMENT unit that has a model within 6 inches of it. The unit follows that Order until the start of your next Command phase, or until it becomes Battle-shocked. A unit follows one Order at a time; a new Order replaces the old one.",
+    "trigger": "commandPhase",
+    "code": "voiceOfCommand",
+    "params": {
+      "pickWindow": "command.end",
+      "officerKeyword": "OFFICER",
+      "ordersPerOfficer": 1,
+      "eligibleKeyword": "REGIMENT",
+      "range": 6,
+      "orderIds": [
+        "am.order.move-move-move",
+        "am.order.take-aim",
+        "am.order.take-cover"
+      ]
+    }
+  },
+  {
+    "id": "am.order.move-move-move",
+    "name": "Move! Move! Move!",
+    "text": "Order: every model in the unit has +3 inches added to its Move characteristic.",
+    "trigger": "always",
+    "effect": {
+      "modifyStat": {
+        "stat": "M",
+        "value": 3
+      }
+    },
+    "params": {
+      "order": true,
+      "endsOnBattleShock": true
+    }
+  },
+  {
+    "id": "am.order.take-aim",
+    "name": "Take Aim!",
+    "text": "Order: ranged weapons carried by models in the unit hit one step more easily (Ballistic Skill improved by 1).",
+    "trigger": "always",
+    "effect": {
+      "when": {
+        "weaponType": "ranged"
+      },
+      "modifyStat": {
+        "stat": "BS",
+        "value": -1
+      }
+    },
+    "params": {
+      "order": true,
+      "endsOnBattleShock": true
+    }
+  },
+  {
+    "id": "am.order.take-cover",
+    "name": "Take Cover!",
+    "text": "Order: models in the unit have their Save improved by 1, but never to better than 3+. Saves already at 3+ or better are unchanged.",
+    "trigger": "always",
+    "effect": {
+      "modifyStat": {
+        "stat": "Sv",
+        "value": -1,
+        "cap": 3
+      }
+    },
+    "params": {
+      "order": true,
+      "endsOnBattleShock": true
+    }
+  },
+  {
+    "id": "am.a.medi-pack",
+    "name": "Medi-pack",
+    "text": "While the veteran carrying the medi-pack is alive, every model in that unit (an attached bodyguard included) has a 6+ Feel No Pain save.",
+    "trigger": "always",
+    "effect": {
+      "feelNoPain": 6
+    },
+    "scope": {
+      "who": "self"
+    },
+    "code": "wargearBearerAlive",
+    "params": {
+      "modelId": "veteran-medic"
+    }
+  },
+  {
+    "id": "am.a.regimental-standard",
+    "name": "Regimental Standard",
+    "text": "While the veteran carrying the standard is alive, add 1 to the Objective Control of every model in that unit (an attached bodyguard included).",
+    "trigger": "always",
+    "effect": {
+      "modifyStat": {
+        "stat": "OC",
+        "value": 1
+      }
+    },
+    "scope": {
+      "who": "self"
+    },
+    "code": "wargearBearerAlive",
+    "params": {
+      "modelId": "veteran-standard"
+    }
+  },
+  {
+    "id": "am.a.rearm-reload-fire",
+    "name": "Rearm, Reload, Fire",
+    "text": "While this unit is under an Order and stood still this turn, its Heavy weapons gain Sustained Hits 1.",
+    "trigger": "always",
+    "when": {
+      "unitStationary": true
+    },
+    "effect": {
+      "when": {
+        "weaponAbility": "HEAVY"
+      },
+      "grantWeaponAbility": {
+        "ability": "SUSTAINED_HITS",
+        "value": 1
+      }
+    },
+    "scope": {
+      "who": "self"
+    },
+    "code": "requireActiveOrder"
+  },
+  {
+    "id": "am.a.mobile-hunter-killers",
+    "name": "Mobile Hunter-killers",
+    "text": "Attacks from this unit against a MONSTER or VEHICLE unit may re-roll the wound roll.",
+    "trigger": "woundRoll",
+    "when": {
+      "targetKeyword": [
+        "MONSTER",
+        "VEHICLE"
+      ]
+    },
+    "effect": {
+      "reroll": "all"
+    },
+    "scope": {
+      "who": "self"
+    }
+  },
+  {
+    "id": "am.a.patrol-squads",
+    "name": "Patrol Squads",
+    "text": "When you declare battle formations, before any unit is set up, this unit may be split into two units of one model each. Each half keeps all of its abilities.",
+    "trigger": "always",
+    "code": "patrolSquads",
+    "params": { "sizes": [1, 1] }
+  }
+]

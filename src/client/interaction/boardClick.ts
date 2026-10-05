@@ -8,9 +8,10 @@
 import type { GameState, Model, PendingDecision, Polygon, UnitId } from '@/engine'
 import { whollyOnBoard, whollyWithinPolygon } from '@/engine'
 import { useUiStore, type PlacementDraft } from '../ui/uiStore'
-import { combinedUnitModels, modelsAnchor, type Anchor2D } from './geometry'
+import { combinedUnitIds, combinedUnitModels, modelsAnchor, type Anchor2D } from './geometry'
 import { directionFacing, formationPlacementsForUnit, zoneFacing, type FormationKind, type FormationPlacement } from './formations'
 import { placementInfo } from './decisions'
+import { deployUnitInfiltrates, inInfiltratorArea, validateDraft } from './formationValidation'
 
 /** Average of a convex polygon's own vertices — always interior for the rectangle/triangle deployment
  *  zones Combat Patrol missions use — used as the "pull toward here" target when a click-drafted
@@ -143,6 +144,40 @@ function clampAnchorToZone(
   return { anchor: centre, placements: formationPlacementsForUnit(state, unitId, centre, facing, kind), facing, kind }
 }
 
+/** A click in a crowded deployment strip can land where the formation (clamped into the zone) still overlaps a unit
+ *  already deployed, so Confirm stays disabled at every spot the player tries. This scans the zone for the nearest
+ *  anchor, on a 1" grid, where the whole combined unit is a fully valid drop — current shape and facing first, then
+ *  the rotations and denser shapes clampAnchorToZone also uses — and returns it, or null when nothing in the zone fits
+ *  (the unit then has to go to Reserves, if it may, or the strip really is full). */
+function findOpenDeploySpot(
+  state: GameState,
+  unitId: UnitId,
+  models: Model[],
+  point: Anchor2D,
+  facing: number,
+  kind: FormationKind,
+  zone: Polygon,
+): { anchor: Anchor2D; placements: FormationPlacement[]; facing: number; kind: FormationKind } | null {
+  const exclude = combinedUnitIds(state, unitId)
+  const xs = zone.map((v) => v.x)
+  const zs = zone.map((v) => v.z)
+  const anchors: Anchor2D[] = []
+  for (let x = Math.min(...xs); x <= Math.max(...xs); x += 1) for (let z = Math.min(...zs); z <= Math.max(...zs); z += 1) anchors.push({ x, z })
+  anchors.sort((a, b) => Math.hypot(a.x - point.x, a.z - point.z) - Math.hypot(b.x - point.x, b.z - point.z))
+  const longAxis = zoneLongAxisFacing(zone)
+  const facings = [facing, longAxis, longAxis + Math.PI, facing + Math.PI / 2, facing - Math.PI / 2]
+  const combos: { kind: FormationKind; facing: number }[] = []
+  for (const k of [kind, ...ZONE_FIT_FALLBACK_KINDS.filter((x) => x !== kind)]) for (const f of facings) combos.push({ kind: k, facing: f })
+  for (const a of anchors) {
+    for (const c of combos) {
+      const placements = formationPlacementsForUnit(state, unitId, a, c.facing, c.kind)
+      if (placements.length === 0 || !formationFitsZone(state, models, placements, zone)) continue
+      if (validateDraft(state, models, placements, null, exclude, true).ok) return { anchor: a, placements, facing: c.facing, kind: c.kind }
+    }
+  }
+  return null
+}
+
 export function computeBoardClickDraft(
   state: GameState,
   pending: PendingDecision,
@@ -163,8 +198,29 @@ export function computeBoardClickDraft(
     // rotating/reshaping as a last resort (see clampAnchorToZone) rather than leaving an unconfirmable
     // red preview. When that changed the facing/kind actually used, reflect it in the formation picker
     // so what's on screen matches what the player would see if they'd picked it themselves.
-    const clamped = clampAnchorToZone(state, deployTargetUnitId, models, point, facing, kind, pending.context.zone)
+    // An Infiltrators unit (engine-flagged in context.infiltrators) may be set up outside the zone: when
+    // the raw click already forms a valid drop in the infiltration area (and does not fit the zone), keep
+    // it where it was clicked instead of pulling it back into the zone.
+    if (deployUnitInfiltrates(state, deployTargetUnitId)) {
+      const raw = formationPlacementsForUnit(state, deployTargetUnitId, point, facing, kind)
+      if (raw.length > 0 && !formationFitsZone(state, models, raw, pending.context.zone)) {
+        const byId = new Map(models.map((m) => [m.id, m]))
+        const fps = raw.flatMap((p) => {
+          const m = byId.get(p.modelId)
+          return m ? [{ pos: p.pos, facing: p.facing, base: m.base }] : []
+        })
+        if (inInfiltratorArea(state, pending.player, fps)) {
+          return { decisionId: pending.id, unitId: deployTargetUnitId, anchor: point, placements: raw }
+        }
+      }
+    }
+    let clamped = clampAnchorToZone(state, deployTargetUnitId, models, point, facing, kind, pending.context.zone)
     if (clamped.placements.length === 0) return null
+    // Crowded strip: the clamped draft overlaps a unit already deployed — hunt for the nearest spot that really fits.
+    if (!validateDraft(state, models, clamped.placements, null, combinedUnitIds(state, deployTargetUnitId), true).ok) {
+      const open = findOpenDeploySpot(state, deployTargetUnitId, models, point, clamped.facing, clamped.kind, pending.context.zone)
+      if (open) clamped = open
+    }
     if (clamped.facing !== facing || ui.formationFacingAuto) ui.setFormationFacing(clamped.facing, true)
     if (clamped.kind !== kind) ui.setFormationKind(clamped.kind)
     return { decisionId: pending.id, unitId: deployTargetUnitId, anchor: clamped.anchor, placements: clamped.placements }

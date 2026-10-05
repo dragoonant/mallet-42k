@@ -12,17 +12,53 @@ interface GalleryEntry {
   datasheetId: string
   faction: string
   label: string
+  /** Datasheet model type, for a unit whose models look different (resolveFigureKit's per-model kits). */
+  modelId?: string
 }
 
 const GALLERY_ENTRIES: GalleryEntry[] = [
-  { datasheetId: 'sm.captain-octavius', faction: 'sm', label: 'Captain Octavius' },
-  { datasheetId: 'sm.librarian-tantus', faction: 'sm', label: 'Librarian Tantus' },
-  { datasheetId: 'sm.infernus-squad', faction: 'sm', label: 'Infernus Squad' },
-  { datasheetId: 'sm.terminator-squad', faction: 'sm', label: 'Terminator Squad' },
-  { datasheetId: 'ork.boyz', faction: 'ork', label: 'Boyz' },
-  { datasheetId: 'ork.warboss-gordrang', faction: 'ork', label: 'Warboss Gordrang' },
-  { datasheetId: 'ork.deffkoptas', faction: 'ork', label: 'Deffkoptas' },
-  { datasheetId: 'ork.deff-dread', faction: 'ork', label: 'Deff Dread' },
+  { datasheetId: 'sm.captain-octavius', modelId: 'captain', faction: 'sm', label: "Captain Octavius" },
+  { datasheetId: 'sm.librarian-tantus', modelId: 'librarian', faction: 'sm', label: "Librarian Tantus" },
+  { datasheetId: 'sm.infernus-squad', modelId: 'sergeant', faction: 'sm', label: "Infernus Sergeant" },
+  { datasheetId: 'sm.infernus-squad', modelId: 'marine', faction: 'sm', label: "Infernus Marine" },
+  { datasheetId: 'sm.terminator-squad', modelId: 'sergeant', faction: 'sm', label: "Terminator Sergeant" },
+  { datasheetId: 'sm.terminator-squad', modelId: 'gunner', faction: 'sm', label: "Terminator" },
+  { datasheetId: 'ork.warboss-gordrang', modelId: 'gordrang', faction: 'ork', label: "Warboss Gordrang" },
+  { datasheetId: 'ork.boyz', modelId: 'boss-nob', faction: 'ork', label: "Boss Nob" },
+  { datasheetId: 'ork.boyz', modelId: 'boy-choppa', faction: 'ork', label: "Boy" },
+  { datasheetId: 'ork.deff-dread', modelId: 'deff-dread', faction: 'ork', label: "Deff Dread" },
+  { datasheetId: 'ork.deffkoptas', modelId: 'kopta-blasta', faction: 'ork', label: "Deffkopta" },
+  { datasheetId: 'nec.necron-warriors', faction: 'necrons', label: 'Necron Warriors' },
+  { datasheetId: 'nec.overlord-amonhotekh', faction: 'necrons', label: 'Overlord Amonhotekh' },
+  { datasheetId: 'nec.skorpekh-destroyers', faction: 'necrons', label: 'Skorpekh Destroyers' },
+  { datasheetId: 'nec.canoptek-doomstalker', faction: 'necrons', label: 'Canoptek Doomstalker' },
+  { datasheetId: 'nec.canoptek-scarab-swarms', faction: 'necrons', label: 'Scarab Swarms' },
+  { datasheetId: 'csm.aranis-zarkan', modelId: 'zarkan', faction: 'chaos-space-marines', label: "Aranis Zarkan" },
+  { datasheetId: 'csm.possessed', modelId: 'possessed', faction: 'chaos-space-marines', label: "Possessed" },
+  { datasheetId: 'csm.legionaries', modelId: 'champion', faction: 'chaos-space-marines', label: "Legionary Champion" },
+  { datasheetId: 'csm.legionaries', modelId: 'boltgun', faction: 'chaos-space-marines', label: "Legionary" },
+  { datasheetId: 'csm.cultist-mob', modelId: 'champion', faction: 'chaos-space-marines', label: "Cultist Champion" },
+  { datasheetId: 'csm.cultist-mob', modelId: 'cultist', faction: 'chaos-space-marines', label: "Cultist" },
+  { datasheetId: 'tyr.termagants', modelId: 'termagant', faction: 'tyranids', label: "Termagant" },
+  { datasheetId: 'tyr.barbgaunts', modelId: 'barbgaunt', faction: 'tyranids', label: "Barbgaunt" },
+  { datasheetId: 'tyr.von-ryans-leapers', modelId: 'leaper', faction: 'tyranids', label: "Von Ryan's Leaper" },
+  { datasheetId: 'tyr.terror-of-vardenghast', modelId: 'prime', faction: 'tyranids', label: "Terror of Vardenghast" },
+  { datasheetId: 'tyr.psychophage', modelId: 'psychophage', faction: 'tyranids', label: "Psychophage" },
+  { datasheetId: 'ade.canoness-adalya', faction: 'adepta-sororitas', label: 'Canoness Adalya', modelId: 'canoness' },
+  { datasheetId: 'ade.battle-sisters-squad', faction: 'adepta-sororitas', label: 'Sister Superior', modelId: 'superior' },
+  { datasheetId: 'ade.battle-sisters-squad', faction: 'adepta-sororitas', label: 'Sister (flamer)', modelId: 'sister-flamer' },
+  { datasheetId: 'ade.battle-sisters-squad', faction: 'adepta-sororitas', label: 'Sister (heavy flamer)', modelId: 'sister-heavy-flamer' },
+  { datasheetId: 'ade.battle-sisters-squad', faction: 'adepta-sororitas', label: 'Sister (Simulacrum)', modelId: 'sister-simulacrum' },
+  { datasheetId: 'ade.battle-sisters-squad', faction: 'adepta-sororitas', label: 'Battle Sister', modelId: 'sister' },
+  { datasheetId: 'ade.celestian-sacresants', faction: 'adepta-sororitas', label: 'Celestian Sacresant', modelId: 'sacresant' },
+  { datasheetId: 'ade.arco-flagellants', faction: 'adepta-sororitas', label: 'Arco-flagellant', modelId: 'arco' },
+  { datasheetId: 'am.cadian-shock-troops', modelId: 'trooper', faction: 'astra-militarum', label: 'Shock Troops' },
+  { datasheetId: 'am.cadian-shock-troops', modelId: 'sergeant', faction: 'astra-militarum', label: 'Shock Sergeant' },
+  { datasheetId: 'am.command-squad-karsk', modelId: 'karsk', faction: 'astra-militarum', label: 'Lord Marshal Karsk' },
+  { datasheetId: 'am.command-squad-karsk', modelId: 'veteran-standard', faction: 'astra-militarum', label: 'Standard Bearer' },
+  { datasheetId: 'am.field-ordnance-battery', modelId: 'gun-bombast', faction: 'astra-militarum', label: 'Field Gun' },
+  { datasheetId: 'am.field-ordnance-battery', modelId: 'gun-malleus', faction: 'astra-militarum', label: 'Rocket Battery' },
+  { datasheetId: 'am.armoured-sentinels', modelId: 'sentinel', faction: 'astra-militarum', label: 'Armoured Sentinel' },
 ]
 
 // Figures are true tabletop-miniature scale (~1-2 world-inches tall — see resolveBase), so packing
@@ -54,7 +90,7 @@ function useRowLayout(entries: GalleryEntry[]): { positions: number[]; totalWidt
   const bundle = useDataBundle()
   const halfWidths = entries.map((e) => {
     const datasheet = bundle?.datasheets[e.datasheetId]
-    const { archetype } = resolveFigureKit(e.datasheetId, datasheet)
+    const { archetype } = resolveFigureKit(e.datasheetId, datasheet, e.modelId)
     const base = resolveBase(datasheet, archetype)
     return Math.max(base.radiusX, base.radiusZ, MIN_SPACING / 2 - BASE_CLEARANCE)
   })
@@ -77,8 +113,8 @@ export function FigureGallery({ pose = 'idle', faction }: FigureGalleryProps) {
         <meshStandardMaterial color="#2c2f38" />
       </mesh>
       {entries.map((entry, i) => (
-        <group key={entry.datasheetId} position={[startX + positions[i], 0, 0]}>
-          <Figure datasheetId={entry.datasheetId} faction={entry.faction} pose={pose} />
+        <group key={`${entry.datasheetId}/${entry.modelId ?? ''}`} position={[startX + positions[i], 0, 0]}>
+          <Figure datasheetId={entry.datasheetId} modelId={entry.modelId} faction={entry.faction} pose={pose} />
           <Text position={[0, 0.15, 1.3]} fontSize={0.2} color="#e8e8f2" anchorX="center" anchorY="middle" maxWidth={MIN_SPACING - 0.4}>
             {entry.label}
           </Text>

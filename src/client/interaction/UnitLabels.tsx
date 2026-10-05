@@ -33,7 +33,7 @@ export function UnitLabels() {
         return (
           <Html key={unit.id} position={[cx, topY, cz]} center distanceFactor={18} style={{ pointerEvents: 'none' }} occlude={false}>
             <div style={{ ...labelStyle, color }} data-testid={`unit-label-${unit.id}`}>
-              {unit.name} · {wounds}W{unit.battleShocked ? ' · Shocked' : ''}
+              {unit.name} · {wounds} {wounds === 1 ? 'wound' : 'wounds'}{unit.battleShocked ? ' · Shocked' : ''}
             </div>
           </Html>
         )

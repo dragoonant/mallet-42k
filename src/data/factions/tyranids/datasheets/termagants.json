@@ -1,0 +1,24 @@
+[
+  {
+    "id": "tyr.termagants",
+    "faction": "tyranids",
+    "name": "Termagants",
+    "keywords": ["INFANTRY", "BATTLELINE", "GREAT DEVOURER", "ENDLESS MULTITUDE", "TERMAGANTS"],
+    "factionKeywords": ["TYRANIDS"],
+    "stats": { "M": 6, "T": 3, "Sv": 5, "W": 1, "Ld": 8, "OC": 2 },
+    "composition": [
+      {
+        "modelId": "termagant",
+        "name": "Termagant",
+        "min": 10, "max": 20, "default": 20,
+        "base": { "shape": "round", "mm": 28 },
+        "weapons": { "default": ["tyr.w.fleshborer", "tyr.w.chitinous-claws-and-teeth-termagant"] },
+        "figure": { "archetype": "infantry", "kit": "tyr-termagant" }
+      }
+    ],
+    "abilities": ["tyr.a.synapse", "tyr.a.skulking-horrors", "tyr.a.patrol-squads"],
+    "coreAbilities": [],
+    "points": [ { "models": 10, "points": 0 }, { "models": 20, "points": 0 } ],
+    "figure": { "archetype": "infantry", "kit": "tyr-termagant" }
+  }
+]

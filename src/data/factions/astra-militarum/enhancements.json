@@ -1,0 +1,65 @@
+[
+  {
+    "id": "am.e.command-laurels",
+    "faction": "astra-militarum",
+    "name": "Command Laurels",
+    "text": "In your Command phase, if the bearer is on the battlefield, gain 1 CP. Each Order the bearer issues goes to every friendly ASTRA MILITARUM unit on the battlefield at once, with no range or REGIMENT requirement.",
+    "cost": 0,
+    "restriction": {
+      "keyword": [
+        "COMMAND SQUAD"
+      ]
+    },
+    "effect": {
+      "id": "am.e.command-laurels.effect",
+      "name": "Command Laurels",
+      "text": "Gain 1 CP in your Command phase while the bearer lives; the bearer's Orders reach every friendly ASTRA MILITARUM unit on the battlefield.",
+      "trigger": "commandPhase",
+      "when": {
+        "ownTurn": true
+      },
+      "effect": {
+        "cp": 1
+      },
+      "scope": {
+        "who": "bearer"
+      },
+      "code": "commandLaurels",
+      "params": {
+        "allKeyword": "ASTRA MILITARUM"
+      }
+    }
+  },
+  {
+    "id": "am.e.gunnery-officer",
+    "faction": "astra-militarum",
+    "name": "Gunnery Officer",
+    "text": "In your Command phase, if the bearer is on the battlefield, gain 1 CP. While a friendly ARTILLERY unit has a model within 6 inches of the bearer's unit, that unit may re-roll the dice that set a weapon's number of attacks, and its models have Lone Operative until they first make an attack.",
+    "cost": 0,
+    "restriction": {
+      "keyword": [
+        "COMMAND SQUAD"
+      ]
+    },
+    "effect": {
+      "id": "am.e.gunnery-officer.effect",
+      "name": "Gunnery Officer",
+      "text": "Gain 1 CP in your Command phase while the bearer lives; nearby friendly ARTILLERY units re-roll attack-count dice and are Lone Operatives until they attack.",
+      "trigger": "commandPhase",
+      "when": {
+        "ownTurn": true
+      },
+      "effect": {
+        "cp": 1
+      },
+      "scope": {
+        "who": "bearer"
+      },
+      "code": "gunneryOfficer",
+      "params": {
+        "auraRange": 6,
+        "auraKeyword": "ARTILLERY"
+      }
+    }
+  }
+]

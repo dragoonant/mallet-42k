@@ -18,9 +18,10 @@ export type TimingWindowId =
   | 'round.start'
   | 'command.start' | 'command.battleShock' | 'command.end'
   | 'movement.start' | 'movement.moveStarted' | 'movement.unitMoved' | 'movement.reinforcements' | 'movement.end'
-  | 'shooting.start' | 'shooting.targetsDeclared' | 'shooting.attacksResolved'
+  | 'shooting.start' | 'shooting.unitSelected' | 'shooting.targetsDeclared' | 'shooting.attacksResolved'
   | 'charge.start' | 'charge.declared' | 'charge.rolled' | 'charge.moveStarted' | 'charge.moveEnded'
   | 'fight.start' | 'fight.unitSelected' | 'fight.targetsDeclared' | 'fight.attacksResolved'
+  | 'attack.modelDestroyed'
   | 'any.unitDestroyed' | 'any.rollMade'
   | 'phase.end' | 'turn.end' | 'round.end' | 'battle.end'
 
@@ -64,12 +65,20 @@ export interface Condition {
   targetOnObjective?: boolean
   unitOnObjective?: boolean
   unitBelowHalf?: boolean
+  // target's combined current models (attached pair included) are below its combined Starting Strength (Tyranids Feeding Frenzy)
+  targetBelowStartingStrength?: boolean
+  // target unit is Below Half-strength (leaderService.isBelowHalfStrength)
+  targetBelowHalf?: boolean
+  // the attack targets the closest eligible enemy unit (Tyranids Voracious Assault, TYR-5.2)
+  targetIsClosestEligible?: boolean
   unitStationary?: boolean
   unitAdvanced?: boolean
   unitFellBack?: boolean
   unitCharged?: boolean
   unitBattleShocked?: boolean
   leaderAttached?: boolean
+  // onFeelNoPainRoll only: the point being saved is a mortal wound
+  mortalWound?: boolean
   roll?: RangeBound
   round?: RangeBound
   oathTarget?: boolean
@@ -83,7 +92,11 @@ export interface Effect {
   when?: Condition
   reroll?: 'ones' | 'fails' | 'all' | 'oneDie'
   modifyRoll?: { roll: RollName; value: number }
-  modifyStat?: { stat: StatName; value: number }
+  modifyStat?: { stat: StatName; value: number; cap?: number }
+  // C6 (Astra Militarum Artillery Strike): halve a stat (rounded up, before additive modifiers), halve an Advance roll, forbid a charge
+  halveStat?: StatName
+  halveRoll?: 'advance'
+  forbid?: 'charge'
   setStat?: { stat: StatName; value: DiceExpr }
   invuln?: RollTarget
   feelNoPain?: RollTarget
@@ -108,6 +121,8 @@ export interface Effect {
   chargeAfterFallBack?: true
   stealth?: true
   lethalOn?: RollTarget
+  // AP improves by this much for an attack whose unmodified wound roll was a critical wound
+  critWoundAp?: number
 }
 export type EffectList = Effect | Effect[]
 
@@ -143,9 +158,11 @@ export interface TargetSpec {
   role: 'unit' | 'model'
   owner: 'friendly' | 'enemy'
   filter?: { keyword?: Keyword; notKeyword?: Keyword; within?: { of: 'previousTarget' | 'self' | 'objective' | 'controlledObjective'; inches: number } }
-  state?: 'selectedToShoot' | 'selectedToFight' | 'notYetFought' | 'targetedByAttack' | 'chargedThisTurn' | 'justDestroyed'
+  state?: 'selectedToShoot' | 'selectedToFight' | 'notYetFought' | 'notYetShot' | 'notYetActivated' | 'targetedByAttack' | 'chargedThisTurn' | 'justDestroyed'
     | 'inEngagement' | 'belowHalf' | 'battleShocked' | 'justMoved'
   count?: number
+  // destroyed units are also legal targets (Tyranids Teeming Broods); every other stratagem leaves this off
+  includeDestroyed?: boolean
 }
 
 export interface PaintScheme { primary: Hex; secondary: Hex; trim: Hex; metal: Hex; decal: Hex }
@@ -200,6 +217,7 @@ export interface Composition {
   max: number
   default: number
   champion?: boolean
+  keywords?: Keyword[]
   base: Base
   statsOverride?: PartialStats
   weapons: { default: Id[]; options?: WargearOption[] }
@@ -276,6 +294,8 @@ export interface PatrolUnitData {
   datasheet: Id
   size: number
   wargear?: { modelId: string; count: number; weapons: Id[] }[]
+  // Patrol Squads: parts this unit may split into at Declare Battle Formations (PlayerSetup.splitUnits)
+  patrolSquads?: { ref: string; size: number; wargear: { modelId: string; count: number; weapons: Id[] }[] }[]
   attachTo?: string
   enhancement?: Id
 }

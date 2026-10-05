@@ -34,24 +34,34 @@ function hasAbility(weapon: WeaponData | undefined, name: string): boolean {
  *  gun sounds like when nothing more specific matched. */
 export function weaponFlavour(weaponId: string, weapon: WeaponData | undefined, faction: string): WeaponFlavour {
   const text = `${weaponId} ${weapon?.name ?? ''}`.toLowerCase()
-  const melee = weapon ? weapon.type === 'melee' : /choppa|klaw|fist|weapon$|blade/.test(text)
+  const melee = weapon ? weapon.type === 'melee' : /choppa|klaw|fist|weapon$|blade|scythe|mace|flail|sword|close-combat|combat weapon/.test(text)
   const psychic = hasAbility(weapon, 'PSYCHIC') || /smite|witchfire|warp|psychic/.test(text)
+  // Gauss weapons flay with a green energy bolt rather than a bullet, so they voice and trace as an energy
+  // weapon; the psychic zap is the closest thing in the SFX palette.
+  const gauss = /gauss/.test(text)
   const strength = typeof weapon?.S === 'number' ? weapon.S : 0
 
   if (melee) {
     // A force weapon crackles rather than revs; everything else splits on whether it crushes or cuts.
     if (psychic || /force/.test(text)) return 'force'
-    if (/fist|klaw|claw|hammer|maul|crush/.test(text)) return 'crush'
-    if (/choppa|chain|sword|blade|axe|knife|talon/.test(text)) return 'chain'
+    // Tyranid claws, talons and teeth rend and slash, so they voice as the cutting sound; only a klaw/fist
+    // (or a plain crushing profile) is the heavy crunch.
+    if (/fist|klaw|hammer|maul|mace|crush|limbs|mutation|sentinel/.test(text)) return 'crush'
+    if (/choppa|chain|sword|blade|axe|knife|claw|talon|teeth|maw|hyperphase|mandible|flail|whip/.test(text)) return 'chain'
     return strength >= 8 ? 'crush' : 'chain'
   }
 
-  if (psychic) return 'psychic'
+  if (psychic || gauss) return 'psychic'
   // TORRENT is the rules-level marker for a flame template (no hit roll, auto-hits).
   if (hasAbility(weapon, 'TORRENT') || /flame|flamer|burna|pyre|melta|incinerat/.test(text)) return 'flame'
   // BLAST marks the explosive/ordnance profiles; the keywords catch the rest of the big guns, and
   // S7+ catches a heavy profile whose name says nothing (nothing in the current bundle needs it).
-  if (hasAbility(weapon, 'BLAST') || /cannon|kannon|rokkit|rocket|missile|mega|lascannon|plasma|blasta/.test(text)) return 'heavy'
-  if (/shoota|slugga|dakka|stikk/.test(text) || faction === 'orks' || faction === 'ork') return 'shoota'
+  if (hasAbility(weapon, 'BLAST') || /cannon|kannon|rokkit|rocket|missile|mega|lascannon|plasma|blasta|blaster|tachyon|heavy bolter|heavy-bolter|launcher|field-gun|field gun|howitzer|hunter-killer|bombast|malleus/.test(text)) return 'heavy'
+  // Guard small arms (lasgun, laspistol, autogun) fall through to 'bolter': a rifle crack with a warm orange tracer.
+  if (/bolt/.test(text)) return 'bolter'
+  // Cultist autoguns are cheap rattling cracks, not bolter thumps. Spat or flung biomass (fleshborers, spore-guns)
+  // is a rapid wet spray too; the Tyranid faction fallback does the same for any other plain gun.
+  if (/shoota|slugga|dakka|stikk|autopistol|borer|spine|spore/.test(text) || (/autogun/.test(text) && faction !== 'astra-militarum') || faction === 'orks' || faction === 'ork' || faction === 'tyranids') return 'shoota'
+  if (faction === 'necrons') return 'psychic'
   return 'bolter'
 }

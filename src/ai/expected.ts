@@ -30,6 +30,11 @@ export interface AttackOptions {
   cover?: boolean // target has the Benefit of Cover against this attack
   hitMod?: number
   woundMod?: number
+  hitOn6?: boolean // hits land only on an unmodified 6 (Fire Overwatch)
+  invuln?: number // granted invulnerable save (stratagem); the better of this and the datasheet's applies
+  fnp?: number // granted Feel No Pain (stratagem); the better of this and the datasheet's applies
+  strMod?: number // added to the attacking weapon's Strength (e.g. Disruption Fields)
+  woundModHighS?: number // wound-roll modifier applied only when the weapon's Strength exceeds the target's Toughness
 }
 
 export interface AttackEstimate { damage: number; modelsKilled: number }
@@ -73,7 +78,7 @@ export function expectedAttack(
   if (weaponService.hasAbility(weapon, 'RAPID_FIRE') && opts.inHalfRange) n += abilityValueMean(weapon, 'RAPID_FIRE')
 
   const torrent = weaponService.hasAbility(weapon, 'TORRENT')
-  const pHit = torrent ? 1 : rollP(weapon.skill, opts.hitMod ?? 0)
+  const pHit = torrent ? 1 : opts.hitOn6 ? 1 / 6 : rollP(weapon.skill, opts.hitMod ?? 0)
   const pCrit = torrent ? 0 : 1 / 6
 
   let hits = n * pHit
@@ -82,9 +87,10 @@ export function expectedAttack(
   if (weaponService.hasAbility(weapon, 'LETHAL_HITS')) { autoWoundHits = n * pCrit; hits -= n * pCrit }
   hits = Math.max(0, hits)
 
-  let woundTarget = woundRollNeeded(weapon.S, tStats.T)
+  const strength = weapon.S + (opts.strMod ?? 0)
+  let woundTarget = woundRollNeeded(strength, tStats.T)
   if (opts.charged && weaponService.hasAbility(weapon, 'LANCE')) woundTarget -= 1
-  let woundMod = opts.woundMod ?? 0
+  let woundMod = (opts.woundMod ?? 0) + (strength > tStats.T ? (opts.woundModHighS ?? 0) : 0)
   const anti = weapon.abilities.find((a) => a.ability === 'ANTI' && a.keyword && tKeywords.includes(a.keyword))
   let pCritWound = pCrit
   if (anti?.value !== undefined) {
@@ -111,7 +117,8 @@ export function expectedAttack(
   let svArmour = tStats.Sv - weapon.AP
   if (opts.cover && !ignoresCover && !(tStats.Sv <= 3 && weapon.AP === 0)) svArmour -= 1
   const effArmour = Math.max(2, Math.min(7, svArmour))
-  const effInvuln = dsInvuln !== null ? Math.max(2, Math.min(7, dsInvuln)) : 7
+  const invulnSources = [dsInvuln, opts.invuln ?? null].filter((v): v is number => v !== null)
+  const effInvuln = invulnSources.length > 0 ? Math.max(2, Math.min(7, Math.min(...invulnSources))) : 7
   const effSave = Math.min(effArmour, effInvuln)
   const pFailSave = effSave >= 7 ? 1 : Math.max(0, Math.min(1, (effSave - 1) / 6))
 
@@ -206,24 +213,31 @@ export function bestRangedWeapon(state: GameState, modelId: ModelId): { weaponId
 
 // crude per-position threat: sum of enemy units' best-weapon expected damage against a probe unit, discounted
 // by whether the enemy is currently within its own threat range of the probe's position (2D). Cheap on purpose.
-export function threatAt(state: GameState, forPlayer: PlayerId, pos: { x: number; z: number }): number {
-  const enemies = boardModelsOf(state, forPlayer === 'A' ? 'B' : 'A')
-  let total = 0
+export interface ThreatSource { x: number; z: number; value: number; reach: number }
+// one entry per enemy unit on the board (first model's position), precomputed so scoring many candidate positions is cheap
+export function threatSources(state: GameState, forPlayer: PlayerId): ThreatSource[] {
+  const out: ThreatSource[] = []
   const seen = new Set<UnitId>()
-  for (const m of enemies) {
+  for (const m of boardModelsOf(state, forPlayer === 'A' ? 'B' : 'A')) {
     if (seen.has(m.unitId)) continue
     seen.add(m.unitId)
-    const unit = state.units[m.unitId]
-    const val = unitValue(state, unit.id)
     const stats = modelStats(state, m)
-    const dx = m.pos.x - pos.x, dz = m.pos.z - pos.z
-    const dist = Math.hypot(dx, dz)
     const ranged = bestRangedWeapon(state, m.id)
-    const reach = ranged ? ranged.range : stats.M + 3.5 // melee: move + average charge
-    const scale = reach <= 0 ? 0 : Math.max(0, Math.min(1, (reach + 6 - dist) / (reach + 6)))
-    total += val * 0.02 * scale
+    out.push({ x: m.pos.x, z: m.pos.z, value: unitValue(state, m.unitId), reach: ranged ? ranged.range : stats.M + 3.5 }) // melee: move + average charge
+  }
+  return out
+}
+export function threatFrom(sources: ThreatSource[], pos: { x: number; z: number }): number {
+  let total = 0
+  for (const s of sources) {
+    const dist = Math.hypot(s.x - pos.x, s.z - pos.z)
+    const scale = s.reach <= 0 ? 0 : Math.max(0, Math.min(1, (s.reach + 6 - dist) / (s.reach + 6)))
+    total += s.value * 0.02 * scale
   }
   return total
+}
+export function threatAt(state: GameState, forPlayer: PlayerId, pos: { x: number; z: number }): number {
+  return threatFrom(threatSources(state, forPlayer), pos)
 }
 
 // aggregate: each of the attacker's living models fires/swings with its single best weapon of that kind at

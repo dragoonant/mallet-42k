@@ -1,0 +1,23 @@
+{
+  "id": "tyranids",
+  "name": "Tyranids",
+  "factionKeyword": "TYRANIDS",
+  "armyRule": "tyr.a.synapse",
+  "detachments": [
+    {
+      "id": "tyr.d.combat-patrol",
+      "name": "Combat Patrol",
+      "rule": "tyr.a.synapse",
+      "stratagems": ["tyr.s.hyper-reactive", "tyr.s.voracious-assault", "tyr.s.teeming-broods"],
+      "enhancements": ["tyr.e.psychostatic-veil", "tyr.e.secretion-goad"]
+    }
+  ],
+  "paintScheme": {
+    "primary": "#e3d6b4",
+    "secondary": "#4b2a63",
+    "trim": "#b3262e",
+    "metal": "#2b2228",
+    "decal": "#7fd14b"
+  },
+  "combatPatrols": ["tyr.cp.vardenghast-swarm"]
+}

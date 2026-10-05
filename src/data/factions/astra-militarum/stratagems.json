@@ -1,0 +1,95 @@
+[
+  {
+    "id": "am.s.send-in-the-next-wave",
+    "faction": "astra-militarum",
+    "name": "Send in the Next Wave",
+    "text": "Use in the reinforcements step of your Movement phase, targeting one of your destroyed CADIAN SHOCK TROOPS units. A fresh copy of that unit, at full strength, is set up wholly within 9 inches of your battlefield edge and outside Engagement Range of every enemy unit. It counts as having arrived as reinforcements this turn.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": [
+      "movement"
+    ],
+    "window": "movement.end",
+    "who": "active",
+    "condition": {
+      "phase": "movement"
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "CADIAN SHOCK TROOPS"
+        }
+      }
+    ],
+    "limit": "oncePerPhase",
+    "code": "sendInTheNextWave"
+  },
+  {
+    "id": "am.s.bring-it-down",
+    "faction": "astra-militarum",
+    "name": "Bring It Down",
+    "text": "Use in your Shooting phase, targeting one enemy unit. Until the end of the phase, attacks made by your ASTRA MILITARUM units against that unit may re-roll the hit roll. Units that are Battle-shocked when this is used do not benefit.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": [
+      "shooting"
+    ],
+    "window": [
+      "shooting.start",
+      "shooting.attacksResolved"
+    ],
+    "who": "active",
+    "condition": {
+      "phase": "shooting",
+      "ownTurn": true
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "enemy"
+      }
+    ],
+    "effect": {
+      "reroll": "all"
+    },
+    "when": {
+      "attackerKeyword": "ASTRA MILITARUM"
+    },
+    "scope": {
+      "who": "attacker"
+    },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase",
+    "code": "bringItDown"
+  },
+  {
+    "id": "am.s.artillery-strike",
+    "faction": "astra-militarum",
+    "name": "Artillery Strike",
+    "text": "Use at the start of your opponent's Command phase, targeting one OFFICER model from your army that is on the battlefield. Until the end of that turn, every enemy unit has its Move halved, its Advance rolls halved, cannot declare a charge, and suffers -1 to the hit roll of its ranged attacks. Once per battle.",
+    "cost": 2,
+    "category": "strategicPloy",
+    "phases": [
+      "command"
+    ],
+    "window": "command.start",
+    "who": "reactive",
+    "condition": {
+      "phase": "command",
+      "ownTurn": false
+    },
+    "targets": [
+      {
+        "role": "model",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "OFFICER"
+        }
+      }
+    ],
+    "limit": "oncePerBattle",
+    "code": "artilleryStrike"
+  }
+]

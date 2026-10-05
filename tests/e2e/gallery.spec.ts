@@ -33,6 +33,20 @@ test('gallery filtered to Orks', async ({ page }) => {
   await page.screenshot({ path: 'e2e-out/12-orks.png' })
 })
 
+test('gallery filtered to Necrons', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await page.goto('/?gallery&faction=necrons')
+  await settle(page)
+  await page.screenshot({ path: 'e2e-out/13-necrons.png' })
+})
+
+test('gallery filtered to Tyranids', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await page.goto('/?gallery&faction=tyranids')
+  await settle(page)
+  await page.screenshot({ path: 'e2e-out/14-tyranids.png' })
+})
+
 test('board close-up over a group of deployed models', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await page.goto('/')
@@ -136,4 +150,18 @@ test('board close-up over a group of deployed models', async ({ page }) => {
 
   await page.waitForTimeout(1200) // let the top-down polar-angle lerp (CameraRig) settle
   await page.screenshot({ path: 'e2e-out/13-board-closeup.png' })
+})
+
+test('gallery filtered to Chaos Space Marines', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await page.goto('/?gallery&faction=chaos-space-marines')
+  await settle(page)
+  await page.screenshot({ path: 'e2e-out/14-chaos-space-marines.png' })
+})
+
+test('gallery filtered to Astra Militarum', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await page.goto('/?gallery&faction=astra-militarum')
+  await settle(page)
+  await page.screenshot({ path: 'e2e-out/14-astra-militarum.png' })
 })

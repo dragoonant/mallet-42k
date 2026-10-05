@@ -51,6 +51,12 @@
       "minimum": 2,
       "maximum": 7
     },
+    "LeadershipTarget": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 12,
+      "description": "Leadership is a 2D6 target, so it may exceed the 7 cap on RollTarget (Necrons Canoptek units are Ld 8+)"
+    },
     "Vec2": {
       "type": "object",
       "additionalProperties": false,
@@ -97,6 +103,7 @@
         "movement.reinforcements",
         "movement.end",
         "shooting.start",
+        "shooting.unitSelected",
         "shooting.targetsDeclared",
         "shooting.attacksResolved",
         "charge.start",
@@ -108,6 +115,7 @@
         "fight.unitSelected",
         "fight.targetsDeclared",
         "fight.attacksResolved",
+        "attack.modelDestroyed",
         "any.unitDestroyed",
         "any.rollMade",
         "phase.end",
@@ -137,7 +145,7 @@
           "minimum": 1
         },
         "Ld": {
-          "$ref": "#/$defs/RollTarget"
+          "$ref": "#/$defs/LeadershipTarget"
         },
         "OC": {
           "type": "integer",
@@ -173,7 +181,7 @@
           "minimum": 1
         },
         "Ld": {
-          "$ref": "#/$defs/RollTarget"
+          "$ref": "#/$defs/LeadershipTarget"
         },
         "OC": {
           "type": "integer",
@@ -323,6 +331,15 @@
         "unitBelowHalf": {
           "type": "boolean"
         },
+        "targetBelowStartingStrength": {
+          "type": "boolean"
+        },
+        "targetBelowHalf": {
+          "type": "boolean"
+        },
+        "targetIsClosestEligible": {
+          "type": "boolean"
+        },
         "unitStationary": {
           "type": "boolean"
         },
@@ -339,6 +356,9 @@
           "type": "boolean"
         },
         "leaderAttached": {
+          "type": "boolean"
+        },
+        "mortalWound": {
           "type": "boolean"
         },
         "roll": {
@@ -415,12 +435,26 @@
             },
             "value": {
               "type": "integer"
+            },
+            "cap": {
+              "type": "integer",
+              "description": "this modifier never takes the stat past `cap` (Sv/BS/WS/Ld: never lower than cap; other stats: never higher)"
             }
           },
           "required": [
             "stat",
             "value"
           ]
+        },
+        "halveStat": {
+          "$ref": "#/$defs/StatName",
+          "description": "stat halved (rounded up) before additive modifiers"
+        },
+        "halveRoll": {
+          "const": "advance"
+        },
+        "forbid": {
+          "const": "charge"
         },
         "setStat": {
           "type": "object",
@@ -558,6 +592,10 @@
         },
         "lethalOn": {
           "$ref": "#/$defs/RollTarget"
+        },
+        "critWoundAp": {
+          "type": "integer",
+          "minimum": 1
         }
       },
       "not": {
@@ -904,6 +942,8 @@
             "selectedToShoot",
             "selectedToFight",
             "notYetFought",
+            "notYetShot",
+            "notYetActivated",
             "targetedByAttack",
             "chargedThisTurn",
             "justDestroyed",
@@ -916,6 +956,9 @@
         "count": {
           "type": "integer",
           "minimum": 1
+        },
+        "includeDestroyed": {
+          "type": "boolean"
         }
       },
       "required": [

@@ -52,7 +52,7 @@ describe('command re-roll context', () => {
     const stale = [{ ...base, type: 'WoundRolled', attack, die: 6, final: 6, needed: 2, wounded: true, critical: false, auto: false }] as GameEvent[]
     const ctx = rerollContext(state, stale, roll({ purpose: 'wound', dice: [3], final: [3] }))
     expect(ctx.headline).toContain('To wound')
-    expect(ctx.detail).toBe('Rolled 3 — S4 vs T5, needs 5+.') // S4 into T5 is a 5+, per the engine's own table
+    expect(ctx.detail).toBe('Rolled 3 — Strength 4 vs Toughness 5, needs 5+.') // S4 into T5 is a 5+, per the engine's own table
   })
 
   /** A state with a save mid-flight, as the engine publishes it just before rolling. */
@@ -65,17 +65,17 @@ describe('command re-roll context', () => {
     const s = saving({ sv: 2, ap: 0, cover: false, armour: 2, invuln: 4 })
     const ctx = rerollContext(s, events, roll({ purpose: 'save', unitId: 'u1', modelId: 'am1', weaponId: 'ork.w.big-shoota', targetUnitId: 'u1', dice: [2], final: [2] }))
     expect(ctx.headline).toBe("Save — Terminator Squad against Boyz's Big shoota")
-    expect(ctx.detail).toBe('Rolled 2 — armour 2+ needs 2+.')
+    expect(ctx.detail).toBe('Rolled 2 — armour save 2+ needs 2+.')
   })
 
   it('shows the engine\'s own save target on a save re-roll, cover and all', () => {
     const events = [{ ...base, type: 'WoundRolled', attack: { ...attack, attackerUnitId: 'u2', weaponId: 'sm.w.power-fist', targetUnitId: 'u1' }, die: 5, final: 5, needed: 4, wounded: true, critical: false, auto: false }] as GameEvent[]
     const save = roll({ purpose: 'save', unitId: 'u1', modelId: 'am1', weaponId: 'sm.w.power-fist', targetUnitId: 'u1', dice: [3], final: [3] })
     expect(rerollContext(saving({ sv: 2, ap: -2, cover: false, armour: 4, invuln: 4 }), events, save).detail)
-      .toBe('Rolled 3 — armour 2+ against AP -2 needs 4+.')
+      .toBe('Rolled 3 — armour save 2+ against Armour Penetration -2 needs 4+.')
     // ...and the same attack into cover is a 3+, which the client could never have worked out itself
     expect(rerollContext(saving({ sv: 2, ap: -2, cover: true, armour: 3, invuln: 4 }), events, save).detail)
-      .toBe('Rolled 3 — armour 2+ against AP -2 in cover needs 3+.')
+      .toBe('Rolled 3 — armour save 2+ against Armour Penetration -2 in cover needs 3+.')
     // an invulnerable save ignores AP entirely, and says so
     expect(rerollContext(saving({ sv: 2, ap: -2, cover: false, armour: 4, invuln: 4 }, 'invuln'), events, save).detail)
       .toBe('Rolled 3 — invulnerable save needs 4+.')

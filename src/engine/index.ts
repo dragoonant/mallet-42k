@@ -25,6 +25,7 @@ import { weaponService } from './weapons'
 import { transportService } from './transports'
 import { objectiveService } from './objectives'
 import { missionService } from './missions'
+import { miracleHandler } from './miracle'
 
 export * from './types'
 export * from './actions'
@@ -37,11 +38,13 @@ export * from './geometry'
 export * from './modules'
 export {
   emptyPhaseState, emptyTurnState, hashState, canonicalJson, cloneForStep, unitModels, unitModelsForCoherency, unitsOf,
-  boardUnitsOf, boardModelsOf, enemyModelsOnBoard, datasheetOf, modelProfile, modelStats, keywordsOf, hasKeyword, setModelPos,
+  boardUnitsOf, boardModelsOf, enemyModelsOnBoard, datasheetOf, modelProfile, modelStats, keywordsOf, modelKeywordsOf, hasKeyword, setModelPos,
+  spawnUnitCopy, spawnDestroyedUnitCopy, recordModelAttacked, modelHasAttacked,
   removeModel, assignSides, deploymentZone, unitIdFor, modelIdFor, createGameState,
 } from './state'
 export { createEngine, registerDataBundle, getDataBundle, checkActionShape, advanceGame, createContext, requireUnit } from './reducer'
 export { rollOff, setupModule } from './setup'
+export * from './miracle'
 export type { TerrainService } from './terrain'
 export type { LosService } from './los'
 export type { HookService, HookData } from './hooks-impl'
@@ -92,6 +95,8 @@ export const DEFAULT_MODULES: ModuleTable = {
     recoverObjective: missionService.handler,
     stompTarget: missionService.handler,
     bagTarget: missionService.handler,
+    treasureObjective: missionService.handler,
+    miracleDie: miracleHandler,
   },
 }
 

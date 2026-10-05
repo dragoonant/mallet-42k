@@ -88,7 +88,8 @@ const KIND_TITLE: Partial<Record<PendingDecision['kind'], string>> = {
  *  own KIND_TITLE was one generic label for every mission/secondary/rules-engine pick (M6 gap). */
 const CHOOSE_OPTION_INFO: Partial<Record<ChooseOptionTopic, { title: string; hint: string }>> = {
   razeObjective: { title: 'Raze an objective?', hint: 'Destroys a marker you hold with no enemy nearby — it stops scoring VP for anyone, for the rest of the battle.' },
-  recoverObjective: { title: 'Recover intelligence?', hint: 'Spends a look at a marker you hold to gain a Command Point.' },
+  recoverObjective: { title: 'Recover intelligence?', hint: 'Search one marker you control for intel to gain 1 Command Point (needs your Warlord on the battlefield). Each marker can be searched only once per battle (by either side), and it keeps scoring VP as normal. Pass to save the marker for later.' },
+  treasureObjective: { title: 'Choose the treasure marker', hint: "Pick a marker in no man's land. If a Necron model destroys an enemy that was near it (or near the marker in your own zone) when the phase began, you score 3 VP." },
   stompTarget: { title: "Pick a Stomp 'Em target", hint: "Name a surviving enemy unit now — score if an ORKS model destroys it in melee by the end of this round." },
   bagTarget: { title: "Pick a Bag the Big 'Un target", hint: 'Name an enemy model now — score if it is destroyed by the end of this round.' },
   battleShockOrder: { title: 'Order battle-shock tests', hint: 'Choose which of your affected units tests for battle shock next.' },
@@ -104,6 +105,219 @@ const CHOOSE_OPTION_INFO: Partial<Record<ChooseOptionTopic, { title: string; hin
   rerollOffer: { title: 'Re-roll a die?', hint: 'Choose a die to re-roll, or keep the result.' },
   abilityChoice: { title: 'Ability choice', hint: 'Choose how this ability applies.' },
   chooseSide: { title: 'Choose your side', hint: 'Pick which deployment zone your army sets up in.' },
+}
+
+const METHODICAL_INFO = {
+  title: 'Methodical Destruction target',
+  hint: 'Name one enemy unit that is still alive. If it has been destroyed by the end of this battle round, by anyone or anything, you score 4 VP.',
+}
+
+/** Necron rules reach the player as chooseOption prompts with the generic 'abilityChoice' (or 'other') topic, so
+ *  the ability id is what says which rule is asking. Own-words text; matched by id fragment so a renamed
+ *  prefix or a variant of the same rule still reads right. */
+const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string } }[] = [
+  {
+    match: /resonant-focus/,
+    info: {
+      title: 'Resonant Focus target',
+      hint: 'Name an enemy unit within 12" of the bearer that he can see. For the rest of this turn, every Necron attack against it re-rolls hit rolls of 1.',
+    },
+  },
+  {
+    match: /plasmacyte/,
+    info: {
+      title: 'Release the plasmacyte?',
+      hint: "One use for the whole battle: until the end of this phase, this unit's melee weapons gain Devastating Wounds.",
+    },
+  },
+  {
+    match: /dark-?pact/i,
+    info: {
+      title: 'Make a Dark Pact?',
+      hint: 'The unit tests its nerve (2D6 against its Leadership); on a failure it takes D3 mortal wounds. Pass or fail, every weapon in the unit then gains the power you pick until the end of the phase. Decline to skip all of it.',
+    },
+  },
+  {
+    match: /sacrificial-?dagger/i,
+    info: {
+      title: 'Spill blood for the dagger?',
+      hint: "The unit takes 1 mortal wound. If the bearer survives, his psychic attacks hit and wound at +1 until the end of the phase. Once per phase.",
+    },
+  },
+  {
+    match: /prey-?on-?the-?weak/i,
+    info: {
+      title: 'Prey on the Weak target',
+      hint: 'Pick an enemy unit that the Rite of Possession struck this activation: it takes an immediate Battle-shock test at -1.',
+    },
+  },
+  {
+    match: /shadow-in-the-warp/,
+    info: {
+      title: 'Shadow in the Warp',
+      hint: 'One use for the whole battle: every enemy unit on the board takes a battle-shock test right now. Fire it when it will hurt most, or hold it.',
+    },
+  },
+  {
+    match: /secretion-goad/,
+    info: {
+      title: 'Secretion Goad',
+      hint: 'Once per turn: a nearby Tyranid unit that is about to shoot or fight gets 1 better AP on all its weapons until the end of the phase. Use it now or save it for a better unit.',
+    },
+  },
+  {
+    match: /death-blow/,
+    info: {
+      title: 'Death Blow',
+      hint: 'This model was struck down before it fought. Its death is put on hold if a D6 shows 4+; it then gets its attacks once the attackers finish, and only after that is it removed.',
+    },
+  },
+  {
+    match: /skulking-horrors/,
+    info: {
+      title: 'Skulking Horrors',
+      hint: 'An enemy just ended a move close to this unit. It may slip away on a free move of up to D6 inches (once a turn, and only while it is not locked in melee). Move, or stay put.',
+    },
+  },
+  {
+    match: /disruption-bombardment/,
+    info: {
+      title: 'Disruption Bombardment',
+      hint: 'Pick an enemy infantry unit this unit hit. Until the end of their next turn it moves 2 inches slower and rolls 2 lower when it advances or charges.',
+    },
+  },
+  {
+    match: /patrol-squads/,
+    info: {
+      title: 'Patrol Squads',
+      hint: 'Split this brood into two units of 10 before deployment, or keep it as one big unit of 20. Each half keeps every ability.',
+    },
+  },
+  {
+    match: /defender-of-the-faith/,
+    info: {
+      title: 'Defender of the Faith',
+      hint: `Throw away one Miracle die to give the bearer's unit +1 Objective Control until your next Command phase, or keep your dice for Acts of Faith.`,
+    },
+  },
+  {
+    match: /righteous-fury/,
+    info: {
+      title: 'Righteous Fury',
+      hint: `Throw away one Miracle die so the bearer's unit may re-roll its charge rolls for the rest of this turn, or keep your dice for Acts of Faith.`,
+    },
+  },
+  {
+    match: /martyrs?-death/,
+    info: {
+      title: "A Martyr's Death",
+      hint: `Throw away one Miracle die to make each fallen model's last-stand roll easier by 1 (it succeeds on a 3+ instead of a 4+). A model that has not yet acted and passes the roll gets to shoot or fight before it is removed.`,
+    },
+  },
+  {
+    match: /extremis|trigger-word/,
+    info: {
+      title: 'Speak the trigger word?',
+      hint: 'Until the end of this phase the arco-flails strike 6 times each, but every melee attack the unit makes risks a Hazardous test, so some of them may fall.',
+    },
+  },
+  {
+    match: /simulacrum/,
+    info: {
+      title: 'Simulacrum Imperialis',
+      hint: `At the end of your Command phase, for each objective you hold that the banner bearer's unit stands on, roll a die: a 4 or more earns a Miracle die showing that number.`,
+    },
+  },
+  {
+    match: /voice-of-command/,
+    info: {
+      title: 'Issue an Order?',
+      hint: 'Your officer barks one Order at a friendly unit nearby. It lasts until your next Command phase, or until the unit is battle-shocked, and a new Order replaces the old one. Move! Move! Move! adds 3" of Move; Take Aim! makes ranged attacks hit one step easier; Take Cover! improves saves by 1 (never past 3+).',
+    },
+  },
+  {
+    match: /methodical-destruction/,
+    info: METHODICAL_INFO,
+  },
+  {
+    match: /reanimation/,
+    info: {
+      title: 'Reanimation Protocols',
+      hint: 'Fallen warriors climb back up: each point rolled heals one wound, or stands a lost model back up with a single wound.',
+    },
+  },
+]
+
+/** Engine prompts with topic 'other' carry no abilityId; they name themselves through data.choice instead. */
+const CHOICE_PROMPT_KEYS: Record<string, string> = { deathBlow: 'death-blow', patrolSquads: 'patrol-squads' }
+
+/** Adepta Sororitas' Acts of Faith arrive as a chooseOption with topic 'miracleDie' and data
+ *  { purpose, unitId, count, maxSubstitutions, pool } (docs/spec/factions/adepta-sororitas.md §7). The topic is
+ *  matched as a string so the client builds whether or not the engine's ChooseOptionTopic union lists it yet. */
+const MIRACLE_TOPIC = 'miracleDie'
+const ROLL_PURPOSE_LABEL: Record<string, string> = {
+  advance: 'Advance',
+  battleShock: 'Battle-shock',
+  charge: 'charge',
+  damage: 'damage',
+  hit: 'hit',
+  wound: 'wound',
+  save: 'saving',
+}
+function miraclePool(data: Record<string, unknown> | undefined): number[] {
+  const pool = data?.pool
+  return Array.isArray(pool) ? pool.filter((v): v is number => typeof v === 'number') : []
+}
+
+function chooseOptionInfoFor(
+  context: { topic: ChooseOptionTopic; abilityId: string | null; data?: Record<string, unknown> },
+  options?: readonly { id: string }[],
+  state?: GameState,
+  player?: string,
+): { title: string; hint: string } | undefined {
+  if ((context.topic as string) === MIRACLE_TOPIC) {
+    const purpose = typeof context.data?.purpose === 'string' ? ROLL_PURPOSE_LABEL[context.data.purpose] ?? context.data.purpose : 'this'
+    const pool = miraclePool(context.data)
+    return {
+      title: `Act of Faith: ${purpose} roll`,
+      hint: `Spend one of your Miracle dice (${pool.length > 0 ? pool.join(', ') : 'none left'}) and its number counts as the roll instead of a fresh die. Modifiers still apply after, and a spent die is gone. Or roll as normal and keep them.`,
+    }
+  }
+  const choice = context.data && typeof context.data.choice === 'string' ? CHOICE_PROMPT_KEYS[context.data.choice] : undefined
+  const key = context.abilityId ?? choice ?? null
+  const byAbility = key ? ABILITY_PROMPT_INFO.find((a) => a.match.test(key)) : undefined
+  if (byAbility) return byAbility.info
+  // Order offers carry ids like "am.order.take-aim@A:shock-a" whichever ability id the engine attaches.
+  if (options?.some((o) => ORDER_OPTION.test(o.id))) return ABILITY_PROMPT_INFO.find((a) => a.match.test('voice-of-command'))?.info
+  // Methodical Destruction is a mission-hook pick: no ability id, and every option names an enemy unit.
+  if (context.topic === 'abilityChoice' && !context.abilityId && state && options) {
+    const picks = options.filter((o) => o.id !== 'decline')
+    if (picks.length > 0 && picks.every((o) => state.units[o.id] && state.units[o.id].player !== player)) return METHODICAL_INFO
+  }
+  // Retrieve Intelligence only pays out while the Warlord is on the board — say so, since a search without one is wasted.
+  if (context.topic === 'recoverObjective' && state && player && state.players[player as PlayerId]) {
+    const info = CHOOSE_OPTION_INFO.recoverObjective!
+    const warlord = state.units[state.players[player as PlayerId].warlordUnitId]
+    const status = warlord?.location === 'board'
+      ? 'Your Warlord is on the battlefield: searching now gains 1 CP.'
+      : 'Your Warlord is NOT on the battlefield: searching now gains nothing and still uses up the marker. You probably want to pass.'
+    return { title: info.title, hint: `${status} ${info.hint}` }
+  }
+  return CHOOSE_OPTION_INFO[context.topic]
+}
+
+/** Voice of Command option ids: "<order id>@<unit id>" for one unit, "<order id>@all" for Command Laurels. */
+const ORDER_OPTION = /^[^@]*order[^@]*@/i
+
+/** "Take Aim! — Cadian Shock Troops" for an order option, or null when the id is not one. */
+function orderOptionLabel(state: GameState, optionId: string): string | null {
+  if (!ORDER_OPTION.test(optionId)) return null
+  const at = optionId.indexOf('@')
+  const orderId = optionId.slice(0, at)
+  const target = optionId.slice(at + 1)
+  const orderName = state.abilities[orderId]?.name ?? prettifyId(orderId)
+  const targetName = target === 'all' ? 'every Astra Militarum unit' : state.units[target]?.name ?? prettifyId(target)
+  return `${orderName} — ${targetName}`
 }
 
 /** "Pass" is the engine's word for declining, but for some prompts it reads as giving something up
@@ -124,6 +338,17 @@ const REACTION_LABEL: Record<string, string> = {
   heroicIntervention: 'Heroic Intervention',
   rapidIngress: 'Rapid Ingress',
   counterOffensive: 'Counter-offensive',
+}
+
+/** "Boy #3 · 2 wounds left" — which figure a model id is and how hurt it already is. The raw
+ *  datasheetModelId ("boy", "terminator") says nothing about *which* one; its place in the unit and
+ *  the wounds it has left do, and that is what a pick between models is actually about. */
+function modelLabel(state: GameState, modelId: string): string {
+  const model = state.models[modelId]
+  if (!model) return modelId
+  const index = state.units[model.unitId]?.models.indexOf(modelId) ?? -1
+  const w = model.woundsRemaining
+  return `${prettifyId(model.datasheetModelId)}${index >= 0 ? ` #${index + 1}` : ''} · ${w} ${w === 1 ? 'wound' : 'wounds'} left`
 }
 
 function describeAction(a: Action, state: GameState): string {
@@ -162,17 +387,14 @@ function describeAction(a: Action, state: GameState): string {
       // The raw datasheetModelId ("boy", "terminator") says nothing about *which* one — its place in
       // the unit and the wounds it has left do, and that is what the choice is actually about. Hover
       // lights the figure itself (hoverTargetFor).
-      const model = state.models[a.modelId]
-      if (!model) return `Allocate to ${a.modelId}`
-      const name = prettifyId(model.datasheetModelId)
-      const index = state.units[model.unitId]?.models.indexOf(a.modelId) ?? -1
-      return `${name}${index >= 0 ? ` #${index + 1}` : ''} · ${model.woundsRemaining}W left`
+      return state.models[a.modelId] ? modelLabel(state, a.modelId) : `Allocate to ${a.modelId}`
     }
     case 'useStratagem': {
       const strat = state.stratagems[a.stratagemId]
       const name = strat?.name ?? a.stratagemId
       const cost = strat ? ` (${strat.cost} CP)` : ''
       const targets: string[] = (a.targets.unitIds ?? []).map(unitName)
+      for (const mid of a.targets.modelIds ?? []) targets.push(state.models[mid] ? modelLabel(state, mid) : mid)
       if (a.targets.objectiveId) targets.push(objectiveLabel(a.targets.objectiveId))
       return `${name}${cost}${targets.length > 0 ? `: ${targets.join(', ')}` : ''}`
     }
@@ -192,6 +414,9 @@ function describeAction(a: Action, state: GameState): string {
       return `${(a as Action).type} option`
   }
 }
+
+/** chooseOption topics whose option ids are model ids (which figure is removed). */
+const MODEL_PICK_TOPICS: ReadonlySet<ChooseOptionTopic> = new Set<ChooseOptionTopic>(['hazardousCasualty', 'desperateEscapeCasualty', 'coherencyCull'])
 
 /** Label a single option button for the kinds whose engine-provided DecisionOption.label is either
  *  a raw id ("A:terminator-squad", a bare objective id) or too terse to explain the choice — everyone
@@ -216,12 +441,41 @@ function labelForOption(pending: PendingDecision, state: GameState, events: read
         : `Re-roll die ${o.action.dieIndex + 1} for 1 CP (rolled ${roll.dice[o.action.dieIndex]})`
     }
     case 'chooseOption': {
-      if (pending.context.topic === 'razeObjective' || pending.context.topic === 'recoverObjective') return objectiveLabel(o.id)
-      return o.label
+      // The engine labels these "remove M:boy#3" — a model id; say which figure it is instead.
+      if (MODEL_PICK_TOPICS.has(pending.context.topic) && state.models[o.id]) return modelLabel(state, o.id)
+      if ((pending.context.topic as string) === MIRACLE_TOPIC) {
+        if (o.id === 'skip') return 'Roll normally'
+        const pool = miraclePool(pending.context.data)
+        const idx = o.action.type === 'chooseOption' ? o.action.dieIndexes : undefined
+        const picked = idx?.map((i) => pool[i]).filter((v): v is number => typeof v === 'number')
+        return picked && picked.length > 0 ? `Spend a Miracle die (${picked.join(', ')})` : 'Spend a Miracle die'
+      }
+      const orderLabel = orderOptionLabel(state, o.id)
+      if (orderLabel) return orderLabel
+      if (pending.context.topic === 'razeObjective' || pending.context.topic === 'recoverObjective' || pending.context.topic === 'treasureObjective') return objectiveLabel(o.id)
+      return abilityOptionLabel(pending.context.abilityId, o)
     }
     default:
       return o.label
   }
+}
+
+/** Dark Pact / Sacrificial Dagger offer short engine ids (lethal, sustained, both, use, decline); say what each does. */
+function abilityOptionLabel(abilityId: string | null, o: { id: string; label: string }): string {
+  if (!abilityId) return o.label
+  if (/dark-?pact/i.test(abilityId)) {
+    switch (o.id) {
+      case 'lethal': return 'Pact: Lethal Hits (6s to hit auto-wound)'
+      case 'sustained': return 'Pact: Sustained Hits 1 (6s to hit score an extra hit)'
+      case 'both': return 'Pact: Lethal Hits and Sustained Hits 1 (Foul Zealotry)'
+      case 'decline': return 'No pact'
+    }
+  }
+  if (/sacrificial-?dagger/i.test(abilityId)) {
+    if (o.id === 'use') return 'Use the dagger (1 mortal wound)'
+    if (o.id === 'decline') return 'Keep the dagger sheathed'
+  }
+  return o.label
 }
 
 /** The hover-help card for an option, where one can be written. These are the choices whose options
@@ -243,24 +497,54 @@ function helpForAction(state: GameState, action: Action | undefined): PromptHelp
 
 /** What an option is "about", for the board-hover highlight (M6 gap: prompts named units/objectives
  *  the player couldn't match to the board; owner playtest: the same for allocateAttack's models —
- *  "when I hover over the button it should light up the appropriate figure on the game board"). */
-function hoverTargetFor(pending: PendingDecision, action: Action, optionId: string): { kind: 'unit' | 'model' | 'objective'; id: string } | null {
-  // Allocating an attack picks one model out of a unit, so the highlight has to be that one figure.
-  if (action.type === 'allocateAttack') return { kind: 'model', id: action.modelId }
-  // Shooting and charge options name an enemy unit: light it up so "which one is that?" never needs
-  // asking, the same way the stratagem/objective options already do.
-  if (action.type === 'declareTargets' && action.targets[0]) return { kind: 'unit', id: action.targets[0].targetUnitId }
-  if (action.type === 'declareCharge' && action.targetUnitIds[0]) return { kind: 'unit', id: action.targetUnitIds[0] }
-  if (action.type === 'useStratagem') {
-    if (action.targets.unitIds?.[0]) return { kind: 'unit', id: action.targets.unitIds[0] }
-    if (action.targets.objectiveId) return { kind: 'objective', id: action.targets.objectiveId }
+ *  "when I hover over the button it should light up the appropriate figure on the game board").
+ *  Every option that names a unit gets one: where it names two (attacker and target) the target wins,
+ *  because the acting unit is already the one the player is looking at. */
+type HoverTarget = { kind: 'unit'; ids: string[] } | { kind: 'model'; id: string } | { kind: 'objective'; id: string }
+
+const unitsOf = (ids: readonly string[]): HoverTarget | null => (ids.length > 0 ? { kind: 'unit', ids: [...new Set(ids)] } : null)
+
+function hoverTargetFor(state: GameState, pending: PendingDecision, action: Action, optionId: string): HoverTarget | null {
+  switch (action.type) {
+    // Allocating an attack picks one model out of a unit, so the highlight has to be that one figure.
+    case 'allocateAttack':
+      return { kind: 'model', id: action.modelId }
+    // Shooting and charge options name the enemy unit(s) to hit: light them up so "which one is that?"
+    // never needs asking.
+    case 'declareTargets':
+      return unitsOf(action.targets.map((t) => t.targetUnitId))
+    case 'declareCharge':
+      return unitsOf(action.targetUnitIds)
+    // Picking which of your own units acts (activate / fight / move type / suggested placement / deploy).
+    case 'chooseUnitToActivate':
+    case 'chooseFightUnit':
+    case 'declareMove':
+    case 'moveUnit':
+    case 'chargeMove':
+    case 'pileIn':
+    case 'consolidate':
+    case 'deployUnit':
+      return unitsOf([action.unitId])
+    case 'useStratagem': {
+      const t = action.targets
+      if (t.unitIds && t.unitIds.length > 0) return unitsOf(t.unitIds)
+      if (t.modelIds && t.modelIds.length > 0) return { kind: 'model', id: t.modelIds[0] }
+      if (t.objectiveId) return { kind: 'objective', id: t.objectiveId }
+      return null
+    }
+    case 'chooseOption': {
+      // Oath of Moment / battle-shock order / Stomp 'Em / Bag the Big 'Un / leader attach name a unit by
+      // id; the model-removal prompts name a model; raze/recover name an objective. A pick between
+      // weapons or ability modes has no board object of its own, so it lights the unit it is about.
+      if (pending.kind !== 'chooseOption' || pending.context.topic === 'rerollOffer') return null
+      if (state.units[optionId]) return { kind: 'unit', ids: [optionId] }
+      if (state.models[optionId]) return { kind: 'model', id: optionId }
+      if (state.objectives[optionId]) return { kind: 'objective', id: optionId }
+      return pending.context.unitId ? unitsOf([pending.context.unitId]) : null
+    }
+    default:
+      return null
   }
-  if (pending.kind === 'chooseOption') {
-    const topic = pending.context.topic
-    if (topic === 'razeObjective' || topic === 'recoverObjective') return { kind: 'objective', id: optionId }
-    if (topic === 'stompTarget' || topic === 'bagTarget') return { kind: 'unit', id: optionId }
-  }
-  return null
 }
 
 // A pending decision is player input the game is blocked on — it must never be visually covered (and,
@@ -303,8 +587,11 @@ const deployWrap: CSSProperties = {
   ...panel,
   position: 'absolute',
   left: 10,
-  top: '38%',
-  bottom: '38%',
+  // Sized to its content (roster + hint + Confirm/Reset/Cancel) and centred vertically, so the
+  // action buttons are always visible; only scrolls if it would exceed the viewport.
+  top: '50%',
+  transform: 'translateY(-50%)',
+  maxHeight: 'calc(100% - 20px)',
   width: 230,
   padding: '10px 12px',
   display: 'flex',
@@ -424,6 +711,11 @@ export function DecisionPrompt() {
   const hoverUnit = useUiStore((s) => s.hoverUnit)
   const hoverModel = useUiStore((s) => s.hoverModel)
   const hoverObjective = useUiStore((s) => s.hoverObjective)
+  const clearBoardHover = () => {
+    hoverUnit(null)
+    hoverModel(null)
+    hoverObjective(null)
+  }
   const formationKind = useUiStore((s) => s.formationKind)
   const formationFacing = useUiStore((s) => s.formationFacing)
   const primeFormation = useUiStore((s) => s.primeFormation)
@@ -444,6 +736,15 @@ export function DecisionPrompt() {
     helpTimer.current = setTimeout(() => setHelpFor(id), HELP_DELAY_MS)
   }
   useEffect(() => () => { if (helpTimer.current !== null) clearTimeout(helpTimer.current) }, [])
+
+  // A hovered option button lights its unit on the board; that highlight must never outlive the button.
+  // Unmounting skips onMouseLeave, so clear on unmount, and again whenever the options stop being on
+  // screen (opponent's turn, dice still resolving) while the pointer may still be resting on one.
+  const optionsHidden = !state || !pending || pending.player === botSeat || presentedSeq < pendingSeq
+  useEffect(() => {
+    if (optionsHidden) clearBoardHover()
+  }, [optionsHidden]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => clearBoardHover, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { resetForDecision(); cancelHelp() }, [pending?.id])
@@ -535,7 +836,7 @@ export function DecisionPrompt() {
   // Hover help for whichever option the pointer has rested on.
   const activeHelp = helpForAction(state, listItems.find((it) => it.id === helpFor)?.action)
 
-  const chooseOptionInfo = pending.kind === 'chooseOption' ? CHOOSE_OPTION_INFO[pending.context.topic] : undefined
+  const chooseOptionInfo = pending.kind === 'chooseOption' ? chooseOptionInfoFor(pending.context, pending.options, state, pending.player) : undefined
 
   // Both re-roll prompts (Command Re-roll, and an ability's own rerollOffer) are answered in the
   // interactive dice tray (RerollTray.tsx) instead of this panel's text and buttons: the whole roll is shown
@@ -649,7 +950,7 @@ export function DecisionPrompt() {
           <div style={infoBlock} data-testid="allocate-context">
             <div style={{ color: colors.text, fontWeight: 600 }}>
               {pending.context.mortal ? 'Mortal wounds' : 'A wound gets through'}
-              {ctx?.weaponName ? ` — ${ctx.weaponName} (${ctx.ap === 0 ? 'AP 0' : `AP ${ctx.ap}`})` : ''}
+              {ctx?.weaponName ? ` — ${ctx.weaponName} (Armour Penetration ${ctx.ap})` : ''}
               {dmg !== null ? ` · Damage ${dmg}` : ''}
             </div>
             <div>
@@ -738,7 +1039,7 @@ export function DecisionPrompt() {
               it.action.type === 'moveUnit' || it.action.type === 'chargeMove' || it.action.type === 'pileIn' || it.action.type === 'consolidate'
                 ? it.action
                 : null
-            const hoverTarget = hoverTargetFor(pending, it.action, it.id)
+            const hoverTarget = hoverTargetFor(state, pending, it.action, it.id)
             // The card itself is rendered at panel level (see activeHelp) so the option row, which
             // is an overflow:auto scroller, can't clip it.
             const hasHelp = helpForAction(state, it.action) !== null
@@ -752,23 +1053,19 @@ export function DecisionPrompt() {
                 onMouseEnter={() => {
                   if (hasHelp) scheduleHelp(it.id)
                   if (withPlacements) setPreviewDraft({ decisionId: pending.id, unitId: withPlacements.unitId, anchor: { x: 0, z: 0 }, placements: withPlacements.placements })
-                  if (hoverTarget?.kind === 'unit') hoverUnit(hoverTarget.id)
+                  if (hoverTarget?.kind === 'unit') hoverUnit(hoverTarget.ids)
                   if (hoverTarget?.kind === 'model') hoverModel(hoverTarget.id)
                   if (hoverTarget?.kind === 'objective') hoverObjective(hoverTarget.id)
                 }}
                 onMouseLeave={() => {
                   cancelHelp()
                   setPreviewDraft(null)
-                  hoverUnit(null)
-                  hoverModel(null)
-                  hoverObjective(null)
+                  clearBoardHover()
                 }}
                 onClick={() => {
                   cancelHelp()
                   setPreviewDraft(null)
-                  hoverUnit(null)
-                  hoverModel(null)
-                  hoverObjective(null)
+                  clearBoardHover()
                   dispatch(it.action)
                   setDraft(null)
                 }}

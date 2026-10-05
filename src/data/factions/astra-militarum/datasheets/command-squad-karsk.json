@@ -1,0 +1,146 @@
+[
+  {
+    "id": "am.command-squad-karsk",
+    "faction": "astra-militarum",
+    "name": "Command Squad Karsk",
+    "keywords": [
+      "INFANTRY",
+      "IMPERIUM",
+      "CADIAN",
+      "COMMAND SQUAD"
+    ],
+    "factionKeywords": [
+      "ASTRA MILITARUM"
+    ],
+    "stats": {
+      "M": 6,
+      "T": 3,
+      "Sv": 5,
+      "W": 1,
+      "Ld": 7,
+      "OC": 1
+    },
+    "composition": [
+      {
+        "modelId": "karsk",
+        "name": "Karsk (Cadian Commander)",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "champion": true,
+        "keywords": [
+          "CHARACTER",
+          "OFFICER",
+          "KARSK"
+        ],
+        "base": {
+          "shape": "round",
+          "mm": 28
+        },
+        "statsOverride": {
+          "W": 3
+        },
+        "weapons": {
+          "default": [
+            "am.w.plasma-pistol",
+            "am.w.plasma-pistol-supercharge",
+            "am.w.power-weapon"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "generic-infantry"
+        }
+      },
+      {
+        "modelId": "veteran",
+        "name": "Cadian Veteran Guardsman",
+        "min": 2,
+        "max": 2,
+        "default": 2,
+        "base": {
+          "shape": "round",
+          "mm": 28
+        },
+        "weapons": {
+          "default": [
+            "am.w.lasgun",
+            "am.w.close-combat-weapon-command"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "generic-infantry"
+        }
+      },
+      {
+        "modelId": "veteran-medic",
+        "name": "Cadian Veteran (medi-pack)",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 28
+        },
+        "weapons": {
+          "default": [
+            "am.w.lasgun",
+            "am.w.close-combat-weapon-command"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "generic-infantry"
+        }
+      },
+      {
+        "modelId": "veteran-standard",
+        "name": "Cadian Veteran (regimental standard)",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 28
+        },
+        "weapons": {
+          "default": [
+            "am.w.lasgun",
+            "am.w.close-combat-weapon-command"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "generic-infantry"
+        }
+      }
+    ],
+    "abilities": [
+      "am.a.voice-of-command",
+      "am.a.medi-pack",
+      "am.a.regimental-standard"
+    ],
+    "coreAbilities": [
+      {
+        "ability": "LEADER"
+      }
+    ],
+    "leader": {
+      "attachTo": [
+        "am.cadian-shock-troops"
+      ],
+      "effects": []
+    },
+    "points": [
+      {
+        "models": 5,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "infantry",
+      "kit": "generic-infantry"
+    }
+  }
+]

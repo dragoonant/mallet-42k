@@ -1,0 +1,24 @@
+[
+  {
+    "id": "tyr.terror-of-vardenghast",
+    "faction": "tyranids",
+    "name": "Terror of Vardenghast",
+    "keywords": ["INFANTRY", "CHARACTER", "FLY", "GREAT DEVOURER", "SYNAPSE", "VANGUARD INVADER", "WINGED TYRANID PRIME", "TERROR OF VARDENGHAST"],
+    "factionKeywords": ["TYRANIDS"],
+    "stats": { "M": 12, "T": 5, "Sv": 4, "W": 6, "Ld": 7, "OC": 1 },
+    "composition": [
+      {
+        "modelId": "prime",
+        "name": "Terror of Vardenghast",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 50 },
+        "weapons": { "default": ["tyr.w.prime-talons"] },
+        "figure": { "archetype": "heavy", "kit": "tyr-prime" }
+      }
+    ],
+    "abilities": ["tyr.a.synapse", "tyr.a.shadow-in-the-warp", "tyr.a.death-blow"],
+    "coreAbilities": [ { "ability": "DEEP_STRIKE" } ],
+    "points": [ { "models": 1, "points": 0 } ],
+    "figure": { "archetype": "heavy", "kit": "tyr-prime", "scale": 1.2 }
+  }
+]

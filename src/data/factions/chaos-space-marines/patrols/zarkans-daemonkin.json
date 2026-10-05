@@ -1,0 +1,37 @@
+{
+  "id": "csm.cp.zarkans-daemonkin",
+  "faction": "chaos-space-marines",
+  "name": "Zarkan's Daemonkin",
+  "units": [
+    { "ref": "zarkan", "datasheet": "csm.aranis-zarkan", "size": 1, "enhancement": "csm.e.foul-zealotry", "attachTo": "possessed" },
+    { "ref": "possessed", "datasheet": "csm.possessed", "size": 5 },
+    { "ref": "legionaries", "datasheet": "csm.legionaries", "size": 10 },
+    { "ref": "cultists", "datasheet": "csm.cultist-mob", "size": 10 }
+  ],
+  "stratagems": ["csm.s.vindictive-strategy", "csm.s.violent-unbinding", "csm.s.daemonic-fervour"],
+  "enhancements": [
+    { "id": "csm.e.foul-zealotry", "default": true },
+    { "id": "csm.e.prey-on-the-weak", "default": false }
+  ],
+  "secondaries": [
+    {
+      "id": "csm.sec.marked-for-execution",
+      "name": "Marked for Execution",
+      "text": "The moment the opponent's Warlord is destroyed, score 12 victory points if it is battle round 1, 2 or 3, or 6 victory points from round 4 onward. This scores at most once, whatever destroyed the Warlord.",
+      "default": true,
+      "scoring": [
+        { "id": "marked-for-execution", "when": "any.unitDestroyed", "rounds": { "from": 1, "to": 5 }, "who": "both", "rule": "custom", "pointsPer": 12, "cap": 12, "code": "markedForExecution", "params": { "latePoints": 6, "lateFromRound": 4 } }
+      ]
+    },
+    {
+      "id": "csm.sec.sites-of-power",
+      "name": "Sites of Power",
+      "text": "From battle round 2 onward, at the end of each of your turns, score 2 victory points if you control at least as many objective markers as your opponent does. A tie, including zero against zero, still scores.",
+      "default": false,
+      "scoring": [
+        { "id": "sites-of-power", "when": "turn.end", "rounds": { "from": 2, "to": 5 }, "who": "active", "rule": "holdMore", "pointsPer": 2, "cap": 2, "params": { "allowTie": true } }
+      ]
+    }
+  ],
+  "warlord": "zarkan"
+}

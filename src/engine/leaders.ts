@@ -3,8 +3,10 @@
 // records (leader + bodyguard) linked both ways; for every rule it is one unit except "unit destroyed" triggers.
 // The bodyguard record is the canonical id of the pair (stratagem target options, oath picks).
 import { distance, unitsWithinEngagementRange, withinEngagementRange } from './geometry'
+import { losService } from './los'
 import type { EngineContext } from './modules'
-import { datasheetOf, keywordsOf, modelStats, unitModels } from './state'
+import { datasheetOf, keywordsOf, modelKeywordsOf, modelStats, unitModels } from './state'
+import { weaponService } from './weapons'
 import type { GameState, Model, ModelId, PlayerId, Unit, UnitId } from './types'
 
 export interface LeaderService {
@@ -47,6 +49,13 @@ export interface LeaderQueries {
   inEngagementWithEnemy(state: GameState, unitId: UnitId): boolean
   // closest model-to-model distance between two (combined) units, Infinity when either has no board models
   unitDistance(state: GameState, a: UnitId, b: UnitId): number
+  // combined current models (both halves) < combined Starting Strength (Tyranids Feeding Frenzy)
+  isBelowStartingStrength(state: GameState, unitId: UnitId): boolean
+  // TYR-5.2 [interpretation]: the enemy units the attacker could legally target with this attack type (ranged: some model has a
+  // ranged weapon in range and line of sight to some target model; melee: within Engagement Range), narrowed to the ones at the
+  // smallest model-to-model distance (ties: every tied unit). Canonical ids (the bodyguard id of an attached pair).
+  // `legalRanged`: for ranged, the enemy units the shooting module already judged legal (range, LoS, Lone Operative, engagement limits)
+  closestEligibleTargets(state: GameState, attackerUnitId: UnitId, kind: 'ranged' | 'melee', legalRanged?: UnitId[]): UnitId[]
 }
 export interface LeaderService extends Partial<LeaderQueries> {}
 
@@ -140,18 +149,59 @@ export const leaderService: LeaderService & LeaderQueries = {
     const m = models[0]
     return m ? m.woundsRemaining < modelStats(state, m).W / 2 : false
   },
+  isBelowStartingStrength(state, unitId) {
+    const halves = leaderService.halves(state, unitId).filter((id) => !isGone(state.units[id]))
+    if (halves.length === 0) return false
+    const ss = halves.reduce((n, id) => n + state.units[id].startingStrength, 0)
+    const now = halves.reduce((n, id) => n + unitModels(state, id).length, 0)
+    return now < ss
+  },
+  closestEligibleTargets(state, attackerUnitId, kind, legalRanged) {
+    const attacker = state.units[attackerUnitId]
+    if (!attacker) return []
+    const mine = leaderService.halves(state, attackerUnitId).flatMap((id) => boardModels(state, id))
+    if (mine.length === 0) return []
+    const seen = new Set<UnitId>()
+    const eligible: UnitId[] = []
+    for (const e of Object.values(state.units)) {
+      if (e.player === attacker.player || e.location !== 'board') continue
+      const canon = leaderService.canonicalUnitId(state, e.id)
+      if (seen.has(canon)) continue
+      seen.add(canon)
+      const theirs = leaderService.halves(state, canon).flatMap((id) => boardModels(state, id))
+      if (theirs.length === 0) continue
+      let ok = false
+      if (kind === 'melee') ok = leaderService.unitsInEngagement(state, attackerUnitId, canon)
+      else if (legalRanged) ok = legalRanged.includes(canon)
+      else {
+        outer: for (const m of mine) {
+          for (const wid of m.weapons) {
+            const w = weaponService.effectiveWeapon(state, m.id, wid)
+            if (!w || w.kind !== 'ranged') continue
+            for (const t of theirs) if (distance(m, t) <= w.range + 1e-6 && losService.visible(state, m.id, t.id)) { ok = true; break outer }
+          }
+        }
+      }
+      if (ok) eligible.push(canon)
+    }
+    if (eligible.length === 0) return []
+    const dist = (id: UnitId) => leaderService.unitDistance(state, attackerUnitId, id)
+    const best = Math.min(...eligible.map(dist))
+    return eligible.filter((id) => dist(id) <= best + 1e-6)
+  },
   allocatableModels(state, targetUnitId, opts = {}) {
     const halves = leaderService.halves(state, targetUnitId)
-    const all = halves.flatMap((id) => unitModels(state, id))
+    // a model whose Death Blow removal is deferred takes no further allocated attacks
+    const all = halves.flatMap((id) => unitModels(state, id)).filter((m) => !m.pendingRemoval)
     const target = state.units[targetUnitId]
     if (halves.length === 1 || !target) return all.map((m) => m.id)
     const bodyguardId = target.attachedLeaderId ? target.id : target.bodyguardUnitId as UnitId
-    const bodyguardAlive = state.units[bodyguardId].models.length > 0
+    const bodyguardAlive = unitModels(state, bodyguardId).length > 0
     if (!bodyguardAlive) return all.map((m) => m.id)
     const visible = new Set(opts.visibleCharacterIds ?? [])
     return all.filter((m) => {
       if (m.unitId === bodyguardId) return true
-      const character = keywordsOf(state, m.unitId).includes('CHARACTER')
+      const character = modelKeywordsOf(state, m.id).includes('CHARACTER')
       if (!character) return true
       return !!opts.precision && visible.has(m.id)
     }).map((m) => m.id)

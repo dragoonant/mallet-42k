@@ -101,7 +101,7 @@ test('no decision stalls through the whole of round 1, including Command Re-roll
   await page.setViewportSize({ width: W, height: H })
   await page.goto('/?debug')
   await expect(page.getByTestId('start-game')).toBeVisible()
-  await page.getByRole('button', { name: 'Space Marines' }).click()
+  await page.getByRole('button', { name: 'Space Marines', exact: true }).click()
   await page.getByRole('button', { name: 'Bot', exact: true }).click()
   // Same seed as the original bug report (commit e10ba8e, tests/e2e/play.spec.ts's own 'playtest-r1') so
   // this spec is a direct regression check for that freeze, not just a fresh/different board state.

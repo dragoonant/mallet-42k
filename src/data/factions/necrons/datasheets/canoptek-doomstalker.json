@@ -1,0 +1,26 @@
+[
+  {
+    "id": "nec.canoptek-doomstalker",
+    "faction": "necrons",
+    "name": "Canoptek Doomstalker",
+    "keywords": ["VEHICLE", "WALKER", "CANOPTEK", "DOOMSTALKER"],
+    "factionKeywords": ["NECRONS"],
+    "stats": { "M": 7, "T": 8, "Sv": 3, "W": 12, "Ld": 8, "OC": 4 },
+    "invuln": 4,
+    "composition": [
+      {
+        "modelId": "doomstalker",
+        "name": "Canoptek Doomstalker",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 90 },
+        "weapons": { "default": ["nec.w.doomsday-blaster", "nec.w.twin-gauss-flayer", "nec.w.doomstalker-limbs"] },
+        "figure": { "archetype": "monster", "kit": "generic-monster" }
+      }
+    ],
+    "abilities": ["nec.a.reanimation-protocols"],
+    "coreAbilities": [ { "ability": "DEADLY_DEMISE", "value": "D3" } ],
+    "damaged": { "threshold": 4, "effect": { "modifyRoll": { "roll": "hit", "value": -1 } } },
+    "points": [ { "models": 1, "points": 0 } ],
+    "figure": { "archetype": "monster", "kit": "generic-monster" }
+  }
+]

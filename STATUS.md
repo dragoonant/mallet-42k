@@ -187,6 +187,61 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Bug found by the screenshot | The charge option label used a client-side distance helper that measured something else — 3D distance, no Engagement Range subtracted, the worst declared target rather than the closest — so the button read "need 12.6"" beside a hover card correctly saying the 2D6 roll needed a 10. Both now come from the engine's `neededChargeDistance`, and the label states the roll rather than a distance. |
 | Verification | `npm run typecheck`, `npm test` (754 — `tests/client/targetHelp.test.ts` drives both cards off a real `newGame()` state with the two units placed a known distance apart, pins the hit/wound numbers against the engine's own `woundRollNeeded`, and checks the charge odds against an independently counted 2D6 distribution), `npm run validate:data` clean. Shooting prompt captured from the running app. |
 
+## Necrons (M10 — Amonhotekh's Guard patrol, playable)
+
+| Area | State |
+|---|---|
+| Patrol | Overlord Amonhotekh (attached to Necron Warriors), Skorpekh Destroyers, Canoptek Scarab Swarms, Canoptek Doomstalker; secondaries Reclaim and Dominate / Treasures of Aeons. Data in `src/data/factions/necrons/`; Ld schema widened to 2..12 for Ld 8+ units |
+| Engine hooks | `src/engine/factions/necrons.ts`: Reanimation Protocols (run by the Command phase before `command.end`), Protocol of Resonant Focus (pick + hit-1 re-roll), Plasmacyte surge, One Shot (also barred from Overwatch), Will of the Overlord gate (`requireFriendlyKeywordOnBoard`), Treasures of Aeons pick/score, `EngineCodeHook.forceScope`, hook data passed to `gate` |
+| Client | Start screen lists every faction with a patrol plus an opponent-faction select (Automatic default); procedural Necron figure kits and `SwarmBody`; weapon sound/VFX classes; Necron decision-prompt text |
+| Verification | `npm run typecheck`, `npm run validate:data` (39 files), `npm run build` green; `npm test` 851 passing (37 files, incl. `tests/engine/necrons.test.ts` and `tests/client/factions.test.ts`); `tests/e2e/necrons.spec.ts` starts Necrons vs bot, deploys through the UI, takes Fire Overwatch with the Warriors (screenshots in `e2e-out/m10-necrons-0*.png`) |
+| Sim | `npm run sim -- --games 6 --seed 5`: 6 games, 0 violations, all finished at round 5; Necrons in 3 games: 0 wins, 1 draw, 2 losses (sm 3, ork 2, 1 draw overall). No balance tuning done |
+| Known gaps | No GLB models (procedural figures only; the Plasmacyte is not drawn); the bot ignores the Necron stratagems and picks; Resonant Focus and Treasures prompts rely on `abilityChoice` ids for their hint text; the Necron rulings are listed in `docs/needs-rules-check.md` under "Necrons build" (RC-084 to RC-110) |
+
+## Chaos Space Marines (M10 — playable)
+
+| Area | State |
+|---|---|
+| Patrol | Aranis Zarkan (attached to the Possessed by default), Possessed, Legionaries, Cultist Mob; secondaries Marked for Execution / Sites of Power. Data in `src/data/factions/chaos-space-marines/` |
+| Engine hooks | `src/engine/factions/chaos-space-marines.ts` (Dark Pact + Sacrificial Dagger picks, Vindictive Strategy, Violent Unbinding, Daemonic Fervour, Marked for Execution / Sites of Power) and `src/engine/fight-on-death.ts` (deferred model removal, 0-wound models fight before removal); new `EngineCodeHook.gateEffect`, `pick.windows`, death-reaction requests via `attack.modelDestroyed`; stratagem keyword filters on attached units now match ANY half (affects all factions, RC-045); Precision-decline `pass` now routed to the attack service in Shooting/Fight (found by the sim) |
+| Client | Start-screen faction button, procedural Zarkan (sorcerer) and Possessed (daemon-skin) figures, weapon flavour, Dark Pact prompt text, palette |
+| Verification | `npm run typecheck`, `npm run validate:data`, `npm run build` green; `npm test` 945 passing (40 files, incl. `tests/engine/chaos-space-marines*.test.ts`); `tests/e2e/chaos-space-marines.spec.ts` starts CSM vs bot, deploys through the UI and takes Fire Overwatch (screenshots `e2e-out/m10-chaos-space-marines-0*.png`) |
+| Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all 6 finished; chaos-space-marines in 4 games: 2 wins, 2 losses (ork 2, necrons 1, sm 1 overall). No balance tuning |
+| Known gaps | No GLB models; bot ignores the CSM stratagems and Dark Pact is answered by the generic chooser; rulings in `docs/needs-rules-check.md` under "chaos-space-marines build" (CSM-01 to CSM-18) |
+
+## Tyranids (M10 — Vardenghast Swarm patrol, playable)
+
+| Area | State |
+|---|---|
+| Patrol | Terror of Vardenghast (Winged Tyranid Prime), Psychophage, Termagants (Patrol Squads split), Barbgaunts, Von Ryan's Leapers; secondaries Alpha Xenoform / Chitinous Tide. Data in `src/data/factions/tyranids/` |
+| Engine hooks | `src/engine/factions/tyranids.ts` (Synapse battle-shock dice, Shadow in the Warp, Secretion Goad, Skulking Horrors, Disruption Bombardment, Death Blow, Pouncing Leap cost override, Patrol Squads, Voracious Assault, Teeming Broods, Alpha Xenoform, Chitinous Tide, closest-eligible snapshot); `src/engine/deathblow.ts` (deferred removal via Model.pendingRemoval); `state.ts` spawnUnitCopy and hasCoreAbility; Infiltrators deployment and a reinforcements step in Strategic Reserves arrivals |
+| Client | Start-screen faction button, procedural Tyranid figure kits (`TyranidParts.tsx`), Infiltrators placement validation, weapon flavour, prompt text, palette |
+| Verification | `npm run typecheck`, `npm run validate:data`, `npm run build` green; `npm test` 1049 passing (43 files, incl. `tests/engine/tyranids*.test.ts`, `tests/data/tyranids.test.ts`); `tests/e2e/tyranids.spec.ts` starts Tyranids vs bot, deploys through the UI (Leapers infiltrate), reaches the first Shooting phase (screenshots `e2e-out/m10-tyranids-0*.png`) |
+| Sim | `npm run sim -- --games 6 --seed 5`: 6 games, 0 violations, all finished at round 5; tyranids 1 win (necrons 2, ork 1, chaos-space-marines 1, 1 draw overall). No balance tuning. sim-core now also accepts fight-on-death deferred models at 0 wounds |
+| Known gaps | No GLB models (procedural figures); the bot ignores Tyranid stratagems and picks; Death Blow (`deathblow.ts`) and the Chaos deferred-death mechanism (`fight-on-death.ts`) are two parallel implementations that could be unified; rulings in `docs/needs-rules-check.md` under "tyranids build" (TYR-01 to TYR-21) |
+
+## Adepta Sororitas (M10 — Sanctuary Guardians patrol, playable)
+
+| Area | State |
+|---|---|
+| Patrol | Canoness Adalya (attached to Celestian Sacresants), Battle Sisters Squad (10), Arco-flagellants (10); secondaries Hallowed Retribution / Consecrated Ground. Data in `src/data/factions/adepta-sororitas/`; schema gained `Condition.mortalWound`, `Effect.critWoundAp`, `TargetSpec.state 'notYetActivated'` |
+| Engine hooks | `src/engine/miracle.ts` (Miracle dice: gain on destroyed units, `miracleDie` substitution decision raised from `rollOnce`/`rollBatchD6`), `src/engine/deferred.ts` (A Martyr's Death deferred removal + last-stand activation, `Model.removalDeferred`, new FightSubStep `deferred`), `src/engine/factions/adepta-sororitas.ts` (Acts of Faith, Defender of the Faith, Righteous Fury, Simulacrum Imperialis, Extremis Trigger Word, Hallowed Retribution, Consecrated Ground), critical-wound AP in `attack.ts`, FNP against mortal wounds, optional Patrol Squads split (`PlayerSetup.splitUnits`, no UI) |
+| Client | Miracle dice row in the player badge, Acts of Faith / Martyr's Death / Extremis prompts, procedural figure kits (Sisters, Sacresants, Canoness, Arco-flagellants), bolter/flamer sound and VFX classes |
+| Verification | `npm run typecheck`, `npm run validate:data`, `npm run build` green; `npm test` 1145 passing (46 files, incl. `tests/engine/adepta-sororitas*.test.ts`, `tests/data/adepta-sororitas.test.ts`); `tests/e2e/adepta-sororitas.spec.ts` starts the faction vs bot, deploys through the UI, stands still, shoots in round 1 (screenshots `e2e-out/m10-adepta-sororitas-0*.png`) |
+| Sim | `npm run sim -- --games 6 --seed 5`: 6 games, 0 violations, mean 5.0 rounds, all finished; adepta-sororitas played 5 of 6 games: 2 wins (chaos-space-marines 1, necrons 1, sm 1, tyranids 1). `SIM_FACTION=adepta-sororitas --games 12 --seed 11`: 3 wins, 0 violations. No balance tuning |
+| Known gaps | No GLB models; Battle-shock Acts of Faith only on the Command-phase test; D3 damage cannot take a Miracle die; one substitution per batch of hit/wound rolls; no UI to choose Patrol Squads splitting; the bot spends Miracle dice by a simple policy; A Martyr's Death uses its own deferral (`Model.removalDeferred`, `src/engine/deferred.ts`) beside the Tyranid Death Blow (`pendingRemoval`) and Daemonic Fervour (`deferredDeath:` marks); rulings in `docs/needs-rules-check.md` under "Adepta Sororitas build" (RC-ADE-01 to 22) |
+
+## Astra Militarum (M10 - Karsk's Gunners patrol, playable)
+
+| Area | State |
+|---|---|
+| Patrol | Command Squad Karsk, 2 x Cadian Shock Troops, Field Ordnance Battery (splittable into two 1-model Patrol Squads), Armoured Sentinels; secondaries Hold the Line / Methodical Destruction. Data in `src/data/factions/astra-militarum/` |
+| Engine hooks | `src/engine/factions/astra-militarum.ts` (Voice of Command Orders, Command Laurels, Gunnery Officer, Rearm Reload Fire, Take Cover/Take Aim/Move Move Move, Send in the Next Wave, Bring It Down, Artillery Strike, Hold the Line, Methodical Destruction). Patrol Squads reuse the Tyranid `patrolSquads` marker ability (Battery sizes [1,1], `splitPatrolSquad`). New core pieces: `spawnDestroyedUnitCopy` (Send in the Next Wave; Tyranid `spawnUnitCopy` stays), `hookService.hasCoreAbility` (code-hook granted core abilities), capped/halved stat modifiers, advance-roll modifiers, `battlefieldEdgeStrip`. Fixed: a declined Precision allocation (pass) is delegated to the attack service in Movement/Charge; destroyed units are exempt from the Battle-shocked stratagem-target check |
+| Client | Start-screen faction button, procedural Guardsman/officer/medic/standard figures, Sentinel walker and `ArtilleryBody` (field gun and rocket rack), Orders and Methodical Destruction prompt text, weapon flavour, palette |
+| Verification | `npm run typecheck`, `npm run validate:data` (80 files), `npm run build` green; `npm test` 1266 passing (49 files, incl. `tests/engine/astra-militarum*.test.ts`, `tests/data/astra-militarum.test.ts`); `tests/e2e/astra-militarum.spec.ts` starts AM vs bot, deploys through the UI and reaches round 1 Shooting (screenshots `e2e-out/m10-astra-militarum-0{1,2,3}-*.png`) |
+| Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all 6 finished (round 5); astra-militarum appears in game 0 only (as B vs adepta-sororitas) and won it 50-5; the rest of that seed is other pairings (sororitas 3, chaos-space-marines 1, ork 1 wins). An earlier pre-sororitas run of the same seed had astra-militarum winning 6 of 6. No balance tuning |
+| Known gaps | No GLB models (procedural only); the bot ignores the AM stratagems and Orders; rulings in `docs/needs-rules-check.md` under "astra-militarum build" (AM-01 to AM-21) |
+
 ## Not yet built
 
 - Anything beyond M8 (see Client tables for what M3/M6/M8 cover); AI Monte Carlo/hard tier, generated models, scale-up, multiplayer, Phase B glTF animation/asset pipeline for figures (see PLAN.md, docs/spec/30-figures.md §9)

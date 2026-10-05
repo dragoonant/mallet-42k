@@ -1,0 +1,58 @@
+[
+  {
+    "id": "ade.battle-sisters-squad",
+    "faction": "adepta-sororitas",
+    "name": "Battle Sisters Squad",
+    "keywords": ["INFANTRY", "BATTLELINE", "IMPERIUM", "BATTLE SISTERS SQUAD"],
+    "factionKeywords": ["ADEPTA SORORITAS"],
+    "stats": { "M": 6, "T": 3, "Sv": 3, "W": 1, "Ld": 7, "OC": 2 },
+    "invuln": 6,
+    "composition": [
+      {
+        "modelId": "superior",
+        "name": "Sister Superior",
+        "min": 1, "max": 1, "default": 1,
+        "champion": true,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["ade.w.bolt-pistol", "ade.w.combi-weapon", "ade.w.power-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "sister-flamer",
+        "name": "Battle Sister (flamer)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["ade.w.bolt-pistol", "ade.w.ministorum-flamer", "ade.w.close-combat-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "sister-heavy-flamer",
+        "name": "Battle Sister (heavy flamer)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["ade.w.bolt-pistol", "ade.w.ministorum-heavy-flamer", "ade.w.close-combat-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "sister-simulacrum",
+        "name": "Battle Sister (Simulacrum Imperialis)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["ade.w.bolt-pistol", "ade.w.boltgun", "ade.w.close-combat-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "sister",
+        "name": "Battle Sister",
+        "min": 6, "max": 6, "default": 6,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["ade.w.bolt-pistol", "ade.w.boltgun", "ade.w.close-combat-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      }
+    ],
+    "abilities": ["ade.a.acts-of-faith", "ade.a.simulacrum-imperialis"],
+    "coreAbilities": [],
+    "points": [ { "models": 10, "points": 0 } ],
+    "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+  }
+]

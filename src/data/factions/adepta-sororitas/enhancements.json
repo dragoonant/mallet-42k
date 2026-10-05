@@ -1,0 +1,38 @@
+[
+  {
+    "id": "ade.e.defender-of-the-faith",
+    "faction": "adepta-sororitas",
+    "name": "Defender of the Faith",
+    "text": "Every model in the bearer\u0027s unit has its Save characteristic improved by 1. In your Command phase you may discard one Miracle die; if you do, until the start of your next Command phase models in the bearer\u0027s unit have +1 Objective Control.",
+    "cost": 0,
+    "restriction": { "keyword": ["CANONESS"] },
+    "effect": {
+      "id": "ade.e.defender-of-the-faith.effect",
+      "name": "Defender of the Faith",
+      "text": "The bearer\u0027s unit (attached unit included) has its Save improved by 1; discarding a Miracle die in your Command phase adds 1 to the OC of its models until your next Command phase.",
+      "trigger": "always",
+      "effect": { "modifyStat": { "stat": "Sv", "value": -1 } },
+      "scope": { "who": "self" },
+      "code": "defenderOfTheFaithOc",
+      "params": { "pickWindow": "command.start", "discardsMiracleDie": true, "ocBonus": 1, "duration": "untilNextTurn" }
+    }
+  },
+  {
+    "id": "ade.e.righteous-fury",
+    "faction": "adepta-sororitas",
+    "name": "Righteous Fury",
+    "text": "The bearer\u0027s unit may shoot and declare a charge in a turn in which it Advanced or Fell Back. In your Command phase you may discard one Miracle die; if you do, until the end of that turn charge rolls for the bearer\u0027s unit may be re-rolled.",
+    "cost": 0,
+    "restriction": { "keyword": ["CANONESS"] },
+    "effect": {
+      "id": "ade.e.righteous-fury.effect",
+      "name": "Righteous Fury",
+      "text": "The bearer\u0027s unit (attached unit included) can shoot and charge after Advancing or Falling Back; discarding a Miracle die in your Command phase lets it re-roll charge rolls that turn.",
+      "trigger": "always",
+      "effect": { "shootAfterAdvance": true, "shootAfterFallBack": true, "chargeAfterAdvance": true, "chargeAfterFallBack": true },
+      "scope": { "who": "self" },
+      "code": "righteousFuryReroll",
+      "params": { "pickCode": "righteousFuryPick", "pickWindow": "command.start", "discardsMiracleDie": true, "reroll": "all", "markName": "righteousFury" }
+    }
+  }
+]

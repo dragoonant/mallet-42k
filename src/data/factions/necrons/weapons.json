@@ -1,0 +1,22 @@
+[
+  { "id": "nec.w.tachyon-arrow", "name": "Tachyon arrow", "type": "ranged", "range": 72, "A": 1, "skill": 2, "S": 16, "AP": -5, "D": "D6+2",
+    "abilities": [ { "ability": "ONE_SHOT" } ], "figure": { "part": "nec.weapon.tachyon-arrow", "hands": 2 } },
+  { "id": "nec.w.gauss-flayer", "name": "Gauss flayer", "type": "ranged", "range": 24, "A": 1, "skill": 4, "S": 4, "AP": 0, "D": 1,
+    "abilities": [ { "ability": "LETHAL_HITS" }, { "ability": "RAPID_FIRE", "value": 1 } ], "figure": { "part": "nec.weapon.gauss-flayer", "hands": 2 } },
+  { "id": "nec.w.gauss-reaper", "name": "Gauss reaper", "type": "ranged", "range": 12, "A": 2, "skill": 4, "S": 5, "AP": -1, "D": 1,
+    "abilities": [ { "ability": "LETHAL_HITS" } ], "figure": { "part": "nec.weapon.gauss-reaper", "hands": 2 } },
+  { "id": "nec.w.doomsday-blaster", "name": "Doomsday blaster", "type": "ranged", "range": 48, "A": "D6+1", "skill": 4, "S": 14, "AP": -3, "D": 3,
+    "abilities": [ { "ability": "BLAST" }, { "ability": "HEAVY" } ], "figure": { "part": "nec.weapon.doomsday-blaster" } },
+  { "id": "nec.w.twin-gauss-flayer", "name": "Twin gauss flayer", "type": "ranged", "range": 24, "A": 1, "skill": 4, "S": 4, "AP": 0, "D": 1,
+    "abilities": [ { "ability": "LETHAL_HITS" }, { "ability": "RAPID_FIRE", "value": 1 }, { "ability": "TWIN_LINKED" } ], "figure": { "part": "nec.weapon.twin-gauss-flayer" } },
+  { "id": "nec.w.overlords-blade", "name": "Overlord's blade", "type": "melee", "range": 0, "A": 4, "skill": 2, "S": 8, "AP": -3, "D": 2,
+    "abilities": [ { "ability": "DEVASTATING_WOUNDS" } ], "figure": { "part": "nec.weapon.overlords-blade", "hands": 1 } },
+  { "id": "nec.w.close-combat-weapon", "name": "Close combat weapon", "type": "melee", "range": 0, "A": 1, "skill": 4, "S": 4, "AP": 0, "D": 1,
+    "abilities": [], "figure": { "part": "nec.weapon.close-combat-weapon", "hands": 1 } },
+  { "id": "nec.w.skorpekh-hyperphase-weapons", "name": "Skorpekh hyperphase weapons", "type": "melee", "range": 0, "A": 4, "skill": 3, "S": 7, "AP": -2, "D": 2,
+    "abilities": [], "figure": { "part": "nec.weapon.skorpekh-hyperphase-weapons" } },
+  { "id": "nec.w.feeder-mandibles", "name": "Feeder mandibles", "type": "melee", "range": 0, "A": 6, "skill": 5, "S": 2, "AP": 0, "D": 1,
+    "abilities": [ { "ability": "LETHAL_HITS" } ], "figure": { "part": "nec.weapon.feeder-mandibles" } },
+  { "id": "nec.w.doomstalker-limbs", "name": "Doomstalker limbs", "type": "melee", "range": 0, "A": 3, "skill": 4, "S": 6, "AP": 0, "D": 1,
+    "abilities": [], "figure": { "part": "nec.weapon.doomstalker-limbs" } }
+]

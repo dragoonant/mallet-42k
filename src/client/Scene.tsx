@@ -5,12 +5,26 @@ import { Canvas } from '@react-three/fiber'
 import type { TerrainPieceData } from '@/data/types'
 import { Board, CameraRig, Lighting, Objectives, Ruler, Terrain } from './board'
 import { ShadowSync } from './board/Lighting'
+import { BattlefieldAmbience } from './board/BattlefieldAmbience'
 import { usePresentationSettings } from './presentation/settings'
 import { useDisplayState } from './presentation/presentedStore'
 import { useGameStore } from './store/game'
 import { useUiStore } from './ui/uiStore'
 import { computeBoardClickDraft, DeathGhosts, PlacementOverlay, resolveMeasureLine, UnitLabels, UnitsLayer, useBoardClick } from './interaction'
 import { VfxLayer } from './vfx'
+
+/** Area centroid of a simple polygon (shoelace). */
+function zoneCentroid(poly: { x: number; z: number }[]): { x: number; z: number } {
+  let a = 0, x = 0, z = 0
+  poly.forEach((p, i) => {
+    const q = poly[(i + 1) % poly.length]
+    const cross = p.x * q.z - q.x * p.z
+    a += cross
+    x += (p.x + q.x) * cross
+    z += (p.z + q.z) * cross
+  })
+  return a === 0 ? { x: 0, z: 0 } : { x: x / (3 * a), z: z / (3 * a) }
+}
 
 export function Scene() {
   const state = useGameStore((s) => s.state)
@@ -67,6 +81,14 @@ export function Scene() {
   if (!state) return null
 
   const terrainPieces = Object.values(state.board.pieces) as TerrainPieceData[]
+  const zones = state.mission.data.deploymentZones
+  const attacker = state.players.B.side === 'attacker' ? 'B' : 'A'
+  // Seat the camera on the local player's side (the human vs the bot; seat A in hot-seat): behind their
+  // zone when zones face each other across the long edges, otherwise with their zone on the left.
+  const viewer = botSeat === 'A' ? 'B' : 'A'
+  const viewerSide = state.players[viewer].side
+  const c = viewerSide ? zoneCentroid(zones[viewerSide === 'attacker' ? 'A' : 'B']) : null
+  const viewFromFar = !!c && (Math.abs(c.z) > Math.abs(c.x) ? c.z < 0 : c.x > 0)
 
   return (
     // ~30% closer than the previous [0, 40, 34] start (figures were only ~15px tall at default zoom).
@@ -84,10 +106,11 @@ export function Scene() {
     >
       <color attach="background" args={['#0a0a10']} />
       <Lighting />
+      <BattlefieldAmbience />
       {!lowGraphics && <ShadowSync deps={[displayState?.models, terrainPieces]} />}
-      <CameraRig topDown={topDown} focusTarget={focusTarget} />
+      <CameraRig topDown={topDown} focusTarget={focusTarget} viewFromFar={viewFromFar} />
 
-      <Board deploymentZones={state.mission.data.deploymentZones} onBoardPointer={onBoardPointer} />
+      <Board deploymentZones={zones} attacker={attacker} onBoardPointer={onBoardPointer} />
       <Terrain pieces={terrainPieces} />
       <Objectives />
 

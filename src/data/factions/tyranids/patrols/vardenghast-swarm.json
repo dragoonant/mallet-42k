@@ -1,0 +1,38 @@
+{
+  "id": "tyr.cp.vardenghast-swarm",
+  "faction": "tyranids",
+  "name": "The Vardenghast Swarm",
+  "units": [
+    { "ref": "prime", "datasheet": "tyr.terror-of-vardenghast", "size": 1, "enhancement": "tyr.e.psychostatic-veil" },
+    { "ref": "psychophage", "datasheet": "tyr.psychophage", "size": 1 },
+    { "ref": "termagants", "datasheet": "tyr.termagants", "size": 20 },
+    { "ref": "barbgaunts", "datasheet": "tyr.barbgaunts", "size": 5 },
+    { "ref": "leapers", "datasheet": "tyr.von-ryans-leapers", "size": 3 }
+  ],
+  "stratagems": ["tyr.s.hyper-reactive", "tyr.s.voracious-assault", "tyr.s.teeming-broods"],
+  "enhancements": [
+    { "id": "tyr.e.psychostatic-veil", "default": true },
+    { "id": "tyr.e.secretion-goad", "default": false }
+  ],
+  "secondaries": [
+    {
+      "id": "tyr.sec.alpha-xenoform",
+      "name": "Alpha Xenoform",
+      "text": "At the end of every phase, in both players' turns, score 4 victory points if your Terror of Vardenghast destroyed at least one enemy model during that phase, including kills it makes while fighting on through Death Blow.",
+      "default": true,
+      "scoring": [
+        { "id": "alpha-xenoform", "when": "phase.end", "rounds": { "from": 1, "to": 5 }, "who": "both", "rule": "custom", "pointsPer": 4, "cap": 4, "code": "alphaXenoform", "params": { "keyword": "WINGED TYRANID PRIME" } }
+      ]
+    },
+    {
+      "id": "tyr.sec.chitinous-tide",
+      "name": "Chitinous Tide",
+      "text": "At the end of each of your turns, score 5 victory points if you control at least one objective marker within 6 inches of your opponent's deployment zone (a marker inside that zone counts). The award is flat: 5 points per turn however many markers qualify.",
+      "default": false,
+      "scoring": [
+        { "id": "chitinous-tide", "when": "turn.end", "rounds": { "from": 1, "to": 5 }, "who": "active", "rule": "custom", "pointsPer": 5, "cap": 5, "code": "chitinousTide", "params": { "withinInches": 6, "measureFromMarkerEdge": true } }
+      ]
+    }
+  ],
+  "warlord": "prime"
+}

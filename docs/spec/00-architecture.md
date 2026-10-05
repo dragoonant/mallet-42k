@@ -34,7 +34,7 @@ interface StepResult {
 
 | Function | Purpose |
 |---|---|
-| `createGame(setup: GameSetup, seed: string, bundle?: DataBundle): StepResult` | builds initial state; first `pending` is a deployment decision. The engine never imports data: `bundle` (or one registered once via `registerDataBundle`) supplies it; `replay`/`load` take the same optional argument. Validates the setup (patrol/enhancement/secondary ids, `attachments`, `enhancementChoice.unitRef` present iff the enhancement data has `choice`, keyword matches, same player) and throws `EngineInvariantError` on failure — setup comes from the UI/sim, not from a Decider |
+| `createGame(setup: GameSetup, seed: string, bundle?: DataBundle): StepResult` | builds initial state; first `pending` is a deployment decision. The engine never imports data: `bundle` (or one registered once via `registerDataBundle`) supplies it; `replay`/`load` take the same optional argument. Validates the setup (patrol/enhancement/secondary ids, `attachments`, `enhancementChoice.unitRef` present iff the enhancement data has `choice`, keyword matches, same player) and throws `EngineInvariantError` on failure — setup comes from the UI/sim, not from a Decider. Contract additions (Astra Militarum, additive, optional): `PlayerSetup.splitUnits?: string[]` — patrol unit refs the player splits into Patrol Squads; each must name a datasheet with `patrolSquads: { unitSizes }` (sizes sum to the unit size), must not be attached or start in Reserves, otherwise setup fails. The first part keeps id `${player}:${ref}`, further parts get ref `${ref}-${k}` (k = 2, 3, …), each its own unit with `startingStrength` = its size. `RuntimeModelProfile.keywords?: string[]` carries per-model keywords (`Composition.keywords`); `keywordsOf` is the union over a unit's living models. |
 | `step(state, action, rng?)` | pure reducer; never throws for illegal actions (see §8); throws only on programmer error (corrupt state). The RNG is restored from `state.rng`; `rng` is an optional test override (§6) |
 | `legalActions(state, pending): Action[] \| null` | enumerates answers when `pending.options` is finite; `null` for continuous decisions (moves) |
 | `validate(state, action): Rejection \| null` | same checks `step` performs, no mutation |
@@ -94,6 +94,13 @@ the player cannot work out from the visible state:
   with `optionId: 'reroll'` it must be a non-empty, duplicate-free subset of the offered `dieIndexes` (anything else is
   rejected `E_NOT_AN_OPTION`), and only those dice are re-rolled; absent = every offered die. There is one offer per
   batch, not one per die.
+- `miracleDie` (M10, adepta-sororitas Acts of Faith) — `{ purpose, unitId, count, maxSubstitutions, pool, key }`, raised by
+  `miracleGate` (src/engine/miracle.ts) right before a D6 hit / wound / save / damage / charge / advance roll of an
+  ADEPTA SORORITAS unit when the owner's pool is non-empty (`key` is the roll's `rollOnce` key; battle-shock tests are not
+  offered, see STATUS). Options: `skip` and one `use` per distinct pool value; `use` carries `dieIndexes: [i]` (index into
+  `pool`, exactly one). The chosen die replaces the first die of the roll (`RollSpec.substitute`, `DiceRoll.substituted`,
+  never re-rollable) and its unit joins `Player.miracle.spentThisPhase` (cleared at every phase end).
+- `treasureObjective` (M10) — Treasures of Aeons pick at round 1 start: options are the objective markers with no home owner; the answer stores `secondaryState.treasureObjectiveId`. `abilityChoice` is shared by several code hooks and the raising hook names itself in `context.data.code` (`resonantFocusPick`, `plasmacyteSurge`) so the answer reaches the right handler.
 - `saveType` — **retired (M9).** The engine picks the save that needs the lower d6 (tie: armour) and never raises this
   decision. The numbers still exist: `CurrentAttack.saveTargets` (display-only, per-attack saves) and `DiceRoll.needed` (a
   batched save roll carries the d6 its dice have to reach).
@@ -147,6 +154,7 @@ Shared enum used by engine (to open windows), data (stratagem `window`), AI and 
 | `movement.reinforcements` | active, then opponent | after each reserves arrival; opponent: Fire Overwatch "set up" |
 | `movement.end` | active, then opponent | |
 | `shooting.start` | active, then opponent | |
+| `shooting.unitSelected` | active, then opponent | after a unit is chosen to shoot, before targets are declared (Dark Pacts, Sacrificial Dagger); never for Fire Overwatch |
 | `shooting.targetsDeclared` | opponent, then active | after targets declared, before hits are rolled (defensive stratagems) |
 | `shooting.attacksResolved` | active, then opponent | after one unit finished shooting |
 | `charge.start` | active, then opponent | |
@@ -158,6 +166,7 @@ Shared enum used by engine (to open windows), data (stratagem `window`), AI and 
 | `fight.unitSelected` | owner of unit, then opponent | before pile-in |
 | `fight.targetsDeclared` | opponent of the fighting unit, then owner | after melee targets declared (FightSubStep `declareTargets`), before attacks: Gene-wrought Resilience, Tough as Squig-hide |
 | `fight.attacksResolved` | owner, then opponent | after consolidation; Counter-offensive (opponent, `reactionWindow`) |
+| `attack.modelDestroyed` | owner of the destroyed model, then opponent | once the damage of the attack that destroyed an enemy-attacked model has fully resolved, before the next attack is allocated (Violent Unbinding); see `pendingDeathReaction` |
 | `any.unitDestroyed` | owner of destroyed unit, then opponent | |
 | `any.rollMade` | roller | command re-roll window; only opened when CP ≥ 1 |
 | `phase.end` | active, then opponent | end of every phase (both turns); used by scoring rules, rarely by stratagems |
@@ -175,10 +184,13 @@ Event families (all events carry `seq`, `turn`, `phase`, `player`):
 |---|---|
 | game | `GameCreated`, `RoundStarted`, `RoundEnded`, `TurnStarted`, `PhaseStarted`, `PhaseEnded`, `GameEnded` |
 | command | `CpChanged`, `BattleShockTested`, `BattleShocked`, `BattleShockRecovered` |
-| movement | `MoveDeclared` (moveType), `UnitMoved` (moveType, path per model), `UnitAdvanced` (roll), `UnitFellBack`, `ReinforcementsArrived` |
+| movement | `MoveDeclared` (moveType), `UnitMoved` (moveType, path per model), `UnitAdvanced` (roll; after any halve/modify effects), `UnitFellBack`, `ReinforcementsArrived` (`via`: `'deepStrike' | 'strategicReserves' | 'rapidIngress' | 'nextWave'` — additive member `'nextWave'`: Astra Militarum Send in the Next Wave, a spawned unit set up within 9" of its owner's battlefield edge outside Engagement Range) |
 | shooting/fight | `AttackSequenceStarted`, `TargetsDeclared`, `HitRolled`, `WoundRolled`, `SaveRolled`, `DamageApplied`, `FeelNoPainRolled`, `ModelDestroyed`, `UnitDestroyed` (both carry `byUnitId` **and** `byModelId`; null for mortal wounds / Deadly Demise / culls — Wrath of the Emperor and Bag the Big 'Un key on the model), `AttackSequenceEnded` |
 | charge | `ChargeDeclared`, `ChargeRolled`, `ChargeFailed`, `ChargeMoved`, `PiledIn`, `Consolidated` |
 | stratagem | `StratagemUsed`, `StratagemWindowOpened`, `StratagemWindowClosed`, `AbilityTriggered` (id, source, effect summary) |
+| reanimation (M10, necrons) | `WoundsRegained` { unitId, modelId, amount, source }, `ModelReturned` { unitId, modelId, pos, source } — emitted by Reanimation Protocols (docs/spec/factions/necrons.md NEC-2.2); `Unit.destroyedModels` (snapshot of every removed model, filled by `state.removeModel`) is what a returned model is taken from |
+| death blow (M11, tyranids) | `ModelRemovalDeferred` { unitId, modelId, source } — the model is not removed yet (`Model.pendingRemoval` = { byPlayer, byUnitId, byModelId, kind, source }); `ModelDestroyed` / `UnitDestroyed` follow, with the stored attribution, once it has fought or declined (docs/spec/factions/tyranids.md TYR-6.1). Also `RollModifierResult.extraDice` (hooks.ts): extra dice for `onBattleShockTest` (Synapse) |
+| miracle / deferred removal (M10, adepta-sororitas) | `MiracleDieGained` { player, value, source }, `MiracleDieSpent` { player, value, mode: 'substitute' | 'discard', unitId, rollId, purpose, source }, `ModelRemovalDeferred` { unitId, modelId, source } — docs/spec/factions/adepta-sororitas.md §7 E1/E4. `Player.miracle` { dice, spentThisPhase } (all players, empty unless the army has Acts of Faith); `Model.removalDeferred` (0 W model kept for A Martyr's Death: excluded from `state.unitModels`, so untargetable, no OC; `unitModelsAll` includes it); `PhaseState.deferredRemovals`; `FightSubStep` gains `'deferred'` (between `attacks` and `consolidate`); `EffectRequest.deferRemoval` (collected from `onModelDestroyed` BEFORE the model is removed); `PlayerSetup.splitUnits` (Patrol Squads, E5: listed patrol refs become their `patrolSquads` parts); `AttackRollHookContext.mortal` (E2) and `RollModifierResult.critWoundAp` (E3) |
 | dice | `DiceRolled` { purpose, dice: number[], modifiers, final } — one per physical roll, always emitted even when also covered by a family event |
 | objectives | `ObjectiveControlChanged`, `VpScored` (source, amount) |
 | meta | `ActionRejected` { code, reason }, `DecisionRequested` { pending } |
@@ -251,3 +263,4 @@ Programmer errors (corrupt state, missing datasheet) throw `EngineInvariantError
 
 - LoS sample point set and ruins "wholly within": 10-rules §3.
 - `reactionWindow` vs `stratagemWindow` and window ordering: 10-rules R-11.5.
+- Astra Militarum contract additions (all additive and optional, nothing removed): `hooks.ts` — `StatModifierResult` gains `cap?: number` (a stat is never better than this value, Take Cover!) and `halve?: boolean` (Artillery Strike halves M); `EFFECT_HOOKS` gains the keys `halveStat` (`onStatQuery`), `halveRoll` (`onAdvanceRoll`) and `forbid` (`onEligibility`) for the matching `Effect` fields. `index.ts` re-exports `modelKeywordsOf`, `spawnUnitCopy` (clones a destroyed unit with fresh ids, full wounds and original per-model loadouts; Send in the Next Wave), `recordModelAttacked` and `modelHasAttacked` (per-model "has made an attack" flag read by the Gunnery Officer Lone Operative grant). `types.ts` — `ActiveEffect.bearerModelId?: ModelId` limits a `scope.who === 'bearer'` ActiveEffect to one model (Epic Challenge: only the picked CHARACTER model, never its whole unit).

@@ -12,7 +12,6 @@ import type { Group } from 'three'
 import { Figure, type FigureAction } from '../figures'
 import { requestFrame } from '../figures/anim'
 import { SelectionRing, TargetRing, LosMarker } from '../board'
-import { colors } from '../ui/theme'
 import { useGameStore } from '../store/game'
 import { useDisplayState } from '../presentation/presentedStore'
 import { useUiStore } from '../ui/uiStore'
@@ -116,13 +115,12 @@ const UnitModel = memo(function UnitModel(p: UnitModelProps) {
             moving={moving}
             action={p.action}
             selected={p.isSelected}
-            highlighted={p.isClickable || p.isHoveredModel}
+            highlighted={p.isClickable}
+            hovered={p.isHovered || p.isHoveredModel}
             onClick={onClick}
           />
           {p.isSelected && <SelectionRing pos={LOCAL_ORIGIN} baseRadius={p.baseRadius} />}
           {p.isClickable && <TargetRing pos={LOCAL_ORIGIN} baseRadius={p.baseRadius} />}
-          {p.isHoveredModel && <SelectionRing pos={LOCAL_ORIGIN} baseRadius={p.baseRadius * 1.15} color={colors.accent} />}
-          {p.isHovered && !p.isHoveredModel && !p.isSelected && !p.isClickable && <SelectionRing pos={LOCAL_ORIGIN} baseRadius={p.baseRadius} color={colors.accent} />}
           {p.los && <LosMarker pos={LOCAL_ORIGIN} baseRadius={p.baseRadius} status={p.los} />}
         </>
       )}
@@ -138,7 +136,8 @@ export function UnitsLayer() {
   const dispatch = useGameStore((s) => s.dispatch)
   const selectedUnitId = useUiStore((s) => s.selectedUnitId)
   const selectUnit = useUiStore((s) => s.selectUnit)
-  const hoveredUnitId = useUiStore((s) => s.hoveredUnitId)
+  // Every unit the hovered prompt option names — each of its models gets the bright hover ring.
+  const hoveredUnitIds = useUiStore((s) => s.hoveredUnitIds)
   // Single-model hover: an allocateAttack prompt names one model of a unit, and lighting up the
   // whole unit wouldn't answer "which figure is this button?" (owner playtest).
   const hoveredModelId = useUiStore((s) => s.hoveredModelId)
@@ -165,7 +164,7 @@ export function UnitsLayer() {
         const faction = state.players[unit.player].faction
         const isSelected = unit.id === selectedUnitId
         const isClickable = interactive && clickable.has(unit.id)
-        const isHovered = unit.id === hoveredUnitId
+        const isHovered = hoveredUnitIds.includes(unit.id)
 
         return (
           <group key={unit.id}>

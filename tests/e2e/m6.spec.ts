@@ -165,7 +165,7 @@ async function playMission(page: Page, mission: string, shotPrefix: string, opts
 
   await page.goto('/')
   await expect(page.getByTestId('start-game')).toBeVisible()
-  await page.getByRole('button', { name: 'Space Marines' }).click()
+  await page.getByRole('button', { name: 'Space Marines', exact: true }).click()
   await page.getByRole('button', { name: 'Bot', exact: true }).click()
   await page.getByTestId('setup-mission').selectOption(mission)
   await page.getByTestId('setup-seed').fill(`m6-${mission}`)

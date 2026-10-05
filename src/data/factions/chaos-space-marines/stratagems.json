@@ -1,0 +1,61 @@
+[
+  {
+    "id": "csm.s.vindictive-strategy",
+    "faction": "chaos-space-marines",
+    "name": "Vindictive Strategy",
+    "text": "Use in your Shooting phase or in a Fight phase, for one of your HERETIC ASTARTES units not yet selected to shoot or fight. Until the end of the phase, each attack by that unit against an enemy unit below its Starting Strength re-rolls a hit roll of 1; if that enemy unit is also below half-strength, the attack also re-rolls a wound roll of 1.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["shooting", "fight"],
+    "window": ["shooting.start", "fight.start", "fight.attacksResolved"],
+    "who": "either",
+    "condition": { "phase": "any" },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "HERETIC ASTARTES" }, "count": 1 }
+    ],
+    "effect": { "reroll": "ones" },
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase",
+    "code": "vindictiveStrategy"
+  },
+  {
+    "id": "csm.s.violent-unbinding",
+    "faction": "chaos-space-marines",
+    "name": "Violent Unbinding",
+    "text": "Use in the opponent's Shooting phase or in a Fight phase, just after an enemy attack destroys your MASTER OF POSSESSION model, before it is removed. If the attacking unit has a model within 6\" of it, roll a D6: on a 1 nothing happens; on 2-5 that unit suffers D3 mortal wounds; on a 6 it suffers 3 mortal wounds.",
+    "cost": 1,
+    "category": "epicDeed",
+    "phases": ["shooting", "fight"],
+    "window": "attack.modelDestroyed",
+    "who": "reactive",
+    "condition": { "any": [ { "phase": "shooting", "ownTurn": false }, { "phase": "fight" } ] },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "MASTER OF POSSESSION" }, "state": "justDestroyed", "count": 1 }
+    ],
+    "scope": { "who": "self" },
+    "duration": "instant",
+    "code": "violentUnbinding",
+    "params": { "range": 6, "mortalWounds": { "2-5": "D3", "6": 3 } }
+  },
+  {
+    "id": "csm.s.daemonic-fervour",
+    "faction": "chaos-space-marines",
+    "name": "Daemonic Fervour",
+    "text": "Use in a Fight phase just after an enemy unit selects its targets, when one of your POSSESSED units is a target. Until the end of the phase, each time a model in that unit is destroyed before the unit has fought, roll a D6: on a 4+ it is not removed yet, and once the enemy unit finishes its attacks it fights, then is removed.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["fight"],
+    "window": "fight.targetsDeclared",
+    "who": "either",
+    "condition": { "phase": "fight" },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "POSSESSED" }, "state": "targetedByAttack", "count": 1 }
+    ],
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase",
+    "code": "daemonicFervour",
+    "params": { "threshold": 4 }
+  }
+]

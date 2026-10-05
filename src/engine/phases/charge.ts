@@ -97,6 +97,8 @@ function candidateTargets(state: GameState, unitId: UnitId): UnitId[] {
 function canDeclareCharge(state: GameState, unitId: UnitId): boolean {
   if (hasKeyword(state, unitId, 'AIRCRAFT')) return false
   if (leaderService.inEngagementWithEnemy?.(state, unitId)) return false
+  // C6: a forbid:'charge' effect (Artillery Strike) stops the unit declaring any charge
+  if (leaderService.halves(state, unitId).some((id) => hookService.chargeForbidden(state, id))) return false
   const moveType = state.units[unitId].turn.moveType
   if ((moveType === 'advance' || moveType === 'fallBack') && !(hookService.eligibilityFor?.(state, unitId, 'charge') ?? false)) return false
   return candidateTargets(state, unitId).length > 0
@@ -448,14 +450,17 @@ export function neededChargeDistance(state: GameState, unitId: UnitId, targetUni
 
 // ---------- Fire Overwatch (reused from movement.ts's pattern: a pushed 'overwatch' reaction targeting the charger) ----------
 
-function overwatchTargetsFor(state: GameState, shooterUnitId: UnitId, chargerUnitId: UnitId): DeclaredTarget[] {
+export function overwatchTargetsFor(state: GameState, shooterUnitId: UnitId, chargerUnitId: UnitId): DeclaredTarget[] {
   const out: DeclaredTarget[] = []
   for (const half of leaderService.halves?.(state, shooterUnitId) ?? [shooterUnitId]) {
     if (state.units[half]?.location !== 'board') continue
     for (const m of unitModels(state, half)) {
       for (const wid of m.weapons) {
         const w = state.weapons[wid]
-        if (w && w.kind === 'ranged') out.push({ modelId: m.id, weaponId: wid, targetUnitId: chargerUnitId, profileGroup: w.profileGroup, attacks: null })
+        if (!w || w.kind !== 'ranged') continue
+        // [ONE SHOT]: a weapon already fired this battle is never a legal Overwatch choice either
+        if (w.abilities.some((a) => a.ability === 'ONE_SHOT') && m.oneShotUsed.includes(wid)) continue
+        out.push({ modelId: m.id, weaponId: wid, targetUnitId: chargerUnitId, profileGroup: w.profileGroup, attacks: null })
       }
     }
   }
@@ -734,6 +739,8 @@ export const chargeModule: PhaseModule = {
   handle(ctx, action, pending): Rejection | void {
     const s = ctx.state
     if (action.type === 'pass') {
+      // a Precision allocation (canPass) is declined with a pass: the attack sequence answers it
+      if (pending.kind === 'allocateAttack' && s.phaseState.attack) return attackService.handler.handle(ctx, action, pending)
       if (pending.kind === 'chooseUnitToActivate') { ctx.once('ch:donePhase'); return }
       return { code: 'E_NOT_AN_OPTION', reason: `charge: pass is not valid for ${pending.kind}` }
     }

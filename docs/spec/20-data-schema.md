@@ -71,7 +71,7 @@ still gate it so bespoke hooks stay cheap. A descriptor with `code` may omit `ef
 Condition keys (all optional): `phase`, `ownTurn`, `attackerKeyword`, `attackerNotKeyword`, `targetKeyword` (Keyword or Keyword[] = any of),
 `targetNotKeyword`, `weaponType (ranged|melee)`, `weaponAbility`, `weaponId`, `range ({within:n} | "half")`,
 `targetInCover`, `targetOnObjective`, `unitOnObjective`, `unitBelowHalf`, `unitStationary`, `unitAdvanced`,
-`unitFellBack`, `unitCharged`, `unitBattleShocked`, `leaderAttached`, `roll ({gte,lte, unmodified?})`,
+`targetBelowStartingStrength`, `targetBelowHalf`, `targetIsClosestEligible` (Tyranids: Feeding Frenzy / Voracious Assault), `unitFellBack`, `unitCharged`, `unitBattleShocked`, `leaderAttached`, `mortalWound` (onFeelNoPainRoll only: the point saved is a mortal wound), `roll ({gte,lte, unmodified?})`,
 `round ({gte,lte})`, `oathTarget` (target is the marked unit), `strengthVsToughness (gt|gte|eq|lte|lt|double|half — attack S vs target T)`, `any`, `not`.
 
 Effect keys (any subset; unknown keys rejected):
@@ -81,7 +81,8 @@ Effect keys (any subset; unknown keys rejected):
 | `when` | Condition | per-entry gate (see `effect` above); not an effect on its own |
 | `reroll` | `ones \| fails \| all \| oneDie` | re-roll for the triggering roll; `all` = optional re-roll of successes via `rerollOffer` (10-rules R-6.24), fails auto-re-rolled |
 | `modifyRoll` | `{roll, value}` | roll ∈ hit wound save charge advance battleShock damage; engine applies ±1 cap for hit/wound |
-| `modifyStat` | `{stat, value}` | stat ∈ A S AP D M T Sv W Ld OC BS WS range |
+| `modifyStat` | `{stat, value, cap?}` | stat ∈ A S AP D M T Sv W Ld OC BS WS range; `cap`: the modifier never takes the stat past it (Sv/BS/WS/Ld: not lower; others: not higher) |
+| `halveStat` / `halveRoll` / `forbid` | StatName / `'advance'` / `'charge'` | stat halved (rounded up) before additive modifiers; Advance roll halved; charge declaration forbidden |
 | `setStat` | `{stat, value}` | |
 | `invuln` | RollTarget | |
 | `feelNoPain` | RollTarget | |
@@ -101,6 +102,7 @@ Effect keys (any subset; unknown keys rejected):
 | `shootAfterAdvance` / `shootAfterFallBack` / `chargeAfterAdvance` / `chargeAfterFallBack` | true | |
 | `stealth` | true | −1 to hit for ranged attacks targeting the unit |
 | `lethalOn` | `5+` etc | override ability threshold |
+| `critWoundAp` | int ≥1 | AP improves by n for an attack whose unmodified wound roll was a critical wound |
 
 Core abilities that are flags rather than rules text go on the datasheet as `coreAbilities:[{ability, value?}]` with
 enum `DEEP_STRIKE SCOUTS INFILTRATORS LONE_OPERATIVE LEADER STEALTH DEADLY_DEMISE FIRING_DECK FEEL_NO_PAIN FIGHTS_FIRST`.
@@ -130,7 +132,7 @@ One entry per profile. Multi-profile weapons share `profileGroup`; a model picks
 | `keywords`, `factionKeywords` | Keyword[] | `INFANTRY`, `CHARACTER`, … / `ADEPTUS ASTARTES`, `ORKS` |
 | `stats` | Stats | unit default |
 | `invuln` | RollTarget | optional |
-| `composition` | Composition[] | per model type: `{modelId, name, min, max, default, champion?, base, statsOverride?, weapons:{default: Id[], options: WargearOption[]}, figure}` |
+| `composition` | Composition[] | per model type: `{modelId, name, min, max, default, champion?, keywords? (model-only keywords), base, statsOverride?, weapons:{default: Id[], options: WargearOption[]}, figure}` |
 | `WargearOption` | `{replace: Id[], with: Id[], max?: int \| "any", perModels?: int}` | `perModels: 5` = one option per 5 models |
 | `abilities` | (Id \| AbilityDescriptor)[] | |
 | `coreAbilities` | `{ability, value?}[]` | §3 |
@@ -155,7 +157,7 @@ Unit-level state in the engine (`wounds`, `battleShocked`, `moved`, `advanced`) 
 | `who` | `active \| reactive \| either` | whose turn it may be used in |
 | `condition` | Condition | use-time gating (e.g. the target unit must have been selected as a target) |
 | `when` | Condition | application-time gating per triggered attack/roll, same semantics as `AbilityDescriptor.when` |
-| `targets` | TargetSpec[] | `{role: unit\|model, owner: friendly\|enemy, filter:{keyword?, notKeyword?, within?:{of: previousTarget\|self\|objective\|controlledObjective, inches}}, state?: selectedToShoot\|targetedByAttack\|chargedThisTurn\|justDestroyed\|inEngagement\|belowHalf\|notYetFought, count?:int}`; `within.of: controlledObjective` restricts to a marker the active player currently controls (vs. `objective` = any marker in range) |
+| `targets` | TargetSpec[] | `{role: unit\|model, owner: friendly\|enemy, filter:{keyword?, notKeyword?, within?:{of: previousTarget\|self\|objective\|controlledObjective, inches}}, state?: selectedToShoot\|targetedByAttack\|chargedThisTurn\|justDestroyed\|inEngagement\|belowHalf\|notYetFought|notYetShot|notYetActivated, count?:int, includeDestroyed?:bool}`; `within.of: controlledObjective` restricts to a marker the active player currently controls (vs. `objective` = any marker in range) |
 | `effect` | Effect \| Effect[] | applied to `targets[0]` unless `scope` says otherwise |
 | `scope`, `duration`, `limit` | as abilities | default `limit: oncePerPhase` (core: one use per stratagem per phase) |
 | `code` | hook name | escape hatch |
@@ -168,7 +170,7 @@ Unit-level state in the engine (`wounds`, `battleShocked`, `moved`, `advanced`) 
 
 `faction`: `{id, name, factionKeyword, armyRule: Id, detachments:[{id, name, rule: Id, stratagems: Id[], enhancements: Id[]}], paintScheme:{primary, secondary, trim, metal, decal} (hex), combatPatrols: Id[]}`.
 
-`combat-patrol`: `{id, faction, name, detachment?, warlord: ref, units:[{ref, datasheet, size, wargear?: [{modelId, count, weapons: Id[]}], attachTo?: ref, enhancement?: Id}], stratagems: Id[], enhancements: [{id, default}], secondaries: [{id, name, text, default, scoring: ScoringRule[]}]}`. `ref` is unique inside the patrol and becomes the engine `unitId` prefix. `attachTo` references another unit's `ref` (leader attachment chosen at setup; the setup UI may change it within `leader.attachTo`). Exactly one enhancement and one secondary have `default: true`; the player may swap to the optional one at setup (11-combat-patrol CP-1.4/1.5).
+`combat-patrol`: `{id, faction, name, detachment?, warlord: ref, units:[{ref, datasheet, size, wargear?: [{modelId, count, weapons: Id[]}], patrolSquads?: [{ref, size, wargear: [{modelId, count, weapons: Id[]}]}], attachTo?: ref, enhancement?: Id}], stratagems: Id[], enhancements: [{id, default}], secondaries: [{id, name, text, default, scoring: ScoringRule[]}]}`. `ref` is unique inside the patrol and becomes the engine `unitId` prefix. `attachTo` references another unit's `ref` (leader attachment chosen at setup; the setup UI may change it within `leader.attachTo`). Exactly one enhancement and one secondary have `default: true`; the player may swap to the optional one at setup (11-combat-patrol CP-1.4/1.5).
 
 ## 9. Missions
 
@@ -180,7 +182,7 @@ Unit-level state in the engine (`wounds`, `battleShocked`, `moved`, `advanced`) 
 | `objectives` | `{id, x, z}[]` | marker centre; control radius from `objectiveRange` (3" from marker edge, marker radius 0.79") |
 | `rounds` | int | 5 |
 | `firstTurn` | `roll \| attackerChoice` | |
-| `scoring` | ScoringRule[] | `{id, when: TimingWindowId, rounds:{from,to}, who?: active\|opponent\|both\|first\|second, rule, pointsPer, cap, params?, code?}` (`common#/$defs/ScoringRule`, shared with patrol secondaries). `when` may be any window incl. `round.start`/`round.end`/`battle.end`; `who: first/second` = the player who took the first/second turn of the round (round-5 split: `{command.end, 5–5, first}` + `{turn.end, 5–5, second}`, 11-combat-patrol CP-2.1). `rule`: `holdObjectives` (per marker; `params.objectiveIds` restricts, `params.min` = threshold form "≥ n markers"), `holdMore`, `holdHome`, `holdEnemyHome`, `holdNamed` (`params.objectiveIds`, all must be held), `unitsInEnemyZone`, `destroyedUnits`, `razedThisTurn`, `claimedSite`, `claimedSiteConsecutive` (`params.turns`), `custom` (`code`). `params.capGroup` lets several rules share one per-instance cap. |
+| `scoring` | ScoringRule[] | `{id, when: TimingWindowId, rounds:{from,to}, who?: active\|opponent\|both\|first\|second, rule, pointsPer, cap, params?, code?}` (`common#/$defs/ScoringRule`, shared with patrol secondaries). `when` may be any window incl. `round.start`/`round.end`/`battle.end`; `who: first/second` = the player who took the first/second turn of the round (round-5 split: `{command.end, 5–5, first}` + `{turn.end, 5–5, second}`, 11-combat-patrol CP-2.1). `rule`: `holdObjectives` (per marker; `params.objectiveIds` restricts, `params.min` = threshold form "≥ n markers"), `holdMore` (`params.allowTie` = a tie, incl. 0 v 0, also scores), `holdHome`, `holdEnemyHome`, `holdNamed` (`params.objectiveIds`, all must be held), `unitsInEnemyZone`, `destroyedUnits`, `razedThisTurn`, `claimedSite`, `claimedSiteConsecutive` (`params.turns`), `custom` (`code`). `params.capGroup` lets several rules share one per-instance cap. |
 | `rules` | MissionRule[] | `{id, code, window, params?}` — non-scoring mission rules (Retrieve Intelligence, Irradiated Power Cells, Sabotage Comms, Raze and Ruin, Supply Lines, Break Their Spirit, Claim Sites); `code` validated against the hook registry; state they keep is listed in 11-combat-patrol §2.6 |
 | `victory` | `{tie: draw \| fewerDestroyed}` | |
 | `terrainLayouts` | Id[] | allowed layouts |
