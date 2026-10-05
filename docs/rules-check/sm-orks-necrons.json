@@ -1,0 +1,431 @@
+{
+  "file": "docs/rules-check/sm-orks-necrons.json",
+  "sources": {
+    "sm": "https://wahapedia.ru/wh40k10ed_cp/factions/strike-force-octavius/",
+    "ork": "https://wahapedia.ru/wh40k10ed_cp/factions/gordrang-s-gitstompas/",
+    "orkAlt": "https://wahapedia.ru/wh40k10ed_cp/factions/morgrim-s-butchas/",
+    "nec": "https://wahapedia.ru/wh40k10ed_cp/factions/amonhotekh-s-guard/",
+    "necIndex": "https://wahapedia.ru/wh40k10ed/factions/necrons/",
+    "core": "https://wahapedia.ru/wh40k10ed/the-rules/core-rules/",
+    "commentary": "https://wahapedia.ru/wh40k10ed/the-rules/rules-commentary/",
+    "cp": "https://wahapedia.ru/wh40k10ed_cp/the-rules/combat-patrol/"
+  },
+  "rows": [
+    {
+      "id": "RC-053",
+      "verdict": "confirmed",
+      "rule": "Oath: a model with the ability 'can' re-roll the hit roll against the Oath target. Auto re-rolling failed hits is the best play; re-rolling a success to fish for a 6 (Lethal/Sustained) loses on average.",
+      "source": "sm",
+      "fix": "None.",
+      "confidence": "medium"
+    },
+    {
+      "id": "RC-054",
+      "verdict": "confirmed",
+      "rule": "2 VP at the end of each phase if your CAPTAIN model destroyed one or more enemy models that phase. Per-model attribution matches.",
+      "source": "sm; missions.ts wrathOfTheEmperorAmount",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-055",
+      "verdict": "confirmed",
+      "rule": "Champion Duellist gives PRECISION and LETHAL HITS to the bearer's melee weapons only.",
+      "source": "sm",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-056",
+      "verdict": "confirmed",
+      "rule": "Both characters list only Terminator Squad. Nothing allows two Leaders in one Bodyguard, so the core one-Leader limit applies.",
+      "source": "sm; core Leader",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-057",
+      "verdict": "confirmed",
+      "rule": "At the end of your Command phase, pick an ASTARTES unit in range of a marker you control. The marker stays yours with no models in range until the opponent controls it at the start or end of any turn. The dutyAndHonour check in code-hooks.ts matches.",
+      "source": "sm",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-058",
+      "verdict": "confirmed",
+      "rule": "5 VP at the end of each player's turn if you control a marker the opponent controlled at the start of that turn. The turn-start snapshot in objectives.ts gives the same answer.",
+      "source": "sm",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-059",
+      "verdict": "confirmed",
+      "rule": "Ranged attacks allocated to the bearer have their Damage halved. The Commentary says halving rounds fractions up after modifiers, so a minimum of 1 follows.",
+      "source": "ork; commentary (halving)",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-060",
+      "verdict": "confirmed",
+      "rule": "Dread klaw is A4 with +1 A per additional klaw. The patrol Dread has 3 klaws, so A6; Waaagh! +1 A makes 7.",
+      "source": "ork",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-061",
+      "verdict": "wrong",
+      "rule": "Krump da Gitz! (Gitstompas CP): once an enemy unit finishes shooting in the opponent's Shooting phase, the ORKS unit it targeted makes a Normal move of up to D6\", ending as close as possible to that shooter (surge limits: not Battle-shocked, not in Engagement Range, once per phase). Re-checked: stratagems.ts:553-555 rolls D6, sets surgeMovedThisPhase and pushes a 'surge' reaction, but nothing in src drains pendingReactions('surge') (shooting.ts:291 just opens the window) and resolveSurgeMove has no caller. Even if it were called, it bails at movement.ts:386 because the flag is already set. CP is spent, no move happens. The AI (src/ai/stratagems.ts:435) also uses it. Rigid translation is an acceptable shortcut.",
+      "source": "wahapedia CP gordrang-s-gitstompas (Krump da Gitz!); core surge moves; grep: no caller of resolveSurgeMove; test STRAT-025 only asserts the pending reaction",
+      "fix": "shooting.ts doResolve: after the shooting.attacksResolved window returns false (~l.291), loop consumeReaction(state,'surge') and call resolveSurgeMove(ctx, r.unitId, r.distance, r.enemyUnitId). Stop stratagems.ts:553 pre-setting surgeMovedThisPhase (or have resolveSurgeMove skip that check for a drained request). Keep the once-per-phase check at stratagems.ts:328 working, e.g. by also checking pending 'surge' reactions. Extend STRAT-025 to assert the unit moved.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-062",
+      "verdict": "confirmed",
+      "rule": "A MONSTER/VEHICLE on a non-round base has a 2\" pivot value, paid once per model per move. The Deffkopta (oval base, VEHICLE) pays 2\".",
+      "source": "core (Pivot)",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-063",
+      "verdict": "confirmed",
+      "rule": "This row is really Bag the Big 'Un (Morgrim's Butchas): 8 VP if the picked model is destroyed, 12 VP if Beastboss Morgrim destroys it, scored at battle end. Unarrived Reserves count as destroyed, so 8 VP is right. Only the roster data is missing.",
+      "source": "orkAlt; commentary (Reserves)",
+      "fix": "Relabel the row to Bag the Big 'Un. No rules change.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-064",
+      "verdict": "confirmed",
+      "rule": "Commentary: the owner sets returned models up in coherency, and only in ER of enemies already engaged with the unit. A model that cannot be set up is destroyed (step wasted). The constraints match; auto-placement only replaces a small owner choice.",
+      "source": "nec; commentary (adding models)",
+      "fix": "None now; owner placement could come later.",
+      "confidence": "medium"
+    },
+    {
+      "id": "RC-065",
+      "verdict": "confirmed",
+      "rule": "A returned model comes back with 1 wound, and its original wargear is correct. Only the Overlord has One Shot, and a dead Leader cannot return, so the One Shot carry-over never matters.",
+      "source": "nec",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-066",
+      "verdict": "wrong",
+      "rule": "Reanimation Protocols: the controlling player picks which wounded model regains a wound and which destroyed model comes back. The engine fixes this (heal fewest wounds left, return most recently destroyed). Re-checked: the CP Warriors are fixed at 5 gauss flayer + 5 gauss reaper (necron-warriors.json), so the return choice changes the unit's guns (24\" Rapid Fire vs 12\" S5 AP-1). The heal default is near-optimal and rarely matters. Low gameplay impact but a real deviation.",
+      "source": "wahapedia CP amonhotekh-s-guard (Reanimation Protocols, Warriors wargear); necrons.ts reanimationStep l.108",
+      "fix": "Low priority. necrons.ts reanimationStep: when the destroyed models of the half differ in wargear (modelId/composition), raise a chooseOption (topic abilityChoice, abilityId = source) to pick which one returns. Bot and timeout default stay most recently destroyed.",
+      "confidence": "medium"
+    },
+    {
+      "id": "RC-067",
+      "verdict": "confirmed",
+      "rule": "For each wound reanimated: heal one wounded model if there is one; otherwise, if below Starting Strength, return a destroyed model at 1 wound. A later step can heal a returned multi-wound model.",
+      "source": "nec; necIndex",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-068",
+      "verdict": "confirmed",
+      "rule": "Reanimation and CP primary scoring both happen at the end of your Command phase. Under core Sequencing the active (Necron) player picks the order, so reanimating first is legal and is what a player would choose.",
+      "source": "nec; cp (primary timing); core Sequencing",
+      "fix": "None.",
+      "confidence": "medium"
+    },
+    {
+      "id": "RC-069",
+      "verdict": "confirmed",
+      "rule": "An attached unit's Starting Strength is Leader plus Bodyguard. When either half is destroyed, the survivor goes back to its own Starting Strength. So a dead Overlord cannot be reanimated, and an Overlord alone cannot return Warriors.",
+      "source": "core (Attached units); necIndex FAQ",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-070",
+      "verdict": "confirmed",
+      "rule": "Subtract 1 from the Damage of each attack allocated to the bearer. Commentary: Damage modifiers apply before Devastating Wounds turn into mortal wounds, and Damage never drops below 1. Deadly Demise and Hazardous mortals are not attacks.",
+      "source": "nec; commentary (DW, min 1)",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-071",
+      "verdict": "confirmed",
+      "rule": "The CP datasheet lists the Doomstalker base as 90mm.",
+      "source": "nec",
+      "fix": "None.",
+      "confidence": "medium"
+    },
+    {
+      "id": "RC-072",
+      "verdict": "wrong",
+      "rule": "Rules Commentary (Destroyed By): an enemy unit counts as destroyed by you if attacks you made or mortal wounds from your rules killed it. Scarab Swarms (Deadly Demise 1) and the Doomstalker (Deadly Demise D3) can kill an enemy near a marker, which should score Treasures of Aeons (3 VP). Re-checked: rollDeadlyDemise (attack.ts:1131) queues mortals with no attacker, drainOneMortalPoint (attack.ts:1040) destroys with player/unit/model all null, so treasuresUnitDestroyed (missions.ts:351) returns early. Every mortal-queue kill (Deadly Demise, Tank Shock, grenades, ability mortals) loses kill credit for every kill-credit secondary, not only Treasures. Hazardous self-kills correctly score nothing.",
+      "source": "wahapedia rules-commentary (Destroyed By); CP amonhotekh-s-guard (Treasures of Aeons, Deadly Demise on Scarabs/Doomstalker); attack.ts:1112-1131, 1040; missions.ts:348",
+      "fix": "Add an optional by {player, unitId, modelId} to the mortalQueue entry. It lives in frozen src/engine/types.ts:311, so also update docs/spec/00-architecture.md and log an issue. Thread it through queueMortalWounds (attack.ts:85/1381). rollDeadlyDemise passes the exploding model, its unit and its owner; Tank Shock, grenades and hooks-impl mortals pass their source unit. drainOneMortalPoint hands it to destroyModel with kind 'mortal'. treasuresUnitDestroyed already needs byModelId plus a NECRONS byUnitId, and a destroyed exploding model's unit still exists in state.units. Check that other kill-credit secondaries don't double count.",
+      "confidence": "medium"
+    },
+    {
+      "id": "RC-073",
+      "verdict": "confirmed",
+      "rule": "At the end of your turn, 4 VP if one or more non-Battle-shocked NECRONS units are wholly within the opponent's DZ. Flat, not per unit.",
+      "source": "nec",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-074",
+      "verdict": "confirmed",
+      "rule": "In your Command phase, pick an enemy unit within 12\" of the bearer and visible to it. Until end of turn, friendly NECRONS attacks against that unit re-roll hit rolls of 1.",
+      "source": "nec",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-075",
+      "verdict": "confirmed",
+      "rule": "The bearer's unit may shoot in a turn it Fell Back. Nothing lifts the charge restriction.",
+      "source": "nec",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-076",
+      "verdict": "confirmed",
+      "rule": "1 CP, used in your Command phase: +1 OC until the start of your next Command phase. Only usable while an OVERLORD model of yours is on the battlefield.",
+      "source": "nec",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-077",
+      "verdict": "confirmed",
+      "rule": "The CP rules page and the faction menu list only Amonhotekh's Guard for Necrons.",
+      "source": "cp; nec",
+      "fix": "None.",
+      "confidence": "medium"
+    },
+    {
+      "id": "RC-084",
+      "verdict": "confirmed",
+      "rule": "Scarabs and the Doomstalker are Ld 8+, so widening the schema is correct.",
+      "source": "nec",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-085",
+      "verdict": "confirmed",
+      "rule": "5+ invuln until end of phase. A model uses its best invuln, so the Overlord keeps 4+.",
+      "source": "nec",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-086",
+      "verdict": "confirmed",
+      "rule": "Implementation detail only. The code now grants the re-roll as an effect on the marked unit at pick time, and the descriptor hook's gate returns false. The row text is out of date.",
+      "source": "code-hooks.ts:548-608",
+      "fix": "Update the row text only.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-087",
+      "verdict": "confirmed",
+      "rule": "Behaviour matches 'friendly NECRONS model'. Resonant Focus no longer uses forceScope; the effect is granted on the target with attackerKeyword NECRONS. The row text is out of date.",
+      "source": "code-hooks.ts:586-595",
+      "fix": "Update the row text only.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-088",
+      "verdict": "confirmed",
+      "rule": "The rule has no 'bearer alive' condition after selection. The code stores the effect on the marked enemy unit (untilEndOfTurn), so it no longer lapses when the Overlord dies. A forced pick costs nothing. The row text is out of date.",
+      "source": "nec; code-hooks.ts:586-595",
+      "fix": "Update the row text only.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-089",
+      "verdict": "confirmed",
+      "rule": "No cap is stated, and a cap of 99 can never bind (maximum kills x 3 VP is far below 99).",
+      "source": "nec",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-090",
+      "verdict": "wrong",
+      "rule": "Scoring in either player's turn is correct (the secondary says 'each time', so the data's who: active is rightly ignored), and Devastating Wounds kills keep the attacker's credit. The deviation is that Deadly Demise and other rule mortals score 0 because the mortal queue drops the attacker (see RC-072).",
+      "source": "wahapedia rules-commentary (Destroyed By); missions.ts treasuresUnitDestroyed; attack.ts drainOneMortalPoint",
+      "fix": "Same fix as RC-072.",
+      "confidence": "medium"
+    },
+    {
+      "id": "RC-091",
+      "verdict": "confirmed",
+      "rule": "Pick at the start of round 1 from No Man's Land markers. 'Within range' means any model in objective range. Scores for enemy units in range of the picked marker or the own-DZ marker at phase start.",
+      "source": "nec",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-092",
+      "verdict": "confirmed",
+      "rule": "The hint text matches the rule: NML pick, own-zone marker, phase start, 3 VP.",
+      "source": "DecisionPrompt.tsx:94",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-093",
+      "verdict": "confirmed",
+      "rule": "Wholly within means every part of every base. Flat 4 VP. An attached unit counts as one unit, and Battle-shock applies to the whole unit.",
+      "source": "nec; commentary (wholly within)",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-094",
+      "verdict": "confirmed",
+      "rule": "Same as RC-076. The check-only hook enforces the restriction, and untilNextTurn ends at the start of your next turn.",
+      "source": "nec; effects.ts:33",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-095",
+      "verdict": "confirmed",
+      "rule": "Plasmacyte is a wargear ability, not a model: once per battle per Plasmacyte, when the unit is selected to fight, its melee weapons get DEVASTATING WOUNDS until end of phase.",
+      "source": "nec",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-096",
+      "verdict": "confirmed",
+      "rule": "Hyperphase weapons and Doomstalker limbs have no weapon abilities on the datasheet.",
+      "source": "nec",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-097",
+      "verdict": "confirmed",
+      "rule": "The Overlord's Leader entry lists only Necron Warriors, and CP enhancements go on the Warlord.",
+      "source": "nec; cp",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-098",
+      "verdict": "confirmed",
+      "rule": "10 Warriors: 5 with gauss flayer and 5 with gauss reaper, all with a close combat weapon (A1 WS4+ S4 AP0 D1).",
+      "source": "nec",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-099",
+      "verdict": "confirmed",
+      "rule": "No rules effect. Grep found no code that derives a data-id prefix from the faction id.",
+      "source": "grep src",
+      "fix": "None.",
+      "confidence": "medium"
+    },
+    {
+      "id": "RC-100",
+      "verdict": "confirmed",
+      "rule": "All three stratagems cost 1 CP. CP enhancements have no cost, and patrols are fixed, so points do not apply.",
+      "source": "nec; cp",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-101",
+      "verdict": "confirmed",
+      "rule": "command.ts runs runReanimation after battle-shock and before the command.end window, as RC-068 requires.",
+      "source": "phases/command.ts:113",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-102",
+      "verdict": "wrong",
+      "rule": "Commentary (Adding/Returning Models): a returned model is set up in coherency and not in Engagement Range unless the unit already is. It still has to be legal to set up there, so not inside a wall, solid crate or barricade, and not floating with no floor under it. Re-checked: findReturnSpot (necrons.ts:53-82) only rejects impassable pieces, keeps the neighbour's y and never calls terrainService.canEndAt. So a Warrior next to a crate can land inside the crate at y=0, one next to a model on a ruin upper floor can land in mid-air at that height, and a base can sit inside a ruin wall.",
+      "source": "wahapedia rules-commentary (Adding/Returning models); necrons.ts findReturnSpot; terrain.ts canEndAt l.162",
+      "fix": "Low priority. In necrons.ts findReturnSpot, try each candidate at y = the neighbour's y, then terrainService.heightAt(x,z), then 0. Keep the first height where terrainService.canEndAt(state, snapshot, pos).ok holds and drop the forbiddenTerrain-only check. canEndAt returns only ok and a reason, not a surface height, so the caller must supply the y. Coherency still has to hold at that y.",
+      "confidence": "medium"
+    },
+    {
+      "id": "RC-103",
+      "verdict": "confirmed",
+      "rule": "Implementation detail only. The plasmacyte and resonant prompts set context.data.code and abilityId.",
+      "source": "code-hooks.ts:575,642",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-104",
+      "verdict": "confirmed",
+      "rule": "Damaged (1-4 wounds left): -1 to the Hit roll of each attack this model makes. Deadly Demise is not an attack.",
+      "source": "nec",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-105",
+      "verdict": "confirmed",
+      "rule": "Same as RC-070: the reduction applies to attacks (DW included), minimum 1, and not to mortal wounds that are not attacks.",
+      "source": "commentary",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-106",
+      "verdict": "confirmed",
+      "rule": "Overwatch counts as shooting, so it uses up One Shot. The code only skips the weapon once it is in oneShotUsed (movement.ts:352, charge.ts:464, attack.ts:1147), so an unfired arrow can still Overwatch.",
+      "source": "code check",
+      "fix": "None. The row's 'barred' means 'barred once used'.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-107",
+      "verdict": "confirmed",
+      "rule": "Client-side faction selection. No rules effect.",
+      "source": "n/a",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-108",
+      "verdict": "confirmed",
+      "rule": "Cosmetic sound and tracer mapping. No rules effect.",
+      "source": "n/a",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-109",
+      "verdict": "confirmed",
+      "rule": "Cosmetic figures. The Plasmacyte is not a model, so not drawing it has no rules effect. Base sizes come from the data.",
+      "source": "nec",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-110",
+      "verdict": "confirmed",
+      "rule": "Engine prompts set abilityId (resonant, plasmacyte), treasure uses its own topic, and reanimation raises no prompt. Text only, no rules effect.",
+      "source": "code-hooks.ts; missions.ts:338",
+      "fix": "None.",
+      "confidence": "high"
+    }
+  ]
+}

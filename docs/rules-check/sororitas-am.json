@@ -1,0 +1,364 @@
+{
+  "file": "docs/rules-check/sororitas-am.json",
+  "sources": [
+    "https://wahapedia.ru/wh40k10ed_cp/factions/sanctuary-guardians/",
+    "https://wahapedia.ru/wh40k10ed_cp/factions/karsk-s-gunners/",
+    "https://wahapedia.ru/wh40k10ed/the-rules/rules-commentary/",
+    "https://wahapedia.ru/wh40k10ed/the-rules/core-rules/",
+    "https://wahapedia.ru/wh40k10ed_cp/the-rules/combat-patrol/"
+  ],
+  "rows": [
+    {
+      "id": "RC-ADE-01",
+      "verdict": "confirmed",
+      "rule": "Acts of Faith: one die substitutes into one roll (Advance, Battle-shock, Charge, Damage, Hit, Save, Wound); multi-dice rolls get one die; one Act of Faith per unit per phase. Rule is silent on D3.",
+      "source": "Sanctuary Guardians army rule",
+      "fix": "None. No Sororitas weapon in this patrol has random Damage, so the D3 refusal never changes play; one substitution per batch follows from 1 per unit per phase.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-ADE-02",
+      "verdict": "confirmed",
+      "rule": "The choice to substitute is made before the dice are rolled; the die counts as an unmodified roll of its value.",
+      "source": "Sanctuary Guardians army rule",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-ADE-03",
+      "verdict": "confirmed",
+      "rule": "Gain 1 die each time an own ADEPTA SORORITAS unit is destroyed. Core Leader rules: 'when destroyed' triggers fire separately for the Leader and Bodyguard parts of an attached unit.",
+      "source": "Army rule; Core Rules Attached Units",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-ADE-04",
+      "verdict": "confirmed",
+      "rule": "Each unit may perform one Act of Faith per phase; an attached unit is a single unit for rules purposes.",
+      "source": "Army rule; Core Rules Leader",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-ADE-05",
+      "verdict": "confirmed",
+      "rule": "Acts of Faith may replace one D6 of any Battle-shock test for a Sororitas unit, whatever forced it. No Command-phase limit; one Act of Faith per unit per phase.",
+      "source": "Sanctuary Guardians army rule (Acts of Faith)",
+      "fix": "Refuted: the row text is out of date. hooks-impl.ts battleShockTest now offers the Miracle die on forced tests (bsresume mark, miracle.ts:193 finishes the test), tested by ADE-039. No caller uses the return value, so 'pending' loses nothing. Only cleanup: mark the row superseded by RC-ADE-23 and fix the stale comment at hooks-impl.ts:72-73, which still says only source 'command' returns 'pending'.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-ADE-06",
+      "verdict": "confirmed",
+      "rule": "Patrol Squads: before the battle (Declare Battle Formations), the owner may split the 10-model Battle Sisters Squad into two 5-model units. The rule does not say which models go where.",
+      "source": "Battle Sisters Squad datasheet (Sanctuary Guardians); CP mission sequence",
+      "fix": "Refuted: the choice exists. StartScreen.tsx:220 has a checkbox ('Split your Battle Sisters Squad into two units of 5'). It feeds splitUnits through game.ts buildPlayerSetup, for the hotseat opponent too. The AI keeps the squad whole, which is a legal choice. The fixed wargear split is an accepted interpretation. Only update the row text ('no client UI' is stale). Optional for consistency: move to the in-engine patrolSquads deployment prompt that AM/Tyranids use.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-ADE-07",
+      "verdict": "confirmed",
+      "rule": "Page confirms: Sisters 6+ invuln; hallowed chainsword A5 WS2+ S3 AP-1 D1; Arcos 25mm, Sv 7+, flails A4 (A6 with Extremis); bolt pistol on every Sister; Simulacrum bearer has boltgun; Lead the Righteous re-rolls any hit roll; Defender +1 OC; Ascetic Discipline AP+2 on crit wound; 1 Act per unit per phase.",
+      "source": "Sanctuary Guardians datasheets/stratagems",
+      "fix": "None; drop the [unconfirmed] flags in the spec.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-ADE-08",
+      "verdict": "confirmed",
+      "rule": "A Martyr's Death: opponent's Shooting or the Fight phase after an enemy unit picks targets; until phase end any model of the unit destroyed that has not shot/fought rolls D6 (+1 if die discarded), 4+ acts after the attacking unit finishes, then removed.",
+      "source": "Sanctuary Guardians stratagem",
+      "fix": "None. Unit-level 'not yet acted' and requiring a byUnitId destroyer are acceptable approximations of the per-model wording.",
+      "confidence": "medium"
+    },
+    {
+      "id": "RC-ADE-09",
+      "verdict": "confirmed",
+      "rule": "Rules Commentary fight/shoot-on-death: the model is already destroyed while it acts, then removed; destruction triggers resolve after it acts.",
+      "source": "Rules Commentary: Fight on Death, Shoot on Death",
+      "fix": "Deferral mechanics fine. The 'no target in Engagement Range = no fight' clause is caused by the missing pile-in; see RC-ADE-10.",
+      "confidence": "medium"
+    },
+    {
+      "id": "RC-ADE-10",
+      "verdict": "wrong",
+      "rule": "Fight on death (e.g. A Martyr's Death in the Fight phase): before the destroying unit consolidates, the destroyed models may pile in, keeping unit coherency, then attack eligible targets. They do not consolidate. Normal fight eligibility applies, including models in base contact with a unit-mate that is in base contact with an enemy.",
+      "source": "Rules Commentary: Fight on Death; Core Rules Fight phase (which models fight, pile in)",
+      "fix": "Holds, and it matters: the defender allocates melee wounds to any model, so a deferred model is often outside Engagement Range and currently cannot fight at all. In phases/fight.ts deferredFightStep: (1) offer a pile-in of up to pileInDistance (3 inches) for the deferred models first, reusing the pile-in validator, with coherency checked against the unit's live models; (2) build targets with legalTargetsFor(s, unitId, m, enemyIds) instead of the plain Engagement Range filter. Placement before consolidate is already correct. The ranged side is fine.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-ADE-11",
+      "verdict": "confirmed",
+      "rule": "Critical Wound = unmodified wound 6 or Anti-X threshold; Lethal Hits auto-wounds are not Critical Wounds. Ascetic Discipline improves AP by 2 on a Critical Wound.",
+      "source": "Stratagem text; Core Rules Lethal Hits / Anti",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-ADE-12",
+      "verdict": "confirmed",
+      "rule": "Ascetic Discipline targets a unit that has not been selected to shoot or fight this phase.",
+      "source": "Stratagem TARGET line",
+      "fix": "None; the code's checks are an acceptable reading of 'selected'.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-ADE-13",
+      "verdict": "wrong",
+      "rule": "Hallowed Retribution: 3 VP each time a Sororitas unit destroys an enemy unit, 4 VP if that unit made an Act of Faith that phase. Under the core Leader rules, rules triggered by a unit being destroyed still trigger when the Leader or the Bodyguard part of an attached unit is destroyed, so each part scores.",
+      "source": "Hallowed Retribution (Sanctuary Guardians); Core Rules Leader / Attached units",
+      "fix": "Holds. In factions/adepta-sororitas.ts hallowedRetributionAmount, delete the 'attached unit counts once' early return (the halves-alive check), so each destroyed half scores 3/4 VP. Keep the killer checks. Add a test: kill the Leader, then the bodyguard = 6 VP. Update the spec line and the RC-ADE-13 row.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-ADE-14",
+      "verdict": "confirmed",
+      "rule": "From round 2, end of your turn: 3 VP if one or more non-Battle-shocked Sororitas units are within 6 inches of the battlefield centre; 4 VP if one is your WARLORD.",
+      "source": "Consecrated Ground",
+      "fix": "None. Battle-shock filter confirmed. Ignoring height differs only for a model high in a ruin; negligible.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-ADE-15",
+      "verdict": "confirmed",
+      "rule": "Defender of the Faith: in your Command phase discard 1 die; +1 OC to models in the bearer's unit until your next Command phase.",
+      "source": "Enhancement text",
+      "fix": "None; 'bearer's unit' confirmed. Offer at command.start is fine (pool is never empty after the turn-start gain).",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-ADE-16",
+      "verdict": "confirmed",
+      "rule": "Righteous Fury: Command phase discard; re-roll Charge rolls for the bearer's unit until end of turn. Re-rolling a 2D6 roll re-rolls both dice.",
+      "source": "Enhancement text; Rules Commentary re-rolls",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-ADE-17",
+      "verdict": "wrong",
+      "rule": "Simulacrum Imperialis: at the end of your Command phase, roll one D6 for each objective you control that has a unit with this ability within range; on 4+ gain a Miracle die. An attached unit counts as one unit for all rules except destruction triggers, so the Leader's models count too.",
+      "source": "Battle Sisters Squad datasheet (Simulacrum Imperialis); Core Rules Leader / Attached units",
+      "fix": "Holds, minor: it only matters when Canoness Adalya leads the Battle Sisters (by default she leads the Sacresants) and only she is in range. In adepta-sororitas.ts simulacrumImperialis, test range against unitModels of every leaderService.halves(s, holder.id) part on the board. Keep the bearer-alive gate and one roll per objective.",
+      "confidence": "medium"
+    },
+    {
+      "id": "RC-ADE-18",
+      "verdict": "confirmed",
+      "rule": "Each time the unit is selected to fight you may invoke it; until phase end arco-flails have A 6 and Hazardous.",
+      "source": "Extremis Trigger Word",
+      "fix": "None. Arcos carry only flails, so 'melee weapons' is the same. AI always accepting is policy, not rules.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-ADE-19",
+      "verdict": "confirmed",
+      "rule": "Cover adds 1 to the armour saving throw; nothing forbids it for a 7+ save, and an unmodified 1 still fails. A 6 plus cover meets 7+.",
+      "source": "Core Rules Benefit of Cover / saving throws",
+      "fix": "None.",
+      "confidence": "medium"
+    },
+    {
+      "id": "RC-ADE-20",
+      "verdict": "confirmed",
+      "rule": "Implementation detail, no rule involved.",
+      "source": "DecisionPrompt.tsx MIRACLE_TOPIC; miracle.ts imports neededChargeDistance",
+      "fix": "None; code matches the row.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-ADE-21",
+      "verdict": "confirmed",
+      "rule": "AI spending policy only; no rule constrains it.",
+      "source": "src/ai/utility.ts miracleWorthIt",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-ADE-22",
+      "verdict": "confirmed",
+      "rule": "Presentation only. D6+1 needing 4+ equals a 3+ on the die, so the prompt text is accurate.",
+      "source": "Hud.tsx, DecisionPrompt.tsx",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-ADE-23",
+      "verdict": "wrong",
+      "rule": "Every Battle-shock test for a Sororitas unit may take an Act of Faith, including each unit tested by one multi-unit effect. Each unit is capped at one Act of Faith per phase.",
+      "source": "Sanctuary Guardians army rule (Acts of Faith)",
+      "fix": "Holds, minor: it only matters when Shadow in the Warp (Tyranids, tyranids.ts:113) or a multi-unit request.battleShockTest (hooks-impl.ts:579) tests two or more Sororitas units. The first unit opens miracleDie, and the rest see s.pending and roll with no offer. Fix: park the remaining unit ids in a 'bsqueue:' mark, and have the miracle.ts handler (after the bsresume finish) pop and run the next test, which may open the offer again.",
+      "confidence": "medium"
+    },
+    {
+      "id": "AM-01",
+      "verdict": "confirmed",
+      "rule": "An Order ends if the affected unit becomes Battle-shocked; eligibility is set by the datasheet (REGIMENT), not by shock state.",
+      "source": "Voice of Command",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "AM-02",
+      "verdict": "confirmed",
+      "rule": "Command Laurels: each Order the bearer issues goes to all friendly ASTRA MILITARUM units on the battlefield (plus 1 CP in Command phase).",
+      "source": "Command Laurels",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "AM-03",
+      "verdict": "confirmed",
+      "rule": "Implementation detail; issuing Orders is optional and an attached unit is one unit.",
+      "source": "Voice of Command",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "AM-04",
+      "verdict": "confirmed",
+      "rule": "ARTILLERY models within 6 inches of the bearer's unit have Lone Operative if they have not made any attacks yet this battle.",
+      "source": "Gunnery Officer",
+      "fix": "None. All-models-qualify for a unit-level ability is a sound reading; the split halves are tested separately.",
+      "confidence": "medium"
+    },
+    {
+      "id": "AM-05",
+      "verdict": "confirmed",
+      "rule": "Each roll for the number of attacks of an ARTILLERY model may be re-rolled.",
+      "source": "Gunnery Officer",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "AM-06",
+      "verdict": "confirmed",
+      "rule": "Take Cover!: Save improves by 1, never better than 3+. The 3+-vs-AP0 cover exception reads the Save characteristic, which is the modified value. Take Aim! improves BS of ranged weapons.",
+      "source": "Voice of Command; Core Benefit of Cover",
+      "fix": "None. The open question is settled: attack.ts coverFor already uses the modified Sv (statFor), so a Take-Cover battery at 3+ gets no cover vs AP0.",
+      "confidence": "medium"
+    },
+    {
+      "id": "AM-07",
+      "verdict": "confirmed",
+      "rule": "Halving comes before adding or subtracting, rounding up. Take Cover's cap limits only that improvement.",
+      "source": "Core Rules modifiers; Rules Commentary",
+      "fix": "None. Cap-last ordering could differ only with another Sv improvement, and none exists in this patrol.",
+      "confidence": "medium"
+    },
+    {
+      "id": "AM-08",
+      "verdict": "confirmed",
+      "rule": "Halving an Advance roll is division, so it applies before additive modifiers.",
+      "source": "Artillery Strike; modifier order",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "AM-09",
+      "verdict": "confirmed",
+      "rule": "Remained Stationary is defined only for units not moved in your own Movement phase, so in the opponent's turn the battery has not Remained Stationary.",
+      "source": "Rearm, Reload, Fire; Rules Commentary Remained Stationary",
+      "fix": "None.",
+      "confidence": "medium"
+    },
+    {
+      "id": "AM-10",
+      "verdict": "confirmed",
+      "rule": "Reinforcements step of your Movement phase; new identical unit at Starting Strength set up wholly within 9 inches of your battlefield edge, not in Engagement Range. No restriction on rounds or repeat targets; not a Reserves arrival.",
+      "source": "Send in the Next Wave; CP Reserves rule",
+      "fix": "None. First-fit placement may rarely miss a legal arrangement; acceptable.",
+      "confidence": "medium"
+    },
+    {
+      "id": "AM-11",
+      "verdict": "confirmed",
+      "rule": "New unit identical to the destroyed one at its original Starting Strength.",
+      "source": "Send in the Next Wave",
+      "fix": "None; implementation matches.",
+      "confidence": "high"
+    },
+    {
+      "id": "AM-12",
+      "verdict": "confirmed",
+      "rule": "Your Shooting phase: any number of your ASTRA MILITARUM units and one enemy unit; re-roll hits against it until phase end. Battle-shocked units cannot be targeted by your Stratagems.",
+      "source": "Bring It Down; Core Battle-shock",
+      "fix": "None. Auto-selecting every eligible unit equals choosing all.",
+      "confidence": "high"
+    },
+    {
+      "id": "AM-13",
+      "verdict": "confirmed",
+      "rule": "Until end of turn: enemy models' Move halved, enemy Advance rolls halved, no charges, -1 to hit for enemy ranged attacks; once per battle.",
+      "source": "Artillery Strike",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "AM-14",
+      "verdict": "confirmed",
+      "rule": "End of opponent's turn: 3 VP if no enemy unit wholly within your zone, 5 VP if none wholly within 6 inches of it, Battle-shocked units excluded.",
+      "source": "Hold the Line",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "AM-15",
+      "verdict": "confirmed",
+      "rule": "Start of round: pick an enemy unit not destroyed; end of round 4 VP if it is destroyed.",
+      "source": "Methodical Destruction",
+      "fix": "None. Note: unarrived Reserves are culled (destroyed) in round 3 before round end (movement.ts cullStrandedReserves), so that case does score, matching CP rules.",
+      "confidence": "medium"
+    },
+    {
+      "id": "AM-16",
+      "verdict": "wrong",
+      "rule": "Combat Patrol: each player has exactly one battlefield edge, agreed as the Attacker's and the Defender's before deployment. 'Within N inches of your battlefield edge' means a strip along that whole edge. Our spec table (11-combat-patrol.md 2.5) names a single Attacker edge per mission, with the opposite edge for the Defender.",
+      "source": "Combat Patrol mission sequence step 4; docs/spec/11-combat-patrol.md mission table",
+      "fix": "Holds only for cp-04 Scorched Earth. Its triangle zone touches the short edge (30) and half the long edge (22), so the code builds an L that adds half the long edge to the Send in the Next Wave arrival strip. The spec says that edge is x=-22 only. All other CP missions already give one full edge. Minimal fix: in geometry.ts battlefieldEdgeStrip, remove the two-adjacent-edges L branch and keep only the side with the longest touching length; then cp-04 yields L/R. A sturdier option is an explicit per-role battlefieldEdge in the cp-0x data. Callers: astra-militarum.ts:279, movement.ts:534.",
+      "confidence": "medium"
+    },
+    {
+      "id": "AM-17",
+      "verdict": "confirmed",
+      "rule": "Epic Challenge targets one CHARACTER model; its melee attacks gain Precision until end of phase.",
+      "source": "Core Stratagem (spec 10-rules-core §11)",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "AM-18",
+      "verdict": "confirmed",
+      "rule": "At the start of Declare Battle Formations, before set-up, the battery may split into two 1-model units.",
+      "source": "Field Ordnance Battery Patrol Squads",
+      "fix": "None.",
+      "confidence": "high"
+    },
+    {
+      "id": "AM-19",
+      "verdict": "confirmed",
+      "rule": "Precision is optional for the attacker, including during Fire Overwatch.",
+      "source": "Core Precision",
+      "fix": "None; movement.ts/charge.ts now delegate allocateAttack to the attack service.",
+      "confidence": "high"
+    },
+    {
+      "id": "AM-20",
+      "verdict": "confirmed",
+      "rule": "Page lists Armoured Sentinels 80mm, Field Ordnance Battery 100mm, Command Squad ccw A2 WS4+ S3 AP0 D1; Sentinels carry SMOKE.",
+      "source": "Karsk's Gunners datasheets",
+      "fix": "Code fine. Doc-only: update CP-1.6 in docs/spec/11-combat-patrol.md (SMOKE now occurs; Tank Shock not Ork-only).",
+      "confidence": "high"
+    },
+    {
+      "id": "AM-21",
+      "verdict": "confirmed",
+      "rule": "Presentation only; no rules effect.",
+      "source": "src/client/weaponFlavour.ts",
+      "fix": "None.",
+      "confidence": "high"
+    }
+  ]
+}

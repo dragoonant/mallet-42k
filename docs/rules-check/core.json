@@ -1,0 +1,253 @@
+{
+  "file": "docs/rules-check/core.json",
+  "rows": [
+    {
+      "id": "RC-001",
+      "verdict": "wrong",
+      "rule": "Core Sequencing: when rules trigger together outside a turn (start/end of a battle round, before/after the battle), the players roll off and the winner picks the order; inside a turn the active player picks. The engine always gives the first-turn player first go at round.start/round.end/battle.end. Real overlaps now exist (Waaagh! call, Stomp 'Em pick, Treasures of Aeons pick, Karsk's Gunners at round.start), so the spec's R-1.3 note 'no conflicting triggers exist' is stale. Effect is mostly about who has to commit a pick first.",
+      "source": "Wahapedia core rules, Sequencing; reducer.ts:424/451/486 (ctx.order.first()); spec R-1.3",
+      "fix": "Low priority. In src/engine/reducer.ts, where the round.start / round.end / battle.end windows open with ctx.order.first(): if both players have offers, roll off (R-1.4), let the winner pick who resolves first, and save that order for the window. Update the R-1.3 interp note in docs/spec/10-rules-core.md.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-002",
+      "verdict": "confirmed",
+      "rule": "Neither the core rules nor the CP rules give any starting CP. In each Command phase both players gain 1CP. The code in phases/command.ts gives +1 to both players, which matches.",
+      "source": "Wahapedia core rules Command phase; CP rules page (no starting CP)",
+      "fix": "None. The row text is slightly misleading: both players gain CP in every Command phase, not only the active player.",
+      "confidence": "medium"
+    },
+    {
+      "id": "RC-003",
+      "verdict": "confirmed",
+      "rule": "The core rules say a unit must be set up and end every move as a single group. The end-of-turn cull removes models until one coherent group remains. A 3+2 split is therefore not coherent.",
+      "source": "Wahapedia core rules, Unit Coherency",
+      "fix": "None",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-004",
+      "verdict": "confirmed",
+      "rule": "Battle-shock always lasts until the start of the owner's next Command phase. shockExpiryRound (hooks-impl.ts:518) is the only place that sets the expiry. Time only moves forward, so a newly computed expiry is never earlier than the old one, and overwriting gives the same result as taking the max.",
+      "source": "Wahapedia core rules, Battle-shock; hooks-impl.ts:518,838",
+      "fix": "None. If a future rule adds a different shock duration, switch to Math.max at hooks-impl.ts:838.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-005",
+      "verdict": "confirmed",
+      "rule": "A granted ability should count as the weapon having it. In the current data, though, no grantWeaponAbility grants HEAVY, PSYCHIC or EXTRA_ATTACKS, which are the only abilities that weaponAbility conditions test. So nothing in play changes.",
+      "source": "grep src/data (grants: ANTI, DEV_WOUNDS, HAZARDOUS, LETHAL, PISTOL, PRECISION, SUSTAINED)",
+      "fix": "None now. Future: hooks-impl.ts:222 should test weaponService.effectiveWeapon(...).abilities.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-006",
+      "verdict": "confirmed",
+      "rule": "Critical and trigger effects in 10th edition use unmodified rolls. No data in src/data uses the 'roll' condition, so nothing in play changes.",
+      "source": "grep src/data; hooks-impl.ts:253",
+      "fix": "None. If a future rule needs a modified threshold, add a separate rollModified bound.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-007",
+      "verdict": "confirmed",
+      "rule": "Re-rolls in the rules are optional ('can'), and a die is never re-rolled more than once. Re-rolling only dice that would fail is the optimal choice. The rerollOffer topic (RC-029) covers re-rolling successes to fish for crits. Using a free ability re-roll before Command Re-roll costs nothing.",
+      "source": "Wahapedia core rules, Re-rolls box",
+      "fix": "None",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-008",
+      "verdict": "confirmed",
+      "rule": "No datasheet in any CP roster has AIRCRAFT. The CP rules mention Reserves only for Deep Strike and similar abilities (no arrival in round 1, destroyed at the end of round 3). Strategic Reserves is not part of the CP sequence because CP has no points.",
+      "source": "CP rules page; grep AIRCRAFT src/data (none)",
+      "fix": "None",
+      "confidence": "medium"
+    },
+    {
+      "id": "RC-009",
+      "verdict": "confirmed",
+      "rule": "Pivot costs: non-round base 1\"; MONSTER or VEHICLE on a non-round base 2\"; VEHICLE on a round base over 32mm with a flying stem 2\"; everything else 0. geometry.ts pivotCost matches. The row text is stale: Vertus Praetors pay 1\", and Ghostkeel, Rockgrinder, Dreadknight and Psychophage pay 2\".",
+      "source": "Wahapedia core rules, Pivot values; geometry.ts:260",
+      "fix": "Update the row text. Minor: movement.ts:150 takes the pivot cost from models[0] only. Computing it per model would cover mixed attached units.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-010",
+      "verdict": "wrong",
+      "rule": "Desperate Escape tests are rolled before any model moves, for each model that will cross an enemy (every model if Battle-shocked); each 1-2 destroys a model of the owner's choice. The survivors then make their Fall Back move and, like any move, must end coherent. The engine takes full paths before rolling, then replays them for the survivors with skipCoherency, so the R-2.6 end-of-turn cull can remove extra models the real sequence would never lose (most likely in units of 7+, which need two neighbours each).",
+      "source": "Wahapedia core rules, Fall Back / Desperate Escape; movement.ts:852-900; spec R-5.6",
+      "fix": "In phases/movement.ts doMove: keep taking the crossing set before the roll, but once Desperate Escape has removed models, clear mv:placements and raise moveUnit again for the survivors with coherency enforced. Only models that took a test (flags.desperateEscapeTested) may cross enemies in the re-submitted move. Update the R-5.6 interp note.",
+      "confidence": "medium"
+    },
+    {
+      "id": "RC-011",
+      "verdict": "confirmed",
+      "rule": "FLY is per model in the core rules, and the engine measures a mixed FLY/non-FLY unit along the ground. But no current roster has a mixed unit: Aun'Shar is not a Leader (patrol file has no attachTo; faction spec says he operates alone), and the 7 FLY datasheets (Vertus Praetors, Scarab Swarms, Deffkoptas, Aun'Shar, Ghostkeel, Stealth Battlesuits, Terror of Vardenghast) are neither Leaders nor Bodyguards. hasKeyword is per unit, so a FLY grant would be unit-wide too. No gameplay effect today.",
+      "source": "Wahapedia core rules, FLY; movement.ts:176-182; tau-empire/patrols/protectors-of-aun-shar.json; docs/spec/factions T'au section 1",
+      "fix": "None now. Latent only: if a FLY Leader ever joins a non-FLY unit (or vice versa), let geometry.ts checkPlacements take a per-model fly predicate and pass flyOf instead of allFly.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-012",
+      "verdict": "confirmed",
+      "rule": "If a unit cannot end a move coherent, the move cannot be made and its models stay where they were. Letting a unit already out of coherency 'move' no model gives the same result. The end-of-turn cull still applies.",
+      "source": "Wahapedia core rules, Unit Coherency",
+      "fix": "None",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-013",
+      "verdict": "wrong",
+      "rule": "A surge move that must end 'as close as possible' lets each model move up to the full distance toward the target, outside Engagement Range and coherent; our own spec R-5.9 says the same (per-model minimum distance). resolveSurgeMove moves the unit as one rigid block along a single vector and stops every model as soon as the lead model nears Engagement Range or any model hits terrain, so the rest end further away than the rules allow. Currently masked by RC-014 (surge moves never execute).",
+      "source": "Wahapedia core rules, surge moves; spec R-5.9; movement.ts:378-445 resolveSurgeMove",
+      "fix": "Rework resolveSurgeMove after RC-014: start from the rigid result, then push each model further toward the nearest target model in turn with the same binary search, keeping coherency, the ER rule and the path checks. Do it in the same change as RC-014.",
+      "confidence": "medium"
+    },
+    {
+      "id": "RC-014",
+      "verdict": "wrong",
+      "rule": "Krump da Gitz! should let the targeted Orks unit make a D6-inch move toward the unit that shot it. stratagems.ts:550-555 spends CP, rolls D6 and pushes a 'surge' reaction, but no module ever reads pendingReactions(state,'surge'); resolveSurgeMove is only called from tests. stratagems.ts:553 also sets surgeMovedThisPhase first, so resolveSurgeMove would bail at its own check (movement.ts:386) even if called. The unit never moves.",
+      "source": "stratagems.ts:550-555; movement.ts:383-386; grep: no non-test caller of resolveSurgeMove or reader of 'surge' reactions",
+      "fix": "In phases/shooting.ts, after ctx.window('shooting.attacksResolved') returns false, take each surge reaction with consumeReaction and call resolveSurgeMove(ctx, r.unitId, r.distance, r.enemyUnitId). Remove the surgeMovedThisPhase line at stratagems.ts:553 (the resolver sets it; the offer check at stratagems.ts:326-328 still blocks a second use) and move the STRAT-025 assertion at hooks.strat.test.ts:483 to after the move, plus assert the Boyz actually moved.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-015",
+      "verdict": "wrong",
+      "rule": "Overwatch shoots as in the Shooting phase, where the player picks which ranged weapons fire (our own validateDeclareTargets accepts any subset). overwatchTargets/overwatchTargetsFor fire every ranged weapon with no choice. Real cases: One Shot weapons (Necron tachyon arrow, GSC demolition charges, AM) get spent hitting only on 6s; Hazardous weapons (plasma pistol, cyclic ion raker, demolition charges, AM) risk the shooter. It also fires Pistols together with other weapons on the same model (breaks R-6.7) and both profiles of a profileGroup such as Smite (breaks SHOOT-011).",
+      "source": "Core rules, Fire Overwatch / Select Targets; movement.ts:343-360 overwatchTargets; charge.ts:455-470 overwatchTargetsFor; shooting.ts:231-275 validateDeclareTargets",
+      "fix": "In movement.ts drainOverwatch and charge.ts drainChargeOverwatch, raise a declareTargets decision (overwatch: true, target fixed to the mover) and validate it with the shooting-phase rules (Pistol-or-other, one profile per group). AI default: everything except ONE_SHOT, the better of Pistol vs other weapons, one profile per group.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-016",
+      "verdict": "confirmed",
+      "rule": "Terrain 2\" tall or less is ignored for movement, and models must end on a real surface. Standing on a crater or barricade is not a meaningful tabletop option. The caller passes the exact y, so a model can still stand on a ground floor underneath an upper floor.",
+      "source": "Spec R-5.7; terrain.ts:4",
+      "fix": "None",
+      "confidence": "medium"
+    },
+    {
+      "id": "RC-017",
+      "verdict": "unclear",
+      "rule": "The CP Hand of the Magus Rockgrinder page shows Firing Deck 6 but no TRANSPORT keyword or capacity. The codex Rockgrinder is a TRANSPORT that carries 6 GSC INFANTRY. The published CP sheet contradicts itself.",
+      "source": "wahapedia wh40k10ed_cp/factions/hand-of-the-magus/Goliath-Rockgrinder vs wh40k10ed/factions/genestealer-cults/Goliath-Rockgrinder",
+      "fix": "Owner ruling needed. If the codex capacity is adopted: add TRANSPORT:6 to the data, wire embark/disembark decisions in movement.ts, and wire Firing Deck in shooting.ts. Otherwise keep it inert as the spec has it (GEN-6.9).",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-018",
+      "verdict": "confirmed",
+      "rule": "This is not a rules deviation. The candidate list only feeds the AI and quick-pick UI, and the engine validates any manual placement against the full rules.",
+      "source": "phases/legal.ts:2",
+      "fix": "None",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-019",
+      "verdict": "confirmed",
+      "rule": "A model is fully visible if every facing part of it can be seen from the observer. Checking that every target sample point is visible from some attacker sample point is a fair digital stand-in.",
+      "source": "Wahapedia core rules, Visibility; los.ts:4",
+      "fix": "None",
+      "confidence": "medium"
+    },
+    {
+      "id": "RC-020",
+      "verdict": "confirmed",
+      "rule": "Each terrain type grants cover when the model is 'not fully visible to every model in the attacking unit because of this terrain feature'. That is a per-piece test, and each type has its own conditions, so testing each piece separately matches.",
+      "source": "Spec terrain table / R-3.14; los.ts:7",
+      "fix": "None. Edge case: a view blocked only by two pieces together grants no cover. The strict wording agrees.",
+      "confidence": "medium"
+    },
+    {
+      "id": "RC-021",
+      "verdict": "confirmed",
+      "rule": "No CP terrain layout contains woods (src/data/terrain uses only ruins, crates, craters and barricades), so the approximation never affects play. The full Woods text could not be fetched; Wahapedia truncates the terrain section.",
+      "source": "grep src/data/terrain; los.ts:11",
+      "fix": "None now. Before adding woods, verify the Woods rule and replace the centre-line check with a sample-point ray test.",
+      "confidence": "medium"
+    },
+    {
+      "id": "RC-022",
+      "verdict": "confirmed",
+      "rule": "An attack must go to a model that has lost wounds or already had attacks allocated this phase. The controlling player allocates. When several models qualify, the owner choosing among them follows from that.",
+      "source": "Wahapedia core rules, Allocate Attack",
+      "fix": "None",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-023",
+      "verdict": "confirmed",
+      "rule": "The defending player chooses armour or invulnerable. The engine compares final targets (AP and cover on armour only, other modifiers on both) and takes the lower, which is always the best choice. No data rule depends on which kind of save was used.",
+      "source": "Wahapedia core rules, Saving Throw; attack.ts:754-770",
+      "fix": "None",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-024",
+      "verdict": "confirmed",
+      "rule": "Indirect Fire's -1 to hit, auto-fail on unmodified 1-3, and cover all apply if no target model was visible 'when you select that target'. The snapshot at declaration (indirectNoLos marks) matches this exactly. The HANDOFF 'partial' note is stale.",
+      "source": "Wahapedia core rules, Indirect Fire; attack.ts:29-37",
+      "fix": "None. Remove the 'partial' note from HANDOFF.md.",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-025",
+      "verdict": "confirmed",
+      "rule": "Big Guns Never Tire applies -1 if the unit was in Engagement Range 'when it selected its targets'. A snapshot at declaration is exactly right.",
+      "source": "Wahapedia core rules, Big Guns Never Tire",
+      "fix": "None",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-026",
+      "verdict": "wrong",
+      "rule": "Devastating Wounds critical-wound attacks are allocated only after all other attacks made by the attacking unit, against every target, are done. This specific timing beats the general 'finish one target before the next'. attack.ts:1224-1238 defers them past every normal attack on the same target only (the header comment at attack.ts:13 is stale). It still resolves them before attacks on a second target, which matters only in edge cases such as a Deadly Demise chain or a split-fire attached unit (e.g. Librarian Smite at A, Terminators at B).",
+      "source": "Wahapedia core rules, Devastating Wounds; attack.ts:13, 1224-1238",
+      "fix": "Low priority. In attack.ts advance, pick gi = first group with normal work across ALL targets, and fall back to devastatingPending groups only after none remain. Update the WEAP-013-order test and the comment at attack.ts:13.",
+      "confidence": "medium"
+    },
+    {
+      "id": "RC-027",
+      "verdict": "confirmed",
+      "rule": "Blast counts the models in the target 'when you selected it as the target'. A snapshot at the start of the sequence (which is when targets are declared) matches.",
+      "source": "Wahapedia core rules, Blast",
+      "fix": "None",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-028",
+      "verdict": "confirmed",
+      "rule": "Attacks resolve against the declared target and cannot be re-targeted. Once the target unit is destroyed, its remaining attacks have no model to go to and are lost.",
+      "source": "Core rules, Making Attacks / target selection",
+      "fix": "None",
+      "confidence": "medium"
+    },
+    {
+      "id": "RC-029",
+      "verdict": "confirmed",
+      "rule": "The core rules allow fast dice rolling. Command Re-roll re-rolls one die, and a die is never re-rolled twice. Automatic re-rolls of failures, then an optional re-roll of successes, then Command Re-roll, keeps every choice that matters.",
+      "source": "Wahapedia core rules, Re-rolls / Fast Dice Rolling",
+      "fix": "None",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-030",
+      "verdict": "confirmed",
+      "rule": "Per the rules, +1 Attacks on a D6 weapon makes it D6+1. In current data, none of the A modifiers hit a dice-A weapon: Waaagh! affects melee but every Ork dice-A weapon is ranged, Volley Fire's Fire Warriors carry no dice-A weapons, and Extremis is a setStat. So nothing in play changes.",
+      "source": "weapons.ts:24-44; grep src/data",
+      "fix": "None now. Future: in effectiveWeapon, fold the modifier into the DiceExpr's flat part (D6 to D6+1).",
+      "confidence": "high"
+    },
+    {
+      "id": "RC-031",
+      "verdict": "confirmed",
+      "rule": "[PSYCHIC] has no effect of its own; it only matters to other rules. Null Rod, Sanctic Hood, Spiritual Leader and the CSM bonuses are already handled by the weaponAbility PSYCHIC and sourcePsychic conditions. Only the DamageApplied event (log/UI) lacks the tag.",
+      "source": "hooks-impl.ts; attack.ts:908-921; checklist WEAP-030",
+      "fix": "None for rules. Optionally add psychic?: boolean to DamageApplied for the log (frozen contract, so it also needs a 00-architecture edit).",
+      "confidence": "high"
+    }
+  ]
+}
