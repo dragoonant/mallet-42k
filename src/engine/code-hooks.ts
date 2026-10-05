@@ -18,6 +18,7 @@ import { shotThisTurn } from './attack'
 import type { AttackContext, CodeHook, HookName, HookResult } from './hooks'
 import { chaosSpaceMarinesHooks } from './factions/chaos-space-marines'
 import { greyKnightsHooks } from './factions/grey-knights'
+import { adeptusCustodesHooks } from './factions/adeptus-custodes'
 import { hookService, type HookSourceEntry } from './hooks-impl'
 import { leaderService } from './leaders'
 import type { EngineContext, Services, WindowTrigger } from './modules'
@@ -47,6 +48,8 @@ export interface EngineCodeHook extends CodeHook {
   kind: 'ability' | 'stratagem' | 'mission'
   // declarative effects of the source only apply at these hooks (Veteran Instincts: wound rolls only)
   hooks?: HookName[]
+  // E3: a descriptor with this code applies its `reroll` key at every hook listed here (Auramite Thunderbolt: charge + advance)
+  rerollHooks?: HookName[]
   // false → the ability's own declarative effects are inactive right now (Waaagh! lives in ActiveEffects; Dead 'ard)
   // `data` is the hook-specific context (attack / roll ...) when evaluated for a roll hook; Resonant Focus reads the attack
   gate?(state: GameState, holder: Unit, entry: HookSourceEntry, data?: Record<string, unknown>): boolean
@@ -734,6 +737,8 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   reanimationProtocols, resonantFocusPick, resonantFocusReroll, requireFriendlyKeywordOnBoard, plasmacyteSurge,
   ...chaosSpaceMarinesHooks,
   ...greyKnightsHooks,
+  ...adeptusCustodesHooks,
+  guardianOfTheRealm: missionHook('guardianOfTheRealm', 'onPhaseEnd'),
   championOfTitan: missionHook('championOfTitan', 'onModelDestroyed'),
   noEscape: missionHook('noEscape', 'onTurnEnd'),
   markedForExecution: missionHook('markedForExecution', 'onUnitDestroyed'),

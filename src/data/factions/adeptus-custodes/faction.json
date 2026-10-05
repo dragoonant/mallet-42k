@@ -1,0 +1,23 @@
+{
+  "id": "adeptus-custodes",
+  "name": "Adeptus Custodes",
+  "factionKeyword": "ADEPTUS CUSTODES",
+  "armyRule": "cus.a.martial-katah",
+  "detachments": [
+    {
+      "id": "cus.d.combat-patrol",
+      "name": "Combat Patrol",
+      "rule": "cus.a.martial-katah",
+      "stratagems": ["cus.s.gilded-spear", "cus.s.inescapable-vengeance", "cus.s.overawing-magnificence"],
+      "enhancements": ["cus.e.auramite-thunderbolt", "cus.e.blade-of-the-vaults"]
+    }
+  ],
+  "paintScheme": {
+    "primary": "#d9a521",
+    "secondary": "#a3171d",
+    "trim": "#f3d77a",
+    "metal": "#b88a2c",
+    "decal": "#f6efe0"
+  },
+  "combatPatrols": ["cus.cp.guardians-of-the-throne"]
+}

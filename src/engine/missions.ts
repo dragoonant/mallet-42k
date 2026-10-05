@@ -21,12 +21,17 @@ import type { DecisionHandler, EngineContext, WindowTrigger } from './modules'
 import { otherPlayer } from './modules'
 import { isTeleporting } from './teleport'
 import { championOfTitanModelDestroyed, noEscapeAmount } from './factions/grey-knights'
+import { guardianOfTheRealmAmount, guardianOfTheRealmModelDestroyed, guardianOfTheRealmSnapshot } from './factions/adeptus-custodes'
 import { boardUnitsOf, deploymentZone, hasKeyword, keywordsOf, modelIdFor, unitModels } from './state'
 import type {
   ChooseOptionDecision, ChooseOptionTopic, GameResult, GameState, ModelId, Objective, ObjectiveId, PendingDecision,
   PlayerId, Rejection, Unit, UnitId,
 } from './types'
 import type { Action, ChooseOptionAction } from './actions'
+
+export interface ModelDestroyedInfo {
+  unitId: UnitId; modelId: ModelId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: ModelId | null
+}
 
 export interface MissionService {
   onWindow(ctx: EngineContext, window: TimingWindowId, key: string, trigger?: WindowTrigger): void
@@ -39,7 +44,7 @@ export interface MissionService {
   // a unit was just destroyed (attack.ts destroyModel): kill-triggered secondaries (Treasures of Aeons, NEC-4)
   unitDestroyed?(ctx: EngineContext, info: { unitId: UnitId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: string | null }): void
   // E4 (Grey Knights Champion of Titan): a model was just destroyed (attack.ts announceDestroyed, after the onModelDestroyed hooks)
-  modelDestroyed?(ctx: EngineContext, info: { unitId: UnitId; modelId: ModelId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: ModelId | null }): void
+  modelDestroyed?(ctx: EngineContext, info: ModelDestroyedInfo): void
   // answers chooseOption topics razeObjective / recoverObjective / stompTarget / bagTarget
   readonly handler: DecisionHandler
 }
@@ -283,10 +288,11 @@ function bagTheBigUnAmount(s: GameState, rule: ScoringRule, pid: PlayerId): numb
 // every model wholly inside the opponent's deployment zone
 function reclaimAndDominateAmount(s: GameState, rule: ScoringRule, pid: PlayerId): number {
   const zone = deploymentZone(s, otherPlayer(pid))
+  const keyword = (rule.params?.keyword as string | undefined) ?? 'NECRONS'
   for (const u of boardUnitsOf(s, pid)) {
     if (u.bodyguardUnitId) continue
     const halves = leaderService.halves(s, u.id).map((id) => s.units[id]).filter((h) => h.location === 'board')
-    if (halves.length === 0 || !halves.some((h) => hasKeyword(s, h.id, 'NECRONS')) || halves.some((h) => h.battleShocked)) continue
+    if (halves.length === 0 || !halves.some((h) => hasKeyword(s, h.id, keyword)) || halves.some((h) => h.battleShocked)) continue
     const models = halves.flatMap((h) => unitModels(s, h.id))
     if (models.length > 0 && models.every((m) => whollyWithinPolygon(m, zone))) return rule.pointsPer
   }
@@ -392,6 +398,7 @@ function unitDestroyedHook(ctx: EngineContext, info: { unitId: UnitId; byPlayer:
 function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): number {
   const s = ctx.state
   switch (rule.code) {
+    case 'guardianOfTheRealm': return guardianOfTheRealmAmount(s, rule, pid)
     case 'reclaimAndDominate': return reclaimAndDominateAmount(s, rule, pid)
     case 'wrathOfTheEmperor': return wrathOfTheEmperorAmount(s, rule, pid)
     case 'alphaXenoform': return alphaXenoformAmount(s, rule, pid)
@@ -629,6 +636,7 @@ function processWindow(ctx: EngineContext, window: TimingWindowId, key: string):
   const s = ctx.state
   // Treasures of Aeons reads which enemy units were near a marker at the START of the phase in which they die
   if (window.endsWith('.start') && once(s, `treasureSnapshot:${window}`)) snapshotTreasures(s)
+  if (window.endsWith('.start') && once(s, `gotrSnapshot:${window}`)) guardianOfTheRealmSnapshot(s)
   for (const rule of s.mission.rules) {
     if (rule.window !== window) continue
     if (!once(s, `missionRuleDone:${rule.id}:${key}`)) continue
@@ -707,7 +715,10 @@ export const missionService: MissionService = {
   },
   playerHasForces: hasForces,
   unitDestroyed: unitDestroyedHook,
-  modelDestroyed: championOfTitanModelDestroyed,
+  modelDestroyed(ctx, info) {
+    championOfTitanModelDestroyed(ctx, info)
+    guardianOfTheRealmModelDestroyed(ctx, info)
+  },
   isTabled(state) { return !hasForces(state, 'A') && !hasForces(state, 'B') },
   finalResult(state, reason) {
     const vp = { A: state.players.A.vp + state.players.A.battleReadyVp, B: state.players.B.vp + state.players.B.battleReadyVp }

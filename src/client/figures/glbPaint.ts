@@ -17,6 +17,7 @@ const SOURCE_HUES: Record<string, { major: string | null; minor: string | null }
   'astra-militarum': { major: '#55653a', minor: '#9b7e52' },
   'grey-knights': { major: null, minor: '#2f5fb0' },
   'tau-empire': { major: '#d8cdb2', minor: '#2e6a86' },
+  'adeptus-custodes': { major: '#d9a521', minor: '#a3171d' },
   'genestealer-cults': { major: '#c79a2e', minor: '#5d3a8c' },
 }
 

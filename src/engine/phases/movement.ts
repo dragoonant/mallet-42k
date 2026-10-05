@@ -50,7 +50,7 @@ import {
 import { autoDeployPlacements } from '../setup'
 import type { Action, ModelPlacement } from '../actions'
 import {
-  EngineInvariantError,
+  EngineInvariantError, type DiceRoll,
   type DeclaredTarget, type GameState, type Model, type ModelId, type MoveConstraints,
   type MoveType, type PendingDecision, type PlayerId, type Polygon, type Rejection, type UnitId, type Vec3,
 } from '../types'
@@ -70,6 +70,39 @@ function writeMark(state: GameState, key: string, value: string | null): void {
 function setMoveType(state: GameState, unitId: UnitId, mt: MoveType): void {
   for (const id of leaderService.halves(state, unitId)) state.units[id].turn.moveType = mt
 }
+// E4 (Adeptus Custodes Overawing Magnificence): which opposing unit pairs were in Engagement Range when the Movement
+// phase began — marks `erAtStart:<a>|<b>` (canonical ids, a < b), so "was within Engagement Range of that unit at the
+// start of the phase" can still be answered after the mover has fallen back
+function canonicalUnitId(state: GameState, unitId: UnitId): UnitId {
+  return state.units[unitId]?.bodyguardUnitId ?? unitId
+}
+export function snapshotEngagementAtMovementStart(state: GameState): void {
+  const units = [...boardUnitsOf(state, 'A'), ...boardUnitsOf(state, 'B')].filter((u) => !u.bodyguardUnitId)
+  for (const a of units) {
+    for (const b of units) {
+      if (a.player === b.player || a.id >= b.id) continue
+      if (leaderService.unitsInEngagement(state, a.id, b.id)) state.phaseState.marks.push(`erAtStart:${a.id}|${b.id}`)
+    }
+  }
+}
+export function engagedAtMovementStart(state: GameState, unitA: UnitId, unitB: UnitId): boolean {
+  const a = canonicalUnitId(state, unitA)
+  const b = canonicalUnitId(state, unitB)
+  const [lo, hi] = a < b ? [a, b] : [b, a]
+  return state.phaseState.marks.includes(`erAtStart:${lo}|${hi}`)
+}
+
+// E3 (Auramite Thunderbolt): re-roll kinds the unit's abilities offer on its Advance roll (mirror of the Charge roll's)
+export function collectAdvanceRerollKinds(ctx: EngineContext, unitId: UnitId, roll: DiceRoll): Set<'ones' | 'fails' | 'all' | 'oneDie'> {
+  const results = ctx.services.hooks.collect(ctx, 'onAdvanceRoll', {
+    movingUnitId: unitId,
+    roll: { purpose: 'advance', roll, dieIndex: 0, unmodified: rollSum(roll), rerolled: (roll.rerolled ?? []).length > 0 },
+  })
+  const kinds = new Set<'ones' | 'fails' | 'all' | 'oneDie'>()
+  for (const r of results) if (r.result.kind === 'roll' && r.result.reroll) kinds.add(r.result.reroll as 'ones' | 'fails' | 'all' | 'oneDie')
+  return kinds
+}
+
 function setAdvanceRoll(state: GameState, unitId: UnitId, roll: number): void {
   for (const id of leaderService.halves(state, unitId)) state.units[id].turn.advanceRoll = roll
 }
@@ -733,8 +766,32 @@ function doDeclare(ctx: EngineContext): 'pending' | 'move' | 'select' {
     return 'select'
   }
   if (unit.turn.moveType === 'advance' && unit.turn.advanceRoll === null) {
-    const roll = ctx.rollOnce(`advance:${unitId}`, { purpose: 'advance', player: unit.player, sides: 6, count: 1, mode: 'sum', unitId })
+    let roll = ctx.rollOnce(`advance:${unitId}`, { purpose: 'advance', player: unit.player, sides: 6, count: 1, mode: 'sum', unitId })
     if (roll === null) return 'pending'
+    // E3: an ability re-roll of the Advance roll (a die already re-rolled is never re-rolled again, R-1.6). The roll never
+    // "fails", so ones/fails kinds re-roll a 1 automatically and 'all' is an optional offer.
+    if ((roll.rerolled ?? []).length === 0) {
+      const kinds = collectAdvanceRerollKinds(ctx, unitId, roll)
+      if (kinds.size > 0) {
+        if (kinds.has('all')) {
+          const offerKey = `mv:advRerollOffered:${unitId}`
+          if (!ctx.marked(offerKey)) {
+            ctx.once(offerKey)
+            ctx.decide({
+              kind: 'chooseOption', player: unit.player, window: 'movement.moveStarted', canPass: false,
+              context: { topic: 'rerollOffer', unitId, abilityId: null, data: { rollId: roll.id, dieIndexes: [0], purpose: 'advance' } },
+              options: [
+                { id: 'reroll', label: 'Re-roll', action: { type: 'chooseOption', player: unit.player, decisionId: '', optionId: 'reroll' } },
+                { id: 'keep', label: 'Keep', action: { type: 'chooseOption', player: unit.player, decisionId: '', optionId: 'keep' } },
+              ],
+            })
+            return 'pending'
+          }
+        } else if (rollSum(roll) === 1) {
+          roll = ctx.reroll(roll, [0], 'advanceRoll')
+        }
+      }
+    }
     // C6: halveRoll:'advance' effects (Artillery Strike) and onAdvanceRoll modifiers adjust the roll before it is added to M
     const advance = hookService.advanceRollFor(s, unitId, rollSum(roll))
     setAdvanceRoll(s, unitId, advance)
@@ -963,6 +1020,7 @@ export const movementModule: PhaseModule = {
   enter(ctx) {
     ctx.state.step = 'select'
     ctx.state.phaseState.activated = []
+    snapshotEngagementAtMovementStart(ctx.state)
   },
   advance(ctx) {
     const s = ctx.state
@@ -1080,6 +1138,15 @@ export const movementModule: PhaseModule = {
       // GEN-2.2: reinforcements count as a move, so an arrival within 9" of an enemy Cult Ambush marker removes it
       for (const uid of groupIds) cultAmbushOnMoveEnded(ctx, uid)
       writeMark(s, 'mv:justArrived', JSON.stringify(groupIds))
+      return
+    }
+    if (!s.phaseState.attack && pending.kind === 'chooseOption' && pending.context.topic === 'rerollOffer' && action.type === 'chooseOption') {
+      if (action.optionId === 'reroll') {
+        const data = pending.context.data as { rollId: string; dieIndexes: number[] }
+        const roll = s.phaseState.lastRoll
+        if (!roll || roll.id !== data.rollId) throw new EngineInvariantError('rerollOffer: roll is no longer current', { rollId: data.rollId })
+        ctx.reroll(roll, data.dieIndexes, 'advanceRoll')
+      }
       return
     }
     if (s.phaseState.attack && (pending.kind === 'allocateAttack' || (pending.kind === 'chooseOption' && ATTACK_CHOOSE_TOPICS.has(pending.context.topic)))) {

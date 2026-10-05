@@ -577,6 +577,21 @@ function HeadBody({
         </group>
       )
     }
+    case 'custodes-helm':
+      // Gold helm with a dark visor slit and a tall crimson plume running front to back.
+      return (
+        <group>
+          <HeadBlob radius={radius} color={colors.primary} />
+          <mesh position={[0, radius * 0.05, radius * 0.88]}>
+            <GBox args={[radius * 0.9, radius * 0.22, radius * 0.2]} />
+            <StdMat color={VISOR} roughness={0.2} metalness={0.4} />
+          </mesh>
+          <mesh position={[0, radius * 1.0, -radius * 0.1]}>
+            <GBox args={[radius * 0.2, radius * 0.7, radius * 1.4]} />
+            <StdMat color={colors.secondary} roughness={0.6} />
+          </mesh>
+        </group>
+      )
     case 'tau-helmet':
       // Smooth domed helm in the armour colour, a wide dark visor band and a small blue sensor stalk.
       return (

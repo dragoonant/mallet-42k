@@ -56,7 +56,7 @@ export interface HookQueries {
   // R-1.9-clamped characteristic after modifyStat/setStat effects (weapon stats need `weapon`, model stats `modelId`)
   statFor(state: GameState, query: StatQuery, base: number): number
   // the weapon's own abilities plus grantWeaponAbility effects for this model (Champion Duellist, Veil of Time, Epic Challenge)
-  weaponAbilitiesFor(state: GameState, modelId: ModelId, weapon: RuntimeWeapon): WeaponAbility[]
+  weaponAbilitiesFor(state: GameState, modelId: ModelId, weapon: RuntimeWeapon, attack?: AttackContext): WeaponAbility[]
   // datasheet + faction keywords plus grantKeyword effects
   keywordsFor(state: GameState, unitId: UnitId): string[]
   // onEligibility folded: true when some effect allows the check (charge after Advance/Fall Back, shoot after …, Fights First)
@@ -291,7 +291,7 @@ function keyApplies(entry: HookSourceEntry, key: keyof Effect, effect: Effect, h
   switch (key) {
     case 'when': return false
     // a granted ActiveEffect of a hooks-restricted code (Resonant Focus, Righteous Fury) applies at the hooks it lists
-    case 'reroll': return triggerHook(entry) === hook || (!!spec?.hooks && (entry.trigger === null || entry.active !== null))
+    case 'reroll': return triggerHook(entry) === hook || (spec?.rerollHooks?.includes(hook) ?? false) || (!!spec?.hooks && (entry.trigger === null || entry.active !== null))
     case 'modifyRoll': return ROLL_HOOK[effect.modifyRoll!.roll] === hook
     case 'autoResult': return ROLL_HOOK[effect.autoResult!.roll] === hook
     case 'ignoreModifiers': return effect.ignoreModifiers === 'all' ? hook === 'onHitRoll' || hook === 'onWoundRoll' : ROLL_HOOK[effect.ignoreModifiers!] === hook
@@ -663,11 +663,11 @@ export const hookService: HookService & HookQueries = {
     return clampStat(q.stat, v)
   },
 
-  weaponAbilitiesFor(state, modelId, weapon) {
+  weaponAbilitiesFor(state, modelId, weapon, attack) {
     const model = state.models[modelId]
     const out: WeaponAbility[] = [...weapon.abilities]
     if (!model) return out
-    const data: Data = { queryUnitId: model.unitId, queryModelId: modelId, weapon, stat: 'A' }
+    const data: Data = { queryUnitId: model.unitId, queryModelId: modelId, weapon, stat: 'A', ...(attack ? { attack } : {}) }
     for (const m of matchEffects(state, 'onStatQuery', data, new Set<keyof Effect>(['grantWeaponAbility']))) {
       const g = m.effect.grantWeaponAbility!
       if (!out.some((a) => a.ability === g.ability && a.keyword === g.keyword && String(a.value ?? '') === String(g.value ?? ''))) out.push({ ...g })

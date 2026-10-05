@@ -163,6 +163,16 @@ function buildAttackContext(ctx: EngineContext, attackerUnitId: UnitId, overwatc
   }
 }
 
+// E2 (Adeptus Custodes): the weapon as it is used against this group's target — grantWeaponAbility entries whose
+// conditions read the attack (targetKeyword / attackerKeyword, target-held scope 'attacker') only match with a context
+function targetedWeapon(ctx: EngineContext, a: AttackSequenceState, attackerModelId: ModelId, group: AttackGroup, targetModelId: ModelId | null = null): RuntimeWeapon {
+  const s = ctx.state
+  const base = weaponService.effectiveWeapon(s, attackerModelId, group.weaponId)
+  if (!base) return base
+  const actx = buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, attackerModelId, base, group.targetUnitId, targetModelId, false)
+  return weaponService.effectiveWeapon(s, attackerModelId, group.weaponId, actx)
+}
+
 // a shapeless AttackContext for mortal-wound sources with no originating weapon attack (Deadly Demise, generic
 // ability mortal wounds): only used to query Feel No Pain, which never reads `weapon` fields in this fixture set.
 function nullAttackContext(targetUnitId: UnitId, targetModelId: ModelId): AttackContext {
@@ -180,7 +190,7 @@ function computeAttackCount(ctx: EngineContext, gi: number, group: AttackGroup, 
   const s = ctx.state
   const attackerModelId = group.attackerModelIds[0]
   const attackerUnit = s.units[attackSeq(ctx).attackerUnitId]
-  const weapon = weaponService.effectiveWeapon(s, attackerModelId, group.weaponId)
+  const weapon = targetedWeapon(ctx, attackSeq(ctx), attackerModelId, group)
   let base: number
   if (declared?.attacks != null) {
     base = declared.attacks
@@ -280,7 +290,7 @@ function assignRuns(ctx: EngineContext, a: AttackSequenceState): void {
   let lead = 0
   let prevKey = ''
   a.groups.forEach((g, j) => {
-    const w = weaponService.effectiveWeapon(s, g.attackerModelIds[0], g.weaponId)
+    const w = targetedWeapon(ctx, a, g.attackerModelIds[0], g)
     const key = `${g.targetUnitId}|${g.weaponId}|${JSON.stringify(w)}`
     if (j === 0 || key !== prevKey) lead = j
     g.runLead = lead
@@ -461,7 +471,7 @@ function doHitBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
   for (const j of runMembers(a, lead)) {
     const g = a.groups[j]
     const model = g.attackerModelIds[0]
-    const weapon = weaponService.effectiveWeapon(s, model, g.weaponId)
+    const weapon = targetedWeapon(ctx, a, model, g)
     const actx = buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, model, weapon, g.targetUnitId, null, false)
     if (hasAbility(weapon, 'TORRENT')) {
       if (g.attacks > 0) noteHitBy(s, a.attackerUnitId, weapon.id, g.targetUnitId)
@@ -510,7 +520,7 @@ function doHitBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
 function woundDie(ctx: EngineContext, a: AttackSequenceState, group: AttackGroup): DieCtx & { weapon: RuntimeWeapon } {
   const s = ctx.state
   const model = group.attackerModelIds[0]
-  const weapon = weaponService.effectiveWeapon(s, model, group.weaponId)
+  const weapon = targetedWeapon(ctx, a, model, group)
   const actx = buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, model, weapon, group.targetUnitId, null, false)
   const statFor = ctx.services.hooks.statFor
   // SHOOT-018-statmod: effectiveWeapon already folded S modifiers in — applying statFor again would double them
@@ -623,7 +633,7 @@ function finalizeAllocation(ctx: EngineContext, gi: number, group: AttackGroup, 
   const model = s.models[modelId]
   cur.allocatedModelId = modelId
   if (model && markAllocated) model.flags.allocatedThisPhase = true
-  const weapon = weaponService.effectiveWeapon(s, cur.attackerModelId, group.weaponId)
+  const weapon = targetedWeapon(ctx, a, cur.attackerModelId, group, modelId)
   const cover = coverFor(ctx, group, cur.attackerModelId, modelId)
   cur.cover = cover
   const actx = buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, cur.attackerModelId, weapon, group.targetUnitId, modelId, cover)
@@ -635,7 +645,7 @@ function doAllocateStage(ctx: EngineContext, gi: number, group: AttackGroup): 'p
   const a = attackSeq(ctx)
   const cur = a.current as CurrentAttack
   const s = ctx.state
-  const weapon = weaponService.effectiveWeapon(s, cur.attackerModelId, group.weaponId)
+  const weapon = targetedWeapon(ctx, a, cur.attackerModelId, group)
   const targetUnitId = group.targetUnitId
   const precision = hasAbility(weapon, 'PRECISION')
   const eligible = leaderService.allocatableModels
@@ -734,7 +744,7 @@ function saveSetup(ctx: EngineContext, group: AttackGroup, attackerModelId: Mode
   const s = ctx.state
   const model = s.models[modelId]
   if (!model) return null
-  const baseWeapon = weaponService.effectiveWeapon(s, attackerModelId, group.weaponId)
+  const baseWeapon = targetedWeapon(ctx, a, attackerModelId, group, modelId)
   const actx = buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, attackerModelId, baseWeapon, group.targetUnitId, modelId, rawCover)
   const weapon = critical ? { ...baseWeapon, AP: baseWeapon.AP - critWoundApFor(ctx, actx) } : baseWeapon
   const preFake = fakeRoll('save', s.units[model.unitId].player, model.unitId, modelId)
@@ -786,7 +796,7 @@ function doSaveStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pendi
   const a = attackSeq(ctx)
   const cur = a.current as CurrentAttack
   const s = ctx.state
-  const weapon = weaponService.effectiveWeapon(s, cur.attackerModelId, group.weaponId)
+  const weapon = targetedWeapon(ctx, a, cur.attackerModelId, group, cur.allocatedModelId as ModelId)
   const modelId = cur.allocatedModelId as ModelId
   const model = s.models[modelId]
   if (!model) { finishSlot(ctx, gi, group); return 'progress' }
@@ -835,10 +845,10 @@ function saveBatchTarget(ctx: EngineContext, lead: number): number | null {
   const a = attackSeq(ctx)
   const group = a.groups[lead]
   const b = group.batch as GroupBatch
-  const weapon = weaponService.effectiveWeapon(s, group.attackerModelIds[0], group.weaponId)
+  const weapon = targetedWeapon(ctx, a, group.attackerModelIds[0], group)
   if (hasAbility(weapon, 'PRECISION')) return null
   // E3: a critical wound that improves AP needs its own save target, so those volleys keep per-attack save rolls
-  if (b.queue.some((w) => w.wound.critical && critWoundApFor(ctx, buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, w.attackerModelId, weaponService.effectiveWeapon(s, w.attackerModelId, group.weaponId), group.targetUnitId, null, false)) > 0)) return null
+  if (b.queue.some((w) => w.wound.critical && critWoundApFor(ctx, buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, w.attackerModelId, targetedWeapon(ctx, a, w.attackerModelId, group), group.targetUnitId, null, false)) > 0)) return null
   const eligible = leaderService.allocatableModels ? leaderService.allocatableModels(s, group.targetUnitId) : unitModels(s, group.targetUnitId).map((m) => m.id)
   if (eligible.length === 0) return null
   const attackers = [...new Set(b.queue.map((w) => w.attackerModelId))]
@@ -929,7 +939,7 @@ function doDamageStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pen
   const a = attackSeq(ctx)
   const cur = a.current as CurrentAttack
   const s = ctx.state
-  const weapon = weaponService.effectiveWeapon(s, cur.attackerModelId, group.weaponId)
+  const weapon = targetedWeapon(ctx, a, cur.attackerModelId, group, cur.allocatedModelId as ModelId)
   const modelId = cur.allocatedModelId as ModelId
   const devastating = isDevastatingSlot(cur)
   const actx = buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, cur.attackerModelId, weapon, group.targetUnitId, modelId, cur.cover)

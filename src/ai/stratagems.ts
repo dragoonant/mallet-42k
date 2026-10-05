@@ -9,7 +9,7 @@ import {
 import { diceExprMean } from '../engine/dice'
 import { effectiveCost } from '../engine/stratagems'
 import {
-  bestMeleeWeapon, bestRangedWeapon, expectedAttack, hasAnyMeleeWeapon, hasAnyRangedWeapon, unitMeleeDamage, unitRangedDamage, unitValue,
+  bestMeleeWeapon, bestRangedRangeOfUnit, bestRangedWeapon, expectedAttack, hasAnyMeleeWeapon, hasAnyRangedWeapon, unitMeleeDamage, unitRangedDamage, unitValue,
   type AttackOptions,
 } from './expected'
 import {
@@ -194,8 +194,10 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
     }
     return best > 0 ? best : -Infinity
   }
-  // Necron Will of the Overlord: +1 OC for a unit on a scoring objective that is contested or about to be.
-  if (id.endsWith('will-of-the-overlord')) {
+  // Necron Will of the Overlord: +1 OC for a unit on a scoring objective that is contested or about to be. Custodes Inescapable
+  // Vengeance (Command phase, lasts through the opponent's turn) is the same play, also for a unit within a move (6") of such an objective.
+  if (id.endsWith('will-of-the-overlord') || id.endsWith('inescapable-vengeance')) {
+    const slack = id.endsWith('inescapable-vengeance') ? 6 : 0
     const unitId = targets.unitIds?.[0]
     if (!unitId) return -Infinity
     const models = unitModels(state, unitId)
@@ -203,7 +205,7 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
     const oc = models.reduce((s, m) => s + modelStats(state, m).OC, 0)
     let best = 0
     for (const o of Object.values(state.objectives)) {
-      if (o.removed || !models.some((m) => withinObjectiveRange(m, o))) continue
+      if (o.removed || !models.some((m) => withinObjectiveRange(m, o, 0, 3 + slack))) continue
       const weight = objectiveScoreWeight(state, player, o.id)
       if (weight <= 1) continue
       const enemy = nearestEnemyFromPoint(state, player, o.pos)
@@ -482,6 +484,44 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
       for (const u of boardUnitsOf(state, player)) if (minGapBetweenUnits(state, u.id, e.id) <= 30) { near++; break }
     }
     return near >= 2 ? 2.5 + near * 0.6 : -Infinity
+  }
+  // Custodes The Gilded Spear: after the Shield-Captain falls to an enemy attack, our ranged fire at that unit gains Sustained Hits 1
+  // for the rest of the battle (about +17% damage); worth the 1 CP while our gunners can still reach the killer.
+  if (id.endsWith('gilded-spear')) {
+    const mark = state.phaseState.marks.find((m) => m.startsWith('deathReaction:'))
+    let killer: UnitId | null = null
+    if (mark) { try { killer = (JSON.parse(mark.slice('deathReaction:'.length)) as { attackerUnitId?: UnitId }).attackerUnitId ?? null } catch { killer = null } }
+    if (!killer || !state.units[killer] || state.units[killer].location !== 'board') return -Infinity
+    let dmg = 0
+    for (const u of boardUnitsOf(state, player)) {
+      if (u.battleShocked || !hasAnyRangedWeapon(state, u.id)) continue
+      const range = bestRangedRangeOfUnit(state, u.id) ?? 0
+      if (minGapBetweenUnits(state, u.id, killer) > range + 6) continue
+      dmg += unitRangedDamage(state, u.id, killer, {})
+    }
+    if (dmg <= 0) return -Infinity
+    return dmg * 0.17 * unitValue(state, killer) * 0.03 * Math.max(1, roundsLeft + 0.5)
+  }
+  // Custodes Overawing Magnificence: a free Normal move (up to M, ending outside Engagement Range) after the enemy falls back from
+  // our unit; worth it when the freed unit can reach an objective we do not hold, or close on the retreating unit's lane.
+  if (id.endsWith('overawing-magnificence')) {
+    const unitId = targets.unitIds?.[0]
+    const models = unitId ? unitModels(state, unitId) : []
+    if (!unitId || models.length === 0) return -Infinity
+    const move = Math.min(...models.map((m) => modelStats(state, m).M))
+    const here = centerOfUnit(state, unitId)
+    if (!here) return -Infinity
+    let best = 0
+    for (const o of Object.values(state.objectives)) {
+      if (o.removed) continue
+      const reach = Math.hypot(o.pos.x - here.x, o.pos.z - here.z) - 3 // objective range is 3"
+      if (reach > move) continue
+      const weight = objectiveScoreWeight(state, player, o.id)
+      const held = DEFAULT_SERVICES.objectives.controller(state, o.id) === player
+      best = Math.max(best, weight * (held ? 0.5 : 1.2))
+    }
+    if (trigger && state.units[trigger]?.location === 'board' && minGapBetweenUnits(state, unitId, trigger) <= move + 2) best = Math.max(best, 0.8 + unitValue(state, trigger) * 0.005)
+    return best > 0 ? best : -Infinity
   }
   return -Infinity // unmodelled stratagem: hold CP}
 

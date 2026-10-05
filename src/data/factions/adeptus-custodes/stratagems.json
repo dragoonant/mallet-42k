@@ -1,0 +1,58 @@
+[
+  {
+    "id": "cus.s.gilded-spear",
+    "faction": "adeptus-custodes",
+    "name": "The Gilded Spear",
+    "text": "Use just after an enemy attack destroys your SHIELD-CAPTAIN model. For the rest of the battle, ranged weapons carried by your ADEPTUS CUSTODES models gain [SUSTAINED HITS 1] when they attack the unit that destroyed it.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["command", "movement", "shooting", "charge", "fight"],
+    "window": "attack.modelDestroyed",
+    "who": "either",
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "SHIELD-CAPTAIN" }, "state": "justDestroyed", "count": 1 }
+    ],
+    "scope": { "who": "self" },
+    "duration": "battle",
+    "code": "gildedSpear",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "cus.s.inescapable-vengeance",
+    "faction": "adeptus-custodes",
+    "name": "Inescapable Vengeance",
+    "text": "Use in your Command phase, targeting one ADEPTUS CUSTODES unit from your army. Until the start of your next Command phase, add 1 to the Objective Control characteristic of every model in that unit.",
+    "cost": 2,
+    "category": "strategicPloy",
+    "phases": ["command"],
+    "window": ["command.start", "command.end"],
+    "who": "active",
+    "condition": { "phase": "command", "ownTurn": true },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "count": 1 }
+    ],
+    "effect": { "modifyStat": { "stat": "OC", "value": 1 } },
+    "scope": { "who": "self" },
+    "duration": "untilNextTurn",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "cus.s.overawing-magnificence",
+    "faction": "adeptus-custodes",
+    "name": "Overawing Magnificence",
+    "text": "Use in your opponent's Movement phase, just after an enemy unit finishes a Fall Back move. Pick one of your ADEPTUS CUSTODES INFANTRY units that was within Engagement Range of it at the start of the phase and is no longer within Engagement Range of any enemy model. That unit may make a Normal move of up to its Move characteristic and must end outside Engagement Range.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["movement"],
+    "window": "movement.unitMoved",
+    "who": "reactive",
+    "condition": { "phase": "movement", "ownTurn": false },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "INFANTRY" }, "count": 1 }
+    ],
+    "scope": { "who": "self" },
+    "duration": "instant",
+    "code": "overawingMagnificence",
+    "limit": "oncePerPhase"
+  }
+]

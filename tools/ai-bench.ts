@@ -25,7 +25,7 @@ function otherPlayer(p: PlayerId): PlayerId { return p === 'A' ? 'B' : 'A' }
 
 // --faction filters which patrol the AI plays (bench arg name matches the faction folders under src/data/factions;
 // the data's own faction ids are the shorter 'sm'/'ork').
-const FACTION_ARG_TO_DATA_ID: Record<string, string> = { 'space-marines': 'sm', orks: 'ork', necrons: 'necrons', 'chaos-space-marines': 'chaos-space-marines', tyranids: 'tyranids', 'adepta-sororitas': 'adepta-sororitas', 'astra-militarum': 'astra-militarum', 'grey-knights': 'grey-knights', 'tau-empire': 'tau-empire', 'genestealer-cults': 'genestealer-cults' }
+const FACTION_ARG_TO_DATA_ID: Record<string, string> = { 'space-marines': 'sm', orks: 'ork', necrons: 'necrons', 'chaos-space-marines': 'chaos-space-marines', tyranids: 'tyranids', 'adepta-sororitas': 'adepta-sororitas', 'astra-militarum': 'astra-militarum', 'grey-knights': 'grey-knights', 'tau-empire': 'tau-empire', 'genestealer-cults': 'genestealer-cults', 'adeptus-custodes': 'adeptus-custodes' }
 
 // the patrol data's own `attachTo` hints (a Leader joining its bodyguard unit); other rosters attach in the client only
 function attachmentsOf(patrol: { units: { ref: string; attachTo?: string }[] }) {

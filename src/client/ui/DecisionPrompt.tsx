@@ -119,6 +119,13 @@ const METHODICAL_INFO = {
  *  prefix or a variant of the same rule still reads right. */
 const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string } }[] = [
   {
+    match: /martial-?katah/i,
+    info: {
+      title: "Choose a Ka'tah stance",
+      hint: 'Pick the fighting style your Custodes use for this fight phase. Dacatarai makes their melee weapons score an extra hit on a 6 to hit; Rendax makes a 6 to hit wound automatically. It lasts until the end of the phase.',
+    },
+  },
+  {
     match: /teleport-?assault/i,
     info: {
       title: 'Teleport Assault',

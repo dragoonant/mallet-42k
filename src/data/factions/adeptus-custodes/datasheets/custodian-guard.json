@@ -1,0 +1,43 @@
+[
+  {
+    "id": "cus.custodian-guard",
+    "faction": "adeptus-custodes",
+    "name": "Custodian Guard",
+    "keywords": ["INFANTRY", "BATTLELINE", "IMPERIUM", "CUSTODIAN GUARD"],
+    "factionKeywords": ["ADEPTUS CUSTODES"],
+    "stats": { "M": 6, "T": 6, "Sv": 2, "W": 3, "Ld": 6, "OC": 2 },
+    "invuln": 4,
+    "composition": [
+      {
+        "modelId": "spear",
+        "name": "Custodian Guard (guardian spear)",
+        "min": 2, "max": 2, "default": 2,
+        "base": { "shape": "round", "mm": 40 },
+        "weapons": { "default": ["cus.w.guardian-spear-ranged", "cus.w.guardian-spear-melee"] },
+        "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+      },
+      {
+        "modelId": "vexilla",
+        "name": "Custodian Guard (vexilla)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 40 },
+        "statsOverride": { "W": 4 },
+        "weapons": { "default": ["cus.w.misericordia"] },
+        "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+      },
+      {
+        "modelId": "blade",
+        "name": "Custodian Guard (sentinel blade)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 40 },
+        "statsOverride": { "W": 4 },
+        "weapons": { "default": ["cus.w.sentinel-blade-ranged", "cus.w.sentinel-blade-guard"] },
+        "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+      }
+    ],
+    "abilities": ["cus.a.martial-katah", "cus.a.praesidium-shield", "cus.a.stand-vigil", "cus.a.stand-vigil-held"],
+    "coreAbilities": [ { "ability": "DEEP_STRIKE" } ],
+    "points": [ { "models": 4, "points": 0 } ],
+    "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+  }
+]

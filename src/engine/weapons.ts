@@ -3,13 +3,15 @@
 import type { DiceExpr, WeaponAbilityName } from '../data/types'
 import { parseDiceExpr } from './dice'
 import { codeHookFor, hookService, sourcesFor } from './hooks-impl'
+import type { AttackContext } from './hooks'
 import type { GameState, ModelId, RuntimeWeapon, WeaponId } from './types'
 
 export interface WeaponService {
   hasAbility(weapon: RuntimeWeapon, ability: WeaponAbilityName): boolean
   abilityValue(weapon: RuntimeWeapon, ability: WeaponAbilityName): DiceExpr | null
   // the weapon as this model uses it now: stat modifiers (onStatQuery), granted abilities, R-1.9 clamps
-  effectiveWeapon(state: GameState, modelId: ModelId, weaponId: WeaponId): RuntimeWeapon
+  // `attack` (E2): the attack context, so target-aware conditions / target-held scopes resolve (Gilded Spear, Purity of Execution)
+  effectiveWeapon(state: GameState, modelId: ModelId, weaponId: WeaponId, attack?: AttackContext): RuntimeWeapon
   // one entry per profile group: [groupId | weaponId, profile weapon ids]
   profileGroups(state: GameState, weaponIds: WeaponId[]): { group: string; weaponIds: WeaponId[] }[]
   // C4: false iff some code-hook source says (weaponAvailable) this weapon cannot be used by the model right now
@@ -25,11 +27,11 @@ export const weaponService: WeaponService = {
   // stat modifiers (onStatQuery: modifyStat/setStat) applied to the weapon's numeric stats (S/AP/range and, when A is
   // a fixed number rather than a dice expression, A too — modifying a DiceExpr in place is out of scope [interp]) and
   // BS/WS (skill); grantWeaponAbility effects merged in (Epic Challenge Precision, Veil of Time Sustained Hits, …).
-  effectiveWeapon(state, modelId, weaponId) {
+  effectiveWeapon(state, modelId, weaponId, attack) {
     const base = state.weapons[weaponId]
     const model = state.models[modelId]
     if (!base || !model) return base
-    const abilities = hookService.weaponAbilitiesFor ? hookService.weaponAbilitiesFor(state, modelId, base) : base.abilities
+    const abilities = hookService.weaponAbilitiesFor ? hookService.weaponAbilitiesFor(state, modelId, base, attack) : base.abilities
     const q = (stat: 'BS' | 'WS' | 'S' | 'AP' | 'range' | 'A', v: number) =>
       hookService.statFor ? hookService.statFor(state, { unitId: model.unitId, modelId, weapon: base, stat }, v) : v
     const skillStat = base.kind === 'ranged' ? 'BS' as const : 'WS' as const

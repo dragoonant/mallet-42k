@@ -11,6 +11,7 @@ import {
 } from '../engine'
 import type { ScoringRule } from '../data/types'
 import { createRng, restoreRng, type Rng } from '../engine/rng'
+import { woundRollNeeded } from '../engine/dice'
 import { commandRerollScore, scoreStratagemOrReaction } from './stratagems'
 import {
   bestMeleeWeapon, bestRangedRangeOfUnit, bestRangedWeapon, expectedAttack, hasAnyMeleeWeapon, hasAnyRangedWeapon,
@@ -466,6 +467,31 @@ function scoreDeclareCharge(state: GameState, player: PlayerId, action: DeclareC
   return p * payoff - (1 - p) * 0.4
 }
 
+// Adeptus Custodes Martial Ka'tah: Rendax (Lethal Hits) when the likely melee victims are tough (T 7+) or the Custodes
+// melee Strength wounds them on 5+, otherwise Dacatarai (Sustained Hits 1). Likely victims are the enemy units within 12" of
+// the holder (engaged or inside charge reach); with none that close, the nearest enemy unit.
+function katahPrefersRendax(state: GameState, player: PlayerId, holderId: UnitId | null): boolean {
+  const holder = holderId ? state.units[holderId] : undefined
+  if (!holder) return false
+  const mine = unitModels(state, holder.id)
+  const enemies = boardUnitsOf(state, other(player)).filter((u) => unitModels(state, u.id).length > 0)
+  if (mine.length === 0 || enemies.length === 0) return false
+  const gap = (u: UnitId): number => Math.min(...mine.flatMap((a) => unitModels(state, u).map((b) => distance(a, b))))
+  const ranked = enemies.map((u) => ({ id: u.id, d: gap(u.id) })).sort((a, b) => a.d - b.d)
+  const near = ranked.filter((e) => e.d <= 12)
+  const victims = (near.length > 0 ? near : ranked.slice(0, 1)).map((e) => e.id)
+  let strength = 0
+  for (const m of mine) {
+    const w = bestMeleeWeapon(state, m.id)
+    if (w && state.weapons[w]) strength = Math.max(strength, state.weapons[w].S)
+  }
+  if (strength <= 0) return false
+  const toughness = victims.map((id) => modelStats(state, unitModels(state, id)[0]).T)
+  if (toughness.some((t) => t >= 7)) return true
+  const needed = toughness.map((t) => woundRollNeeded(strength, t))
+  return needed.reduce((a, b) => a + b, 0) / needed.length >= 5
+}
+
 function scoreChooseOption(state: GameState, pending: PendingDecision, action: Action): number {
   if (action.type !== 'chooseOption' || pending.kind !== 'chooseOption') return 0
   const option = pending.options.find((o) => o.action.type === 'chooseOption' && o.action.optionId === action.optionId)
@@ -488,6 +514,10 @@ function scoreChooseOption(state: GameState, pending: PendingDecision, action: A
   // Patrol Squads: a bot keeps its unit whole (one activation, one deployment spot) rather than splitting at random
   if ((pending.context.data as { choice?: string }).choice === 'patrolSquads' && action.optionId === 'keep') score += 0.5
   const code = (pending.context.data as { code?: string }).code
+  if (code === 'martialKatahPick') {
+    const rendax = katahPrefersRendax(state, pending.player, pending.context.unitId ?? null)
+    score += (action.optionId === 'rendax') === rendax ? 2 : 0
+  }
   // Astra Militarum Voice of Command: prefer Take Aim! on gunlines, Move! Move! Move! on units that need to cross the board,
   // Take Cover! on units with a poor save under fire; an Order to every unit (Command Laurels) is always good value.
   if (code === 'voiceOfCommand' && action.optionId !== 'decline') {
@@ -566,8 +596,8 @@ function scoreAction(state: GameState, player: PlayerId, pending: PendingDecisio
 function rerollOfferAnswer(state: GameState, pending: PendingDecision, options: Action[]): Action | null {
   if (pending.kind !== 'chooseOption' || pending.context.topic !== 'rerollOffer') return null
   const data = pending.context.data as { rollId?: string; dieIndexes?: number[]; needed?: number; purpose?: string }
-  // Gunnery Officer: re-roll the dice that set a weapon's number of attacks when they came up low (3 or less on average)
-  if (data.purpose === 'attacks' && Array.isArray(data.dieIndexes)) {
+  // Gunnery Officer (attack counts) and Auramite Thunderbolt (Advance roll): re-roll when the die came up low (3 or less, below the 3.5 average)
+  if ((data.purpose === 'attacks' || data.purpose === 'advance') && Array.isArray(data.dieIndexes)) {
     const roll = state.phaseState.lastRoll
     const reroll = options.find((o) => o.type === 'chooseOption' && o.optionId === 'reroll')
     const keep = options.find((o) => o.type === 'chooseOption' && o.optionId === 'keep')

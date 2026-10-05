@@ -1,0 +1,35 @@
+[
+  {
+    "id": "cus.e.auramite-thunderbolt",
+    "faction": "adeptus-custodes",
+    "name": "Auramite Thunderbolt",
+    "text": "The bearer's unit may re-roll its Advance rolls and its Charge rolls.",
+    "cost": 0,
+    "restriction": { "keyword": ["SHIELD-CAPTAIN"] },
+    "effect": {
+      "id": "cus.e.auramite-thunderbolt.effect",
+      "name": "Auramite Thunderbolt",
+      "text": "The bearer's unit may re-roll Advance rolls and Charge rolls.",
+      "trigger": "chargeRoll",
+      "code": "auramiteThunderbolt",
+      "effect": { "reroll": "all" },
+      "scope": { "who": "self" }
+    }
+  },
+  {
+    "id": "cus.e.blade-of-the-vaults",
+    "faction": "adeptus-custodes",
+    "name": "Blade of the Vaults",
+    "text": "Each time the bearer makes an attack that scores a Critical Wound, improve that attack's Armour Penetration by 1.",
+    "cost": 0,
+    "restriction": { "keyword": ["SHIELD-CAPTAIN"] },
+    "effect": {
+      "id": "cus.e.blade-of-the-vaults.effect",
+      "name": "Blade of the Vaults",
+      "text": "A Critical Wound by the bearer improves the attack's AP by 1.",
+      "trigger": "woundRoll",
+      "effect": { "critWoundAp": 1 },
+      "scope": { "who": "bearer" }
+    }
+  }
+]

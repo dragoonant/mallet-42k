@@ -101,6 +101,15 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ['heavy-improvised-weapon', 'wpn-brutal-assault-weapon'] as const,
   ['hypermorph-tail', 'wpn-talons'] as const,
   ['drilldozer-blade', 'rock-drill-grind'] as const,
+  // Adeptus Custodes borrow too: the guardian's storm-bolter-in-a-blade barks like a storm bolter, spear and blades ring like power weapons.
+  ['sentinel-blade-ranged', 'wpn-storm-bolter'] as const,
+  ['guardian-spear-ranged', 'wpn-boltgun'] as const,
+  ['hurricane-bolter', 'wpn-storm-bolter'] as const,
+  ['sentinel-blade', 'wpn-power-weapon'] as const,
+  ['guardian-spear-melee', 'wpn-power-weapon'] as const,
+  ['misericordia', 'wpn-close-combat-weapon'] as const,
+  ['interceptor-lance', 'wpn-relic-weapon'] as const,
+  ['executioner-greatblade', 'wpn-relic-weapon'] as const,
 ].sort((a, b) => b[0].length - a[0].length)
 
 const WEAPON_TRIM: Partial<Record<SfxId, number>> = {
@@ -187,6 +196,7 @@ const DEATH_SOUND: Record<string, SfxId> = {
   'grey-knights': 'death-grey-knights',
   'tau-empire': 'death-tau',
   'genestealer-cults': 'death-genestealer-cults',
+  'adeptus-custodes': 'death-space-marines',
 }
 
 /** Measured decoded RMS runs 0.05-0.40 across these; the loud three are pulled back toward ~0.15. */

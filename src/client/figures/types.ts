@@ -84,6 +84,13 @@ export type KitId =
   | 'gsc-hypermorph'
   | 'gsc-magus'
   | 'gsc-rockgrinder'
+  | 'cus-guard-spear'
+  | 'cus-guard-blade'
+  | 'cus-vexilla'
+  | 'cus-captain'
+  | 'cus-prosecutor'
+  | 'cus-vigilator'
+  | 'cus-praetor'
   | 'generic-infantry'
   | 'generic-heavy'
   | 'generic-monster'
@@ -103,7 +110,7 @@ export interface PaintColors {
  *  datasheet in this data set that isn't a flyer resolves to a biped). */
 export type HeadShape = 'marine-helmet' | 'terminator-helmet' | 'ork-head' | 'ork-boss-head' | 'necron-skull' | 'necron-lord' | 'sister-bob' | 'sister-hood' | 'arco-mask' | 'tyranid-head' | 'tyranid-prime-head' | 'tyranid-brute-head' | 'generic-head'
   | 'chaos-helmet' | 'chaos-sorcerer' | 'possessed-head' | 'cultist-hood'
-  | 'guard-helmet' | 'officer-cap' | 'sentinel-cab' | 'tau-helmet' | 'tau-ethereal'
+  | 'guard-helmet' | 'officer-cap' | 'sentinel-cab' | 'tau-helmet' | 'tau-ethereal' | 'custodes-helm'
 export type WeaponShape =
   | 'none'
   | 'bolt-rifle'

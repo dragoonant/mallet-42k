@@ -107,6 +107,11 @@ const KNOWN_KIT: Record<string, KitId> = {
   'gsc.aberrants': 'gsc-aberrant',
   'gsc.magus-veridielle': 'gsc-magus',
   'gsc.goliath-rockgrinder': 'gsc-rockgrinder',
+  'cus.custodian-guard': 'cus-guard-blade',
+  'cus.prosecutors': 'cus-prosecutor',
+  'cus.shield-captain-tyvan': 'cus-captain',
+  'cus.vertus-praetors': 'cus-praetor',
+  'cus.vigilators': 'cus-vigilator',
 }
 
 /** Models of a mixed unit that look different from the rest of it (a flamer sister is not a rifle sister), keyed
@@ -145,9 +150,19 @@ const KNOWN_KIT_BY_MODEL: Record<string, KitId> = {
   'gsc.acolyte-hybrids/mining-tool': 'gsc-acolyte-mining',
   'gsc.aberrants/aberrant': 'gsc-aberrant',
   'gsc.aberrants/hypermorph': 'gsc-hypermorph',
+  'cus.custodian-guard/spear': 'cus-guard-spear',
+  'cus.custodian-guard/blade': 'cus-guard-blade',
+  'cus.custodian-guard/vexilla': 'cus-vexilla',
 }
 
 const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
+  'cus-guard-spear': 'heavy',
+  'cus-guard-blade': 'heavy',
+  'cus-vexilla': 'heavy',
+  'cus-captain': 'heavy',
+  'cus-prosecutor': 'infantry',
+  'cus-vigilator': 'infantry',
+  'cus-praetor': 'heavy',
   'sm-tacticus': 'infantry',
   'sm-terminator': 'heavy',
   'ork-boy': 'infantry',
