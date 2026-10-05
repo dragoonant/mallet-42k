@@ -170,20 +170,6 @@ function moveRejection(state: GameState, unitId: UnitId, moveType: MoveType, pla
   return resolveMove(state, unitId, moveType, placements, { skipCoherency: true, ...(distance === undefined ? {} : { distance }) }).rejection
 }
 
-// A declared Fall Back can be left with no legal end at all (casualties from Fire Overwatch at movement.moveStarted leave the
-// survivors boxed in, out of coherency, or inside Engagement Range with nowhere to go). RULING: such a unit stays where it
-// is and still counts as having fallen back; the end-of-turn coherency cull (R-2.6) then thins it as usual. Only offered
-// when the strict candidate generator finds nothing, so a unit that can fall back always has to.
-function stuckFallBackStay(state: GameState, unitId: UnitId, moveType: MoveType, placements: ModelPlacement[]): boolean {
-  if (moveType !== 'fallBack') return false
-  const models = unitModelsForCoherency(state, unitId)
-  const stays = placements.every((p) => {
-    const m = models.find((x) => x.id === p.modelId)
-    return m !== undefined && Math.hypot(p.pos.x - m.pos.x, p.pos.y - m.pos.y, p.pos.z - m.pos.z) <= 1e-3
-  })
-  return stays && moveUnitCandidatesFor(state, unitId, 'fallBack', state.units[unitId].player, '__stuck__').length === 0
-}
-
 // ---------- Reactive Normal move (Tyranid Skulking Horrors, docs/spec/factions/tyranids.md 7.1 item 4) ----------
 const REACTIVE_KEY = 'mv:reactive'
 interface ReactiveMove { unitId: UnitId; distance: number; source: string }
@@ -792,6 +778,13 @@ function doMove(ctx: EngineContext): 'pending' | 'select' {
   }
   const moveType = unit.turn.moveType as MoveType
   if (placementsRaw === null) {
+    // R-5.5b: a declared Fall Back left with no legal end (Overwatch casualties at movement.moveStarted) reverts to Remain Stationary
+    if (moveType === 'fallBack' && moveUnitCandidatesFor(s, unitId, 'fallBack', unit.player, '__stuck__').length === 0) {
+      setMoveType(s, unitId, 'stationary')
+      ctx.emit({ type: 'UnitRemainedStationary', unitId, player: unit.player })
+      finishUnit(s, unitId)
+      return 'select'
+    }
     ctx.decide({
       kind: 'moveUnit', player: unit.player, window: 'movement.unitMoved', canPass: false,
       context: { unitId, moveType, advanceRoll: unit.turn.advanceRoll },
@@ -804,8 +797,7 @@ function doMove(ctx: EngineContext): 'pending' | 'select' {
   // coherency check here — a casualty picked after submission may break coherency of what's left, which is not a
   // re-validation failure of the *original* (fully coherent) submission; R-2.6's end-of-turn cull handles it.
   const placements: ModelPlacement[] = (JSON.parse(placementsRaw) as ModelPlacement[]).filter((p) => s.models[p.modelId])
-  let result = resolveMove(s, unitId, moveType, placements, { skipCoherency: true })
-  if (result.rejection && stuckFallBackStay(s, unitId, moveType, placements)) result = resolveMove(s, unitId, moveType, placements, { skipCoherency: true, allowEngaged: true })
+  const result = resolveMove(s, unitId, moveType, placements, { skipCoherency: true })
   if (result.rejection) throw new EngineInvariantError('movement: stored placements failed re-validation', { rejection: result.rejection })
   const resolved = result.resolved
 
@@ -913,10 +905,8 @@ function moveUnitCandidatesFor(state: GameState, unitId: UnitId, moveType: MoveT
 }
 
 function moveUnitCandidates(state: GameState, pending: Extract<PendingDecision, { kind: 'moveUnit' }>): Action[] {
-  const found = moveUnitCandidatesFor(state, pending.context.unitId, pending.context.moveType, pending.player, pending.id)
-  // a boxed-in Fall Back (see stuckFallBackStay) is answered by staying put, so the decision always has a legal action
-  if (found.length === 0 && pending.context.moveType === 'fallBack') return [{ type: 'moveUnit', player: pending.player, decisionId: pending.id, unitId: pending.context.unitId, placements: [] }]
-  return found
+  // a Fall Back with no legal end never reaches this decision (doMove reverts it to Remain Stationary, R-5.5b)
+  return moveUnitCandidatesFor(state, pending.context.unitId, pending.context.moveType, pending.player, pending.id)
 }
 
 function arrivalCandidates(state: GameState, pending: Extract<PendingDecision, { kind: 'deployUnit' }>): Action[] {
@@ -1009,8 +999,7 @@ export const movementModule: PhaseModule = {
       if (action.unitId !== pending.context.unitId) return { code: 'E_INVALID_TARGET', reason: 'placements are for the wrong unit', details: { expected: pending.context.unitId } }
       const rv = readReactive(state)
       if (rv && rv.unitId === action.unitId) return moveRejection(state, action.unitId, 'normal', action.placements, rv.distance)
-      const rej = moveRejection(state, action.unitId, pending.context.moveType, action.placements)
-      return rej && stuckFallBackStay(state, action.unitId, pending.context.moveType, action.placements) ? null : rej
+      return moveRejection(state, action.unitId, pending.context.moveType, action.placements)
     }
     if (pending.kind === 'deployUnit') return validateArrival(state, action, pending)
     return optionCheck(pending, action)

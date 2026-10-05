@@ -1,5 +1,5 @@
 // MOVE-010b: a declared Fall Back that ends up with no legal end (Overwatch casualties / models moved in after the declaration)
-// stays put and still counts as having fallen back (docs/spec/10-rules-core.md R-5.5 ruling). Same harness as movement.test.ts.
+// reverts to Remain Stationary (docs/spec/10-rules-core.md R-5.5b). Same harness as movement.test.ts.
 import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_MODULES, ScriptedRng, createContext, setModelPos,
@@ -37,7 +37,7 @@ function layEnemies(ctx: EngineContext, boxed: boolean) {
   }
 }
 
-function declareFallBack(ctx: EngineContext) {
+function declareFallBack(ctx: EngineContext, beforeMove?: () => void) {
   movementModule.advance(ctx)
   const send = (action: Action) => {
     const pending = ctx.state.pending as PendingDecision
@@ -46,24 +46,24 @@ function declareFallBack(ctx: EngineContext) {
     movementModule.advance(ctx)
   }
   send({ type: 'chooseUnitToActivate', player: 'A', decisionId: '', unitId: ABoss })
-  send({ type: 'declareMove', player: 'A', decisionId: '', unitId: ABoss, moveType: 'fallBack' })
+  const pending = ctx.state.pending as PendingDecision
+  ctx.state.pending = null
+  expect(movementModule.handle(ctx, { type: 'declareMove', player: 'A', decisionId: '', unitId: ABoss, moveType: 'fallBack' }, pending)).toBeUndefined()
+  beforeMove?.() // e.g. Overwatch casualties / arrivals during the moveStarted window
+  movementModule.advance(ctx)
 }
 
 const stay: Action = { type: 'moveUnit', player: 'A', decisionId: '', unitId: ABoss, placements: [{ modelId: `${ABoss}#0`, pos: { x: 0, y: 0, z: 0 } }] }
 
 describe('movement phase — stuck Fall Back (MOVE-010b)', () => {
-  it('MOVE-010b a boxed-in declared Fall Back may stay put and is still marked fallBack', () => {
+  it('MOVE-010b a boxed-in declared Fall Back reverts to Remain Stationary (not marked fallBack, unit activated)', () => {
     const ctx = setup()
     layEnemies(ctx, false)
-    declareFallBack(ctx)
-    layEnemies(ctx, true) // the escape routes close after the declaration
-    const pending = ctx.state.pending as PendingDecision
-    expect(pending.kind).toBe('moveUnit')
-    expect(movementModule.validate?.(ctx.state, stay, pending)).toBeNull()
-    ctx.state.pending = null
-    expect(movementModule.handle(ctx, stay, pending)).toBeUndefined()
+    declareFallBack(ctx, () => layEnemies(ctx, true)) // the escape routes close after the declaration, before the move decision
+    expect(ctx.state.units[ABoss].turn.moveType).toBe('stationary')
+    expect(ctx.state.phaseState.activated).toContain(ABoss)
     expect(ctx.state.models[`${ABoss}#0`].pos.x).toBe(0)
-    expect(ctx.state.units[ABoss].turn.moveType).toBe('fallBack')
+    expect((ctx.state.pending as PendingDecision | null)?.kind).not.toBe('moveUnit')
   })
 
   it('MOVE-010b staying put (or empty placements) is rejected while any strict Fall Back destination exists', () => {
