@@ -87,20 +87,20 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ['battlesuit-fists', 'wpn-power-fist'] as const,
   ['ghostkeel-fists', 'wpn-power-fist'] as const,
   // Genestealer Cults borrow too: mining gear and improvised bludgeons crunch like fists, cult claws rend like talons.
-  ['hybrid-firearm', 'wpn-autogun'] as const,
+  ['hybrid-firearm', 'cult-autogun-burst'] as const,
   ['leader-pistol', 'wpn-laspistol'] as const,
   ['heavy-stubber', 'wpn-big-shoota'] as const,
-  ['seismic-cannon', 'wpn-bombast-field-gun'] as const,
-  ['webber', 'wpn-flamer'] as const,
+  ['seismic-cannon', 'seismic-cannon'] as const,
+  ['webber', 'webber-spray'] as const,
   ['demolition-charge', 'wpn-grenade-launcher'] as const,
   ['clearance-incinerator', 'wpn-heavy-flamer'] as const,
   ['magus-stave', 'wpn-staff-of-possession'] as const,
   ['cult-claws-and-knife', 'wpn-claws-and-teeth'] as const,
-  ['heavy-mining-tool', 'wpn-power-fist'] as const,
+  ['heavy-mining-tool', 'rock-drill-grind'] as const,
   ['leaders-cult-weapons', 'wpn-power-weapon'] as const,
   ['heavy-improvised-weapon', 'wpn-brutal-assault-weapon'] as const,
   ['hypermorph-tail', 'wpn-talons'] as const,
-  ['drilldozer-blade', 'wpn-dread-klaw'] as const,
+  ['drilldozer-blade', 'rock-drill-grind'] as const,
 ].sort((a, b) => b[0].length - a[0].length)
 
 const WEAPON_TRIM: Partial<Record<SfxId, number>> = {
@@ -109,6 +109,8 @@ const WEAPON_TRIM: Partial<Record<SfxId, number>> = {
   'burst-cannon-whir': 0.72,
   'fusion-blast': 0.65,
   'ion-raker': 0.55,
+  'cult-autogun-burst': 0.65,
+  'webber-spray': 0.9,
   'wpn-autopistol': 0.66,
   'wpn-boltgun': 0.8,
   'wpn-assault-cannon': 0.3,
@@ -184,7 +186,7 @@ const DEATH_SOUND: Record<string, SfxId> = {
   'chaos-space-marines': 'death-chaos-space-marines',
   'grey-knights': 'death-grey-knights',
   'tau-empire': 'death-tau',
-  'genestealer-cults': 'death-tyranids',
+  'genestealer-cults': 'death-genestealer-cults',
 }
 
 /** Measured decoded RMS runs 0.05-0.40 across these; the loud three are pulled back toward ~0.15. */

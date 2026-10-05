@@ -32,6 +32,11 @@ export type SfxId =
   | 'burst-cannon-whir'
   | 'fusion-blast'
   | 'ion-raker'
+  | 'death-genestealer-cults'
+  | 'seismic-cannon'
+  | 'webber-spray'
+  | 'rock-drill-grind'
+  | 'cult-autogun-burst'
   | 'death-astra-militarum'
   | 'death-adepta-sororitas'
   | 'death-chaos-space-marines'
@@ -182,6 +187,11 @@ export const SFX_IDS: readonly SfxId[] = [
   'burst-cannon-whir',
   'fusion-blast',
   'ion-raker',
+  'death-genestealer-cults',
+  'seismic-cannon',
+  'webber-spray',
+  'rock-drill-grind',
+  'cult-autogun-burst',
   'death-astra-militarum',
   'death-adepta-sororitas',
   'death-chaos-space-marines',

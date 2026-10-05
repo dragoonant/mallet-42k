@@ -801,6 +801,41 @@
       "prompt": "A heavy charged ion volley, a deep electrical thrum with crackling energy discharge, no music",
       "durationSeconds": 1.8,
       "promptInfluence": 0.6
+    },
+    {
+      "id": "death-genestealer-cults",
+      "kind": "sfx",
+      "prompt": "A hybrid cultist is shot and lets out a short strangled hiss and wet gurgle with a faint dry alien rasp underneath, then drops with a soft cloth thud, no chittering, no frog sounds, no music",
+      "durationSeconds": 2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "seismic-cannon",
+      "kind": "sfx",
+      "prompt": "A deep pulsing tremor blast, a ground-shaking low thud with a rumbling resonance that rolls and fades, heavy and subsonic, no music",
+      "durationSeconds": 2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "webber-spray",
+      "kind": "sfx",
+      "prompt": "A wet pressurised spray hissing out of a nozzle followed by sticky splatter and stringy slime impacts, no music",
+      "durationSeconds": 1.6,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "rock-drill-grind",
+      "kind": "sfx",
+      "prompt": "A heavy industrial rock drill grinding and screeching into metal armour, a harsh whining grind with sparks and straining machinery, no music",
+      "durationSeconds": 1.8,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "cult-autogun-burst",
+      "kind": "sfx",
+      "prompt": "A rough cheap automatic rifle burst, rattling uneven shots with a tinny crack, no reloading, no music",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.6
     }
   ]
 }
