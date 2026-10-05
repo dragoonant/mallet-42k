@@ -20,6 +20,7 @@ import { leaderService } from './leaders'
 import type { EngineContext, Services, WindowTrigger } from './modules'
 import * as tyr from './factions/tyranids'
 import { keywordsOf, modelStats, unitModels } from './state'
+import { isTeleporting } from './teleport'
 import type {
   ChooseOptionDecision, ChooseOptionTopic, GameState, ModelId, PendingDecision, PlayerId, ReactionWindowDecision, Rejection,
   RuntimeStratagem, RuntimeWeapon, Unit, UnitId,
@@ -372,6 +373,7 @@ const rapidIngressArrival: EngineCodeHook = {
     const { state } = env
     const u = state.units[t.ids[0]]
     if (!u || u.location !== 'reserves') return false
+    if (isTeleporting(state, u.id)) return false // GRE E3: Teleport Assault arrivals are not stratagem Reinforcements
     const ds = state.datasheets[u.datasheetId]
     const deepStrike = ds.coreAbilities.some((c) => c.ability === 'DEEP_STRIKE') || u.deepStrikeWith !== null
     if (!deepStrike) return false
