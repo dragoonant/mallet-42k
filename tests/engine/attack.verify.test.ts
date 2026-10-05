@@ -132,6 +132,21 @@ describe('attack.verify', () => {
     expect(sel.some((t) => t.weaponId === 'red.w.blade')).toBe(false)
   })
 
+  it('SHOOT-011 RC-015 Overwatch against a Fall Back: an engaged non-MONSTER/VEHICLE unit selects only Pistols; a VEHICLE keeps all', () => {
+    const state = stateWith(unattached())
+    place(state)
+    placeUnit(state, 'B:mob', [[-10, -3.4]]) // within Engagement Range of the grunts row
+    expect(leaderService.inEngagementWithEnemy(state, 'A:grunts')).toBe(true) // precondition
+    const sel = overwatchTargets(state, 'A:grunts', 'B:mob')
+    expect(sel.length).toBeGreaterThan(0)
+    for (const t of sel) expect(t.weaponId).toBe('red.w.pistol')
+    // a VEHICLE in the same spot fires Pistols and others together (not filtered)
+    placeUnit(state, 'B:brute', [[-16, -2.6]])
+    expect(leaderService.inEngagementWithEnemy(state, 'A:walker')).toBe(true)
+    const w = overwatchTargets(state, 'A:walker', 'B:brute')
+    expect(w.some((t) => t.weaponId === 'red.w.cannon')).toBe(true)
+  })
+
   it('WEAP-024-per-model one Hazardous test per Hazardous weapon used (two models with the same weapon -> two tests)', () => {
     const state = stateWith(unattached(), (b) => { (b.weapons['red.w.gun'] as any).abilities = [{ ability: 'HAZARDOUS' }] })
     place(state)

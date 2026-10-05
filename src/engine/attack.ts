@@ -1221,12 +1221,10 @@ export const attackService: AttackService = {
         if (r === 'pending') return 'pending'
         continue
       }
-      // WEAP-013-order/SHOOT-014-dev (R-6.6): within one target's groups, deferred Devastating Wounds criticals wait
-      // until every group AGAINST THAT TARGET has finished its normal attacks — so mortal wounds from model 1 never
-      // resolve ahead of model 2's still-pending save against the same target — but they must still resolve before
-      // any attack (even a normal one) against a DIFFERENT target. Groups are pushed target-by-target (`begin`), so
-      // find the earliest group with any work left (normal attacks or a deferred critical), then within that
-      // target's groups prefer normal attacks first and only fall back to devastatingPending once none remain.
+      // WEAP-013-order/SHOOT-014-dev (RC-026, R-6.6): deferred Devastating Wounds criticals wait until EVERY group of the
+      // unit's attack (against every target) has finished its normal attacks, so mortal wounds never resolve ahead of any
+      // still-pending normal attack, even one against a different target. Pick the earliest group with normal work left;
+      // only once none remain fall back to the earliest group with a deferred critical (devastatingPending).
       assignRuns(ctx, a)
       let gi = a.current ? a.current.groupIndex : -1
       if (gi === -1) {

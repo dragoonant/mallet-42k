@@ -459,6 +459,36 @@ describe('engine/stratagems — CP, limits, windows', () => {
     expect(hookService.pileInDistance(s, BOYZ)).toBe(3)
   })
 
+  it('STRAT-025 RC-014/061 the Shooting phase drains the surge: Krump at shooting.attacksResolved actually moves the Boyz toward the shooter', () => {
+    const s = makeState()
+    phase(s, 'shooting', 'A', { B: 1 })
+    s.step = 'resolve'
+    s.phaseState.marks.push(`sh:resolveUnit=${T}`)
+    const h = harness(s, [4])
+    stratagemService.recordTargets(h.ctx, T, [BOYZ])
+    const dist = () => Math.hypot(s.models[s.units[BOYZ].models[0]].pos.x - s.models[s.units[T].models[0]].pos.x, s.models[s.units[BOYZ].models[0]].pos.z - s.models[s.units[T].models[0]].pos.z)
+    const before = dist()
+    const mod = h.modules.phases.shooting
+    let used = false
+    for (let i = 0; i < 20 && (s.step as string) !== 'selectUnit'; i++) {
+      if (s.pending) {
+        const krump = options(s).find((x) => x.stratagemId === 'ork.s.krump-da-gitz')
+        if (krump && !used) { used = true; h.answer({ ...krump }); continue }
+        const pending = s.pending
+        s.pending = null
+        stratagemService.handle(h.ctx, { type: 'pass', player: pending.player, decisionId: pending.id } as Action, pending)
+        continue
+      }
+      mod.advance(h.ctx)
+    }
+    expect(used).toBe(true)
+    expect(s.step).toBe('selectUnit')
+    expect(h.events.filter((e) => e.type === 'UnitMoved' && e.unitId === BOYZ)).toMatchObject([{ moveType: 'surge' }])
+    expect(dist()).toBeLessThan(before)
+    expect(s.units[BOYZ].turn.surgeMovedThisPhase).toBe(true)
+    expect(pendingReactions(s, 'surge')).toEqual([])
+  })
+
   it('FIGHT-014 Get Stuck In lasts the phase: pile-in and consolidation back to 3" after it ends', () => {
     const s = makeState()
     phase(s, 'fight', 'B', { B: 1 })

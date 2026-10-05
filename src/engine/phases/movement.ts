@@ -16,8 +16,8 @@
 // decision it raises mid-movement-phase is delegated to `attackService.handler`.
 //
 // Surge moves (R-5.9, e.g. Krump da Gitz!) are entirely handled by stratagems.ts (roll, flag, pushReaction) at a
-// *Shooting*-phase window (`shooting.attacksResolved`) — out of this module's reach; see `resolveSurgeMove` below,
-// exported for whichever module ends up draining `pendingReactions(state, 'surge')`.
+// *Shooting*-phase window (`shooting.attacksResolved`); shooting.ts doResolve then drains `pendingReactions(state, 'surge')`
+// through `resolveSurgeMove` below (RC-014/061).
 //
 // Transports (R-5.17–R-5.20): no Combat Patrol datasheet has one, so embark/disembark are implemented in
 // transports.ts as bookkeeping + legality predicates only — not wired into an interactive decision here. See issues.
@@ -38,6 +38,7 @@ import {
   pendingCultAmbushReactions,
 } from '../cult-ambush'
 import { attackService } from '../attack'
+import { isBigGunsUnit } from './shooting'
 import { weaponService } from '../weapons'
 import { terrainService } from '../terrain'
 import { transportService } from '../transports'
@@ -341,7 +342,8 @@ function allowedMoveTypes(state: GameState, unitId: UnitId): MoveType[] {
 
 // ---------- Fire Overwatch (a pushed 'overwatch' reaction targeting the just-moved unit) ----------
 // RC-015 default selection (the AI default of the fix plan; a player-facing declareTargets choice is not offered): a model
-// never spends a ONE_SHOT weapon on 6s-only Overwatch, fires its Pistols OR its other weapons (non-Pistols preferred),
+// never spends a ONE_SHOT weapon on 6s-only Overwatch, fires its Pistols OR its other weapons (non-Pistols preferred;
+// an engaged non-MONSTER/VEHICLE unit may fire Pistols only; MONSTER/VEHICLE models fire Pistols and others together),
 // and fires one profile per profileGroup (R-6.7, SHOOT-011). Shared with charge.ts overwatch.
 export function defaultOverwatchSelection(state: GameState, all: DeclaredTarget[]): DeclaredTarget[] {
   const isPistol = (t: DeclaredTarget): boolean => { const w = state.weapons[t.weaponId]; return !!w && weaponService.hasAbility(w, 'PISTOL') }
@@ -350,7 +352,11 @@ export function defaultOverwatchSelection(state: GameState, all: DeclaredTarget[
   const modelIds = [...new Set(all.map((t) => t.modelId))]
   for (const mid of modelIds) {
     let mine = all.filter((t) => t.modelId === mid && !isOneShot(t))
-    if (mine.some((t) => !isPistol(t))) mine = mine.filter((t) => !isPistol(t))
+    const unitId = state.models[mid]?.unitId
+    const big = !!unitId && isBigGunsUnit(state, unitId)
+    const engaged = !!unitId && leaderService.inEngagementWithEnemy(state, unitId)
+    if (!big && engaged) mine = mine.filter(isPistol) // engaged non-MONSTER/VEHICLE: Pistols only
+    else if (!big && mine.some((t) => !isPistol(t))) mine = mine.filter((t) => !isPistol(t))
     const groups = new Set<string>()
     for (const t of mine) {
       if (t.profileGroup) { if (groups.has(t.profileGroup)) continue; groups.add(t.profileGroup) }

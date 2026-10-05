@@ -71,7 +71,7 @@ function optionCheck(pending: PendingDecision, action: Action): Rejection | null
 }
 
 // ---------- keyword / engagement helpers (attached-unit aware via leaderService) ----------
-function isBigGunsUnit(state: GameState, unitId: UnitId): boolean {
+export function isBigGunsUnit(state: GameState, unitId: UnitId): boolean {
   return leaderService.halves(state, unitId).some((id) => hasKeyword(state, id, 'MONSTER') || hasKeyword(state, id, 'VEHICLE'))
 }
 function hasPistolWeapon(state: GameState, unitId: UnitId): boolean {
