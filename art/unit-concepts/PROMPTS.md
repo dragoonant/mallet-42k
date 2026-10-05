@@ -59,3 +59,10 @@ whip-flail arms.
 cap, power sword · `cadian-veteran` plasma gun, vox pack · `cadian-medic` red-cross helmet, medkit ·
 `cadian-standard-bearer` tall regimental banner · `bombast-field-gun` wheeled field gun with two crew ·
 `malleus-rocket-battery` wheeled rocket battery with crew · `armoured-sentinel` two-legged enclosed walker.
+
+### Grey Knights (MGSD, 2026-10-05)
+MGSD proportions; variants made by editing a clean base image in Gemini.
+`librarian-aurellios` psyker Librarian, force weapon · `gk-terminator-justicar` Terminator squad leader, halberd ·
+`gk-terminator` Terminator with storm bolter and halberd · `gk-terminator-psycannon` Terminator with psycannon ·
+`strike-justicar` Strike Squad leader · `strike-knight` Strike Knight, storm bolter and sword ·
+`strike-psilencer` Strike Knight with psilencer · `nemesis-dreadknight` large walker-armour Dreadknight.

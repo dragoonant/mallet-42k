@@ -46,6 +46,14 @@ export const ENABLED_GLB_SLUGS: readonly string[] = [
   'bombast-field-gun',
   'malleus-rocket-battery',
   'armoured-sentinel',
+  'librarian-aurellios',
+  'gk-terminator-justicar',
+  'gk-terminator',
+  'gk-terminator-psycannon',
+  'strike-justicar',
+  'strike-knight',
+  'strike-psilencer',
+  'nemesis-dreadknight',
 ]
 
 export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
@@ -106,6 +114,16 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'am.field-ordnance-battery/gun-bombast': 'bombast-field-gun',
   'am.field-ordnance-battery/gun-malleus': 'malleus-rocket-battery',
   'am.armoured-sentinels/sentinel': 'armoured-sentinel',
+
+  // Grey Knights (MGSD GLBs).
+  'gk.librarian-aurellios/librarian': 'librarian-aurellios',
+  'gk.brotherhood-terminator-squad/justicar': 'gk-terminator-justicar',
+  'gk.brotherhood-terminator-squad/terminator': 'gk-terminator',
+  'gk.brotherhood-terminator-squad/psycannon': 'gk-terminator-psycannon',
+  'gk.strike-squad/justicar': 'strike-justicar',
+  'gk.strike-squad/knight': 'strike-knight',
+  'gk.strike-squad/psilencer': 'strike-psilencer',
+  'gk.nemesis-dreadknight/dreadknight': 'nemesis-dreadknight',
 }
 
 /** The enabled GLB slug for a model type, or undefined (use the procedural figure). */
