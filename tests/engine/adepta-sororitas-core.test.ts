@@ -436,6 +436,26 @@ describe('Miracle die option ids and forced Battle-shock tests', () => {
     expect(hookService.battleShockTest(c2.ctx, SIS, 'some-ability')).toBe(false)
     expect(t.pending).toBeNull()
   })
+
+  it('ADE-039 RC-ADE-23: a second Sororitas unit tested while the first Miracle offer is open is queued, then offered its own die', () => {
+    const s = makeState()
+    s.players.A.miracle.dice = [6, 5]
+    placeUnit(s, SIS, { x: 0, z: 0, gap: 0.3 })
+    placeUnit(s, SAC, { x: 0, z: 8, gap: 0.3 })
+    const { ctx, events } = ctxOf(s, [1, 1, 1, 1])
+    expect(hookService.battleShockTest(ctx, SIS, 'some-ability')).toBe('pending')
+    expect(hookService.battleShockTest(ctx, SAC, 'some-ability')).toBe('pending')
+    expect(s.phaseState.marks.some((m) => m.startsWith('bsqueue:'))).toBe(true)
+    answer(ctx, 'skip')
+    expect(of(events, 'BattleShockTested')).toHaveLength(1)
+    const next = s.pending as ChooseOptionDecision
+    expect(next.context.topic).toBe('miracleDie')
+    expect(next.context.unitId).toBe(SAC)
+    answer(ctx, 'use:0')
+    expect(of(events, 'BattleShockTested')).toHaveLength(2)
+    expect(s.pending).toBeNull()
+    expect(s.phaseState.marks.some((m) => m.startsWith('bsqueue:'))).toBe(false)
+  })
 })
 
 // =====================================================================================================================

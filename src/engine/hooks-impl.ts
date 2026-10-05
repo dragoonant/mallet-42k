@@ -14,7 +14,7 @@
 import type { Condition, CoreAbility, DiceExpr, Effect, Scope, StatName, TimingWindowId, Trigger, WeaponAbility } from '../data/types'
 import { codeHooks, type EngineCodeHook } from './code-hooks'
 import { clampStat, parseDiceExpr, rollSum } from './dice'
-import { miracleGate } from './miracle'
+import { miracleGate, substitutionEligible } from './miracle'
 import { withinObjectiveRange, OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE } from './geometry'
 import {
   TRIGGER_HOOK,
@@ -821,6 +821,11 @@ export const hookService: HookService & HookQueries = {
             return 'pending'
           }
           substitute = gate
+        } else if (s.pending?.kind === 'chooseOption' && s.pending.context.topic === 'miracleDie'
+          && substitutionEligible(s, { purpose: 'battleShock', player: unit.player, unitId, sides: 6 })) {
+          // RC-ADE-23: another unit's Miracle offer is open; queue this test, the Miracle handler runs it once that one is answered
+          marks.push(`bsqueue:${unitId}|${source}|${modifier}`)
+          return 'pending'
         }
         roll = ctx.roll(substitute ? { ...spec, substitute } : spec)
         // a finished gate must not leak into a later test with the same source this phase

@@ -439,9 +439,9 @@ export function transformPolygon(poly: Polygon, pos: Vec2, rot: number): Polygon
 }
 
 // "Your battlefield edge" for a deployment zone: the board-perimeter segments that lie on the zone's boundary; returns the
-// part of the board within `depth` of them. One edge gives a rectangle; two adjacent edges (a corner zone) give an
-// L-shaped hexagon. A board side where the zone only touches a short stub (under half the longest side's length) is
-// ignored, so a full-width strip is not widened by the zone's short ends. Other shapes fall back to the longest side.
+// part of the board within `depth` of them. Combat Patrol gives each player exactly one battlefield edge, so only the
+// board side with the longest run of zone boundary is used (a rectangle); a corner zone such as a triangle yields its
+// longest side, not an L [RC AM-16].
 export function battlefieldEdgeStrip(board: Pick<Board, 'w' | 'h'>, zone: Polygon, depth: number): Polygon {
   const hw = board.w / 2, hh = board.h / 2
   type Side = 'L' | 'R' | 'T' | 'B'
@@ -466,10 +466,7 @@ export function battlefieldEdgeStrip(board: Pick<Board, 'w' | 'h'>, zone: Polygo
   }
   const sides = (Object.keys(spans) as Side[]).filter((s) => spans[s] !== null)
   if (sides.length === 0) return zone
-  const longest = Math.max(...sides.map((s) => total[s]))
-  let kept = sides.filter((s) => total[s] >= longest / 2)
-  const adjacent = (a: Side, b: Side): boolean => (a === 'L' || a === 'R') !== (b === 'L' || b === 'R')
-  if (kept.length > 2 || (kept.length === 2 && !adjacent(kept[0], kept[1]))) kept = [kept.sort((a, b) => total[b] - total[a])[0]]
+  const kept = sides.reduce((best, s) => (total[s] > total[best] ? s : best), sides[0])
   const rect = (s: Side): { x0: number; x1: number; z0: number; z1: number } => {
     const [lo, hi] = spans[s]!
     const dx = Math.min(depth, board.w), dz = Math.min(depth, board.h)
@@ -481,15 +478,7 @@ export function battlefieldEdgeStrip(board: Pick<Board, 'w' | 'h'>, zone: Polygo
     }
   }
   const rectPoly = (r: { x0: number; x1: number; z0: number; z1: number }): Polygon => [{ x: r.x0, z: r.z0 }, { x: r.x1, z: r.z0 }, { x: r.x1, z: r.z1 }, { x: r.x0, z: r.z1 }]
-  if (kept.length === 1) return rectPoly(rect(kept[0]))
-  // two adjacent edges: the union of their two rectangles as one L-shaped hexagon (both run into the shared corner)
-  const v = rect(kept.find((s) => s === 'L' || s === 'R')!), h = rect(kept.find((s) => s === 'T' || s === 'B')!)
-  const left = v.x0 < 0, top = h.z0 < 0
-  const cx = left ? -hw : hw, cz = top ? -hh : hh
-  // far ends of the two arms and the inner corner of the L
-  const armX = left ? h.x1 : h.x0, armZ = top ? v.z1 : v.z0
-  const innerX = left ? v.x1 : v.x0, innerZ = top ? h.z1 : h.z0
-  return [{ x: cx, z: cz }, { x: armX, z: cz }, { x: armX, z: innerZ }, { x: innerX, z: innerZ }, { x: innerX, z: armZ }, { x: cx, z: armZ }]
+  return rectPoly(rect(kept))
 }
 
 // the board side a deployment zone's longest edge lies along ('L' = -x, 'R' = +x, 'T' = -z, 'B' = +z). Zones touching no

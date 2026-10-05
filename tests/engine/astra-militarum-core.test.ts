@@ -166,15 +166,15 @@ describe('C3 unit copies and the Next Wave arrival', () => {
     expect(spawnDestroyedUnitCopy(ctx, SHB).id).toBe('A:shock-b~2')
   })
 
-  it('AST-023 AST-5.1: battlefieldEdgeStrip — a full-width zone gives the 9" strip along its board edge, a corner zone an L-shape', () => {
+  it('AST-023 AST-5.1: battlefieldEdgeStrip — a full-width zone gives the 9" strip along its board edge, a corner zone gets one strip along its longest edge (AM-16), not an L', () => {
     const board = { w: 44, h: 30 }
     const rect = battlefieldEdgeStrip(board, [{ x: -22, z: -15 }, { x: 22, z: -15 }, { x: 22, z: -10 }, { x: -22, z: -10 }], 9)
     expect(rect).toEqual([{ x: -22, z: -15 }, { x: 22, z: -15 }, { x: 22, z: -6 }, { x: -22, z: -6 }])
     const flank = battlefieldEdgeStrip(board, [{ x: -22, z: -15 }, { x: -12, z: -15 }, { x: -12, z: 15 }, { x: -22, z: 15 }], 9)
     expect(flank).toEqual([{ x: -22, z: -15 }, { x: -13, z: -15 }, { x: -13, z: 15 }, { x: -22, z: 15 }])
     const corner = battlefieldEdgeStrip(board, [{ x: -22, z: 15 }, { x: -22, z: -15 }, { x: 0, z: -15 }], 9)
-    expect(corner).toHaveLength(6)
-    expect(corner).toEqual(expect.arrayContaining([{ x: -22, z: -15 }, { x: 0, z: -15 }, { x: 0, z: -6 }, { x: -13, z: -6 }, { x: -13, z: 15 }, { x: -22, z: 15 }]))
+    // AM-16: exactly one battlefield edge — the longest side (x = -22), not an L
+    expect(corner).toEqual([{ x: -22, z: -15 }, { x: -13, z: -15 }, { x: -13, z: 15 }, { x: -22, z: 15 }])
   })
 
   it('AST-023 AST-5.1: a nextWave reaction raises the arrival decision in the edge strip; outside it or within Engagement Range is rejected; arrival emits via nextWave', () => {
