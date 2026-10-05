@@ -759,6 +759,48 @@
       "prompt": "A heavy energised greatsword swung hard with a deep whoosh, a humming psychic edge, ending in a crunching metallic impact, no music",
       "durationSeconds": 1.4,
       "promptInfluence": 0.6
+    },
+    {
+      "id": "death-tau",
+      "kind": "sfx",
+      "prompt": "A small alien soldier in a sealed armoured helmet is shot and gives a short pained clipped cry, heard through a tinny band-limited comms filter with slight digital crackle, then light hard armour plates clatter to the ground. Short, no chittering, not human screaming, no music",
+      "durationSeconds": 2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "pulse-rifle-shot",
+      "kind": "sfx",
+      "prompt": "Crisp high-tech plasma pulse rifle shots, a clean electronic zap with a bright sharp crack on each shot, three or four shots, no reloading, no music",
+      "durationSeconds": 1.4,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "pulse-carbine-burst",
+      "kind": "sfx",
+      "prompt": "A short rapid burst of light high-tech plasma pulse shots, clean electronic zaps with a bright crack, lighter and snappier, no reloading, no music",
+      "durationSeconds": 1,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "burst-cannon-whir",
+      "kind": "sfx",
+      "prompt": "A rotary multi-barrel pulse cannon spinning up with an electric whine and firing a fast stream of bright energy pulses, no reloading, no music",
+      "durationSeconds": 1.8,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "fusion-blast",
+      "kind": "sfx",
+      "prompt": "A short intense heat beam: a rising hiss then a searing roaring blast of superheated energy, no music",
+      "durationSeconds": 1.5,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "ion-raker",
+      "kind": "sfx",
+      "prompt": "A heavy charged ion volley, a deep electrical thrum with crackling energy discharge, no music",
+      "durationSeconds": 1.8,
+      "promptInfluence": 0.6
     }
   ]
 }

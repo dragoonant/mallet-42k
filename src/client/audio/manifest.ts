@@ -26,6 +26,12 @@ export type SfxId =
   | 'psilencer-burst'
   | 'purge-soul'
   | 'nemesis-force-swing'
+  | 'death-tau'
+  | 'pulse-rifle-shot'
+  | 'pulse-carbine-burst'
+  | 'burst-cannon-whir'
+  | 'fusion-blast'
+  | 'ion-raker'
   | 'death-astra-militarum'
   | 'death-adepta-sororitas'
   | 'death-chaos-space-marines'
@@ -170,6 +176,12 @@ export const SFX_IDS: readonly SfxId[] = [
   'psilencer-burst',
   'purge-soul',
   'nemesis-force-swing',
+  'death-tau',
+  'pulse-rifle-shot',
+  'pulse-carbine-burst',
+  'burst-cannon-whir',
+  'fusion-blast',
+  'ion-raker',
   'death-astra-militarum',
   'death-adepta-sororitas',
   'death-chaos-space-marines',
