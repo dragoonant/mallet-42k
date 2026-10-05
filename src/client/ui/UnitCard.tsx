@@ -254,6 +254,18 @@ export function UnitCard() {
   const rows = woundRows(state, models, unit.datasheetId)
   const weaponIds = Array.from(new Set(models.flatMap((m) => m.weapons)))
   const color = unit.player === 'A' ? colors.playerA : colors.playerB
+  // Distinct Toughness values across the unit (a led unit can mix a leader's profile with its bodyguard's).
+  const toughness = Array.from(
+    new Set(
+      models.flatMap((m) => {
+        try {
+          return [modelStats(state, m).T]
+        } catch {
+          return []
+        }
+      }),
+    ),
+  ).sort((a, b) => a - b)
 
   return (
     <div style={wrap} data-testid="unit-card">
@@ -265,6 +277,11 @@ export function UnitCard() {
       <div style={{ fontSize: 13, marginTop: 6 }}>
         {models.length}/{unit.startingStrength} models
       </div>
+      {toughness.length > 0 && (
+        <div style={{ fontSize: 13 }} data-testid="unit-card-toughness">
+          Toughness {toughness.join(' / ')}
+        </div>
+      )}
       <div data-testid="unit-card-wounds">
         <WoundRows rows={rows} />
       </div>
@@ -277,6 +294,7 @@ export function UnitCard() {
             {weaponIds.map((wid) => (
               <TipItem key={wid} testId={`unit-card-weapon-${wid}`} tip={<WeaponTip state={state} wid={wid} />}>
                 {state.weapons[wid]?.name ?? wid}
+                {state.weapons[wid] && <span style={mutedText}> · Strength {state.weapons[wid].S}</span>}
               </TipItem>
             ))}
           </ul>
