@@ -530,6 +530,22 @@ describe('movement phase — surge moves and transports (MOVE-027, 029..031)', (
     expect(again).toBe(false)
   })
 
+  it('MOVE-027c RC-013 each model of a surging unit ends as close as possible, not just the rigid translation of the lead model', () => {
+    const { ctx } = start({ players: { A: makePlayerA({ attachments: [] }), B: makePlayerB() } })
+    const grunts = unitModels(ctx.state, A)
+    // a column perpendicular to the approach: rigid movement stops once the middle model reaches Engagement Range
+    placeUnit(ctx.state, A, grunts.map((_, i) => ({ x: -10, y: 0, z: (i - (grunts.length - 1) / 2) * 1.8 })))
+    placeUnit(ctx.state, BWarboss, [{ x: 0, y: 0, z: 0 }])
+    const boss = ctx.state.models[`${BWarboss}#0`]
+    expect(resolveSurgeMove(ctx, A, 12, BWarboss)).toBe(true)
+    const mine = unitModels(ctx.state, A)
+    const gaps = mine.map((m) => Math.hypot(m.pos.x - boss.pos.x, m.pos.z - boss.pos.z))
+    const lead = Math.min(...gaps)
+    // every model got well past the rigid line: the off-axis models are within 1" of the lead (rigid movement leaves the outer models ~1.9" behind)
+    for (const g of gaps) expect(g - lead).toBeLessThan(1.0)
+    expect(mine.length).toBe(grunts.length)
+  })
+
   it('MOVE-027b a Battle-shocked or engaged unit is not offered a surge move', () => {
     const { ctx } = start({ players: { A: makePlayerA({ attachments: [] }), B: makePlayerB() } })
     placeUnit(ctx.state, ABoss, [{ x: -10, y: 0, z: 0 }])
@@ -607,7 +623,42 @@ describe('movement phase — verification fixes (MOVE-003/004/011/013/019/025/02
     act(ctx, { type: 'chooseOption', player: 'A', decisionId: DID, optionId: `${ABoss}#0` })
     expect(ctx.state.units[ABoss].location).toBe('destroyed')
     expect(ctx.state.units[A].models.length).toBe(5)
+    // RC-010 (MOVE-040): the survivors now make their Fall Back move, which is asked for again and must end coherent
+    expect(ctx.state.pending?.kind).toBe('moveUnit')
+    move(ctx, A, unitModels(ctx.state, A).map((m) => ({ modelId: m.id, pos: { x: m.pos.x, y: 0, z: 3 } })))
     expect(ctx.state.models[`${A}#0`].pos.z).toBe(3)
+  })
+
+  it('MOVE-040 RC-010: after Desperate Escape casualties the survivors re-submit their Fall Back, which must be coherent; no second roll', () => {
+    const { ctx } = start({}, [1, 6, 6, 6, 6, 6])
+    placeUnit(ctx.state, A, xs.map((x) => ({ x, y: 0, z: 0 })))
+    placeUnit(ctx.state, ABoss, [{ x: -1.8, y: 0, z: 0 }])
+    placeUnit(ctx.state, BWarboss, [{ x: -1.8, y: 0, z: -1.62 }])
+    ctx.state.units[ABoss].battleShocked = true
+    declare(ctx, A, 'fallBack')
+    const all = [...unitModels(ctx.state, A), ...unitModels(ctx.state, ABoss)]
+    move(ctx, A, all.map((m) => ({ modelId: m.id, pos: { x: m.pos.x, y: 0, z: 3 } })))
+    act(ctx, { type: 'chooseOption', player: 'A', decisionId: DID, optionId: `${ABoss}#0` })
+    expect(ctx.state.pending?.kind).toBe('moveUnit')
+    // a re-submission that splits the survivors apart is rejected for coherency
+    const split = unitModels(ctx.state, A).map((m, i) => ({ modelId: m.id, pos: { x: m.pos.x + (i === 0 ? -5 : 0), y: 0, z: 3 } }))
+    expect(reject(ctx, { type: 'moveUnit', player: 'A', decisionId: DID, unitId: A, placements: split })?.code).toBe('E_COHERENCY')
+  })
+
+  it('MOVE-040 RC-010: survivors already out of coherency may re-submit staying put (no crash); the stay-put move is legal and applies', () => {
+    const { ctx } = start({ players: { A: makePlayerA({ attachments: [] }), B: makePlayerB() } }, [1, 1, 6, 6, 6])
+    placeUnit(ctx.state, A, xs.map((x) => ({ x, y: 0, z: 0 })))
+    placeUnit(ctx.state, BWarboss, [{ x: -1.5, y: 0, z: 0 }])
+    ctx.state.units[A].battleShocked = true
+    declare(ctx, A, 'fallBack')
+    move(ctx, A, unitModels(ctx.state, A).map((m) => ({ modelId: m.id, pos: { x: m.pos.x, y: 0, z: 3 } })))
+    for (const i of [0, 2]) act(ctx, { type: 'chooseOption', player: 'A', decisionId: DID, optionId: `${A}#${i}` })
+    expect(ctx.state.pending?.kind).toBe('moveUnit')
+    const stay = unitModels(ctx.state, A).map((m) => ({ modelId: m.id, pos: { ...m.pos } }))
+    expect(stay.length).toBe(3)
+    expect(reject(ctx, { type: 'moveUnit', player: 'A', decisionId: DID, unitId: A, placements: stay })).toBeNull()
+    expect(() => act(ctx, { type: 'moveUnit', player: 'A', decisionId: DID, unitId: A, placements: stay })).not.toThrow()
+    expect(ctx.state.models[`${A}#1`].pos.z).toBe(0)
   })
 
   it('MOVE-011-leadercross only the Leader crosses an enemy base → exactly one die', () => {

@@ -20,6 +20,7 @@ import { commandModule } from '../../src/engine/phases/command'
 import { buildShootingWeaponEntries } from '../../src/engine/phases/shooting'
 import { overwatchTargets } from '../../src/engine/phases/movement'
 import { overwatchTargetsFor } from '../../src/engine/phases/charge'
+import { terrainService } from '../../src/engine/terrain'
 import { stratagemService } from '../../src/engine/stratagems'
 import { weaponService } from '../../src/engine/weapons'
 import { woundRollNeeded } from '../../src/engine/dice'
@@ -275,6 +276,31 @@ describe('Reanimation Protocols (NEC-2.x)', () => {
       expect(whollyOnBoard(m, s.board)).toBe(true)
       expect(everyone.filter((o) => o.id !== m.id && basesOverlap(m, o))).toEqual([])
       expect(s.units[BOYZ].models.some((id) => withinEngagementRange(m, s.models[id]))).toBe(false)
+    }
+  })
+
+  it('NEC-039 NEC-2.4 RC-102: a returned model never lands inside a solid crate', () => {
+    const s = makeState()
+    deploy(s, WAR, OVR, BOYZ)
+    const warriors = s.units[WAR].models
+    for (const id of warriors.slice(7)) removeModel(s, id)
+    // a tall crate swallowing the area right next to the surviving line
+    const surv = warriors.slice(0, 7).map((id) => s.models[id].pos)
+    const cx = surv.reduce((a, p) => a + p.x, 0) / surv.length, cz = surv.reduce((a, p) => a + p.z, 0) / surv.length
+    const r = (x0: number, z0: number, x1: number, z1: number) => [{ x: x0, z: z0 }, { x: x1, z: z0 }, { x: x1, z: z1 }, { x: x0, z: z1 }]
+    s.board = { ...s.board, pieces: { ...s.board.pieces, 'crate-x': {
+      id: 'crate-x', kind: 'crate', pos: { x: 0, z: 0 }, rot: 0, footprint: r(cx - 8, cz - 8, cx + 8, cz + 8), height: 3, traits: [], walls: [], floors: [],
+    } as never } }
+    const { ctx, events } = ctxOf(s, [6])
+    runReanimation(ctx)
+    const returned = of(events, 'ModelReturned')
+    expect(returned.length).toBeGreaterThan(0)
+    for (const e of returned) {
+      const m = s.models[e.modelId]
+      expect(terrainService.canEndAt(s, m, m.pos).ok).toBe(true)
+      // never standing in the crate at ground level: any spot inside its footprint must be on top of it
+      const inside = Math.abs(m.pos.x - cx) <= 8 && Math.abs(m.pos.z - cz) <= 8
+      if (inside) expect(m.pos.y).toBeGreaterThan(2.9)
     }
   })
 

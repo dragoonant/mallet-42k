@@ -149,6 +149,8 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | MOVE-025 | R-5.14 | Terms still in Reserves at end of round 3 → `UnitDestroyed`; does not score Stomp 'Em (not a melee kill) |
 | MOVE-026 | R-5.11 | Reinforcements step occurs after all moves; arriving unit cannot then embark |
 | MOVE-027 | R-5.9 | Krump da Gitz surge move by a Battle-shocked unit → not offered; by unit in ER → not offered; twice in a phase → second not offered |
+| MOVE-027c | R-5.9 | RC-013: a surging unit's models each end as close as possible to the target (per-model push after the rigid translation), still coherent and outside Engagement Range |
+| MOVE-040 | R-5.6 | RC-010: after Desperate Escape casualties the survivors re-submit the Fall Back move (coherency enforced, only tested models may cross enemies); no second roll |
 | MOVE-028 | CP-5.2 | Tellyporta via `PlayerSetup.enhancementChoice = {unitRef:'boyz-a'}`: Gordrang + Boyz A (`deepStrikeWith` set both ways) in Reserves; Boyz A arrive round 2 without Gordrang → rejected (must arrive together within 3"); `unitRef` naming the Deffkoptas (not BOYZ) or an enemy unit → `createGame` throws `EngineInvariantError` |
 | MOVE-029 | R-5.17 | (transport fixture) unit ends Normal move with all models within 3" of friendly transport → may embark; one model at 3.1" → cannot |
 | MOVE-030 | R-5.18 | (transport fixture) disembark after transport moved → unit cannot move or charge; before → acts normally, cannot Remain Stationary |
@@ -292,6 +294,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | CHARGE-029 | Brutal but Kunnin' | used on Boyz that Fell Back → charge offered this phase only for that unit |
 | CHARGE-030 | R-8.4 | charge move into a ruin: Term must pass through doorway/walls as INFANTRY → allowed; Dread through wall → path invalid |
 | CHARGE-031 | R-8.4 | failed charge (roll 4, target 6" away): every model's `pos` identical before and after, `ChargeFailed` emitted, unit flagged as having declared (CHARGE-028) |
+| CHARGE-032 | R-8.5 | RC-034: a MONSTER/VEHICLE charger's path through a friendly MONSTER/VEHICLE model is rejected (E_OVERLAP); same rule applies to pile-in/consolidate (FIGHT-*) and is skipped for FLY |
 
 ## FIGHT — fight phase
 | ID | Ref | Scenario → expected |
@@ -502,6 +505,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | NEC-036 | NEC-3 | Resonant Focus re-roll survives the bearer's death: Overlord destroyed after the mark is placed → marked-unit hit re-roll of 1s still applies (Doomstalker and Warriors), still not vs another unit, gone at turn end |
 | NEC-037 | NEC-6 | a fired One Shot weapon is not a legal Overwatch weapon: after the tachyon arrow is fired it is absent from Fire Overwatch targets in both the Movement and Charge phases, and `attackService.begin` refuses it centrally |
 | NEC-038 | NEC-4 | Treasures of Aeons: a unit finished off by Devastating Wounds from a NECRONS attack near the treasure marker (in range at phase start) → +3 VP, credited to the attacking model |
+| NEC-039 | NEC-2.4 | RC-102: a returned model must pass `terrainService.canEndAt` (not inside a solid crate/wall, not mid-air); candidate heights are neighbour y, surface height, ground |
 
 ## CHA — Chaos Space Marines: Zarkan's Daemonkin (docs/spec/factions/chaos-space-marines.md)
 | ID | Ref | Scenario → expected |
