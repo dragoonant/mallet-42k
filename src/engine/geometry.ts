@@ -157,6 +157,29 @@ export function partlyWithinPolygon(m: Footprint, poly: Polygon): boolean {
   return false
 }
 
+// A convex polygon grown outward by `r` inches (Minkowski sum with a circle, the circle approximated by a circumscribed 48-gon so the
+// result never under-covers; max overshoot ~0.2%). Used for the Infiltrators area: "more than 9in from the enemy deployment zone".
+export function growConvexPolygon(poly: Polygon, r: number, segments = 48): Polygon {
+  const k = r / Math.cos(Math.PI / segments)
+  const pts: Vec2[] = []
+  for (const p of poly) for (let i = 0; i < segments; i++) {
+    const a = (2 * Math.PI * (i + 0.5)) / segments
+    pts.push({ x: p.x + k * Math.cos(a), z: p.z + k * Math.sin(a) })
+  }
+  pts.sort((a, b) => a.x - b.x || a.z - b.z)
+  const cross = (o: Vec2, a: Vec2, b: Vec2) => (a.x - o.x) * (b.z - o.z) - (a.z - o.z) * (b.x - o.x)
+  const half = (list: Vec2[]): Vec2[] => {
+    const h: Vec2[] = []
+    for (const p of list) {
+      while (h.length >= 2 && cross(h[h.length - 2], h[h.length - 1], p) <= 0) h.pop()
+      h.push(p)
+    }
+    h.pop()
+    return h
+  }
+  return [...half(pts), ...half([...pts].reverse())]
+}
+
 export function whollyOnBoard(m: Footprint, board: Pick<Board, 'w' | 'h'>): boolean {
   const hw = board.w / 2, hh = board.h / 2
   for (const e of baseEdgePoints(m)) if (Math.abs(e.x) > hw + EPS || Math.abs(e.z) > hh + EPS) return false

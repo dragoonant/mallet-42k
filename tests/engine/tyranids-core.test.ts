@@ -39,9 +39,9 @@ const ORK = (o: Partial<PlayerSetup> = {}): PlayerSetup => ({
 const PRIME = 'A:prime', PSY = 'A:psychophage', TERM = 'A:termagants', BARB = 'A:barbgaunts', LEAP = 'A:leapers'
 const BOYZ = 'B:boyz-a', BOYZ2 = 'B:boyz-b'
 
-function makeState(o: { attacker?: 'A' | 'B'; round?: number } = {}): GameState {
+function makeState(o: { attacker?: 'A' | 'B'; round?: number; mission?: string } = {}): GameState {
   const setup: GameSetup = {
-    missionId: 'mission.cp-01', terrainLayoutId: 'terrain.cp-01', players: { A: TYR(), B: ORK() },
+    missionId: o.mission ?? 'mission.cp-01', terrainLayoutId: 'terrain.cp-01', players: { A: TYR(), B: ORK() },
     sides: { attacker: o.attacker ?? 'A' }, firstTurn: 'A', dataVersion: 'test',
   }
   const s = createGameState(setup, bundle, 'tyranids-core', ENGINE_VERSION)
@@ -368,8 +368,8 @@ describe('Reactive Normal move (Skulking Horrors, TYR-6.3)', () => {
 
 // =====================================================================================================================
 describe('Infiltrators and Patrol Squads at Declare Battle Formations (TYR-036, TYR-037)', () => {
-  function deploymentState(): { s: GameState; ctx: EngineContext } {
-    const s = makeState({ attacker: 'B' }) // A is the Defender and deploys first
+  function deploymentState(mission?: string): { s: GameState; ctx: EngineContext } {
+    const s = makeState({ attacker: 'B', mission }) // A is the Defender and deploys first
     s.phase = 'deployment'
     s.round = 0
     s.phaseState = emptyPhaseState()
@@ -445,6 +445,37 @@ describe('Infiltrators and Patrol Squads at Declare Battle Formations (TYR-036, 
       placements: s.units[TERM].models.map((id, i) => ({ modelId: id, pos: { x: -20 + i * 2, y: 0, z: nearEdge + sign * 12 }, facing: 0 })),
     }
     expect(setupModule.validate!(s, termAction, pending)).not.toBeNull()
+  })
+})
+
+// =====================================================================================================================
+describe('Infiltrators area on a triangular zone (TYR-037)', () => {
+  it('TYR-037 TYR-6: cp-04 wedge zones — a point in No Man\x27s Land 16" from the enemy wedge (the old bounding-rectangle test refused it) is accepted; one 7" from the wedge edge is rejected', () => {
+    const s = makeState({ attacker: 'B', mission: 'mission.cp-04' })
+    s.phase = 'deployment'
+    s.round = 0
+    s.phaseState = emptyPhaseState()
+    s.step = 'deploy'
+    const ctx = ctxOf(s, []).ctx
+    const answerKeep = (): void => {
+      const pending = ctx.state.pending as ChooseOptionDecision
+      ctx.state.pending = null
+      setupModule.handle(ctx, { type: 'chooseOption', player: pending.player, decisionId: pending.id, optionId: 'keep' }, pending as PendingDecision)
+    }
+    expect(setupModule.advance(ctx)).toBe('pending')
+    answerKeep()
+    expect(setupModule.advance(ctx)).toBe('pending')
+    const pending = s.pending as DeployUnitDecision
+    expect(pending.context.infiltrators).toEqual([LEAP])
+    const dz = deploymentZone(s, 'B')
+    const r = radius(s, LEAP)
+    // one Leaper at a time is enough for the zone check; the rest sit beside it
+    const at = (x: number, z: number): Action => ({
+      type: 'deployUnit', player: 'A', decisionId: pending.id, unitId: LEAP,
+      placements: s.units[LEAP].models.map((id, i) => ({ modelId: id, pos: { x: x + i * (2 * r + 0.3), y: 0, z }, facing: 0 })),
+    })
+    expect(setupModule.validate!(s, at(0, 12), pending)).toBeNull()
+    expect(setupModule.validate!(s, at(-2, 0), pending)).not.toBeNull()
   })
 })
 

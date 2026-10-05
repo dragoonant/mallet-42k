@@ -546,8 +546,8 @@ export const hookService: HookService & HookQueries = {
     const s = ctx.state
     const d = data as unknown as Data
     if (hook === 'onTargetsDeclared') {
-      const td = data as unknown as { attackerUnitId: UnitId; kind: 'ranged' | 'melee' }
-      snapshotClosestEligible(ctx, td.attackerUnitId, td.kind)
+      const td = data as unknown as { attackerUnitId: UnitId; targetUnitIds?: UnitId[]; kind: 'ranged' | 'melee' }
+      snapshotClosestEligible(ctx, td.attackerUnitId, td.kind, td.targetUnitIds)
     }
     for (const { source, result } of hookService.collect(ctx, hook, data)) {
       if ((result as HookResult).kind === 'request') hookService.apply(ctx, source, result as EffectRequest)

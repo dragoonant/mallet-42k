@@ -511,6 +511,22 @@ describe('Secondary objectives (NEC-4)', () => {
     expect(s.players.A.vp).toBe(0)
   })
 
+  it('NEC-023 NEC-4: Deadly Demise mortal wounds from a NECRONS model credit the exploding model — a kill near the treasure marker scores +3 VP', () => {
+    const s = treasureState()
+    s.players.A.secondaryState.treasureObjectiveId = 'west'
+    deploy(s, WAR)
+    placeUnit(s, BOYZ, { x: -11, z: 1, gap: 0.3 })
+    for (const id of s.units[BOYZ].models.slice(1)) removeModel(s, id) // one Boy left, so one mortal wound destroys the unit
+    s.phase = 'shooting'
+    const { ctx } = ctxOf(s)
+    missionService.onWindow(ctx, 'shooting.start', 'start')
+    const exploder = s.units[WAR].models[0]
+    attackService.queueMortalWounds(ctx, BOYZ, 99, 'deadlyDemise', false, { player: 'A', unitId: WAR, modelId: exploder })
+    drive(ctx)
+    expect(s.units[BOYZ].location).toBe('destroyed')
+    expect(s.players.A.vp).toBe(3)
+  })
+
   it('NEC-038 NEC-4: a unit finished off by Devastating Wounds from a NECRONS attack near the treasure marker still scores +3 VP', () => {
     const s = treasureState()
     s.players.A.secondaryState.treasureObjectiveId = 'west'

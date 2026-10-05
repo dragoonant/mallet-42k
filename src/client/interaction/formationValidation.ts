@@ -13,7 +13,7 @@ import {
   isCoherent,
   otherPlayer,
   partlyWithinPolygon,
-  whollyOnBoard,
+  whollyOnBoard, growConvexPolygon,
   whollyWithinPolygon,
   type Footprint,
   type GameState,
@@ -40,15 +40,11 @@ export interface ValidationResult {
 }
 
 /** True when every footprint sits in the Infiltrators set-up area (R-10.7): wholly on the battlefield,
- *  more than 9" from the enemy deployment zone (grown by 9" as a bounding rectangle, exactly as the
+ *  more than 9" from the enemy deployment zone (grown by 9" as the exact convex offset, as the
  *  engine's setup.ts infiltratorConstraints does) and more than 9" from every enemy model. */
 export function inInfiltratorArea(state: GameState, player: PlayerId, fps: Footprint[]): boolean {
   const dz = deploymentZone(state, otherPlayer(player))
-  const r = 9 + 1e-3
-  const xs = dz.map((p) => p.x)
-  const zs = dz.map((p) => p.z)
-  const x0 = Math.min(...xs) - r, x1 = Math.max(...xs) + r, z0 = Math.min(...zs) - r, z1 = Math.max(...zs) + r
-  const grown: Polygon = [{ x: x0, z: z0 }, { x: x1, z: z0 }, { x: x1, z: z1 }, { x: x0, z: z1 }]
+  const grown: Polygon = growConvexPolygon(dz, 9 + 1e-3)
   const enemies = enemyModelsOnBoard(state, player).map((m): Footprint => ({ pos: m.pos, facing: m.facing, base: m.base }))
   for (const f of fps) {
     if (!whollyOnBoard(f, state.board)) return false

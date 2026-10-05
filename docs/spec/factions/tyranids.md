@@ -77,7 +77,7 @@ Rule details:
 | Id | Rule |
 |---|---|
 | TYR-5.1 | Hyper-Reactive timing: the page reads "opponent's Shooting phase, or the Fight phase" (confirmed 2026-10-03); we use the Gene-wrought Resilience shape (opponent's Shooting phase, or the Fight phase of either turn), since enemy units pick melee targets in both. |
-| TYR-5.2 | Closest eligible target **[interpretation]**: when the unit declares its targets, compute the enemy units it could legally target with that attack type (ranged: visible and within range of at least one of its ranged weapons; melee: within Engagement Range); the closest is the one at the smallest model-to-model distance from the attacking unit (ties: every tied unit counts). Attacks at any other unit get no re-roll. |
+| TYR-5.2 | Closest eligible target **[interpretation]**: when the unit declares its targets, compute the enemy units it could legally target with that attack type (ranged: visible and within range of at least one of its ranged weapons; melee: within Engagement Range); the closest is the one at the smallest model-to-model distance from the attacking unit (ties: the controlling player picks one tied unit as the closest; the engine keeps one, preferring a tied unit the declaration targets, else the lowest id). Attacks at any other unit get no re-roll. |
 | TYR-5.3 | Teeming Broods, unit alive: roll D6; return that many destroyed models (capped at Starting Strength − current models), one at a time, each with full wounds (1 W), placed like Reanimation returns (NEC-2.4: in coherency, not within ER of an enemy unit, no overlap; legal spot nearest the centroid). "Up to" → the engine returns as many as it can **[interpretation, deterministic]**. No legal spot → that model stays destroyed. |
 | TYR-5.4 | Teeming Broods, unit destroyed: roll 2D6 = N. Create a new unit of the same datasheet and wargear with N models (Starting Strength N; cap 20 = datasheet maximum **[interpretation]**), `location: reserves`. It arrives as Strategic Reserves (R-5.15: from round 2, wholly within 6" of any battlefield edge, not inside the enemy DZ in round 2, more than 9" horizontally from every enemy model) in a later Reinforcements step of yours, not the step it was created in **[interpretation]**. CP-1.9 still applies: never arrives in round 1, and a unit still in Reserves at the end of round 3 is destroyed (culled units do not credit the opponent with a kill — `destroyedBy.player` = owner, kind `other`, as the existing cull does). A destroyed TERMAGANTS unit can be revived this way any number of times (only the once-per-phase limit applies). |
 | TYR-5.5 | A destroyed target is legal only for Teeming Broods (its `targets` entry carries `includeDestroyed: true`). R-11.2 (no stratagem on your own Battle-shocked unit) applies to the living branch only. |
@@ -278,7 +278,7 @@ Same list as the `TYR` section of 12-rules-test-checklist.
 | TYR-016 | TYR-5.1 | Hyper-Reactive after an enemy targets Termagants in the opponent's Shooting → their hit rolls −1 until phase end; not offered for the Psychophage (not INFANTRY) |
 | TYR-017 | TYR-5.1 | Hyper-Reactive in a Fight phase after an enemy unit selects the Leapers as its melee target |
 | TYR-018 | TYR-5.2 | Voracious Assault: Termagants shoot the closest eligible enemy → hit re-roll offered; at a farther unit → none |
-| TYR-019 | TYR-5.2 | Voracious Assault: two enemy units tied for closest → both qualify |
+| TYR-019 | TYR-5.2 | Voracious Assault: two enemy units tied for closest → only one counts as the closest (the declared target if it is one of them) |
 | TYR-019b | TYR-5.2 | Voracious Assault: offered in either player's Fight phase for a unit not yet selected to fight; in Shooting only in your own phase for a unit not yet selected to shoot (`notYetShot`) |
 | TYR-020 | TYR-5.3 | Teeming Broods on Termagants at 12/20 with D6 = 4 → 16 models; returned models at 1 W, in coherency, not in ER of enemies |
 | TYR-021 | TYR-5.3 | Teeming Broods on a 10-model split unit at 8/10 with D6 = 5 → only 2 return (Starting Strength cap) |
@@ -297,7 +297,7 @@ Same list as the `TYR` section of 12-rules-test-checklist.
 | TYR-034 | TYR-6.4 | Disruption Bombardment: only a VEHICLE/MONSTER was hit, or nothing was hit → no effect |
 | TYR-035 | TYR-6.5 | Pouncing Leap: Heroic Intervention with the Leapers costs 0 CP (offered at 0 CP) and is offered even after HI was used on another unit this phase; Termagants still pay 1 CP |
 | TYR-036 | TYR-6.6 | Patrol Squads: split offered at Declare Battle Formations → two TERMAGANTS units of 10, each SS 10, each with Skulking Horrors |
-| TYR-037 | TYR-6 | Leapers deploy via Infiltrators more than 9" from the enemy DZ and enemy models; 8.9" is rejected |
+| TYR-037 | TYR-6 | Leapers deploy via Infiltrators more than 9" from the enemy DZ and enemy models; 8.9" is rejected; the area is the exact 9" offset of the zone (triangular cp-04 wedges included) |
 | TYR-038 | TYR-6 | Leapers fight in the Fights First step without having charged; Psychophage FNP 5+ and Deadly Demise 1 resolve |
 | TYR-039 | TYR-6 | psychoclastic torrent auto-hits and ignores cover; the maw's Anti-Psyker 4+ makes a 4+ wound roll vs a PSYKER critical, triggering Devastating Wounds |
 | TYR-040 | TYR-1 | patrol loads: 5 units, 30 models, the Prime is WARLORD with Psychostatic Veil; default secondary Alpha Xenoform |

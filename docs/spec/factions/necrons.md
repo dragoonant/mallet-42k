@@ -52,7 +52,7 @@ No Patrol Squads ability on any datasheet (CP-1.8 does not apply).
 | Name | Default? | Scoring |
 |---|---|---|
 | Reclaim and Dominate | default | at the end of each of your turns (`turn.end`, `who: active`): 4 VP if at least one of your NECRONS units that is not Battle-shocked has **every** model wholly inside the opponent's deployment zone. Flat 4 VP per turn, not per unit. An attached unit is one unit (all of its models must be wholly inside). |
-| Treasures of Aeons | optional | at the start of battle round 1 you pick one objective marker in No Man's Land (the "treasure" marker). Each time a model from your army with NECRONS destroys an enemy unit, you score 3 VP if that enemy unit was within range of the treasure marker, or within range of the marker inside your own deployment zone (if the mission has one), **at the start of the phase** in which it was destroyed. Kills not attributed to a model (e.g. Deadly Demise, other mortal wounds with no `byModelId`) do not score **[interpretation]**. No cap stated. |
+| Treasures of Aeons | optional | at the start of battle round 1 you pick one objective marker in No Man's Land (the "treasure" marker). Each time a model from your army with NECRONS destroys an enemy unit, you score 3 VP if that enemy unit was within range of the treasure marker, or within range of the marker inside your own deployment zone (if the mission has one), **at the start of the phase** in which it was destroyed. A kill by Deadly Demise mortal wounds counts for the owner of the exploding model (its `byModelId` is that model; RC-072). Other kills with no `byModelId` (e.g. Hazardous, mortal wounds from other rules) do not score **[interpretation]**. No cap stated. |
 
 "Within range" of a marker for a unit = any of its models within the mission's objective range (11-combat-patrol §2.4).
 
@@ -167,7 +167,7 @@ Same list as the `NEC` section of 12-rules-test-checklist.
 | NEC-020 | NEC-4 | Treasures of Aeons: pick offered at round 1 start among NML markers only |
 | NEC-021 | NEC-4 | Treasures of Aeons: enemy unit within range of the treasure marker at phase start, moves away, destroyed by Warriors that phase → +3 VP |
 | NEC-022 | NEC-4 | Treasures of Aeons: unit within range of the owner's DZ marker at phase start destroyed → +3 VP; unit outside both at phase start but inside when destroyed → 0 VP |
-| NEC-023 | NEC-4 | Treasures of Aeons: kill by Deadly Demise mortal wounds (no `byModelId`) → 0 VP |
+| NEC-023 | NEC-4 | Treasures of Aeons: a kill with no `byModelId` (Hazardous, other rule mortals) → 0 VP; a kill by Deadly Demise from a NECRONS model → +3 VP (RC-072) |
 | NEC-024 | NEC-5 | Mercurial Resilience: offered after enemy targets declared in opponent's Shooting; Warriors gain 5+ invuln until phase end; Overlord keeps 4+ |
 | NEC-025 | NEC-5 | Mercurial Resilience in a Fight phase (either turn) after an enemy unit selects targets |
 | NEC-026 | NEC-5 | Disruption Fields: Skorpekh hyperphase S7 → S8; vs T8 now wounds on 4+ (was 5+); ranged weapons unchanged; not offered for a unit that already fought |

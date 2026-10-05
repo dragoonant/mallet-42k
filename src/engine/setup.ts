@@ -1,6 +1,6 @@
 // Pre-battle sequence (10-rules §13): phase 'setup' (P4 sides) and phase 'deployment' (P6 deploy, P7 first turn, P8 Scouts).
 // Owner: W1-F.
-import { basesOverlap, checkPlacements, emptyMoveConstraints, horizontalGap, whollyWithinPolygon, type Footprint, type ResolvedPlacement } from './geometry'
+import { basesOverlap, checkPlacements, emptyMoveConstraints, growConvexPolygon, horizontalGap, whollyWithinPolygon, type Footprint, type ResolvedPlacement } from './geometry'
 import type { EngineContext, PhaseModule } from './modules'
 import { otherPlayer } from './modules'
 import { assignSides, boardModelsOf, deploymentZone, hasCoreAbility, unitModels, setModelPos } from './state'
@@ -46,16 +46,13 @@ function comboInfiltrates(state: GameState, unit: Unit): boolean {
 }
 
 // an Infiltrators unit may instead be set up anywhere wholly on the battlefield more than 9" horizontally from the enemy
-// deployment zone and from every enemy model (R-10.7). The zone is grown by 9" as a bounding rectangle (exact for the
-// rectangular Combat Patrol zones); minDistanceFromEnemies covers the models.
+// deployment zone and from every enemy model (R-10.7). The forbidden area is the enemy zone grown by 9" (exact offset of the
+// convex zone, so the triangular cp-04 wedges work too); minDistanceFromEnemies covers the models.
 function infiltratorConstraints(state: GameState, player: PlayerId): MoveConstraints {
   const dz = deploymentZone(state, otherPlayer(player))
-  const r = 9 + 1e-3
-  const xs = dz.map((p) => p.x), zs = dz.map((p) => p.z)
-  const x0 = Math.min(...xs) - r, x1 = Math.max(...xs) + r, z0 = Math.min(...zs) - r, z1 = Math.max(...zs) + r
   return emptyMoveConstraints(1e9, {
     region: null, mustEndOutsideEngagement: false, minDistanceFromEnemies: 9,
-    forbidden: [[{ x: x0, z: z0 }, { x: x1, z: z0 }, { x: x1, z: z1 }, { x: x0, z: z1 }]],
+    forbidden: [growConvexPolygon(dz, 9 + 1e-3)],
   })
 }
 

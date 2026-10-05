@@ -243,10 +243,6 @@ const preyOnTheWeak: EngineCodeHook = {
 }
 
 // ---------- Vindictive Strategy (stratagem) ----------
-function boardCount(s: GameState, canonical: UnitId): number {
-  return leaderService.halves(s, canonical).reduce((n, id) => n + (s.units[id]?.location === 'board' ? unitModels(s, id).length : 0), 0)
-}
-
 const vindictiveStrategy: EngineCodeHook = {
   name: 'vindictiveStrategy', kind: 'stratagem', hook: 'onHitRoll', run: noop, hooks: ['onHitRoll', 'onWoundRoll'],
   // the re-roll lives on the granted ActiveEffect; it only applies against a target that is below Starting Strength (hit rolls) or
@@ -257,7 +253,7 @@ const vindictiveStrategy: EngineCodeHook = {
     if (!attack || !roll) return false
     const t = leaderService.canonicalUnitId(state, attack.targetUnitId)
     // below half-strength implies below Starting Strength (a 1-model unit is judged on wounds left, so its model count never drops)
-    if (roll.purpose === 'hit') return boardCount(state, t) < leaderService.startingStrength(state, t) || leaderService.isBelowHalfStrength(state, t)
+    if (roll.purpose === 'hit') return leaderService.isBelowStartingStrength(state, t) || leaderService.isBelowHalfStrength(state, t)
     if (roll.purpose === 'wound') return leaderService.isBelowHalfStrength(state, t)
     return false
   },

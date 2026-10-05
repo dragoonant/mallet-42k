@@ -340,14 +340,20 @@ const CLOSEST_PREFIX = 'closestEligible:'
 const closestKey = (attackerUnitId: UnitId, kind: 'ranged' | 'melee'): string => `${CLOSEST_PREFIX}${attackerUnitId}:${kind}=`
 
 // Called from hookService.run('onTargetsDeclared'): freezes the closest eligible enemy unit(s) into a phase mark so casualties from earlier
-// weapon groups never change who counts as closest. Ranged eligibility reuses the shooting module's target legality (range, line of
+// weapon groups never change who counts as closest. A tie keeps a single unit (see below). Ranged eligibility reuses the shooting module's target legality (range, line of
 // sight, Lone Operative 12", Engagement Range limits) instead of a bare range check.
-export function snapshotClosestEligible(ctx: EngineContext, attackerUnitId: UnitId, kind: 'ranged' | 'melee'): void {
+export function snapshotClosestEligible(ctx: EngineContext, attackerUnitId: UnitId, kind: 'ranged' | 'melee', declaredTargets: UnitId[] = []): void {
   const s = ctx.state
   if (!s.units[attackerUnitId]) return
   s.phaseState.marks = s.phaseState.marks.filter((m) => !m.startsWith(`${CLOSEST_PREFIX}${attackerUnitId}:`))
   const legal = kind === 'ranged' ? [...new Set(buildShootingWeaponEntries(ctx, attackerUnitId).flatMap((e) => e.legalTargets))] : undefined
-  const closest = leaderService.closestEligibleTargets(s, attackerUnitId, kind, legal)
+  let closest = leaderService.closestEligibleTargets(s, attackerUnitId, kind, legal)
+  if (closest.length > 1) {
+    // Rules Commentary (Closest Model/Unit): on a tie the controlling player picks ONE unit as the closest. Deterministic stand-in for that
+    // choice: the first tied unit the declaration actually targets (the pick that benefits the player), else the first tied unit by id.
+    const declared = new Set(declaredTargets.map((id) => leaderService.canonicalUnitId(s, id)))
+    closest = [closest.find((id) => declared.has(id)) ?? [...closest].sort()[0]]
+  }
   s.phaseState.marks.push(`${closestKey(attackerUnitId, kind)}${closest.join(',')}`)
 }
 

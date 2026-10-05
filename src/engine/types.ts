@@ -308,7 +308,7 @@ export interface AttackSequenceState {
   targets: DeclaredTarget[]
   groups: AttackGroup[]
   current: CurrentAttack | null
-  mortalQueue: { targetUnitId: UnitId; count: number; source: string; lostOnDeath: boolean }[]
+  mortalQueue: { targetUnitId: UnitId; count: number; source: string; lostOnDeath: boolean; by?: { player: PlayerId; unitId: UnitId; modelId: ModelId } }[]
   hazardousPending: WeaponId[]
   targetUnitIds: UnitId[]
 }

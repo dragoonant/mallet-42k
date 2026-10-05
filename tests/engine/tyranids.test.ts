@@ -36,7 +36,7 @@ const ORK = (o: Partial<PlayerSetup> = {}): PlayerSetup => ({
 })
 
 const PRIME = 'A:prime', PSY = 'A:psychophage', TERM = 'A:termagants', BARB = 'A:barbgaunts', LEAP = 'A:leapers'
-const BOYZ = 'B:boyz-a', BOYZ2 = 'B:boyz-b'
+const BOYZ = 'B:boyz-a', BOYZ2 = 'B:boyz-b', WARBOSS = 'B:warboss'
 const SHADOW = 'tyr.a.shadow-in-the-warp'
 
 function makeState(o: { round?: number; a?: Partial<PlayerSetup> } = {}): GameState {
@@ -527,6 +527,22 @@ describe('Feeding Frenzy (TYR-6.2)', () => {
     expect(hitMods(s, ctx, melee(), 'onWoundRoll').modifier).toBe(1)
   })
 
+  it('TYR-029 TYR-6.2: a wounded single-model target above half wounds gives +1 hit but not +1 wound (Starting Strength 1 = any wound lost)', () => {
+    const s = makeState()
+    phase(s, 'fight', 'A')
+    placeUnit(s, PSY, [[0, 0]])
+    placeUnit(s, WARBOSS, [[1.5, 0]])
+    const m = s.models[s.units[WARBOSS].models[0]]
+    const W = modelStats(s, m).W
+    const { ctx } = ctxOf(s, [])
+    expect(s.units[WARBOSS].models).toHaveLength(1)
+    expect(hitMods(s, ctx, attackOf(s, PSY, WARBOSS, 'melee'), 'onHitRoll').modifier).toBe(0)
+    m.woundsRemaining = W - 1
+    expect(m.woundsRemaining).toBeGreaterThanOrEqual(W / 2)
+    expect(hitMods(s, ctx, attackOf(s, PSY, WARBOSS, 'melee'), 'onHitRoll').modifier).toBe(1)
+    expect(hitMods(s, ctx, attackOf(s, PSY, WARBOSS, 'melee'), 'onWoundRoll').modifier).toBe(0)
+  })
+
   it('TYR-030 TYR-6.2: Feeding Frenzy does not apply to the psychoclastic torrent (ranged)', () => {
     const s = makeState()
     phase(s, 'shooting', 'A')
@@ -728,6 +744,19 @@ describe('Voracious Assault closest target is fixed at declaration (TYR-5.2)', (
     expect(s.units[BOYZ].location).toBe('destroyed')
     expect(hitMods(s, ctx, attackOf(s, TERM, BOYZ2, 'ranged'), 'onHitRoll').reroll).toBeUndefined()
     expect(hitMods(s, ctx, attackOf(s, TERM, BOYZ, 'ranged'), 'onHitRoll').reroll).toBe('all')
+  })
+
+  it('TYR-019 TYR-5.2: two tied units — the controlling player picks one; the snapshot keeps only the declared tied target', () => {
+    const s = makeState()
+    phase(s, 'shooting', 'A', { A: 3 })
+    placeUnit(s, TERM, [[-14, 0]])
+    placeUnit(s, BOYZ, [[-17, 7]])
+    placeUnit(s, BOYZ2, [[-11, 7]])
+    const { ctx } = ctxOf(s, [])
+    useStratagem(s, ctx, 'A', 'tyr.s.voracious-assault', 'shooting.start', {}, TERM)
+    attackService.begin(ctx, { kind: 'ranged', attackerUnitId: TERM, overwatch: false, targets: [declare(s, TERM, BOYZ2, 'ranged', 1)] })
+    expect(hitMods(s, ctx, attackOf(s, TERM, BOYZ2, 'ranged'), 'onHitRoll').reroll).toBe('all')
+    expect(hitMods(s, ctx, attackOf(s, TERM, BOYZ, 'ranged'), 'onHitRoll').reroll).toBeUndefined()
   })
 
   it('TYR-018 TYR-5.2: a unit that could not be targeted (Lone Operative beyond 12") does not count as closest', () => {
