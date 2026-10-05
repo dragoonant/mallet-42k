@@ -39,6 +39,7 @@ import { pushSnapshot, resetPresentation, usePresentedStore } from '../presentat
 import { rerollMuteActive, usePresentationSettings, type CommandRerollSetting, type RerollMute } from '../presentation/settings'
 import { critWouldPay, dieOutcomes, offerIndexes, rollForOffer } from '../ui/rerollInfo'
 import { isAnnouncementHolding } from '../presentation/announceStore'
+import { figureModelsLoading, waitForFigureModels } from '../figures/loadTracker'
 
 // ---------- setup defaults ----------
 /** A faction picked on the start screen: a legacy setup key ('space-marines', 'orks', 'necrons', 'tyranids') or any
@@ -93,6 +94,7 @@ function botPaceDelayMs(): number {
 // must never be able to leave the HUD showing "Opponent is thinking…" forever; see docs on runBotDecision below).
 // Both are a *rare safety net*: normal play resolves the presentation queue in well under a second and
 // decide() in low milliseconds, so neither cap should fire on a healthy turn.
+const FIGURE_LOAD_TIMEOUT_MS = 20000 // cap on waiting for freshly placed figures' models to load
 const PRESENTATION_IDLE_TIMEOUT_MS = 3000 // cap on waiting for the director's queue to drain before deciding anyway
 const PRESENTATION_IDLE_PER_EVENT_MS = 150 // extra wait allowed per event still waiting to be presented (capped at 200 events)
 const BOT_DECISION_TIMEOUT_MS = 3000 // absolute cap on how long we wait for decide() itself
@@ -505,7 +507,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
       // deliberate dead time the player can end with a click, not a stalled decision: hold the stall
       // clock while one is on screen so a run of announced phases can't trip the watchdog into
       // force-answering the bot over the top of the banner.
-      if (isAnnouncementHolding()) {
+      if (isAnnouncementHolding() || figureModelsLoading()) {
         watchdogPendingSince = Date.now()
         return
       }
@@ -560,6 +562,10 @@ export const useGameStore = create<GameStore>()((set, get) => {
       waitedOnPresentation = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - idleBefore > 1
       if (get().pending?.id !== expectedDecisionId) return
       await sleep(botPaceDelayMs())
+      if (get().pending?.id !== expectedDecisionId) return
+      // Figures that just hit the table (the last deployment above all) are still streaming in their
+      // models: hold play until they're on screen rather than running whole phases over stand-ins.
+      await waitForFigureModels(FIGURE_LOAD_TIMEOUT_MS)
       if (get().pending?.id !== expectedDecisionId) return
     }
     const { state, pending, legal, botSeat } = get()
