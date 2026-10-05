@@ -76,6 +76,12 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ['psycannon', 'psycannon-burst'] as const,
   ['greatsword', 'nemesis-force-swing'] as const,
   // T'au have their own generated sounds; the missile, stave and fists still borrow.
+  // Custodes: the spear's bolt-gun, spear/lance sweeps, sentinel blades and the executioner greatblade.
+  ['guardian-spear-ranged', 'guardian-spear-shot'] as const,
+  ['guardian-spear-melee', 'guardian-spear-swing'] as const,
+  ['interceptor-lance', 'guardian-spear-swing'] as const,
+  ['sentinel-blade', 'sentinel-blade-strike'] as const,
+  ['executioner-greatblade', 'castellan-axe-cleave'] as const,
   ['pulse-rifle', 'pulse-rifle-shot'] as const,
   ['pulse-carbine', 'pulse-carbine-burst'] as const,
   ['pulse-pistol', 'pulse-rifle-shot'] as const,
@@ -113,6 +119,9 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
 ].sort((a, b) => b[0].length - a[0].length)
 
 const WEAPON_TRIM: Partial<Record<SfxId, number>> = {
+  'guardian-spear-shot': 0.85,
+  'sentinel-blade-strike': 0.8,
+  'castellan-axe-cleave': 0.78,
   'pulse-rifle-shot': 0.75,
   'pulse-carbine-burst': 0.7,
   'burst-cannon-whir': 0.72,
@@ -195,8 +204,8 @@ const DEATH_SOUND: Record<string, SfxId> = {
   'chaos-space-marines': 'death-chaos-space-marines',
   'grey-knights': 'death-grey-knights',
   'tau-empire': 'death-tau',
+  'adeptus-custodes': 'death-adeptus-custodes',
   'genestealer-cults': 'death-genestealer-cults',
-  'adeptus-custodes': 'death-space-marines',
 }
 
 /** Measured decoded RMS runs 0.05-0.40 across these; the loud three are pulled back toward ~0.15. */
@@ -208,6 +217,7 @@ const DEATH_TRIM: Partial<Record<SfxId, number>> = {
   'death-tyranids': 0.5,
   'death-space-marines': 0.6,
   'death-tau': 0.65,
+  'death-adeptus-custodes': 0.8,
 }
 
 function deathSound(faction: string): EventSound {

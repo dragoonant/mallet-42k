@@ -759,7 +759,7 @@
       "prompt": "A heavy energised greatsword swung hard with a deep whoosh, a humming psychic edge, ending in a crunching metallic impact, no music",
       "durationSeconds": 1.4,
       "promptInfluence": 0.6
-    },
+    },
     {
       "id": "death-tau",
       "kind": "sfx",
@@ -835,6 +835,41 @@
       "kind": "sfx",
       "prompt": "A rough cheap automatic rifle burst, rattling uneven shots with a tinny crack, no reloading, no music",
       "durationSeconds": 1.2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "death-adeptus-custodes",
+      "kind": "sfx",
+      "prompt": "A towering golden-armoured warrior in a sealed helm is slain: a deep resonant helmeted grunt of dignified defeat, then a heavy armoured collapse with a ringing metallic clang. Solemn, no screaming, no music",
+      "durationSeconds": 2.5,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "guardian-spear-shot",
+      "kind": "sfx",
+      "prompt": "A bolt-gun built into a spear firing: heavy deep single bolt shots, precise and measured, three shots with a solid thump and crack, no reloading, no music",
+      "durationSeconds": 1.6,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "guardian-spear-swing",
+      "kind": "sfx",
+      "prompt": "A long polearm swept in a wide arc with a whoosh, ending in a crackling power-field impact, no music",
+      "durationSeconds": 1.4,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "sentinel-blade-strike",
+      "kind": "sfx",
+      "prompt": "A fast gleaming blade slash with a power-field hum and a bright metallic ring, no music",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "castellan-axe-cleave",
+      "kind": "sfx",
+      "prompt": "A huge two-handed executioner blade cleaving down with a deep whoosh and a heavy crackling power-field impact, a bright ringing finish, no music",
+      "durationSeconds": 1.5,
       "promptInfluence": 0.6
     }
   ]

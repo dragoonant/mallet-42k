@@ -37,6 +37,11 @@ export type SfxId =
   | 'webber-spray'
   | 'rock-drill-grind'
   | 'cult-autogun-burst'
+  | 'death-adeptus-custodes'
+  | 'guardian-spear-shot'
+  | 'guardian-spear-swing'
+  | 'sentinel-blade-strike'
+  | 'castellan-axe-cleave'
   | 'death-astra-militarum'
   | 'death-adepta-sororitas'
   | 'death-chaos-space-marines'
@@ -192,6 +197,11 @@ export const SFX_IDS: readonly SfxId[] = [
   'webber-spray',
   'rock-drill-grind',
   'cult-autogun-burst',
+  'death-adeptus-custodes',
+  'guardian-spear-shot',
+  'guardian-spear-swing',
+  'sentinel-blade-strike',
+  'castellan-axe-cleave',
   'death-astra-militarum',
   'death-adepta-sororitas',
   'death-chaos-space-marines',
