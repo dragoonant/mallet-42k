@@ -786,3 +786,31 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | GEN-035 | GEN-6.7 | Deep Strike: Magus, Neophytes, Acolytes may start in Reserves; Aberrants and Rockgrinder may not |
 | GEN-036 | GEN-6.9 | Rockgrinder offers no embark option to any unit |
 | GEN-037 | GEN-6 | weapons: webber auto-hits D6 with Devastating Wounds; seismic cannon Heavy +1 to hit when stationary and Rapid Fire 2 at ≤12"; clearance incinerator Torrent Ignores Cover |
+
+## CUS — Adeptus Custodes: Guardians of the Throne (docs/spec/factions/adeptus-custodes.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| CUS-001 | CUS-1 | patrol loads (default): 4 units, 15 models; Tyvan is WARLORD with Auramite Thunderbolt, attached to the Guard; default secondary Guardian of the Realm |
+| CUS-002 | CUS-1.1, 1.2 | `unitChoices:{escort:'praetors'}` → 4 units, 12 models, no Guard unit exists, Tyvan unattached |
+| CUS-003 | CUS-1.4, 6.1 | Guard wargear as built: vexilla model has only a misericordia (never selectable to shoot); shield models start at 4 W, spear models at 3; Tyvan starts at 7 W |
+| CUS-004 | CUS-2.1 | at the start of each Fight phase (both turns) the Custodes player gets a mandatory Dacatarai/Rendax choice; no choice when no Ka'tah unit is on the battlefield |
+| CUS-005 | CUS-2.2 | Dacatarai: Guard spear critical hit → 1 extra hit; Prosecutors' and Vigilators' melee unaffected; ranged weapons unaffected |
+| CUS-006 | CUS-2.3 | Rendax: Praetor lance critical hit auto-wounds; effect gone after the phase ends |
+| CUS-007 | CUS-2.4 | attached Tyvan + Guard: Tyvan's sentinel blade also gains the stance |
+| CUS-008 | CUS-3.1 | Auramite Thunderbolt: failed charge of Tyvan's unit is re-rolled; a passing charge offers an optional re-roll; Advance roll of the unit offers a re-roll; other units get none |
+| CUS-009 | CUS-3.2 | Blade of the Vaults: bearer's critical wound with sentinel blade (AP −2) → resolved at AP −3; non-critical wound stays −2; a Guard model's critical wound is unchanged |
+| CUS-010 | CUS-4.1 | Guardian of the Realm: Tyvan kills a model whose unit started the phase off every marker → +1 VP at phase end; started within range of a marker → +2; two kills in one phase → still 2 max |
+| CUS-011 | CUS-4.1 | Guardian of the Realm: kill by a Guard model of Tyvan's attached unit → 0; kill in the opponent's Fight phase scores; a victim unit that arrived by Deep Strike this phase counts as not in range |
+| CUS-012 | CUS-4.2 | Drive the Talons Deep: round 2+, end of opponent's turn, a non-shocked Custodes unit wholly in the enemy zone → +3; one model straddling the edge → 0; round 1 → 0; end of own turn → 0; Battle-shocked unit → 0 |
+| CUS-013 | CUS-4.2 | Necron Reclaim and Dominate still filters on NECRONS after the keyword param change |
+| CUS-014 | CUS-5.1 | Gilded Spear: offered only just after an enemy attack destroys Tyvan (any phase, incl. Overwatch); afterwards Custodes ranged attacks against that enemy unit have Sustained Hits 1 for the rest of the battle; against other units, and in melee, no change |
+| CUS-015 | CUS-5.1 | Gilded Spear: not offered when Tyvan is destroyed outside an enemy attack (e.g. mortal wounds from an enemy ability, own Hazardous) or when a non-Captain model dies; enemy attached unit marked → both halves stay marked after the leader dies |
+| CUS-016 | CUS-5.2 | Inescapable Vengeance (2 CP): own Command phase, target unit OC +1 (Guard 3, Prosecutors 3); persists through the opponent's turn; gone at the start of the owner's next turn; Battle-shocked unit not targetable |
+| CUS-017 | CUS-5.3 | Overawing Magnificence: enemy falls back from Custodes INFANTRY unit → offered; unit makes a normal move up to 6" and must end outside Engagement Range |
+| CUS-018 | CUS-5.3 | Overawing Magnificence not offered: unit still in Engagement Range of another enemy; unit was not engaged with the mover at phase start; enemy made a normal move; Vertus Praetors (not INFANTRY); own turn |
+| CUS-019 | CUS-6.2 | Stand Vigil: wound roll of 1 re-rolled; on a controlled marker a failed 3 may be re-rolled too; on an uncontrolled / contested marker only 1s; attached Tyvan's attacks also benefit |
+| CUS-020 | CUS-6.3 | Purity of Execution: boltgun vs PSYKER unit → Precision (may allocate to a CHARACTER) and Devastating Wounds (crit wound → mortal wounds); vs non-PSYKER → neither; melee unaffected |
+| CUS-021 | CUS-6.4 | Deft Parry: melee attacks against Vigilators −1 to hit; ranged attacks unchanged; combined with another −1 still capped at −1 |
+| CUS-022 | CUS-6 | weapons: executioner greatblade Anti-PSYKER 4+ (wound roll 4 vs PSYKER is critical → Devastating Wounds); interceptor lance +1 to wound on the charge; hurricane bolter Rapid Fire 3 + Twin-linked at half range; sentinel blade Pistol usable in Engagement Range |
+| CUS-023 | CUS-6 | Deep Strike: Tyvan, Guard may start in Reserves; Praetors, Prosecutors, Vigilators may not |
+| CUS-024 | E2 | weapon-ability queries without an attack context are unchanged (Champion Duellist, Veil of Time, Epic Challenge regression) |
