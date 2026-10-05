@@ -102,6 +102,8 @@ interface UiState {
   /** Objective a chooseOption/stratagem prompt option is naming — highlighted on the board while its
    *  button is hovered (src/client/ui/DecisionPrompt.tsx, src/client/board/Objectives.tsx). */
   hoveredObjectiveId: string | null
+  /** Models whose unit / model row is hovered in the unit card — they glow on the board. */
+  glowModelIds: readonly string[]
   /** For `deployUnit`: which of context.unitIds the player is currently placing (palette selection). */
   deployTargetUnitId: string | null
   draft: PlacementDraft | null
@@ -142,6 +144,7 @@ interface UiState {
   hoverUnit(ids: string | readonly string[] | null): void
   hoverModel(id: string | null): void
   hoverObjective(id: string | null): void
+  glowModels(ids: readonly string[]): void
   setDeployTarget(id: string | null): void
   setDraft(draft: PlacementDraft | null): void
   setPreviewDraft(draft: PlacementDraft | null): void
@@ -185,6 +188,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   hoveredUnitIds: [],
   hoveredModelId: null,
   hoveredObjectiveId: null,
+  glowModelIds: [],
   deployTargetUnitId: null,
   draft: null,
   previewDraft: null,
@@ -202,13 +206,14 @@ export const useUiStore = create<UiState>((set, get) => ({
   formationFacingAuto: true,
   formationMemory: {},
   nudge: null,
-  selectUnit: (id) => set({ selectedUnitId: id }),
+  selectUnit: (id) => set({ selectedUnitId: id, glowModelIds: [] }),
   hoverUnit: (ids) => {
     const list = ids === null ? [] : typeof ids === 'string' ? [ids] : [...ids]
     set({ hoveredUnitId: list[0] ?? null, hoveredUnitIds: list })
   },
   hoverModel: (id) => set({ hoveredModelId: id }),
   hoverObjective: (id) => set({ hoveredObjectiveId: id }),
+  glowModels: (ids) => set({ glowModelIds: ids }),
   setDeployTarget: (id) => set({ deployTargetUnitId: id, draft: null }),
   setDraft: (draft) => set({ draft }),
   setPreviewDraft: (previewDraft) => set({ previewDraft }),
@@ -254,6 +259,7 @@ export const useUiStore = create<UiState>((set, get) => ({
       hoveredUnitIds: [],
       hoveredModelId: null,
       hoveredObjectiveId: null,
+      glowModelIds: [],
       deployTargetUnitId: null,
       draft: null,
       previewDraft: null,

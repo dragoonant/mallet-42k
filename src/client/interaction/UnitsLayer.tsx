@@ -81,6 +81,7 @@ interface UnitModelProps {
   isClickable: boolean
   isHovered: boolean
   isHoveredModel: boolean
+  isGlowing: boolean
   los: ComponentProps<typeof LosMarker>['status'] | undefined
 }
 
@@ -117,6 +118,7 @@ const UnitModel = memo(function UnitModel(p: UnitModelProps) {
             selected={p.isSelected}
             highlighted={p.isClickable}
             hovered={p.isHovered || p.isHoveredModel}
+            glowing={p.isGlowing}
             onClick={onClick}
           />
           {p.isSelected && <SelectionRing pos={LOCAL_ORIGIN} baseRadius={p.baseRadius} />}
@@ -141,6 +143,8 @@ export function UnitsLayer() {
   // Single-model hover: an allocateAttack prompt names one model of a unit, and lighting up the
   // whole unit wouldn't answer "which figure is this button?" (owner playtest).
   const hoveredModelId = useUiStore((s) => s.hoveredModelId)
+  // Unit-card hover: the models of the hovered unit / model row glow.
+  const glowModelIds = useUiStore((s) => s.glowModelIds)
   const losOn = useUiStore((s) => s.losOn)
   const unitAction = useCueStore((s) => s.unitAction)
   const modelAction = useCueStore((s) => s.modelAction)
@@ -191,6 +195,7 @@ export function UnitsLayer() {
                   isClickable={isClickable}
                   isHovered={isHovered}
                   isHoveredModel={isHoveredModel}
+                  isGlowing={glowModelIds.includes(modelId)}
                   los={losOn ? losStatus[unit.id] : undefined}
                 />
               )

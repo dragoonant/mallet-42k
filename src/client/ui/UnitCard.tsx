@@ -35,6 +35,8 @@ interface WoundRow {
   count: number
   wounds: number
   max: number
+  /** The models this row stands for — they glow on the board while the row is hovered. */
+  modelIds: string[]
 }
 
 /** Max wounds for one model: the engine's resolved profile (datasheet + overrides), falling back to the
@@ -67,11 +69,13 @@ function woundRows(state: GameState, models: Model[], datasheetId: string): Woun
     if (m.woundsRemaining >= max) {
       const key = `${m.datasheetModelId}|full|${max}`
       const existing = rows.find((r) => r.key === key)
-      if (existing) existing.count++
-      else rows.push({ key, name: nameOf(m), count: 1, wounds: m.woundsRemaining, max })
+      if (existing) {
+        existing.count++
+        existing.modelIds.push(m.id)
+      } else rows.push({ key, name: nameOf(m), count: 1, wounds: m.woundsRemaining, max, modelIds: [m.id] })
     } else {
       const suffix = (sameKind.get(m.datasheetModelId) ?? 0) > 1 ? ` #${idx}` : ''
-      rows.push({ key: m.id, name: `${nameOf(m)}${suffix}`, count: 1, wounds: m.woundsRemaining, max })
+      rows.push({ key: m.id, name: `${nameOf(m)}${suffix}`, count: 1, wounds: m.woundsRemaining, max, modelIds: [m.id] })
     }
   }
   return rows
@@ -87,6 +91,7 @@ function barColor(fraction: number): string {
 }
 
 function WoundRows({ rows }: { rows: WoundRow[] }) {
+  const glowModels = useUiStore((s) => s.glowModels)
   return (
     <div style={woundsBox}>
       {rows.map((r) => {
@@ -96,6 +101,8 @@ function WoundRows({ rows }: { rows: WoundRow[] }) {
           <div
             key={r.key}
             data-testid="unit-card-wound-row"
+            onMouseEnter={() => glowModels(r.modelIds)}
+            onMouseLeave={() => glowModels([])}
             style={{ ...woundRowStyle, background: damaged ? 'rgba(255,106,95,0.14)' : 'transparent' }}
           >
             <span
@@ -244,6 +251,9 @@ export function UnitCard() {
   // way to dismiss it — clear the selection whenever the phase moves on.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => selectUnit(null), [phase])
+  const glowModels = useUiStore((s) => s.glowModels)
+  // Never leave figures glowing once the card closes.
+  useEffect(() => () => glowModels([]), [glowModels])
 
   if (!state || !selectedUnitId) return null
   const unit = state.units[selectedUnitId]
@@ -272,7 +282,14 @@ export function UnitCard() {
       <button style={closeButton} data-testid="unit-card-close" aria-label="Close" onClick={() => selectUnit(null)}>
         ✕
       </button>
-      <div style={{ color, fontWeight: 700 }}>{unit.name}</div>
+      <div
+        style={{ color, fontWeight: 700, cursor: 'default' }}
+        data-testid="unit-card-name"
+        onMouseEnter={() => glowModels(unit.models)}
+        onMouseLeave={() => glowModels([])}
+      >
+        {unit.name}
+      </div>
       <div style={mutedText}>{state.players[unit.player].name}</div>
       <div style={{ fontSize: 13, marginTop: 6 }}>
         {models.length}/{unit.startingStrength} models
