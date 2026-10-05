@@ -36,28 +36,37 @@ function randomSeed(): string {
   return Math.random().toString(36).slice(2, 10)
 }
 
-// Title art (public/assets/ui/title-bg.webp, 1024x572) carries the logo and subtitle in its top-centre
-// ~42%. The art is pinned to the top and sized to cover; the spacer matches where the subtitle ends at
-// that size, so the setup panel always starts below it. On portrait screens the art is drawn at 180vw
-// wide instead of height-cover, so the whole logo stays on screen rather than being cropped at the sides.
+// Title art (public/assets/ui/title-bg.webp, 1024x572) carries the logo and subtitle between ~8% and
+// ~42% of its height. The art is drawn at height --art (whole image visible, never wider-than-screen
+// scaling), shifted up 8% to drop the empty sky, with a blurred copy filling any side gutters. The
+// spacer ends just under the subtitle and the setup panel fills the rest of the screen, scrolling
+// inside itself with Start Battle pinned at the bottom, so the page never needs scrolling.
+// Portrait screens draw the art at 180vw wide so the logo stays large enough to read.
 const TITLE_BG = `${import.meta.env.BASE_URL}assets/ui/title-bg.webp`
 const layoutCss = `
-.ss-overlay { position: fixed; inset: 0; overflow-y: auto; font-family: ${fontStack}; color: ${colors.text};
-  background: #08080c url(${TITLE_BG}) center top / cover no-repeat; }
-.ss-overlay::before { content: ''; position: fixed; inset: 0; pointer-events: none;
-  background: linear-gradient(to bottom, transparent 0%, transparent 38%, rgba(6,6,10,0.55) 60%, rgba(6,6,10,0.85) 100%); }
-.ss-spacer { height: max(25.5vw, 46vh); }
-.ss-card { position: relative; margin: 0 auto 24px; width: 820px; max-width: calc(100% - 32px); box-sizing: border-box; }
-.ss-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 28px; }
-.ss-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-@media (max-aspect-ratio: 1/1) {
-  .ss-overlay { background-size: 180vw auto; }
-  .ss-spacer { height: 46vw; }
-}
+.ss-overlay { --art: min(100vh, 55.86vw); position: fixed; inset: 0; overflow-y: auto; font-family: ${fontStack};
+  color: ${colors.text}; background: #08080c; display: flex; flex-direction: column; }
+.ss-overlay::before { content: ''; position: fixed; inset: -40px; pointer-events: none;
+  background: url(${TITLE_BG}) center / cover no-repeat; filter: blur(18px) brightness(0.45); }
+.ss-overlay::after { content: ''; position: fixed; inset: 0; pointer-events: none;
+  background: url(${TITLE_BG}) center calc(var(--art) * -0.08) / auto var(--art) no-repeat; }
+.ss-spacer { flex: none; height: calc(var(--art) * 0.36); }
+.ss-card { position: relative; z-index: 1; margin: 0 auto 16px; width: 1180px; max-width: calc(100% - 32px);
+  box-sizing: border-box; flex: 1 1 auto; min-height: 300px; max-height: calc(100vh - var(--art) * 0.36 - 16px); }
+.ss-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 26px; overflow-y: auto;
+  min-height: 0; flex: 1 1 auto; padding-right: 4px; }
+.ss-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+@media (max-width: 1100px) { .ss-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 700px) { .ss-grid { grid-template-columns: 1fr; } }
+@media (max-aspect-ratio: 1/1) {
+  .ss-overlay { --art: 100vw; }
+  .ss-overlay::after { background-size: 180vw auto; }
+  .ss-card { max-height: none; overflow: visible; }
+  .ss-grid { overflow: visible; }
+}
 `
 
-const card: CSSProperties = { ...panel, background: 'rgba(12, 12, 18, 0.86)', padding: 22, display: 'flex', flexDirection: 'column', gap: 14 }
+const card: CSSProperties = { ...panel, background: 'rgba(12, 12, 18, 0.86)', padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }
 const srOnly: CSSProperties = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }
 const label: CSSProperties = { fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.8, color: colors.muted, marginBottom: -6 }
 const row: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap' }
@@ -163,25 +172,6 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
         </div>
         {activeFaction?.blurb && <p style={blurb}>{activeFaction.blurb}</p>}
 
-        <div style={label}>Mission</div>
-        <select style={select} value={mission} data-testid="setup-mission" onChange={(e) => setMission(e.target.value)}>
-          {MISSION_IDS.map((id) => (
-            <option key={id} value={id}>
-              {bundle?.missions[`mission.${id}`]?.name ?? `Combat Patrol — ${id.toUpperCase()}`}
-            </option>
-          ))}
-        </select>
-        {missionData?.text && <p style={missionBlurb}>{missionData.text}</p>}
-        {missionData && (
-          <ul style={missionList} data-testid="setup-mission-scoring">
-            {primaryScoringSummary(missionData).map((line, i) => (
-              <li key={i}>{line}</li>
-            ))}
-          </ul>
-        )}
-
-        </div>
-        <div className="ss-col">
         {patrol && patrol.secondaries.length > 0 && (
           <>
             <div style={label}>Your Secondary</div>
@@ -204,6 +194,27 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
           </label>
         )}
 
+        </div>
+        <div className="ss-col">
+        <div style={label}>Mission</div>
+        <select style={select} value={mission} data-testid="setup-mission" onChange={(e) => setMission(e.target.value)}>
+          {MISSION_IDS.map((id) => (
+            <option key={id} value={id}>
+              {bundle?.missions[`mission.${id}`]?.name ?? `Combat Patrol — ${id.toUpperCase()}`}
+            </option>
+          ))}
+        </select>
+        {missionData?.text && <p style={missionBlurb}>{missionData.text}</p>}
+        {missionData && (
+          <ul style={missionList} data-testid="setup-mission-scoring">
+            {primaryScoringSummary(missionData).map((line, i) => (
+              <li key={i}>{line}</li>
+            ))}
+          </ul>
+        )}
+
+        </div>
+        <div className="ss-col">
         <div style={label}>Opponent</div>
         <div style={row} data-testid="setup-patrol-B">
           <button style={opponent === 'bot' ? buttonActive : buttonBase} onClick={() => setOpponent('bot')}>
@@ -252,18 +263,19 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
           </button>
         </div>
 
-        <button style={buttonBase} data-testid="open-painter" onClick={() => setPainting(true)}>
-          Paint army
-        </button>
-
         </div>
         </div>
 
         {error && <p style={errorText}>{error}</p>}
 
-        <button style={{ ...buttonPrimary, marginTop: 8, padding: '12px 16px', fontSize: 15 }} data-testid="start-game" disabled={loading} onClick={() => void start()}>
-          {loading ? 'Loading…' : 'Start Battle'}
-        </button>
+        <div style={{ ...row, flex: 'none', flexWrap: 'nowrap' }}>
+          <button style={{ ...buttonBase, padding: '12px 16px' }} data-testid="open-painter" onClick={() => setPainting(true)}>
+            Paint army
+          </button>
+          <button style={{ ...buttonPrimary, flex: 1, padding: '12px 16px', fontSize: 15 }} data-testid="start-game" disabled={loading} onClick={() => void start()}>
+            {loading ? 'Loading…' : 'Start Battle'}
+          </button>
+        </div>
       </div>
       {painting && <PainterPanel factions={factions} initialFaction={factionId} onClose={() => setPainting(false)} />}
     </div>
