@@ -20,21 +20,29 @@ function randomSeed(): string {
   return Math.random().toString(36).slice(2, 10)
 }
 
-const overlay: CSSProperties = {
-  position: 'fixed',
-  inset: 0,
-  display: 'grid',
-  placeItems: 'center',
-  background: 'radial-gradient(ellipse at center, #1b1c26 0%, #08080c 100%)',
-  fontFamily: fontStack,
-  color: colors.text,
-  overflowY: 'auto',
-  padding: 24,
+// Title art (public/assets/ui/title-bg.webp, 1024x572) carries the logo and subtitle in its top-centre
+// ~42%. The art is pinned to the top and sized to cover; the spacer matches where the subtitle ends at
+// that size, so the setup panel always starts below it. On portrait screens the art is drawn at 180vw
+// wide instead of height-cover, so the whole logo stays on screen rather than being cropped at the sides.
+const TITLE_BG = `${import.meta.env.BASE_URL}assets/ui/title-bg.webp`
+const layoutCss = `
+.ss-overlay { position: fixed; inset: 0; overflow-y: auto; font-family: ${fontStack}; color: ${colors.text};
+  background: #08080c url(${TITLE_BG}) center top / cover no-repeat; }
+.ss-overlay::before { content: ''; position: fixed; inset: 0; pointer-events: none;
+  background: linear-gradient(to bottom, transparent 0%, transparent 38%, rgba(6,6,10,0.55) 60%, rgba(6,6,10,0.85) 100%); }
+.ss-spacer { height: max(25.5vw, 46vh); }
+.ss-card { position: relative; margin: 0 auto 24px; width: 820px; max-width: calc(100% - 32px); box-sizing: border-box; }
+.ss-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 28px; }
+.ss-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+@media (max-aspect-ratio: 1/1) {
+  .ss-overlay { background-size: 180vw auto; }
+  .ss-spacer { height: 46vw; }
 }
+@media (max-width: 700px) { .ss-grid { grid-template-columns: 1fr; } }
+`
 
-const card: CSSProperties = { ...panel, width: 460, maxWidth: '100%', padding: 28, display: 'flex', flexDirection: 'column', gap: 14 }
-const heading: CSSProperties = { margin: 0, fontSize: 26, letterSpacing: 0.4 }
-const subtitle: CSSProperties = { ...mutedText, marginTop: -8, marginBottom: 4 }
+const card: CSSProperties = { ...panel, background: 'rgba(12, 12, 18, 0.86)', padding: 22, display: 'flex', flexDirection: 'column', gap: 14 }
+const srOnly: CSSProperties = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }
 const label: CSSProperties = { fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.8, color: colors.muted, marginBottom: -6 }
 const row: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap' }
 const select: CSSProperties = { ...buttonBase, cursor: 'pointer', width: '100%' }
@@ -98,10 +106,13 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
   }
 
   return (
-    <div style={overlay}>
-      <div style={card}>
-        <h1 style={heading}>Mallet 42k</h1>
-        <p style={subtitle}>A tabletop-style Combat Patrol skirmish — original chibi forces, ten-inch dice trays optional.</p>
+    <div className="ss-overlay" data-testid="start-screen">
+      <style>{layoutCss}</style>
+      <h1 style={srOnly}>Mallet 42,000 — SD Assault: Galaxy in Conflict</h1>
+      <div className="ss-spacer" />
+      <div className="ss-card" style={card}>
+        <div className="ss-grid">
+        <div className="ss-col">
 
         <div style={label}>Your Faction</div>
         <div style={row} data-testid="setup-patrol-A">
@@ -130,6 +141,8 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
           </ul>
         )}
 
+        </div>
+        <div className="ss-col">
         {patrol && patrol.secondaries.length > 0 && (
           <>
             <div style={label}>Your Secondary</div>
@@ -176,6 +189,9 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
           <button style={buttonBase} onClick={() => setSeed(randomSeed())}>
             Reroll
           </button>
+        </div>
+
+        </div>
         </div>
 
         {error && <p style={errorText}>{error}</p>}
