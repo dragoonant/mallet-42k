@@ -150,9 +150,9 @@ function controlsNow(ctx: EngineContext, objectiveId: string, player: PlayerId):
   const s = ctx.state
   const obj = s.objectives[objectiveId]
   if (!obj || obj.removed) return false
-  if (obj.securedBy) return obj.securedBy === player
   const levels = ctx.services.objectives.levelOfControl(s, objectiveId)
   const other: PlayerId = player === 'A' ? 'B' : 'A'
+  if (obj.securedBy) return levels[other] > levels[obj.securedBy] ? other === player : obj.securedBy === player // RC-048
   if (levels[player] !== levels[other]) return levels[player] > levels[other]
   return obj.stickyBy === player
 }

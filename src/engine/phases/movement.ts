@@ -596,7 +596,11 @@ function cullStrandedReserves(ctx: EngineContext, endOfRound3 = false): void {
       destroyed = removeModel(s, mid)
       ctx.emit({ type: 'ModelDestroyed', unitId, modelId: mid, byPlayer: null, byUnitId: null, byModelId: null, kind: 'other', player })
     }
-    if (destroyed) ctx.emit({ type: 'UnitDestroyed', unitId, byPlayer: null, byUnitId: null, byModelId: null, kind: 'other', player })
+    if (destroyed) {
+      ctx.emit({ type: 'UnitDestroyed', unitId, byPlayer: null, byUnitId: null, byModelId: null, kind: 'other', player })
+      // CSM-06: a stranded unit counts as destroyed for mission rules (Marked for Execution on a stranded Warlord)
+      ctx.services.missions.unitDestroyed?.(ctx, { unitId, byPlayer: null, byUnitId: null, byModelId: null })
+    }
   }
   for (const u of Object.values(s.units)) {
     if (u.location !== 'reserves') continue

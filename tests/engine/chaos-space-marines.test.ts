@@ -14,6 +14,7 @@ import { effectService } from '../../src/engine/effects'
 import { hookService } from '../../src/engine/hooks-impl'
 import { leaderService } from '../../src/engine/leaders'
 import { fightOnDeathThreshold } from '../../src/engine/fight-on-death'
+import { movementModule } from '../../src/engine/phases/movement'
 import { stratagemService } from '../../src/engine/stratagems'
 import { placeUnit } from '../fixtures'
 
@@ -638,5 +639,24 @@ describe('Patrol and attachments (CHA-1)', () => {
     const s = makeState({ a: { attachments: [{ leaderRef: 'zarkan', bodyguardRef: 'legionaries' }] } })
     expect(leaderService.isAttached(s, LEG)).toBe(true)
     expect(() => makeState({ a: { attachments: [{ leaderRef: 'zarkan', bodyguardRef: 'cultists' }] } })).toThrow()
+  })
+})
+
+describe('Marked for Execution on a stranded Warlord (CSM-06)', () => {
+  it('CHA-014 CSM-06 CHA-4: a Warlord still in Reserves at the end of round 3 counts as destroyed and scores 12 VP, once', () => {
+    const s = makeState({ round: 3, phase: 'movement', active: 'B' })
+    s.firstPlayer = 'A'
+    s.step = 'reinforcements'
+    Object.values(s.units).filter((u) => u.location === 'reserves' && u.id !== BOSS).forEach((u, i) => placeUnit(s, u.id, [[-20 + i * 3, 12]]))
+    expect(s.units[BOSS].location).toBe('reserves')
+    const { ctx } = ctxOf(s, [])
+    expect(movementModule.advance(ctx)).toBe('pending') // the Warlord is offered its arrival; the owner leaves it in Reserves
+    const pending = s.pending as Extract<PendingDecision, { kind: 'deployUnit' }>
+    s.pending = null
+    expect(movementModule.handle(ctx, { type: 'deployUnit', player: pending.player, decisionId: pending.id, unitId: BOSS, placements: [], toReserves: true }, pending)).toBeUndefined()
+    expect(movementModule.advance(ctx)).toBe('done')
+    expect(s.units[BOSS].location).toBe('destroyed')
+    expect(s.players.A.vp).toBe(12)
+    expect(s.players.A.secondaryState.markedScored).toBe(true)
   })
 })
