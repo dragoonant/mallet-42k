@@ -374,7 +374,9 @@ function doHitBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
       continue
     }
     const opts = hitOpts(ctx, a, g, weapon, model)
-    for (let i = 0; i < g.attacks; i++) { dies.push({ actx, needed: weapon.skill ?? 7, opts }); meta.push({ gi: j, model, weapon }) }
+    // Overwatch hits only on an unmodified 6, so the roll (and the tray/log reading it) must say 6+, not the weapon's skill
+    const needed = a.overwatch ? 6 : weapon.skill ?? 7
+    for (let i = 0; i < g.attacks; i++) { dies.push({ actx, needed, opts }); meta.push({ gi: j, model, weapon }) }
   }
   if (dies.length > 0) {
     const res = rollBatchD6(ctx, `hit:${lead}`, 'onHitRoll', dies)
