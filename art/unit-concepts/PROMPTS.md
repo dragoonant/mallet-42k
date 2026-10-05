@@ -66,3 +66,9 @@ MGSD proportions; variants made by editing a clean base image in Gemini.
 `gk-terminator` Terminator with storm bolter and halberd · `gk-terminator-psycannon` Terminator with psycannon ·
 `strike-justicar` Strike Squad leader · `strike-knight` Strike Knight, storm bolter and sword ·
 `strike-psilencer` Strike Knight with psilencer · `nemesis-dreadknight` large walker-armour Dreadknight.
+
+### T'au Empire (MGSD, 2026-10-05)
+MGSD proportions; variants made by editing a clean base image in Gemini.
+`aun-shar` Ethereal, robes and honour blade · `shasnel-dtano` Fireblade with markerlight · `fire-warrior-rifle` pulse rifle trooper ·
+`fire-warrior-carbine` pulse carbine trooper · `fire-warrior-shasui` Shas'ui team leader · `stealth-shasvre` Stealth suit leader ·
+`stealth-shasui` Stealth suit with burst cannon · `ghostkeel` large stealth battlesuit.

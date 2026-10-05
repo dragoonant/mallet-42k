@@ -54,6 +54,14 @@ export const ENABLED_GLB_SLUGS: readonly string[] = [
   'strike-knight',
   'strike-psilencer',
   'nemesis-dreadknight',
+  'aun-shar',
+  'shasnel-dtano',
+  'fire-warrior-rifle',
+  'fire-warrior-carbine',
+  'fire-warrior-shasui',
+  'stealth-shasvre',
+  'stealth-shasui',
+  'ghostkeel',
 ]
 
 export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
@@ -124,6 +132,16 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'gk.strike-squad/knight': 'strike-knight',
   'gk.strike-squad/psilencer': 'strike-psilencer',
   'gk.nemesis-dreadknight/dreadknight': 'nemesis-dreadknight',
+
+  // T'au Empire (MGSD GLBs).
+  'tau.aun-shar/aun-shar': 'aun-shar',
+  'tau.shasnel-dtano/fireblade': 'shasnel-dtano',
+  'tau.strike-team/fire-warrior-rifle': 'fire-warrior-rifle',
+  'tau.strike-team/fire-warrior-carbine': 'fire-warrior-carbine',
+  'tau.strike-team/shasui': 'fire-warrior-shasui',
+  'tau.stealth-battlesuits/shasvre': 'stealth-shasvre',
+  'tau.stealth-battlesuits/shasui': 'stealth-shasui',
+  'tau.ghostkeel/ghostkeel': 'ghostkeel',
 }
 
 /** The enabled GLB slug for a model type, or undefined (use the procedural figure). */
