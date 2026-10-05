@@ -235,7 +235,7 @@ Neither CP box contains AIRCRAFT; out of scope for the engine until a roster nee
 | R-9.9 | Attacks use the §6.2 sequence with WS. Resolve per target unit, per profile grouping. All declared attacks are made even if the target is no longer in ER. |
 | R-9.10 | Consolidate: as Pile In (≤ 3", closer to closest enemy, base contact if possible, end within ER of an enemy and in coherency). If that is impossible: each model may instead move ≤ 3" toward the closest objective marker, only if the unit ends within range of that marker and in coherency. Otherwise no move. |
 | R-9.11 | After a fight, previously ineligible units may have become eligible (dragged into ER); they can be selected in the current or later step per R-9.3. |
-| R-9.12 | Counter-offensive (2 CP): right after an enemy unit fought, one of your eligible units that has not fought this phase fights next, overriding alternation. |
+| R-9.12 | Counter-offensive (2 CP): right after an enemy unit fought, one of your eligible units that has not fought this phase fights next, overriding alternation. The inserted unit counts as a selection, so the opponent selects after it [interp, RC-040]. |
 | R-9.13 | Fight phase ends when no eligible unfought units remain in either step; then the turn ends (R-2.6 coherency cull, `turn.end`). |
 
 ## 10. Unit-level core abilities

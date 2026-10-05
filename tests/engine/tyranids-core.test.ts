@@ -63,6 +63,13 @@ const of = <T extends GameEvent['type']>(events: GameEvent[], type: T) => events
 const radius = (s: GameState, unitId: string) => s.models[s.units[unitId].models[0]].base.radius
 
 // engaged pair: the Prime at the origin and a Boyz unit a half inch away (edge to edge)
+// TYR-02: the Boyz are mid-activation (attacks step done) when the Prime is destroyed, so Death Blow is offered before they consolidate
+function boyzJustAttacked(s: GameState): void {
+  const fight = s.phaseState.fight!
+  fight.currentUnitId = BOYZ
+  fight.subStep = 'attacks'
+  s.phaseState.marks.push(`fi:selWindow:${BOYZ}`)
+}
 function engagePrimeAndBoyz(s: GameState): void {
   placeUnit(s, PRIME, [[0, 0]])
   placeUnit(s, BOYZ, [[radius(s, PRIME) + radius(s, BOYZ) + 0.5, 0]])
@@ -94,7 +101,7 @@ describe('Death Blow deferred removal (TYR-6.1)', () => {
     expect(pendingDeathBlowUnits(s)).toEqual([])
   })
 
-  it('TYR-026 TYR-6.1: the controller declines → ModelDestroyed at once; accepting selects the Prime out of alternation and removes it after it fights', () => {
+  it('TYR-026 TYR-02 TYR-6.1: Death Blow is offered before the attacker consolidates; the model piles in, fights as a deferred model (no unit selection) and is then removed', () => {
     for (const choice of ['decline', 'fight'] as const) {
       const s = makeState()
       phase(s, 'fight', 'B')
@@ -102,6 +109,7 @@ describe('Death Blow deferred removal (TYR-6.1)', () => {
       const prime = s.units[PRIME].models[0]
       const { ctx, events } = ctxOf(s, [4, ...Array(300).fill(1)])
       attackService.destroyModel(ctx, prime, { player: 'B', unitId: BOYZ, modelId: s.units[BOYZ].models[0], kind: 'melee' })
+      boyzJustAttacked(s)
       expect(fightModule.advance(ctx)).toBe('pending')
       let pending = s.pending as ChooseOptionDecision
       expect(pending.kind).toBe('chooseOption')
@@ -115,13 +123,17 @@ describe('Death Blow deferred removal (TYR-6.1)', () => {
         expect(s.units[PRIME].location).toBe('destroyed')
         continue
       }
-      expect(s.phaseState.fight!.currentUnitId).toBe(PRIME)
-      expect(of(events, 'FightUnitSelected').map((e) => e.unitId)).toEqual([PRIME])
-      // drive the Prime's activation: pile in / attacks / consolidate answered with the first legal action, windows passed
-      for (let guard = 0; guard < 60 && s.phaseState.fight!.currentUnitId === PRIME; guard++) {
+      // not a unit activation: the Boyz are still the active unit and the Prime was never selected to fight
+      expect(s.phaseState.fight!.currentUnitId).toBe(BOYZ)
+      expect(of(events, 'FightUnitSelected')).toHaveLength(0)
+      let sawPileIn = false, sawConsolidate = false, modelGoneAtConsolidate = false
+      // drive the sequence: pile in / attacks / consolidate answered with the first legal action, windows passed
+      for (let guard = 0; guard < 80 && s.phaseState.fight!.currentUnitId === BOYZ; guard++) {
         const r = fightModule.advance(ctx)
         if (r === 'done') break
         const cur = s.pending as unknown as PendingDecision
+        if (cur.kind === 'pileIn' && (cur.context as { unitId: string }).unitId === PRIME) sawPileIn = true
+        if (cur.kind === 'consolidate') { sawConsolidate = true; modelGoneAtConsolidate = s.models[prime] === undefined }
         const isStrat = cur.kind === 'stratagemWindow' || cur.kind === 'reactionWindow' || cur.kind === 'commandReroll'
         const options = (isStrat ? [] : fightModule.legalActions?.(s, cur) ?? []) as Action[]
         const action: Action = options[0] ?? { type: 'pass', player: cur.player, decisionId: cur.id }
@@ -130,14 +142,18 @@ describe('Death Blow deferred removal (TYR-6.1)', () => {
         const res = owner.handle(ctx, { ...action, player: cur.player, decisionId: cur.id } as Action, cur)
         if (res) throw new Error(`rejected ${res.code} ${res.reason}`)
       }
-      expect(s.phaseState.fight!.fought).toContain(PRIME)
+      // the Prime's last fight happens before the Boyz consolidate (if they get to), and it never consolidates itself
+      expect(sawPileIn).toBe(true)
+      if (sawConsolidate) expect(modelGoneAtConsolidate).toBe(true)
+      expect(s.phaseState.fight!.fought).not.toContain(PRIME)
+      expect(of(events, 'Consolidated').filter((e) => e.unitId === PRIME)).toHaveLength(0)
       // the Prime at 0 wounds really attacks: its own model rolls to hit
       expect(of(events, 'HitRolled').filter((e) => e.attack.attackerModelId === prime).length).toBeGreaterThan(0)
       expect(of(events, 'HitRolled').every((e) => e.attack.attackerUnitId === PRIME || e.attack.attackerUnitId === BOYZ)).toBe(true)
       expect(s.units[PRIME].location).toBe('destroyed')
       expect(of(events, 'ModelDestroyed').filter((e) => e.modelId === prime)).toHaveLength(1)
       expect(of(events, 'ModelDestroyed').find((e) => e.modelId === prime)).toMatchObject({ byPlayer: 'B', byUnitId: BOYZ })
-      // alternation resumes where it was: the Orks (the Prime's opponent) are next
+      // the Boyz's activation ended normally: the Tyranid player selects next
       expect(s.phaseState.fight!.nextToSelect).toBe('A')
     }
   })
@@ -197,12 +213,13 @@ describe('Death Blow deferred removal (TYR-6.1)', () => {
     const { ctx, events } = ctxOf(s, [4, ...Array(300).fill(5)])
     attackService.destroyModel(ctx, prime, { player: 'B', unitId: BOYZ, modelId: boyz, kind: 'melee' })
     expect(s.models[prime].pendingRemoval).toBeTruthy()
+    boyzJustAttacked(s)
     expect(fightModule.advance(ctx)).toBe('pending')
     let pending = s.pending as ChooseOptionDecision
     s.pending = null
     expect(fightModule.handle(ctx, { type: 'chooseOption', player: 'A', decisionId: pending.id, optionId: 'fight' }, pending as PendingDecision)).toBeUndefined()
     const boyzBefore = s.units[BOYZ].models.length
-    for (let guard = 0; guard < 80 && s.phaseState.fight!.currentUnitId === PRIME; guard++) {
+    for (let guard = 0; guard < 80 && s.phaseState.fight!.currentUnitId === BOYZ; guard++) {
       const r = fightModule.advance(ctx)
       if (r === 'done') break
       const cur = s.pending as unknown as PendingDecision

@@ -184,7 +184,7 @@ current attack's damage has fully resolved (before the next attack's allocation)
 — returns pending like any allocation decision — then drops any unconsumed request. The stratagem's existing
 `justDestroyed` target state matches `trigger.unitId`.
 
-**C5 — fight on death (Daemonic Fervour).** New module `src/engine/fight-on-death.ts`:
+**C5 — fight on death (Daemonic Fervour).** New module `src/engine/fight-on-death.ts` (CSM-09/CSM-10: each deferred unit first gets an optional pile-in via `deferredPileInStep` in fight.ts, then its targets come from `deferredWeapons`, the normal R-9.8 eligibility; the model never consolidates and is not selected to fight [interp]):
 ```ts
 export interface DeferredDeath { modelId: ModelId; unitId: UnitId; attackerUnitId: UnitId; by: DestroyedBy }
 // mark `fightOnDeath:<canonicalUnitId>:<threshold>` (phase-scoped)
@@ -246,7 +246,7 @@ Same list as the `CHA` section of 12-rules-test-checklist.
 | CHA-019 | CHA-5 | Vindictive Strategy not offered for a unit already selected to shoot / that already fought this phase |
 | CHA-020 | CHA-5 | Violent Unbinding: enemy melee attack destroys Zarkan, attacker within 6" → window opens before the next attack; D6 = 6 → 3 MW to the attacker |
 | CHA-021 | CHA-5 | Violent Unbinding: attacker more than 6" away (shooting) → stratagem not offered; D6 = 1 → no mortal wounds |
-| CHA-022 | CHA-5 | Daemonic Fervour: Possessed targeted in the Fight phase, model destroyed, D6 = 4 → model stays at 0 W, not allocatable, fights after the enemy unit's attacks, then removed |
+| CHA-022 | CHA-5 | Daemonic Fervour: Possessed targeted in the Fight phase, model destroyed, D6 = 4 → model stays at 0 W, not allocatable; before the enemy unit consolidates it may pile in (3", coherency kept against the live models), then attacks with normal fight eligibility (CSM-09/CSM-10), never consolidates; then removed |
 | CHA-023 | CHA-5 | Daemonic Fervour: D6 = 3 → removed normally; Possessed already fought this phase → no roll |
 | CHA-024 | CHA-5 | Daemonic Fervour: deferred model has no OC and is skipped by coherency; `UnitDestroyed` only after the last deferred model is removed; kill credited to the attacker |
 | CHA-025 | CHA-6 | Sacrificial Dagger: Zarkan selected to shoot, use → his unit suffers 1 MW; Rite of Possession gets +1 hit and +1 wound this phase; bolt pistol does not |

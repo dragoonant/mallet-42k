@@ -4,14 +4,12 @@
 // `attackService.finishDestroy`. All state lives in phase-scoped marks: `fightOnDeath:<canonicalUnitId>:<threshold>` and
 // `deferredDeath:<json DeferredDeath>`. The deferral roll + mark push is in `attack.ts` `destroyModel`; `state.ts` `unitModels`
 // skips deferred models, which keeps them out of every allocation pool, OC count, coherency check and targeting query.
-import { ENGAGEMENT_H, EPS, horizontalGap } from './geometry'
 import { leaderService } from './leaders'
 import type { EngineContext } from './modules'
 import { attackService, type DestroyedBy } from './attack'
-import { attacksFor, resolveModelWeapons } from './phases/fight'
-import { enemyModelsOnBoard, isDeferredDead } from './state'
-import { weaponService } from './weapons'
-import type { GameState, ModelId, UnitId, WeaponId } from './types'
+import { deferredPileInStep, deferredWeapons } from './phases/fight'
+import { isDeferredDead } from './state'
+import type { GameState, ModelId, UnitId } from './types'
 
 export { isDeferredDead }
 
@@ -57,14 +55,13 @@ function finishUnit(ctx: EngineContext, canon: UnitId): void {
   const s = ctx.state
   const mine = deferredDeaths(s).filter((d) => leaderService.canonicalUnitId(s, d.unitId) === canon)
   const ids = new Set<string>(mine.map((d) => d.modelId))
-  dropMarks(s, (m) => m === `fod:decl:${canon}` || m === `fi:declared:${canon}` || (m.startsWith(DEFERRED_PREFIX) && ids.has((JSON.parse(m.slice(DEFERRED_PREFIX.length)) as DeferredDeath).modelId)))
+  dropMarks(s, (m) => m === `fod:decl:${canon}` || m === `fod:pile:${canon}` || m === `fi:declared:${canon}` || (m.startsWith(DEFERRED_PREFIX) && ids.has((JSON.parse(m.slice(DEFERRED_PREFIX.length)) as DeferredDeath).modelId)))
   for (const d of mine) attackService.finishDestroy(ctx, d.modelId, d.by)
 }
 
 // Raise one melee declareTargets per owning unit (weapons = the deferred models only), resolve it as an ordinary melee attack
 // sequence, then remove them. 'pending' while a decision is open; re-entrant (the fight module re-calls it after each answer).
-// A deferred model within Engagement Range of no enemy is removed at once. [interp: a model's eligibility is ER only — the
-// "base contact with a friendly model that is in base contact" chain of R-9.6 is not applied to a model at 0 wounds.]
+// A deferred model that, after its optional pile-in, may attack nothing (normal R-9.8 eligibility) is removed at once.
 // Every deferred model is drained, not just those the current attacker killed: a deferred unit's own last attacks can defer
 // models of an enemy fight-on-death unit (mirror match), and those have the deferred unit as their `attackerUnitId`.
 export function resolveDeferredDeaths(ctx: EngineContext): 'pending' | 'done' {
@@ -84,22 +81,11 @@ export function resolveDeferredDeaths(ctx: EngineContext): 'pending' | 'done' {
       continue
     }
     const player = s.units[models[0].unitId].player
-    const enemyModels = enemyModelsOnBoard(s, player)
-    const weapons: Array<{ modelId: ModelId; weaponId: WeaponId; profileGroup: string | null; legalTargets: UnitId[]; attacks: number }> = []
-    for (const d of models) {
-      const m = s.models[d.modelId]
-      if (!m) continue
-      const legal = [...new Set(enemyModels
-        .filter((e) => horizontalGap(m, e) <= ENGAGEMENT_H + EPS && Math.abs(m.pos.y - e.pos.y) <= 5 + EPS)
-        .map((e) => leaderService.canonicalUnitId(s, e.unitId)))]
-      if (legal.length === 0) continue
-      const wids = resolveModelWeapons(ctx, d.modelId)
-      if (wids === 'pending') return 'pending'
-      for (const weaponId of wids) {
-        const w = weaponService.effectiveWeapon(s, d.modelId, weaponId)
-        weapons.push({ modelId: d.modelId, weaponId, profileGroup: w.profileGroup ?? null, legalTargets: legal, attacks: attacksFor(ctx, d.modelId, weaponId) })
-      }
-    }
+    // CSM-09: the deferred models may pile in first (Fight on Death), then attack by the normal R-9.8 eligibility (CSM-10)
+    const live = models.map((d) => s.models[d.modelId]).filter((m): m is NonNullable<typeof m> => !!m)
+    if (deferredPileInStep(ctx, `fod:pile:${canon}`, canon, live.map((m) => m.id)) === 'pending') return 'pending'
+    const weapons = deferredWeapons(ctx, canon, live)
+    if (weapons === 'pending') return 'pending'
     if (weapons.length === 0) { finishUnit(ctx, canon); continue }
     ctx.once(declKey)
     const engagedWith = [...new Set(weapons.flatMap((w) => w.legalTargets))]

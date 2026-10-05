@@ -393,3 +393,22 @@ describe('charge verify (R-8.4, R-8.5, R-8.8)', () => {
     expect(s.pending?.kind).toBe('chargeMove')
   })
 })
+
+describe('fight verify — RC-040 Counter-offensive is a selection', () => {
+  it('FIGHT-025 RC-040 after the Counter-offensive unit finishes the opponent selects next (no double activation for the CO player)', () => {
+    const { ctx } = harness(fightModule, misses(), counterOffensiveStub(AWalker, 'B', BBrute))
+    const s = ctx.state
+    placeUnit(s, AWalker, [{ x: -14, y: 0, z: -3 }])
+    placeUnit(s, BBrute, [rel(s, `${AWalker}#0`, BBrute, 0.5, [1, 0])])
+    placeUnit(s, ABoss, [{ x: 15, y: 0, z: -6 }])
+    for (const id of [AWalker, ABoss]) { s.units[id].turn.chargedThisTurn = true; s.units[id].turn.fightsFirst = true }
+    fightModule.advance(ctx)
+    act(fightModule, ctx, { type: 'chooseFightUnit', player: 'A', decisionId: DID, unitId: AWalker })
+    drive(ctx, (p) => p.kind === 'chooseFightUnit')
+    act(fightModule, ctx, { type: 'chooseFightUnit', player: 'B', decisionId: DID, unitId: BBrute })
+    expect(s.phaseState.fight!.nextToSelect).toBe('A')
+    drive(ctx, (p) => p.kind === 'chooseFightUnit' && s.phaseState.fight!.currentUnitId === null)
+    expect(s.phaseState.fight!.nextToSelect).toBe('A')
+    expect((s.pending as Extract<PendingDecision, { kind: 'chooseFightUnit' }>).player).toBe('A')
+  })
+})
