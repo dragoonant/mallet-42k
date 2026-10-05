@@ -191,16 +191,20 @@ function resolveMove(state: GameState, unitId: UnitId, moveType: MoveType, place
 // movement.moveStarted) and moves no model at all may end its move as it stands — otherwise a declared Normal/Advance
 // move could have no legal answer at all. The end-of-turn coherency cull (R-2.6) resolves it. Any placement that
 // actually moves a model still has to end coherent.
-function moveRejection(state: GameState, unitId: UnitId, moveType: MoveType, placements: ModelPlacement[], distance?: number): Rejection | null {
-  const r = resolveMove(state, unitId, moveType, placements, distance === undefined ? {} : { distance })
-  if (r.rejection?.code !== 'E_COHERENCY') return r.rejection
+function resolveMoveStayExempt(state: GameState, unitId: UnitId, moveType: MoveType, placements: ModelPlacement[], distance?: number): ReturnType<typeof resolveMove> {
+  const opts = distance === undefined ? {} : { distance }
+  const r = resolveMove(state, unitId, moveType, placements, opts)
+  if (r.rejection?.code !== 'E_COHERENCY') return r
   const models = unitModelsForCoherency(state, unitId)
   const stays = placements.every((p) => {
     const m = models.find((x) => x.id === p.modelId)
     return m !== undefined && Math.hypot(p.pos.x - m.pos.x, p.pos.y - m.pos.y, p.pos.z - m.pos.z) <= 1e-3
   })
-  if (!stays || isCoherent(models)) return r.rejection
-  return resolveMove(state, unitId, moveType, placements, { skipCoherency: true, ...(distance === undefined ? {} : { distance }) }).rejection
+  if (!stays || isCoherent(models)) return r
+  return resolveMove(state, unitId, moveType, placements, { skipCoherency: true, ...opts })
+}
+function moveRejection(state: GameState, unitId: UnitId, moveType: MoveType, placements: ModelPlacement[], distance?: number): Rejection | null {
+  return resolveMoveStayExempt(state, unitId, moveType, placements, distance).rejection
 }
 
 // ---------- Reactive Normal move (Tyranid Skulking Horrors, docs/spec/factions/tyranids.md 7.1 item 4) ----------
@@ -910,7 +914,9 @@ function doMove(ctx: EngineContext): 'pending' | 'select' {
   const placements: ModelPlacement[] = (JSON.parse(placementsRaw) as ModelPlacement[]).filter((p) => s.models[p.modelId])
   // RC-010: the re-submitted survivors' move (mv:deResub = '1') must end coherent; the original submission is replayed
   // without the coherency check only when no legal re-submission exists (mv:deResub = '0') or no casualty occurred
-  const result = resolveMove(s, unitId, moveType, placements, { skipCoherency: readMark(s, 'mv:deResub') !== '1' })
+  const result = readMark(s, 'mv:deResub') === '1'
+    ? resolveMoveStayExempt(s, unitId, moveType, placements)
+    : resolveMove(s, unitId, moveType, placements, { skipCoherency: true })
   if (result.rejection) throw new EngineInvariantError('movement: stored placements failed re-validation', { rejection: result.rejection })
   const resolved = result.resolved
 

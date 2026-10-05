@@ -437,6 +437,8 @@ function couldReachBaseContact(state: GameState, geo: ChargeGeometry, model: Mod
     if (!terrainService.canEndAt(state, model, to).ok) continue
     // RC-033: the contact spot only counts if the whole unit stays coherent with this model moved there
     if (!isCoherent([...rest, fp])) continue
+    // ...and every charged unit must still have a model within Engagement Range of the unit's arrangement (R-8.5)
+    if (!geo.targetGroups.every((g) => [...rest, fp].some((f) => anyWithinEngagementRange(f, g)))) continue
     return true
   }
   return false
