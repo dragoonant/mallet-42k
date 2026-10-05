@@ -701,3 +701,47 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | GRE-025 | GRE-6.2 | Hammerhand: after a successful charge Terminator force weapons and the attached Librarian's force weapon have Lethal Hits (critical hit auto-wounds) until end of turn; next turn without a charge → none; Heroic Intervention charge also triggers it |
 | GRE-026 | GRE-6.3 | Dreadknight at 4 W → −1 to hit on heavy psycannon and greatsword; at 5 W → no modifier; destroyed → Deadly Demise D3 on 6 |
 | GRE-027 | GRE-6 | weapons: Purge Soul focused profile Hazardous test after shooting and Precision allocation to a CHARACTER; psilencer Sustained Hits 1; storm bolter Rapid Fire 2 at half range; greatsword strike D6 damage |
+
+## TAU — T'au Empire: Protectors of Aun'shar (docs/spec/factions/tau-empire.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| TAU-001 | TAU-1 | patrol loads: 5 units, 16 models; Aun'Shar is WARLORD with DS13 and unattached; Fireblade attached to Strike Team; default secondary Kauyon Lure |
+| TAU-002 | TAU-2.1 | selecting Strike Team to shoot offers an FtGG pick listing Stealth/Ghostkeel as Observers and enemies visible to both; Aun'Shar is never an Observer option |
+| TAU-003 | TAU-2.1 | an Observer candidate that is Battle-shocked, already shot this phase, or already an Observer is absent from the options |
+| TAU-004 | TAU-2.2 | Guided pulse rifle (BS 4+) vs the Spotted unit hits on 3+; with the target in Stealth (−1 hit) it hits on 4+ |
+| TAU-005 | TAU-2.2 | BS change is not hit-capped: Damaged Ghostkeel (−1) Guided vs a Stealth target (−1) → cap −1 applied to modifiers, BS 3+ → hits on 4+ |
+| TAU-006 | TAU-2.2 | Observer with MARKERLIGHT (Strike Team) → Guided attacks vs Spotted ignore cover; Observer Ghostkeel (no MARKERLIGHT) → cover still applies |
+| TAU-007 | TAU-2.3 | Guided unit splits fire: attacks vs a non-Spotted enemy need one worse (4+ → 5+) |
+| TAU-008 | TAU-2.4 | after observing, the Observer can still be selected to shoot later in the phase, but no FtGG pick is offered for it |
+| TAU-009 | TAU-2.6 | Fire Overwatch by a unit that was Guided earlier gets no BS change; marks are gone in the next phase |
+| TAU-010 | TAU-2.5 | Stealth Battlesuits that Advanced can be an Observer while the Shas'vre lives; once the Shas'vre is destroyed they cannot (and lose MARKERLIGHT) |
+| TAU-011 | TAU-2.5 | an Advanced Strike Team (no marker drone rule) is not offered as Observer |
+| TAU-012 | TAU-3 | DS13: Strike Team within 6" of Aun'Shar has Sv 3+ and FNP 5+; at 6.1" neither; Aun'Shar itself Sv 4+, FNP 5+ |
+| TAU-013 | TAU-3 | DS13: Ghostkeel (not INFANTRY) within 6" gets nothing |
+| TAU-014 | TAU-3 | DS13/DS15: Aun'Shar has Lone Operative (not targetable beyond 12") and Stealth (−1 to hit vs ranged) |
+| TAU-015 | TAU-3 | DS15: Ghostkeel within 6" of Aun'Shar → its ranged critical hits auto-wound; melee does not |
+| TAU-016 | TAU-4 | Kauyon Lure: round 1 own Command phase end → 0 VP; round 2 with Strike Team partly in own DZ → +5 VP |
+| TAU-017 | TAU-4 | Kauyon Lure: only qualifying unit Battle-shocked in that Command phase → 0 VP; two qualifying units → still 5 VP |
+| TAU-018 | TAU-4 | Leadership Caste: Aun'Shar alive at battle end → +20 VP; destroyed → 0 |
+| TAU-019 | TAU-5 | Defensive Fusillade: Strike Team in Engagement Range shoots pulse rifles (now Pistol) at the engaged unit; not offered for a unit that already shot |
+| TAU-020 | TAU-5 | Rapid Repositioning: offered at own Shooting phase end; Strike Team gets a D6 Normal move (rolled), Stealth/Ghostkeel get 6" with no roll |
+| TAU-021 | TAU-5 | Rapid Repositioning: the moved unit cannot declare a charge that turn; not offered to a unit in Engagement Range |
+| TAU-022 | TAU-5 | Laser-Marked Targets: after an enemy declares a charge vs the Strike Team, the Strike Team shoots before the charge roll, hitting only on unmodified 6 |
+| TAU-023 | TAU-5 | Laser-Marked Targets: the charger's Charge roll is reduced by 2 (2D6 = 9 → 7) for that phase; a second charger is unaffected |
+| TAU-024 | TAU-5 | Laser-Marked Targets: charger destroyed by the shooting → no charge roll, no move |
+| TAU-025 | TAU-5 | Laser-Marked Targets refused for a unit that fired Overwatch earlier this turn; after it, Fire Overwatch is refused for that unit this turn |
+| TAU-026 | TAU-5 | Laser-Marked Targets not offered for a unit that is not a target of the declared charge, nor in own turn |
+| TAU-027 | TAU-6.1 | Coordinated Leadership: own Command phase end D6 4 → +1 CP; 3 → no CP; a second CP gain in the same round is capped |
+| TAU-028 | TAU-6.2 | Aun'Shar moves up to 10" and over a model (FLY) |
+| TAU-029 | TAU-6.3 | Volley Fire: led Strike Team pulse rifle A 2 (A 3 at half range with Rapid Fire 1); Fireblade rifle A 2; without the leader A 1 |
+| TAU-030 | TAU-6.4 | Cover Fire: Strike Team on a controlled marker fires Overwatch → hits on unmodified 4+, crits only on 6; off the marker → 6s only |
+| TAU-031 | TAU-6.4 | Cover Fire does not apply to Laser-Marked Targets shooting (still 6s only) |
+| TAU-032 | TAU-6.5 | DS8: Strike Team Remained Stationary → support turret missile system offered in that Shooting phase and in Overwatch during the opponent's turn |
+| TAU-033 | TAU-6.5 | DS8: Strike Team moved (Normal/Advance) → turret absent from weapon choices; next own Movement it moves → turret gone again |
+| TAU-034 | TAU-6.5 | support turret: Indirect Fire vs a non-visible target (−1 hit, unmodified 1–3 fail) and Twin-linked wound re-roll |
+| TAU-035 | TAU-6.7 | Forward Observers: Stealth as Observer → Guided Strike Team re-rolls wound rolls of 1 vs the Spotted unit only |
+| TAU-036 | TAU-6.8 | Ghostkeel Falls Back and can still shoot; Stealth unit Falls Back → cannot shoot at all |
+| TAU-037 | TAU-6.9 | Ghostkeel at 4 W → −1 to hit; destroyed → Deadly Demise D3 on a 6 |
+| TAU-038 | TAU-6 | weapons: fusion blaster Melta 2 at ≤6" adds 2 damage; overcharge cyclic ion raker triggers a Hazardous test; pulse pistol only weapon usable in Engagement Range without Fusillade |
+| TAU-039 | TAU-6 | Infiltrators: Stealth Battlesuits and Ghostkeel may deploy anywhere >9" from the enemy DZ and enemy models |
+| TAU-040 | TAU-6 | Stealth: ranged attacks vs Stealth Battlesuits/Ghostkeel are −1 to hit; Lone Operative Ghostkeel cannot be targeted from beyond 12" |
