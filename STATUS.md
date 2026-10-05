@@ -289,3 +289,12 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 - `createGame` now genuinely stops at the first `deployUnit` decision (real deployment, W1-F) — any test/fixture that used to assume a stub deployment completed instantly for free must drive real `deployUnit`/`moveUnit`(Scouts)/`chooseOption` decisions to get past it first; see `tests/fixtures/modules.ts`'s `deployAll` helper (drives every decision whose `window` is `'deployment.unit'` using its own default legal action) and its many call sites in `tests/engine/core*.test.ts`.
 - All five phase modules (command/movement/shooting/charge/fight) plus setup/deployment are now real — the engine plays a complete game end-to-end through `step`/`legalActions`. W1-G headless sim is done (see "Engine (M1 integrated)"); `legalActions` now returns >= 1 concrete answer for every decision kind, so AI/autoplay can drive whole games. Sim is slow (~6 s/game, oval-base gap sampling in charge ring search) — worth an analytic ellipse distance later.
 - `terrain.canEndAt`, `los.ts`'s model-blocker test, several M1-systems modules, and now `attack.ts`'s Indirect Fire cover snapshot (see "Fixed landing this stage" above) were adversarially wrong on first pass — worth a similar adversarial pass on Shooting/Charge/Fight's own heuristics (`planChargeMove`, `planApproachEnemy`) before trusting them past their own happy-path tests.
+
+### M10 adeptus-custodes
+| Item | State |
+|---|---|
+| Patrol | Guardians of the Throne: Shield-Captain Tyvan, Custodian Guard, Prosecutors, Vigilators (Vertus Praetors datasheet present, not in patrol). Data in `src/data/factions/adeptus-custodes/` |
+| Engine hooks | `src/engine/factions/adeptus-custodes.ts` (Martial Ka'tah, Stand Vigil, Gilded Spear, Overawing Magnificence, Guardian of the Realm, Advance re-roll), E4 movement-start engagement snapshot in movement.ts, targetKeyword in attack.ts/weapons.ts |
+| Verification | typecheck, `validate:data`, `build` green; `npm test` 1763 passing (68 files); `tests/e2e/adeptus-custodes.spec.ts` starts vs bot, deploys via UI, reaches round 1 Shooting (`e2e-out/m10-adeptus-custodes-0{1,2,3}-*.png`, figures visible) |
+| Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all 6 games finished (mean 5 rounds); adeptus-custodes was not in the seeded pairings (0 games, 0 wins) |
+| Known gaps | Generic figure kits, borrowed SFX, Praetors not mounted; rulings in `docs/needs-rules-check.md` under "adeptus-custodes build" |
