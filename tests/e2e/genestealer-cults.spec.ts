@@ -143,3 +143,43 @@ test('genestealer-cults vs bot: start, deploy, reach the first shooting phase', 
   expect(deployed.length, 'genestealer-cults units on the board').toBeGreaterThanOrEqual(3)
   expect(consoleErrors, 'no console errors').toEqual([])
 })
+
+// Cult Ambush marker step: the candidate spots show as clickable discs on the board while the decision is pending, and
+// hovering an option lights its spot. The decision is injected into the store (a real one needs a destroyed hybrid brood).
+test('genestealer-cults: Cult Ambush marker candidates render as board discs', async ({ page }) => {
+  test.setTimeout(90_000)
+  mkdirSync('e2e-out', { recursive: true })
+  page.setDefaultTimeout(8000)
+  await page.setViewportSize({ width: W, height: H })
+  await page.goto('/')
+  await page.getByTestId('setup-patrol-A').getByRole('button', { name: 'Genestealer Cults' }).click()
+  await page.getByRole('button', { name: 'Bot', exact: true }).click()
+  await page.getByTestId('setup-seed').fill('genestealer-cults-1')
+  await page.getByTestId('start-game').click()
+  await expect(page.getByTestId('phase-tracker')).toBeVisible({ timeout: 20_000 })
+  await page.waitForFunction(() => !!(window as any).__mallet) // eslint-disable-line @typescript-eslint/no-explicit-any
+  await page.waitForTimeout(2500)
+  const injected = await page.evaluate(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const store = (window as any).__mallet.useGameStore
+    const st = store.getState()
+    const seat = st.botSeat === 'A' ? 'B' : 'A'
+    const options = []
+    for (let x = -18; x <= 18; x += 6) for (let z = -10; z <= 10; z += 5) {
+      const id = `pt:${x},${z}`
+      options.push({ id, label: `marker at ${x}, ${z}`, action: { type: 'chooseOption', player: seat, decisionId: 'inj', optionId: id } })
+    }
+    const pending = {
+      id: 'inj', kind: 'chooseOption', player: seat, window: 'model.destroyed', canPass: true,
+      context: { topic: 'abilityChoice', abilityId: null, data: { code: 'cultAmbush', step: 'marker' } },
+      options,
+    }
+    store.setState({ state: { ...st.state, pending }, pending, pendingSeq: st.presentedSeq ?? 0 })
+    return options.length
+  })
+  await page.waitForTimeout(1200)
+  await expect(page.getByTestId('cult-ambush-marker-hint')).toBeVisible()
+  await expect(page.getByText('Cult Ambush', { exact: true }).first()).toBeVisible()
+  await page.screenshot({ path: 'e2e-out/gsc-cult-ambush-markers.png' })
+  console.log(`[genestealer-cults] injected ${injected} marker options`)
+})

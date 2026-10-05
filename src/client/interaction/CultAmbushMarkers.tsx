@@ -22,12 +22,12 @@ export const useAmbushHover = create<{ optionId: string | null; set(id: string |
 interface Candidate { id: string; x: number; z: number; action: never }
 
 /** Candidate marker spots of a pending Cult Ambush marker choice ('pt:x,z' option ids). */
-function markerCandidates(pending: unknown): Candidate[] {
+export function markerCandidates(pending: unknown): Candidate[] {
   const p = pending as { kind?: string; context?: { data?: { code?: string; step?: string } }; options?: { id: string; action: never }[] } | null
   if (!p || p.kind !== 'chooseOption' || p.context?.data?.code !== 'cultAmbush' || p.context.data.step !== 'marker') return []
   const out: Candidate[] = []
   for (const o of p.options ?? []) {
-    const m = /^pt:(-?[d.]+),(-?[d.]+)$/.exec(o.id)
+    const m = /^pt:(-?[0-9.]+),(-?[0-9.]+)$/.exec(o.id)
     if (m) out.push({ id: o.id, x: Number(m[1]), z: Number(m[2]), action: o.action })
   }
   return out
