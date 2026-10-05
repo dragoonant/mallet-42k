@@ -183,12 +183,8 @@ const DEATH_SOUND: Record<string, SfxId> = {
   'adepta-sororitas': 'death-adepta-sororitas',
   'chaos-space-marines': 'death-chaos-space-marines',
   'grey-knights': 'death-grey-knights',
-<<<<<<< HEAD
   'tau-empire': 'death-tau',
-=======
-  'tau-empire': 'death-space-marines',
   'genestealer-cults': 'death-tyranids',
->>>>>>> f382d6f (M10: genestealer-cults Combat Patrol playable)
 }
 
 /** Measured decoded RMS runs 0.05-0.40 across these; the loud three are pulled back toward ~0.15. */
