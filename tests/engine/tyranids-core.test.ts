@@ -186,6 +186,23 @@ describe('Death Blow deferred removal (TYR-6.1)', () => {
     expect(of(c.events, 'ModelDestroyed')).toHaveLength(1)
   })
 
+  it('TYR-026 TYR-02 TYR-6.1: the attacking unit mid-activation has already fought, so its own Prime killed by a Death Blow model gets no Death Blow roll', () => {
+    const s = makeState()
+    phase(s, 'fight', 'A')
+    engagePrimeAndBoyz(s)
+    const prime = s.units[PRIME].models[0]
+    // the Prime is the active unit with its attacks done (finishUnit has not run yet, so foughtThisPhase is still false)
+    s.phaseState.fight!.currentUnitId = PRIME
+    s.phaseState.fight!.subStep = 'attacks'
+    expect(s.units[PRIME].turn.foughtThisPhase).toBe(false)
+    const { ctx, events } = ctxOf(s, []) // no dice scripted: a Death Blow roll would throw
+    attackService.destroyModel(ctx, prime, { player: 'B', unitId: BOYZ, modelId: s.units[BOYZ].models[0], kind: 'melee' })
+    expect(of(events, 'ModelRemovalDeferred')).toHaveLength(0)
+    expect(of(events, 'ModelDestroyed')).toHaveLength(1)
+    expect(pendingDeathBlowUnits(s)).toEqual([])
+    expect(s.models[prime]).toBeUndefined()
+  })
+
   it('TYR-028 TYR-6.1: while removal is pending the Prime takes no allocated attacks and adds 0 OC', () => {
     const s = makeState()
     phase(s, 'fight', 'B')

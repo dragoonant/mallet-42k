@@ -4,6 +4,7 @@
 // is removed after that fight or when the controller declines; the removal credits the original killer.
 // Lives next to the attack module (not under factions/) because attack.ts and fight.ts call it for every game.
 import { attackService, type DestroyedBy } from './attack'
+import { leaderService } from './leaders'
 import type { EngineContext } from './modules'
 import type { GameState, Model, UnitId } from './types'
 
@@ -24,6 +25,10 @@ export function tryDeathBlow(ctx: EngineContext, model: Model, by: DestroyedBy):
   const s = ctx.state
   const unit = s.units[model.unitId]
   if (!unit || unit.turn.foughtThisPhase) return false
+  // the attacker mid-activation (attacks made, finishUnit not yet run) has already fought: its own Prime killed by a Death Blow model gets no roll
+  const cur = s.phaseState.fight?.currentUnitId
+  if (cur && leaderService.sameUnit(s, cur, unit.id)) return false
+  if (s.phaseState.marks.includes(`fi:declared:${unit.id}`)) return false
   const abilityId = deathBlowAbilityId(s, unit.id)
   if (!abilityId) return false
   const roll = ctx.roll({ purpose: 'ability', player: unit.player, sides: 6, count: 1, mode: 'perDie', unitId: unit.id, modelId: model.id, commandRerollable: false })

@@ -412,3 +412,58 @@ describe('fight verify — RC-040 Counter-offensive is a selection', () => {
     expect((s.pending as Extract<PendingDecision, { kind: 'chooseFightUnit' }>).player).toBe('A')
   })
 })
+
+describe('fight verify — RC-036 base contact only with the closest enemy model', () => {
+  // X = B:mob#0 is the enemy model the walker starts closest to; its contact spot is occupied by A:boss, so contact is not
+  // possible. Y = B:mob#1 is farther but reachable for contact. The walker may pile in closer to X without touching Y.
+  function setup() {
+    const { ctx } = harness(fightModule, misses())
+    const s = ctx.state
+    for (const id of s.units[BMob].models.slice(2)) removeModel(s, id)
+    const rX = s.models[`${BMob}#0`].base.radius, rW = s.models[`${AWalker}#0`].base.radius, rB = s.models[`${ABoss}#0`].base.radius
+    const g = 2.0, OX = 15, OZ = -6 // clear of terrain
+    placeUnit(s, BMob, [{ x: OX, y: 0, z: OZ }, { x: OX - (rX + rW + g), y: 0, z: OZ + (rW + 1.7 + rX) }])
+    const a = (45 * Math.PI) / 180 // the boss sits on X's ring, 45 degrees off the walker's line: it still blocks the contact spot
+    placeUnit(s, ABoss, [{ x: OX - (rX + rB) * Math.cos(a), y: 0, z: OZ - (rX + rB) * Math.sin(a) }])
+    placeUnit(s, AWalker, [{ x: OX - (rX + rW + g), y: 0, z: OZ }])
+    s.units[AWalker].turn.chargedThisTurn = true
+    const R = rX + rW + 0.4
+    const end = { x: OX - R * Math.cos(Math.PI / 6), y: 0, z: OZ + R * Math.sin(Math.PI / 6) }
+    s.phaseState.fight!.fought.push(BMob) // the mob (engaged with the boss) has fought already, so A selects
+    fightModule.advance(ctx)
+    act(fightModule, ctx, { type: 'chooseFightUnit', player: 'A', decisionId: DID, unitId: AWalker })
+    expect(s.pending?.kind).toBe('pileIn')
+    return { ctx, s, end }
+  }
+
+  it('FIGHT-013-closest RC-036 a pile-in that ends closer to the closest enemy model without touching a farther reachable one is legal', () => {
+    const { ctx, s, end } = setup()
+    const rej = validateOnly(fightModule, ctx, { type: 'pileIn', player: 'A', decisionId: DID, unitId: AWalker, placements: [{ modelId: `${AWalker}#0`, pos: end }] })
+    expect(rej, JSON.stringify(rej)).toBeNull()
+    expect(s.pending?.kind).toBe('pileIn')
+  })
+
+  it('FIGHT-013-coherency RC-036 a model need not take a base-contact move that would break unit coherency', () => {
+    const { ctx } = harness(fightModule, misses(), recordingStratagems(), 'B')
+    const s = ctx.state
+    for (const id of s.units[BMob].models.slice(2)) removeModel(s, id)
+    const OX = 15, OZ = -6
+    const rW = s.models[`${AWalker}#0`].base.radius, rM = s.models[`${BMob}#0`].base.radius
+    placeUnit(s, AWalker, [{ x: OX, y: 0, z: OZ }])
+    // m0 starts 2" from the walker; m1 sits beside it (+z) and stays put. Contact (a 2" move) would leave m1 more than 2" away.
+    const m0 = { x: OX - rW - rM - 2.0, y: 0, z: OZ }
+    const m1 = { x: m0.x, y: 0, z: OZ + 2 * rM + 1.6 }
+    placeUnit(s, BMob, [m0, m1])
+    s.units[BMob].turn.chargedThisTurn = true
+    s.phaseState.fight!.fought.push(AWalker)
+    fightModule.advance(ctx)
+    act(fightModule, ctx, { type: 'chooseFightUnit', player: 'B', decisionId: DID, unitId: BMob })
+    expect(s.pending?.kind).toBe('pileIn')
+    const near = { x: m0.x + 1.1, y: 0, z: OZ } // closer, within Engagement Range, coherent, no base contact
+    const rej = validateOnly(fightModule, ctx, { type: 'pileIn', player: 'B', decisionId: DID, unitId: BMob, placements: [{ modelId: `${BMob}#0`, pos: near }] })
+    expect(rej, JSON.stringify(rej)).toBeNull()
+    const contact = { x: m0.x + 1.95, y: 0, z: OZ } // (almost) into contact: m1 would end 2.2" away
+    const bad = validateOnly(fightModule, ctx, { type: 'pileIn', player: 'B', decisionId: DID, unitId: BMob, placements: [{ modelId: `${BMob}#0`, pos: contact }] })
+    expect(bad?.code).toBe('E_COHERENCY')
+  })
+})

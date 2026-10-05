@@ -31,7 +31,7 @@ import { hookService } from '../hooks-impl'
 import { cultAmbushOnMoveEnded } from '../cult-ambush'
 import { leaderService } from '../leaders'
 import { attackService } from '../attack'
-import { purgeDeferredDeaths, resolveDeferredDeaths } from '../fight-on-death'
+import { deferredDeaths, purgeDeferredDeaths, resolveDeferredDeaths } from '../fight-on-death'
 import { terrainService } from '../terrain'
 import { weaponService } from '../weapons'
 import { pendingReactions, consumeReaction } from '../code-hooks'
@@ -271,7 +271,7 @@ function closerToClosestEnemyAtStart(model: Model, from: Vec3, to: Vec3, enemies
 // crossing another enemy's base, AND not overlapping `blockers` (the rest of the unit's own resolved arrangement
 // plus other friendlies — FIGHT-013-crowd: a contact spot already taken by a teammate doesn't count) — mirrors
 // charge.ts's `couldReachBaseContact`.
-function couldReachBaseContact(state: GameState, geo: FightGeometry, model: Model, maxDistance: number, blockers: Footprint[]): boolean {
+function couldReachBaseContact(state: GameState, geo: FightGeometry, model: Model, maxDistance: number, blockers: Footprint[], others: ResolvedPlacement[] = []): boolean {
   // RC-036: base contact is required only with the enemy model this model was closest to at the start of its move (the same
   // model closerToClosestEnemyAtStart uses), not with any enemy it could reach
   let closest: Model | null = null, bestD = Infinity
@@ -287,6 +287,12 @@ function couldReachBaseContact(state: GameState, geo: FightGeometry, model: Mode
     if (blockers.some((b) => basesOverlap(fp, b))) continue
     if (pathCrossesModels(fp, [model.pos, to], geo.enemies)) continue
     if (!terrainService.canEndAt(state, model, to).ok) continue
+    // RC-036: the move into contact must keep the unit in coherency with the rest of the arrangement
+    if (others.length > 0) {
+      const pl: ModelPlacement[] = [...others.filter((o) => o.model.id !== model.id).map((o) => ({ modelId: o.model.id, pos: o.to, facing: o.facing })), { modelId: model.id, pos: to, facing: model.facing }]
+      const coh = checkPlacements({ unitModels: geo.models, placements: pl, constraints: emptyMoveConstraints(maxDistance, { coherency: true }), otherFriendly: geo.otherFriendly, enemies: geo.enemies, board: state.board })
+      if (coh.rejection) continue
+    }
     return true
   }
   return false
@@ -762,17 +768,19 @@ function driveFightUnit(ctx: EngineContext): 'pending' | 'progress' {
   if (fight.subStep === 'attacks') {
     const r = doAttacks(ctx, unitId)
     if (r === 'pending') return 'pending'
-    // C5: models kept on the board at 0 wounds by Daemonic Fervour make their last attacks now, before this unit consolidates
-    if (resolveDeferredDeaths(ctx) === 'pending') return 'pending'
-    // TYR-02: Death Blow models fight at the same point (a Death Blow kill may itself defer an enemy model, hence the second pass)
-    if (resolveDeathBlows(ctx) === 'pending') return 'pending'
-    if (resolveDeferredDeaths(ctx) === 'pending') return 'pending'
     fight.subStep = 'deferred'
   }
   if (fight.subStep === 'deferred') {
-    // E4: a deferred last-stand attack (A Martyr's Death) already in progress, then any still to open
-    if (s.phaseState.attack && attackService.advance(ctx) === 'pending') return 'pending'
-    if (resolveDeferredActivations(ctx, unitId) === 'awaiting') return 'pending'
+    // C5 + TYR-02 + E4: repeat until nothing is left, since each can queue another (a Death Blow model killed during a
+    // last stand, a last stand killing a Death Blow model...): 0-wound Daemonic Fervour models make their last attacks,
+    // Death Blow models fight, deferred last-stand activations (A Martyr's Death) open
+    for (let guard = 0; guard < 64; guard++) {
+      if (s.phaseState.attack && attackService.advance(ctx) === 'pending') return 'pending'
+      if (resolveDeferredDeaths(ctx) === 'pending') return 'pending'
+      if (resolveDeathBlows(ctx) === 'pending') return 'pending'
+      if (resolveDeferredActivations(ctx, unitId) === 'awaiting') return 'pending'
+      if (pendingDeathBlowUnits(s).length === 0 && deferredDeaths(s).length === 0) break
+    }
     fight.subStep = 'consolidate'
   }
   if (fight.subStep === 'consolidate') {
@@ -803,7 +811,7 @@ function approachRejection(state: GameState, geo: FightGeometry, dist: number, o
       ...check.resolved.filter((o) => o.model.id !== r.model.id).map((o) => ({ pos: o.to, facing: o.facing, base: o.model.base })),
       ...geo.otherFriendly,
     ]
-    if (!geo.enemies.some((e) => inBaseContact(fp, e)) && couldReachBaseContact(state, geo, r.model, dist, blockers)) {
+    if (!geo.enemies.some((e) => inBaseContact(fp, e)) && couldReachBaseContact(state, geo, r.model, dist, blockers, check.resolved)) {
       return { code: 'E_OUT_OF_RANGE', reason: `${r.model.id} could end in base contact with an enemy and must`, details: { modelId: r.model.id } }
     }
   }
