@@ -20,6 +20,7 @@ import { commandModule } from '../../src/engine/phases/command'
 import { buildShootingWeaponEntries } from '../../src/engine/phases/shooting'
 import { overwatchTargets } from '../../src/engine/phases/movement'
 import { overwatchTargetsFor } from '../../src/engine/phases/charge'
+import { terrainService } from '../../src/engine/terrain'
 import { stratagemService } from '../../src/engine/stratagems'
 import { weaponService } from '../../src/engine/weapons'
 import { woundRollNeeded } from '../../src/engine/dice'
@@ -276,6 +277,22 @@ describe('Reanimation Protocols (NEC-2.x)', () => {
       expect(everyone.filter((o) => o.id !== m.id && basesOverlap(m, o))).toEqual([])
       expect(s.units[BOYZ].models.some((id) => withinEngagementRange(m, s.models[id]))).toBe(false)
     }
+  })
+
+  it('NEC-039 NEC-2.4 RC-102: a returned model never lands inside a solid crate', () => {
+    const s = makeState()
+    deploy(s, WAR, OVR, BOYZ)
+    const warriors = s.units[WAR].models
+    for (const id of warriors.slice(7)) removeModel(s, id)
+    // a tall crate swallowing the area right next to the surviving line
+    const edge = s.models[warriors[6]].pos
+    const r = (x0: number, z0: number, x1: number, z1: number) => [{ x: x0, z: z0 }, { x: x1, z: z0 }, { x: x1, z: z1 }, { x: x0, z: z1 }]
+    s.board = { ...s.board, pieces: { ...s.board.pieces, 'crate-x': {
+      id: 'crate-x', kind: 'crate', pos: { x: 0, z: 0 }, rot: 0, footprint: r(edge.x - 1, edge.z - 6, edge.x + 6, edge.z + 6), height: 3, traits: [], walls: [], floors: [],
+    } as never } }
+    const { ctx, events } = ctxOf(s, [6])
+    runReanimation(ctx)
+    for (const e of of(events, 'ModelReturned')) expect(terrainService.canEndAt(s, s.models[e.modelId], s.models[e.modelId].pos).ok).toBe(true)
   })
 
   it('NEC-011 NEC-2.4: no legal spot (unit boxed in) → the step is wasted and the model stays destroyed', () => {

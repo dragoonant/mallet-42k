@@ -6,6 +6,7 @@ import {
 } from '../geometry'
 import { leaderService } from '../leaders'
 import type { EngineContext } from '../modules'
+import { terrainService } from '../terrain'
 import { modelStats, unitModels } from '../state'
 import type { GameState, Model, Unit, UnitId, Vec3 } from '../types'
 
@@ -65,12 +66,24 @@ export function findReturnSpot(state: GameState, unitId: UnitId, snapshot: Model
   const ranked = candidatePositions(mine, snapshot.base)
     .map((pos, i) => ({ pos, i, d: Math.hypot(pos.x - centroid.x, pos.z - centroid.z) }))
     .sort((a, b) => (Math.abs(a.d - b.d) > 1e-6 ? a.d - b.d : a.i - b.i))
-  for (const { pos } of ranked) {
+  for (const { pos: flat } of ranked) {
+    // RC-102: try the neighbour's height, then the surface under the spot, then the ground; the first height where the
+    // model may legally stand (not inside a wall/crate, not in mid-air, not on a barricade) with coherency intact wins
+    const heights = [...new Set([flat.y, terrainService.heightAt(state, flat.x, flat.z), 0])]
+    let pos: Vec3 | null = null
+    for (const y of heights) {
+      const cand = { ...flat, y }
+      const cfp: Footprint = { pos: cand, facing: snapshot.facing, base: snapshot.base }
+      if (!whollyOnBoard(cfp, state.board)) continue
+      if (everyone.some((o) => basesOverlap(cfp, o))) continue
+      if (forbiddenTerrain.some((p) => partlyWithinPolygon(cfp, p.footprint))) continue
+      if (!terrainService.canEndAt(state, snapshot, cand).ok) continue
+      if (mine.filter((m) => inCoherencyRange(cfp, m)).length < needed) continue
+      pos = cand
+      break
+    }
+    if (!pos) continue
     const fp: Footprint = { pos, facing: snapshot.facing, base: snapshot.base }
-    if (!whollyOnBoard(fp, state.board)) continue
-    if (everyone.some((o) => basesOverlap(fp, o))) continue
-    if (forbiddenTerrain.some((p) => partlyWithinPolygon(fp, p.footprint))) continue
-    if (mine.filter((m) => inCoherencyRange(fp, m)).length < needed) continue
     let engaged = false
     for (const e of enemyUnits) {
       if (alreadyEngaged.has(e.id)) continue

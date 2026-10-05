@@ -280,6 +280,14 @@ function reactiveCandidates(state: GameState, pending: Extract<PendingDecision, 
   return out
 }
 
+// RC-034 (R-5.2 applied to every move): a non-FLY MONSTER/VEHICLE may not pass through another friendly MONSTER/VEHICLE.
+// Shared with charge and fight (pile-in / consolidate), which grant no exemption.
+export function crossesBigFriendly(state: GameState, model: Model, fp: Footprint, path: Vec3[], otherFriendly: Model[]): boolean {
+  const isBig = (unitId: UnitId): boolean => hasKeyword(state, unitId, 'MONSTER') || hasKeyword(state, unitId, 'VEHICLE')
+  if (!isBig(model.unitId) || hasKeyword(state, model.unitId, 'FLY')) return false
+  return pathCrossesModels(fp, path, otherFriendly.filter((m) => isBig(m.unitId)))
+}
+
 function checkPaths(state: GameState, moveType: MoveType, result: { rejection: null; resolved: ResolvedPlacement[] }, enemies: Footprint[], otherFriendly: Model[], flyOf: (m: Model) => boolean):
   { rejection: Rejection } | { rejection: null; resolved: ResolvedPlacement[] } {
   const isBig = (unitId: UnitId): boolean => hasKeyword(state, unitId, 'MONSTER') || hasKeyword(state, unitId, 'VEHICLE')
@@ -305,7 +313,14 @@ function checkPaths(state: GameState, moveType: MoveType, result: { rejection: n
     if (isBig(r.model.unitId) && pathCrossesModels(fp, r.path, bigFriendly)) {
       return { rejection: { code: 'E_OVERLAP', reason: `${r.model.id}'s path would cross another MONSTER/VEHICLE model`, details: { modelId: r.model.id } } }
     }
-    if (moveType === 'fallBack') continue // R-5.5: Fall Back may pass through and within ER of enemy models
+    if (moveType === 'fallBack') {
+      // R-5.5: Fall Back may pass through and within ER of enemy models. RC-010 (R-5.6): in the re-submitted move after
+      // Desperate Escape casualties, only a model that took a test may cross enemies.
+      if (readMark(state, 'mv:deResub') === '1' && !r.model.flags.desperateEscapeTested && pathCrossesModels(fp, r.path, enemies)) {
+        return { rejection: { code: 'E_OVERLAP', reason: `${r.model.id} did not take a Desperate Escape test and may not cross an enemy model`, details: { modelId: r.model.id } } }
+      }
+      continue
+    }
     if (pathEntersEngagement(fp, r.path, enemies)) {
       return { rejection: { code: 'E_ENGAGEMENT', reason: `${r.model.id}'s path would enter engagement range`, details: { modelId: r.model.id } } }
     }
@@ -379,7 +394,7 @@ const ATTACK_CHOOSE_TOPICS = new Set(['saveType', 'hazardousCasualty', 'rerollOf
 // resolution of an R-5.9 surge move (Krump da Gitz!) — translate the whole unit toward `towardUnitId` by up to
 // `distance`, stopping short of engagement range. [interp: real per-model "as close as possible" pathing, allowing a
 // unit to fan out around obstacles, is not attempted — a straight rigid translation toward the nearest point of the
-// target is used instead, validated the same way as any other move]
+// target is the starting point, then RC-013 pushes each model further toward its nearest target model]
 export function resolveSurgeMove(ctx: EngineContext, unitId: UnitId, distance: number, towardUnitId: UnitId | null): boolean {
   const state = ctx.state
   const unit = state.units[unitId]
@@ -405,8 +420,7 @@ export function resolveSurgeMove(ctx: EngineContext, unitId: UnitId, distance: n
   // somewhere with no surface, and it stays illegal for every larger travel along the same straight line (it never
   // becomes legal again further out) — so a binary search for the largest legal travel finds the true closest legal
   // spot instead of an arbitrary halved fraction.
-  const attempt = (travel: number): { rejection: null; resolved: ResolvedPlacement[] } | null => {
-    const placements: ModelPlacement[] = models.map((m) => ({ modelId: m.id, pos: { x: m.pos.x + dx * travel, y: m.pos.y, z: m.pos.z + dz * travel } }))
+  const validate = (placements: ModelPlacement[]): { rejection: null; resolved: ResolvedPlacement[] } | null => {
     const constraints = emptyMoveConstraints(distance, { mustEndOutsideEngagement: true, coherency: true })
     const result = checkPlacements({ unitModels: models, placements, constraints, otherFriendly, enemies, board: state.board })
     if (result.rejection) return null
@@ -421,6 +435,8 @@ export function resolveSurgeMove(ctx: EngineContext, unitId: UnitId, distance: n
     }
     return result
   }
+  const attempt = (travel: number) =>
+    validate(models.map((m) => ({ modelId: m.id, pos: { x: m.pos.x + dx * travel, y: m.pos.y, z: m.pos.z + dz * travel } })))
   let best = attempt(0)
   if (!best) return false // can't even legally stay put (already-engaged / already-shocked is checked above)
   const fullAttempt = attempt(distance)
@@ -432,6 +448,42 @@ export function resolveSurgeMove(ctx: EngineContext, unitId: UnitId, distance: n
       const mid = (lo + hi) / 2
       const midResult = attempt(mid)
       if (midResult) { lo = mid; best = midResult } else { hi = mid }
+    }
+  }
+  // RC-013 (R-5.9 "as close as possible"): the rigid result is only the starting point; each model then pushes on toward
+  // its nearest target model as far as its own distance allowance, coherency, Engagement Range and the path checks allow
+  // (same binary search), closest-to-target models first.
+  if (towardUnitId) {
+    const targetModels = unitModels(state, towardUnitId).filter((t) => state.units[t.unitId]?.location === 'board')
+    const nearest = (p: Vec3): { t: Model; d: number } | null => {
+      let out: { t: Model; d: number } | null = null
+      for (const t of targetModels) { const d = dist2D(p, t.pos); if (!out || d < out.d) out = { t, d } }
+      return out
+    }
+    let cur: ModelPlacement[] = best.resolved.map((r) => ({ modelId: r.model.id, pos: r.to, facing: r.facing }))
+    const order = [...models].sort((a, b) => (nearest(a.pos)?.d ?? 0) - (nearest(b.pos)?.d ?? 0))
+    for (const m of order) {
+      const here = cur.find((p) => p.modelId === m.id)
+      const near = here ? nearest(here.pos) : null
+      if (!here || !near || near.d <= EPS) continue
+      const ux = (near.t.pos.x - here.pos.x) / near.d, uz = (near.t.pos.z - here.pos.z) / near.d
+      const withPos = (t: number): ModelPlacement[] => cur.map((p) => (p.modelId === m.id ? { ...p, pos: { x: here.pos.x + ux * t, y: here.pos.y, z: here.pos.z + uz * t } } : p))
+      const maxStep = Math.max(0, distance - dist2D(m.pos, here.pos))
+      if (maxStep <= 1e-3) continue
+      let ok = validate(withPos(maxStep)) ? maxStep : 0
+      if (ok === 0) {
+        let lo = 0, hi = maxStep
+        for (let i = 0; i < 30 && hi - lo > 1e-3; i++) {
+          const mid = (lo + hi) / 2
+          if (validate(withPos(mid))) lo = mid; else hi = mid
+        }
+        ok = lo
+      }
+      if (ok > 1e-3) {
+        const next = withPos(ok)
+        const res = validate(next)
+        if (res) { cur = next; best = res }
+      }
     }
   }
   for (const r of best.resolved) setModelPos(state.models[r.model.id], r.to, r.facing)
@@ -722,6 +774,8 @@ function finishUnit(state: GameState, unitId: UnitId, extraIds: UnitId[] = []): 
   writeMark(state, 'mv:deRolled', null)
   writeMark(state, 'mv:deRemaining', null)
   writeMark(state, 'mv:deGroup', null)
+  writeMark(state, 'mv:deFails', null)
+  writeMark(state, 'mv:deResub', null)
 }
 
 function doSelect(ctx: EngineContext): 'pending' | 'declare' | 'reinforcements' {
@@ -822,7 +876,7 @@ function doMove(ctx: EngineContext): 'pending' | 'select' {
   if (!unitId) throw new EngineInvariantError('movement: move step with no current unit')
   const unit = s.units[unitId]
   const placementsRaw = readMark(s, 'mv:placements')
-  if (unit.location !== 'board' && placementsRaw === null) {
+  if (unit.location !== 'board' && placementsRaw === null && readMark(s, 'mv:deResub') === null) {
     // the tracked half was wiped out (e.g. Fire Overwatch during the moveStarted window) before it ever submitted a
     // placement — MOVE-011-leader's stale-link bug applies here too: detach before finishing so a surviving attached
     // partner's bodyguardUnitId/attachedLeaderId doesn't keep pointing at a destroyed unit. (Once placements *have*
@@ -836,7 +890,7 @@ function doMove(ctx: EngineContext): 'pending' | 'select' {
   const moveType = unit.turn.moveType as MoveType
   if (placementsRaw === null) {
     // R-5.5b: a declared Fall Back left with no legal end (Overwatch casualties at movement.moveStarted) reverts to Remain Stationary
-    if (moveType === 'fallBack' && moveUnitCandidatesFor(s, unitId, 'fallBack', unit.player, '__stuck__').length === 0) {
+    if (moveType === 'fallBack' && readMark(s, 'mv:deResub') === null && moveUnitCandidatesFor(s, unitId, 'fallBack', unit.player, '__stuck__').length === 0) {
       setMoveType(s, unitId, 'stationary')
       ctx.emit({ type: 'UnitRemainedStationary', unitId, player: unit.player })
       finishUnit(s, unitId)
@@ -854,7 +908,9 @@ function doMove(ctx: EngineContext): 'pending' | 'select' {
   // coherency check here — a casualty picked after submission may break coherency of what's left, which is not a
   // re-validation failure of the *original* (fully coherent) submission; R-2.6's end-of-turn cull handles it.
   const placements: ModelPlacement[] = (JSON.parse(placementsRaw) as ModelPlacement[]).filter((p) => s.models[p.modelId])
-  const result = resolveMove(s, unitId, moveType, placements, { skipCoherency: true })
+  // RC-010: the re-submitted survivors' move (mv:deResub = '1') must end coherent; the original submission is replayed
+  // without the coherency check only when no legal re-submission exists (mv:deResub = '0') or no casualty occurred
+  const result = resolveMove(s, unitId, moveType, placements, { skipCoherency: readMark(s, 'mv:deResub') !== '1' })
   if (result.rejection) throw new EngineInvariantError('movement: stored placements failed re-validation', { rejection: result.rejection })
   const resolved = result.resolved
 
@@ -876,6 +932,7 @@ function doMove(ctx: EngineContext): 'pending' | 'select' {
       const fails = roll.final.filter((d) => d <= 2).length
       ctx.emit({ type: 'DesperateEscapeRolled', unitId, dice: roll.dice, casualties: fails, player: unit.player })
       writeMark(s, 'mv:deRemaining', String(fails))
+      writeMark(s, 'mv:deFails', String(fails))
     }
   }
 
@@ -892,6 +949,22 @@ function doMove(ctx: EngineContext): 'pending' | 'select' {
       })
       return 'pending'
     }
+  }
+
+  // RC-010 (R-5.6): once the casualties are removed the survivors make their Fall Back move for real and must end
+  // coherent, so ask the owner to re-submit it (tested models only may cross enemies, see checkPaths)
+  if (Number(readMark(s, 'mv:deFails') ?? '0') > 0 && readMark(s, 'mv:deResub') === null && unit.location === 'board' && unitModelsForCoherency(s, unitId).length > 0) {
+    writeMark(s, 'mv:deResub', '1')
+    if (moveUnitCandidatesFor(s, unitId, 'fallBack', unit.player, '__resub__').length > 0) {
+      writeMark(s, 'mv:placements', null)
+      ctx.decide({
+        kind: 'moveUnit', player: unit.player, window: 'movement.unitMoved', canPass: false,
+        context: { unitId, moveType, advanceRoll: unit.turn.advanceRoll },
+        constraints: buildMoveConstraints(s, unitId, moveType),
+      })
+      return 'pending'
+    }
+    writeMark(s, 'mv:deResub', '0')
   }
 
   // MOVE-011-leader: apply every surviving model's placement (bodyguard and any attached leader alike) even when

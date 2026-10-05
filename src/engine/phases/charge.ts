@@ -30,7 +30,7 @@ import { optionActions, repairCoherency } from './legal'
 import { rollSum } from '../dice'
 import {
   EPS, ENGAGEMENT_H, COHERENCY_H, anyWithinEngagementRange, basesOverlap, checkPlacements, dist2D, distance,
-  emptyMoveConstraints, horizontalGap, inBaseContact, pathCrossesModels, pathEntersEngagement, pathLength,
+  emptyMoveConstraints, horizontalGap, inBaseContact, isCoherent, pathCrossesModels, pathEntersEngagement, pathLength,
   whollyOnBoard, type Footprint, type ResolvedPlacement,
 } from '../geometry'
 import { hookService } from '../hooks-impl'
@@ -38,6 +38,7 @@ import { leaderService } from '../leaders'
 import { attackService } from '../attack'
 import { weaponService } from '../weapons'
 import { terrainService } from '../terrain'
+import { crossesBigFriendly } from './movement'
 import { pendingReactions, consumeReaction } from '../code-hooks'
 import { cultAmbushOnMoveEnded } from '../cult-ambush'
 import { notImplementedHandle, otherPlayer, type AdvanceResult, type EngineContext, type PhaseModule } from '../modules'
@@ -216,6 +217,7 @@ function tryChargePlacement(state: GameState, geo: ChargeGeometry, m: Model, can
   // W1-G: ending on top of an enemy model (e.g. contact with one oval target model while clipping its neighbour)
   if ([...allTargets, ...geo.nonTargets].some((b) => basesOverlap(fp, b))) return null
   if (!geo.fly && (pathEntersEngagement(fp, path, geo.nonTargets) || pathCrossesModels(fp, path, [...geo.nonTargets, ...allTargets]))) return null
+  if (crossesBigFriendly(state, m, fp, path, geo.otherFriendly)) return null
   if (terrainService.crossesImpassable(state, m, path) || !terrainService.canEndAt(state, m, to).ok) return null
   return { model: m, from: m.pos, to, facing: m.facing, path, distance: travel }
 }
@@ -341,6 +343,7 @@ function checkChargeArrangement(state: GameState, geo: ChargeGeometry, targetUni
       if (pathEntersEngagement(fp, r.path, geo.nonTargets)) return { rejection: { code: 'E_ENGAGEMENT', reason: `${r.model.id}'s path would enter engagement range of a unit it did not charge`, details: { modelId: r.model.id } } }
       if (pathCrossesModels(fp, r.path, [...geo.nonTargets, ...allTargets])) return { rejection: { code: 'E_OVERLAP', reason: `${r.model.id}'s path would cross an enemy model`, details: { modelId: r.model.id } } }
     }
+    if (crossesBigFriendly(state, r.model, fp, r.path, geo.otherFriendly)) return { rejection: { code: 'E_OVERLAP', reason: `${r.model.id}'s path would cross another MONSTER/VEHICLE model`, details: { modelId: r.model.id } } }
     if (terrainService.crossesImpassable(state, r.model, r.path)) return { rejection: { code: 'E_OVERLAP', reason: `${r.model.id}'s path is blocked by terrain`, details: { modelId: r.model.id } } }
     const end = terrainService.canEndAt(state, r.model, r.to)
     if (!end.ok) return { rejection: { code: 'E_OVERLAP', reason: end.reason ?? `${r.model.id} cannot end there`, details: { modelId: r.model.id } } }
@@ -359,11 +362,9 @@ function chargeMoveRejection(state: GameState, geo: ChargeGeometry, targetUnitId
     }
     const fp: Footprint = { pos: r.to, facing: r.facing, base: r.model.base }
     const alreadyInContact = geo.targetGroups.flat().some((t) => inBaseContact(fp, t))
-    const blockers: Footprint[] = [
-      ...check.resolved.filter((o) => o.model.id !== r.model.id).map((o) => ({ pos: o.to, facing: o.facing, base: o.model.base })),
-      ...geo.otherFriendly,
-    ]
-    if (!alreadyInContact && couldReachBaseContact(state, geo, r.model, roll, blockers)) {
+    const rest: Footprint[] = check.resolved.filter((o) => o.model.id !== r.model.id).map((o) => ({ pos: o.to, facing: o.facing, base: o.model.base }))
+    const blockers: Footprint[] = [...rest, ...geo.otherFriendly]
+    if (!alreadyInContact && couldReachBaseContact(state, geo, r.model, roll, blockers, rest)) {
       return { code: 'E_OUT_OF_RANGE', reason: `${r.model.id} could end in base contact with a charged unit and must`, details: { modelId: r.model.id } }
     }
   }
@@ -419,7 +420,7 @@ function closerToAnyTarget(model: Model, from: Vec3, to: Vec3, targetGroups: Mod
 // R-8.5: could `model` legally have reached base contact with a charged unit — own travel budget, board edge,
 // terrain, non-target Engagement Range, AND overlap with `blockers` (the rest of the unit's own resolved
 // arrangement plus other friendlies — CHARGE-012-crowd: a contact spot already taken by a teammate doesn't count).
-function couldReachBaseContact(state: GameState, geo: ChargeGeometry, model: Model, maxDistance: number, blockers: Footprint[]): boolean {
+function couldReachBaseContact(state: GameState, geo: ChargeGeometry, model: Model, maxDistance: number, blockers: Footprint[], rest: Footprint[]): boolean {
   for (const t of geo.targetGroups.flat()) {
     const c = contactCandidate(model, t, 0)
     if (c.travel > maxDistance + 1e-3) continue
@@ -430,8 +431,12 @@ function couldReachBaseContact(state: GameState, geo: ChargeGeometry, model: Mod
     if (!whollyOnBoard(fp, state.board)) continue
     if (blockers.some((b) => basesOverlap(fp, b))) continue
     const path: Path = [model.pos, to]
-    if (!geo.fly && pathEntersEngagement(fp, path, geo.nonTargets)) continue
+    if (!geo.fly && (pathEntersEngagement(fp, path, geo.nonTargets) || pathCrossesModels(fp, path, [...geo.nonTargets, ...geo.targetGroups.flat()]))) continue
+    if (crossesBigFriendly(state, model, fp, path, geo.otherFriendly)) continue
+    if (terrainService.crossesImpassable(state, model, path)) continue
     if (!terrainService.canEndAt(state, model, to).ok) continue
+    // RC-033: the contact spot only counts if the whole unit stays coherent with this model moved there
+    if (!isCoherent([...rest, fp])) continue
     return true
   }
   return false

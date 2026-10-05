@@ -35,6 +35,7 @@ import { leaderService } from '../leaders'
 import { attackService } from '../attack'
 import { purgeDeferredDeaths, resolveDeferredDeaths } from '../fight-on-death'
 import { terrainService } from '../terrain'
+import { crossesBigFriendly } from './movement'
 import { weaponService } from '../weapons'
 import { pendingReactions, consumeReaction } from '../code-hooks'
 import { finishDeferredRemovalOfUnit, pendingDeathBlowUnits } from '../deathblow'
@@ -185,7 +186,7 @@ function planApproachEnemy(state: GameState, geo: FightGeometry, maxDistance: nu
     const overlapBlockers: Footprint[] = [...placed.map((pl) => ({ pos: pl.to, facing: pl.facing, base: pl.model.base })), ...geo.otherFriendly]
     if (overlapBlockers.some((b) => basesOverlap(fp, b))) { placed.push(stay(m)); continue }
     const path: Path = [m.pos, to]
-    if (pathCrossesModels(fp, path, geo.enemies)) { placed.push(stay(m)); continue }
+    if (pathCrossesModels(fp, path, geo.enemies) || crossesBigFriendly(state, m, fp, path, geo.otherFriendly)) { placed.push(stay(m)); continue }
     if (terrainService.crossesImpassable(state, m, path) || !terrainService.canEndAt(state, m, to).ok) { placed.push(stay(m)); continue }
     placed.push({ model: m, from: m.pos, to, facing: m.facing, path, distance: travel })
   }
@@ -207,7 +208,7 @@ function planApproachPoint(state: GameState, models: Model[], point: Vec3, other
     const fp: Footprint = { pos: to, facing: m.facing, base: m.base }
     const blockers: Footprint[] = [...placed.map((pl) => ({ pos: pl.to, facing: pl.facing, base: pl.model.base })), ...otherFriendly, ...enemies]
     if (travel > maxDistance + 1e-3 || !whollyOnBoard(fp, state.board) || blockers.some((b) => basesOverlap(fp, b))
-      || pathCrossesModels(fp, [m.pos, to], enemies) || terrainService.crossesImpassable(state, m, [m.pos, to]) || !terrainService.canEndAt(state, m, to).ok) {
+      || pathCrossesModels(fp, [m.pos, to], enemies) || crossesBigFriendly(state, m, fp, [m.pos, to], otherFriendly) || terrainService.crossesImpassable(state, m, [m.pos, to]) || !terrainService.canEndAt(state, m, to).ok) {
       placed.push({ model: m, from: m.pos, to: m.pos, facing: m.facing, path: [m.pos, m.pos], distance: 0 })
       continue
     }
@@ -228,6 +229,7 @@ function checkApproachArrangement(state: GameState, geo: FightGeometry, maxDista
     if (r.distance <= EPS) continue
     const fp: Footprint = { pos: r.to, facing: r.facing, base: r.model.base }
     if (pathCrossesModels(fp, r.path, geo.enemies)) return { rejection: { code: 'E_OVERLAP', reason: `${r.model.id}'s path would cross an enemy model`, details: { modelId: r.model.id } } }
+    if (crossesBigFriendly(state, r.model, fp, r.path, geo.otherFriendly)) return { rejection: { code: 'E_OVERLAP', reason: `${r.model.id}'s path would cross another MONSTER/VEHICLE model`, details: { modelId: r.model.id } } }
     if (terrainService.crossesImpassable(state, r.model, r.path)) return { rejection: { code: 'E_OVERLAP', reason: `${r.model.id}'s path is blocked by terrain`, details: { modelId: r.model.id } } }
     const end = terrainService.canEndAt(state, r.model, r.to)
     if (!end.ok) return { rejection: { code: 'E_OVERLAP', reason: end.reason ?? `${r.model.id} cannot end there`, details: { modelId: r.model.id } } }
@@ -533,6 +535,7 @@ function checkConsolidateArrangement(state: GameState, geo: FightGeometry, dist:
     if (r.distance <= EPS) continue
     const fp: Footprint = { pos: r.to, facing: r.facing, base: r.model.base }
     if (pathCrossesModels(fp, r.path, geo.enemies)) return { rejection: { code: 'E_OVERLAP', reason: `${r.model.id}'s path would cross an enemy model`, details: { modelId: r.model.id } } }
+    if (crossesBigFriendly(state, r.model, fp, r.path, geo.otherFriendly)) return { rejection: { code: 'E_OVERLAP', reason: `${r.model.id}'s path would cross another MONSTER/VEHICLE model`, details: { modelId: r.model.id } } }
     if (terrainService.crossesImpassable(state, r.model, r.path)) return { rejection: { code: 'E_OVERLAP', reason: `${r.model.id}'s path is blocked by terrain`, details: { modelId: r.model.id } } }
     const end = terrainService.canEndAt(state, r.model, r.to)
     if (!end.ok) return { rejection: { code: 'E_OVERLAP', reason: end.reason ?? `${r.model.id} cannot end there`, details: { modelId: r.model.id } } }
