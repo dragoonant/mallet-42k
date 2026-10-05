@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { summariseEvents } from '../../src/client/ui/eventSummary'
+import { summariseEvents, turnTotals } from '../../src/client/ui/eventSummary'
 import type { GameEvent, GameState } from '../../src/engine'
 
 const base = { round: 1, turn: 'A', phase: 'shooting', player: 'A' } as const
@@ -8,7 +8,7 @@ const atk = { attackerUnitId: 'u1', attackerModelId: 'm1', weaponId: 'w1', targe
 const state = {
   units: { u1: { id: 'u1', name: 'Infernus Squad' }, u2: { id: 'u2', name: 'Boyz' } },
   players: { A: { name: 'Marines' }, B: { name: 'Orks' } },
-  weapons: { w1: { id: 'w1', name: 'pyreblaster' } },
+  weapons: { w1: { id: 'w1', name: 'pyreblaster', skill: 3 } },
   stratagems: {}, abilities: {}, mission: { rules: [], scoring: [] },
 } as unknown as GameState
 
@@ -29,6 +29,14 @@ describe('eventSummary', () => {
     ]
     const lines = summariseEvents(events, state, null).filter((l) => l.kind === 'attack')
     expect(lines).toHaveLength(1)
-    expect(lines[0].text).toBe('Infernus Squad — pyreblaster → Boyz [Overwatch]: 2 shots, 2 hit (1 crit, 1 extra), 2 wound, 1 saved, 1 dmg, 1 slain')
+    expect(lines[0].text).toBe('Infernus Squad — pyreblaster → Boyz [Overwatch]: 2 shots, 2 hit (exp 1.3 base) (1 crit, 1 extra), 2 wound (exp 1.0), 1 saved (exp 0.3), 1 dmg, 1 slain')
+  })
+
+  it('totals damage per unit for the newest turn only', () => {
+    const d = (seq: number, round: number, amount: number): GameEvent =>
+      ({ ...base, seq, round, type: 'DamageApplied', unitId: 'u2', modelId: 'x', amount, mortal: false, woundsRemaining: 0, source: atk }) as unknown as GameEvent
+    const rows = turnTotals([d(1, 1, 5), d(2, 2, 2), d(3, 2, 1)], state)
+    expect(rows.find((r) => r.unitId === 'u1')?.dealt).toBe(3)
+    expect(rows.find((r) => r.unitId === 'u2')?.taken).toBe(3)
   })
 })

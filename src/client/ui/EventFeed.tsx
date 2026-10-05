@@ -10,7 +10,7 @@ import { useGameStore } from '../store/game'
 import { useDisplayState, usePresentedStore } from '../presentation/presentedStore'
 import { sourceName } from './labels'
 import { colors, mutedText, panel } from './theme'
-import { summariseEvents } from './eventSummary'
+import { summariseEvents, turnTotals } from './eventSummary'
 
 const wrap: CSSProperties = {
   ...panel,
@@ -72,8 +72,9 @@ export function EventFeed() {
 
   const merged = [
     ...summariseEvents(events, state, bundle).map((l) => ({ ...l, muted: false })),
-    ...notes.map((n) => ({ key: `n:${n.id}`, text: n.text, detail: undefined as string[] | undefined, player: null, kind: 'event' as const, sortKey: n.afterSeq + 0.5, muted: true })),
+    ...notes.map((n) => ({ key: `n:${n.id}`, text: n.text, detail: undefined as string[] | undefined, luck: undefined as 'lucky' | 'unlucky' | 'average' | undefined, player: null, kind: 'event' as const, sortKey: n.afterSeq + 0.5, muted: true })),
   ].sort((a, b) => a.sortKey - b.sortKey)
+  const totals = turnTotals(events, state)
   const described = merged.slice(-MAX_LINES)
 
   const toggle = (key: string): void =>
@@ -95,6 +96,18 @@ export function EventFeed() {
           ))}
         </div>
       </div>
+      {totals.length > 0 && (
+        <div data-testid="turn-totals">
+          <div style={heading}>This turn</div>
+          <div style={{ ...scroll, maxHeight: 70, gap: 2, fontSize: 11 }}>
+            {totals.map((r) => (
+              <div key={r.unitId} style={{ color: LINE_COLOR[r.player] }}>
+                {r.name}: {r.dealt > 0 || r.slain > 0 ? `dealt ${r.dealt}, slain ${r.slain}` : ''}{(r.dealt > 0 || r.slain > 0) && r.taken > 0 ? ' · ' : ''}{r.taken > 0 ? `took ${r.taken}` : ''}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div>
         <div style={heading}>Events</div>
         <div
@@ -125,6 +138,7 @@ export function EventFeed() {
                 onClick={expandable ? () => toggle(line.key) : undefined}
               >
                 {line.text}
+                {line.luck && line.luck !== 'average' && <span style={{ ...mutedText, fontSize: 11 }}> {line.luck === 'lucky' ? '▲ lucky' : '▼ unlucky'}</span>}
                 {expandable && open.has(line.key) && line.detail?.map((d, i) => (
                   <div key={i} style={{ ...mutedText, fontSize: 11, paddingLeft: 8 }}>{d}</div>
                 ))}

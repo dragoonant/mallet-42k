@@ -12,6 +12,8 @@ export type LineKind = 'header' | 'attack' | 'event'
 export interface SummaryLine {
   key: string
   text: string
+  /** Attack lines: above/below expectation for the attacker. */
+  luck?: 'lucky' | 'unlucky' | 'average'
   /** Per-step numbers for an attack line (expandable in the UI). */
   detail?: string[]
   /** Acting player, for colouring. Null for neutral lines. */
@@ -46,12 +48,22 @@ interface Group {
   damage: number
   mortal: number
   slain: number
+  expHits: number
+  expWounds: number
+  expSaved: number
+  hitOdds: boolean
   hitDetail: string[]
   woundDetail: string[]
   saveDetail: string[]
 }
 
-const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
+/** Chance a d6 passes `needed`+ (natural 1 always fails, natural 6 always passes). */
+function probOf(needed: number): number {
+  return Math.min(5 / 6, Math.max(1 / 6, (7 - needed) / 6))
+}
+const pct = (p: number): string => `${Math.round(p * 100)}%`
+
+const cap =(s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`
 
 export function summariseEvents(events: readonly GameEvent[], state: GameState, bundle: DataBundle | null): SummaryLine[] {
@@ -83,7 +95,7 @@ export function summariseEvents(events: readonly GameEvent[], state: GameState, 
         overwatch: overwatch.get(a.attackerUnitId) ?? false, kind: 'ranged',
         shots: 0, hits: 0, critHits: 0, extraHits: 0, autoHits: 0, wounds: 0, critWounds: 0, autoWounds: 0,
         saved: 0, failed: 0, unsaved: 0, cover: 0, fnpIgnored: 0, damage: 0, mortal: 0, slain: 0,
-        hitDetail: [], woundDetail: [], saveDetail: [],
+        expHits: 0, expWounds: 0, expSaved: 0, hitOdds: true, hitDetail: [], woundDetail: [], saveDetail: [],
       }
       groups.set(k, g)
       groupOrder.push(g)
@@ -137,7 +149,13 @@ export function summariseEvents(events: readonly GameEvent[], state: GameState, 
           g.extraHits += e.extraHits
           g.hits += e.extraHits
         }
-        g.hitDetail.push(e.auto ? 'auto-hit' : `${e.die}${e.final !== e.die ? `→${e.final}` : ''}${e.hit ? (e.critical ? ' crit' : ' hit') : ' miss'}${e.extraHits ? ` +${e.extraHits}` : ''}`)
+        const skill = state.weapons[e.attack.weaponId]?.skill
+        let hp: number | null = null
+        if (e.auto) hp = 1
+        else if (typeof skill === 'number') hp = probOf(skill - (e.final - e.die))
+        if (hp === null) g.hitOdds = false
+        else if (!e.auto) g.expHits += hp
+        g.hitDetail.push(e.auto ? 'auto-hit' : `${e.die}${e.final !== e.die ? `→${e.final}` : ''}${e.hit ? (e.critical ? ' crit' : ' hit') : ' miss'}${e.extraHits ? ` +${e.extraHits}` : ''}${hp !== null ? ` (${pct(hp)})` : ''}`)
         break
       }
       case 'WoundRolled': {
@@ -147,7 +165,8 @@ export function summariseEvents(events: readonly GameEvent[], state: GameState, 
           if (e.critical) g.critWounds++
           if (e.auto) g.autoWounds++
         }
-        g.woundDetail.push(e.auto ? 'auto-wound' : `${e.die}${e.final !== e.die ? `→${e.final}` : ''} vs ${e.needed}+${e.wounded ? (e.critical ? ' crit' : ' wound') : ' fail'}`)
+        if (!e.auto) g.expWounds += probOf(e.needed)
+        g.woundDetail.push(e.auto ? 'auto-wound' : `${e.die}${e.final !== e.die ? `→${e.final}` : ''} vs ${e.needed}+${e.wounded ? (e.critical ? ' crit' : ' wound') : ' fail'} (${pct(probOf(e.needed))})`)
         break
       }
       case 'AttackAllocated': {
@@ -160,9 +179,10 @@ export function summariseEvents(events: readonly GameEvent[], state: GameState, 
           g.unsaved++
           g.saveDetail.push('no save')
         } else {
+          g.expSaved += probOf(e.needed)
           if (e.saved) g.saved++
           else g.failed++
-          g.saveDetail.push(`${e.kind === 'invuln' ? 'invuln' : 'armour'} ${e.die}${e.final !== e.die ? `→${e.final}` : ''} vs ${e.needed}+ ${e.saved ? 'saved' : 'failed'}`)
+          g.saveDetail.push(`${e.kind === 'invuln' ? 'invuln' : 'armour'} ${e.die}${e.final !== e.die ? `→${e.final}` : ''} vs ${e.needed}+ ${e.saved ? 'saved' : 'failed'} (${pct(probOf(e.needed))})`)
         }
         break
       }
@@ -294,19 +314,25 @@ function attackLine(g: Group, unit: (id: string) => string, weaponName: (id: str
   const parts: string[] = []
   parts.push(`${g.shots} ${g.shots === 1 ? shotWord.slice(0, -1) : shotWord}`)
   const hitBits = [g.critHits ? `${g.critHits} crit` : '', g.extraHits ? `${g.extraHits} extra` : '', g.autoHits ? `${g.autoHits} auto` : ''].filter(Boolean)
-  parts.push(`${g.hits} hit${hitBits.length ? ` (${hitBits.join(', ')})` : ''}`)
+  const baseHits = g.hits - g.extraHits
+  const expH = g.hitOdds && g.shots > 0 ? ` (exp ${g.expHits.toFixed(1)}${g.extraHits ? ' base' : ''})` : ''
+  parts.push(`${g.hits} hit${expH}${hitBits.length ? ` (${hitBits.join(', ')})` : ''}`)
   if (g.hits > 0 || g.wounds > 0) {
     const wBits = [g.critWounds ? `${g.critWounds} crit` : '', g.autoWounds ? `${g.autoWounds} auto` : ''].filter(Boolean)
-    parts.push(`${g.wounds} wound${wBits.length ? ` (${wBits.join(', ')})` : ''}`)
+    const expW = g.woundDetail.length ? ` (exp ${g.expWounds.toFixed(1)})` : ''
+    parts.push(`${g.wounds} wound${expW}${wBits.length ? ` (${wBits.join(', ')})` : ''}`)
   }
   if (g.saved + g.failed + g.unsaved > 0) {
     const cover = g.cover ? ` (${g.cover} in cover)` : ''
-    parts.push(`${g.saved} saved${cover}`)
+    parts.push(`${g.saved} saved (exp ${g.expSaved.toFixed(1)})${cover}`)
   }
   if (g.fnpIgnored) parts.push(`${g.fnpIgnored} ignored`)
   parts.push(`${g.damage + g.mortal} dmg${g.mortal ? ` (${g.mortal} mortal)` : ''}`)
   parts.push(`${g.slain} slain`)
   const detail: string[] = []
+  const luckScore = (g.hitOdds ? baseHits - g.expHits : 0) + (g.woundDetail.length ? g.wounds - g.expWounds : 0) - (g.saved - g.expSaved)
+  const luck = luckScore >= 0.75 ? 'lucky' : luckScore <= -0.75 ? 'unlucky' : 'average'
+  detail.push(`Luck for the attacker: ${luck} (${luckScore >= 0 ? '+' : ''}${luckScore.toFixed(1)}); odds ignore re-rolls and sustained/lethal extras`)
   if (g.hitDetail.length) detail.push(`Hit: ${g.hitDetail.join(', ')}`)
   if (g.woundDetail.length) detail.push(`Wound: ${g.woundDetail.join(', ')}`)
   if (g.saveDetail.length) detail.push(`Save: ${g.saveDetail.join(', ')}`)
@@ -316,7 +342,36 @@ function attackLine(g: Group, unit: (id: string) => string, weaponName: (id: str
     text: `${unit(g.attackerUnitId)} — ${weaponName(g.weaponId)} → ${unit(g.targetUnitId)}${ow}: ${parts.join(', ')}`,
     detail,
     player: g.player,
+    luck,
     kind: 'attack',
     sortKey: g.seq,
   }
+}
+
+export interface TurnTotalRow { unitId: string; name: string; player: PlayerId; dealt: number; slain: number; taken: number }
+
+/** Per-unit damage dealt / models slain / damage taken in the most recent turn present in `events`.
+ *  Resets automatically because only the newest (round, turn) is counted. */
+export function turnTotals(events: readonly GameEvent[], state: GameState): TurnTotalRow[] {
+  const last = events[events.length - 1]
+  if (!last) return []
+  const rows = new Map<string, TurnTotalRow>()
+  const row = (id: string): TurnTotalRow => {
+    let r = rows.get(id)
+    if (!r) {
+      r = { unitId: id, name: state.units[id]?.name ?? id, player: (state.units[id]?.player ?? 'A') as PlayerId, dealt: 0, slain: 0, taken: 0 }
+      rows.set(id, r)
+    }
+    return r
+  }
+  for (const e of events) {
+    if (e.round !== last.round || e.turn !== last.turn) continue
+    if (e.type === 'DamageApplied') {
+      row(e.unitId).taken += e.amount
+      if ('attackerUnitId' in e.source) row(e.source.attackerUnitId).dealt += e.amount
+    } else if (e.type === 'ModelDestroyed' && e.byUnitId) {
+      row(e.byUnitId).slain++
+    }
+  }
+  return [...rows.values()].filter((r) => r.dealt || r.slain || r.taken)
 }
