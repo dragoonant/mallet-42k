@@ -350,6 +350,8 @@ const heroicInterventionCharge: EngineCodeHook = {
     const [enemyId, friendlyId] = t.ids
     const { state } = env
     if (!boardUnit(state, enemyId) || !leaderService.sameUnit(state, enemyId, env.trigger.unitId)) return false
+    // one Heroic Intervention per charge move: a queued one closes the window (a 0 CP / no-limit override such as Pouncing Leap would otherwise re-offer it forever)
+    if (pendingReactions(state, 'heroicIntervention').some((r) => r.enemyUnitId === enemyId)) return false
     const f = boardUnit(state, friendlyId)
     if (!f) return false
     if (leaderService.halves(state, friendlyId).some((id) => !notMovedAwayOrFled(state.units[id]))) return false

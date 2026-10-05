@@ -14,7 +14,7 @@ import { RandomDecider } from '../src/ai/random'
 import { UtilityDecider, type Difficulty } from '../src/ai/utility'
 
 const MISSIONS = ['mission.cp-01', 'mission.cp-02', 'mission.cp-03', 'mission.cp-04', 'mission.cp-05', 'mission.cp-06']
-const MAX_STEPS = 20_000
+const STALL_DECISIONS = 2_000 // a normal game is ~500 decisions; past this a game is reported as stalled (see tests/ai/stall.test.ts)
 
 function arg(name: string, fallback: string): string {
   const i = process.argv.indexOf(`--${name}`)
@@ -68,7 +68,7 @@ function makeSetup(bundle: DataBundle, gameIndex: number, aiSeat: PlayerId, data
 
 interface GameOutcome {
   aiSeat: PlayerId; aiFaction: string; winner: PlayerId | 'draw' | null; vpAi: number; vpRandom: number
-  decisionMs: number[]; rejections: number; unfinished: boolean
+  decisionMs: number[]; rejections: number; unfinished: boolean; stalled: boolean; steps: number
 }
 
 async function playOne(
@@ -86,7 +86,7 @@ async function playOne(
   const decisionMs: number[] = []
   let rejections = 0
   let steps = 0
-  while (r.pending && steps < MAX_STEPS) {
+  while (r.pending && steps <= STALL_DECISIONS) {
     steps++
     const pending = r.pending
     const decider = deciders[pending.player] as Decider
@@ -122,6 +122,8 @@ async function playOne(
     decisionMs,
     rejections,
     unfinished: !s.result,
+    stalled: !s.result && steps > STALL_DECISIONS,
+    steps,
   }
 }
 
@@ -148,7 +150,7 @@ async function main(): Promise<void> {
   const bundle = await loadBundle()
   const started = Date.now()
 
-  let aiWins = 0, draws = 0, randomWins = 0, rejections = 0, unfinished = 0
+  let aiWins = 0, draws = 0, randomWins = 0, rejections = 0, unfinished = 0, stalled = 0
   let vpAiTotal = 0, vpRandomTotal = 0
   const allMs: number[] = []
   const byFaction = new Map<string, FactionTally>()
@@ -158,6 +160,7 @@ async function main(): Promise<void> {
     const outcome = await playOne(bundle, seed, g, DATA_VERSION, difficulty, forcedAiFactionId)
     rejections += outcome.rejections
     if (outcome.unfinished) unfinished++
+    if (outcome.stalled) { stalled++; console.log(`STALLED: game ${g} exceeded ${STALL_DECISIONS} decisions without finishing (aiSeat=${outcome.aiSeat} aiFaction=${outcome.aiFaction})`) }
     vpAiTotal += outcome.vpAi
     vpRandomTotal += outcome.vpRandom
     allMs.push(...outcome.decisionMs)
@@ -180,7 +183,7 @@ async function main(): Promise<void> {
   const p95Ms = percentile(sorted, 0.95)
 
   console.log(`ai-bench: ${games} games, seed ${seed}, difficulty ${difficulty}${factionArg ? `, faction ${factionArg}` : ''}, ${((Date.now() - started) / 1000).toFixed(1)}s`)
-  console.log(`AI wins: ${aiWins}; Random wins: ${randomWins}; draws: ${draws}${unfinished ? `; unfinished: ${unfinished}` : ''}`)
+  console.log(`AI wins: ${aiWins}; Random wins: ${randomWins}; draws: ${draws}${unfinished ? `; unfinished: ${unfinished}` : ''}${stalled ? `; STALLED: ${stalled}` : ''}`)
   console.log(`mean VP — AI: ${(vpAiTotal / Math.max(games, 1)).toFixed(1)}, Random: ${(vpRandomTotal / Math.max(games, 1)).toFixed(1)}`)
   for (const [faction, t] of [...byFaction].sort(([a], [b]) => a.localeCompare(b))) {
     const winRate = t.games > 0 ? ((t.aiWins / t.games) * 100).toFixed(0) : '0'
@@ -188,7 +191,7 @@ async function main(): Promise<void> {
   }
   console.log(`AI decision time — mean: ${meanMs.toFixed(1)}ms, p95: ${p95Ms.toFixed(1)}ms, n=${allMs.length}`)
   console.log(`rejections: ${rejections}`)
-  process.exit(rejections > 0 ? 1 : 0)
+  process.exit(rejections > 0 || stalled > 0 ? 1 : 0)
 }
 
 main().catch((err) => { console.error(err); process.exit(2) })

@@ -33,9 +33,9 @@ and `tests/e2e/spike-incursion.spec.ts`. Engine contracts and data files were no
 | JS heap, MB | 46-59 | 47-48 |
 | Long tasks (>50 ms) in 10 s | 0 | 0 default; 1 (2.1 s) wide |
 
-Caveats: two CP games (game indices 5 and 6) hit the 60 s cap after ~3,700 decisions
+Caveats (fixed, see below): two CP games (game indices 5 and 6) hit the 60 s cap after ~3,700 decisions
 without finishing, so CP columns use the five finished games. The same pairings finished at Incursion scale.
-This looks like an existing AI/engine stall, not something this spike introduced; it was not investigated.
+Root cause: Heroic Intervention re-offered forever (Pouncing Leap makes it 0 CP and un-limited for Leapers). Fixed in code-hooks.ts; all CP games now finish in ~500-600 decisions.
 Model counts are at game creation (headless) and on-board after deployment (render).
 
 ## Hotspots observed

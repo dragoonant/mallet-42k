@@ -24,7 +24,7 @@ export interface GameRun {
 
 const MISSIONS = ['mission.cp-01', 'mission.cp-02', 'mission.cp-03', 'mission.cp-04', 'mission.cp-05', 'mission.cp-06']
 const BATTLE_PHASES = ['command', 'movement', 'shooting', 'charge', 'fight']
-const MAX_ACTIONS = 50_000
+const MAX_ACTIONS = 5_000 // a normal game is ~500 decisions; hitting this reports the game as stalled
 
 // mulberry32 — the bots' own choice RNG (the engine's dice RNG lives in state.rng)
 function botRng(seedText: string): () => number {
@@ -174,7 +174,7 @@ export function runGame(bundle: DataBundle, baseSeed: string | number, gameIndex
   }
   const s = r.state
   if (violations.length === 0) {
-    if (actions.length >= MAX_ACTIONS) fail(`game did not finish within ${MAX_ACTIONS} actions`)
+    if (actions.length >= MAX_ACTIONS) fail(`game stalled: did not finish within ${MAX_ACTIONS} actions`)
     else if (s.phase !== 'ended' || !s.result) fail(`game stopped without a GameResult (phase ${s.phase})`)
   }
   return {
