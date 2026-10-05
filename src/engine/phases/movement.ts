@@ -33,6 +33,10 @@ import type { TimingWindowId } from '../../data/types'
 import { hookService } from '../hooks-impl'
 import { leaderService } from '../leaders'
 import { pendingReactions, consumeReaction } from '../code-hooks'
+import {
+  CULT_AMBUSH_MARKER_RADIUS, CULT_AMBUSH_REACTION_KIND, cultAmbushArrivalPlacements, cultAmbushOnMoveEnded, cultAmbushReactionMarker, cultAmbushReturnStep,
+  pendingCultAmbushReactions,
+} from '../cult-ambush'
 import { attackService } from '../attack'
 import { weaponService } from '../weapons'
 import { terrainService } from '../terrain'
@@ -127,7 +131,7 @@ function buildMoveConstraints(state: GameState, unitId: UnitId, moveType: MoveTy
 // Escape re-validation of already-submitted placements (MOVE-011-coherency): a casualty chosen after submission may
 // break coherency of the remaining models, which is not a re-validation failure — R-2.6's end-of-turn coherency cull
 // (owned elsewhere) is what actually enforces coherency once casualties are done being picked.
-function resolveMove(state: GameState, unitId: UnitId, moveType: MoveType, placements: ModelPlacement[], opts: { skipCoherency?: boolean; distance?: number } = {}):
+function resolveMove(state: GameState, unitId: UnitId, moveType: MoveType, placements: ModelPlacement[], opts: { skipCoherency?: boolean; distance?: number; allowEngaged?: boolean } = {}):
   { rejection: Rejection } | { rejection: null; resolved: ResolvedPlacement[] } {
   const models = unitModelsForCoherency(state, unitId)
   const allowance = moveAllowance(state, unitId)
@@ -137,7 +141,7 @@ function resolveMove(state: GameState, unitId: UnitId, moveType: MoveType, place
   const enemies = enemyModelsOnBoard(state, state.units[unitId].player)
   const otherFriendly = friendlyOthers(state, unitId)
   const max = Object.values(perModel).reduce((a, b) => Math.max(a, b), 0)
-  const constraints = emptyMoveConstraints(max, { perModel, mustEndOutsideEngagement: true, coherency: !opts.skipCoherency })
+  const constraints = emptyMoveConstraints(max, { perModel, mustEndOutsideEngagement: !opts.allowEngaged, coherency: !opts.skipCoherency })
   // MOVE-019-mixedfly: FLY is a per-model property (an attached unit may mix FLY and non-FLY models). Mid-path
   // exemptions (crossing enemies / entering ER) are decided per model in checkPaths. checkPlacements takes a single
   // flag for path *measurement*, so straight-line 3D measurement is used only when every model has FLY [interp: a
@@ -164,6 +168,20 @@ function moveRejection(state: GameState, unitId: UnitId, moveType: MoveType, pla
   })
   if (!stays || isCoherent(models)) return r.rejection
   return resolveMove(state, unitId, moveType, placements, { skipCoherency: true, ...(distance === undefined ? {} : { distance }) }).rejection
+}
+
+// A declared Fall Back can be left with no legal end at all (casualties from Fire Overwatch at movement.moveStarted leave the
+// survivors boxed in, out of coherency, or inside Engagement Range with nowhere to go). RULING: such a unit stays where it
+// is and still counts as having fallen back; the end-of-turn coherency cull (R-2.6) then thins it as usual. Only offered
+// when the strict candidate generator finds nothing, so a unit that can fall back always has to.
+function stuckFallBackStay(state: GameState, unitId: UnitId, moveType: MoveType, placements: ModelPlacement[]): boolean {
+  if (moveType !== 'fallBack') return false
+  const models = unitModelsForCoherency(state, unitId)
+  const stays = placements.every((p) => {
+    const m = models.find((x) => x.id === p.modelId)
+    return m !== undefined && Math.hypot(p.pos.x - m.pos.x, p.pos.y - m.pos.y, p.pos.z - m.pos.z) <= 1e-3
+  })
+  return stays && moveUnitCandidatesFor(state, unitId, 'fallBack', state.units[unitId].player, '__stuck__').length === 0
 }
 
 // ---------- Reactive Normal move (Tyranid Skulking Horrors, docs/spec/factions/tyranids.md 7.1 item 4) ----------
@@ -224,6 +242,7 @@ export function handleReactiveMove(ctx: EngineContext, action: Action, pending: 
     type: 'UnitMoved', unitId: rv.unitId, moveType: 'normal',
     paths: Object.fromEntries(result.resolved.filter((r) => r.distance > EPS).map((r) => [r.model.id, r.path])), player: pending.player,
   })
+  cultAmbushOnMoveEnded(ctx, rv.unitId)
 }
 
 function reactiveCandidates(state: GameState, pending: Extract<PendingDecision, { kind: 'moveUnit' }>, rv: ReactiveMove): Action[] {
@@ -402,6 +421,7 @@ export function resolveSurgeMove(ctx: EngineContext, unitId: UnitId, distance: n
     type: 'UnitMoved', unitId, moveType: 'surge',
     paths: Object.fromEntries(best.resolved.filter((r) => r.distance > EPS).map((r) => [r.model.id, r.path])), player: unit.player,
   })
+  cultAmbushOnMoveEnded(ctx, unitId)
   return true
 }
 
@@ -466,6 +486,8 @@ function cullStrandedReserves(ctx: EngineContext, endOfRound3 = false): void {
     if (!u || u.location !== 'reserves') return
     // C3: a unit spawned by Send in the Next Wave never waits in Reserves (it arrives at once), so it is not culled
     if (pendingReactions(s, 'nextWave').some((r) => r.unitId === unitId)) return
+    // Cult Ambush: a returning copy is set up at once as well
+    if (pendingCultAmbushReactions(s).some((r) => r.unitId === unitId)) return
     const player = u.player
     ctx.emit({ type: 'UnitLostInReserves', unitId, player })
     let destroyed = false
@@ -493,7 +515,16 @@ function nextWaveZone(state: GameState, player: PlayerId): Polygon {
   return battlefieldEdgeStrip(state.board, deploymentZone(state, player), 9)
 }
 
-type ArrivalVia = 'deepStrike' | 'rapidIngress' | 'strategicReserves' | 'nextWave' | 'teleportAssault'
+type ArrivalVia = 'deepStrike' | 'rapidIngress' | 'strategicReserves' | 'nextWave' | 'teleportAssault' | 'cultAmbush'
+
+// Cult Ambush: the marker circle the returning unit must touch (written when its arrival decision is raised)
+function arrivalMarker(state: GameState): Vec3 | null {
+  const raw = readMark(state, 'mv:arriveMarker')
+  return raw === null ? null : (JSON.parse(raw) as Vec3)
+}
+function cultAmbushArrivalConstraints(marker: Vec3 | null): MoveConstraints {
+  return emptyMoveConstraints(9999, { minDistanceFromEnemies: 9, coherency: false, mustTouch: marker ? { pos: marker, radius: CULT_AMBUSH_MARKER_RADIUS } : null })
+}
 
 function resolveArrival(state: GameState, groupIds: UnitId[], placements: ModelPlacement[], via: ArrivalVia = 'deepStrike'):
   { rejection: Rejection } | { rejection: null; resolved: ResolvedPlacement[] } {
@@ -505,7 +536,9 @@ function resolveArrival(state: GameState, groupIds: UnitId[], placements: ModelP
     ? strategicReservesConstraints(state, player)
     : via === 'nextWave'
       ? emptyMoveConstraints(9999, { region: nextWaveZone(state, player), mustEndOutsideEngagement: true, coherency: false })
-      : emptyMoveConstraints(9999, { minDistanceFromEnemies: 9, coherency: false })
+      : via === 'cultAmbush'
+        ? cultAmbushArrivalConstraints(arrivalMarker(state))
+        : emptyMoveConstraints(9999, { minDistanceFromEnemies: 9, coherency: false })
   const result = checkPlacements({ unitModels: models, placements, constraints, otherFriendly, enemies, board: state.board })
   if (result.rejection) return result
   // MOVE-021-terrain/air: a Deep Strike (or Rapid Ingress) arrival is still an "end a move here" placement — it may
@@ -544,6 +577,7 @@ function validateArrival(state: GameState, action: Action, pending: Extract<Pend
   if (action.toReserves) {
     // a Send in the Next Wave copy must be set up at once (it has no Reserves to wait in)
     if (readMark(state, 'mv:arriveVia') === 'nextWave') return { code: 'E_NOT_AN_OPTION', reason: 'a Next Wave unit must be set up now; it cannot go to Reserves' }
+    if (readMark(state, 'mv:arriveVia') === 'cultAmbush') return { code: 'E_NOT_AN_OPTION', reason: 'a Cult Ambush return must be set up now; it cannot go to Reserves' }
     return null
   }
   const groupIds = pending.context.unitIds
@@ -555,8 +589,20 @@ function validateArrival(state: GameState, action: Action, pending: Extract<Pend
   return r.rejection
 }
 
-function raiseArrivalDecision(ctx: EngineContext, unitId: UnitId, player: PlayerId, via: ArrivalVia): void {
+function raiseArrivalDecision(ctx: EngineContext, unitId: UnitId, player: PlayerId, via: ArrivalVia, marker: Vec3 | null = null): void {
   const s = ctx.state
+  if (via === 'cultAmbush') {
+    // Cult Ambush: one freshly spawned copy, Deep Strike rules plus one model touching the marker
+    writeMark(s, 'mv:arriveGroup', JSON.stringify([unitId]))
+    writeMark(s, 'mv:arriveVia', via)
+    writeMark(s, 'mv:arriveMarker', marker ? JSON.stringify(marker) : null)
+    ctx.decide({
+      kind: 'deployUnit', player, window: 'movement.reinforcements', canPass: false,
+      context: { unitIds: [unitId], zone: boardPolygon(s), infiltrators: [], reservesAllowed: [] },
+      constraints: cultAmbushArrivalConstraints(marker),
+    })
+    return
+  }
   if (via === 'nextWave') {
     // C3: one freshly spawned unit; it must be placed (no going back to Reserves)
     writeMark(s, 'mv:arriveGroup', JSON.stringify([unitId]))
@@ -619,6 +665,15 @@ function doReinforcementsStep(ctx: EngineContext): AdvanceResult {
       return 'pending'
     }
   }
+  // Genestealer Cults: the non-active player's Cult Ambush markers, after every Reinforcements arrival and before Rapid Ingress
+  const ambushes = pendingCultAmbushReactions(s)
+  if (ambushes.length > 0) {
+    const req = ambushes[0]
+    consumeReaction(s, CULT_AMBUSH_REACTION_KIND, req.unitId)
+    raiseArrivalDecision(ctx, req.unitId, req.player, 'cultAmbush', cultAmbushReactionMarker(req))
+    return 'pending'
+  }
+  if (cultAmbushReturnStep(ctx) === 'pending') return 'pending'
   if (ctx.window('movement.end', 'end', ctx.order.active())) return 'pending'
   const reqs = pendingReactions(s, 'rapidIngress')
   if (reqs.length > 0) {
@@ -749,7 +804,8 @@ function doMove(ctx: EngineContext): 'pending' | 'select' {
   // coherency check here — a casualty picked after submission may break coherency of what's left, which is not a
   // re-validation failure of the *original* (fully coherent) submission; R-2.6's end-of-turn cull handles it.
   const placements: ModelPlacement[] = (JSON.parse(placementsRaw) as ModelPlacement[]).filter((p) => s.models[p.modelId])
-  const result = resolveMove(s, unitId, moveType, placements, { skipCoherency: true })
+  let result = resolveMove(s, unitId, moveType, placements, { skipCoherency: true })
+  if (result.rejection && stuckFallBackStay(s, unitId, moveType, placements)) result = resolveMove(s, unitId, moveType, placements, { skipCoherency: true, allowEngaged: true })
   if (result.rejection) throw new EngineInvariantError('movement: stored placements failed re-validation', { rejection: result.rejection })
   const resolved = result.resolved
 
@@ -799,6 +855,7 @@ function doMove(ctx: EngineContext): 'pending' | 'select' {
     paths: Object.fromEntries(resolved.filter((r) => r.distance > EPS && s.models[r.model.id]).map((r) => [r.model.id, r.path])),
     player: unit.player,
   })
+  cultAmbushOnMoveEnded(ctx, unitId)
   leaderService.detach(ctx, unitId)
   finishUnit(s, unitId, groupIds)
   writeMark(s, 'mv:windowUnit', unitId)
@@ -856,7 +913,10 @@ function moveUnitCandidatesFor(state: GameState, unitId: UnitId, moveType: MoveT
 }
 
 function moveUnitCandidates(state: GameState, pending: Extract<PendingDecision, { kind: 'moveUnit' }>): Action[] {
-  return moveUnitCandidatesFor(state, pending.context.unitId, pending.context.moveType, pending.player, pending.id)
+  const found = moveUnitCandidatesFor(state, pending.context.unitId, pending.context.moveType, pending.player, pending.id)
+  // a boxed-in Fall Back (see stuckFallBackStay) is answered by staying put, so the decision always has a legal action
+  if (found.length === 0 && pending.context.moveType === 'fallBack') return [{ type: 'moveUnit', player: pending.player, decisionId: pending.id, unitId: pending.context.unitId, placements: [] }]
+  return found
 }
 
 function arrivalCandidates(state: GameState, pending: Extract<PendingDecision, { kind: 'deployUnit' }>): Action[] {
@@ -872,6 +932,14 @@ function arrivalCandidates(state: GameState, pending: Extract<PendingDecision, {
   const minX = Math.min(...poly.map((p) => p.x)), maxX = Math.max(...poly.map((p) => p.x))
   const minZ = Math.min(...poly.map((p) => p.z)), maxZ = Math.max(...poly.map((p) => p.z))
   const out: Action[] = []
+  if (readMark(state, 'mv:arriveVia') === 'cultAmbush') {
+    const marker = arrivalMarker(state)
+    const auto = marker ? cultAmbushArrivalPlacements(state, models, pending.player, marker) : null
+    if (auto) {
+      const action: Action = { type: 'deployUnit', player: pending.player, decisionId: pending.id, unitId: groupIds[0], placements: auto }
+      if (validateArrival(state, action, pending) === null) return [action]
+    }
+  }
   if (nextWave) {
     const auto = autoDeployPlacements(models, poly, boardModelsOf(state, pending.player), enemyModelsOnBoard(state, pending.player))
     if (auto) {
@@ -886,7 +954,7 @@ function arrivalCandidates(state: GameState, pending: Extract<PendingDecision, {
       if (validateArrival(state, action, pending) === null) out.push(action)
     }
   }
-  if (out.length === 0) out.push({ type: 'deployUnit', player: pending.player, decisionId: pending.id, unitId: groupIds[0], placements: [], toReserves: true })
+  if (out.length === 0 && readMark(state, 'mv:arriveVia') !== 'cultAmbush') out.push({ type: 'deployUnit', player: pending.player, decisionId: pending.id, unitId: groupIds[0], placements: [], toReserves: true })
   return out
 }
 
@@ -941,7 +1009,8 @@ export const movementModule: PhaseModule = {
       if (action.unitId !== pending.context.unitId) return { code: 'E_INVALID_TARGET', reason: 'placements are for the wrong unit', details: { expected: pending.context.unitId } }
       const rv = readReactive(state)
       if (rv && rv.unitId === action.unitId) return moveRejection(state, action.unitId, 'normal', action.placements, rv.distance)
-      return moveRejection(state, action.unitId, pending.context.moveType, action.placements)
+      const rej = moveRejection(state, action.unitId, pending.context.moveType, action.placements)
+      return rej && stuckFallBackStay(state, action.unitId, pending.context.moveType, action.placements) ? null : rej
     }
     if (pending.kind === 'deployUnit') return validateArrival(state, action, pending)
     return optionCheck(pending, action)
@@ -977,6 +1046,7 @@ export const movementModule: PhaseModule = {
           type: 'UnitMoved', unitId: rv.unitId, moveType: 'normal',
           paths: Object.fromEntries(result.resolved.filter((r) => r.distance > EPS).map((r) => [r.model.id, r.path])), player: pending.player,
         })
+        cultAmbushOnMoveEnded(ctx, rv.unitId)
         return
       }
       writeMark(s, 'mv:placements', JSON.stringify(action.placements))
@@ -998,6 +1068,7 @@ export const movementModule: PhaseModule = {
       const via = (readMark(s, 'mv:arriveVia') ?? 'deepStrike') as ArrivalVia
       writeMark(s, 'mv:arriveVia', null)
       writeMark(s, 'mv:arriveGroup', null)
+      writeMark(s, 'mv:arriveMarker', null)
       if (action.toReserves) {
         // GRE-2.6: declining the mandatory Teleport Assault arrival destroys the unit
         if (via === 'teleportAssault') destroyTeleportingUnit(ctx, groupIds[0])
@@ -1013,9 +1084,12 @@ export const movementModule: PhaseModule = {
           s.units[id].turn.moveType = 'normal'
           s.units[id].turn.arrivedThisTurn = true
         }
-        ctx.emit({ type: 'ReinforcementsArrived', unitId: uid, via, player: u.player })
+        // GEN-2.3: a Cult Ambush return is set up "using Deep Strike", so the event says so (no events.ts change)
+        ctx.emit({ type: 'ReinforcementsArrived', unitId: uid, via: via === 'cultAmbush' ? 'deepStrike' : via, player: u.player })
         if (via === 'teleportAssault') clearTeleport(s, uid)
       }
+      // GEN-2.2: reinforcements count as a move, so an arrival within 9" of an enemy Cult Ambush marker removes it
+      for (const uid of groupIds) cultAmbushOnMoveEnded(ctx, uid)
       writeMark(s, 'mv:justArrived', JSON.stringify(groupIds))
       return
     }

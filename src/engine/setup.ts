@@ -1,12 +1,12 @@
 // Pre-battle sequence (10-rules §13): phase 'setup' (P4 sides) and phase 'deployment' (P6 deploy, P7 first turn, P8 Scouts).
 // Owner: W1-F.
-import { basesOverlap, checkPlacements, emptyMoveConstraints, whollyWithinPolygon, type Footprint, type ResolvedPlacement } from './geometry'
+import { basesOverlap, checkPlacements, emptyMoveConstraints, horizontalGap, whollyWithinPolygon, type Footprint, type ResolvedPlacement } from './geometry'
 import type { EngineContext, PhaseModule } from './modules'
 import { otherPlayer } from './modules'
 import { assignSides, boardModelsOf, deploymentZone, hasCoreAbility, unitModels, setModelPos } from './state'
 import type { Action, DeployUnitAction, ModelPlacement } from './actions'
 import type {
-  DeployUnitDecision, GameState, Model, MoveConstraints, PendingDecision, PlayerId, Polygon, Rejection, Unit, UnitId,
+  DeployUnitDecision, GameState, Model, MoveConstraints, PendingDecision, PlayerId, Polygon, Rejection, Unit, UnitId, Vec3,
 } from './types'
 
 // R-1.4: each player rolls 1D6, higher wins, ties re-roll; never modified or re-rolled
@@ -193,7 +193,11 @@ export function deployFacing(zone: Polygon): number {
 // a simple, always-legal placement for `unitId`'s models wholly within `zone` and clear of everything already placed —
 // used by legalActions() so a generic Decider (AI, autoplay tests) can drive deployUnit without solving placement
 // itself; returns null only if the zone genuinely has no room left (raster scan of its bounding box)
-export function autoDeployPlacements(models: Model[], zone: Polygon, otherFriendly: Model[], enemies: Model[]): ModelPlacement[] | null {
+export function autoDeployPlacements(
+  models: Model[], zone: Polygon, otherFriendly: Model[], enemies: Model[],
+  opts: { mustTouch?: MoveConstraints['mustTouch']; minDistanceFromEnemies?: number; canPlace?: (model: Model, pos: Vec3) => boolean } = {},
+): ModelPlacement[] | null {
+  if (opts.mustTouch) return touchingPlacements(models, zone, otherFriendly, enemies, opts.mustTouch, opts.minDistanceFromEnemies ?? 0, opts.canPlace)
   const facing = deployFacing(zone)
   // a small inward safety pad keeps candidates well clear of the zone/board edge, avoiding floating-point boundary
   // ambiguity in pointInPolygon (exact edge points are not reliably "inside" under ray-casting)
@@ -204,21 +208,72 @@ export function autoDeployPlacements(models: Model[], zone: Polygon, otherFriend
   const out: ModelPlacement[] = []
   for (const m of models) {
     const step = Math.max(0.5, m.base.radius * 2 + 0.1)
-    let found: { x: number; z: number } | null = null
-    for (let z = minZ + m.base.radius; z <= maxZ - m.base.radius + 1e-9 && !found; z += step) {
-      for (let x = minX + m.base.radius; x <= maxX - m.base.radius + 1e-9 && !found; x += step) {
-        const cand: Footprint = { pos: { x, y: 0, z }, facing, base: m.base }
-        if (!whollyWithinPolygon(cand, zone)) continue
-        if (placedHere.some((o) => basesOverlap(cand, o)) || otherFriendly.some((o) => basesOverlap(cand, o)) || enemies.some((o) => basesOverlap(cand, o))) continue
-        found = { x, z }
+    let found: { x: number; z: number; facing: number } | null = null
+    // an oval base is narrower than its long radius: scan with the short radius and also try it turned a quarter, whollyWithinPolygon
+    // below decides the fit (a 150x90 mm Rockgrinder does not fit a 5" deep zone broadside but does lengthways)
+    const rScan = Math.min(m.base.radius, m.base.radius2 ?? m.base.radius)
+    const facings = m.base.radius2 !== undefined ? [facing, facing + Math.PI / 2] : [facing]
+    const stepZ = m.base.radius2 !== undefined ? 0.5 : step // a coarse row step would skip the gap beside a packed row of smaller models
+    for (const f of facings) {
+      for (let z = minZ + rScan; z <= maxZ - rScan + 1e-9 && !found; z += stepZ) {
+        for (let x = minX + rScan; x <= maxX - rScan + 1e-9 && !found; x += step) {
+          const cand: Footprint = { pos: { x, y: 0, z }, facing: f, base: m.base }
+          if (!whollyWithinPolygon(cand, zone)) continue
+          if (placedHere.some((o) => basesOverlap(cand, o)) || otherFriendly.some((o) => basesOverlap(cand, o)) || enemies.some((o) => basesOverlap(cand, o))) continue
+          found = { x, z, facing: f }
+        }
       }
+      if (found) break
     }
     if (!found) return null
-    const footprint: Footprint = { pos: { x: found.x, y: 0, z: found.z }, facing, base: m.base }
+    const footprint: Footprint = { pos: { x: found.x, y: 0, z: found.z }, facing: found.facing, base: m.base }
     placedHere.push(footprint)
-    out.push({ modelId: m.id, pos: footprint.pos, facing })
+    out.push({ modelId: m.id, pos: footprint.pos, facing: found.facing })
   }
   return out
+}
+
+// Cult Ambush (GEN-2.3) placement: the first model sits tangent to the marker (tried at 24 angles), the rest grow into a
+// compact blob around it, nearest the marker first (so coherency holds); every spot is wholly in `zone`, clear of everything
+// placed and more than `minEnemy`" from enemy models. null = no angle works.
+function touchingPlacements(
+  models: Model[], zone: Polygon, otherFriendly: Model[], enemies: Model[], marker: NonNullable<MoveConstraints['mustTouch']>, minEnemy: number,
+  canPlace?: (model: Model, pos: Vec3) => boolean,
+): ModelPlacement[] | null {
+  if (models.length === 0) return null
+  const facing = deployFacing(zone)
+  const blockers: Footprint[] = [...otherFriendly, ...enemies]
+  const rOf = (m: Model): number => Math.max(m.base.radius, m.base.radius2 ?? 0)
+  const free = (c: Footprint, mine: Footprint[], m: Model): boolean =>
+    whollyWithinPolygon(c, zone) && !mine.some((o) => basesOverlap(c, o)) && !blockers.some((o) => basesOverlap(c, o))
+    && (!canPlace || canPlace(m, c.pos)) && (minEnemy <= 0 || !enemies.some((e) => horizontalGap(c, e) <= minEnemy + 1e-3))
+  const dist2 = (a: { x: number; z: number }): number => Math.hypot(a.x - marker.pos.x, a.z - marker.pos.z)
+  for (let k = 0; k < 24; k++) {
+    const a0 = (k * 2 * Math.PI) / 24
+    const d0 = marker.radius + rOf(models[0]) + 0.02
+    const first: Footprint = { pos: { x: marker.pos.x + Math.cos(a0) * d0, y: 0, z: marker.pos.z + Math.sin(a0) * d0 }, facing, base: models[0].base }
+    if (!free(first, [], models[0])) continue
+    const mine: Footprint[] = [first]
+    let ok = true
+    for (let i = 1; i < models.length && ok; i++) {
+      let best: Footprint | null = null
+      let bestD = Infinity
+      for (const anchor of mine) {
+        const ar = Math.max(anchor.base.radius, anchor.base.radius2 ?? 0)
+        const dd = ar + rOf(models[i]) + 0.05
+        for (let a = 0; a < 24; a++) {
+          const ang = (a * 2 * Math.PI) / 24
+          const cand: Footprint = { pos: { x: anchor.pos.x + Math.cos(ang) * dd, y: 0, z: anchor.pos.z + Math.sin(ang) * dd }, facing, base: models[i].base }
+          const d = dist2(cand.pos)
+          if (d < bestD && free(cand, mine, models[i])) { best = cand; bestD = d }
+        }
+      }
+      if (!best) ok = false
+      else mine.push(best)
+    }
+    if (ok) return models.map((m, i) => ({ modelId: m.id, pos: mine[i].pos, facing }))
+  }
+  return null
 }
 
 // last-resort placement search for crowded or shallow zones: start each model chain at a fine grid spot, then grow the unit

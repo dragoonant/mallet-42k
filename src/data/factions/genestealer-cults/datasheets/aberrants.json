@@ -1,0 +1,33 @@
+[
+  {
+    "id": "gsc.aberrants",
+    "faction": "genestealer-cults",
+    "name": "Aberrants",
+    "keywords": ["INFANTRY", "GREAT DEVOURER", "ABERRANTS"],
+    "factionKeywords": ["GENESTEALER CULTS"],
+    "stats": { "M": 6, "T": 6, "Sv": 5, "W": 3, "Ld": 7, "OC": 1 },
+    "composition": [
+      {
+        "modelId": "hypermorph",
+        "name": "Hypermorph",
+        "min": 1, "max": 1, "default": 1,
+        "champion": true,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["gsc.w.heavy-improvised-weapon", "gsc.w.hypermorph-tail"] },
+        "figure": { "archetype": "heavy", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "aberrant",
+        "name": "Aberrant",
+        "min": 4, "max": 4, "default": 4,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["gsc.w.heavy-power-weapon"] },
+        "figure": { "archetype": "heavy", "kit": "generic-infantry" }
+      }
+    ],
+    "abilities": [],
+    "coreAbilities": [],
+    "points": [ { "models": 5, "points": 0 } ],
+    "figure": { "archetype": "heavy", "kit": "generic-infantry" }
+  }
+]

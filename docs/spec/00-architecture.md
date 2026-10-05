@@ -59,7 +59,7 @@ interface PendingDecision {
   window: TimingWindowId;     // where in the sequence (§4)
   context: DecisionContext;   // unit/weapon/target ids relevant to the choice
   options?: DecisionOption[]; // finite legal choices, each with a ready-made Action
-  constraints?: MoveConstraints; // continuous decisions: max distance, forbidden regions, coherency
+  constraints?: MoveConstraints; // continuous decisions: max distance, forbidden regions, coherency; optional `mustTouch` { pos, radius } (Genestealer Cults Cult Ambush return: at least one placed base within 0.05" of that circle, else E_NOT_AN_OPTION; `emptyMoveConstraints` sets it null)
   canPass: boolean;           // whether { type:'pass' } is a legal answer
   deadlineHint?: number;      // ms; advisory for AI/timeouts, engine ignores
 }
@@ -100,7 +100,7 @@ the player cannot work out from the visible state:
   offered, see STATUS). Options: `skip` and one `use` per distinct pool value; `use` carries `dieIndexes: [i]` (index into
   `pool`, exactly one). The chosen die replaces the first die of the roll (`RollSpec.substitute`, `DiceRoll.substituted`,
   never re-rollable) and its unit joins `Player.miracle.spentThisPhase` (cleared at every phase end).
-- `treasureObjective` (M10) — Treasures of Aeons pick at round 1 start: options are the objective markers with no home owner; the answer stores `secondaryState.treasureObjectiveId`. `abilityChoice` is shared by several code hooks and the raising hook names itself in `context.data.code` (`resonantFocusPick`, `plasmacyteSurge`) so the answer reaches the right handler.
+- `treasureObjective` (M10) — Treasures of Aeons pick at round 1 start: options are the objective markers with no home owner; the answer stores `secondaryState.treasureObjectiveId`. `abilityChoice` is shared by several code hooks and the raising hook names itself in `context.data.code` (`resonantFocusPick`, `plasmacyteSurge`, `cultAmbush` with `data.step` `'marker'` | `'return'`) so the answer reaches the right handler. Genestealer Cults' Cult Ambush keeps its state in `state.mission.custom.cultAmbush` (src/engine/cult-ambush.ts); a successful return arrives through the movement module as `ReinforcementsArrived` with `via: 'deepStrike'`.
 - `saveType` — **retired (M9).** The engine picks the save that needs the lower d6 (tie: armour) and never raises this
   decision. The numbers still exist: `CurrentAttack.saveTargets` (display-only, per-attack saves) and `DiceRoll.needed` (a
   batched save roll carries the d6 its dice have to reach).

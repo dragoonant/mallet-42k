@@ -25,9 +25,10 @@ const ADE = 'adepta-sororitas'
 const AM = 'astra-militarum'
 const GK = 'grey-knights'
 const TAU = 'tau-empire'
+const GSC = 'genestealer-cults'
 
 /** The engine faction id a weapon's own id prefix belongs to. */
-const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : SM)
+const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : SM)
 
 function lookupFor(faction: string): SoundLookup {
   return { weapon: (id) => bundle.weapons[id], factionOfUnit: () => faction }
@@ -159,6 +160,26 @@ const EXPECTED: Record<string, WeaponFlavour> = {
   'tau.w.close-combat-weapon': 'chain',
   'tau.w.battlesuit-fists': 'crush',
   'tau.w.ghostkeel-fists': 'crush',
+  'gsc.w.autopistol-magus': 'shoota',
+  'gsc.w.autopistol': 'shoota',
+  'gsc.w.hybrid-firearm': 'shoota',
+  'gsc.w.leader-pistol': 'shoota',
+  'gsc.w.heavy-stubber': 'shoota',
+  'gsc.w.seismic-cannon': 'heavy',
+  'gsc.w.webber': 'flame',
+  'gsc.w.demolition-charges': 'heavy',
+  'gsc.w.clearance-incinerator': 'flame',
+  'gsc.w.demolition-charge-cache': 'heavy',
+  'gsc.w.magus-stave': 'force',
+  'gsc.w.power-weapon': 'chain',
+  'gsc.w.close-combat-weapon': 'chain',
+  'gsc.w.cult-claws-and-knife': 'chain',
+  'gsc.w.heavy-mining-tool': 'crush',
+  'gsc.w.leaders-cult-weapons': 'chain',
+  'gsc.w.heavy-improvised-weapon': 'crush',
+  'gsc.w.heavy-power-weapon': 'crush',
+  'gsc.w.hypermorph-tail': 'chain',
+  'gsc.w.drilldozer-blade': 'crush',
 }
 
 // Adepta Sororitas weapons, by datasheet NAME (lower-cased) so the check holds whatever id spelling the data uses.

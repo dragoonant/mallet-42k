@@ -383,6 +383,11 @@ export function checkPlacements(input: PlacementCheckInput): { rejection: Reject
     const targets = input.engagementTargets?.[unitId] ?? []
     if (!unitsWithinEngagementRange(finals, targets)) return { rejection: { code: 'E_ENGAGEMENT', reason: `unit must end within engagement range of ${unitId}`, details: { targetUnitId: unitId } } }
   }
+  if (constraints.mustTouch) {
+    const mt = constraints.mustTouch
+    const marker: Footprint = { pos: mt.pos, facing: 0, base: { shape: 'round', radius: mt.radius } }
+    if (!finals.some((f) => horizontalGap(f, marker) <= 0.05 + EPS)) return { rejection: { code: 'E_NOT_AN_OPTION', reason: 'one model must touch the Cult Ambush marker' } }
+  }
   if (constraints.coherency && !isCoherent(finals)) return { rejection: { code: 'E_COHERENCY', reason: 'unit would end out of coherency' } }
   return { rejection: null, resolved }
 }
@@ -399,6 +404,7 @@ export function emptyMoveConstraints(maxDistance: number, overrides: Partial<Mov
     region: null,
     minDistanceFromEnemies: 0,
     coherency: true,
+    mustTouch: null,
     ...overrides,
   }
 }

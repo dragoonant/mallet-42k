@@ -18,6 +18,7 @@ import {
   chargeTargetHelp, moveTypeHelp, objectiveLabel, prettifyId, saveAttackContext,
   shootingTargetHelp, type PromptHelp,
 } from './labels'
+import { offeredAmbushMarker, useAmbushHover } from '../interaction/CultAmbushMarkers'
 import { FormationPicker } from './FormationPicker'
 import { rerollTrayModel, rollForOffer } from './rerollInfo'
 import { RerollTray } from './RerollTray'
@@ -209,6 +210,13 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
     },
   },
   {
+    match: /cult-ambush/i,
+    info: {
+      title: 'Cult Ambush',
+      hint: 'A fallen hybrid brood may rise again. When it is destroyed, pick a spot at least 9 inches from every enemy to leave a hidden ambush marker. Later, during an enemy Movement phase, send a waiting brood back to spring out of a marker, touching it and more than 9 inches from the enemy. An enemy that finishes a move within 9 inches of a marker removes it. Nothing returns after battle round 3. Decline to keep the marker for the next turn.',
+    },
+  },
+  {
     match: /patrol-squads/,
     info: {
       title: 'Patrol Squads',
@@ -306,7 +314,8 @@ function chooseOptionInfoFor(
     }
   }
   const choice = context.data && typeof context.data.choice === 'string' ? CHOICE_PROMPT_KEYS[context.data.choice] : undefined
-  const key = context.abilityId ?? choice ?? null
+  // Both Cult Ambush steps (marker, return) carry the code; the return step has no ability id.
+  const key = context.data?.code === 'cultAmbush' ? 'cult-ambush' : context.abilityId ?? choice ?? null
   const byAbility = key ? ABILITY_PROMPT_INFO.find((a) => a.match.test(key)) : undefined
   if (byAbility) return byAbility.info
   // Order offers carry ids like "am.order.take-aim@A:shock-a" whichever ability id the engine attaches.
@@ -906,6 +915,12 @@ export function DecisionPrompt() {
       {activeHelp && <OptionHelp help={activeHelp} />}
       <div style={heading}>{kindTitle}</div>
       {chooseOptionInfo && <div style={hint}>{chooseOptionInfo.hint}</div>}
+      {pending.kind === 'chooseOption' && (() => {
+        const step = pending.context.data?.code === 'cultAmbush' ? pending.context.data.step : null
+        if (step === 'marker') return <div style={hint} data-testid="cult-ambush-marker-hint">Blue discs on the board are the legal spots. Hover an option to light its spot, or click a disc.</div>
+        const mk = step === 'return' ? offeredAmbushMarker(pending, state) : null
+        return mk ? <div style={hint} data-testid="cult-ambush-return-hint">Marker offered: the ringed disc at {mk.pos.x.toFixed(1)}, {mk.pos.z.toFixed(1)}.</div> : null
+      })()}
 
       {pending.kind === 'stratagemWindow' && (
         <StratagemOffers
@@ -1034,6 +1049,29 @@ export function DecisionPrompt() {
         </div>
       )}
 
+      {pending.kind === 'deployUnit' && pending.constraints.mustTouch && (() => {
+        const auto = legal?.find((a): a is Extract<Action, { type: 'deployUnit' }> => a.type === 'deployUnit' && !a.toReserves && a.placements.length > 0)
+        const mt = pending.constraints.mustTouch
+        return (
+          <div style={infoBlock} data-testid="cult-ambush-context">
+            <div>One model must touch the Cult Ambush marker (the disc on the board at {mt.pos.x.toFixed(1)}, {mt.pos.z.toFixed(1)}), and every model must end more than {pending.constraints.minDistanceFromEnemies}&quot; from enemies. Click near the marker, or use the button.</div>
+            {auto && (
+              <button
+                style={{ ...buttonPrimary, marginTop: 6 }}
+                data-testid="btn-place-at-marker"
+                onClick={() => {
+                  setDeployTarget(auto.unitId)
+                  const first = auto.placements[0]
+                  setDraft({ decisionId: pending.id, unitId: auto.unitId, anchor: { x: first.pos.x, z: first.pos.z }, placements: auto.placements })
+                }}
+              >
+                Place at marker
+              </button>
+            )}
+          </div>
+        )
+      })()}
+
       {bespoke && (
         <div style={hint}>
           {pending.kind === 'deployUnit'
@@ -1099,6 +1137,7 @@ export function DecisionPrompt() {
                 onFocus={() => hasHelp && setHelpFor(it.id)}
                 onBlur={cancelHelp}
                 onMouseEnter={() => {
+                  if (/^pt:/.test(it.id)) useAmbushHover.getState().set(it.id)
                   if (hasHelp) scheduleHelp(it.id)
                   if (withPlacements) setPreviewDraft({ decisionId: pending.id, unitId: withPlacements.unitId, anchor: { x: 0, z: 0 }, placements: withPlacements.placements })
                   if (hoverTarget?.kind === 'unit') hoverUnit(hoverTarget.ids)
@@ -1106,6 +1145,7 @@ export function DecisionPrompt() {
                   if (hoverTarget?.kind === 'objective') hoverObjective(hoverTarget.id)
                 }}
                 onMouseLeave={() => {
+                  useAmbushHover.getState().set(null)
                   cancelHelp()
                   setPreviewDraft(null)
                   clearBoardHover()

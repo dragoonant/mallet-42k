@@ -131,6 +131,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | MOVE-008 | R-5.1 | unit in ER offered only Remain Stationary / Fall Back |
 | MOVE-009 | R-5.4 | Remain Stationary → flagged; Heavy would apply; unit cannot later move this phase |
 | MOVE-010 | R-5.5 | Fall Back ending within ER → rejected; no legal end → unit cannot Fall Back (option absent) |
+| MOVE-010b | R-5.5b | declared Fall Back boxed in after declaration (Overwatch casualties) → stays put, still marked fallBack; staying put / empty placements rejected whenever a strict destination exists |
 | MOVE-011 | R-5.6 | Fall Back with 3 of 5 models crossing enemy bases, dice 1,2,5 → 2 models destroyed (owner chooses which), before movement |
 | MOVE-012 | R-5.6 | FLY Kopta Falls Back over enemies → no Desperate Escape |
 | MOVE-013 | R-5.6 | Battle-shocked 10-Boyz Fall Back, no crossing → 10 tests |

@@ -39,6 +39,7 @@ import { attackService } from '../attack'
 import { weaponService } from '../weapons'
 import { terrainService } from '../terrain'
 import { pendingReactions, consumeReaction } from '../code-hooks'
+import { cultAmbushOnMoveEnded } from '../cult-ambush'
 import { notImplementedHandle, otherPlayer, type AdvanceResult, type EngineContext, type PhaseModule } from '../modules'
 import { boardUnitsOf, enemyModelsOnBoard, hasKeyword, setModelPos, unitModels, unitModelsForCoherency } from '../state'
 import type { Action, ModelPlacement } from '../actions'
@@ -614,6 +615,7 @@ function applyChargeMove(ctx: EngineContext, charge: ChargeState, action: Extrac
     type: 'ChargeMoved', unitId: charge.unitId,
     paths: Object.fromEntries(check.resolved.filter((r) => r.distance > EPS).map((r) => [r.model.id, r.path])),
   })
+  cultAmbushOnMoveEnded(ctx, charge.unitId)
   ctx.once(`ch:applied:${charge.unitId}`)
 }
 

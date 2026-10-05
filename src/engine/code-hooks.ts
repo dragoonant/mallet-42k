@@ -11,6 +11,7 @@ import type { CoreAbility, Effect, Scope, TimingWindowId } from '../data/types'
 import type { Action } from './actions'
 import { astraMilitarumHooks } from './factions/astra-militarum'
 import { tauEmpireHooks } from './factions/tau-empire'
+import { genestealerCultsHooks } from './factions/genestealer-cults'
 import { distance, withinEngagementRange, withinObjectiveRange, OBJECTIVE_MARKER_RADIUS } from './geometry'
 import { adeptaSororitasHooks } from './factions/adepta-sororitas'
 import { shotThisTurn } from './attack'
@@ -102,7 +103,7 @@ export interface EngineCodeHook extends CodeHook {
 
 // ---------- reactions recorded for the phase modules ----------
 export interface ReactionRequest {
-  kind: ReactionKind | 'surge' | 'nextWave'
+  kind: ReactionKind | 'surge' | 'nextWave' | 'cultAmbush'
   stratagemId: string
   player: PlayerId
   // the reacting / moving friendly unit
@@ -763,6 +764,8 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   // tau-empire (docs/spec/factions/tau-empire.md §7): forTheGreaterGood, forwardObservers, coordinatedLeadership, coverFire, ds8SupportTurret,
   // kauyonLure, leadershipCaste, rapidRepositioning, laserMarkedTargets
   ...tauEmpireHooks(),
+  // genestealer-cults (docs/spec/factions/genestealer-cults.md §7): cultAmbush, defendTheMagus, returnToTheShadows, riseUp, willOfThePatriarch
+  ...genestealerCultsHooks(),
 }
 
 export type { ChooseOptionDecision }

@@ -519,6 +519,21 @@ function scoreChooseOption(state: GameState, pending: PendingDecision, action: A
     if (action.optionId === 'decline') score += noArrival ? 4 : 0
     else if (noArrival) score -= 4
   }
+  // Genestealer Cults Cult Ambush: a marker goes as close as it legally can to the nearest objective we do not hold (so the
+  // returning unit lands on it); a return is always taken (a free full-strength unit).
+  if (code === 'cultAmbush') {
+    const step = (pending.context.data as { step?: string }).step
+    if (step === 'return') score += action.optionId === 'decline' ? -3 : 4
+    else if (step === 'marker' && action.optionId.startsWith('pt:')) {
+      const [x, z] = action.optionId.slice(3).split(',').map(Number)
+      let best = Infinity
+      for (const o of Object.values(state.objectives)) {
+        if (o.removed || o.controller === pending.player) continue
+        best = Math.min(best, Math.hypot(o.pos.x - x, o.pos.z - z))
+      }
+      score += 3 - (Number.isFinite(best) ? best * 0.1 : 0)
+    } else if (action.optionId === 'decline') score -= 2
+  }
   // Methodical Destruction: the VP only come if the pick dies this round, so mark the unit most likely to die (cheapest on the board).
   if (code === 'methodicalDestructionPick' && hintUnitId) score = -unitValue(state, hintUnitId) * 0.03
   return score

@@ -207,6 +207,24 @@ export function validateDraft(
     }
   }
 
+  // Cult Ambush / reinforcement arrivals: the engine's constraints carry a marker to touch and a minimum gap from enemies
+  if (pendingDeploy && !constraints && (pendingDeploy.constraints.mustTouch || (pendingDeploy.window !== 'deployment.unit' && pendingDeploy.constraints.minDistanceFromEnemies > 0))) {
+    const pc = pendingDeploy.constraints
+    const enemies = enemyModelsOnBoard(state, pendingDeploy.player).map((m): Footprint => ({ pos: m.pos, facing: m.facing, base: m.base }))
+    if (pc.minDistanceFromEnemies > 0) {
+      for (const f of finals) {
+        if (enemies.some((e) => horizontalGap(f.fp, e) <= pc.minDistanceFromEnemies + 1e-3)) {
+          addReason(perModel, f.modelId, `within ${pc.minDistanceFromEnemies}" of an enemy`)
+          reasonSet.add(`Every model must end more than ${pc.minDistanceFromEnemies}" from enemy models`)
+        }
+      }
+    }
+    if (pc.mustTouch) {
+      const marker: Footprint = { pos: pc.mustTouch.pos, facing: 0, base: { shape: 'round', radius: pc.mustTouch.radius } }
+      if (!finals.some((f) => horizontalGap(f.fp, marker) <= 0.05 + 1e-3)) reasonSet.add('One model must touch the Cult Ambush marker')
+    }
+  }
+
   // coherency — per-model neighbour count (for the link colours / red tint) + the engine's own
   // connected-group rule (for the overall ok/disabled-Confirm gate). A lone model is always coherent
   // (the engine's own `isCoherent` special-cases `length <= 1` the same way — "≤ 1 model always is")

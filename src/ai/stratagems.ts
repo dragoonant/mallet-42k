@@ -99,7 +99,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
   } else if (id.endsWith('holy-radiance')) {
     if (melee) return -Infinity
     withIt = incomingDamage(state, attackerId, mineId, false, { ...base, hitMod: -1, fnp: 5 })
-  } else if (id.endsWith('hyper-reactive')) {
+  } else if (id.endsWith('hyper-reactive') || id.endsWith('lurking-killers')) {
     withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, hitMod: -1 })
   } else if (id.endsWith('mercurial-resilience')) {
     withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, invuln: 5 })
@@ -114,7 +114,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
 }
 
 const DEFENSIVE = ['go-to-ground', 'smokescreen', 'gene-wrought-resilience', 'holy-radiance', 'hyper-reactive',
-  'mercurial-resilience', 'a-martyrs-death', 'daemonic-fervour']
+  'mercurial-resilience', 'a-martyrs-death', 'daemonic-fervour', 'lurking-killers']
 
 // Fire Overwatch: hits only on an unmodified 6, the bound unit only, within 24" and weapon range, with line of sight.
 function overwatchGain(state: GameState, player: PlayerId, action: UseStratagemAction, enemyId: UnitId): number {
@@ -454,6 +454,24 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
     }
     if (dmg < 2) return -Infinity
     return dmg * 0.3 * unitValue(state, enemyId) * 0.03
+  }
+  // Genestealer Cults Defend the Magus: re-roll hit/wound 1s for every GSC attacker against the engaged enemy unit
+  if (id.endsWith('defend-the-magus')) {
+    const enemyId = targets.unitIds?.[1]
+    if (!enemyId) return -Infinity
+    let dmg = 0
+    for (const u of boardUnitsOf(state, player)) {
+      if (!hasKeyword(state, u.id, 'GENESTEALER CULTS') || u.battleShocked) continue
+      dmg += state.phase === 'fight' ? unitMeleeDamage(state, u.id, enemyId, {}) : unitRangedDamage(state, u.id, enemyId, {})
+    }
+    if (dmg < 2) return -Infinity
+    return dmg * 0.25 * unitValue(state, enemyId) * 0.03
+  }
+  // Genestealer Cults Return to the Shadows: a free reposition, mostly useful to slip out of a charge lane; modest value
+  if (id.endsWith('return-to-the-shadows')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId || !trigger || state.units[trigger]?.player === player) return -Infinity
+    return unitValue(state, unitId) * 0.01 + 0.4
   }
   // Artillery Strike: once per battle, 2 CP — hampers every enemy unit's movement, charges and shooting for a turn. Spend it
   // when the enemy is close enough to matter and we can still afford to keep a CP in hand.

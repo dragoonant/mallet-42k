@@ -50,6 +50,7 @@ const FACTION_COLOR: Record<string, string> = {
   'astra-militarum': '#c8a24a',
   'grey-knights': '#7fb2ff',
   'tau-empire': '#4fc3e8',
+  'genestealer-cults': '#b36be0',
 }
 
 const NEUTRAL_MELEE_COLOR = '#e8e8f0'

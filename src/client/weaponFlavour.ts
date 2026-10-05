@@ -46,7 +46,7 @@ export function weaponFlavour(weaponId: string, weapon: WeaponData | undefined, 
     if (psychic || /force|stave/.test(text)) return 'force'
     // Tyranid claws, talons and teeth rend and slash, so they voice as the cutting sound; only a klaw/fist
     // (or a plain crushing profile) is the heavy crunch.
-    if (/fist|klaw|hammer|maul|mace|crush|limbs|mutation|sentinel/.test(text)) return 'crush'
+    if (/fist|klaw|hammer|maul|mace|crush|limbs|mutation|sentinel|mining|improvised|dozer/.test(text)) return 'crush'
     if (/choppa|chain|sword|blade|axe|knife|claw|talon|teeth|maw|hyperphase|mandible|flail|whip/.test(text)) return 'chain'
     return strength >= 8 ? 'crush' : 'chain'
   }
@@ -62,7 +62,7 @@ export function weaponFlavour(weaponId: string, weapon: WeaponData | undefined, 
   if (/bolt/.test(text)) return 'bolter'
   // Cultist autoguns are cheap rattling cracks, not bolter thumps. Spat or flung biomass (fleshborers, spore-guns)
   // is a rapid wet spray too; the Tyranid faction fallback does the same for any other plain gun.
-  if (/shoota|slugga|dakka|stikk|autopistol|borer|spine|spore|burst cannon|burst-cannon/.test(text) || (/autogun/.test(text) && faction !== 'astra-militarum') || faction === 'orks' || faction === 'ork' || faction === 'tyranids') return 'shoota'
+  if (/shoota|slugga|dakka|stikk|autopistol|borer|spine|spore|burst cannon|burst-cannon/.test(text) || (/autogun/.test(text) && faction !== 'astra-militarum') || faction === 'orks' || faction === 'ork' || faction === 'tyranids' || faction === 'genestealer-cults') return 'shoota'
   if (faction === 'necrons' || faction === 'tau-empire') return 'psychic'
   return 'bolter'
 }

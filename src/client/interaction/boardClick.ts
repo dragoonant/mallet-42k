@@ -214,6 +214,24 @@ export function computeBoardClickDraft(
         }
       }
     }
+    // Cult Ambush return: one model must touch the marker. Snap the drop to the anchor nearest the click, around the
+    // marker, that is a legal arrival; fall back to centring on the marker.
+    const touch = pending.constraints.mustTouch
+    if (touch) {
+      const excl = combinedUnitIds(state, deployTargetUnitId)
+      const anchors: { x: number; z: number }[] = [{ x: touch.pos.x, z: touch.pos.z }]
+      for (let r = 1; r <= 8; r++) for (let k = 0; k < 16; k++) anchors.push({ x: touch.pos.x + r * Math.cos((k / 16) * Math.PI * 2), z: touch.pos.z + r * Math.sin((k / 16) * Math.PI * 2) })
+      anchors.sort((a, b) => Math.hypot(a.x - point.x, a.z - point.z) - Math.hypot(b.x - point.x, b.z - point.z))
+      for (const a of anchors) {
+        const placements = formationPlacementsForUnit(state, deployTargetUnitId, a, facing, kind)
+        if (placements.length > 0 && validateDraft(state, models, placements, null, excl, true).ok) {
+          return { decisionId: pending.id, unitId: deployTargetUnitId, anchor: a, placements }
+        }
+      }
+      const c = { x: touch.pos.x, z: touch.pos.z }
+      const fallback = formationPlacementsForUnit(state, deployTargetUnitId, c, facing, kind)
+      return fallback.length > 0 ? { decisionId: pending.id, unitId: deployTargetUnitId, anchor: c, placements: fallback } : null
+    }
     let clamped = clampAnchorToZone(state, deployTargetUnitId, models, point, facing, kind, pending.context.zone)
     if (clamped.placements.length === 0) return null
     // Crowded strip: the clamped draft overlaps a unit already deployed — hunt for the nearest spot that really fits.

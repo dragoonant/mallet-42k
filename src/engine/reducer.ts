@@ -11,6 +11,7 @@ import {
   type EventInput, type ModuleTable, type PhaseModule, type WindowTrigger,
 } from './modules'
 import { flushDeferredRemovals } from './deferred'
+import { onCultAmbushUnitDestroyed, raisePendingCultAmbushMarker } from './cult-ambush'
 import { clearActsOfFaithPhase, miracleGate, onOwnUnitDestroyed, runActsOfFaithTurnStart } from './miracle'
 import { restoreRng, type Rng } from './rng'
 import { cloneForStep, createGameState, emptyPhaseState, emptyTurnState, hashState, removeModel, unitModelsForCoherency } from './state'
@@ -77,7 +78,7 @@ function makeContext(draft: GameState, rng: Rng, modules: ModuleTable, rt: StepR
       const { player, ...rest } = e
       rt.events.push({ ...(rest as object), ...envelope(player) } as GameEvent)
       // E1: a destroyed ADEPTA SORORITAS unit earns its owner a Miracle die, wherever the event is emitted
-      if (e.type === 'UnitDestroyed') onOwnUnitDestroyed(ctx, e.unitId)
+      if (e.type === 'UnitDestroyed') { onOwnUnitDestroyed(ctx, e.unitId); onCultAmbushUnitDestroyed(ctx, e.unitId) } // GSC: Cult Ambush roll
     },
     roll(spec) {
       const id = `r:${++s.rollCounter}`
@@ -499,6 +500,8 @@ export function advanceGame(ctx: EngineContext, modules: ModuleTable): void {
   for (let i = 0; i < MAX_ADVANCE_ITERATIONS; i++) {
     if (s.pending) return
     if (s.phase === 'ended') return
+    // Genestealer Cults: a successful Cult Ambush roll queued a marker placement; ask for it before the phase module goes on
+    if (raisePendingCultAmbushMarker(ctx)) return
     if (s.step === 'none') { transition(ctx, modules); continue }
     const mod = modules.phases[s.phase as BattlePhase]
     if (isBattlePhase(s.phase) && ctx.window(`${s.phase}.start` as TimingWindowId, 'start', ctx.order.active())) continue

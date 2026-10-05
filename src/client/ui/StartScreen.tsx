@@ -20,11 +20,12 @@ const FACTION_BLURBS: Record<string, string> = {
   tyranids: 'A ravenous swarm that leaps, spits and keeps coming — losing a few hundred claws never slows the brood.',
   'adepta-sororitas': 'Armoured battle-nuns who pray for lucky dice: save Miracle dice and swap them in for a crucial roll.',
   'tau-empire': 'Sleek gunline soldiers and stealthy battlesuits who mark a target, then pour precise fire into it from afar.',
+  'genestealer-cults': 'A secret brood of hooded workers and four-armed hybrids who spring from hiding, led by a psychic magus.',
   'grey-knights': 'A small band of silver-armoured psykers who blink across the board and punish anything that lingers.',
 }
 
 // Button order for the factions the game ships; any other faction in the bundle follows alphabetically.
-const FACTION_ORDER = ['sm', 'ork', 'necrons', 'chaos-space-marines', 'tyranids', 'adepta-sororitas', 'astra-militarum', 'grey-knights', 'tau-empire']
+const FACTION_ORDER = ['sm', 'ork', 'necrons', 'chaos-space-marines', 'tyranids', 'adepta-sororitas', 'astra-militarum', 'grey-knights', 'tau-empire', 'genestealer-cults']
 
 interface FactionChoice {
   id: string

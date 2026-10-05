@@ -70,6 +70,20 @@ export type KitId =
   | 'tau-ethereal'
   | 'tau-stealth'
   | 'tau-ghostkeel'
+  | 'gsc-neophyte'
+  | 'gsc-neophyte-leader'
+  | 'gsc-neophyte-icon'
+  | 'gsc-neophyte-stubber'
+  | 'gsc-neophyte-seismic'
+  | 'gsc-neophyte-webber'
+  | 'gsc-acolyte'
+  | 'gsc-acolyte-leader'
+  | 'gsc-acolyte-demolitions'
+  | 'gsc-acolyte-mining'
+  | 'gsc-aberrant'
+  | 'gsc-hypermorph'
+  | 'gsc-magus'
+  | 'gsc-rockgrinder'
   | 'generic-infantry'
   | 'generic-heavy'
   | 'generic-monster'
@@ -177,6 +191,8 @@ export interface ArtilleryConfig {
 export interface VehicleConfig {
   weapon: 'kustom-mega-blasta' | 'kopta-rokkits' | 'none'
   hasRotor: boolean
+  /** 'dozer' = a tracked mining crawler (Goliath Rockgrinder); default is the gyrocopter rig. */
+  style?: 'copter' | 'dozer'
 }
 
 /** Props shared by every body renderer (BipedBody / VehicleBody). Authored at unit height

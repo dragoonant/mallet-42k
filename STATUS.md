@@ -264,6 +264,17 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all finished; plain rotation never pairs tau-empire, so `SIM_FACTION=tau-empire` run: 6 games, 0 violations, all finished (round 5), tau-empire 5 wins (adepta-sororitas 1). No balance tuning |
 | Known gaps | No GLB models or generated weapon sounds; bot never plays Rapid Repositioning; Strike Team marker drone and Stealth support system cosmetic; rulings in `docs/needs-rules-check.md` under "tau-empire build" (TAU-01 to TAU-23) |
 
+## Genestealer Cults (M10 - Hand of the Magus patrol, playable)
+
+| Area | State |
+|---|---|
+| Patrol | Magus Veridielle, Neophyte Hybrids x2, Acolyte Hybrids, Aberrants, Goliath Rockgrinder; secondaries Rise Up / Will of the Patriarch. Data in `src/data/factions/genestealer-cults/` |
+| Engine hooks | `src/engine/cult-ambush.ts` (marker/return lifecycle, GEN-2.x) and `src/engine/factions/genestealer-cults.ts` (Cult Ambush re-export, Spiritual Leader, Vile Insurrectionists, Defend the Magus, Lurking Killers, Return to the Shadows, Rise Up, Will of the Patriarch); oval-base autodeploy in setup.ts; Fall Back boxed-in fix in movement.ts |
+| Client | Start-screen entry, procedural figures (new tracked dozer style for the Rockgrinder), weapon flavour/sounds reused, palette |
+| Verification | typecheck, `validate:data` (112 files), `build` green; `npm test` 1692 passing (65 files); `tests/e2e/genestealer-cults.spec.ts` starts GSC vs bot, deploys via UI and reaches round 1 Shooting (`e2e-out/m10-genestealer-cults-0{1,2,3}-*.png`, figures visible) |
+| Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, 6 games all finished (mean 5 rounds), genestealer-cults 1 win, no draws |
+| Known gaps | No GLB models or bespoke sounds; marker option labels not customised; rulings in `docs/needs-rules-check.md` under "genestealer-cults build" (GSC-01 to GSC-22) |
+
 ## Not yet built
 
 - Anything beyond M8 (see Client tables for what M3/M6/M8 cover); AI Monte Carlo/hard tier, generated models, scale-up, multiplayer, Phase B glTF animation/asset pipeline for figures (see PLAN.md, docs/spec/30-figures.md §9)

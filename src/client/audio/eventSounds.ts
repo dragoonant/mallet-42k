@@ -86,6 +86,21 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ['honour-stave', 'wpn-force-weapon'] as const,
   ['battlesuit-fists', 'wpn-power-fist'] as const,
   ['ghostkeel-fists', 'wpn-power-fist'] as const,
+  // Genestealer Cults borrow too: mining gear and improvised bludgeons crunch like fists, cult claws rend like talons.
+  ['hybrid-firearm', 'wpn-autogun'] as const,
+  ['leader-pistol', 'wpn-laspistol'] as const,
+  ['heavy-stubber', 'wpn-big-shoota'] as const,
+  ['seismic-cannon', 'wpn-bombast-field-gun'] as const,
+  ['webber', 'wpn-flamer'] as const,
+  ['demolition-charge', 'wpn-grenade-launcher'] as const,
+  ['clearance-incinerator', 'wpn-heavy-flamer'] as const,
+  ['magus-stave', 'wpn-staff-of-possession'] as const,
+  ['cult-claws-and-knife', 'wpn-claws-and-teeth'] as const,
+  ['heavy-mining-tool', 'wpn-power-fist'] as const,
+  ['leaders-cult-weapons', 'wpn-power-weapon'] as const,
+  ['heavy-improvised-weapon', 'wpn-brutal-assault-weapon'] as const,
+  ['hypermorph-tail', 'wpn-talons'] as const,
+  ['drilldozer-blade', 'wpn-dread-klaw'] as const,
 ].sort((a, b) => b[0].length - a[0].length)
 
 const WEAPON_TRIM: Partial<Record<SfxId, number>> = {
@@ -168,7 +183,12 @@ const DEATH_SOUND: Record<string, SfxId> = {
   'adepta-sororitas': 'death-adepta-sororitas',
   'chaos-space-marines': 'death-chaos-space-marines',
   'grey-knights': 'death-grey-knights',
+<<<<<<< HEAD
   'tau-empire': 'death-tau',
+=======
+  'tau-empire': 'death-space-marines',
+  'genestealer-cults': 'death-tyranids',
+>>>>>>> f382d6f (M10: genestealer-cults Combat Patrol playable)
 }
 
 /** Measured decoded RMS runs 0.05-0.40 across these; the loud three are pulled back toward ~0.15. */

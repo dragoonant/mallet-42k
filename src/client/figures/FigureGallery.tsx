@@ -69,6 +69,16 @@ const GALLERY_ENTRIES: GalleryEntry[] = [
   { datasheetId: 'tau.aun-shar', modelId: 'aun-shar', faction: 'tau-empire', label: "Aun'Shar" },
   { datasheetId: 'tau.stealth-battlesuits', modelId: 'shasvre', faction: 'tau-empire', label: 'Stealth Battlesuit' },
   { datasheetId: 'tau.ghostkeel', modelId: 'ghostkeel', faction: 'tau-empire', label: 'Ghostkeel' },
+  { datasheetId: 'gsc.neophyte-hybrids', modelId: 'hybrid', faction: 'genestealer-cults', label: 'Neophyte' },
+  { datasheetId: 'gsc.neophyte-hybrids', modelId: 'leader', faction: 'genestealer-cults', label: 'Neophyte Leader' },
+  { datasheetId: 'gsc.neophyte-hybrids', modelId: 'icon', faction: 'genestealer-cults', label: 'Cult Icon' },
+  { datasheetId: 'gsc.neophyte-hybrids', modelId: 'webber', faction: 'genestealer-cults', label: 'Webber' },
+  { datasheetId: 'gsc.acolyte-hybrids', modelId: 'hybrid', faction: 'genestealer-cults', label: 'Acolyte' },
+  { datasheetId: 'gsc.acolyte-hybrids', modelId: 'leader', faction: 'genestealer-cults', label: 'Acolyte Leader' },
+  { datasheetId: 'gsc.aberrants', modelId: 'aberrant', faction: 'genestealer-cults', label: 'Aberrant' },
+  { datasheetId: 'gsc.aberrants', modelId: 'hypermorph', faction: 'genestealer-cults', label: 'Hypermorph' },
+  { datasheetId: 'gsc.magus-veridielle', modelId: 'magus', faction: 'genestealer-cults', label: 'Magus Veridielle' },
+  { datasheetId: 'gsc.goliath-rockgrinder', modelId: 'rockgrinder', faction: 'genestealer-cults', label: 'Goliath Rockgrinder' },
 ]
 
 // Figures are true tabletop-miniature scale (~1-2 world-inches tall — see resolveBase), so packing

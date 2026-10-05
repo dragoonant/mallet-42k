@@ -10,6 +10,7 @@
 import { alphaXenoformAmount, chitinousTideAmount } from './factions/tyranids'
 import type { MissionRule, ScoringRule, TimingWindowId } from '../data/types'
 import { kauyonLureAmount, leadershipCasteAmount } from './factions/tau-empire'
+import { riseUpAmount, willOfThePatriarchAmount } from './factions/genestealer-cults'
 import { holdTheLineAmount, methodicalDestructionAmount, methodicalDestructionOffer } from './factions/astra-militarum'
 import { OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE, pointInPolygon, whollyWithinPolygon, withinObjectiveRange } from './geometry'
 import { consecratedGroundAmount, hallowedRetributionAmount } from './factions/adepta-sororitas'
@@ -404,6 +405,8 @@ function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): num
     case 'holdTheLine': return holdTheLineAmount(s, rule, pid)
     case 'kauyonLure': return kauyonLureAmount(s, rule, pid)
     case 'leadershipCaste': return leadershipCasteAmount(s, rule, pid)
+    case 'riseUp': return riseUpAmount(ctx, rule, pid, (id) => holds(ctx, id, pid))
+    case 'willOfThePatriarch': return willOfThePatriarchAmount(s, rule, pid)
     case 'noEscape': return noEscapeAmount(ctx, rule, pid)
     case 'methodicalDestructionScore': return methodicalDestructionAmount(s, rule, pid)
     default: return 0

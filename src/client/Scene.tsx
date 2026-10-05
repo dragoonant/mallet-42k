@@ -10,7 +10,7 @@ import { usePresentationSettings } from './presentation/settings'
 import { useDisplayState } from './presentation/presentedStore'
 import { useGameStore } from './store/game'
 import { useUiStore } from './ui/uiStore'
-import { computeBoardClickDraft, DeathGhosts, PlacementOverlay, resolveMeasureLine, UnitLabels, UnitsLayer, useBoardClick } from './interaction'
+import { computeBoardClickDraft, CultAmbushMarkers, DeathGhosts, PlacementOverlay, resolveMeasureLine, UnitLabels, UnitsLayer, useBoardClick } from './interaction'
 import { VfxLayer } from './vfx'
 import { spikeMode } from '../spike/flag'
 import { PerfProbe } from '../spike/PerfProbe'
@@ -118,6 +118,7 @@ export function Scene() {
       <Terrain pieces={terrainPieces} />
       <Objectives />
 
+      <CultAmbushMarkers />
       <UnitsLayer />
       <UnitLabels />
       <PlacementOverlay />

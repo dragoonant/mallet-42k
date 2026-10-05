@@ -393,6 +393,8 @@ export interface MoveConstraints {
   region: Polygon | null
   minDistanceFromEnemies: number
   coherency: boolean
+  // Cult Ambush (GEN-2.3): at least one placed model's base must touch (edge distance <= 0.05") this circle
+  mustTouch?: { pos: Vec3; radius: number } | null
 }
 
 export interface DecisionBase {

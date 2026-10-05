@@ -30,6 +30,7 @@ import {
   type Footprint, type ResolvedPlacement,
 } from '../geometry'
 import { hookService } from '../hooks-impl'
+import { cultAmbushOnMoveEnded } from '../cult-ambush'
 import { leaderService } from '../leaders'
 import { attackService } from '../attack'
 import { purgeDeferredDeaths, resolveDeferredDeaths } from '../fight-on-death'
@@ -396,6 +397,7 @@ function applyPileIn(ctx: EngineContext, unitId: UnitId, action: Extract<Action,
   if (check.rejection) throw new EngineInvariantError('fight: stored pile-in placements failed re-validation', { rejection: check.rejection })
   for (const r of check.resolved) if (r.distance > EPS) { r.model.pos = r.to; r.model.facing = r.facing }
   ctx.emit({ type: 'PiledIn', unitId, paths: Object.fromEntries(check.resolved.filter((r) => r.distance > EPS).map((r) => [r.model.id, r.path])) })
+  cultAmbushOnMoveEnded(ctx, unitId)
   ctx.once(`fi:piledIn:${unitId}`)
 }
 
@@ -552,6 +554,7 @@ function applyConsolidate(ctx: EngineContext, unitId: UnitId, action: Extract<Ac
   if (check.rejection) throw new EngineInvariantError('fight: stored consolidate placements failed re-validation', { rejection: check.rejection })
   for (const r of check.resolved) if (r.distance > EPS) { r.model.pos = r.to; r.model.facing = r.facing }
   ctx.emit({ type: 'Consolidated', unitId, paths: Object.fromEntries(check.resolved.filter((r) => r.distance > EPS).map((r) => [r.model.id, r.path])) })
+  cultAmbushOnMoveEnded(ctx, unitId)
   ctx.once(`fi:consolidated:${unitId}`)
 }
 
