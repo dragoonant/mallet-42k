@@ -6,10 +6,8 @@
 // authoritative "whose turn" for ordinary alternation. Counter-offensive (code-hooks.ts) pushes a `counterOffensive`
 // reaction naming the specific unit to fight next; `doFightSelect` consumes it before any ordinary selection (so it
 // is offered whatever the current step, and only that one unit is offered — FIGHT-025), and the value `nextToSelect`
-// held just before the reaction fires is saved (`fi:coResume` mark) and restored — rather than flipped from the
-// Counter-offensive unit's own player — once that unit finishes, so alternation resumes exactly where it would have
-// without the interruption [interp — R-9.12 does not spell out whether the inserted activation consumes the
-// opponent's own next turn or is a pure insertion; this engine treats it as a pure insertion].
+// held just before the reaction fires is replaced: the Counter-offensive unit counts as a selection, so the opponent
+// selects next (RC-040).
 //
 // Documented interpretations (see STATUS/issues):
 // - Pile-in / consolidate feasibility and the actual arrangement share one heuristic search (`planApproachEnemy`,
@@ -33,7 +31,7 @@ import { hookService } from '../hooks-impl'
 import { cultAmbushOnMoveEnded } from '../cult-ambush'
 import { leaderService } from '../leaders'
 import { attackService } from '../attack'
-import { purgeDeferredDeaths, resolveDeferredDeaths } from '../fight-on-death'
+import { deferredDeaths, purgeDeferredDeaths, resolveDeferredDeaths } from '../fight-on-death'
 import { terrainService } from '../terrain'
 import { crossesBigFriendly } from './movement'
 import { weaponService } from '../weapons'
@@ -123,16 +121,33 @@ function eligibleFighters(state: GameState, player: PlayerId, step: FightState['
 
 // ---------- geometry: the fighting unit's own models vs. every enemy currently on the board ----------
 
-interface FightGeometry { models: Model[]; enemies: Model[]; otherFriendly: Model[] }
+interface FightGeometry { models: Model[]; enemies: Model[]; otherFriendly: Model[]; movable?: Set<string> }
+
+// RC-ADE-10 / CSM-09 / TYR-02: while a deferred (fight-on-death) model's own pile-in decision is open, the mark `fidp` names the
+// unit and the models allowed to move; the geometry then adds those 0-wound models to the unit's live models (coherency is
+// checked against the live models) and only they may move.
+const DEFERRED_PILE_MARK = 'fidp'
+interface DeferredPileIn { key: string; unitId: UnitId; ids: string[] }
+function deferredPileInMark(state: GameState): DeferredPileIn | null {
+  const raw = readMark(state, DEFERRED_PILE_MARK)
+  return raw ? (JSON.parse(raw) as DeferredPileIn) : null
+}
 
 function fightGeometry(state: GameState, unitId: UnitId): FightGeometry {
-  const models = unitModelsForCoherency(state, unitId)
+  let models = unitModelsForCoherency(state, unitId)
+  let movable: Set<string> | undefined
+  const dp = deferredPileInMark(state)
+  if (dp && dp.unitId === unitId) {
+    const have = new Set(models.map((m) => m.id))
+    models = [...models, ...dp.ids.filter((id) => !have.has(id) && state.models[id]).map((id) => state.models[id])]
+    movable = new Set(dp.ids)
+  }
   const player = state.units[unitId].player
   const enemies = enemyModelsOnBoard(state, player)
   const mine = new Set(leaderService.halves?.(state, unitId) ?? [unitId])
   const otherFriendly: Model[] = []
   for (const u of boardUnitsOf(state, player)) if (!mine.has(u.id)) otherFriendly.push(...unitModels(state, u.id))
-  return { models, enemies, otherFriendly }
+  return { models, enemies, otherFriendly, ...(movable ? { movable } : {}) }
 }
 
 // travel (2D, exact elliptical-base-aware) needed for `m` to close its horizontal gap with `target` to `stopGap` —
@@ -162,6 +177,7 @@ function planApproachEnemy(state: GameState, geo: FightGeometry, maxDistance: nu
   const order = [...geo.models].sort((a, b) => Math.min(...geo.enemies.map((t) => horizontalGap(a, t))) - Math.min(...geo.enemies.map((t) => horizontalGap(b, t))))
   const placed: ResolvedPlacement[] = []
   for (const m of order) {
+    if (geo.movable && !geo.movable.has(m.id)) { placed.push(stay(m)); continue } // a deferred pile-in moves only the deferred models
     if (geo.enemies.some((t) => inBaseContact(m, t))) { placed.push(stay(m)); continue }
     let chosen: { point: Vec3; travel: number } | null = null
     for (const t of geo.enemies) {
@@ -257,8 +273,12 @@ function closerToClosestEnemyAtStart(model: Model, from: Vec3, to: Vec3, enemies
 // crossing another enemy's base, AND not overlapping `blockers` (the rest of the unit's own resolved arrangement
 // plus other friendlies — FIGHT-013-crowd: a contact spot already taken by a teammate doesn't count) — mirrors
 // charge.ts's `couldReachBaseContact`.
-function couldReachBaseContact(state: GameState, geo: FightGeometry, model: Model, maxDistance: number, blockers: Footprint[]): boolean {
-  for (const t of geo.enemies) {
+function couldReachBaseContact(state: GameState, geo: FightGeometry, model: Model, maxDistance: number, blockers: Footprint[], others: ResolvedPlacement[] = []): boolean {
+  // RC-036: base contact is required only with the enemy model this model was closest to at the start of its move (the same
+  // model closerToClosestEnemyAtStart uses), not with any enemy it could reach
+  let closest: Model | null = null, bestD = Infinity
+  for (const e of geo.enemies) { const d = distance(model, e); if (d < bestD) { bestD = d; closest = e } }
+  for (const t of closest ? [closest] : []) {
     const c = contactPoint(model, t, 0)
     if (c.travel > maxDistance + 1e-3) continue
     const to = { ...c.point, y: terrainService.heightAt(state, c.point.x, c.point.z) }
@@ -269,6 +289,12 @@ function couldReachBaseContact(state: GameState, geo: FightGeometry, model: Mode
     if (blockers.some((b) => basesOverlap(fp, b))) continue
     if (pathCrossesModels(fp, [model.pos, to], geo.enemies)) continue
     if (!terrainService.canEndAt(state, model, to).ok) continue
+    // RC-036: the move into contact must keep the unit in coherency with the rest of the arrangement
+    if (others.length > 0) {
+      const pl: ModelPlacement[] = [...others.filter((o) => o.model.id !== model.id).map((o) => ({ modelId: o.model.id, pos: o.to, facing: o.facing })), { modelId: model.id, pos: to, facing: model.facing }]
+      const coh = checkPlacements({ unitModels: geo.models, placements: pl, constraints: emptyMoveConstraints(maxDistance, { coherency: true }), otherFriendly: geo.otherFriendly, enemies: geo.enemies, board: state.board })
+      if (coh.rejection) continue
+    }
     return true
   }
   return false
@@ -362,8 +388,8 @@ export function enemyUnitIdsOnBoard(state: GameState, player: PlayerId): UnitId[
 
 // R-9.8: `model` may target `enemyId` if within ER of it, or in base contact with a friendly model of its own unit
 // that is itself in base contact with THAT enemy unit specifically.
-export function legalTargetsFor(state: GameState, unitId: UnitId, model: Model, enemyIds: UnitId[]): UnitId[] {
-  const models = unitModelsForCoherency(state, unitId)
+export function legalTargetsFor(state: GameState, unitId: UnitId, model: Model, enemyIds: UnitId[], friends?: Model[]): UnitId[] {
+  const models = friends ?? unitModelsForCoherency(state, unitId)
   const out: UnitId[] = []
   for (const enemyId of enemyIds) {
     const enemyModels = (leaderService.combinedModels ? leaderService.combinedModels(state, enemyId) : unitModels(state, enemyId)).filter((m) => state.units[m.unitId]?.location === 'board')
@@ -391,16 +417,67 @@ function doPileIn(ctx: EngineContext, unitId: UnitId): 'pending' | 'progress' {
   return 'pending'
 }
 
-function applyPileIn(ctx: EngineContext, unitId: UnitId, action: Extract<Action, { type: 'pileIn' }>): Rejection | void {
+function applyPileIn(ctx: EngineContext, unitId: UnitId, action: Extract<Action, { type: 'pileIn' }>, pending: Extract<PendingDecision, { kind: 'pileIn' }>): Rejection | void {
   const s = ctx.state
   const geo = fightGeometry(s, unitId)
-  const dist = Number(readMark(s, `fi:dist:${unitId}`) ?? hookService.pileInDistance?.(s, unitId, 3) ?? 3)
+  const dist = pending.context.distance
+  const dp = deferredPileInMark(s)
   const check = checkApproachArrangement(s, geo, dist, action.placements)
   if (check.rejection) throw new EngineInvariantError('fight: stored pile-in placements failed re-validation', { rejection: check.rejection })
   for (const r of check.resolved) if (r.distance > EPS) { r.model.pos = r.to; r.model.facing = r.facing }
   ctx.emit({ type: 'PiledIn', unitId, paths: Object.fromEntries(check.resolved.filter((r) => r.distance > EPS).map((r) => [r.model.id, r.path])) })
   cultAmbushOnMoveEnded(ctx, unitId)
+  if (dp && dp.unitId === unitId) {
+    // a deferred model's own pile-in is not the unit's activation: its fi:piledIn mark stays open
+    ctx.once(dp.key)
+    s.phaseState.marks = s.phaseState.marks.filter((x) => !x.startsWith(`${DEFERRED_PILE_MARK}=`))
+    return
+  }
   ctx.once(`fi:piledIn:${unitId}`)
+}
+
+// Fight on death (Rules Commentary): a destroyed model may pile in (up to pileInDistance, unit coherency kept against the
+// live models), then attack, before the destroying unit consolidates; it does not consolidate. Shared by Daemonic Fervour
+// (fight-on-death.ts), A Martyr's Death (deferredFightStep) and Death Blow. 'pending' while the pile-in decision is open.
+export function deferredPileInStep(ctx: EngineContext, key: string, unitId: UnitId, modelIds: string[]): 'pending' | 'done' {
+  const s = ctx.state
+  if (ctx.marked(key)) return 'done'
+  const canon = leaderService.canonicalUnitId(s, unitId)
+  const ids = modelIds.filter((id) => s.models[id])
+  if (ids.length === 0) { ctx.once(key); return 'done' }
+  writeMark(s, DEFERRED_PILE_MARK, JSON.stringify({ key, unitId: canon, ids } satisfies DeferredPileIn))
+  const dist = hookService.pileInDistance?.(s, canon, 3) ?? 3
+  if (legalApproachMoves(s, canon, dist, null, 1).length === 0) {
+    s.phaseState.marks = s.phaseState.marks.filter((x) => !x.startsWith(`${DEFERRED_PILE_MARK}=`))
+    ctx.once(key)
+    return 'done'
+  }
+  ctx.decide({
+    kind: 'pileIn', player: s.units[canon].player, window: 'fight.unitSelected', canPass: false,
+    context: { unitId: canon, distance: dist }, constraints: emptyMoveConstraints(dist, { coherency: true }),
+  })
+  return 'pending'
+}
+
+// the melee weapons of deferred models, each with targets by the normal R-9.8 eligibility (Engagement Range, or base contact
+// with a unit-mate that is in base contact with that enemy), evaluated after their pile-in. Models with no target are left out.
+export function deferredWeapons(ctx: EngineContext, unitId: UnitId, models: Model[]): DeclareTargetsDecision['context']['weapons'] | 'pending' {
+  const s = ctx.state
+  const canon = leaderService.canonicalUnitId(s, unitId)
+  for (const m of models) if (resolveModelWeapons(ctx, m.id) === 'pending') return 'pending'
+  const have = new Set<string>()
+  const friends = [...unitModelsForCoherency(s, canon), ...models].filter((m) => !have.has(m.id) && have.add(m.id))
+  const enemyIds = enemyUnitIdsOnBoard(s, s.units[canon].player)
+  const weapons: DeclareTargetsDecision['context']['weapons'] = []
+  for (const m of models) {
+    const legalTargets = legalTargetsFor(s, canon, m, enemyIds, friends)
+    if (legalTargets.length === 0) continue
+    for (const weaponId of resolveModelWeapons(ctx, m.id) as WeaponId[]) {
+      const weapon = weaponService.effectiveWeapon(s, m.id, weaponId)
+      weapons.push({ modelId: m.id, weaponId, profileGroup: weapon.profileGroup ?? null, legalTargets, attacks: attacksFor(ctx, m.id, weaponId) })
+    }
+  }
+  return weapons
 }
 
 // ---------- declare targets + attacks (R-9.6..R-9.9) ----------
@@ -463,26 +540,18 @@ function deferredOpen(state: GameState, unitId: UnitId): boolean {
   return state.phaseState.marks.includes(`${defKey(unitId)}:open`) && !state.phaseState.marks.includes(`${defKey(unitId)}:begun`)
 }
 
-// the deferred models of `entry` fight once, after the destroying unit's attacks (no pile-in, no consolidation), against
-// enemies in Engagement Range only: 'pending' while their declareTargets decision is open, 'done' when resolved / nothing to hit
+// the deferred models of `entry` fight once, after the destroying unit's attacks (a pile-in first, no consolidation), against
+// enemies they are eligible to attack after it: 'pending' while their declareTargets decision is open, 'done' when resolved / nothing to hit
 export function deferredFightStep(ctx: EngineContext, entry: { unitId: UnitId; modelIds: UnitId[] }): 'pending' | 'done' {
   const s = ctx.state
   const key = defKey(entry.unitId)
   if (ctx.marked(`${key}:begun`)) return 'done'
   const player = s.units[entry.unitId].player
+  // RC-ADE-10: pile in first (Fight on Death allows it), then normal fight eligibility for targets
+  if (!ctx.marked(`${key}:open`) && deferredPileInStep(ctx, `${key}:pile`, entry.unitId, entry.modelIds) === 'pending') return 'pending'
   const models = entry.modelIds.map((id) => s.models[id]).filter((m): m is Model => !!m)
-  for (const m of models) if (resolveModelWeapons(ctx, m.id) === 'pending') return 'pending'
-  const enemyIds = enemyUnitIdsOnBoard(s, player)
-  const weapons: DeclareTargetsDecision['context']['weapons'] = []
-  for (const m of models) {
-    for (const weaponId of resolveModelWeapons(ctx, m.id) as WeaponId[]) {
-      const weapon = weaponService.effectiveWeapon(s, m.id, weaponId)
-      const legalTargets = enemyIds.filter((e) => (leaderService.combinedModels ? leaderService.combinedModels(s, e) : unitModels(s, e)).some((em) => horizontalGap(m, em) <= ENGAGEMENT_H + EPS && Math.abs(m.pos.y - em.pos.y) <= 5 + EPS))
-      // a deferred model with nothing in Engagement Range simply does not fight (a listed weapon would have to declare its attacks)
-      if (legalTargets.length === 0) continue
-      weapons.push({ modelId: m.id, weaponId, profileGroup: weapon.profileGroup ?? null, legalTargets, attacks: attacksFor(ctx, m.id, weaponId) })
-    }
-  }
+  const weapons = deferredWeapons(ctx, entry.unitId, models)
+  if (weapons === 'pending') return 'pending'
   if (!weapons.some((w) => w.legalTargets.length > 0)) { ctx.once(`${key}:begun`); return 'done' }
   if (!ctx.once(`${key}:open`)) return 'pending'
   const engagedWith = [...new Set(weapons.flatMap((w) => w.legalTargets))]
@@ -566,7 +635,6 @@ function applyConsolidate(ctx: EngineContext, unitId: UnitId, action: Extract<Ac
 // R-9.12 [FIGHT-025]: a pending Counter-offensive reaction always names one specific unit to fight next, regardless
 // of which step is current and regardless of what else might independently be eligible — it is offered (and
 // consumed only once chosen, in `handle`) ahead of, and instead of, the ordinary alternation below.
-const COUNTER_RESUME_KEY = 'fi:coResume'
 
 function doFightSelect(ctx: EngineContext): 'pending' | 'nextStep' | 'done' {
   const s = ctx.state
@@ -575,20 +643,6 @@ function doFightSelect(ctx: EngineContext): 'pending' | 'nextStep' | 'done' {
   // then, unlike in `enter()`, which some tests call before placing any units) and cache it for the rest of step 1.
   if (fight.step === 'fightsFirst' && readMark(s, FF_SNAPSHOT_KEY) === null) {
     writeMark(s, FF_SNAPSHOT_KEY, JSON.stringify(computeFfSnapshotIds(s)))
-  }
-  // Death Blow (TYR-6.1): the attacking unit's activation is over, so every model whose removal was deferred may now fight
-  // (optional: use / decline), out of alternation; declining removes it at once. Anything still pending is removed at phase end.
-  for (const unitId of pendingDeathBlowUnits(s)) {
-    const owner = s.units[unitId].player
-    ctx.decide({
-      kind: 'chooseOption', player: owner, window: 'fight.start', canPass: false,
-      context: { topic: 'other', unitId, abilityId: null, data: { choice: 'deathBlow', unitId } },
-      options: [
-        { id: 'fight', label: `Death Blow: fight with ${s.units[unitId].name} before it is removed`, action: { type: 'chooseOption', player: owner, decisionId: '', optionId: 'fight' } },
-        { id: 'decline', label: 'Decline: remove the model now', action: { type: 'chooseOption', player: owner, decisionId: '', optionId: 'decline' } },
-      ],
-    })
-    return 'pending'
   }
   const co = pendingReactions(s, 'counterOffensive')[0]
   if (co) {
@@ -623,13 +677,9 @@ function finishUnit(ctx: EngineContext, unitId: UnitId, player: PlayerId): void 
   const fight = s.phaseState.fight!
   for (const id of leaderService.halves?.(s, unitId) ?? [unitId]) if (s.units[id]) s.units[id].turn.foughtThisPhase = true
   if (!fight.fought.includes(unitId)) fight.fought.push(unitId)
-  // FIGHT-025: once the Counter-offensive unit itself finishes, restore the player who would have been next (saved
-  // when it was selected — `nextToSelect` right before the reaction fired) rather than flipping from its own owner.
-  const resume = readMark(s, COUNTER_RESUME_KEY)
-  if (resume !== null) {
-    fight.nextToSelect = resume as PlayerId
-    s.phaseState.marks = s.phaseState.marks.filter((x) => !x.startsWith(`${COUNTER_RESUME_KEY}=`))
-  } else if (fight.counterOffensive) {
+  // RC-040 / FIGHT-025: the Counter-offensive unit is a selection like any other, so after it the opponent selects (the CO
+  // unit's owner may have two activations in a row only if the opponent has nothing eligible).
+  if (fight.counterOffensive) {
     fight.counterOffensive = false
   } else {
     fight.nextToSelect = otherPlayer(player)
@@ -638,6 +688,53 @@ function finishUnit(ctx: EngineContext, unitId: UnitId, player: PlayerId): void 
   fight.subStep = 'select'
   // Death Blow: the model is removed once it has fought
   finishDeferredRemovalOfUnit(ctx, unitId)
+}
+
+// TYR-02 Death Blow: just after the attacking unit's attacks and before it consolidates (Fight on Death), a model whose removal was
+// deferred may fight: optional use / decline, then a pile-in and its own attacks like any deferred model (not a unit activation:
+// no FightUnitSelected, no unit-selected window, no consolidation), then it is removed. 'pending' while a decision is open.
+function resolveDeathBlows(ctx: EngineContext): 'pending' | 'done' {
+  const s = ctx.state
+  for (let guard = 0; guard < 64; guard++) {
+    const unitId = pendingDeathBlowUnits(s)[0]
+    if (!unitId) return 'done'
+    const owner = s.units[unitId].player
+    const declKey = `dbf:decl:${unitId}`
+    const clear = (): void => {
+      s.phaseState.marks = s.phaseState.marks.filter((x) => !x.startsWith(`dbf:`) || !x.endsWith(`:${unitId}`))
+      s.phaseState.marks = s.phaseState.marks.filter((x) => x !== `fi:declared:${unitId}`)
+      finishDeferredRemovalOfUnit(ctx, unitId)
+    }
+    if (!ctx.marked(`dbf:choice:${unitId}`)) {
+      ctx.decide({
+        kind: 'chooseOption', player: owner, window: 'fight.unitSelected', canPass: false,
+        context: { topic: 'other', unitId, abilityId: null, data: { choice: 'deathBlow', unitId } },
+        options: [
+          { id: 'fight', label: `Death Blow: fight with ${s.units[unitId].name} before it is removed`, action: { type: 'chooseOption', player: owner, decisionId: '', optionId: 'fight' } },
+          { id: 'decline', label: 'Decline: remove the model now', action: { type: 'chooseOption', player: owner, decisionId: '', optionId: 'decline' } },
+        ],
+      })
+      return 'pending'
+    }
+    if (!ctx.marked(`dbf:use:${unitId}`)) continue // declined: already removed by the handler (the list shrinks)
+    if (ctx.marked(declKey)) {
+      if (s.phaseState.attack && s.phaseState.attack.attackerUnitId === unitId && attackService.advance(ctx) === 'pending') return 'pending'
+      clear()
+      continue
+    }
+    const models = s.units[unitId].models.map((id) => s.models[id]).filter((m): m is Model => !!m && !!m.pendingRemoval)
+    if (deferredPileInStep(ctx, `dbf:pile:${unitId}`, unitId, models.map((m) => m.id)) === 'pending') return 'pending'
+    const weapons = deferredWeapons(ctx, unitId, models)
+    if (weapons === 'pending') return 'pending'
+    if (!weapons.some((w) => w.legalTargets.length > 0)) { clear(); continue }
+    ctx.once(declKey)
+    ctx.decide({
+      kind: 'declareTargets', player: owner, window: 'fight.unitSelected', canPass: false,
+      context: { unitId, attackKind: 'melee', overwatch: false, weapons, engagedWith: [...new Set(weapons.flatMap((w) => w.legalTargets))] },
+    })
+    return 'pending'
+  }
+  return 'done'
 }
 
 function driveFightUnit(ctx: EngineContext): 'pending' | 'progress' {
@@ -674,14 +771,19 @@ function driveFightUnit(ctx: EngineContext): 'pending' | 'progress' {
   if (fight.subStep === 'attacks') {
     const r = doAttacks(ctx, unitId)
     if (r === 'pending') return 'pending'
-    // C5: models kept on the board at 0 wounds by Daemonic Fervour make their last attacks now, before this unit consolidates
-    if (resolveDeferredDeaths(ctx) === 'pending') return 'pending'
     fight.subStep = 'deferred'
   }
   if (fight.subStep === 'deferred') {
-    // E4: a deferred last-stand attack (A Martyr's Death) already in progress, then any still to open
-    if (s.phaseState.attack && attackService.advance(ctx) === 'pending') return 'pending'
-    if (resolveDeferredActivations(ctx, unitId) === 'awaiting') return 'pending'
+    // C5 + TYR-02 + E4: repeat until nothing is left, since each can queue another (a Death Blow model killed during a
+    // last stand, a last stand killing a Death Blow model...): 0-wound Daemonic Fervour models make their last attacks,
+    // Death Blow models fight, deferred last-stand activations (A Martyr's Death) open
+    for (let guard = 0; guard < 64; guard++) {
+      if (s.phaseState.attack && attackService.advance(ctx) === 'pending') return 'pending'
+      if (resolveDeferredDeaths(ctx) === 'pending') return 'pending'
+      if (resolveDeathBlows(ctx) === 'pending') return 'pending'
+      if (resolveDeferredActivations(ctx, unitId) === 'awaiting') return 'pending'
+      if (pendingDeathBlowUnits(s).length === 0 && deferredDeaths(s).length === 0) break
+    }
     fight.subStep = 'consolidate'
   }
   if (fight.subStep === 'consolidate') {
@@ -705,13 +807,14 @@ function approachRejection(state: GameState, geo: FightGeometry, dist: number, o
   if (objectiveId !== null) return null
   for (const r of check.resolved) {
     if (r.distance <= EPS) continue
+    if (geo.movable && !geo.movable.has(r.model.id)) return { code: 'E_INVALID_TARGET', reason: `${r.model.id} may not move in this pile-in`, details: { modelId: r.model.id } }
     if (!closerToClosestEnemyAtStart(r.model, r.from, r.to, geo.enemies)) return { code: 'E_OUT_OF_RANGE', reason: `${r.model.id} must end closer to the enemy model it started closest to`, details: { modelId: r.model.id } }
     const fp: Footprint = { pos: r.to, facing: r.facing, base: r.model.base }
     const blockers: Footprint[] = [
       ...check.resolved.filter((o) => o.model.id !== r.model.id).map((o) => ({ pos: o.to, facing: o.facing, base: o.model.base })),
       ...geo.otherFriendly,
     ]
-    if (!geo.enemies.some((e) => inBaseContact(fp, e)) && couldReachBaseContact(state, geo, r.model, dist, blockers)) {
+    if (!geo.enemies.some((e) => inBaseContact(fp, e)) && couldReachBaseContact(state, geo, r.model, dist, blockers, check.resolved)) {
       return { code: 'E_OUT_OF_RANGE', reason: `${r.model.id} could end in base contact with an enemy and must`, details: { modelId: r.model.id } }
     }
   }
@@ -732,7 +835,7 @@ function legalApproachMoves(state: GameState, unitId: UnitId, dist: number, obje
     if (approachRejection(state, geo, dist, objectiveId, placements) === null) out.push(placements)
     return out.length >= limit
   }
-  const toPlacements = (rs: ResolvedPlacement[]): ModelPlacement[] => rs.filter((r) => r.distance > EPS).map((r) => ({ modelId: r.model.id, pos: r.to, facing: r.facing, path: r.path }))
+  const toPlacements = (rs: ResolvedPlacement[]): ModelPlacement[] => rs.filter((r) => r.distance > EPS && (!geo.movable || geo.movable.has(r.model.id))).map((r) => ({ modelId: r.model.id, pos: r.to, facing: r.facing, path: r.path }))
   const obj = objectiveId !== null ? state.objectives[objectiveId] : undefined
   const terrainOk = (m: Model, to: Vec3): boolean => terrainService.canEndAt(state, m, to).ok && !terrainService.crossesImpassable(state, m, [m.pos, to])
   const ok = obj
@@ -840,8 +943,8 @@ export const fightModule: PhaseModule = {
     }
     if (pending.kind === 'chooseFightUnit' && action.type === 'chooseFightUnit') {
       const fight = s.phaseState.fight!
-      const co = consumeReaction(s, 'counterOffensive', action.unitId)
-      if (co) writeMark(s, COUNTER_RESUME_KEY, fight.nextToSelect)
+      consumeReaction(s, 'counterOffensive', action.unitId)
+      fight.nextToSelect = otherPlayer(owner(s, action.unitId))
       fight.currentUnitId = action.unitId
       fight.subStep = 'pileIn'
       ctx.emit({ type: 'FightUnitSelected', unitId: action.unitId, step: fight.step })
@@ -849,21 +952,12 @@ export const fightModule: PhaseModule = {
     }
     if (pending.kind === 'chooseOption' && pending.context.topic === 'other' && (pending.context.data as { choice?: string }).choice === 'deathBlow' && action.type === 'chooseOption') {
       const unitId = (pending.context.data as { unitId: UnitId }).unitId
-      const fight = s.phaseState.fight!
-      const unit = s.units[unitId]
-      // a unit that cannot fight any more (gone from the board, or no longer engaged) simply loses the model
-      if (action.optionId !== 'fight' || !unit || unit.location !== 'board' || unit.turn.foughtThisPhase || !eligibleToFight(s, unitId)) {
-        finishDeferredRemovalOfUnit(ctx, unitId)
-        return
-      }
-      // a pure insertion into the alternation (like Counter-offensive): the next selector is restored when the unit finishes
-      if (readMark(s, COUNTER_RESUME_KEY) === null) writeMark(s, COUNTER_RESUME_KEY, fight.nextToSelect)
-      fight.currentUnitId = unitId
-      fight.subStep = 'pileIn'
-      ctx.emit({ type: 'FightUnitSelected', unitId, step: fight.step, player: owner(s, unitId) })
+      ctx.once(`dbf:choice:${unitId}`)
+      if (action.optionId === 'fight') ctx.once(`dbf:use:${unitId}`)
+      else finishDeferredRemovalOfUnit(ctx, unitId)
       return
     }
-    if (pending.kind === 'pileIn' && action.type === 'pileIn') return applyPileIn(ctx, action.unitId, action)
+    if (pending.kind === 'pileIn' && action.type === 'pileIn') return applyPileIn(ctx, action.unitId, action, pending)
     if (pending.kind === 'declareTargets' && action.type === 'declareTargets') return applyDeclareTargets(ctx, action)
     if (pending.kind === 'consolidate' && action.type === 'consolidate') return applyConsolidate(ctx, action.unitId, action, pending)
     if (pending.kind === 'chooseOption' && pending.context.topic === 'meleeWeapon' && action.type === 'chooseOption') {

@@ -209,7 +209,7 @@ export interface ModelRemovalDeferred extends EventBase { type: 'ModelRemovalDef
 // src/engine/factions/adepta-sororitas.ts
 export function deferModelRemoval(ctx: EngineContext, modelId: ModelId, kind: 'ranged' | 'melee', afterUnitId: UnitId, source: string): void
 // called when `afterUnitId` finishes its shooting / its fight activation: opens declareTargets for the deferred models only
-// (ranged: normal target rules; melee: no pile-in/consolidate, only enemies in Engagement Range), resolves, then removes
+// (ranged: normal target rules; melee: an optional pile-in first (3", coherency against the live models), then normal fight eligibility for targets, no consolidate — RC-ADE-10), resolves, then removes
 // them; UnitDestroyed (and its Miracle die) is emitted when the last model actually leaves
 export function resolveDeferredActivations(ctx: EngineContext, afterUnitId: UnitId): 'done' | 'awaiting'
 
@@ -250,7 +250,7 @@ Same list as the `ADE` section of 12-rules-test-checklist.
 | ADE-022 | ADE-4 | Consecrated Ground: only Battle-shocked units within 6" → 0 VP; opponent's turn end → nothing |
 | ADE-023 | ADE-5 | Ascetic Discipline: unmodified 6 to wound with a boltgun → AP −2 on that attack; non-critical wound keeps AP 0; expires at phase end |
 | ADE-024 | ADE-5 | Ascetic Discipline not offered for a unit already selected to shoot or fight this phase; IS offered in the opponent's Fight phase for an own unit that has not yet fought; not offered in the opponent's Shooting phase |
-| ADE-025 | ADE-5 | A Martyr's Death (Fight): a Sacresant destroyed before it has fought (by any enemy unit attacking the unit this phase), D6 ≥4 → model stays, fights after the destroying unit's attacks, then removed; D6 3 → removed at once |
+| ADE-025 | ADE-5 | A Martyr's Death (Fight): a Sacresant destroyed before it has fought (by any enemy unit attacking the unit this phase), D6 ≥4 → model stays, piles in (3") then fights with normal fight eligibility after the destroying unit's attacks and before it consolidates (RC-ADE-10), then removed; D6 3 → removed at once |
 | ADE-026 | ADE-5 | A Martyr's Death with a discarded die: D6 3 + 1 → deferred; pool −1 |
 | ADE-027 | ADE-5 | A Martyr's Death (Shooting): deferred Battle Sisters shoot after the enemy unit finishes shooting, then removed; deferred models cannot be allocated further attacks and add no OC |
 | ADE-028 | ADE-5 | A Martyr's Death: the destroyed model has already shot / fought this phase → no D6 for it, removed normally (other models of the unit that have not acted still roll) |

@@ -323,7 +323,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | FIGHT-022 | R-9.10 | consolidation 3" toward closest enemy, base contact if possible |
 | FIGHT-023 | R-9.10 | no enemy reachable within ER → move up to 3" toward closest objective if the unit ends within range of it; otherwise no move |
 | FIGHT-024 | R-9.10 | consolidation into ER of a fresh enemy unit → that enemy becomes eligible to fight this phase (step 2) |
-| FIGHT-025 | R-9.12 | Counter-offensive after enemy unit fought → my chosen unit fights immediately, then alternation resumes with the player who would have been next **[interp]** |
+| FIGHT-025 | R-9.12 | Counter-offensive after enemy unit fought → my chosen unit fights immediately; it counts as a selection, so the opponent selects next (RC-040; no double activation for the Counter-offensive player) **[interp]** |
 | FIGHT-026 | R-9.12 | Counter-offensive on a unit that already fought → `E_INVALID_TARGET` |
 | FIGHT-027 | Epic Challenge | usable only when the CHARACTER's unit is in ER of an attached unit; Precision on its melee attacks until end of phase |
 | FIGHT-028 | R-9.13 | after Fight phase: coherency cull (R-2.6), then `turn.end` windows, then next player's Command phase |
@@ -531,7 +531,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | CHA-019 | CHA-5 | Vindictive Strategy not offered for a unit already selected to shoot / that already fought this phase |
 | CHA-020 | CHA-5 | Violent Unbinding: enemy melee attack destroys Zarkan, attacker within 6" → window opens before the next attack; D6 = 6 → 3 MW to the attacker |
 | CHA-021 | CHA-5 | Violent Unbinding: attacker more than 6" away (shooting) → stratagem not offered; D6 = 1 → no mortal wounds |
-| CHA-022 | CHA-5 | Daemonic Fervour: Possessed targeted in the Fight phase, model destroyed, D6 = 4 → model stays at 0 W, not allocatable, fights after the enemy unit's attacks, then removed |
+| CHA-022 | CHA-5 | Daemonic Fervour: Possessed targeted in the Fight phase, model destroyed, D6 = 4 → model stays at 0 W, not allocatable; before the enemy unit consolidates it may pile in (3", coherency kept against the live models), then attacks with normal fight eligibility (CSM-09/CSM-10), never consolidates; then removed |
 | CHA-023 | CHA-5 | Daemonic Fervour: D6 = 3 → removed normally; Possessed already fought this phase → no roll |
 | CHA-024 | CHA-5 | Daemonic Fervour: deferred model has no OC and is skipped by coherency; `UnitDestroyed` only after the last deferred model is removed; kill credited to the attacker |
 | CHA-025 | CHA-6 | Sacrificial Dagger: Zarkan selected to shoot, use → his unit suffers 1 MW; Rite of Possession gets +1 hit and +1 wound this phase; bolt pistol does not |
@@ -572,7 +572,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | TYR-023 | TYR-5.4 | the spawned unit arrives as Strategic Reserves in a later own Movement phase: wholly within 6" of an edge, >9" from enemies, not in the enemy DZ in round 2; cannot arrive in the step it was created |
 | TYR-024 | TYR-5.4 | a spawned unit still in Reserves at the end of round 3 is removed; the opponent gets no kill credit |
 | TYR-025 | TYR-5.5 | Teeming Broods target list includes destroyed TERMAGANTS units; no other stratagem lists destroyed units |
-| TYR-026 | TYR-6.1 | Death Blow: Prime (not yet fought) killed in melee, D6 = 4 → not removed, `ModelRemovalDeferred`; once the attacker's activation ends its controller may fight with it (use/decline), then `ModelDestroyed` credits the original killer; declining removes it at once |
+| TYR-026 | TYR-6.1 | Death Blow: Prime (not yet fought) killed in melee, D6 = 4 → not removed, `ModelRemovalDeferred`; after the attacker's attacks and before it consolidates its controller may fight with it (use/decline; pile-in then attacks, no unit selection, no consolidate; TYR-02), then `ModelDestroyed` credits the original killer; declining removes it at once |
 | TYR-027 | TYR-6.1 | Death Blow: D6 = 3 → removed at once; killed by a ranged attack or mortal wounds → no roll; already fought this phase → no roll |
 | TYR-028 | TYR-6.1 | while removal is pending the Prime takes no further allocated attacks and adds 0 OC |
 | TYR-029 | TYR-6.2 | Feeding Frenzy: Psychophage melee vs a full-strength unit → no modifier; vs 19/20 Termagants → +1 hit; vs 9/20 → +1 hit and +1 wound |
@@ -660,7 +660,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | ADE-022 | ADE-4 | Consecrated Ground: only Battle-shocked units within 6" → 0 VP; opponent's turn end → nothing |
 | ADE-023 | ADE-5 | Ascetic Discipline: unmodified 6 to wound with a boltgun → AP −2 on that attack; non-critical wound keeps AP 0; expires at phase end |
 | ADE-024 | ADE-5 | Ascetic Discipline not offered for a unit already selected to shoot or fight this phase; IS offered in the opponent's Fight phase for an own unit that has not yet fought; not offered in the opponent's Shooting phase |
-| ADE-025 | ADE-5 | A Martyr's Death (Fight): a Sacresant destroyed before it has fought (by any enemy unit attacking the unit this phase), D6 ≥4 → model stays, fights after the destroying unit's attacks, then removed; D6 3 → removed at once |
+| ADE-025 | ADE-5 | A Martyr's Death (Fight): a Sacresant destroyed before it has fought (by any enemy unit attacking the unit this phase), D6 ≥4 → model stays, piles in (3") then fights with normal fight eligibility after the destroying unit's attacks and before it consolidates (RC-ADE-10), then removed; D6 3 → removed at once |
 | ADE-026 | ADE-5 | A Martyr's Death with a discarded die: D6 3 + 1 → deferred; pool −1 |
 | ADE-027 | ADE-5 | A Martyr's Death (Shooting): deferred Battle Sisters shoot after the enemy unit finishes shooting, then removed; deferred models cannot be allocated further attacks and add no OC |
 | ADE-028 | ADE-5 | A Martyr's Death: the destroyed model has already shot / fought this phase → no D6 for it, removed normally (other models of the unit that have not acted still roll) |
