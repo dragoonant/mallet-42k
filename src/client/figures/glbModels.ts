@@ -62,6 +62,20 @@ export const ENABLED_GLB_SLUGS: readonly string[] = [
   'stealth-shasvre',
   'stealth-shasui',
   'ghostkeel',
+  'magus-veridielle',
+  'neophyte-leader',
+  'neophyte-firearm',
+  'neophyte-icon',
+  'neophyte-stubber',
+  'neophyte-seismic',
+  'neophyte-webber',
+  'acolyte-leader',
+  'acolyte-hybrid',
+  'acolyte-demolitions',
+  'acolyte-mining-tool',
+  'aberrant-hypermorph',
+  'aberrant',
+  'goliath-rockgrinder',
 ]
 
 export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
@@ -142,6 +156,22 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'tau.stealth-battlesuits/shasvre': 'stealth-shasvre',
   'tau.stealth-battlesuits/shasui': 'stealth-shasui',
   'tau.ghostkeel/ghostkeel': 'ghostkeel',
+
+  // Genestealer Cults (MGSD GLBs).
+  'gsc.magus-veridielle/magus': 'magus-veridielle',
+  'gsc.neophyte-hybrids/leader': 'neophyte-leader',
+  'gsc.neophyte-hybrids/hybrid': 'neophyte-firearm',
+  'gsc.neophyte-hybrids/icon': 'neophyte-icon',
+  'gsc.neophyte-hybrids/heavy-stubber': 'neophyte-stubber',
+  'gsc.neophyte-hybrids/seismic-cannon': 'neophyte-seismic',
+  'gsc.neophyte-hybrids/webber': 'neophyte-webber',
+  'gsc.acolyte-hybrids/leader': 'acolyte-leader',
+  'gsc.acolyte-hybrids/hybrid': 'acolyte-hybrid',
+  'gsc.acolyte-hybrids/demolitions': 'acolyte-demolitions',
+  'gsc.acolyte-hybrids/mining-tool': 'acolyte-mining-tool',
+  'gsc.aberrants/hypermorph': 'aberrant-hypermorph',
+  'gsc.aberrants/aberrant': 'aberrant',
+  'gsc.goliath-rockgrinder/rockgrinder': 'goliath-rockgrinder',
 }
 
 /** The enabled GLB slug for a model type, or undefined (use the procedural figure). */

@@ -72,3 +72,10 @@ MGSD proportions; variants made by editing a clean base image in Gemini.
 `aun-shar` Ethereal, robes and honour blade · `shasnel-dtano` Fireblade with markerlight · `fire-warrior-rifle` pulse rifle trooper ·
 `fire-warrior-carbine` pulse carbine trooper · `fire-warrior-shasui` Shas'ui team leader · `stealth-shasvre` Stealth suit leader ·
 `stealth-shasui` Stealth suit with burst cannon · `ghostkeel` large stealth battlesuit.
+
+### Genestealer Cults (MGSD, 2026-10-05)
+MGSD proportions; variants made by editing a clean base image in Gemini. Acolytes intentionally have three arms.
+`magus-veridielle` psychic priestess · `neophyte-leader` miner-militia sergeant · `neophyte-firearm` rifle worker ·
+`neophyte-icon` icon bearer · `neophyte-stubber` heavy stubber · `neophyte-seismic` seismic cannon · `neophyte-webber` webber ·
+`acolyte-leader` hybrid leader · `acolyte-hybrid` hybrid with extra arm · `acolyte-demolitions` demolition charges ·
+`acolyte-mining-tool` mining tool · `aberrant-hypermorph` hulking brute leader · `aberrant` hulking brute · `goliath-rockgrinder` stubby mining vehicle.
