@@ -10,8 +10,8 @@
 //   groups are ordered target-major then weapon-major so R-6.6 "all attacks vs one target before the next; same
 //   profile together" holds without needing to merge multiple models' rolls into one bucket (Rapid Fire/Melta are
 //   measured per firing model, WEAP-004).
-// - [DEVASTATING WOUNDS] critical wounds are deferred to the end of their OWN group (not the whole unit-vs-target,
-//   which would need cross-group bookkeeping the frozen AttackGroup shape has no room for) via `devastatingPending`.
+// - [DEVASTATING WOUNDS] critical wounds are deferred via `devastatingPending` until every normal attack of the whole
+//   sequence (all targets) is done (RC-026), then allocated as mortal-wound-style damage.
 // - [BLAST] attacks use a per-target model-count snapshot taken in `begin` ("blastCount:<targetUnitId>=<n>" marks,
 //   counting both halves of an attached target via leaderService.combinedModels) so target selection is the single
 //   source of truth even when an earlier group in the SAME sequence has since thinned the same target.
@@ -1230,12 +1230,9 @@ export const attackService: AttackService = {
       assignRuns(ctx, a)
       let gi = a.current ? a.current.groupIndex : -1
       if (gi === -1) {
-        const firstUnfinished = a.groups.findIndex((g) => groupHasNormalWork(g) || g.devastatingPending > 0)
-        if (firstUnfinished !== -1) {
-          const target = a.groups[firstUnfinished].targetUnitId
-          gi = a.groups.findIndex((g) => g.targetUnitId === target && groupHasNormalWork(g))
-          if (gi === -1) gi = a.groups.findIndex((g) => g.targetUnitId === target && g.devastatingPending > 0)
-        }
+        // RC-026: deferred Devastating Wounds criticals wait for ALL normal attacks of the unit, against every target
+        gi = a.groups.findIndex((g) => groupHasNormalWork(g))
+        if (gi === -1) gi = a.groups.findIndex((g) => g.devastatingPending > 0)
       }
       if (gi === -1) {
         if (a.mortalQueue.length > 0) { const r = drainOneMortalPoint(ctx); if (r === 'pending') return 'pending'; continue }

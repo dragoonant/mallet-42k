@@ -371,7 +371,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | STRAT-015 | Go to Ground | target Dread (VEHICLE) → not offered |
 | STRAT-016 | Smokescreen | no SMOKE unit → never offered |
 | STRAT-017 | Heroic Intervention | alias → CHARGE-023, CHARGE-024, CHARGE-025 |
-| STRAT-018 | Tank Shock | offered in `stratagemWindow` `charge.moveEnded` only to the player whose VEHICLE just made a Charge move (Dread charge → offered; Dread that Heroically Intervened → offered, it is a Charge move **[interp]**; Dread that did not charge this phase → not offered) |
+| STRAT-018 | Tank Shock | offered in `stratagemWindow` `charge.moveEnded` only to the player whose VEHICLE just made a Charge move (Dread charge → offered; Dread that Heroically Intervened → not offered, out-of-phase rule (RC-041); Dread that did not charge this phase → not offered) |
 | STRAT-019 | Fire Overwatch | once per turn across both Movement and Charge phases |
 | STRAT-020 | Epic Challenge | alias → FIGHT-027 |
 | STRAT-021 | Duty and Honour | marker stays SM-controlled with no models; Orks have LoC 4 there at the start of their turn (`controllerAtTurnStart` = B) or at a turn end → sticky flag cleared; Ork presence only mid-turn (left before turn end) → flag kept |

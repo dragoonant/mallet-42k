@@ -340,6 +340,26 @@ function allowedMoveTypes(state: GameState, unitId: UnitId): MoveType[] {
 }
 
 // ---------- Fire Overwatch (a pushed 'overwatch' reaction targeting the just-moved unit) ----------
+// RC-015 default selection (the AI default of the fix plan; a player-facing declareTargets choice is not offered): a model
+// never spends a ONE_SHOT weapon on 6s-only Overwatch, fires its Pistols OR its other weapons (non-Pistols preferred),
+// and fires one profile per profileGroup (R-6.7, SHOOT-011). Shared with charge.ts overwatch.
+export function defaultOverwatchSelection(state: GameState, all: DeclaredTarget[]): DeclaredTarget[] {
+  const isPistol = (t: DeclaredTarget): boolean => { const w = state.weapons[t.weaponId]; return !!w && weaponService.hasAbility(w, 'PISTOL') }
+  const isOneShot = (t: DeclaredTarget): boolean => { const w = state.weapons[t.weaponId]; return !!w && w.abilities.some((a) => a.ability === 'ONE_SHOT') }
+  const out: DeclaredTarget[] = []
+  const modelIds = [...new Set(all.map((t) => t.modelId))]
+  for (const mid of modelIds) {
+    let mine = all.filter((t) => t.modelId === mid && !isOneShot(t))
+    if (mine.some((t) => !isPistol(t))) mine = mine.filter((t) => !isPistol(t))
+    const groups = new Set<string>()
+    for (const t of mine) {
+      if (t.profileGroup) { if (groups.has(t.profileGroup)) continue; groups.add(t.profileGroup) }
+      out.push(t)
+    }
+  }
+  return out
+}
+
 export function overwatchTargets(state: GameState, shooterUnitId: UnitId, targetUnitId: UnitId): DeclaredTarget[] {
   const out: DeclaredTarget[] = []
   for (const half of leaderService.halves(state, shooterUnitId)) {
@@ -355,7 +375,7 @@ export function overwatchTargets(state: GameState, shooterUnitId: UnitId, target
       }
     }
   }
-  return out
+  return defaultOverwatchSelection(state, out)
 }
 
 function drainOverwatch(ctx: EngineContext, moverUnitId: UnitId): AdvanceResult {

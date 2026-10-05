@@ -702,8 +702,9 @@ describe('Datasheet rules (NEC-6)', () => {
     const s = makeState({ a: { attachments: [] } })
     deploy(s, OVR, BOYZ)
     const arrowIn = (list: DeclaredTarget[]) => list.filter((e) => e.weaponId === 'nec.w.tachyon-arrow')
-    expect(arrowIn(overwatchTargets(s, OVR, BOYZ))).toHaveLength(1)
-    expect(arrowIn(overwatchTargetsFor(s, OVR, BOYZ))).toHaveLength(1)
+    // RC-015: the default Overwatch selection never spends a One Shot weapon (6s-only hits), fired or not
+    expect(arrowIn(overwatchTargets(s, OVR, BOYZ))).toHaveLength(0)
+    expect(arrowIn(overwatchTargetsFor(s, OVR, BOYZ))).toHaveLength(0)
     s.phase = 'shooting'
     const run = ctxOf(s, SIX)
     attackService.begin(run.ctx, { kind: 'ranged', attackerUnitId: OVR, overwatch: false, targets: [target(`${OVR}#0`, 'nec.w.tachyon-arrow', BOYZ, 1)] })

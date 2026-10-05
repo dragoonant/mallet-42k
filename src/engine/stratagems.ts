@@ -11,7 +11,7 @@
 // while something is still usable; a pass moves on (reaction → stratagem window → done).
 import type { Effect, TargetSpec, TimingWindowId } from '../data/types'
 import type { Action, StratagemTargets, UseStratagemAction } from './actions'
-import { codeHooks, pushReaction, type EngineCodeHook, type StratagemEnv, type StratagemTuple } from './code-hooks'
+import { codeHooks, pendingReactions, pushReaction, type EngineCodeHook, type StratagemEnv, type StratagemTuple } from './code-hooks'
 import { canReroll } from './dice'
 import { distance, withinEngagementRange, withinObjectiveRange, OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE } from './geometry'
 import { evaluateCondition, hookService } from './hooks-impl'
@@ -146,11 +146,9 @@ function timingOk(state: GameState, player: PlayerId, s: RuntimeStratagem, windo
   // R-1.8: phase-specific windows only inside that phase (no Shooting-phase stratagems during Overwatch)
   const prefix = window.split('.')[0]
   if (BATTLE_PHASES.has(prefix) && prefix !== state.phase) return false
-  const triggerOwner = trigger.unitId ? state.units[trigger.unitId]?.player : undefined
-  if (s.who === 'active' && player !== state.activePlayer) {
-    // STRAT-018 [interp]: Tank Shock also follows a Heroic Intervention charge by the reacting player's VEHICLE
-    if (!(s.code === 'tankShockMortalWounds' && triggerOwner === player)) return false
-  }
+  // RC-041: an 'active' stratagem is never usable by the non-active player — Heroic Intervention is resolved as if in the
+  // opponent's phase, and the out-of-phase rule forbids Tank Shock after it
+  if (s.who === 'active' && player !== state.activePlayer) return false
   if (s.who === 'reactive' && player === state.activePlayer) return false
   return evaluateCondition({ state, holder: null, player, attack: null, roll: null, weapon: null }, s.condition)
 }
@@ -326,6 +324,8 @@ function genericChecks(env: StratagemEnv, tuple: StratagemTuple): boolean {
   if (asList(s.effect).some((e) => e.move?.kind === 'surge') && first) {
     if (leaderService.inEngagementWithEnemy(state, first)) return false
     if (leaderService.halves(state, first).some((id) => state.units[id].turn.surgeMovedThisPhase)) return false
+    // RC-014: a queued-but-unresolved surge also counts as this phase's surge (the resolver sets the flag when it moves)
+    if (pendingReactions(state, 'surge').some((r) => leaderService.halves(state, first).includes(r.unitId))) return false
   }
   return true
 }
@@ -550,7 +550,6 @@ function applyStratagem(ctx: EngineContext, rec: WindowRecord, s: RuntimeStratag
     for (const e of asList(s.effect)) {
       if (e.move) {
         const { total } = ctx.rollExpr(e.move.distance, { purpose: 'stratagem', player: rec.player, unitId: first, commandRerollable: false })
-        for (const id of leaderService.halves(st, first)) if (e.move.kind === 'surge') st.units[id].turn.surgeMovedThisPhase = true
         const toward = s.params?.asCloseAsPossibleTo === 'target' ? (rec.trigger.unitId ?? null) : null
         pushReaction(ctx, { kind: 'surge', stratagemId: s.id, player: rec.player, unitId: first, enemyUnitId: toward, window: rec.window, distance: total })
         continue

@@ -6,6 +6,7 @@ import {
 } from '../../src/engine'
 import { attackService } from '../../src/engine/attack'
 import { leaderService } from '../../src/engine/leaders'
+import { overwatchTargets } from '../../src/engine/phases/movement'
 import type { DataBundle } from '../../src/data/types'
 import { bundle, withBundle } from '../fixtures/bundle'
 import { makeSetup, makePlayerA, makePlayerB } from '../fixtures/setup'
@@ -104,6 +105,31 @@ describe('attack.verify', () => {
     const save = ev.findIndex((e) => e.type === 'SaveRolled')
     expect(save).toBeGreaterThanOrEqual(0)
     expect(firstMortal).toBeGreaterThan(save)
+  })
+
+  it('WEAP-013-order RC-026 Devastating Wounds mortal wounds wait for the unit\'s normal attacks against EVERY target', () => {
+    const state = stateWith(unattached(), (b) => { (b.weapons['red.w.gun'] as any).abilities = [{ ability: 'DEVASTATING_WOUNDS' }] })
+    place(state)
+    placeUnit(state, 'B:brute', [[-16, -2.05]])
+    // grunts#1 vs mob: hit 6, wound 6 (critical, deferred); grunts#2 vs brute: hit 6, wound 5 (normal), save 1
+    const h = ctxFor(state, [6, 6, 6, 5, 1, ...TAIL])
+    attackService.begin(h.ctx, { kind: 'ranged', attackerUnitId: 'A:grunts', overwatch: false, targets: [target('A:grunts#1', 'red.w.gun', 'B:mob', 1), target('A:grunts#2', 'red.w.gun', 'B:brute', 1)] })
+    const ev = drive(h)
+    const firstMortal = ev.findIndex((e) => e.type === 'DamageApplied' && e.mortal)
+    const save = ev.findIndex((e) => e.type === 'SaveRolled')
+    expect(save).toBeGreaterThanOrEqual(0)
+    expect(firstMortal).toBeGreaterThan(save)
+  })
+
+  it('SHOOT-011 RC-015 Overwatch default selection: Pistols OR other weapons per model (never both), no melee, one profile', () => {
+    const state = stateWith(unattached())
+    place(state)
+    const sel = overwatchTargets(state, 'A:grunts', 'B:mob')
+    const byModel = new Map<string, string[]>()
+    for (const t of sel) byModel.set(t.modelId, [...(byModel.get(t.modelId) ?? []), t.weaponId])
+    expect(sel.length).toBeGreaterThan(0)
+    for (const ws of byModel.values()) expect(ws.includes('red.w.pistol') && ws.some((w) => w !== 'red.w.pistol')).toBe(false)
+    expect(sel.some((t) => t.weaponId === 'red.w.blade')).toBe(false)
   })
 
   it('WEAP-024-per-model one Hazardous test per Hazardous weapon used (two models with the same weapon -> two tests)', () => {
@@ -419,7 +445,7 @@ describe('attack.verify round 3', () => {
     expect(dd.affected).toContain('B:mob')
   })
 
-  it('SHOOT-014-dev R-6.6: a Devastating Wounds critical vs target 1 resolves before any attack vs target 2', () => {
+  it('SHOOT-014-dev RC-026: a Devastating Wounds critical vs target 1 resolves AFTER the normal attacks vs target 2', () => {
     const state = stateWith(unattached(), (b) => { (b.weapons['red.w.gun'] as any).abilities = [{ ability: 'DEVASTATING_WOUNDS' }] })
     place(state)
     const sergeant = state.units['A:grunts'].models.find((id) => state.models[id].weapons.includes('red.w.pistol'))!
@@ -432,7 +458,7 @@ describe('attack.verify round 3', () => {
     const iBrute = evs.findIndex((e) => e.type === 'HitRolled' && e.attack.targetUnitId === 'B:brute')
     expect(iMob).toBeGreaterThanOrEqual(0)
     expect(iBrute).toBeGreaterThanOrEqual(0)
-    expect(iMob).toBeLessThan(iBrute)
+    expect(iMob).toBeGreaterThan(iBrute)
   })
 
   it('SHOOT-038/WEAP-023 Hazardous failure: unwounded carriers -> non-CHARACTER carrier takes it before the CHARACTER', () => {

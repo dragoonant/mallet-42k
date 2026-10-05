@@ -337,7 +337,7 @@ describe('engine/stratagems — CP, limits, windows', () => {
     for (const u of [BOYZ, KOPTAS, DREAD, BOSS]) expect(stratagemService.usable(s, 'B', 'shooting.targetsDeclared', { unitId: T, targetUnitId: u })).not.toContain('core.s.smokescreen')
   })
 
-  it('STRAT-018 Tank Shock: offered at charge.moveEnded only for the VEHICLE that just made a Charge move (Heroic Intervention included)', () => {
+  it('STRAT-018 Tank Shock: offered at charge.moveEnded only for the VEHICLE that just made a Charge move (not after Heroic Intervention, RC-041)', () => {
     const s = makeState()
     phase(s, 'charge', 'B', { B: 1 })
     placeUnit(s, DREAD, [[0.15, -3 + 0.787 + 1.18 + 0.5]])
@@ -345,9 +345,9 @@ describe('engine/stratagems — CP, limits, windows', () => {
     expect(ids(offered(s, 'B', 'charge.moveEnded', { unitId: DREAD }), 'core.s.tank-shock')).toEqual([[DREAD, T, 'B:deff-dread#0']])
     expect(ids(offered(s, 'B', 'charge.moveEnded', { unitId: BOYZ }), 'core.s.tank-shock')).toEqual([])
     expect(ids(offered(s, 'B', 'charge.moveEnded', { unitId: KOPTAS }), 'core.s.tank-shock')).toEqual([])
-    // the Dread Heroically Intervened in the SM turn
+    // the Dread Heroically Intervened in the SM turn: out-of-phase, so no Tank Shock (RC-041)
     phase(s, 'charge', 'A', { B: 1 })
-    expect(ids(offered(s, 'B', 'charge.moveEnded', { unitId: DREAD }), 'core.s.tank-shock')).toEqual([[DREAD, T, 'B:deff-dread#0']])
+    expect(ids(offered(s, 'B', 'charge.moveEnded', { unitId: DREAD }), 'core.s.tank-shock')).toEqual([])
     expect(ids(offered(s, 'B', 'charge.moveEnded', { unitId: T }), 'core.s.tank-shock')).toEqual([])
   })
 
@@ -480,7 +480,8 @@ describe('engine/stratagems — CP, limits, windows', () => {
     expect(ids(options(s), 'ork.s.krump-da-gitz')).toEqual([[BOYZ]])
     h.useOption('ork.s.krump-da-gitz')
     expect(pendingReactions(s, 'surge')).toMatchObject([{ unitId: BOYZ, enemyUnitId: T, distance: 4, player: 'B' }])
-    expect(s.units[BOYZ].turn.surgeMovedThisPhase).toBe(true)
+    // RC-014/061: the surge is drained by the Shooting phase (resolveSurgeMove sets the once-per-phase flag when it moves)
+    expect(offered(s, 'B', 'shooting.attacksResolved', { unitId: T }).map((x) => x.stratagemId)).not.toContain('ork.s.krump-da-gitz')
 
     const shocked = makeState()
     phase(shocked, 'shooting', 'A', { B: 1 })
