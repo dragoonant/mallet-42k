@@ -115,6 +115,15 @@ export function unitModels(state: GameState, unitId: UnitId): Model[] {
   return unitModelsAll(state, unitId).filter((m) => !m.removalDeferred)
 }
 
+// RC-072/RC-090: mortal wounds from a rule a unit of your army is using credit that unit (its owner, first model) as the destroyer
+export type MortalCreditBy = { player: import('./types').PlayerId; unitId: string; modelId: string }
+export function mortalCredit(state: import('./types').GameState, unitId: string): MortalCreditBy | undefined {
+  const unit = state.units[unitId]
+  if (!unit) return undefined
+  const model = unitModels(state, unitId)[0] ?? state.models[unit.models[0]]
+  return model ? { player: unit.player, unitId, modelId: model.id } : undefined
+}
+
 // attached units are one unit for coherency (R-10.1, LEAD-004): includes the attached leader / bodyguard models
 export function unitModelsForCoherency(state: GameState, unitId: UnitId): Model[] {
   const unit = state.units[unitId]

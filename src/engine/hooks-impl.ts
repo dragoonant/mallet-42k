@@ -24,7 +24,7 @@ import {
 import { frozenClosestEligible, snapshotClosestEligible } from './factions/tyranids'
 import { leaderService } from './leaders'
 import type { DecisionHandler, EngineContext, WindowTrigger } from './modules'
-import { keywordsOf, modelStats, unitModels } from './state'
+import { keywordsOf, modelStats, mortalCredit, unitModels } from './state'
 import type { ActiveEffect, DiceRoll, GameState, ModelId, PlayerId, RuntimeAbility, RuntimeWeapon, Unit, UnitId } from './types'
 
 // the hook-specific part of a HookContext; the service fills in state/phase/activePlayer/source/unitId/hook per descriptor.
@@ -546,8 +546,8 @@ export const hookService: HookService & HookQueries = {
     const s = ctx.state
     const d = data as unknown as Data
     if (hook === 'onTargetsDeclared') {
-      const td = data as unknown as { attackerUnitId: UnitId; kind: 'ranged' | 'melee' }
-      snapshotClosestEligible(ctx, td.attackerUnitId, td.kind)
+      const td = data as unknown as { attackerUnitId: UnitId; targetUnitIds?: UnitId[]; kind: 'ranged' | 'melee' }
+      snapshotClosestEligible(ctx, td.attackerUnitId, td.kind, td.targetUnitIds)
     }
     for (const { source, result } of hookService.collect(ctx, hook, data)) {
       if ((result as HookResult).kind === 'request') hookService.apply(ctx, source, result as EffectRequest)
@@ -567,7 +567,7 @@ export const hookService: HookService & HookQueries = {
     const s = ctx.state
     const owner: PlayerId = (source.unitId && s.units[source.unitId]?.player) || s.activePlayer
     if (request.mortalWounds) {
-      for (const mw of request.mortalWounds) if (mw.count > 0) ctx.services.attack.queueMortalWounds(ctx, mw.targetUnitId, mw.count, source.id, false)
+      for (const mw of request.mortalWounds) if (mw.count > 0) ctx.services.attack.queueMortalWounds(ctx, mw.targetUnitId, mw.count, source.id, false, source.unitId ? mortalCredit(s, source.unitId) : undefined)
     }
     if (request.cp !== undefined && request.cp !== 0) hookService.gainCp(ctx, owner, request.cp, source.id)
     if (request.vp && request.vp.amount !== 0) {

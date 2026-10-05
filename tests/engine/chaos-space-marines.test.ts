@@ -466,9 +466,13 @@ describe('Vindictive Strategy (CHA-5)', () => {
     // undamaged: neither
     expect(against('onHitRoll', 'hit')).toEqual([])
     expect(against('onWoundRoll', 'wound')).toEqual([])
-    // at exactly half wounds: not below half-strength -> still neither
+    // one wound lost (Starting Strength 1 = any wound lost): below Starting Strength -> hit re-roll only
+    bm.woundsRemaining = W - 1
+    expect(against('onHitRoll', 'hit')).toEqual(['ones'])
+    expect(against('onWoundRoll', 'wound')).toEqual([])
+    // at exactly half wounds: not below half-strength -> hit only (below Starting Strength)
     bm.woundsRemaining = W / 2
-    expect(against('onHitRoll', 'hit')).toEqual([])
+    expect(against('onHitRoll', 'hit')).toEqual(['ones'])
     expect(against('onWoundRoll', 'wound')).toEqual([])
     // below half wounds: below half-strength implies below Starting Strength, so both re-roll
     bm.woundsRemaining = Math.max(1, Math.ceil(W / 2) - 1)

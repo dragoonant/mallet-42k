@@ -82,7 +82,8 @@ export interface AttackService {
   begin(ctx: EngineContext, spec: AttackBegin): void
   advance(ctx: EngineContext): AdvanceResult
   readonly handler: DecisionHandler
-  queueMortalWounds(ctx: EngineContext, targetUnitId: UnitId, count: number, source: string, lostOnDeath: boolean): void
+  // `by` (RC-072): who the mortal wounds come from, so kills they cause count as destroyed by that player/unit/model (Deadly Demise)
+  queueMortalWounds(ctx: EngineContext, targetUnitId: UnitId, count: number, source: string, lostOnDeath: boolean, by?: { player: PlayerId; unitId: UnitId; modelId: ModelId }): void
   destroyModel(ctx: EngineContext, modelId: ModelId, by: DestroyedBy): void
   // C5: the tail of destroyModel (Deadly Demise, removal, ModelDestroyed, kill credit, UnitDestroyed, missions, detach) — also the point at
   // which a fight-on-death model, deferred until it had fought, is finally removed
@@ -1039,7 +1040,7 @@ function drainOneMortalPoint(ctx: EngineContext): 'pending' | 'progress' {
   const died = applyOnePoint(ctx, model, actx, { abilityId: entry.source }, true)
   entry.count -= 1
   if (died) {
-    attackService.destroyModel(ctx, model.id, { player: null, unitId: null, modelId: null, kind: 'mortal' })
+    attackService.destroyModel(ctx, model.id, entry.by ? { ...entry.by, kind: 'mortal' } : { player: null, unitId: null, modelId: null, kind: 'mortal' })
     if (entry.lostOnDeath) entry.count = 0 // R-6.17: Hazardous/Devastating batches don't spill; generic ones do (next tick re-picks a model)
   }
   if (entry.count <= 0) a.mortalQueue = a.mortalQueue.slice(1)
@@ -1128,7 +1129,7 @@ function rollDeadlyDemise(ctx: EngineContext, model: Model, valueExpr: DiceExpr)
     }
     for (const unitId of affected) {
       const roll = ctx.rollExpr(valueExpr, { purpose: 'deadlyDemise', player: s.units[unitId].player, unitId })
-      if (roll.total > 0) attackService.queueMortalWounds(ctx, unitId, roll.total, 'deadlyDemise', false)
+      if (roll.total > 0) attackService.queueMortalWounds(ctx, unitId, roll.total, 'deadlyDemise', false, { player: owner, unitId: model.unitId, modelId: model.id })
     }
   }
   ctx.emit({ type: 'DeadlyDemiseRolled', unitId: model.unitId, modelId: model.id, die: trigger.dice[0], exploded, affected })
@@ -1373,7 +1374,7 @@ export const attackService: AttackService = {
     },
   },
 
-  queueMortalWounds(ctx, targetUnitId, count, source, lostOnDeath) {
+  queueMortalWounds(ctx, targetUnitId, count, source, lostOnDeath, by) {
     if (count <= 0) return
     if (!ctx.state.phaseState.attack) {
       attackService.begin(ctx, { kind: 'ranged', attackerUnitId: targetUnitId, overwatch: false, targets: [] })
@@ -1384,7 +1385,7 @@ export const attackService: AttackService = {
     // ordinal into `source` (nothing outside this queue ever compares it against the caller's original string).
     const n = ctx.state.phaseState.marks.filter((m) => m.startsWith('mortalBatchSeq:')).length
     ctx.state.phaseState.marks.push(`mortalBatchSeq:${n}`)
-    ctx.state.phaseState.attack!.mortalQueue.push({ targetUnitId, count, source: `${source}#${n}`, lostOnDeath })
+    ctx.state.phaseState.attack!.mortalQueue.push({ targetUnitId, count, source: `${source}#${n}`, lostOnDeath, ...(by ? { by } : {}) })
   },
 
   destroyModel(ctx, modelId, by) {
@@ -1428,7 +1429,7 @@ export const attackService: AttackService = {
     if (demise) rollDeadlyDemise(ctx, model, demise.value ?? 'D3')
     // E4: onModelDestroyed hooks are collected BEFORE the model leaves the table; a deferRemoval request keeps it there
     // (at 0 W, announced as destroyed, untargetable, no OC) until the destroying unit has finished (A Martyr's Death)
-    const deferral = (by.unitId && (s.phase === 'shooting' || s.phase === 'fight'))
+    const deferral = (by.unitId && by.kind !== 'mortal' && (s.phase === 'shooting' || s.phase === 'fight'))
       ? ctx.services.hooks.collect(ctx, 'onModelDestroyed', { destroyedUnitId: unit.id, destroyedModelId: modelId, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
         .map((r) => r.result).find((r): r is EffectRequest => r.kind === 'request' && r.deferRemoval !== undefined)?.deferRemoval
       : undefined
