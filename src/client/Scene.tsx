@@ -12,6 +12,8 @@ import { useGameStore } from './store/game'
 import { useUiStore } from './ui/uiStore'
 import { computeBoardClickDraft, DeathGhosts, PlacementOverlay, resolveMeasureLine, UnitLabels, UnitsLayer, useBoardClick } from './interaction'
 import { VfxLayer } from './vfx'
+import { spikeMode } from '../spike/flag'
+import { PerfProbe } from '../spike/PerfProbe'
 
 /** Area centroid of a simple polygon (shoelace). */
 function zoneCentroid(poly: { x: number; z: number }[]): { x: number; z: number } {
@@ -27,6 +29,7 @@ function zoneCentroid(poly: { x: number; z: number }[]): { x: number; z: number 
 }
 
 export function Scene() {
+  const spike = spikeMode()
   const state = useGameStore((s) => s.state)
   const displayState = useDisplayState()
   const lowGraphics = usePresentationSettings((s) => s.lowGraphics)
@@ -98,7 +101,7 @@ export function Scene() {
     // shadow setting and dpr rebuild cleanly when the setting flips.
     <Canvas
       key={lowGraphics ? 'low' : 'hi'}
-      frameloop="demand"
+      frameloop={spike ? 'always' : 'demand'}
       dpr={lowGraphics ? 1 : [1, 1.5]}
       shadows={!lowGraphics}
       camera={{ position: [0, 28, 23.8], fov: 45, near: 0.1, far: 500 }}
@@ -106,6 +109,7 @@ export function Scene() {
     >
       <color attach="background" args={['#0a0a10']} />
       <Lighting />
+      {spike && <PerfProbe />}
       <BattlefieldAmbience />
       {!lowGraphics && <ShadowSync deps={[displayState?.models, terrainPieces]} />}
       <CameraRig topDown={topDown} focusTarget={focusTarget} viewFromFar={viewFromFar} />

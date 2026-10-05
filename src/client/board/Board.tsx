@@ -6,10 +6,18 @@ import { extrudedPolygonGeometry } from './geometry'
 import { useThree } from '@react-three/fiber'
 import { BATTLEFIELDS, useBattlefieldPBR } from './terrainAssets'
 import { useUiStore } from '../ui/uiStore'
+import { useGameStore } from '../store/game'
 import { SIDE_COLOR, type DeploymentZones, type PlayerId } from './types'
 
 export const BOARD_WIDTH_IN = 44
 export const BOARD_DEPTH_IN = 30
+
+/** Board size in inches from the live game state (the mission's board); the 44x30 defaults when no game exists. */
+export function useBoardSize(): { w: number; h: number } {
+  const w = useGameStore((s) => s.state?.board.w ?? BOARD_WIDTH_IN)
+  const h = useGameStore((s) => s.state?.board.h ?? BOARD_DEPTH_IN)
+  return { w, h }
+}
 const ZONE_TINT_HEIGHT = 0.015
 const ZONE_TINT_THICKNESS = 0.01
 
@@ -66,7 +74,10 @@ export interface BoardProps {
 }
 
 /** The 44"x30" battle mat: textured ground plane and deployment-zone tint (§50-client §4). */
-export function Board({ width = BOARD_WIDTH_IN, depth = BOARD_DEPTH_IN, deploymentZones, attacker = 'A', onBoardPointer }: BoardProps) {
+export function Board({ width: widthProp, depth: depthProp, deploymentZones, attacker = 'A', onBoardPointer }: BoardProps) {
+  const size = useBoardSize()
+  const width = widthProp ?? size.w
+  const depth = depthProp ?? size.h
   const defender: PlayerId = attacker === 'A' ? 'B' : 'A'
   const dragging = useRef(false)
 

@@ -3,7 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
-import { BOARD_DEPTH_IN, BOARD_WIDTH_IN } from './Board'
+import { useBoardSize } from './Board'
 import { initCameraModifiers, isSpaceHeld } from './cameraModifiers'
 
 const OVERVIEW_POLAR = THREE.MathUtils.degToRad(55)
@@ -39,6 +39,9 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
   const pendingFocus = useRef<{ x: number; z: number } | null>(null)
   const { camera, gl } = useThree()
   const invalidate = useThree((s) => s.invalidate)
+  const boardSize = useBoardSize()
+  const boardRef = useRef(boardSize)
+  boardRef.current = boardSize
 
   useEffect(() => {
     targetPolar.current = topDown ? TOP_DOWN_POLAR : OVERVIEW_POLAR
@@ -136,8 +139,8 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
     }
 
     // Keep the orbit target over (or just past the edge of) the board.
-    c.target.x = THREE.MathUtils.clamp(c.target.x, -BOARD_WIDTH_IN / 2 - TARGET_MARGIN, BOARD_WIDTH_IN / 2 + TARGET_MARGIN)
-    c.target.z = THREE.MathUtils.clamp(c.target.z, -BOARD_DEPTH_IN / 2 - TARGET_MARGIN, BOARD_DEPTH_IN / 2 + TARGET_MARGIN)
+    c.target.x = THREE.MathUtils.clamp(c.target.x, -boardRef.current.w / 2 - TARGET_MARGIN, boardRef.current.w / 2 + TARGET_MARGIN)
+    c.target.z = THREE.MathUtils.clamp(c.target.z, -boardRef.current.h / 2 - TARGET_MARGIN, boardRef.current.h / 2 + TARGET_MARGIN)
     c.target.y = 0
 
     const current = c.getPolarAngle()

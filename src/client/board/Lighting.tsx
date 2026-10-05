@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useThree } from '@react-three/fiber'
 import { usePresentationSettings } from '../presentation/settings'
+import { useBoardSize } from './Board'
 
 /** Sun direction (unit vector from the board towards the sun, y up) and colour — exported so other
  *  code (ambience flashes, decals, UI) can stay consistent with the key light. Elevation is ~32 degrees:
@@ -19,6 +20,10 @@ const SUN_POSITION: [number, number, number] = [SUN_DIRECTION[0] * SUN_DISTANCE,
  *  demand (see ShadowSync) rather than every frame. */
 export function Lighting() {
   const lowGraphics = usePresentationSettings((s) => s.lowGraphics)
+  const { w, h } = useBoardSize()
+  // shadow frustum: +-30 x +-24 for the 44x30 board; grown by the extra board size for larger boards (unchanged at 44x30)
+  const sx = 30 + (w - 44) / 2
+  const sy = 24 + (h - 30) / 2
   return (
     <>
       <hemisphereLight intensity={1} color="#9dbaff" groundColor="#7a6446" />
@@ -33,10 +38,10 @@ export function Lighting() {
         shadow-mapSize-height={2048}
         shadow-camera-near={1}
         shadow-camera-far={130}
-        shadow-camera-left={-30}
-        shadow-camera-right={30}
-        shadow-camera-top={24}
-        shadow-camera-bottom={-24}
+        shadow-camera-left={-sx}
+        shadow-camera-right={sx}
+        shadow-camera-top={sy}
+        shadow-camera-bottom={-sy}
         shadow-bias={-0.0005}
         shadow-normalBias={0.02}
       />

@@ -246,6 +246,8 @@ export interface NewGameOptions {
   opponentSplitSquads?: boolean
   /** Bot opponent strength; ignored for 'hotseat'. Defaults to DEFAULT_AI_DIFFICULTY ('normal'). */
   difficulty?: AiDifficulty
+  /** Spike-only: rewrite the bundle + setup after buildSetup (see src/spike/incursion.ts). Unused by normal games. */
+  transform?: (bundle: DataBundle, setup: GameSetup) => { bundle: DataBundle; setup: GameSetup }
 }
 
 export interface ToastMessage {
@@ -710,9 +712,11 @@ export const useGameStore = create<GameStore>()((set, get) => {
       usePresentationSettings.getState().muteRerolls(null)
       set({ loading: true, error: null, toast: null })
       try {
-        const bundle = await loadBundle()
+        let bundle = await loadBundle()
+        let setup = buildSetup(bundle, opts)
+        // measurement spike only (src/spike): lets the caller swap in a derived bundle/setup (e.g. Incursion scale)
+        if (opts.transform) ({ bundle, setup } = opts.transform(bundle, setup))
         registerDataBundle(bundle)
-        const setup = buildSetup(bundle, opts)
         const result = createGame(setup, opts.seed, bundle)
         const botSeat: PlayerId | null = opts.opponent === 'bot' ? 'B' : null
         const difficulty = opts.difficulty ?? DEFAULT_AI_DIFFICULTY

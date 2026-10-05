@@ -12,6 +12,9 @@ import type { Pose } from './figures'
 import { DiceTray } from './dice'
 import { audio } from './audio'
 import { PresentationDirector } from './presentation'
+import { spikeMode } from '../spike/flag'
+import { startSpikeGame } from '../spike/driver'
+import { PerfOverlay } from '../spike/PerfOverlay'
 
 const overlayLayer: CSSProperties = { position: 'absolute', inset: 0, pointerEvents: 'none' }
 
@@ -58,7 +61,8 @@ function useGalleryQuery(): { active: boolean; pose?: Pose; faction?: string } {
 }
 
 export function App() {
-  const [screen, setScreen] = useState<'start' | 'game'>('start')
+  const spike = spikeMode()
+  const [screen, setScreen] = useState<'start' | 'game'>(spike ? 'game' : 'start')
   const state = useGameStore((s) => s.state)
   const resetAll = useUiStore((s) => s.resetAll)
   const painterOpen = useUiStore((s) => s.painterOpen)
@@ -71,6 +75,10 @@ export function App() {
     audio.attachAutoUnlock()
   }, [])
 
+  useEffect(() => {
+    if (spike) void startSpikeGame()
+  }, [spike])
+
   const gallery = useGalleryQuery()
   if (gallery.active) {
     applyPaintFromUrl()
@@ -81,6 +89,7 @@ export function App() {
     )
   }
 
+  if (spike && !state) return null
   if (screen === 'start' || !state) {
     return (
       <StartScreen
@@ -96,6 +105,7 @@ export function App() {
     <div style={{ position: 'fixed', inset: 0, overflow: 'hidden' }}>
       <PresentationDirector />
       <Scene />
+      {spike && <PerfOverlay />}
       <div style={overlayLayer}>
         <Hud />
         <UnitCard />
