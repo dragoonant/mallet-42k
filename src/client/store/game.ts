@@ -302,7 +302,7 @@ export interface GameStore {
   loadFromLocalStorage(key?: string): void
 }
 
-const EVENT_LOG_LIMIT = 200
+const EVENT_LOG_LIMIT = 2000
 const DICE_LOG_LIMIT = 200
 const NOTES_LOG_LIMIT = 200
 

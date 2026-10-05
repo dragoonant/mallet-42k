@@ -1,23 +1,23 @@
 // Rolling feed of engine events in plain language (docs/spec/50-client.md §5 "Action log", trimmed
-// to a read-only feed — undo/replay are out of scope for a first playable pass). Only the events a
-// human actually cares about are shown here; everything else (HitRolled, DecisionRequested, and the
-// rest of the engine's internal bookkeeping) is filtered out rather than printed as a raw type name.
-// CP/VP lines get their own small pinned "Scoring" list above the general feed — mixed in with combat
-// lines they scrolled out of view within seconds of happening (M6 gap).
-import type { CSSProperties } from 'react'
-import type { DamageApplied, GameEvent, GameState } from '@/engine'
+// to a read-only feed — undo/replay are out of scope for a first playable pass). The summarising lives
+// in eventSummary.ts (pure); this file only renders: one grouped line per weapon attack (click to expand
+// per-step numbers), lines coloured by acting player, auto-sticking to the newest line.
+// CP/VP lines also get their own small pinned "Scoring" list above the general feed.
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import type { GameEvent, GameState } from '@/engine'
 import type { DataBundle } from '@/data/types'
 import { useGameStore } from '../store/game'
 import { useDisplayState, usePresentedStore } from '../presentation/presentedStore'
 import { sourceName } from './labels'
-import { mutedText, panel } from './theme'
+import { colors, mutedText, panel } from './theme'
+import { summariseEvents } from './eventSummary'
 
 const wrap: CSSProperties = {
   ...panel,
   position: 'absolute',
   right: 12,
   bottom: 12,
-  width: 220,
+  width: 340,
   padding: 10,
   display: 'flex',
   flexDirection: 'column',
@@ -25,73 +25,19 @@ const wrap: CSSProperties = {
   pointerEvents: 'auto',
 }
 const heading: CSSProperties = { fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.6, flex: '0 0 auto' }
-// paddingTop keeps the newest line (rendered first — see column-reverse below) clear of the heading
-// above it; without it the top row read as clipped under the label above.
-const scroll: CSSProperties = { overflowY: 'auto', display: 'flex', flexDirection: 'column-reverse', gap: 4, fontSize: 12, paddingTop: 4 }
-const scoringScroll: CSSProperties = { ...scroll, height: 60 }
-const eventsScroll: CSSProperties = { ...scroll, height: 150 }
+const scroll: CSSProperties = { overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, paddingTop: 4 }
+const scoringScroll: CSSProperties = { ...scroll, height: 60, flexDirection: 'column-reverse' }
+const eventsScroll: CSSProperties = { ...scroll, height: 260 }
 
-function unitName(state: GameState, id: string | null | undefined): string {
-  if (!id) return ''
-  return state.units[id]?.name ?? id
-}
+const MAX_LINES = 100
+const LINE_COLOR = { A: colors.playerA, B: colors.playerB } as const
 
 function playerName(state: GameState, id: string | null | undefined): string {
   if (!id) return 'No one'
   return state.players[id as 'A' | 'B']?.name ?? id
 }
 
-function attackerFrom(state: GameState, source: DamageApplied['source']): string {
-  if ('attackerUnitId' in source) return ` from ${unitName(state, source.attackerUnitId)}`
-  if ('abilityId' in source) return ' from an ability'
-  if ('stratagemId' in source) return ' from a stratagem'
-  return ''
-}
-
-/** null means "not a key event" — filtered out of the feed entirely. */
-function describe(e: GameEvent, state: GameState): string | null {
-  switch (e.type) {
-    case 'RoundStarted':
-      return `Round ${e.round} begins`
-    case 'PhaseStarted':
-      return `${e.phase[0].toUpperCase()}${e.phase.slice(1)} phase — ${playerName(state, e.player)}`
-    case 'UnitDeployed':
-      return `${unitName(state, e.unitId)} ${e.toReserves ? 'held in reserve' : 'deployed'}`
-    case 'ReinforcementsArrived':
-      return `${unitName(state, e.unitId)} arrives from reserves`
-    case 'MoveDeclared':
-      return `${unitName(state, e.unitId)} makes a ${e.moveType} move`
-    case 'DamageApplied':
-      return `${unitName(state, e.unitId)} takes ${e.amount}${e.mortal ? ' mortal' : ''} damage${attackerFrom(state, e.source)}`
-    case 'ModelDestroyed':
-      return `A model of ${unitName(state, e.unitId)} falls${e.byUnitId ? ` to ${unitName(state, e.byUnitId)}` : ''}`
-    case 'ModelReturned':
-      return `A model of ${unitName(state, e.unitId)} claws its way back`
-    case 'ModelRemovalDeferred':
-      return `A model of ${unitName(state, e.unitId)} refuses to fall yet — it gets one last swing`
-    case 'UnitDestroyed':
-      return `${unitName(state, e.unitId)} is wiped out${e.byUnitId ? ` by ${unitName(state, e.byUnitId)}` : ''}`
-    case 'BattleShocked':
-      return `${unitName(state, e.unitId)} is battle-shocked`
-    case 'BattleShockRecovered':
-      return `${unitName(state, e.unitId)} recovers from battle shock`
-    case 'ChargeDeclared':
-      return `${unitName(state, e.unitId)} declares a charge against ${e.targetUnitIds.map((id) => unitName(state, id)).join(', ')}`
-    case 'ChargeRolled':
-      if (e.needed !== null && e.total < e.needed) return `${unitName(state, e.unitId)}'s charge fails (rolled ${e.total}, needed ${Math.ceil(e.needed)})`
-      return `${unitName(state, e.unitId)} charges in (rolled ${e.total})`
-    case 'StratagemUsed':
-      return `${playerName(state, e.player)} uses ${state.stratagems[e.stratagemId]?.name ?? e.stratagemId}`
-    case 'ObjectiveSecured':
-      return `${playerName(state, e.by)} secures ${e.objectiveId}`
-    case 'GameEnded':
-      return `Battle ends — ${e.result.winner === 'draw' ? 'a draw' : `${playerName(state, e.result.winner)} wins`}`
-    default:
-      return null
-  }
-}
-
-/** Own-words CP/VP line for the pinned Scoring list — the only place these still show up. */
+/** Own-words CP/VP line for the pinned Scoring list. */
 function describeScoring(e: GameEvent, state: GameState, bundle: DataBundle | null): string | null {
   if (e.type === 'CpChanged') {
     const name = sourceName(state, bundle, e.source)
@@ -103,31 +49,40 @@ function describeScoring(e: GameEvent, state: GameState, bundle: DataBundle | nu
   return null
 }
 
-/** A described engine event or a client-only note (src/client/store/game.ts's LogNote — e.g. "Re-roll
- *  skipped (setting)"), ordered the same way they'll render: by the real event stream's own seq, with a
- *  note sorted in right after the events that were on the log when it was pushed. */
-interface FeedLine { key: string; text: string; muted: boolean; sortKey: number }
-
 export function EventFeed() {
   const state = useDisplayState()
   const allEvents = useGameStore((s) => s.events)
   const allNotes = useGameStore((s) => s.notes)
   const presentedSeq = usePresentedStore((s) => s.presentedSeq)
   const bundle = useGameStore((s) => s.bundle)
-  if (!state) return null
+  const [open, setOpen] = useState<Set<string>>(new Set())
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const stick = useRef(true)
   const events = allEvents.filter((e) => e.seq <= presentedSeq)
   const notes = allNotes.filter((n) => n.afterSeq <= presentedSeq)
 
+  const lineCount = events.length + notes.length
+  useEffect(() => {
+    const el = scrollRef.current
+    if (el && stick.current) el.scrollTop = el.scrollHeight
+  }, [lineCount, presentedSeq, open])
+  if (!state) return null
+
   const scoring = events.map((e) => describeScoring(e, state, bundle)).filter((s): s is string => s !== null).slice(-30)
 
-  const lines: FeedLine[] = []
-  for (const e of events) {
-    const text = describe(e, state)
-    if (text !== null) lines.push({ key: `e:${e.seq}`, text, muted: false, sortKey: e.seq })
-  }
-  for (const n of notes) lines.push({ key: `n:${n.id}`, text: n.text, muted: true, sortKey: n.afterSeq + 0.5 })
-  lines.sort((a, b) => a.sortKey - b.sortKey)
-  const described = lines.slice(-40)
+  const merged = [
+    ...summariseEvents(events, state, bundle).map((l) => ({ ...l, muted: false })),
+    ...notes.map((n) => ({ key: `n:${n.id}`, text: n.text, detail: undefined as string[] | undefined, player: null, kind: 'event' as const, sortKey: n.afterSeq + 0.5, muted: true })),
+  ].sort((a, b) => a.sortKey - b.sortKey)
+  const described = merged.slice(-MAX_LINES)
+
+  const toggle = (key: string): void =>
+    setOpen((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
 
   return (
     <div style={wrap}>
@@ -142,13 +97,40 @@ export function EventFeed() {
       </div>
       <div>
         <div style={heading}>Events</div>
-        <div style={eventsScroll} data-testid="events-feed">
+        <div
+          style={eventsScroll}
+          ref={scrollRef}
+          data-testid="events-feed"
+          onScroll={(ev) => {
+            const el = ev.currentTarget
+            stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24
+          }}
+        >
           {described.length === 0 && <div style={mutedText}>Nothing yet.</div>}
-          {described.map((line) => (
-            <div key={line.key} style={line.muted ? mutedText : undefined} data-testid={line.muted ? 'event-note' : undefined}>
-              {line.text}
-            </div>
-          ))}
+          {described.map((line) => {
+            const expandable = !!line.detail?.length
+            const style: CSSProperties = line.muted
+              ? mutedText
+              : {
+                  color: line.player ? LINE_COLOR[line.player] : undefined,
+                  fontWeight: line.kind === 'header' ? 700 : undefined,
+                  borderTop: line.kind === 'header' ? `1px solid ${colors.border}` : undefined,
+                  cursor: expandable ? 'pointer' : undefined,
+                }
+            return (
+              <div
+                key={line.key}
+                style={style}
+                data-testid={line.muted ? 'event-note' : line.kind === 'attack' ? 'event-attack' : undefined}
+                onClick={expandable ? () => toggle(line.key) : undefined}
+              >
+                {line.text}
+                {expandable && open.has(line.key) && line.detail?.map((d, i) => (
+                  <div key={i} style={{ ...mutedText, fontSize: 11, paddingLeft: 8 }}>{d}</div>
+                ))}
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>
