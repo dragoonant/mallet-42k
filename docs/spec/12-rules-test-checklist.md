@@ -745,3 +745,44 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | TAU-038 | TAU-6 | weapons: fusion blaster Melta 2 at ≤6" adds 2 damage; overcharge cyclic ion raker triggers a Hazardous test; pulse pistol only weapon usable in Engagement Range without Fusillade |
 | TAU-039 | TAU-6 | Infiltrators: Stealth Battlesuits and Ghostkeel may deploy anywhere >9" from the enemy DZ and enemy models |
 | TAU-040 | TAU-6 | Stealth: ranged attacks vs Stealth Battlesuits/Ghostkeel are −1 to hit; Lone Operative Ghostkeel cannot be targeted from beyond 12" |
+
+## GEN — Genestealer Cults: Hand of the Magus (docs/spec/factions/genestealer-cults.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| GEN-001 | GEN-1 | patrol loads: 6 units, 32 models; Magus is WARLORD with Psionic Shield, attached to `neophytes-a`; default secondary Rise Up; Rockgrinder has 1 model |
+| GEN-002 | GEN-2.1 | Neophytes destroyed → D6 +3 always ≥ 4: unit enters the pool and a marker-placement chooseOption is raised for its owner |
+| GEN-003 | GEN-2.1 | Acolytes destroyed with D6 = 3 → no pool entry, no marker decision; D6 = 4 → pool + decision |
+| GEN-004 | GEN-2.1 | Aberrants and Rockgrinder destroyed → no Cult Ambush roll at all |
+| GEN-005 | GEN-2.7 | every offered marker point is >9" from all enemy models and wholly on the board; with enemies covering the board → no decision, unit still in pool |
+| GEN-006 | GEN-2.2 | enemy unit ends a Normal move with a model 8.9" from a marker → marker removed; ending at 9.1" → kept |
+| GEN-007 | GEN-2.2 | marker removed by an enemy charge move, pile-in and consolidate; own units moving near it never remove it |
+| GEN-008 | GEN-2.3 | opponent's next Movement phase, after their reinforcements: return offered per marker; unit returns at full model count, full wounds, original loadouts, one model touching the marker, all >9" from enemies; marker gone |
+| GEN-009 | GEN-2.3 | placement with no model touching the marker is rejected (`mustTouch`) |
+| GEN-010 | GEN-2.3 | owner declines → marker and pool entry persist; usable at the following opponent Movement phase (GEN-2.4) |
+| GEN-011 | GEN-2.3 | return is not offered in the owner's own Movement phase |
+| GEN-012 | GEN-2.4 | two markers, one pool unit → only one return; pool unit may use a marker created by a different unit |
+| GEN-013 | GEN-2.5 | Magus leading Neophytes; whole unit destroyed → only the 10 Neophytes return, unled; Magus stays destroyed |
+| GEN-014 | GEN-2.5 | returned copy destroyed again → opponent's destroyed-unit counts rise twice; copy rolls Cult Ambush again |
+| GEN-015 | GEN-2.5 | returned Acolytes whose demolition charges were already fired cannot fire them again; charges not yet fired are still available (One Shot state carried over) |
+| GEN-016 | GEN-2.6 | round 4 opponent Movement phase: no return offered even with markers and pool units |
+| GEN-017 | GEN-2.6 | unit destroyed in round 4 → roll emitted, no marker decision |
+| GEN-018 | GEN-3 | Psionic Shield: Magus-led Neophytes (Sv 5+) save an AP 0 ranged attack on 4+ and an AP −1 one on 5+; melee attacks unchanged (5+ / 6+); Magus alone → no bonus |
+| GEN-019 | GEN-3 | Resonance Stave: stave vs INFANTRY critical wounds on 5+; a critical wound becomes mortal wounds (Devastating Wounds); vs VEHICLE wounds normally |
+| GEN-020 | GEN-4 | Rise Up: end of opponent's round-1 turn → no roll; round 2 with 2 controlled markers holding Neophytes → 2 D6 rolled, VP = Σ(1 on 1–3, 3 on 4+) |
+| GEN-021 | GEN-4 | Rise Up: marker held only by Acolytes, or by Battle-shocked Neophytes → no roll for it; end of own turn → no scoring |
+| GEN-022 | GEN-4 | Will of the Patriarch: Magus base edge 2.9" from centre at battle end → +15 VP; 3.2" or destroyed → 0 |
+| GEN-023 | GEN-5 | Defend the Magus: offered at start of own Shooting only if an enemy is in ER of the MAGUS unit; Neophyte hit roll of 1 vs that enemy re-rolled, wound 1 re-rolled; vs another enemy no re-roll |
+| GEN-024 | GEN-5 | Defend the Magus at start of the opponent's Fight phase works; gone at phase end; persists if the Magus dies mid-phase |
+| GEN-025 | GEN-5 | Lurking Killers: offered after enemy targets declared vs own Acolytes; attacks against them −1 to hit until phase end, including from a second enemy unit |
+| GEN-026 | GEN-5 | Lurking Killers not offered for Aberrants or the Rockgrinder |
+| GEN-027 | GEN-5 | Return to the Shadows: enemy ends a Normal move 8" from Neophytes → offered; D6 rolled; Normal move up to that distance; not offered if enemy only Remained Stationary or unit is in ER |
+| GEN-028 | GEN-5 | Return to the Shadows on Magus-led unit → flat 6", no roll |
+| GEN-029 | GEN-6.1 | Spiritual Leader: led unit gets FNP 5+ vs Smite (PSYCHIC) damage; none vs a bolter; Magus alone → none |
+| GEN-030 | GEN-6.2 | Vile Insurrectionists: hit 1s re-rolled always; wound 1s re-rolled only when the target is within range of an objective marker |
+| GEN-031 | GEN-6.2 | Vile Insurrectionists applies to a leading Magus's attacks |
+| GEN-032 | GEN-6.3 | demolition charges usable once per battle and trigger Hazardous; Rockgrinder cache can fire every turn |
+| GEN-033 | GEN-6.4 | Hypermorph fights with heavy improvised weapon (5 A) plus tail (1 A) |
+| GEN-034 | GEN-6.5 | Rockgrinder at 3 W: −1 to hit; at 4 W: none; destroyed → Deadly Demise D3 on a 6 |
+| GEN-035 | GEN-6.7 | Deep Strike: Magus, Neophytes, Acolytes may start in Reserves; Aberrants and Rockgrinder may not |
+| GEN-036 | GEN-6.9 | Rockgrinder offers no embark option to any unit |
+| GEN-037 | GEN-6 | weapons: webber auto-hits D6 with Devastating Wounds; seismic cannon Heavy +1 to hit when stationary and Rapid Fire 2 at ≤12"; clearance incinerator Torrent Ignores Cover |
