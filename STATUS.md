@@ -295,6 +295,6 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 |---|---|
 | Patrol | Guardians of the Throne: Shield-Captain Tyvan, Custodian Guard, Prosecutors, Vigilators (Vertus Praetors datasheet present, not in patrol). Data in `src/data/factions/adeptus-custodes/` |
 | Engine hooks | `src/engine/factions/adeptus-custodes.ts` (Martial Ka'tah, Stand Vigil, Gilded Spear, Overawing Magnificence, Guardian of the Realm, Advance re-roll), E4 movement-start engagement snapshot in movement.ts, targetKeyword in attack.ts/weapons.ts |
-| Verification | typecheck, `validate:data`, `build` green; `npm test` 1763 passing (68 files); `tests/e2e/adeptus-custodes.spec.ts` starts vs bot, deploys via UI, reaches round 1 Shooting (`e2e-out/m10-adeptus-custodes-0{1,2,3}-*.png`, figures visible) |
+| Verification | typecheck, `validate:data`, `build` green; `npm test` 1764 passing (69 files); `tests/e2e/adeptus-custodes.spec.ts` starts vs bot, deploys via UI, reaches round 1 Shooting (`e2e-out/m10-adeptus-custodes-0{1,2,3}-*.png`, figures visible) |
 | Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all 6 games finished (mean 5 rounds); adeptus-custodes was not in the seeded pairings (0 games, 0 wins) |
 | Known gaps | Generic figure kits, borrowed SFX, Praetors not mounted; rulings in `docs/needs-rules-check.md` under "adeptus-custodes build" |
