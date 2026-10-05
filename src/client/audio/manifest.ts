@@ -21,6 +21,11 @@ export type SfxId =
   | 'death-orks'
   | 'death-necrons'
   | 'death-tyranids'
+  | 'death-grey-knights'
+  | 'psycannon-burst'
+  | 'psilencer-burst'
+  | 'purge-soul'
+  | 'nemesis-force-swing'
   | 'death-astra-militarum'
   | 'death-adepta-sororitas'
   | 'death-chaos-space-marines'
@@ -160,6 +165,11 @@ export const SFX_IDS: readonly SfxId[] = [
   'death-orks',
   'death-necrons',
   'death-tyranids',
+  'death-grey-knights',
+  'psycannon-burst',
+  'psilencer-burst',
+  'purge-soul',
+  'nemesis-force-swing',
   'death-astra-militarum',
   'death-adepta-sororitas',
   'death-chaos-space-marines',

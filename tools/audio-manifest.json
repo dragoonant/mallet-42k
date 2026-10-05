@@ -724,6 +724,41 @@
       "prompt": "A crude spiked cleaver hacked down hard with a heavy whoosh and a grinding metallic chop, no music",
       "durationSeconds": 0.9,
       "promptInfluence": 0.6
+    },
+    {
+      "id": "death-grey-knights",
+      "kind": "sfx",
+      "prompt": "A towering armoured psychic warrior-knight is struck down and gives a long, deep, controlled dying groan, his bass male voice heard through a helmet voice amplifier: band-limited like a military radio, metallic resonance, slight digital crackle. Then his heavy silver power armour crashes weightily onto stone as a faint ethereal psychic shimmer rises and fades slowly out. Epic, weighty, long, no chittering, no screaming, no music",
+      "durationSeconds": 3.5,
+      "promptInfluence": 0.7
+    },
+    {
+      "id": "psycannon-burst",
+      "kind": "sfx",
+      "prompt": "Heavy bolt-like rapid cannon shots, each round with a deep thump and an ethereal psychic whine ringing through it, a sustained burst of about eight rounds, no reloading, no music",
+      "durationSeconds": 1.8,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "psilencer-burst",
+      "kind": "sfx",
+      "prompt": "Rapid hissing psychic energy bolts, wispy, airy and high pitched, a quick burst of about eight light zips, no reloading, no music",
+      "durationSeconds": 1.5,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "purge-soul",
+      "kind": "sfx",
+      "prompt": "A psychic blast: crackling electric arcs building into a thunderous release, deep resonant energy boom, no music",
+      "durationSeconds": 1.8,
+      "promptInfluence": 0.6
+    },
+    {
+      "id": "nemesis-force-swing",
+      "kind": "sfx",
+      "prompt": "A heavy energised greatsword swung hard with a deep whoosh, a humming psychic edge, ending in a crunching metallic impact, no music",
+      "durationSeconds": 1.4,
+      "promptInfluence": 0.6
     }
   ]
 }
