@@ -166,7 +166,7 @@ describe('C3 unit copies and the Next Wave arrival', () => {
     expect(spawnDestroyedUnitCopy(ctx, SHB).id).toBe('A:shock-b~2')
   })
 
-  it('AST-023 AST-5.1: battlefieldEdgeStrip — a full-width zone gives the 9" strip along its board edge, a corner zone an L-shape', () => {
+  it('AST-023 AST-5.1: battlefieldEdgeStrip — a full-width zone gives the 9" strip along its board edge, a corner zone gets one strip along its longest edge (AM-16), not an L', () => {
     const board = { w: 44, h: 30 }
     const rect = battlefieldEdgeStrip(board, [{ x: -22, z: -15 }, { x: 22, z: -15 }, { x: 22, z: -10 }, { x: -22, z: -10 }], 9)
     expect(rect).toEqual([{ x: -22, z: -15 }, { x: 22, z: -15 }, { x: 22, z: -6 }, { x: -22, z: -6 }])

@@ -505,7 +505,7 @@ describe('Datasheet rules (ADE-6)', () => {
   it('ADE-032 RC-ADE-17: Simulacrum Imperialis — the attached Canoness on the marker counts as range for the bearer\'s unit (one roll)', () => {
     const s = makeState({ a: { attachments: [{ leaderRef: 'canoness', bodyguardRef: 'sisters' }] } })
     const o = Object.values(s.objectives).find((x) => !x.removed)!
-    placeUnit(s, SIS, { x: o.pos.x - 6, z: o.pos.z, gap: 0.3 })
+    placeUnit(s, SIS, { x: -20, z: -12.5, gap: 0.3 }) // well clear of every marker: only the Canoness on `o` can supply range
     placeUnit(s, CAN, [[o.pos.x, o.pos.z]])
     expect(s.units[CAN].bodyguardUnitId).toBe(SIS)
     hookService.run(ctxOf(s, [6]).ctx, 'onPhaseEnd', {})
@@ -810,7 +810,7 @@ describe('Sororitas weapons and Arco-flagellants through the attack sequence (AD
 
 // =====================================================================================================================
 describe('Hallowed Retribution on attached units / Consecrated Ground geometry (ADE-018, ADE-021)', () => {
-  it('ADE-018 ADE-4: Hallowed Retribution — an attached enemy unit counts once: nothing while a half survives, +3 VP once the last half is destroyed', () => {
+  it('ADE-018 ADE-4: Hallowed Retribution — each half of an attached enemy unit scores: +3 VP per destroyed half (RC-ADE-13), 6 VP total', () => {
     const s = makeState({ bAde: true })
     deploy(s, CAN, SAC, SIS)
     placeUnit(s, ESAC, { x: -6, z: 8, gap: 0.3 })
