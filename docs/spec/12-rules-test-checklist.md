@@ -400,6 +400,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | MISSION-006 | CP-2.4 | end of Ork Command phase, Boyz (BATTLELINE) on marker, controlled → secured; SM Terms (not BATTLELINE) → not secured |
 | MISSION-007 | CP-2.5 | secured marker, Boyz leave; end of next SM Command phase SM has LoC 2 there → SM controls and secure cleared; Orks with 0 there in between → still Ork-controlled at Ork scoring |
 | MISSION-008 | CP-2.5 | secured marker; SM presence at end of SM Movement phase only (not Command) → secure not broken |
+| MISSION-008 | CP-2.5 | RC-048: secured marker; opponent LoC higher at a non-Command check → opponent controls it then, secure flag intact; once they leave the securer controls again |
 | MISSION-009 | CP-2.4 | Battle-shocked BATTLELINE on marker → cannot secure |
 | MISSION-010 | CP-2.1 | round 1 → no primary VP for either player |
 | MISSION-011 | CP-2.1 | round 5: first player scores at end of Command phase; second player at end of their turn |
@@ -433,6 +434,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | MISSION-038 | R-12.7 | Battle Ready constant default 0 for both; config 10/10 changes nothing about winner |
 | MISSION-039 | CP-2.5 §2.5 | objectives placed at exact mission coordinates; marker radius 0.787" used for range |
 | MISSION-040 | R-5.16 | Reserves unit never arrived → counts as destroyed for Bag the Big 'Un |
+| MISSION-040 | R-5.16 | RC-050: target culled from stranded Reserves (destroyed, no killer) → Bag the Big 'Un unit tier (8 VP) |
 | MISSION-041 | CP-1.4 | optional enhancement chosen at setup → data applied (Tellyporta grants Deep Strike) |
 | MISSION-042 | Sweeping Raid | markers B (−3,9) and C (3,−9) are NML; A and D are DZ markers |
 | MISSION-043 | CP-3.2 | layout `terrain.cp-01` loaded with every mission: each piece's footprint > 1" from every marker point; the piece set is invariant under 180° rotation about the origin (each footprint maps onto another's within 0.01") |
@@ -521,6 +523,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | CHA-013 | CHA-3 | Prey on the Weak: enemy hit only by bolt pistol / Legionary boltguns → no prompt; Rite attacks all miss → no prompt |
 | CHA-014 | CHA-4 | Marked for Execution: opponent WARLORD destroyed in round 2 → +12 VP; in round 4 → +6 VP; never scores twice |
 | CHA-015 | CHA-4 | Marked for Execution: WARLORD killed by its own Hazardous roll still scores |
+| CHA-014 | CHA-4 | CSM-06: Warlord stranded in Reserves at the end of round 3 counts as destroyed → +12 VP, once |
 | CHA-016 | CHA-4 | Sites of Power: round 1 → 0 VP; round 2, end of own turn, 2 vs 2 markers → +2 VP; 1 vs 2 → 0; 0 vs 0 → +2 |
 | CHA-017 | CHA-5 | Vindictive Strategy: target at Starting Strength → no hit re-roll; one model lost → hit roll of 1 re-rolled, wound roll of 1 not |
 | CHA-018 | CHA-5 | Vindictive Strategy: target below half-strength → hit 1s and wound 1s both re-rolled; attached target uses combined Starting Strength |

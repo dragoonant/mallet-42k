@@ -70,8 +70,9 @@ function liveController(ctx: EngineContext, id: ObjectiveId): PlayerId | null {
   if (!obj || obj.removed) return null
   const svc = ctx.services.objectives
   if (obj.securedBy) {
-    const stillSecure = s.phase !== 'command' || svc.levelOfControl(s, id)[otherPlayer(obj.securedBy)] <= svc.levelOfControl(s, id)[obj.securedBy]
-    if (stillSecure) return obj.securedBy
+    // RC-048: a higher enemy LoC takes control at any check; with none, control falls back to the securer
+    const lv = svc.levelOfControl(s, id)
+    return lv[otherPlayer(obj.securedBy)] > lv[obj.securedBy] ? otherPlayer(obj.securedBy) : obj.securedBy
   }
   if (svc.modelsInRange(s, id, 'A').length === 0 && svc.modelsInRange(s, id, 'B').length === 0) {
     const anyoneDestroyedYet = Object.values(s.units).some((u) => u.location === 'destroyed')
@@ -274,6 +275,7 @@ function bagTheBigUnAmount(s: GameState, rule: ScoringRule, pid: PlayerId): numb
   // killer it scores the lower "unit" tier rather than nothing — 11-combat-patrol §5.3 does not give an exact
   // number for this case and the alternate roster's data does not exist yet (see issues).
   if (unit.location === 'reserves') return unitPoints
+  if (unit.location === 'destroyed' && !unit.destroyedBy) return unitPoints // RC-050: stranded-Reserves cull credits no killer
   if (unit.location !== 'destroyed' || !unit.destroyedBy) return 0
   // 11-combat-patrol §6: 8 VP if the target is destroyed by ANY unit; 12 only for the Beastboss's own kill, keyed on
   // the killing model (destroyedBy.modelId) with the unitId as a fallback for kills that carry no model attribution
@@ -360,7 +362,7 @@ function treasuresUnitDestroyed(ctx: EngineContext, info: { unitId: UnitId; byPl
 }
 
 // CHA-4 Marked for Execution: the moment the opponent's Warlord is destroyed (any cause), once per battle. A Warlord that never arrives
-// from Reserves is never "destroyed" through this path, so it does not score.
+// from Reserves counts as destroyed when the end-of-round-3 cull strands it (CSM-06), so it scores the early tier then.
 function markedForExecutionDestroyed(ctx: EngineContext, info: { unitId: UnitId }): void {
   const s = ctx.state
   for (const pid of ['A', 'B'] as PlayerId[]) {

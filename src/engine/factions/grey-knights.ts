@@ -170,8 +170,12 @@ function controllerNow(ctx: EngineContext, id: string): PlayerId | null {
   const s = ctx.state
   const obj = s.objectives[id]
   if (!obj || obj.removed) return null
-  if (obj.securedBy) return obj.securedBy
   const svc = ctx.services.objectives
+  if (obj.securedBy) { // RC-048: a higher enemy LoC takes control
+    const lv = svc.levelOfControl(s, id)
+    const opp: PlayerId = obj.securedBy === 'A' ? 'B' : 'A'
+    return lv[opp] > lv[obj.securedBy] ? opp : obj.securedBy
+  }
   if (svc.modelsInRange(s, id, 'A').length === 0 && svc.modelsInRange(s, id, 'B').length === 0) return obj.controller
   const levels = svc.levelOfControl(s, id)
   return levels.A > levels.B ? 'A' : levels.B > levels.A ? 'B' : (obj.stickyBy ?? null)

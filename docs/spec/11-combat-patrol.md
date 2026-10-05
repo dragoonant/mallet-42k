@@ -45,7 +45,7 @@ Mission deployment measurements were read from the map images at `wahapedia.ru/w
 | Id | Rule |
 |---|---|
 | CP-2.4 | At the end of each Command phase, each marker the active player controls while ≥1 of their non-Battle-shocked BATTLELINE units is within range of it becomes *secured* by that player. |
-| CP-2.5 | While secured, the marker counts as controlled by the securing player at every control evaluation, even with no models in range. It stops being secured (and normal evaluation resumes from that moment) only at the end of a later Command phase at which the opponent's LoC is greater than the securer's **[interp: literal reading — opponent presence at other moments does not break it]**. A marker can be secured by only one player at a time; securing by the opponent implies the previous secure was already broken. |
+| CP-2.5 | While secured, the marker stays controlled by the securing player with no models in range, but at any control check where the opponent's LoC is strictly greater the opponent controls it for that check (RC-048). The secured flag itself is cleared only at the end of a later Command phase at which the opponent's LoC is greater than the securer's. A marker can be secured by only one player at a time; securing by the opponent implies the previous secure was already broken. |
 | CP-2.6 | Duty and Honour (SM stratagem) is a second, independent "sticky" flag broken when the opponent controls the marker (higher LoC) at the start or end of any turn. A marker may carry both flags. |
 
 ### 2.5 Mission table
