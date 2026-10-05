@@ -72,6 +72,8 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
 ].sort((a, b) => b[0].length - a[0].length)
 
 const WEAPON_TRIM: Partial<Record<SfxId, number>> = {
+  'wpn-autopistol': 0.66,
+  'wpn-boltgun': 0.8,
   'wpn-assault-cannon': 0.3,
   'wpn-autogun': 0.73,
   'wpn-barblauncher': 0.75,
@@ -151,6 +153,7 @@ const DEATH_TRIM: Partial<Record<SfxId, number>> = {
   'death-astra-militarum': 0.45,
   'death-chaos-space-marines': 0.4,
   'death-orks': 0.5,
+  'death-tyranids': 0.5,
   'death-space-marines': 0.6,
 }
 

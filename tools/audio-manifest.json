@@ -65,9 +65,9 @@
     {
       "id": "melee-chainsword",
       "kind": "sfx",
-      "prompt": "A revving serrated blade striking and tearing through material",
-      "durationSeconds": 0.7,
-      "promptInfluence": 0.5
+      "prompt": "A motorised chainsaw sword revving up from idle to a screaming whine, then its spinning teeth bite and grind into armour with a harsh metallic tearing rasp and sparks, then it pulls free and the motor spins down and sputters to idle, no music",
+      "durationSeconds": 3,
+      "promptInfluence": 0.7
     },
     {
       "id": "power-klaw-crunch",
@@ -121,9 +121,9 @@
     {
       "id": "death-tyranids",
       "kind": "sfx",
-      "prompt": "An alien insect beast lets out a wet chittering screech that gurgles away, chitin cracking and a slimy collapse, no music",
-      "durationSeconds": 1.2,
-      "promptInfluence": 0.6
+      "prompt": "A huge monstrous alien predator lets out a piercing, ear-splitting dying shriek, a shrill inhuman scream like a giant raptor crossed with a nightmare insect, rising then cracking and fading into a rasping hiss as its body collapses. Loud, terrifying, no chittering, no clicking, no music",
+      "durationSeconds": 2.2,
+      "promptInfluence": 0.7
     },
     {
       "id": "death-astra-militarum",
@@ -399,9 +399,9 @@
     {
       "id": "wpn-autopistol",
       "kind": "sfx",
-      "prompt": "A cheap automatic pistol spraying a quick rattling burst of small bullets, no music",
-      "durationSeconds": 0.8,
-      "promptInfluence": 0.6
+      "prompt": "Gunfire: a small automatic pistol firing a rapid burst of five loud sharp gunshots, bang bang bang bang bang, crisp cracking reports with short echo, no reloading, no clicks, no music",
+      "durationSeconds": 1,
+      "promptInfluence": 0.75
     },
     {
       "id": "wpn-flamer",
