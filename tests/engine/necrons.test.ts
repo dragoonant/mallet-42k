@@ -527,6 +527,21 @@ describe('Secondary objectives (NEC-4)', () => {
     expect(s.players.A.vp).toBe(3)
   })
 
+  it('NEC-023 NEC-4: mortal wounds from a rule a NECRONS unit is using (Tank Shock, grenades, ability mortals) credit that unit — a kill near the treasure marker scores +3 VP (RC-090)', () => {
+    const s = treasureState()
+    s.players.A.secondaryState.treasureObjectiveId = 'west'
+    deploy(s, WAR)
+    placeUnit(s, BOYZ, { x: -11, z: 1, gap: 0.3 })
+    for (const id of s.units[BOYZ].models.slice(1)) removeModel(s, id)
+    s.phase = 'shooting'
+    const { ctx } = ctxOf(s)
+    missionService.onWindow(ctx, 'shooting.start', 'start')
+    hookService.apply(ctx, { kind: 'stratagem', id: 'tank-shock', unitId: WAR, modelId: null }, { kind: 'request', mortalWounds: [{ targetUnitId: BOYZ, count: 99 }] })
+    drive(ctx)
+    expect(s.units[BOYZ].location).toBe('destroyed')
+    expect(s.players.A.vp).toBe(3)
+  })
+
   it('NEC-038 NEC-4: a unit finished off by Devastating Wounds from a NECRONS attack near the treasure marker still scores +3 VP', () => {
     const s = treasureState()
     s.players.A.secondaryState.treasureObjectiveId = 'west'

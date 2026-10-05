@@ -23,7 +23,7 @@ import { hookService, type HookSourceEntry } from './hooks-impl'
 import { leaderService } from './leaders'
 import type { EngineContext, Services, WindowTrigger } from './modules'
 import * as tyr from './factions/tyranids'
-import { keywordsOf, modelStats, unitModels } from './state'
+import { keywordsOf, modelStats, mortalCredit, unitModels, type MortalCreditBy } from './state'
 import { isTeleporting } from './teleport'
 import type {
   ChooseOptionDecision, ChooseOptionTopic, GameState, ModelId, PendingDecision, PlayerId, ReactionWindowDecision, Rejection,
@@ -191,10 +191,10 @@ function rollSuccesses(ctx: EngineContext, player: PlayerId, count: number, thre
   return roll.final.filter((d) => d >= threshold).length
 }
 
-function queueMortals(ctx: EngineContext, targetUnitId: UnitId, count: number, source: string): void {
+function queueMortals(ctx: EngineContext, targetUnitId: UnitId, count: number, source: string, by?: MortalCreditBy): void {
   if (count <= 0) return
   const attack = ctx.services.attack
-  attack.queueMortalWounds(ctx, targetUnitId, count, source, false)
+  attack.queueMortalWounds(ctx, targetUnitId, count, source, false, by)
   // resolve at once when nothing else is in flight; if allocation needs a decision the phase module keeps driving
   // services.attack.advance while phaseState.attack is set
   if (!ctx.state.pending && ctx.state.phaseState.attack) attack.advance(ctx)
@@ -462,7 +462,7 @@ const tankShockMortalWounds: EngineCodeHook = {
     const T = hookService.statFor(s, { unitId: model.unitId, modelId, weapon: null, stat: 'T' }, modelStats(s, model).T)
     const hits = rollSuccesses(ctx, env.player, T, (params.threshold as number | undefined) ?? 5, model.unitId, enemyId)
     const mortal = Math.min(hits, (params.maxMortalWounds as number | undefined) ?? 6)
-    queueMortals(ctx, leaderService.canonicalUnitId(s, enemyId), mortal, env.stratagem.id)
+    queueMortals(ctx, leaderService.canonicalUnitId(s, enemyId), mortal, env.stratagem.id, mortalCredit(s, model.unitId))
   },
 }
 
@@ -489,7 +489,7 @@ const grenadeMortalWounds: EngineCodeHook = {
   apply(ctx, env, t) {
     const params = env.stratagem.params ?? {}
     const hits = rollSuccesses(ctx, env.player, (params.dice as number | undefined) ?? 6, (params.threshold as number | undefined) ?? 4, t.ids[0], t.ids[1])
-    queueMortals(ctx, leaderService.canonicalUnitId(ctx.state, t.ids[1]), hits, env.stratagem.id)
+    queueMortals(ctx, leaderService.canonicalUnitId(ctx.state, t.ids[1]), hits, env.stratagem.id, mortalCredit(ctx.state, t.ids[0]))
   },
 }
 

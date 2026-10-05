@@ -12,7 +12,7 @@ import { distance } from '../geometry'
 import type { AttackContext, RollContext } from '../hooks'
 import { leaderService } from '../leaders'
 import type { EngineContext } from '../modules'
-import { unitModels } from '../state'
+import { mortalCredit, unitModels, type MortalCreditBy } from '../state'
 import type { ChooseOptionDecision, GameState, Model, PendingDecision, PlayerId, Rejection, Unit, UnitId } from '../types'
 import type { Action } from '../actions'
 import type { TimingWindowId } from '../../data/types'
@@ -77,9 +77,9 @@ function optionAction(player: PlayerId, optionId: string): Action {
   return { type: 'chooseOption', player, decisionId: '', optionId }
 }
 
-function queueMortalsLazy(ctx: EngineContext, targetUnitId: UnitId, count: number, source: string): void {
+function queueMortalsLazy(ctx: EngineContext, targetUnitId: UnitId, count: number, source: string, by?: MortalCreditBy): void {
   if (count <= 0) return
-  ctx.services.attack.queueMortalWounds(ctx, targetUnitId, count, source, false)
+  ctx.services.attack.queueMortalWounds(ctx, targetUnitId, count, source, false, by)
 }
 
 function rejectNotOption(why: string): Rejection { return { code: 'E_NOT_AN_OPTION', reason: why } }
@@ -137,7 +137,7 @@ function darkPactHandle(ctx: EngineContext, action: Action, pending: PendingDeci
   ctx.emit({ type: 'AbilityTriggered', abilityId, sourceUnitId: unitId, targetUnitId: unitId, summary: `Dark Pact: weapons gain ${names} this phase`, player: unit.player })
   if (!passed) {
     const n = ctx.rollExpr('D3', { purpose: 'ability', player: unit.player, unitId }).total
-    queueMortalsLazy(ctx, unitId, n, abilityId)
+    queueMortalsLazy(ctx, unitId, n, abilityId) // Dark Pacts hurt your own unit: no credit
   }
 }
 
@@ -193,7 +193,7 @@ function daggerHandle(ctx: EngineContext, action: Action, pending: PendingDecisi
   // the effect is held by the bearer's own unit half so `bearer` scope resolves to this model
   ctx.services.effects.grant(ctx, bearer.unitId, effect, { sourceAbilityId: abilityId, sourceUnitId: bearer.unitId, scope: { who: 'bearer' }, duration: 'untilEndOfPhase', when: null })
   ctx.emit({ type: 'AbilityTriggered', abilityId, sourceUnitId: bearer.unitId, targetUnitId: canon, summary: 'Sacrificial Dagger: 1 mortal wound, Psychic weapons +1 to hit and wound this phase', player: pending.player })
-  queueMortalsLazy(ctx, canon, (params.mortalWounds as number | undefined) ?? 1, abilityId)
+  queueMortalsLazy(ctx, canon, (params.mortalWounds as number | undefined) ?? 1, abilityId, mortalCredit(s, bearer.unitId))
 }
 
 const sacrificialDagger: EngineCodeHook = {
@@ -306,7 +306,7 @@ const violentUnbinding: EngineCodeHook = {
     else if (die >= 2) n = ctx.rollExpr('D3', { purpose: 'ability', player: env.player, unitId: req.unitId }).total
     ctx.emit({ type: 'AbilityTriggered', abilityId: env.stratagem.id, sourceUnitId: req.unitId, targetUnitId: attacker, summary: n > 0 ? `Violent Unbinding: rolled ${die}, ${n} mortal wound(s)` : `Violent Unbinding: rolled ${die}, nothing happens`, player: env.player })
     // the attack sequence in flight drains the queue; the request is spent so the window is not offered again
-    queueMortalsLazy(ctx, attacker, n, env.stratagem.id)
+    queueMortalsLazy(ctx, attacker, n, env.stratagem.id, mortalCredit(s, req.unitId))
     consumeDeathReaction(s, req.modelId)
   },
 }

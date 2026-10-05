@@ -350,9 +350,10 @@ export function snapshotClosestEligible(ctx: EngineContext, attackerUnitId: Unit
   let closest = leaderService.closestEligibleTargets(s, attackerUnitId, kind, legal)
   if (closest.length > 1) {
     // Rules Commentary (Closest Model/Unit): on a tie the controlling player picks ONE unit as the closest. Deterministic stand-in for that
-    // choice: the first tied unit the declaration actually targets (the pick that benefits the player), else the first tied unit by id.
-    const declared = new Set(declaredTargets.map((id) => leaderService.canonicalUnitId(s, id)))
-    closest = [closest.find((id) => declared.has(id)) ?? [...closest].sort()[0]]
+    // choice [interpretation]: the tied unit the declaration targets most often (most declared attacks/weapons), ties by lowest id.
+    const counts = new Map<UnitId, number>()
+    for (const id of declaredTargets) { const c = leaderService.canonicalUnitId(s, id); counts.set(c, (counts.get(c) ?? 0) + 1) }
+    closest = [[...closest].sort().sort((a, b) => (counts.get(b) ?? 0) - (counts.get(a) ?? 0))[0]]
   }
   s.phaseState.marks.push(`${closestKey(attackerUnitId, kind)}${closest.join(',')}`)
 }

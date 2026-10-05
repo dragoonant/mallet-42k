@@ -486,7 +486,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | NEC-020 | NEC-4 | Treasures of Aeons: pick offered at round 1 start among NML markers only |
 | NEC-021 | NEC-4 | Treasures of Aeons: enemy unit within range of the treasure marker at phase start, moves away, destroyed by Warriors that phase → +3 VP |
 | NEC-022 | NEC-4 | Treasures of Aeons: unit within range of the owner's DZ marker at phase start destroyed → +3 VP; unit outside both at phase start but inside when destroyed → 0 VP |
-| NEC-023 | NEC-4 | Treasures of Aeons: a kill with no `byModelId` (Hazardous, other rule mortals) → 0 VP; a kill by Deadly Demise from a NECRONS model → +3 VP (RC-072) |
+| NEC-023 | NEC-4 | Treasures of Aeons: a kill with no `byModelId` (Hazardous / self-inflicted) → 0 VP; a Tank Shock or grenade kill by a NECRONS unit → +3 VP (RC-090); a kill by Deadly Demise from a NECRONS model → +3 VP (RC-072) |
 | NEC-024 | NEC-5 | Mercurial Resilience: offered after enemy targets declared in opponent's Shooting; Warriors gain 5+ invuln until phase end; Overlord keeps 4+ |
 | NEC-025 | NEC-5 | Mercurial Resilience in a Fight phase (either turn) after an enemy unit selects targets |
 | NEC-026 | NEC-5 | Disruption Fields: Skorpekh hyperphase S7 → S8; vs T8 now wounds on 4+ (was 5+); ranged weapons unchanged; not offered for a unit that already fought |
