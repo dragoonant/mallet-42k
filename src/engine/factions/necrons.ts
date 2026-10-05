@@ -8,7 +8,8 @@ import { leaderService } from '../leaders'
 import type { EngineContext } from '../modules'
 import { terrainService } from '../terrain'
 import { modelStats, unitModels } from '../state'
-import type { GameState, Model, Unit, UnitId, Vec3 } from '../types'
+import type { Action } from '../actions'
+import type { GameState, Model, PendingDecision, Rejection, Unit, UnitId, Vec3 } from '../types'
 
 export const REANIMATION_CODE = 'reanimationProtocols'
 
@@ -108,39 +109,111 @@ export function returnModel(ctx: EngineContext, unit: Unit, snapshot: Model, pos
   return model
 }
 
-// one Reanimation step for the (possibly attached) unit; false once nothing is left to do (NEC-2.2)
-function reanimationStep(ctx: EngineContext, unitId: UnitId, source: string): boolean {
+const LEFT_PREFIX = 'rean:left:'
+const DONE_PREFIX = 'rean:done:'
+
+function stepsLeft(s: GameState, unitId: UnitId): number | null {
+  const m = s.phaseState.marks.find((x) => x.startsWith(`${LEFT_PREFIX}${unitId}:`))
+  return m ? Number(m.slice(m.lastIndexOf(':') + 1)) : null
+}
+function setStepsLeft(s: GameState, unitId: UnitId, n: number): void {
+  const marks = s.phaseState.marks
+  const i = marks.findIndex((x) => x.startsWith(`${LEFT_PREFIX}${unitId}:`))
+  if (i >= 0) marks.splice(i, 1)
+  marks.push(`${LEFT_PREFIX}${unitId}:${n}`)
+}
+
+// RC-066: the owner picks which destroyed model returns. One entry per distinct kind of model (model type + wargear),
+// most recently destroyed first, so the first option is the default the bot and the timeout take.
+function returnCandidates(half: Unit): Model[] {
+  const seen = new Set<string>()
+  const out: Model[] = []
+  for (const m of [...(half.destroyedModels ?? [])].reverse()) {
+    const key = `${m.datasheetModelId}|${[...m.weapons].sort().join(',')}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(m)
+  }
+  return out
+}
+
+type StepResult = 'done' | 'none' | 'pending'
+
+// one Reanimation step for the (possibly attached) unit (NEC-2.2); 'none' once nothing is left to do, 'pending' when the
+// owner has to choose which destroyed model returns (the answer finishes the step)
+function reanimationStep(ctx: EngineContext, unitId: UnitId, source: string): StepResult {
   const s = ctx.state
   const halves = boardHalves(s, unitId)
   const wounded = pickWounded(s, halves)
   if (wounded) {
     wounded.woundsRemaining += 1
     ctx.emit({ type: 'WoundsRegained', unitId: wounded.unitId, modelId: wounded.id, amount: 1, source, player: s.units[wounded.unitId].player })
-    return true
+    return 'done'
   }
   for (const half of halves) {
     if (half.models.length >= half.startingStrength || (half.destroyedModels ?? []).length === 0) continue
-    const snapshot = half.destroyedModels[half.destroyedModels.length - 1]
-    const pos = findReturnSpot(s, unitId, snapshot)
-    // no legal spot: the step is wasted, the model stays destroyed (NEC-2.4)
-    if (pos) returnModel(ctx, half, snapshot, pos, source)
-    return true
+    const cands = returnCandidates(half)
+    if (cands.length > 1) {
+      const player = s.units[unitId].player
+      ctx.decide({
+        kind: 'chooseOption', player, window: 'command.end', canPass: false,
+        context: { topic: 'abilityChoice', unitId: half.id, abilityId: source, data: { code: REANIMATION_CODE, unitId, halfId: half.id } },
+        options: cands.map((m) => {
+          const guns = m.weapons.map((w) => s.weapons[w]?.name ?? w).join(' + ')
+          return { id: m.id, label: `Return a ${half.name} model armed with ${guns}`, action: { type: 'chooseOption', player, decisionId: '', optionId: m.id } }
+        }),
+      })
+      return 'pending'
+    }
+    placeReturned(ctx, unitId, half, cands[0], source)
+    return 'done'
   }
-  return false
+  return 'none'
 }
 
-// NEC-2.1 / NEC-2.3: once per own Command phase, one D3 per unit (attached pair rolled once under the bodyguard's id)
-export function runReanimation(ctx: EngineContext): void {
+// no legal spot: the step is wasted, the model stays destroyed (NEC-2.4)
+function placeReturned(ctx: EngineContext, unitId: UnitId, half: Unit, snapshot: Model, source: string): void {
+  const pos = findReturnSpot(ctx.state, unitId, snapshot)
+  if (pos) returnModel(ctx, half, snapshot, pos, source)
+}
+
+// answers the "which model returns" decision (data.code 'reanimationProtocols'); the engine then resumes the Command phase
+export function answerReanimation(ctx: EngineContext, action: Action, pending: PendingDecision): Rejection | void {
+  if (pending.kind !== 'chooseOption' || action.type !== 'chooseOption') return { code: 'E_NOT_AN_OPTION', reason: 'reanimation: chooseOption expected' }
+  const s = ctx.state
+  const unitId = pending.context.data.unitId as UnitId
+  const half = s.units[pending.context.data.halfId as UnitId]
+  const snapshot = half?.destroyedModels.find((m) => m.id === action.optionId)
+  if (!half || !snapshot) return { code: 'E_NOT_AN_OPTION', reason: 'that model cannot return' }
+  placeReturned(ctx, unitId, half, snapshot, pending.context.abilityId ?? REANIMATION_CODE)
+  setStepsLeft(s, unitId, Math.max(0, (stepsLeft(s, unitId) ?? 1) - 1))
+}
+
+// NEC-2.1 / NEC-2.3: once per own Command phase, one D3 per unit (attached pair rolled once under the bodyguard's id).
+// Re-entrant: progress lives in phase marks so a pending choice resumes where it stopped.
+export function runReanimation(ctx: EngineContext): 'pending' | 'done' {
   const s = ctx.state
   const player = s.activePlayer
   const units = Object.values(s.units)
     .filter((u) => u.player === player && u.location === 'board' && !u.bodyguardUnitId)
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
   for (const unit of units) {
+    if (s.phaseState.marks.includes(DONE_PREFIX + unit.id)) continue
     const source = boardHalves(s, unit.id).map((h) => reanimationAbilityId(s, h)).find((id) => id !== null) ?? null
     if (!source) continue
-    const steps = ctx.rollExpr('D3', { purpose: 'ability', player, unitId: unit.id }).total
-    ctx.emit({ type: 'AbilityTriggered', abilityId: source, sourceUnitId: unit.id, targetUnitId: unit.id, summary: `Reanimation Protocols: ${steps} step${steps === 1 ? '' : 's'}`, player })
-    for (let i = 0; i < steps; i++) if (!reanimationStep(ctx, unit.id, source)) break
+    if (stepsLeft(s, unit.id) === null) {
+      const steps = ctx.rollExpr('D3', { purpose: 'ability', player, unitId: unit.id }).total
+      ctx.emit({ type: 'AbilityTriggered', abilityId: source, sourceUnitId: unit.id, targetUnitId: unit.id, summary: `Reanimation Protocols: ${steps} step${steps === 1 ? '' : 's'}`, player })
+      setStepsLeft(s, unit.id, steps)
+    }
+    for (;;) {
+      const left = stepsLeft(s, unit.id) ?? 0
+      if (left <= 0) break
+      const r = reanimationStep(ctx, unit.id, source)
+      if (r === 'pending') return 'pending'
+      setStepsLeft(s, unit.id, r === 'none' ? 0 : left - 1)
+    }
+    s.phaseState.marks.push(DONE_PREFIX + unit.id)
   }
+  return 'done'
 }

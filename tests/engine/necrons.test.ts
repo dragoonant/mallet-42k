@@ -257,6 +257,34 @@ describe('Reanimation Protocols (NEC-2.x)', () => {
     expect(s.units[WAR].models).toContain(reaper)
   })
 
+  it('NEC-009b NEC-2.4 RC-066: with differently armed models destroyed the owner is asked which returns (default = most recent); same wargear asks nothing', () => {
+    const s = makeState()
+    deploy(s, WAR, OVR)
+    const ids = s.units[WAR].models
+    const reaper = ids.find((id) => s.models[id].weapons.includes('nec.w.gauss-reaper')) as string
+    const flayer = ids.find((id) => s.models[id].weapons.includes('nec.w.gauss-flayer')) as string
+    removeModel(s, flayer)
+    removeModel(s, reaper) // most recently destroyed
+    const { ctx } = ctxOf(s, [1])
+    expect(runReanimation(ctx)).toBe('pending')
+    const p = s.pending as ChooseOptionDecision
+    expect(p.context.topic).toBe('abilityChoice')
+    expect(p.options.map((o) => o.id)).toEqual([reaper, flayer])
+    answerOption(ctx, flayer)
+    expect(runReanimation(ctx)).toBe('done')
+    expect(s.units[WAR].models).toContain(flayer)
+    expect(s.units[WAR].models).not.toContain(reaper)
+    // two destroyed models with identical wargear: no decision
+    const s2 = makeState()
+    deploy(s2, WAR, OVR)
+    const flayers = s2.units[WAR].models.filter((id) => s2.models[id].weapons.includes('nec.w.gauss-flayer'))
+    removeModel(s2, flayers[0]); removeModel(s2, flayers[1])
+    const c2 = ctxOf(s2, [1])
+    expect(runReanimation(c2.ctx)).toBe('done')
+    expect(s2.pending).toBeNull()
+    expect(s2.units[WAR].models).toContain(flayers[1])
+  })
+
   it('NEC-010 NEC-2.4: the returned model is on the board, in coherency, overlaps nothing and is not newly in Engagement Range', () => {
     const s = makeState()
     deploy(s, WAR, OVR, BOYZ)
@@ -334,7 +362,13 @@ describe('Reanimation Protocols (NEC-2.x)', () => {
     // 2D6 for the Battle-shock test the depleted unit must take, then the Reanimation D3
     const { ctx, events } = ctxOf(s, [6, 6, 6], modules)
     s.step = 'command'
-    expect(commandModule.advance(ctx)).toBe('done')
+    // the destroyed Warriors differ in wargear, so the owner picks each return (RC-066): take the default
+    let r = commandModule.advance(ctx)
+    while (r === 'pending' && (s.pending as ChooseOptionDecision | null)?.context.topic === 'abilityChoice') {
+      answerOption(ctx, (s.pending as ChooseOptionDecision).options[0].id)
+      r = commandModule.advance(ctx)
+    }
+    expect(r).toBe('done')
     const order = events.map((e) => e.type)
     expect(order.indexOf('ModelReturned')).toBeGreaterThan(-1)
     expect(order.indexOf('ModelReturned')).toBeLessThan(order.indexOf('VpScored'))

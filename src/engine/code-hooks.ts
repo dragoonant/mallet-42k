@@ -23,6 +23,7 @@ import { hookService, type HookSourceEntry } from './hooks-impl'
 import { leaderService } from './leaders'
 import type { EngineContext, Services, WindowTrigger } from './modules'
 import * as tyr from './factions/tyranids'
+import { answerReanimation } from './factions/necrons'
 import { keywordsOf, modelStats, mortalCredit, unitModels, type MortalCreditBy } from './state'
 import { isTeleporting } from './teleport'
 import type {
@@ -530,7 +531,7 @@ const dutyAndHonour: EngineCodeHook = {
 // Reanimation Protocols: the roll / heal / return work lives in factions/necrons.ts and is called by the Command phase
 // module before command.end (NEC-2.6); the hook only names the ability so the data validates and the descriptor is inert
 // at its own `phaseEnd` trigger (that fires after command.end, too late for primary scoring).
-const reanimationProtocols: EngineCodeHook = { name: 'reanimationProtocols', kind: 'ability', hook: 'onPhaseEnd', run: noop }
+const reanimationProtocols: EngineCodeHook = { name: 'reanimationProtocols', kind: 'ability', hook: 'onPhaseEnd', run: noop, answer: answerReanimation }
 
 function markName(params: Record<string, unknown> | undefined): string { return (params?.markName as string | undefined) ?? 'resonantFocus' }
 
