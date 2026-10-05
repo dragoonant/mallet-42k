@@ -167,13 +167,15 @@ const simulacrumImperialis: EngineCodeHook = {
     const models = unitModels(s, holder.id)
     const bearer = models.find((m) => m.datasheetModelId === modelKey || m.datasheetModelId.endsWith(`/${modelKey}`))
     if (!bearer) return
+    // an attached unit is one unit: the attached Leader's models count for objective range too
+    const rangeModels = leaderService.halves(s, holder.id).flatMap((id) => (s.units[id].location === 'board' ? unitModels(s, id) : []))
     const threshold = (entry.params.dieThreshold as number | undefined) ?? 4
     const range = s.mission.data.objectiveRange ?? OBJECTIVE_RANGE
     const radius = s.mission.data.objectiveMarkerRadius ?? OBJECTIVE_MARKER_RADIUS
     const player = holder.player
     for (const obj of Object.values(s.objectives)) {
       if (obj.removed || !controlsNow(ctx, obj.id, player)) continue
-      if (!models.some((m) => withinObjectiveRange(m, obj, 0, range, radius))) continue
+      if (!rangeModels.some((m) => withinObjectiveRange(m, obj, 0, range, radius))) continue
       const total = ctx.rollExpr('D6', { purpose: 'ability', player, unitId: holder.id, commandRerollable: false }).total
       ctx.emit({ type: 'AbilityTriggered', abilityId: entry.source.id, sourceUnitId: holder.id, targetUnitId: holder.id, summary: `Simulacrum Imperialis: rolled ${total} at ${obj.id}`, player })
       if (total >= threshold) gainMiracleDie(ctx, player, entry.source.id, total)
@@ -319,8 +321,6 @@ export function hallowedRetributionAmount(s: GameState, info: { unitId: UnitId; 
   const killer = s.units[info.byUnitId]
   const victim = s.units[info.unitId]
   if (!killer || !victim || killer.player !== pid || victim.player === pid) return 0
-  // an attached unit is one unit: it counts once, when its last half is gone [interp]
-  if (leaderService.halves(s, info.unitId).some((id) => s.units[id].location !== 'destroyed' && s.units[id].models.length > 0)) return 0
   const halves = leaderService.halves(s, info.byUnitId)
   if (!halves.some((id) => hasKeyword(s, id, ADEPTA_KEYWORD))) return 0
   const spent = s.players[pid].miracle?.spentThisPhase ?? []

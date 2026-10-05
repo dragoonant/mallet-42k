@@ -670,7 +670,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | ADE-036 | ADE-6 | Condemnor boltgun: wound roll 2+ vs PSYKER is critical → Devastating Wounds mortal; Precision allows allocation to a CHARACTER in an attached unit |
 | ADE-037 | ADE-6 | combi-weapon Anti-Infantry 4+: unmodified 4 to wound vs INFANTRY is critical → Devastating Wounds |
 | ADE-038 | ADE-6 | Ministorum flamer / heavy flamer: Torrent auto-hits D6 attacks, Ignores Cover; hallowed mace Lethal Hits auto-wounds on a critical hit |
-| ADE-039 | ADE-2.2 | limitation: a Battle-shock test forced mid-resolution (source other than `command`) rolls its 2D6 straight through and never raises a `miracleDie` decision, even with a non-empty pool; the Command-phase test does |
+| ADE-039 | ADE-2.2 | a Battle-shock test forced mid-resolution (source other than `command`) opens a `miracleDie` decision and is finished by the Miracle handler; further Sororitas units tested while that offer is open are queued (`bsqueue:`) and each get their own offer (RC-ADE-23); empty pool or non-Sororitas rolls straight through |
 
 ## GRE — Grey Knights: Aurellios' Banishers (docs/spec/factions/grey-knights.md)
 | ID | Ref | Scenario → expected |

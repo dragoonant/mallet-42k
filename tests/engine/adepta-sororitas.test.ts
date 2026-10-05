@@ -502,6 +502,16 @@ describe('Datasheet rules (ADE-6)', () => {
     expect(opp.s.players.A.miracle.dice).toEqual([])
   })
 
+  it('ADE-032 RC-ADE-17: Simulacrum Imperialis — the attached Canoness on the marker counts as range for the bearer\'s unit (one roll)', () => {
+    const s = makeState({ a: { attachments: [{ leaderRef: 'canoness', bodyguardRef: 'sisters' }] } })
+    const o = Object.values(s.objectives).find((x) => !x.removed)!
+    placeUnit(s, SIS, { x: o.pos.x - 6, z: o.pos.z, gap: 0.3 })
+    placeUnit(s, CAN, [[o.pos.x, o.pos.z]])
+    expect(s.units[CAN].bodyguardUnitId).toBe(SIS)
+    hookService.run(ctxOf(s, [6]).ctx, 'onPhaseEnd', {})
+    expect(s.players.A.miracle.dice).toEqual([6])
+  })
+
   const arcoMelee = (s: GameState) => weaponService.effectiveWeapon(s, `${ARC}#0`, 'ade.w.arco-flails')
 
   it('ADE-034 ADE-6: Extremis Trigger Word — triggered → arco-flails A 6 and Hazardous this phase; declined → A 4, no Hazardous', () => {
@@ -809,10 +819,10 @@ describe('Hallowed Retribution on attached units / Consecrated Ground geometry (
     const { ctx } = ctxOf(s, [3, 3, 3, 3])
     const by = { player: 'A' as const, unitId: SAC, modelId: `${SAC}#0`, kind: 'melee' as const }
     killUnit(ctx, ESAC, by)
-    expect(s.players.A.vp).toBe(0) // the Canoness half is still alive
+    expect(s.players.A.vp).toBe(3) // RC-ADE-13: each destroyed half scores
     killUnit(ctx, ECAN, by)
-    expect(s.players.A.vp).toBe(3)
-    expect(s.players.A.vpBySource['hallowed-retribution']).toBe(3)
+    expect(s.players.A.vp).toBe(6)
+    expect(s.players.A.vpBySource['hallowed-retribution']).toBe(6)
   })
 
   it('ADE-021 ADE-4: Consecrated Ground measures horizontally — a unit on an elevated level above the centre still counts', () => {

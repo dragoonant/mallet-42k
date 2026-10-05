@@ -196,7 +196,7 @@ export function spawnUnitCopy(ctx: EngineContext, sourceUnitId: UnitId): Unit
 // src/engine/geometry.ts
 export function battlefieldEdgeStrip(board: Pick<Board, 'w' | 'h'>, zone: Polygon, depth: number): Polygon
 //   board-perimeter segments lying on the zone boundary = "your battlefield edge"; returns the part of the board within
-//   `depth` of those segments (a rectangle for one edge, an L-shaped hexagon for two adjacent edges)
+//   `depth` of the longest such side (one battlefield edge per player: a rectangle; a corner zone yields its longest side, not an L, RC AM-16)
 // src/engine/code-hooks.ts (not frozen)
 export interface ReactionRequest { kind: ReactionKind | 'surge' | 'nextWave'; /* … */ }
 export interface EngineCodeHook { /* … */ destroyedTargets?: boolean }      // friendly candidates come from destroyed units
