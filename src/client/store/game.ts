@@ -188,7 +188,14 @@ export function splittablePatrolRefs(bundle: DataBundle, factionKey: FactionKey)
   return patrol ? patrol.units.filter((u) => u.patrolSquads?.length).map((u) => u.ref) : []
 }
 
-function buildPlayerSetup(bundle: DataBundle, factionKey: FactionKey, secondaryId?: string, split = false): PlayerSetup {
+/** The patrol's either/or unit slots (Grey Knights: Terminators or Dreadknight), each with its refs and default. */
+export function patrolUnitChoices(bundle: DataBundle, factionKey: FactionKey): { id: string; refs: string[]; default: string }[] {
+  const factionId = resolveFactionId(factionKey)
+  const patrol = Object.values(bundle.patrols).find((p) => p.faction === factionId)
+  return patrol?.unitChoices ?? []
+}
+
+function buildPlayerSetup(bundle: DataBundle, factionKey: FactionKey, secondaryId?: string, split = false, unitChoices?: Record<string, string>): PlayerSetup {
   const factionId = resolveFactionId(factionKey)
   const patrol = Object.values(bundle.patrols).find((p) => p.faction === factionId)
   if (!patrol) throw new Error(`newGame: no Combat Patrol data for faction "${factionId}"`)
@@ -206,6 +213,7 @@ function buildPlayerSetup(bundle: DataBundle, factionKey: FactionKey, secondaryI
     attachments: defaultAttachments(bundle, patrol),
     reserves: [], // no reserves unless a unit requires them (handled by the deployment decision itself)
     battleReadyVp: 0,
+    ...(unitChoices && Object.keys(unitChoices).length ? { unitChoices } : {}),
     ...(split && splittablePatrolRefs(bundle, factionKey).length ? { splitUnits: splittablePatrolRefs(bundle, factionKey) } : {}),
   }
 }
@@ -220,8 +228,8 @@ function buildSetup(bundle: DataBundle, opts: NewGameOptions): GameSetup {
     missionId,
     terrainLayoutId,
     players: {
-      A: buildPlayerSetup(bundle, opts.playerFaction, opts.secondaryId, opts.splitSquads),
-      B: buildPlayerSetup(bundle, opponentFaction, undefined, opts.opponentSplitSquads),
+      A: buildPlayerSetup(bundle, opts.playerFaction, opts.secondaryId, opts.splitSquads, opts.unitChoices),
+      B: buildPlayerSetup(bundle, opponentFaction, undefined, opts.opponentSplitSquads, opts.opponentUnitChoices),
     },
     sides: 'rollOff',
     firstTurn: 'rollOff',
@@ -244,6 +252,9 @@ export interface NewGameOptions {
    *  engine's own deployment prompt, which is offered to whichever seat owns the unit. */
   splitSquads?: boolean
   opponentSplitSquads?: boolean
+  /** Either/or unit picks (patrol.unitChoices group id -> chosen ref) per seat; an omitted group takes the patrol default. */
+  unitChoices?: Record<string, string>
+  opponentUnitChoices?: Record<string, string>
   /** Bot opponent strength; ignored for 'hotseat'. Defaults to DEFAULT_AI_DIFFICULTY ('normal'). */
   difficulty?: AiDifficulty
   /** Spike-only: rewrite the bundle + setup after buildSetup (see src/spike/incursion.ts). Unused by normal games. */

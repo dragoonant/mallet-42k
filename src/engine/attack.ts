@@ -854,14 +854,14 @@ function doSaveBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
 
 // ---------- Feel No Pain (R-10.5) ----------
 
-function bestFeelNoPain(ctx: EngineContext, model: Model, actx: AttackContext, mortal = false): number | null {
+function bestFeelNoPain(ctx: EngineContext, model: Model, actx: AttackContext, mortal = false, psychicSource = false): number | null {
   const s = ctx.state
   const ds = datasheetOf(s, model.unitId)
   let best: number | null = null
   const core = ds.coreAbilities.find((c) => c.ability === 'FEEL_NO_PAIN')
   if (core) best = toNumber(core.value) || 6
   const fake = fakeRoll('fnp', s.units[model.unitId].player, model.unitId, model.id)
-  const results = ctx.services.hooks.collect(ctx, 'onFeelNoPainRoll', { attack: actx, roll: { purpose: 'fnp', roll: fake, dieIndex: 0, unmodified: 0, rerolled: false }, mortal })
+  const results = ctx.services.hooks.collect(ctx, 'onFeelNoPainRoll', { attack: actx, roll: { purpose: 'fnp', roll: fake, dieIndex: 0, unmodified: 0, rerolled: false }, mortal, psychicSource })
     .map((r) => r.result).filter(isRoll)
   for (const r of results) if (r.feelNoPain !== undefined) best = best === null ? r.feelNoPain : Math.min(best, r.feelNoPain)
   return best
@@ -870,9 +870,22 @@ function bestFeelNoPain(ctx: EngineContext, model: Model, actx: AttackContext, m
 // applies one point of damage to `model` (FNP first); returns true if the point was actually lost (not ignored) and
 // whether the model died. FNP rolls are not Command-Reroll-eligible (not in the core stratagem's roll list) so a
 // plain, non-reentrant roll is safe here.
+// GRE-6.1: a mortal-wound batch is Psychic when its source ability (queue sources look like `<abilityId>#<n>`) is written as a
+// Psychic ability (text begins "Psychic.", the data convention for the [PSYCHIC] keyword on abilities and enhancements)
+function isPsychicAbilitySource(s: GameState, source: string): boolean {
+  const id = source.split('#')[0]
+  const text = s.abilities[id]?.text ?? s.stratagems[id]?.text ?? ''
+  return /^\s*psychic\b/i.test(text)
+}
+
 function applyOnePoint(ctx: EngineContext, model: Model, actx: AttackContext, source: AttackRollContext | { abilityId: string } | { stratagemId: string }, mortal: boolean): boolean {
   const s = ctx.state
-  const threshold = bestFeelNoPain(ctx, model, actx, mortal)
+  // psychicSource is explicit: attack-roll source = PSYCHIC weapon (covers Devastating Wounds); ability source = Psychic-tagged
+  // ability; hazardous:* is a test, not an attack, so never Psychic (actx carries the firing weapon there)
+  const psychicSource = 'abilityId' in source
+    ? (!source.abilityId.startsWith('hazardous:') && isPsychicAbilitySource(s, source.abilityId))
+    : 'stratagemId' in source ? false : !!actx.weapon?.abilities.some((a) => a.ability === 'PSYCHIC')
+  const threshold = bestFeelNoPain(ctx, model, actx, mortal, psychicSource)
   let ignored = false
   if (threshold !== null) {
     const roll = ctx.roll({ purpose: 'fnp', player: s.units[model.unitId].player, sides: 6, count: 1, mode: 'perDie', unitId: model.unitId, modelId: model.id, commandRerollable: false })
@@ -1414,6 +1427,7 @@ function announceDestroyed(ctx: EngineContext, model: Model, unit: Unit, by: Des
   const modelId = model.id
   ctx.emit({ type: 'ModelDestroyed', unitId: unit.id, modelId, byPlayer: by.player, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
   ctx.services.hooks.run(ctx, 'onModelDestroyed', { destroyedUnitId: unit.id, destroyedModelId: modelId, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
+  ctx.services.missions.modelDestroyed?.(ctx, { unitId: unit.id, modelId, byPlayer: by.player, byUnitId: by.unitId, byModelId: by.modelId })
   // secondaries (e.g. Wrath of the Emperor) key off which of the killer's own models scored the kill; only a
   // model-attributed kill counts (mortal wounds / self-inflicted losses carry by.player/by.modelId null).
   // Reset once per phase by the scoring rule that reads it (missions.ts wrathOfTheEmperorAmount).

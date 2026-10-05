@@ -14,6 +14,7 @@ import { distance, withinEngagementRange, withinObjectiveRange, OBJECTIVE_MARKER
 import { adeptaSororitasHooks } from './factions/adepta-sororitas'
 import type { AttackContext, CodeHook, HookName, HookResult } from './hooks'
 import { chaosSpaceMarinesHooks } from './factions/chaos-space-marines'
+import { greyKnightsHooks } from './factions/grey-knights'
 import { hookService, type HookSourceEntry } from './hooks-impl'
 import { leaderService } from './leaders'
 import type { EngineContext, Services, WindowTrigger } from './modules'
@@ -719,6 +720,9 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   grenadeMortalWounds, getStuckInDistance, grantBenefitOfCover, dutyAndHonour,
   reanimationProtocols, resonantFocusPick, resonantFocusReroll, requireFriendlyKeywordOnBoard, plasmacyteSurge,
   ...chaosSpaceMarinesHooks,
+  ...greyKnightsHooks,
+  championOfTitan: missionHook('championOfTitan', 'onModelDestroyed'),
+  noEscape: missionHook('noEscape', 'onTurnEnd'),
   markedForExecution: missionHook('markedForExecution', 'onUnitDestroyed'),
   synapseBattleShock, shadowInTheWarp, secretionGoadShoot, secretionGoadFight, skulkingHorrors, disruptionBombardment,
   deathBlow, stratagemCostOverride, patrolSquads, voraciousAssaultHit, teemingBroods, alphaXenoform, chitinousTide,

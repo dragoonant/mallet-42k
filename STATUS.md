@@ -242,6 +242,17 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all 6 finished (round 5); astra-militarum appears in game 0 only (as B vs adepta-sororitas) and won it 50-5; the rest of that seed is other pairings (sororitas 3, chaos-space-marines 1, ork 1 wins). An earlier pre-sororitas run of the same seed had astra-militarum winning 6 of 6. No balance tuning |
 | Known gaps | No GLB models (procedural only); the bot ignores the AM stratagems and Orders; rulings in `docs/needs-rules-check.md` under "astra-militarum build" (AM-01 to AM-21) |
 
+## Grey Knights (M10 - Aurellios' Banishers patrol, playable)
+
+| Area | State |
+|---|---|
+| Patrol | Librarian Aurellios, Strike Squad, Brotherhood Terminator Squad (either/or with Nemesis Dreadknight via `patrol.unitChoices`); secondaries Champion of Titan / No Escape. Data in `src/data/factions/grey-knights/` |
+| Engine hooks | `src/engine/factions/grey-knights.ts` (`greyKnightsHooks`): Teleport Assault pick/arrival (mandatory, reserves via `teleportAssault`), Banishment Stone, Dominating Aura, Hammerhand, Sanctic Hood (`sourcePsychic` FNP), Champion of Titan and No Escape scoring (`missions.ts` `modelDestroyed` wiring); Violent Unbinding reuses the CSM `daemonicFervour` fight-on-death code. Core touches: `engine/teleport`, `removeUnitToReserves`, `playerBattlefieldEdge` |
+| Client | Start-screen button and Terminator/Dreadknight picker, procedural figures (new `gk-dreadknight` kit, Terminators reuse `sm-terminator`), weapon flavour/sounds reused from existing assets, palette |
+| Verification | typecheck, `validate:data` (90 files), `build` green; `npm test` 1503 passing (57 files); `tests/e2e/grey-knights.spec.ts` starts GK vs bot, deploys through the UI and reaches round 1 Shooting (`e2e-out/m10-grey-knights-0{1,2,3}-*.png`) |
+| Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all 6 finished (round 5); grey-knights 1 win (one each for astra-militarum, chaos-space-marines, necrons, adepta-sororitas, sm). No balance tuning |
+| Known gaps | No GLB models or generated weapon sounds; bot ignores GK stratagems and only uses a simple Teleport Assault heuristic; Psychic ability mortals not tagged beyond text convention; rulings in `docs/needs-rules-check.md` under "grey-knights build" (GK-01 to GK-20) |
+
 ## Not yet built
 
 - Anything beyond M8 (see Client tables for what M3/M6/M8 cover); AI Monte Carlo/hard tier, generated models, scale-up, multiplayer, Phase B glTF animation/asset pipeline for figures (see PLAN.md, docs/spec/30-figures.md §9)

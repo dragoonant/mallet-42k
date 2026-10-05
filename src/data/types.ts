@@ -79,6 +79,8 @@ export interface Condition {
   leaderAttached?: boolean
   // onFeelNoPainRoll only: the point being saved is a mortal wound
   mortalWound?: boolean
+  // onFeelNoPainRoll: the point saved comes from a Psychic attack: a [PSYCHIC] weapon (devastating mortals included) or a Psychic-tagged ability
+  sourcePsychic?: boolean
   roll?: RangeBound
   round?: RangeBound
   oathTarget?: boolean
@@ -306,6 +308,7 @@ export interface CombatPatrolData {
   name: string
   detachment?: Id
   units: PatrolUnitData[]
+  unitChoices?: { id: string; refs: string[]; default: string }[]
   stratagems: Id[]
   enhancements: { id: Id; default: boolean }[]
   secondaries: SecondaryData[]

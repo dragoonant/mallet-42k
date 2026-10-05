@@ -115,6 +115,9 @@ export function summariseEvents(events: readonly GameEvent[], state: GameState, 
       case 'UnitDeployed':
         push(e, `${unit(e.unitId)} ${e.toReserves ? 'held in reserve' : 'deployed'}`)
         break
+      case 'UnitRemovedFromBattlefield':
+        push(e, `${unit(e.unitId)} is removed from the battlefield`)
+        break
       case 'ReinforcementsArrived':
         push(e, `${unit(e.unitId)} arrives from reserves`)
         break

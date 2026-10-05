@@ -537,6 +537,10 @@ export interface PlayerSetup {
   battleReadyVp: number
   // E5 Patrol Squads: patrol unit refs to split into their `patrolSquads` parts at Declare Battle Formations
   splitUnits?: string[]
+  // E1 unit choice (Grey Knights Terminators / Dreadknight): group id -> chosen unit ref; an omitted group takes its default.
+  // createGame throws EngineInvariantError for an unknown group id or a ref not in the group. Unchosen refs are never
+  // created; attachments naming them are dropped.
+  unitChoices?: Record<string, string>
 }
 
 export interface GameSetup {

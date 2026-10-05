@@ -175,6 +175,10 @@ export interface ConditionEnv {
   weapon: RuntimeWeapon | null
   // onFeelNoPainRoll only: the point being saved is a mortal wound
   mortal?: boolean
+  // onFeelNoPainRoll only: the point comes from a Psychic-tagged ability (mortal wounds), see Condition.sourcePsychic
+  psychicSource?: boolean
+  // set by matchEffects for onFeelNoPainRoll: sourcePsychic then reads only psychicSource (set explicitly by applyOnePoint)
+  fnpHook?: boolean
 }
 
 function unitKeywordsAny(state: GameState, unitId: UnitId): string[] {
@@ -237,6 +241,8 @@ export function evaluateCondition(env: ConditionEnv, c: Condition | null | undef
   if (c.unitCharged !== undefined && !(h && h.turn.chargedThisTurn === c.unitCharged)) return false
   if (c.unitBattleShocked !== undefined && !(h && h.battleShocked === c.unitBattleShocked)) return false
   // E2: only onFeelNoPainRoll sets `mortal`; every other hook sees false
+  // GRE-6.1: a Psychic attack = a [PSYCHIC] weapon (also its devastating mortals) or a Psychic-tagged ability's mortal wounds
+  if (c.sourcePsychic !== undefined && ((env.fnpHook ? env.psychicSource === true : (env.psychicSource === true || !!weapon?.abilities.some((a) => a.ability === 'PSYCHIC'))) !== c.sourcePsychic)) return false
   if (c.mortalWound !== undefined && (env.mortal === true) !== c.mortalWound) return false
   if (c.leaderAttached !== undefined && !(h && leaderService.isAttached(state, h.id) === c.leaderAttached)) return false
   // [interp] roll bounds compare the unmodified die (modifiers are folded by the caller after collection)
@@ -392,7 +398,7 @@ export function matchEffects(state: GameState, hook: HookName, data: Data, keys?
   for (const entry of sourcesFor(state)) {
     if (entry.effects.length === 0 || !gateOpen(state, entry, data)) continue
     const holder = state.units[entry.holderUnitId]
-    const env: ConditionEnv = { state, holder, player: holder.player, attack: data.attack ?? null, roll: data.roll ?? null, weapon: data.weapon ?? null, mortal: data.mortal === true }
+    const env: ConditionEnv = { state, holder, player: holder.player, attack: data.attack ?? null, roll: data.roll ?? null, weapon: data.weapon ?? null, mortal: data.mortal === true, psychicSource: data.psychicSource === true, fnpHook: hook === 'onFeelNoPainRoll' }
     if (!evaluateCondition(env, entry.when)) continue
     const usedKeys = new Set<string>()
     entry.effects.forEach((effect, index) => {

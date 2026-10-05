@@ -59,6 +59,10 @@ const GALLERY_ENTRIES: GalleryEntry[] = [
   { datasheetId: 'am.field-ordnance-battery', modelId: 'gun-bombast', faction: 'astra-militarum', label: 'Field Gun' },
   { datasheetId: 'am.field-ordnance-battery', modelId: 'gun-malleus', faction: 'astra-militarum', label: 'Rocket Battery' },
   { datasheetId: 'am.armoured-sentinels', modelId: 'sentinel', faction: 'astra-militarum', label: 'Armoured Sentinel' },
+  { datasheetId: 'gk.strike-squad', faction: 'grey-knights', label: 'Strike Squad' },
+  { datasheetId: 'gk.brotherhood-terminator-squad', faction: 'grey-knights', label: 'Brotherhood Terminators' },
+  { datasheetId: 'gk.librarian-aurellios', faction: 'grey-knights', label: 'Librarian Aurellios' },
+  { datasheetId: 'gk.nemesis-dreadknight', faction: 'grey-knights', label: 'Nemesis Dreadknight' },
 ]
 
 // Figures are true tabletop-miniature scale (~1-2 world-inches tall — see resolveBase), so packing

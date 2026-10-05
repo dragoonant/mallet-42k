@@ -71,7 +71,7 @@ still gate it so bespoke hooks stay cheap. A descriptor with `code` may omit `ef
 Condition keys (all optional): `phase`, `ownTurn`, `attackerKeyword`, `attackerNotKeyword`, `targetKeyword` (Keyword or Keyword[] = any of),
 `targetNotKeyword`, `weaponType (ranged|melee)`, `weaponAbility`, `weaponId`, `range ({within:n} | "half")`,
 `targetInCover`, `targetOnObjective`, `unitOnObjective`, `unitBelowHalf`, `unitStationary`, `unitAdvanced`,
-`targetBelowStartingStrength`, `targetBelowHalf`, `targetIsClosestEligible` (Tyranids: Feeding Frenzy / Voracious Assault), `unitFellBack`, `unitCharged`, `unitBattleShocked`, `leaderAttached`, `mortalWound` (onFeelNoPainRoll only: the point saved is a mortal wound), `roll ({gte,lte, unmodified?})`,
+`targetBelowStartingStrength`, `targetBelowHalf`, `targetIsClosestEligible` (Tyranids: Feeding Frenzy / Voracious Assault), `unitFellBack`, `unitCharged`, `unitBattleShocked`, `leaderAttached`, `mortalWound` (onFeelNoPainRoll only: the point saved is a mortal wound), `sourcePsychic` (onFeelNoPainRoll only: the point comes from a [PSYCHIC] weapon or a Psychic-tagged ability's mortal wounds), `roll ({gte,lte, unmodified?})`,
 `round ({gte,lte})`, `oathTarget` (target is the marked unit), `strengthVsToughness (gt|gte|eq|lte|lt|double|half — attack S vs target T)`, `any`, `not`.
 
 Effect keys (any subset; unknown keys rejected):
@@ -170,7 +170,7 @@ Unit-level state in the engine (`wounds`, `battleShocked`, `moved`, `advanced`) 
 
 `faction`: `{id, name, factionKeyword, armyRule: Id, detachments:[{id, name, rule: Id, stratagems: Id[], enhancements: Id[]}], paintScheme:{primary, secondary, trim, metal, decal} (hex), combatPatrols: Id[]}`.
 
-`combat-patrol`: `{id, faction, name, detachment?, warlord: ref, units:[{ref, datasheet, size, wargear?: [{modelId, count, weapons: Id[]}], patrolSquads?: [{ref, size, wargear: [{modelId, count, weapons: Id[]}]}], attachTo?: ref, enhancement?: Id}], stratagems: Id[], enhancements: [{id, default}], secondaries: [{id, name, text, default, scoring: ScoringRule[]}]}`. `ref` is unique inside the patrol and becomes the engine `unitId` prefix. `attachTo` references another unit's `ref` (leader attachment chosen at setup; the setup UI may change it within `leader.attachTo`). Exactly one enhancement and one secondary have `default: true`; the player may swap to the optional one at setup (11-combat-patrol CP-1.4/1.5).
+`combat-patrol`: `{id, faction, name, detachment?, warlord: ref, units:[{ref, datasheet, size, wargear?: [{modelId, count, weapons: Id[]}], patrolSquads?: [{ref, size, wargear: [{modelId, count, weapons: Id[]}]}], attachTo?: ref, enhancement?: Id}], unitChoices?: [{id, refs: ref[], default: ref}] (exactly one ref per group is fielded; Grey Knights Terminators/Dreadknight), stratagems: Id[], enhancements: [{id, default}], secondaries: [{id, name, text, default, scoring: ScoringRule[]}]}`. `ref` is unique inside the patrol and becomes the engine `unitId` prefix. `attachTo` references another unit's `ref` (leader attachment chosen at setup; the setup UI may change it within `leader.attachTo`). Exactly one enhancement and one secondary have `default: true`; the player may swap to the optional one at setup (11-combat-patrol CP-1.4/1.5).
 
 ## 9. Missions
 

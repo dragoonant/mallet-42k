@@ -35,6 +35,7 @@ import { pendingReactions, consumeReaction } from '../code-hooks'
 import { attackService } from '../attack'
 import { terrainService } from '../terrain'
 import { transportService } from '../transports'
+import { clearTeleport, destroyTeleportingUnit, isTeleporting } from '../teleport'
 import { notImplementedHandle, otherPlayer, type AdvanceResult, type EngineContext, type PhaseModule } from '../modules'
 import {
   boardModelsOf, boardUnitsOf, datasheetOf, deploymentZone, enemyModelsOnBoard, hasKeyword, keywordsOf, modelStats, removeModel,
@@ -401,16 +402,18 @@ function eligibleArrivals(state: GameState, player: PlayerId): UnitId[] {
   const out: UnitId[] = []
   for (const u of Object.values(state.units)) {
     if (u.player !== player || u.location !== 'reserves' || seen.has(u.id)) continue
-    if (u.bodyguardUnitId) continue // leader half of an attached pair: represented by its bodyguard (canonical) id
+    if (u.bodyguardUnitId && state.units[u.bodyguardUnitId] && state.units[u.bodyguardUnitId].location !== 'destroyed' && state.units[u.bodyguardUnitId].models.length > 0) continue // leader half of an attached pair: represented by its bodyguard (canonical) id
     if (transportService.transportOf(state, u.id)) continue
-    if (state.round < 2 || state.round > 3) continue
+    // GRE-2.3: a Teleport Assault unit arrives in any round; every other Reserves unit only in rounds 2-3
+    if (!isTeleporting(state, u.id) && (state.round < 2 || state.round > 3)) continue
     const halves = reservesHalves(state, u.id)
     const groupIds = halves.length > 0 ? halves : [u.id]
     for (const id of groupIds) seen.add(id)
     if (u.deepStrikeWith) seen.add(u.deepStrikeWith)
     out.push(u.id)
   }
-  return out.sort()
+  // GRE-2.2: teleporting units are mandatory and come first
+  return [...out.filter((id) => isTeleporting(state, id)).sort(), ...out.filter((id) => !isTeleporting(state, id)).sort()]
 }
 
 // R-5.14: any Reserves unit not on the battlefield at the end of round 3 is destroyed. `endOfRound3` is set once the
@@ -437,6 +440,7 @@ function cullStrandedReserves(ctx: EngineContext, endOfRound3 = false): void {
     if (u.location !== 'reserves') continue
     const transportId = transportService.transportOf(s, u.id)
     if (transportId !== null && s.units[transportId]?.location === 'reserves') continue // culled below with its transport
+    if (isTeleporting(s, u.id)) continue // GRE-2.3: Teleport Assault units are never culled (destroyed at battle end instead)
     destroyStrandedUnit(u.id)
     // R-5.14/R-5.20: a transport destroyed here (or already dead, e.g. removed mid-game) never leaves its own
     // passengers embarked in limbo — they go down with it too.
@@ -450,7 +454,9 @@ function nextWaveZone(state: GameState, player: PlayerId): Polygon {
   return battlefieldEdgeStrip(state.board, deploymentZone(state, player), 9)
 }
 
-function resolveArrival(state: GameState, groupIds: UnitId[], placements: ModelPlacement[], via: 'deepStrike' | 'rapidIngress' | 'strategicReserves' | 'nextWave' = 'deepStrike'):
+type ArrivalVia = 'deepStrike' | 'rapidIngress' | 'strategicReserves' | 'nextWave' | 'teleportAssault'
+
+function resolveArrival(state: GameState, groupIds: UnitId[], placements: ModelPlacement[], via: ArrivalVia = 'deepStrike'):
   { rejection: Rejection } | { rejection: null; resolved: ResolvedPlacement[] } {
   const models = groupIds.flatMap((id) => unitModels(state, id))
   const player = state.units[groupIds[0]].player
@@ -506,11 +512,11 @@ function validateArrival(state: GameState, action: Action, pending: Extract<Pend
   const provided = new Set(action.placements.map((p) => p.modelId))
   for (const id of needed) if (!provided.has(id)) return { code: 'E_OUT_OF_RANGE', reason: `arrival must place every model of ${groupIds.join(' & ')} together`, details: { missing: id } }
   for (const id of provided) if (!needed.has(id)) return { code: 'E_SCHEMA', reason: `model ${id} is not part of this arrival` }
-  const r = resolveArrival(state, groupIds, action.placements, (readMark(state, 'mv:arriveVia') ?? 'deepStrike') as 'deepStrike' | 'rapidIngress' | 'strategicReserves' | 'nextWave')
+  const r = resolveArrival(state, groupIds, action.placements, (readMark(state, 'mv:arriveVia') ?? 'deepStrike') as ArrivalVia)
   return r.rejection
 }
 
-function raiseArrivalDecision(ctx: EngineContext, unitId: UnitId, player: PlayerId, via: 'deepStrike' | 'rapidIngress' | 'strategicReserves' | 'nextWave'): void {
+function raiseArrivalDecision(ctx: EngineContext, unitId: UnitId, player: PlayerId, via: ArrivalVia): void {
   const s = ctx.state
   if (via === 'nextWave') {
     // C3: one freshly spawned unit; it must be placed (no going back to Reserves)
@@ -570,7 +576,7 @@ function doReinforcementsStep(ctx: EngineContext): AdvanceResult {
     const head = queue.find((id) => s.units[id]?.location === 'reserves')
     writeMark(s, 'mv:arriveQueue', JSON.stringify(head === undefined ? [] : queue.slice(queue.indexOf(head) + 1)))
     if (head !== undefined) {
-      raiseArrivalDecision(ctx, head, s.activePlayer, reserveRouteFor(s, head))
+      raiseArrivalDecision(ctx, head, s.activePlayer, isTeleporting(s, head) ? 'teleportAssault' : reserveRouteFor(s, head))
       return 'pending'
     }
   }
@@ -950,10 +956,14 @@ export const movementModule: PhaseModule = {
     }
     if (pending.kind === 'deployUnit' && action.type === 'deployUnit') {
       const groupIds = pending.context.unitIds
-      const via = (readMark(s, 'mv:arriveVia') ?? 'deepStrike') as 'deepStrike' | 'rapidIngress' | 'strategicReserves' | 'nextWave'
+      const via = (readMark(s, 'mv:arriveVia') ?? 'deepStrike') as ArrivalVia
       writeMark(s, 'mv:arriveVia', null)
       writeMark(s, 'mv:arriveGroup', null)
-      if (action.toReserves) return
+      if (action.toReserves) {
+        // GRE-2.6: declining the mandatory Teleport Assault arrival destroys the unit
+        if (via === 'teleportAssault') destroyTeleportingUnit(ctx, groupIds[0])
+        return
+      }
       const result = resolveArrival(s, groupIds, action.placements, via)
       if (result.rejection) throw new EngineInvariantError('movement: stored arrival placements failed re-validation', { rejection: result.rejection })
       for (const r of result.resolved) setModelPos(s.models[r.model.id], r.to, r.facing)
@@ -965,6 +975,7 @@ export const movementModule: PhaseModule = {
           s.units[id].turn.arrivedThisTurn = true
         }
         ctx.emit({ type: 'ReinforcementsArrived', unitId: uid, via, player: u.player })
+        if (via === 'teleportAssault') clearTeleport(s, uid)
       }
       writeMark(s, 'mv:justArrived', JSON.stringify(groupIds))
       return

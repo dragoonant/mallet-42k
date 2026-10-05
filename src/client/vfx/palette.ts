@@ -48,6 +48,7 @@ const FACTION_COLOR: Record<string, string> = {
   tyranids: '#c14ee0',
   'adepta-sororitas': '#ff6a5a',
   'astra-militarum': '#c8a24a',
+  'grey-knights': '#7fb2ff',
 }
 
 const NEUTRAL_MELEE_COLOR = '#e8e8f0'

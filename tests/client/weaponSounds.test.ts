@@ -23,9 +23,10 @@ const CSM = 'chaos-space-marines'
 const TYR = 'tyranids'
 const ADE = 'adepta-sororitas'
 const AM = 'astra-militarum'
+const GK = 'grey-knights'
 
 /** The engine faction id a weapon's own id prefix belongs to. */
-const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : SM)
+const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : SM)
 
 function lookupFor(faction: string): SoundLookup {
   return { weapon: (id) => bundle.weapons[id], factionOfUnit: () => faction }
@@ -130,6 +131,18 @@ const EXPECTED: Record<string, WeaponFlavour> = {
   'am.w.close-combat-weapon': 'chain',
   'am.w.battery-close-combat-weapons': 'chain',
   'am.w.close-combat-weapon-sentinel': 'crush',
+  'gk.w.purge-soul-witchfire': 'psychic',
+  'gk.w.purge-soul-focused': 'psychic',
+  'gk.w.storm-bolter': 'bolter',
+  'gk.w.psilencer': 'psychic',
+  'gk.w.psycannon': 'psychic',
+  'gk.w.heavy-psycannon': 'psychic',
+  'gk.w.nemesis-force-weapon-librarian': 'force',
+  'gk.w.nemesis-force-weapon-terminator': 'force',
+  'gk.w.nemesis-force-weapon-strike': 'force',
+  'gk.w.close-combat-weapon': 'chain',
+  'gk.w.nemesis-greatsword-strike': 'force',
+  'gk.w.nemesis-greatsword-sweep': 'force',
 }
 
 // Adepta Sororitas weapons, by datasheet NAME (lower-cased) so the check holds whatever id spelling the data uses.
@@ -156,7 +169,7 @@ describe('weapon flavour', () => {
   })
 
   it('the faction ids this classifier is tuned for are the ones the data actually declares', () => {
-    for (const id of [NEC, ORK, SM, CSM, TYR, ADE, AM]) expect(Object.keys(bundle.factions), id).toContain(id)
+    for (const id of [NEC, ORK, SM, CSM, TYR, ADE, AM, GK]) expect(Object.keys(bundle.factions), id).toContain(id)
   })
 
   it('every adepta-sororitas weapon is classified, by name', () => {

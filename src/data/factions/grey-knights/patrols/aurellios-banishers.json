@@ -1,0 +1,40 @@
+{
+  "id": "gk.cp.aurellios-banishers",
+  "faction": "grey-knights",
+  "name": "Aurellios' Banishers",
+  "units": [
+    { "ref": "librarian", "datasheet": "gk.librarian-aurellios", "size": 1, "enhancement": "gk.e.banishment-stone", "attachTo": "terminators" },
+    { "ref": "strike", "datasheet": "gk.strike-squad", "size": 5 },
+    { "ref": "terminators", "datasheet": "gk.brotherhood-terminator-squad", "size": 5 },
+    { "ref": "dreadknight", "datasheet": "gk.nemesis-dreadknight", "size": 1 }
+  ],
+  "unitChoices": [
+    { "id": "heavy", "refs": ["terminators", "dreadknight"], "default": "terminators" }
+  ],
+  "stratagems": ["gk.s.vindictive-strategy", "gk.s.violent-unbinding", "gk.s.daemonic-fervour"],
+  "enhancements": [
+    { "id": "gk.e.banishment-stone", "default": true },
+    { "id": "gk.e.dominating-aura", "default": false }
+  ],
+  "secondaries": [
+    {
+      "id": "gk.sec.champion-of-titan",
+      "name": "Champion of Titan",
+      "text": "Each time your WARLORD model destroys an enemy CHARACTER model, in either player's turn and any phase, score 6 victory points. Kills made by other models do not count.",
+      "default": true,
+      "scoring": [
+        { "id": "champion-of-titan", "when": "any.unitDestroyed", "rounds": { "from": 1, "to": 5 }, "who": "both", "rule": "custom", "pointsPer": 6, "cap": 999, "code": "championOfTitan" }
+      ]
+    },
+    {
+      "id": "gk.sec.no-escape",
+      "name": "No Escape",
+      "text": "At the end of an opponent's turn, score 10 victory points if you control both the objective marker nearest the enemy's battlefield edge and the one nearest your own. This scores at most once per battle.",
+      "default": false,
+      "scoring": [
+        { "id": "no-escape", "when": "turn.end", "rounds": { "from": 1, "to": 5 }, "who": "opponent", "rule": "custom", "pointsPer": 10, "cap": 10, "code": "noEscape" }
+      ]
+    }
+  ],
+  "warlord": "librarian"
+}

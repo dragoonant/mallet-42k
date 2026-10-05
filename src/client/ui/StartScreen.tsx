@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { loadBundle } from '../../data'
 import type { DataBundle } from '../../data/types'
-import { AI_DIFFICULTY_OPTIONS, DEFAULT_AI_DIFFICULTY, resolveFactionId, splittablePatrolRefs, useGameStore, type AiDifficulty, type FactionKey, type OpponentKind } from '../store/game'
+import { AI_DIFFICULTY_OPTIONS, DEFAULT_AI_DIFFICULTY, resolveFactionId, splittablePatrolRefs, patrolUnitChoices, useGameStore, type AiDifficulty, type FactionKey, type OpponentKind } from '../store/game'
 import { primaryScoringSummary } from './labels'
 import { PainterPanel } from './PainterPanel'
 import { buttonActive, buttonBase, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
@@ -19,10 +19,11 @@ const FACTION_BLURBS: Record<string, string> = {
   'chaos-space-marines': 'Fallen warriors who bargain with dark powers: stronger shots and blows, paid for in their own blood.',
   tyranids: 'A ravenous swarm that leaps, spits and keeps coming — losing a few hundred claws never slows the brood.',
   'adepta-sororitas': 'Armoured battle-nuns who pray for lucky dice: save Miracle dice and swap them in for a crucial roll.',
+  'grey-knights': 'A small band of silver-armoured psykers who blink across the board and punish anything that lingers.',
 }
 
 // Button order for the factions the game ships; any other faction in the bundle follows alphabetically.
-const FACTION_ORDER = ['sm', 'ork', 'necrons', 'chaos-space-marines', 'tyranids', 'adepta-sororitas', 'astra-militarum']
+const FACTION_ORDER = ['sm', 'ork', 'necrons', 'chaos-space-marines', 'tyranids', 'adepta-sororitas', 'astra-militarum', 'grey-knights']
 
 interface FactionChoice {
   id: string
@@ -130,6 +131,28 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
     setSecondaryId(patrol?.secondaries.find((s) => s.default)?.id ?? patrol?.secondaries[0]?.id ?? '')
   }, [patrol])
 
+  // Either/or unit slots in the patrol (Grey Knights: Terminators or Dreadknight). A pick is kept per group id; unset = patrol default.
+  const [pickA, setPickA] = useState<Record<string, string>>({})
+  const [pickB, setPickB] = useState<Record<string, string>>({})
+  const choicesA = bundle ? patrolUnitChoices(bundle, faction) : []
+  const choicesB = bundle && opponent === 'hotseat' && opponentFaction ? patrolUnitChoices(bundle, opponentFaction) : []
+  useEffect(() => { setPickA({}) }, [faction])
+  useEffect(() => { setPickB({}) }, [opponentFaction])
+  const refName = (factionKey: string, ref: string): string => {
+    const p = bundle && Object.values(bundle.patrols).find((x) => x.faction === resolveFactionId(factionKey))
+    const ds = p?.units.find((u) => u.ref === ref)?.datasheet
+    return (ds && bundle?.datasheets[ds]?.name) || ref
+  }
+  const unitChoiceRow = (factionKey: string, choices: { id: string; refs: string[]; default: string }[], pick: Record<string, string>, setPick: (v: Record<string, string>) => void, who: string) =>
+    choices.map((g) => (
+      <label key={g.id} style={blurb} data-testid={`setup-unit-choice-${who}-${g.id}`}>
+        {who === 'A' ? 'Your' : "Player B's"} patrol fields:{' '}
+        <select style={select} value={pick[g.id] ?? g.default} onChange={(e) => setPick({ ...pick, [g.id]: e.target.value })}>
+          {g.refs.map((r) => <option key={r} value={r}>{refName(factionKey, r)}</option>)}
+        </select>
+      </label>
+    ))
+
   // Patrol Squads that are split at setup (Sororitas); AM/Tyranids get the engine's own prompt at deployment instead.
   const canSplitA = !!bundle && splittablePatrolRefs(bundle, faction).length > 0
   const canSplitB = !!bundle && opponent === 'hotseat' && !!opponentFaction && splittablePatrolRefs(bundle, opponentFaction).length > 0
@@ -145,6 +168,8 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
         secondaryId: secondaryId || undefined,
         splitSquads: canSplitA && splitA,
         opponentSplitSquads: canSplitB && splitB,
+        unitChoices: Object.keys(pickA).length ? pickA : undefined,
+        opponentUnitChoices: Object.keys(pickB).length ? pickB : undefined,
         difficulty: opponent === 'bot' ? difficulty : undefined,
       })
       onStarted()
@@ -188,6 +213,7 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
           </>
         )}
 
+        {unitChoiceRow(faction, choicesA, pickA, setPickA, 'A')}
         {canSplitA && (
           <label style={blurb} data-testid="setup-split-A">
             <input type="checkbox" checked={splitA} onChange={(e) => setSplitA(e.target.checked)} /> Split your Battle Sisters Squad into two units of 5 (Patrol Squads)
@@ -235,6 +261,7 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
           ))}
         </select>
 
+        {opponentFaction && unitChoiceRow(opponentFaction, choicesB, pickB, setPickB, 'B')}
         {canSplitB && (
           <label style={blurb} data-testid="setup-split-B">
             <input type="checkbox" checked={splitB} onChange={(e) => setSplitB(e.target.checked)} /> Split Player B's Battle Sisters Squad into two units of 5 (Patrol Squads)

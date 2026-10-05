@@ -1,0 +1,26 @@
+[
+  {
+    "id": "gk.librarian-aurellios",
+    "faction": "grey-knights",
+    "name": "Librarian Aurellios",
+    "keywords": ["INFANTRY", "CHARACTER", "TERMINATOR", "PSYKER", "IMPERIUM", "LIBRARIAN", "AURELLIOS"],
+    "factionKeywords": ["GREY KNIGHTS"],
+    "stats": { "M": 5, "T": 5, "Sv": 2, "W": 5, "Ld": 6, "OC": 1 },
+    "invuln": 4,
+    "composition": [
+      {
+        "modelId": "librarian",
+        "name": "Librarian Aurellios",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 40 },
+        "weapons": { "default": ["gk.w.purge-soul-witchfire", "gk.w.purge-soul-focused", "gk.w.nemesis-force-weapon-librarian"] },
+        "figure": { "archetype": "heavy", "kit": "sm-terminator" }
+      }
+    ],
+    "abilities": ["gk.a.teleport-assault", "gk.a.sanctic-hood"],
+    "coreAbilities": [ { "ability": "DEEP_STRIKE" }, { "ability": "LEADER" } ],
+    "leader": { "attachTo": ["gk.brotherhood-terminator-squad"], "effects": [] },
+    "points": [ { "models": 1, "points": 0 } ],
+    "figure": { "archetype": "heavy", "kit": "sm-terminator" }
+  }
+]

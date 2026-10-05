@@ -17,9 +17,11 @@ import { leaderService } from './leaders'
 import { liveClaimers, pruneClaim, recordClaim } from './objectives'
 import type { DecisionHandler, EngineContext, WindowTrigger } from './modules'
 import { otherPlayer } from './modules'
+import { isTeleporting } from './teleport'
+import { championOfTitanModelDestroyed, noEscapeAmount } from './factions/grey-knights'
 import { boardUnitsOf, deploymentZone, hasKeyword, keywordsOf, modelIdFor, unitModels } from './state'
 import type {
-  ChooseOptionDecision, ChooseOptionTopic, GameResult, GameState, Objective, ObjectiveId, PendingDecision,
+  ChooseOptionDecision, ChooseOptionTopic, GameResult, GameState, ModelId, Objective, ObjectiveId, PendingDecision,
   PlayerId, Rejection, Unit, UnitId,
 } from './types'
 import type { Action, ChooseOptionAction } from './actions'
@@ -34,6 +36,8 @@ export interface MissionService {
   finalResult(state: GameState, reason: GameResult['reason']): GameResult
   // a unit was just destroyed (attack.ts destroyModel): kill-triggered secondaries (Treasures of Aeons, NEC-4)
   unitDestroyed?(ctx: EngineContext, info: { unitId: UnitId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: string | null }): void
+  // E4 (Grey Knights Champion of Titan): a model was just destroyed (attack.ts announceDestroyed, after the onModelDestroyed hooks)
+  modelDestroyed?(ctx: EngineContext, info: { unitId: UnitId; modelId: ModelId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: ModelId | null }): void
   // answers chooseOption topics razeObjective / recoverObjective / stompTarget / bagTarget
   readonly handler: DecisionHandler
 }
@@ -397,6 +401,7 @@ function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): num
     case 'bagTheBigUnScore': return bagTheBigUnAmount(s, rule, pid)
     case 'consecratedGround': return consecratedGroundAmount(s, pid, rule.pointsPer)
     case 'holdTheLine': return holdTheLineAmount(s, rule, pid)
+    case 'noEscape': return noEscapeAmount(ctx, rule, pid)
     case 'methodicalDestructionScore': return methodicalDestructionAmount(s, rule, pid)
     default: return 0
   }
@@ -638,6 +643,8 @@ function processWindow(ctx: EngineContext, window: TimingWindowId, key: string):
 
 function hasForces(state: GameState, player: PlayerId): boolean {
   if (boardUnitsOf(state, player).length > 0) return true
+  // GRE-2.7: a Teleport Assault unit can arrive in any round
+  if (Object.values(state.units).some((u) => u.player === player && u.location === 'reserves' && isTeleporting(state, u.id))) return true
   if (state.round > 3) return false // CP-1.9: Reserves never arrive after round 3
   return Object.values(state.units).some((u) => u.player === player && u.location === 'reserves')
 }
@@ -694,6 +701,7 @@ export const missionService: MissionService = {
   },
   playerHasForces: hasForces,
   unitDestroyed: unitDestroyedHook,
+  modelDestroyed: championOfTitanModelDestroyed,
   isTabled(state) { return !hasForces(state, 'A') && !hasForces(state, 'B') },
   finalResult(state, reason) {
     const vp = { A: state.players.A.vp + state.players.A.battleReadyVp, B: state.players.B.vp + state.players.B.battleReadyVp }

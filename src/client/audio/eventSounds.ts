@@ -69,6 +69,13 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ...SFX_IDS.filter((id) => id.startsWith('wpn-')).map((id) => [id.slice(4), id] as const),
   ['chainsword', 'melee-chainsword'] as const,
   ['power-klaw', 'power-klaw-crunch'] as const,
+  // Grey Knights borrow existing assets until their own are generated: witchfire and the psilencer crackle like Smite,
+  // the psycannons thump like the plasma/assault cannons, and the Dreadknight's greatsword rings like a power weapon.
+  ['purge-soul', 'wpn-smite'] as const,
+  ['psilencer', 'wpn-smite'] as const,
+  ['heavy-psycannon', 'wpn-assault-cannon'] as const,
+  ['psycannon', 'wpn-plasma-cannon'] as const,
+  ['greatsword', 'wpn-power-weapon'] as const,
 ].sort((a, b) => b[0].length - a[0].length)
 
 const WEAPON_TRIM: Partial<Record<SfxId, number>> = {
@@ -145,6 +152,7 @@ const DEATH_SOUND: Record<string, SfxId> = {
   'astra-militarum': 'death-astra-militarum',
   'adepta-sororitas': 'death-adepta-sororitas',
   'chaos-space-marines': 'death-chaos-space-marines',
+  'grey-knights': 'death-space-marines',
 }
 
 /** Measured decoded RMS runs 0.05-0.40 across these; the loud three are pulled back toward ~0.15. */

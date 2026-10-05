@@ -500,6 +500,13 @@ function scoreChooseOption(state: GameState, pending: PendingDecision, action: A
     if (unitId) score += unitValue(state, unitId) * 0.01
     else score += 2
   }
+  // Grey Knights Teleport Assault: skip it when the battle ends before the unit's next Movement phase (round 5, GK moved first);
+  // otherwise teleport the most valuable unit, since the arrival is a free >9" redeployment.
+  if (code === 'teleportAssaultPick') {
+    const noArrival = state.round >= 5 && state.firstPlayer === pending.player
+    if (action.optionId === 'decline') score += noArrival ? 4 : 0
+    else if (noArrival) score -= 4
+  }
   // Methodical Destruction: the VP only come if the pick dies this round, so mark the unit most likely to die (cheapest on the board).
   if (code === 'methodicalDestructionPick' && hintUnitId) score = -unitValue(state, hintUnitId) * 0.03
   return score

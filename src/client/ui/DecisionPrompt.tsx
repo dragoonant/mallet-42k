@@ -13,6 +13,7 @@ import {
   combinedUnitIds, combinedUnitModels, distance2D, formationPlacementsForUnit, modelsAnchor, placementInfo, validateDraft,
 } from '../interaction'
 import { neededChargeDistance } from '@/engine/phases/charge'
+import { isTeleporting } from '@/engine/teleport'
 import {
   chargeTargetHelp, moveTypeHelp, objectiveLabel, prettifyId, saveAttackContext,
   shootingTargetHelp, type PromptHelp,
@@ -116,6 +117,20 @@ const METHODICAL_INFO = {
  *  the ability id is what says which rule is asking. Own-words text; matched by id fragment so a renamed
  *  prefix or a variant of the same rule still reads right. */
 const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string } }[] = [
+  {
+    match: /teleport-?assault/i,
+    info: {
+      title: 'Teleport Assault',
+      hint: 'At the end of the turn, a unit with this rule may leave the battlefield now. It must be set up again in your next Movement phase, more than 9" from every enemy model, and a unit still off the board when the battle ends is lost. Pick the unit to send, or leave everyone where they stand.',
+    },
+  },
+  {
+    match: /banishment-?stone/i,
+    info: {
+      title: 'Banishment Stone',
+      hint: 'The bearer just cut down an enemy hero. Roll a die: on a 2 or more you gain 1 Command point.',
+    },
+  },
   {
     match: /resonant-focus/,
     info: {
@@ -470,6 +485,9 @@ function abilityOptionLabel(abilityId: string | null, o: { id: string; label: st
       case 'both': return 'Pact: Lethal Hits and Sustained Hits 1 (Foul Zealotry)'
       case 'decline': return 'No pact'
     }
+  }
+  if (/teleport-?assault/i.test(abilityId)) {
+    if (/^(decline|skip|pass|none|stay)$/.test(o.id)) return 'Stay where they are'
   }
   if (/sacrificial-?dagger/i.test(abilityId)) {
     if (o.id === 'use') return 'Use the dagger (1 mortal wound)'
@@ -977,9 +995,19 @@ export function DecisionPrompt() {
           {pending.context.reservesAllowed.map((uid) => {
             const reserveAction = legal?.find((a) => a.type === 'deployUnit' && a.unitId === uid && a.toReserves)
             if (!reserveAction) return null
+            const abandon = isTeleporting(state, uid)
+            const nm = state.units[uid]?.name ?? uid
             return (
-              <button key={`res-${uid}`} style={{ ...buttonBase, flexShrink: 0, width: '100%', textAlign: 'left' }} onClick={() => dispatch(reserveAction)}>
-                Reserves: {state.units[uid]?.name ?? uid}
+              <button
+                key={`res-${uid}`}
+                style={{ ...(abandon ? buttonDanger : buttonBase), flexShrink: 0, width: '100%', textAlign: 'left' }}
+                title={abandon ? 'A teleporting unit that is not placed is destroyed.' : undefined}
+                onClick={() => {
+                  if (abandon && !window.confirm(`Abandon ${nm}? It cannot return to Reserves and will be destroyed.`)) return
+                  dispatch(reserveAction)
+                }}
+              >
+                {abandon ? `Abandon ${nm} (destroyed)` : `Reserves: ${nm}`}
               </button>
             )
           })}

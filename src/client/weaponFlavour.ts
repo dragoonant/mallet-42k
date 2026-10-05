@@ -35,7 +35,7 @@ function hasAbility(weapon: WeaponData | undefined, name: string): boolean {
 export function weaponFlavour(weaponId: string, weapon: WeaponData | undefined, faction: string): WeaponFlavour {
   const text = `${weaponId} ${weapon?.name ?? ''}`.toLowerCase()
   const melee = weapon ? weapon.type === 'melee' : /choppa|klaw|fist|weapon$|blade|scythe|mace|flail|sword|close-combat|combat weapon/.test(text)
-  const psychic = hasAbility(weapon, 'PSYCHIC') || /smite|witchfire|warp|psychic/.test(text)
+  const psychic = hasAbility(weapon, 'PSYCHIC') || /smite|witchfire|warp|psychic|psilencer|purge soul/.test(text)
   // Gauss weapons flay with a green energy bolt rather than a bullet, so they voice and trace as an energy
   // weapon; the psychic zap is the closest thing in the SFX palette.
   const gauss = /gauss/.test(text)

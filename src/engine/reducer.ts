@@ -19,6 +19,7 @@ import {
   type DecisionOption, type DiceRoll, type GameResult, type GameSetup, type GameState, type PendingDecision, type PlayerId,
   type PlayerView, type Rejection, type SaveFile, type Unit,
 } from './types'
+import { destroyStrandedTeleports } from './teleport'
 import { ENGINE_VERSION, majorVersion } from './version'
 
 export interface StepResult {
@@ -418,6 +419,7 @@ function endBattleChain(ctx: EngineContext, modules: ModuleTable, reason: GameRe
   const s = ctx.state
   if (ctx.once('battleEnd')) s.phaseState.marks.push(`battleEndReason:${reason}`)
   const stored = s.phaseState.marks.find((m) => m.startsWith('battleEndReason:'))?.slice('battleEndReason:'.length) as GameResult['reason'] | undefined
+  destroyStrandedTeleports(ctx) // GRE-2.4: Teleport Assault units still off-board are lost before battle.end scoring
   if (ctx.window('battle.end', 'battle', ctx.order.first())) return
   endBattle(ctx, modules, stored ?? reason)
 }

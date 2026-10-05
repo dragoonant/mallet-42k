@@ -462,3 +462,22 @@ export function battlefieldEdgeStrip(board: Pick<Board, 'w' | 'h'>, zone: Polygo
   const innerX = left ? v.x1 : v.x0, innerZ = top ? h.z1 : h.z0
   return [{ x: cx, z: cz }, { x: armX, z: cz }, { x: armX, z: innerZ }, { x: innerX, z: innerZ }, { x: innerX, z: armZ }, { x: cx, z: armZ }]
 }
+
+// the board side a deployment zone's longest edge lies along ('L' = -x, 'R' = +x, 'T' = -z, 'B' = +z). Zones touching no
+// board side fall back to the side nearest the zone's centroid. Used by Grey Knights No Escape ("closest to their edge").
+export function playerBattlefieldEdge(board: Pick<Board, 'w' | 'h'>, zone: Polygon): 'L' | 'R' | 'T' | 'B' {
+  const hw = board.w / 2, hh = board.h / 2
+  const total = { L: 0, R: 0, T: 0, B: 0 }
+  for (let i = 0; i < zone.length; i++) {
+    const a = zone[i], b = zone[(i + 1) % zone.length]
+    if (Math.abs(a.x + hw) < 1e-6 && Math.abs(b.x + hw) < 1e-6) total.L += Math.abs(b.z - a.z)
+    else if (Math.abs(a.x - hw) < 1e-6 && Math.abs(b.x - hw) < 1e-6) total.R += Math.abs(b.z - a.z)
+    else if (Math.abs(a.z + hh) < 1e-6 && Math.abs(b.z + hh) < 1e-6) total.T += Math.abs(b.x - a.x)
+    else if (Math.abs(a.z - hh) < 1e-6 && Math.abs(b.z - hh) < 1e-6) total.B += Math.abs(b.x - a.x)
+  }
+  const sides = (['L', 'R', 'T', 'B'] as const).filter((s) => total[s] > 0).sort((x, y) => total[y] - total[x])
+  if (sides.length > 0) return sides[0]
+  const cx = zone.reduce((n, p) => n + p.x, 0) / Math.max(1, zone.length), cz = zone.reduce((n, p) => n + p.z, 0) / Math.max(1, zone.length)
+  const d = { L: cx + hw, R: hw - cx, T: cz + hh, B: hh - cz }
+  return ([...['L', 'R', 'T', 'B']] as ('L' | 'R' | 'T' | 'B')[]).sort((x, y) => d[x] - d[y])[0]
+}

@@ -1,0 +1,61 @@
+[
+  {
+    "id": "gk.s.vindictive-strategy",
+    "faction": "grey-knights",
+    "name": "Vindictive Strategy",
+    "text": "Use when one of your INFANTRY units is picked as a target in the opponent's Shooting phase or in either player's Fight phase. Until the phase ends, any attack against it whose Strength exceeds the unit's Toughness suffers -1 to the wound roll.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["shooting", "fight"],
+    "window": ["shooting.targetsDeclared", "fight.targetsDeclared"],
+    "who": "either",
+    "condition": { "any": [ { "phase": "shooting", "ownTurn": false }, { "phase": "fight" } ] },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "INFANTRY" }, "state": "targetedByAttack", "count": 1 }
+    ],
+    "when": { "strengthVsToughness": "gt" },
+    "effect": { "modifyRoll": { "roll": "wound", "value": -1 } },
+    "scope": { "who": "attacker" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "gk.s.violent-unbinding",
+    "faction": "grey-knights",
+    "name": "Violent Unbinding",
+    "text": "Use in a Fight phase just after an enemy unit picks its targets, when one of your INFANTRY units is a target. Until the end of the phase, each time a model in that unit is destroyed before the unit has fought, roll a D6: on a 4+ it is not removed yet, and once the enemy unit finishes its attacks it fights, then is removed.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["fight"],
+    "window": "fight.targetsDeclared",
+    "who": "either",
+    "condition": { "phase": "fight" },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "INFANTRY" }, "state": "targetedByAttack", "count": 1 }
+    ],
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase",
+    "code": "daemonicFervour",
+    "params": { "threshold": 4 }
+  },
+  {
+    "id": "gk.s.daemonic-fervour",
+    "faction": "grey-knights",
+    "name": "Daemonic Fervour",
+    "text": "Use at any point in the opponent's Fight phase, targeting one of your INFANTRY units that is within Engagement Range of an enemy unit. Until the end of that turn, the unit can be picked for Teleport Assault even though it is in Engagement Range.",
+    "cost": 2,
+    "category": "strategicPloy",
+    "phases": ["fight"],
+    "window": ["fight.start", "fight.attacksResolved"],
+    "who": "reactive",
+    "condition": { "phase": "fight", "ownTurn": false },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "INFANTRY" }, "state": "inEngagement", "count": 1 }
+    ],
+    "scope": { "who": "self" },
+    "duration": "untilEndOfTurn",
+    "limit": "oncePerPhase",
+    "code": "teleportFervour"
+  }
+]

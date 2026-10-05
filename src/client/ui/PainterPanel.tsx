@@ -22,6 +22,7 @@ const PREVIEW: Record<string, { datasheetId: string; modelId?: string }> = {
   tyranids: { datasheetId: 'tyr.termagants', modelId: 'termagant' },
   'adepta-sororitas': { datasheetId: 'ade.battle-sisters-squad', modelId: 'superior' },
   'astra-militarum': { datasheetId: 'am.cadian-shock-troops', modelId: 'sergeant' },
+  'grey-knights': { datasheetId: 'gk.strike-squad' },
 }
 
 const backdrop: CSSProperties = { position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'auto', zIndex: 60 }

@@ -1,0 +1,23 @@
+{
+  "id": "grey-knights",
+  "name": "Grey Knights",
+  "factionKeyword": "GREY KNIGHTS",
+  "armyRule": "gk.a.teleport-assault",
+  "detachments": [
+    {
+      "id": "gk.d.combat-patrol",
+      "name": "Combat Patrol",
+      "rule": "gk.a.teleport-assault",
+      "stratagems": ["gk.s.vindictive-strategy", "gk.s.violent-unbinding", "gk.s.daemonic-fervour"],
+      "enhancements": ["gk.e.banishment-stone", "gk.e.dominating-aura"]
+    }
+  ],
+  "paintScheme": {
+    "primary": "#c3cad4",
+    "secondary": "#2f5fb0",
+    "trim": "#c9a227",
+    "metal": "#e4e9f0",
+    "decal": "#a8201f"
+  },
+  "combatPatrols": ["gk.cp.aurellios-banishers"]
+}

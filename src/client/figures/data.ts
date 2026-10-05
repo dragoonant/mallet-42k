@@ -93,6 +93,10 @@ const KNOWN_KIT: Record<string, KitId> = {
   'am.command-squad-karsk': 'am-veteran',
   'am.armoured-sentinels': 'am-sentinel',
   'am.field-ordnance-battery': 'am-field-gun',
+  'gk.strike-squad': 'gk-knight',
+  'gk.brotherhood-terminator-squad': 'gk-terminator',
+  'gk.librarian-aurellios': 'gk-librarian',
+  'gk.nemesis-dreadknight': 'gk-dreadknight',
 }
 
 /** Models of a mixed unit that look different from the rest of it (a flamer sister is not a rifle sister), keyed
@@ -154,6 +158,10 @@ const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
   'am-sentinel': 'vehicle',
   'am-field-gun': 'heavy',
   'am-rocket-battery': 'heavy',
+  'gk-knight': 'infantry',
+  'gk-terminator': 'heavy',
+  'gk-librarian': 'heavy',
+  'gk-dreadknight': 'monster',
   'generic-infantry': 'infantry',
   'generic-heavy': 'heavy',
   'generic-monster': 'monster',

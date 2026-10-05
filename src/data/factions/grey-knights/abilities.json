@@ -1,0 +1,29 @@
+[
+  {
+    "id": "gk.a.teleport-assault",
+    "name": "Teleport Assault",
+    "text": "When the opponent's turn ends, you may pick one of your units with this ability that is on the battlefield and not within Engagement Range of any enemy unit, and take it off the board. In your next Movement phase it must be set up anywhere on the battlefield more than 9 inches horizontally from every enemy model. Only one unit may go per opponent turn.",
+    "trigger": "turnEnd",
+    "code": "teleportAssaultPick",
+    "scope": { "who": "self" },
+    "params": { "pickWindow": "turn.end", "arrival": "deepStrike", "minDistance": 9 }
+  },
+  {
+    "id": "gk.a.sanctic-hood",
+    "name": "Sanctic Hood",
+    "text": "While this model leads a unit, every model in that unit has a 4+ Feel No Pain save against wounds caused by Psychic attacks.",
+    "trigger": "feelNoPainRoll",
+    "when": { "sourcePsychic": true, "leaderAttached": true },
+    "effect": { "feelNoPain": 4 },
+    "scope": { "who": "self" }
+  },
+  {
+    "id": "gk.a.hammerhand",
+    "name": "Hammerhand",
+    "text": "Psychic. Once a model in this unit has made a Charge move, melee weapons carried by models in the unit gain [LETHAL HITS] until the end of the turn.",
+    "trigger": "always",
+    "when": { "unitCharged": true },
+    "effect": { "when": { "weaponType": "melee" }, "grantWeaponAbility": { "ability": "LETHAL_HITS" } },
+    "scope": { "who": "self" }
+  }
+]
