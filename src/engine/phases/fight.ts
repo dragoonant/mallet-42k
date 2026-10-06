@@ -168,6 +168,21 @@ function contactPoint(m: Model, target: Model, stopGap: number): { point: Vec3; 
   return { point: pointAt(hi), travel: hi }
 }
 
+// point at horizontal gap `stopGap` from `target` in direction `angle` from its centre (adapted from charge.ts's ringPoint)
+function rankRingPoint(target: Footprint, m: Model, angle: number, stopGap: number): Vec3 {
+  const ux = Math.cos(angle), uz = Math.sin(angle)
+  const pointAt = (t: number): Vec3 => ({ x: target.pos.x + ux * t, y: m.pos.y, z: target.pos.z + uz * t })
+  const gapAt = (t: number): number => horizontalGap({ pos: pointAt(t), facing: m.facing, base: m.base }, target)
+  let hi = target.base.radius + m.base.radius + Math.max(stopGap, 0) + 2
+  for (let guard = 0; gapAt(hi) <= stopGap && guard < 20; guard++) hi *= 1.5
+  let lo = 0
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2
+    if (gapAt(mid) <= stopGap) lo = mid; else hi = mid
+  }
+  return pointAt(lo)
+}
+
 // R-9.5/R-9.10 heuristic arrangement: a model already in base contact with an enemy never needs to move; otherwise
 // closest-to-enemy models go first, each walking toward the nearest reachable Engagement Range point, capped by
 // `maxDistance` and by terrain/board/overlap legality — a model that cannot legally improve its position stays put.
@@ -176,6 +191,34 @@ function planApproachEnemy(state: GameState, geo: FightGeometry, maxDistance: nu
   if (geo.enemies.length === 0) return geo.models.map(stay)
   const order = [...geo.models].sort((a, b) => Math.min(...geo.enemies.map((t) => horizontalGap(a, t))) - Math.min(...geo.enemies.map((t) => horizontalGap(b, t))))
   const placed: ResolvedPlacement[] = []
+  // legality of one model ending at `to0` (budget, board, overlaps, enemy crossing, terrain); null when illegal
+  const tryPlace = (m: Model, to0: Vec3): ResolvedPlacement | null => {
+    const to = { ...to0, y: terrainService.heightAt(state, to0.x, to0.z) }
+    const travel = dist2D(m.pos, to) + Math.abs(to.y - m.pos.y)
+    if (travel > maxDistance + 1e-3) return null
+    const fp: Footprint = { pos: to, facing: m.facing, base: m.base }
+    if (!whollyOnBoard(fp, state.board)) return null
+    const overlapBlockers: Footprint[] = [...placed.map((pl) => ({ pos: pl.to, facing: pl.facing, base: pl.model.base })), ...geo.otherFriendly, ...geo.enemies]
+    if (overlapBlockers.some((b) => basesOverlap(fp, b))) return null
+    const path: Path = [m.pos, to]
+    if (pathCrossesModels(fp, path, geo.enemies) || crossesBigFriendly(state, m, fp, path, geo.otherFriendly)) return null
+    if (terrainService.crossesImpassable(state, m, path) || !terrainService.canEndAt(state, m, to).ok) return null
+    return { model: m, from: m.pos, to, facing: m.facing, path, distance: travel }
+  }
+  const rankUp = (m: Model): ResolvedPlacement | null => {
+    let best: ResolvedPlacement | null = null
+    for (const pl of placed) {
+      const tfp: Footprint = { pos: pl.to, facing: pl.facing, base: pl.model.base }
+      if (!geo.enemies.some((e) => inBaseContact(tfp, e))) continue
+      for (let i = 0; i < 48; i++) {
+        const cand = tryPlace(m, rankRingPoint(tfp, m, (2 * Math.PI * i) / 48, 0.004))
+        if (!cand || (best && cand.distance >= best.distance)) continue
+        if (!closerToClosestEnemyAtStart(m, m.pos, cand.to, geo.enemies)) continue
+        best = cand
+      }
+    }
+    return best
+  }
   for (const m of order) {
     if (geo.movable && !geo.movable.has(m.id)) { placed.push(stay(m)); continue } // a deferred pile-in moves only the deferred models
     if (geo.enemies.some((t) => inBaseContact(m, t))) { placed.push(stay(m)); continue }
@@ -184,27 +227,28 @@ function planApproachEnemy(state: GameState, geo: FightGeometry, maxDistance: nu
       const c = contactPoint(m, t, stopGap)
       if (!chosen || c.travel < chosen.travel) chosen = c
     }
-    if (!chosen) { placed.push(stay(m)); continue }
-    let to: Vec3
-    if (chosen.travel <= maxDistance + EPS) {
-      to = chosen.point
-    } else {
-      const dx = chosen.point.x - m.pos.x, dz = chosen.point.z - m.pos.z
-      const d = Math.hypot(dx, dz)
-      const scale = d > EPS ? maxDistance / d : 0
-      to = { x: m.pos.x + dx * scale, y: m.pos.y, z: m.pos.z + dz * scale }
+    let direct: ResolvedPlacement | null = null
+    if (chosen) {
+      let to: Vec3
+      if (chosen.travel <= maxDistance + EPS) {
+        to = chosen.point
+      } else {
+        const dx = chosen.point.x - m.pos.x, dz = chosen.point.z - m.pos.z
+        const d = Math.hypot(dx, dz)
+        const scale = d > EPS ? maxDistance / d : 0
+        to = { x: m.pos.x + dx * scale, y: m.pos.y, z: m.pos.z + dz * scale }
+      }
+      direct = tryPlace(m, to)
     }
-    to = { ...to, y: terrainService.heightAt(state, to.x, to.z) }
-    const travel = dist2D(m.pos, to) + Math.abs(to.y - m.pos.y)
-    if (travel > maxDistance + 1e-3) { placed.push(stay(m)); continue }
-    const fp: Footprint = { pos: to, facing: m.facing, base: m.base }
-    if (!whollyOnBoard(fp, state.board)) { placed.push(stay(m)); continue }
-    const overlapBlockers: Footprint[] = [...placed.map((pl) => ({ pos: pl.to, facing: pl.facing, base: pl.model.base })), ...geo.otherFriendly]
-    if (overlapBlockers.some((b) => basesOverlap(fp, b))) { placed.push(stay(m)); continue }
-    const path: Path = [m.pos, to]
-    if (pathCrossesModels(fp, path, geo.enemies) || crossesBigFriendly(state, m, fp, path, geo.otherFriendly)) { placed.push(stay(m)); continue }
-    if (terrainService.crossesImpassable(state, m, path) || !terrainService.canEndAt(state, m, to).ok) { placed.push(stay(m)); continue }
-    placed.push({ model: m, from: m.pos, to, facing: m.facing, path, distance: travel })
+    // R-9.6 rank-up: a model that cannot reach the enemy itself steps into base contact with a placed teammate that is
+    // itself in base contact with an enemy, so it may still fight through the chain.
+    const d0 = direct
+    const directInER = d0 !== null && geo.enemies.some((e) => horizontalGap({ pos: d0.to, facing: d0.facing, base: m.base }, e) <= ENGAGEMENT_H)
+    if (!directInER) {
+      const ranked = rankUp(m)
+      if (ranked) { placed.push(ranked); continue }
+    }
+    placed.push(direct ?? stay(m))
   }
   return placed
 }

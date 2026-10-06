@@ -236,12 +236,14 @@ function playTargetsDeclared(e: EventOf<'TargetsDeclared'>, from: GameState, to:
 
   if (e.phase === 'fight') {
     const seenTargets = new Set<string>()
+    const lunged = new Set<string>()
     for (const t of e.targets) {
       const attacker = modelPoint(from, to, t.modelId)
       const targetModels = unitModels(to, t.targetUnitId)
       if (!attacker || targetModels.length === 0) continue
       const anchor = modelsAnchor(targetModels)
       cues.setModelFacing(t.modelId, bearing(attacker, anchor), CUE_MS.facing)
+      if (!lunged.has(t.modelId)) { lunged.add(t.modelId); cues.setModelAction(t.modelId, 'melee', `${e.seq}:${t.modelId}`, CUE_MS.melee) } // only attacking models lunge
       if (seenTargets.has(t.targetUnitId)) continue
       seenTargets.add(t.targetUnitId)
       vfx.melee({ x: (attacker.x + anchor.x) / 2, y: attacker.y + 0.3, z: (attacker.z + anchor.z) / 2 }, attackerFaction)
@@ -328,7 +330,8 @@ async function playEvent(
     }
 
     case 'AttackSequenceStarted':
-      cues.setUnitAction(event.unitId, event.kind === 'melee' ? 'melee' : 'shoot', event.seq, CUE_MS[event.kind === 'melee' ? 'melee' : 'shoot'])
+      if (event.kind === 'melee') return // melee lunges are per attacking model, cued from TargetsDeclared
+      cues.setUnitAction(event.unitId, 'shoot', event.seq, CUE_MS.shoot)
       return
 
     case 'TargetsDeclared':
