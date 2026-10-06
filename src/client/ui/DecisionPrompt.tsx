@@ -958,7 +958,7 @@ export function DecisionPrompt() {
                 {r.total === 0
                   ? 'no ranged weapons'
                   : `${r.canFire} of ${r.total} ranged weapon${r.total === 1 ? '' : 's'} can reach ${state.units[enemyId]?.name ?? enemyId}`}
-                {r.inRange > r.canFire && ` (${r.inRange - r.canFire} more in range but without line of sight)`}
+                {r.inRange > r.canFire && ` (${r.inRange - r.canFire} more in range but blocked — no line of sight or not a legal target)`}
               </div>
             ))}
             <div style={{ fontSize: '0.9em' }}>Measured base to base against each weapon&apos;s range.</div>
