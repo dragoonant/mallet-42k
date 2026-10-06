@@ -116,7 +116,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
 const DEFENSIVE = ['go-to-ground', 'smokescreen', 'gene-wrought-resilience', 'holy-radiance', 'hyper-reactive',
   'mercurial-resilience', 'a-martyrs-death', 'daemonic-fervour', 'lurking-killers']
 
-// Fire Overwatch: hits only on an unmodified 6, the bound unit only, within 24" and weapon range, with line of sight.
+// Fire Overwatch: hits only on an unmodified 6, the bound unit only (picked within 24"), each weapon within its own range, with line of sight.
 function overwatchGain(state: GameState, player: PlayerId, action: UseStratagemAction, enemyId: UnitId): number {
   const shooterId = mineOf(state, player, action.targets?.unitIds)
   if (!shooterId) return -Infinity
@@ -126,7 +126,7 @@ function overwatchGain(state: GameState, player: PlayerId, action: UseStratagemA
     if (!best) continue
     const inRange = unitModels(state, enemyId).some((e) => {
       const d = Math.hypot(e.pos.x - m.pos.x, e.pos.z - m.pos.z) - e.base.radius - m.base.radius
-      return d <= Math.min(24, best.range)
+      return d <= best.range
     })
     if (!inRange) continue
     if (!DEFAULT_SERVICES.los.unitVisible(state, m.id, enemyId)) continue

@@ -98,7 +98,7 @@ function isLoneOperative(state: GameState, unitId: UnitId): boolean {
 }
 
 // ---------- R-6.4/R-6.2/R-6.3/R-6.9 target legality for one (firing model, weapon, candidate target) ----------
-function targetLegality(state: GameState, firingUnitId: UnitId, firingModelId: ModelId, weapon: RuntimeWeapon, targetUnitId: UnitId): Rejection | null {
+export function targetLegality(state: GameState, firingUnitId: UnitId, firingModelId: ModelId, weapon: RuntimeWeapon, targetUnitId: UnitId): Rejection | null {
   const attackerModel = state.models[firingModelId]
   const targetModels = leaderService.halves(state, targetUnitId).flatMap((id) => (state.units[id]?.location === 'board' ? unitModels(state, id) : []))
   if (!attackerModel || targetModels.length === 0) return { code: 'E_INVALID_TARGET', reason: `${targetUnitId} is not on the board`, details: { modelId: firingModelId, weaponId: weapon.id, targetUnitId } }

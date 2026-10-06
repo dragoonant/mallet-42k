@@ -38,7 +38,7 @@ import {
   pendingCultAmbushReactions,
 } from '../cult-ambush'
 import { attackService } from '../attack'
-import { isBigGunsUnit } from './shooting'
+import { isBigGunsUnit, targetLegality } from './shooting'
 import { weaponService } from '../weapons'
 import { terrainService } from '../terrain'
 import { transportService } from '../transports'
@@ -396,6 +396,8 @@ export function overwatchTargets(state: GameState, shooterUnitId: UnitId, target
         // [ONE SHOT]: a weapon already fired this battle is never a legal Overwatch choice either
         if (w.abilities.some((a) => a.ability === 'ONE_SHOT') && m.oneShotUsed.includes(wid)) continue
         if (!weaponService.isAvailable(state, m.id, wid)) continue // C4
+        // R-6.22: "as though it were your Shooting phase" — each weapon needs range + line of sight from its own model
+        if (targetLegality(state, half, m.id, weaponService.effectiveWeapon(state, m.id, wid), targetUnitId)) continue
         out.push({ modelId: m.id, weaponId: wid, targetUnitId, profileGroup: w.profileGroup, attacks: null })
       }
     }

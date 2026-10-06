@@ -133,7 +133,8 @@ describe('attack.verify', () => {
   })
 
   it('SHOOT-011 RC-015 Overwatch against a Fall Back: an engaged non-MONSTER/VEHICLE unit selects only Pistols; a VEHICLE keeps all', () => {
-    const state = stateWith(unattached())
+    // the walker's cannon is [BLAST], which can never target a unit engaged with a friendly unit — strip it here
+    const state = stateWith(unattached(), (b) => { b.weapons['red.w.cannon'].abilities = b.weapons['red.w.cannon'].abilities.filter((a) => a.ability !== 'BLAST') })
     place(state)
     placeUnit(state, 'B:mob', [[-10, -3.4]]) // within Engagement Range of the grunts row
     expect(leaderService.inEngagementWithEnemy(state, 'A:grunts')).toBe(true) // precondition
