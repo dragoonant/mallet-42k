@@ -330,6 +330,8 @@ export interface GameStore {
   error: string | null
 
   newGame(opts: NewGameOptions): Promise<void>
+  /** Dev/QA seam (src/client/dev/scenarios.ts): adopt an already-built engine state instead of calling createGame. */
+  startFromState(init: { bundle: DataBundle; setup: GameSetup; state: GameState; pending: PendingDecision | null }, opts: { opponent: OpponentKind; seed: string; difficulty?: AiDifficulty }): void
   dispatch(action: Action): void
   clearToast(): void
   clearVpToast(): void
@@ -788,6 +790,27 @@ export const useGameStore = create<GameStore>()((set, get) => {
         set({ loading: false, error: err instanceof Error ? err.message : String(err) })
         throw err
       }
+    },
+
+    startFromState(init, opts) {
+      clearBotTimer()
+      clearProgressWatchdog()
+      usePresentationSettings.getState().muteRerolls(null)
+      registerDataBundle(init.bundle)
+      const botSeat: PlayerId | null = opts.opponent === 'bot' ? 'B' : null
+      const difficulty = opts.difficulty ?? DEFAULT_AI_DIFFICULTY
+      botDecider = botSeat ? makeBotDecider(difficulty, `${opts.seed}:ai:${botSeat}`) : null
+      const headSeq = init.state.log.length - 1
+      resetPresentation(headSeq, init.state)
+      set({
+        bundle: init.bundle, setup: init.setup, state: init.state, pending: init.pending, pendingSeq: headSeq,
+        legal: init.pending ? engineLegalActions(init.state, init.pending) : null,
+        events: [], diceLog: [], actionLog: [], notes: [], toast: null, vpToast: null,
+        opponent: opts.opponent, humanSeat: 'A', botSeat, difficulty: botSeat ? difficulty : null, loading: false, error: null,
+      })
+      scheduleBotIfNeeded()
+      scheduleAutoAnswer()
+      startProgressWatchdog()
     },
 
     dispatch(action) {

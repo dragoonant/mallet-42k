@@ -12,6 +12,7 @@ import type { Pose } from './figures'
 import { DiceTray } from './dice'
 import { audio } from './audio'
 import { PresentationDirector } from './presentation'
+import { scenarioFromUrl, startScenario } from './dev/scenarios'
 import { spikeMode } from '../spike/flag'
 import { startSpikeGame } from '../spike/driver'
 import { PerfOverlay } from '../spike/PerfOverlay'
@@ -78,6 +79,13 @@ export function App() {
   useEffect(() => {
     if (spike) void startSpikeGame()
   }, [spike])
+
+  // Dev/QA: `?scenario=<name>` opens straight into a test position (src/client/dev/scenarios.ts).
+  useEffect(() => {
+    const name = scenarioFromUrl()
+    if (!name) return
+    startScenario(name).then(() => { resetAll(); setScreen('game') }, (e) => console.error('[scenario]', e))
+  }, [resetAll])
 
   const gallery = useGalleryQuery()
   if (gallery.active) {
