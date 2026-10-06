@@ -274,7 +274,7 @@ export function PlacementOverlay() {
         ))}
       {unitDraft && result && (
         <>
-          <Ruler a={anchor} b={unitDraft.anchor} />
+          {!approach && <Ruler a={anchor} b={unitDraft.anchor} />}
           <CoherencyLinks links={result.links} />
           <DraftMarkers
             placements={unitDraft.placements}
@@ -353,7 +353,7 @@ function FloatingLabel({ pos, text, color }: { pos: { x: number; z: number }; te
       <div
         style={{
           fontFamily: 'system-ui, sans-serif',
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: 700,
           color,
           background: 'rgba(10,10,16,0.85)',

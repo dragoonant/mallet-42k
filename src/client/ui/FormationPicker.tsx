@@ -69,6 +69,7 @@ export function FormationPicker() {
   const isDeploy = active && pending!.kind === 'deployUnit' && !!deployTargetUnitId
   const isMove = active && isPlacementDecision(pending)
   const show = isDeploy || isMove
+  const perModelDraft = !!pending && (pending.kind === 'pileIn' || pending.kind === 'consolidate')
   const hasPreview = show && !!draft && draft.decisionId === pending!.id
 
   const pick = (kind: FormationKind) => {
@@ -119,7 +120,8 @@ export function FormationPicker() {
   // captured on window so it wins over OrbitControls' own wheel-zoom for the duration.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (!hasPreview) return
+    // per-model pile-in/consolidate: the wheel zooms the camera (rotate stays on the buttons/keys)
+    if (!hasPreview || perModelDraft) return
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
       e.stopPropagation()
@@ -127,7 +129,7 @@ export function FormationPicker() {
     }
     window.addEventListener('wheel', onWheel, { capture: true, passive: false })
     return () => window.removeEventListener('wheel', onWheel, { capture: true })
-  }, [hasPreview, formationKind, formationFacing])
+  }, [hasPreview, perModelDraft, formationKind, formationFacing])
 
   if (!show) return null
 
