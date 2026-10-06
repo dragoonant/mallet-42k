@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { loadBundle } from '../../data'
 import type { DataBundle } from '../../data/types'
-import { AI_DIFFICULTY_OPTIONS, DEFAULT_AI_DIFFICULTY, resolveFactionId, splittablePatrolRefs, patrolUnitChoices, useGameStore, type AiDifficulty, type FactionKey, type OpponentKind } from '../store/game'
+import { AI_DIFFICULTY_OPTIONS, DEFAULT_AI_DIFFICULTY, resolveFactionId, splittablePatrolRefs, patrolUnitChoices, RANDOM_UNIT_CHOICE, useGameStore, type AiDifficulty, type FactionKey, type OpponentKind } from '../store/game'
 import { primaryScoringSummary } from './labels'
 import { PainterPanel } from './PainterPanel'
 import { buttonActive, buttonBase, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
@@ -138,7 +138,7 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
   const [pickA, setPickA] = useState<Record<string, string>>({})
   const [pickB, setPickB] = useState<Record<string, string>>({})
   const choicesA = bundle ? patrolUnitChoices(bundle, faction) : []
-  const choicesB = bundle && opponent === 'hotseat' && opponentFaction ? patrolUnitChoices(bundle, opponentFaction) : []
+  const choicesB = bundle && opponentFaction ? patrolUnitChoices(bundle, opponentFaction) : []
   useEffect(() => { setPickA({}) }, [faction])
   useEffect(() => { setPickB({}) }, [opponentFaction])
   const refName = (factionKey: string, ref: string): string => {
@@ -149,9 +149,10 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
   const unitChoiceRow = (factionKey: string, choices: { id: string; refs: string[]; default: string }[], pick: Record<string, string>, setPick: (v: Record<string, string>) => void, who: string) =>
     choices.map((g) => (
       <label key={g.id} style={blurb} data-testid={`setup-unit-choice-${who}-${g.id}`}>
-        {who === 'A' ? 'Your' : "Player B's"} patrol fields:{' '}
-        <select style={select} value={pick[g.id] ?? g.default} onChange={(e) => setPick({ ...pick, [g.id]: e.target.value })}>
+        {who === 'A' ? 'Your' : opponent === 'bot' ? "The bot's" : "Player B's"} patrol fields:{' '}
+        <select style={select} value={pick[g.id] ?? (who === 'B' && opponent === 'bot' ? RANDOM_UNIT_CHOICE : g.default)} onChange={(e) => setPick({ ...pick, [g.id]: e.target.value })}>
           {g.refs.map((r) => <option key={r} value={r}>{refName(factionKey, r)}</option>)}
+          <option value={RANDOM_UNIT_CHOICE}>Random</option>
         </select>
       </label>
     ))

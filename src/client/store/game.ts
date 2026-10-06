@@ -220,6 +220,24 @@ function buildPlayerSetup(bundle: DataBundle, factionKey: FactionKey, secondaryI
   }
 }
 
+/** Sentinel unit-choice value: pick one of the group's refs at random (seeded, so a seed replays the same roster). */
+export const RANDOM_UNIT_CHOICE = 'random'
+
+/** Resolves a seat's either/or picks. Random picks (and every unset group on a bot seat) roll from the game seed. */
+function resolveUnitChoices(bundle: DataBundle, factionKey: FactionKey, picks: Record<string, string> | undefined, randomUnset: boolean, seed: string): Record<string, string> | undefined {
+  const out: Record<string, string> = {}
+  for (const g of patrolUnitChoices(bundle, factionKey)) {
+    const pick = picks?.[g.id]
+    if (pick && pick !== RANDOM_UNIT_CHOICE) out[g.id] = pick
+    else if (pick === RANDOM_UNIT_CHOICE || randomUnset) {
+      let h = 2166136261
+      for (const c of `${seed}:unitChoice:${g.id}`) h = Math.imul(h ^ c.charCodeAt(0), 16777619)
+      out[g.id] = g.refs[(h >>> 0) % g.refs.length]
+    }
+  }
+  return Object.keys(out).length ? out : undefined
+}
+
 function buildSetup(bundle: DataBundle, opts: NewGameOptions): GameSetup {
   const missionId = resolveMissionId(bundle, opts.mission)
   const mission = bundle.missions[missionId]
@@ -230,8 +248,9 @@ function buildSetup(bundle: DataBundle, opts: NewGameOptions): GameSetup {
     missionId,
     terrainLayoutId,
     players: {
-      A: buildPlayerSetup(bundle, opts.playerFaction, opts.secondaryId, opts.splitSquads, opts.unitChoices),
-      B: buildPlayerSetup(bundle, opponentFaction, undefined, opts.opponentSplitSquads, opts.opponentUnitChoices),
+      A: buildPlayerSetup(bundle, opts.playerFaction, opts.secondaryId, opts.splitSquads, resolveUnitChoices(bundle, opts.playerFaction, opts.unitChoices, false, opts.seed)),
+      B: buildPlayerSetup(bundle, opponentFaction, undefined, opts.opponentSplitSquads,
+        resolveUnitChoices(bundle, opponentFaction, opts.opponentUnitChoices, opts.opponent === 'bot', opts.seed)),
     },
     sides: 'rollOff',
     firstTurn: 'rollOff',
@@ -254,7 +273,8 @@ export interface NewGameOptions {
    *  engine's own deployment prompt, which is offered to whichever seat owns the unit. */
   splitSquads?: boolean
   opponentSplitSquads?: boolean
-  /** Either/or unit picks (patrol.unitChoices group id -> chosen ref) per seat; an omitted group takes the patrol default. */
+  /** Either/or unit picks (patrol.unitChoices group id -> chosen ref, or RANDOM_UNIT_CHOICE) per seat. An omitted group takes
+   *  the patrol default, except on a bot seat, where it is picked at random from the seed. */
   unitChoices?: Record<string, string>
   opponentUnitChoices?: Record<string, string>
   /** Bot opponent strength; ignored for 'hotseat'. Defaults to DEFAULT_AI_DIFFICULTY ('normal'). */

@@ -79,3 +79,8 @@ MGSD proportions; variants made by editing a clean base image in Gemini. Acolyte
 `neophyte-icon` icon bearer · `neophyte-stubber` heavy stubber · `neophyte-seismic` seismic cannon · `neophyte-webber` webber ·
 `acolyte-leader` hybrid leader · `acolyte-hybrid` hybrid with extra arm · `acolyte-demolitions` demolition charges ·
 `acolyte-mining-tool` mining tool · `aberrant-hypermorph` hulking brute leader · `aberrant` hulking brute · `goliath-rockgrinder` stubby mining vehicle.
+
+### Adeptus Custodes (MGSD, 2026-10-05)
+MGSD proportions; variants made by editing a clean base image in Gemini.
+`shield-captain-tyvan` crested golden captain with shield and sword · `custodian-guard-spear` guardian spear · `custodian-guard-vexilla` standard bearer ·
+`custodian-guard-shield` sentinel blade and shield · `prosecutor` masked bronze rifle warrior · `vigilator` bronze greatsword warrior · `vertus-praetor` lancer on a jetbike.
