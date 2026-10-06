@@ -12,6 +12,7 @@ import {
 import type { ScoringRule } from '../data/types'
 import { createRng, restoreRng, type Rng } from '../engine/rng'
 import { woundRollNeeded } from '../engine/dice'
+import { deployTerrainBlock } from '../engine/terrain'
 import { commandRerollScore, scoreStratagemOrReaction } from './stratagems'
 import {
   bestMeleeWeapon, bestRangedRangeOfUnit, bestRangedWeapon, expectedAttack, hasAnyMeleeWeapon, hasAnyRangedWeapon,
@@ -715,12 +716,14 @@ function chooseFormationDeployment(state: GameState, player: PlayerId, pending: 
     // only cheap (1 W, 5+ or worse save), short-ranged mobs are screening-line material
     if (g.models.length >= 8 && stats.W === 1 && stats.Sv >= 5 && (rangeOf === null || rangeOf <= 18) && !heavy) shapes = [...shapes, 'line']
     const meleeOnly = hasAnyMeleeWeapon(state, g.unitId) && !hasAnyRangedWeapon(state, g.unitId)
+    // a long oval base (Rockgrinder, 150x90 mm) is deeper than a 5" zone when it faces the enemy: also try it side-on
+    const oval = g.models.some((m) => m.base.radius2 !== undefined && Math.abs(m.base.radius - m.base.radius2) > 0.2)
     let unitBest = -Infinity
     for (let z = minZ + 1; z <= maxZ - 1 + 1e-9; z += zStep) {
       for (let x = minX + 1; x <= maxX - 1 + 1e-9; x += xStep) {
         if (!pointInPolygon({ x, z }, zone)) continue
         const toEnemy = Math.atan2(enemyC.z - z, enemyC.x - x)
-        const facings = [toEnemy]
+        const facings = oval ? [toEnemy, toEnemy + Math.PI / 2] : [toEnemy]
         let nearObj: { x: number; z: number } | null = null, nd = Infinity
         for (const o of objs) { const d = Math.hypot(o.pos.x - x, o.pos.z - z); if (d < nd) { nd = d; nearObj = o.pos } }
         if (nearObj && nd > 3) {
@@ -735,6 +738,8 @@ function chooseFormationDeployment(state: GameState, player: PlayerId, pending: 
             if (!placements) continue
             const feet = placements.map((p, i) => ({ pos: p.pos, facing, base: g.models[i].base }))
             if (!feet.every((f) => whollyWithinPolygon(f, zone) && whollyOnBoard(f, state.board) && !occupied.some((o) => basesOverlap(f, o)))) continue
+            // never set up boxed in by terrain (a VEHICLE inside ruin walls it can never cross)
+            if (!feet.every((f, i) => { const m = state.models[g.models[i].id]; return !m || deployTerrainBlock(state, m, f.pos, f.facing) === null })) continue
             const action: DeployUnitAction = { type: 'deployUnit', player, decisionId: pending.id, unitId: g.unitId, placements }
             let score = scoreDeployUnit(state, player, action, threats) + shapeRoleScore(shape === 'line' ? 'screen' : role, shape)
             if (role === 'ranged') { score += Math.min(dEnemy, 36) * 0.03; if (inTerrain) score += 0.8 }

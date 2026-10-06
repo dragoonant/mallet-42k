@@ -1,6 +1,7 @@
 // Live client-side checks for a formation draft, so the preview can show trouble before the player
 // hits Confirm — the engine still has the final say (checkPlacements/isCoherent are the same rules
 // it uses internally); this is purely a faster, friendlier heads-up.
+import { deployTerrainBlock } from '../../engine/terrain'
 import {
   DEFAULT_SERVICES,
   basesOverlap,
@@ -196,8 +197,10 @@ export function validateDraft(
       const synthetic: Model = { ...cur, facing }
       const endCheck = DEFAULT_SERVICES.terrain.canEndAt(state, synthetic, p.pos)
       const crossed = constraints ? DEFAULT_SERVICES.terrain.crossesImpassable(state, synthetic, [cur.pos, p.pos]) : false
-      if (!endCheck.ok || crossed) {
-        addReason(perModel, p.modelId, endCheck.reason ?? 'blocked by terrain')
+      // setup deployment mirrors the engine: no VEHICLE/MONSTER boxed inside a ruin it can never leave
+      const deployBlock = !constraints && pendingDeploy?.window === 'deployment.unit' ? deployTerrainBlock(state, cur, p.pos, facing) : null
+      if (!endCheck.ok || crossed || deployBlock) {
+        addReason(perModel, p.modelId, deployBlock ?? endCheck.reason ?? 'blocked by terrain')
         reasonSet.add('blocked by terrain')
       }
     }

@@ -224,3 +224,19 @@ export const terrainService: TerrainService = {
       .map((p) => p.id)
   },
 }
+
+// Deployment terrain check: a model may only be set up where it could legally end a move (no wall/crate/barricade
+// overlap) and, if it cannot pass ruin walls (VEHICLE/MONSTER without FLY), not even partly inside a ruin footprint —
+// otherwise it starts the game boxed in by walls it can never cross (a Deff Dread trapped in a corner ruin).
+export function deployTerrainBlock(state: GameState, model: Model, pos: Vec3, facing: number = model.facing): string | null {
+  const m: Model = { ...model, facing }
+  const end = terrainService.canEndAt(state, m, pos)
+  if (!end.ok) return end.reason ?? 'blocked by terrain'
+  if (!canPassWalls(state, model)) {
+    const fp: Footprint = { pos, facing, base: model.base }
+    for (const p of Object.values(state.board.pieces)) {
+      if (p.kind === 'ruin' && partlyWithinPolygon(fp, p.footprint)) return 'cannot be set up inside a ruin it cannot move out of'
+    }
+  }
+  return null
+}

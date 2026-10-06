@@ -469,7 +469,8 @@ describe('Infiltrators and Patrol Squads at Declare Battle Formations (TYR-036, 
     const r = radius(s, LEAP)
     const placeAt = (edgeGap: number): Action => ({
       type: 'deployUnit', player: 'A', decisionId: pending.id, unitId: LEAP,
-      placements: s.units[LEAP].models.map((id, i) => ({ modelId: id, pos: { x: i * (2 * r + 0.3), y: 0, z: nearEdge + sign * (edgeGap + r) }, facing: 0 })),
+      // x from 20" inward: clear of the centre ruins' walls, which deployment now checks
+      placements: s.units[LEAP].models.map((id, i) => ({ modelId: id, pos: { x: 20 - i * (2 * r + 0.3), y: 0, z: nearEdge + sign * (edgeGap + r) }, facing: 0 })),
     })
     expect(setupModule.validate!(s, placeAt(8.9), pending)).not.toBeNull()
     expect(setupModule.validate!(s, placeAt(9.1), pending)).toBeNull()
