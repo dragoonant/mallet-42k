@@ -11,6 +11,7 @@ import { useGameStore } from '../store/game'
 import { useUiStore } from './uiStore'
 import {
   combinedUnitIds, combinedUnitModels, distance2D, formationPlacementsForUnit, modelsAnchor, placementInfo, validateDraft,
+  isApproachPending, startDraft, autoDraft, placementsToSend, validateApproach, fightersAfter,
 } from '../interaction'
 import { neededChargeDistance } from '@/engine/phases/charge'
 import { isTeleporting } from '@/engine/teleport'
@@ -819,6 +820,14 @@ export function DecisionPrompt() {
     else primeFormation('keep', 0, true)
   }, [pending?.id])
 
+  // Pile in / consolidate: open with every model where it stands so it can be dragged right away
+  // (staying put is always an option); a board click or "Auto" still replaces the draft.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!state || !isApproachPending(pending) || pending.player === botSeat) return
+    setDraft(startDraft(state, pending))
+  }, [pending?.id])
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!pending || pending.kind !== 'deployUnit' || !deployTargetUnitId) return
@@ -844,8 +853,11 @@ export function DecisionPrompt() {
   const activeDraft = draft && draft.decisionId === pending.id ? draft : null
   const passAction = legal?.find((a) => a.type === 'pass') ?? null
 
+  const approach = isApproachPending(pending) ? pending : null
   const draftValidation = activeDraft
-    ? validateDraft(
+    ? approach
+      ? validateApproach(state, approach, combinedUnitModels(state, activeDraft.unitId), activeDraft.placements, combinedUnitIds(state, activeDraft.unitId))
+      : validateDraft(
         state,
         combinedUnitModels(state, activeDraft.unitId),
         activeDraft.placements,
@@ -857,7 +869,8 @@ export function DecisionPrompt() {
 
   const confirmDraft = () => {
     if (!activeDraft || (draftValidation && !draftValidation.ok)) return
-    const { unitId, placements } = activeDraft
+    const { unitId } = activeDraft
+    const placements = approach ? placementsToSend(state, activeDraft.placements) : activeDraft.placements
     const base = { player: pending.player, decisionId: pending.id }
     if (pending.kind === 'deployUnit') dispatch({ ...base, type: 'deployUnit', unitId, placements })
     else if (pending.kind === 'moveUnit') dispatch({ ...base, type: 'moveUnit', unitId, placements })
@@ -870,6 +883,7 @@ export function DecisionPrompt() {
 
   const resetDraft = () => {
     if (!activeDraft) return
+    if (approach) { setDraft(startDraft(state, approach)); return }
     const placements = formationPlacementsForUnit(state, activeDraft.unitId, activeDraft.anchor, formationFacing, formationKind)
     if (placements.length > 0) setDraft({ ...activeDraft, placements })
   }
@@ -1005,8 +1019,13 @@ export function DecisionPrompt() {
 
       {(pending.kind === 'pileIn' || pending.kind === 'consolidate') && (
         <div style={infoBlock} data-testid="pile-in-context">
-          Move each model up to {pending.context.distance}&quot;
-          {pending.kind === 'pileIn' ? ', as close as it can get to the closest enemy model.' : ', ending closer to the closest enemy model or an objective you can hold.'}
+          Drag each model up to {pending.context.distance}&quot; (its grey ring) or leave it where it stands.
+          {pending.kind === 'pileIn' ? ' Moved models must end closer to the enemy.' : ' Moved models must end closer to the enemy or an objective.'}
+          {activeDraft && (() => {
+            const f = fightersAfter(state, activeDraft.unitId, activeDraft.placements)
+            const total = activeDraft.placements.length
+            return <div data-testid="pile-in-fighters" style={{ color: f.size > 0 ? '#ffb347' : colors.text, fontWeight: 600, marginTop: 4 }}>⚔ {f.size} of {total} models will be able to fight (orange rings)</div>
+          })()}
         </div>
       )}
 
@@ -1105,11 +1124,18 @@ export function DecisionPrompt() {
             ? deployTargetUnitId
               ? 'Click inside your deployment zone to place the unit.'
               : 'Pick a unit above, then click inside your zone.'
-            : 'Click on the board to set a destination — a range ring shows how far the unit can go.'}
+            : approach
+              ? 'Drag a model to move just it (Shift-drag moves them all). A red ring says why it is not allowed.'
+              : 'Click on the board to set a destination — a range ring shows how far the unit can go.'}
         </div>
       )}
 
       <div style={row}>
+        {approach && (
+          <button style={buttonBase} data-testid="btn-auto-approach" onClick={() => setDraft(autoDraft(state, approach, legal))}>
+            {approach.kind === 'pileIn' ? 'Auto pile in' : 'Auto consolidate'}
+          </button>
+        )}
         {activeDraft && (
           <>
             <button

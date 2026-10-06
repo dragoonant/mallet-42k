@@ -19,6 +19,7 @@ import { colors } from '../ui/theme'
 import { combinedUnitIds, combinedUnitModels, modelsAnchor } from './geometry'
 import { placementInfo } from './decisions'
 import { validateDraft, type CoherencyLink } from './formationValidation'
+import { fightersAfter, isApproachPending, validateApproach } from './approachDraft'
 
 const OK_COLOR = '#f5d95a'
 const BLOCKED_COLOR = colors.danger
@@ -27,6 +28,7 @@ const LINK_OK_COLOR = '#ffffff'
 const LINK_BAD_COLOR = colors.danger
 const FRONT_RANK_COLOR = '#ffffff'
 const CHEVRON_COLOR = '#ffffff'
+const FIGHT_COLOR = '#ff9a2e'
 
 /** How close (along the facing axis) a model has to be to the formation's own front-most model to
  *  still count as "front rank" — a little over one model depth, so a slightly uneven front row (e.g.
@@ -93,7 +95,10 @@ function DraftMarkers({
   onHover,
   anchor,
   facing,
+  fighting,
 }: {
+  /** Models that would be able to fight from where they stand in this draft — drawn with an orange ring + sword mark. */
+  fighting?: ReadonlySet<string>
   placements: { modelId: string; pos: { x: number; z: number } }[]
   perModel?: Record<string, string[]>
   color?: string
@@ -131,6 +136,17 @@ function DraftMarkers({
                 <ringGeometry args={[0.62, 0.74, 24]} />
                 <meshBasicMaterial color={FRONT_RANK_COLOR} transparent opacity={0.55} />
               </mesh>
+            )}
+            {fighting?.has(p.modelId) && !blocked && (
+              <>
+                <mesh position={[p.pos.x, 0.075, p.pos.z]} rotation={[-Math.PI / 2, 0, 0]}>
+                  <ringGeometry args={[0.66, 0.82, 24]} />
+                  <meshBasicMaterial color={FIGHT_COLOR} transparent opacity={0.95} />
+                </mesh>
+                <Html position={[p.pos.x, 0.9, p.pos.z]} center style={{ pointerEvents: 'none', fontSize: 13, lineHeight: 1, color: FIGHT_COLOR, textShadow: '0 0 3px #000' }}>
+                  ⚔
+                </Html>
+              </>
             )}
             <mesh position={[p.pos.x, 0.07, p.pos.z]} rotation={[-Math.PI / 2, 0, 0]}>
               <ringGeometry args={[0.45, 0.6, 24]} />
@@ -236,11 +252,22 @@ export function PlacementOverlay() {
   const unitDraft = activeDraft?.unitId === info.unitId ? activeDraft : null
   const excludeUnitIds = combinedUnitIds(state, info.unitId)
 
-  const result = unitDraft ? validateDraft(state, models, unitDraft.placements, info.constraints, excludeUnitIds, true) : null
+  const approach = isApproachPending(pending) ? pending : null
+  const result = unitDraft
+    ? approach
+      ? validateApproach(state, approach, models, unitDraft.placements, excludeUnitIds)
+      : validateDraft(state, models, unitDraft.placements, info.constraints, excludeUnitIds, true)
+    : null
+  const fighting = approach && unitDraft ? fightersAfter(state, info.unitId, unitDraft.placements) : undefined
 
   return (
     <group>
-      <MoveRangeRing pos={anchor} range={info.constraints.maxDistance} />
+      {approach ? (
+        // each model has its own limit circle around where it started
+        models.map((m) => <MoveRangeRing key={m.id} pos={{ x: m.pos.x, z: m.pos.z }} range={info.constraints.perModel[m.id] ?? info.constraints.maxDistance} />)
+      ) : (
+        <MoveRangeRing pos={anchor} range={info.constraints.maxDistance} />
+      )}
       {showEngagement &&
         enemyModelsOnBoard(state, pending.player).map((m) => (
           <EngagementRing key={m.id} pos={{ x: m.pos.x, z: m.pos.z }} baseRadius={m.base.radius} />
@@ -255,9 +282,13 @@ export function PlacementOverlay() {
             onModelPointerDown={(e, modelId) => beginNudge(e, modelId, unitDraft.placements)}
             onHover={setHoveredModelId}
             anchor={unitDraft.anchor}
-            facing={unitDraft.placements[0]?.facing}
+            facing={approach ? undefined : unitDraft.placements[0]?.facing}
+            fighting={fighting}
           />
-          {hoveredModelId && (
+          {hoveredModelId && result.perModel[hoveredModelId]?.length ? (
+            <ReasonLabel modelId={hoveredModelId} placements={unitDraft.placements} perModel={result.perModel} />
+          ) : null}
+          {hoveredModelId && !result.perModel[hoveredModelId]?.length && (
             <DistanceLabel modelId={hoveredModelId} models={models} placements={unitDraft.placements} constraints={info.constraints} />
           )}
         </>
