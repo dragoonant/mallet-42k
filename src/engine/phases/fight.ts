@@ -190,7 +190,8 @@ function rankRingPoint(target: Footprint, m: Model, angle: number, stopGap: numb
 // legality. A model that cannot get within Engagement Range itself ranks up (R-9.6) into base contact with any
 // unit-mate that ends in base contact with an enemy (including ones that started there); a second pass retries every
 // model still unable to fight once the whole front rank is known. A model that cannot legally improve stays put.
-function planApproachEnemy(state: GameState, geo: FightGeometry, maxDistance: number, stopGap = ENGAGEMENT_H - 0.01, farFirst = false): ResolvedPlacement[] {
+function planApproachEnemy(state: GameState, geo: FightGeometry, maxDistance: number, stopGap = ENGAGEMENT_H - 0.01, mode: 'nearest' | 'farFirst' | 'straight' = 'nearest'): ResolvedPlacement[] {
+  const farFirst = mode !== 'nearest'
   const stay = (m: Model): ResolvedPlacement => ({ model: m, from: m.pos, to: m.pos, facing: m.facing, path: [m.pos, m.pos], distance: 0 })
   if (geo.enemies.length === 0) return geo.models.map(stay)
   const minGap = (m: Model): number => Math.min(...geo.enemies.map((t) => horizontalGap(m, t)))
@@ -208,7 +209,10 @@ function planApproachEnemy(state: GameState, geo: FightGeometry, maxDistance: nu
     if (travel > maxDistance + 1e-3) return null
     const fp: Footprint = { pos: to, facing: m.facing, base: m.base }
     if (!whollyOnBoard(fp, state.board)) return null
-    const overlapBlockers: Footprint[] = [...placed.filter((pl) => pl.model.id !== m.id && !lifted.has(pl.model.id)).map(fpOf), ...geo.otherFriendly, ...geo.enemies]
+    // straight mode: unit-mates not yet placed still block their starting spots, so a model never lands where the model
+    // beside it is still standing
+    const waiting: Footprint[] = mode === 'straight' ? geo.models.filter((o) => o.id !== m.id && !placed.some((pl) => pl.model.id === o.id)) : []
+    const overlapBlockers: Footprint[] = [...placed.filter((pl) => pl.model.id !== m.id && !lifted.has(pl.model.id)).map(fpOf), ...waiting, ...geo.otherFriendly, ...geo.enemies]
     if (overlapBlockers.some((b) => basesOverlap(fp, b))) return null
     const path: Path = [m.pos, to]
     if (pathCrossesModels(fp, path, geo.enemies) || crossesBigFriendly(state, m, fp, path, geo.otherFriendly)) return null
@@ -256,7 +260,18 @@ function planApproachEnemy(state: GameState, geo: FightGeometry, maxDistance: nu
     }
     return tryPlace(m, to)
   }
-  for (const m of order) {
+  // straight mode: first every model whose own least-travel contact spot (straight in) is free takes it, then the models
+  // that must go round an enemy base, then the rest rank up behind a touching unit-mate (farthest model first)
+  const pre: Model[] = []
+  if (mode === 'straight') {
+    for (const m of order) {
+      if (geo.movable && !geo.movable.has(m.id)) { placed.push(stay(m)); continue }
+      if (geo.enemies.some((t) => inBaseContact(m, t))) { placed.push(stay(m)); continue }
+      const direct = directFor(m)
+      if (direct && touchesEnemy(direct)) placed.push(direct); else pre.push(m)
+    }
+  }
+  for (const m of mode === 'straight' ? pre : order) {
     if (geo.movable && !geo.movable.has(m.id)) { placed.push(stay(m)); continue } // a deferred pile-in moves only the deferred models
     if (geo.enemies.some((t) => inBaseContact(m, t))) { placed.push(stay(m)); continue }
     const direct = directFor(m)
@@ -950,8 +965,8 @@ function legalApproachMoves(state: GameState, unitId: UnitId, dist: number, obje
   // Ties keep this order, so a base-contact plan beats an equally good ER-edge one.
   const all: ModelPlacement[][] = []
   const gather = (pl: ModelPlacement[]): void => { consider(pl); while (out.length) all.push(out.shift() as ModelPlacement[]) }
-  for (const [gap, farFirst] of [[0.004, false], [0.004, true], [0.3, false], [ENGAGEMENT_H - 0.01, false]] as const) {
-    const pl = toPlacements(planApproachEnemy(state, geo, dist, gap, farFirst))
+  for (const [gap, mode] of [[0.004, 'straight'], [0.004, 'nearest'], [0.004, 'farFirst'], [0.3, 'nearest'], [ENGAGEMENT_H - 0.01, 'nearest']] as const) {
+    const pl = toPlacements(planApproachEnemy(state, geo, dist, gap, mode))
     gather(pl)
     gather(repair(pl))
   }

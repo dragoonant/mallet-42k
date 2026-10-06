@@ -54,6 +54,11 @@ function enemyLine(state: GameState, unitId: UnitId, n: number, mm: number, gap 
   return d / 2
 }
 
+/** Pile-in scenarios are about pure base geometry: no terrain on the board (ruin walls would block the contact spots). */
+function clearTerrain(state: GameState): void {
+  state.board = { ...state.board, pieces: {} }
+}
+
 function chargeReady(state: GameState, unitId: UnitId): void {
   state.units[unitId].turn.chargedThisTurn = true
   state.units[unitId].turn.fightsFirst = true
@@ -61,6 +66,7 @@ function chargeReady(state: GameState, unitId: UnitId): void {
 
 // Human (A) 10 models in two ranks of 5: front 0.9" from the enemy line (inside Engagement Range, not touching), back 0.6" behind.
 const pileIn: ScenarioBuilder = (state) => {
+  clearTerrain(state)
   const me: UnitId = 'A:warriors'
   const foe: UnitId = 'B:warriors'
   const er = enemyLine(state, foe, 6, 32)
@@ -78,6 +84,7 @@ const pileIn: ScenarioBuilder = (state) => {
 
 // Human (A) 4 models each on 25/32/40mm bases (12 total) staggered 1-2" behind the front, facing a 6-model line.
 const pileInMixed: ScenarioBuilder = (state) => {
+  clearTerrain(state)
   const me: UnitId = 'A:warriors'
   const foe: UnitId = 'B:warriors'
   const er = enemyLine(state, foe, 6, 32)

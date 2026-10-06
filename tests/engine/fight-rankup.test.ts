@@ -45,14 +45,14 @@ function reachableMax(models: Model[], enemies: Model[], dist = 3): number {
 
 interface Result { offered: number; eligibleFirst: number; eligibleBestOffered: number; reachable: number }
 
-function measure(state: GameState, unitId: string, enemyUnitId: string): Result {
+function measure(state: GameState, unitId: string, enemyUnitId: string | string[]): Result {
   const player = state.units[unitId].player
   state.units[unitId].turn.chargedThisTurn = true
   const pending = {
     id: '', kind: 'pileIn', player, window: 'fight.unitSelected', canPass: false,
     context: { unitId, distance: 3 }, constraints: emptyMoveConstraints(3, { coherency: true }),
   } as unknown as PendingDecision
-  const enemies = boardModels(state, enemyUnitId)
+  const enemies = (Array.isArray(enemyUnitId) ? enemyUnitId : [enemyUnitId]).flatMap((id) => boardModels(state, id))
   const before = boardModels(state, unitId)
   const reachable = reachableMax(before, enemies)
   const actions = fightModule.legalActions!(state, pending) ?? []
@@ -193,5 +193,22 @@ describe('fight phase — pile-in rank-up maximises fighting models (FIGHT-RANK-
     report('FIGHT-RANK-007', res)
     expect(res.eligibleFirst).toBe(res.eligibleBestOffered)
     expect(res.eligibleFirst).toBeGreaterThanOrEqual(res.reachable)
+  })
+
+  it('FIGHT-RANK-008 two ranks of five 0.9" from a six-model line: all ten fight (front steps straight in, back steps up behind)', () => {
+    // the ?scenario=pile-in layout (all 32mm), moved 6" south so no fixture terrain is nearby
+    const s = fresh()
+    const dz = -6
+    for (const id of s.units[B].models) setBase(s, id, 32)
+    for (const id of [...s.units[A].models, ...s.units['A:boss'].models]) setBase(s, id, 32)
+    const ex = [-3.65, -2.19, -0.73, 0.73, 2.19, 3.65]
+    placeUnit(s, A, ex.slice(0, 5).map((x) => ({ x, y: 0, z: dz })))
+    placeUnit(s, 'A:boss', [{ x: ex[5], y: 0, z: dz }])
+    const xs = [-2.82, -1.41, 0, 1.41, 2.82]
+    placeUnit(s, B, [...xs.map((x) => ({ x, y: 0, z: dz + 2.16 })), ...xs.map((x) => ({ x, y: 0, z: dz + 4.02 }))])
+    const res = measure(s, B, [A, 'A:boss'])
+    report('FIGHT-RANK-008', res)
+    expect(res.reachable).toBe(10)
+    expect(res.eligibleFirst).toBe(10)
   })
 })
