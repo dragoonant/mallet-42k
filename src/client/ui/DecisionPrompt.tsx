@@ -22,6 +22,7 @@ import { offeredAmbushMarker, useAmbushHover } from '../interaction/CultAmbushMa
 import { FormationPicker } from './FormationPicker'
 import { rerollTrayModel, rollForOffer } from './rerollInfo'
 import { RerollTray } from './RerollTray'
+import { overwatchReach } from './overwatchInfo'
 import { usePresentedStore } from '../presentation/presentedStore'
 import { buttonBase, buttonDanger, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 
@@ -945,6 +946,25 @@ export function DecisionPrompt() {
           triggerLine={`${REACTION_LABEL[pending.context.reaction] ?? pending.context.reaction}${pending.context.enemyUnitId ? ` — ${state.units[pending.context.enemyUnitId]?.name ?? pending.context.enemyUnitId}` : ''}`}
         />
       )}
+      {pending.kind === 'reactionWindow' && pending.context.reaction === 'overwatch' && pending.context.enemyUnitId && (() => {
+        const enemyId = pending.context.enemyUnitId
+        const rows = pending.context.eligibleUnits.map((u) => overwatchReach(state, u, enemyId))
+        if (rows.length === 0) return null
+        return (
+          <div style={infoBlock} data-testid="overwatch-reach">
+            {rows.map((r) => (
+              <div key={r.unitId}>
+                <strong>{state.units[r.unitId]?.name ?? r.unitId}</strong>:{' '}
+                {r.total === 0
+                  ? 'no ranged weapons'
+                  : `${r.canFire} of ${r.total} ranged weapon${r.total === 1 ? '' : 's'} can reach ${state.units[enemyId]?.name ?? enemyId}`}
+                {r.inRange > r.canFire && ` (${r.inRange - r.canFire} more in range but without line of sight)`}
+              </div>
+            ))}
+            <div style={{ fontSize: '0.9em' }}>Measured base to base against each weapon&apos;s range.</div>
+          </div>
+        )
+      })()}
       {pending.kind === 'declareTargets' && (
         <div style={infoBlock} data-testid="shoot-context">
           <div style={{ color: colors.text, fontWeight: 600 }}>
