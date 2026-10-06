@@ -312,6 +312,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | FIGHT-011 | R-9.5 | model already in base contact → cannot move |
 | FIGHT-012 | R-9.5 | pile-in cannot end unit within ER of any enemy → no model moves (decision skipped) |
 | FIGHT-013 | R-9.5 | model can reach base contact → must (placing at 0.3" rejected) |
+| FIGHT-RANK-001 | R-9.6 | a model that cannot reach an enemy during pile-in steps into base contact with a teammate already touching an enemy, forming a second rank whose models may then fight |
 | FIGHT-014 | Get Stuck In | pile-in up to 6" for that unit; consolidation up to 6" too; Get In There → pile-in only |
 | FIGHT-015 | R-9.6 | Boy at 1.2" from enemy (not in ER) but in base contact with a Boy that touches an enemy → may attack |
 | FIGHT-016 | R-9.6 | Boy 1.2" away, touching a friend who is only within ER (not base contact) → cannot attack |
