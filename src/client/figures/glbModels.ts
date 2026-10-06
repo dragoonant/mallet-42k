@@ -76,6 +76,13 @@ export const ENABLED_GLB_SLUGS: readonly string[] = [
   'aberrant-hypermorph',
   'aberrant',
   'goliath-rockgrinder',
+  'shield-captain-tyvan',
+  'custodian-guard-spear',
+  'custodian-guard-vexilla',
+  'custodian-guard-shield',
+  'prosecutor',
+  'vigilator',
+  'vertus-praetor',
 ]
 
 export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
@@ -172,6 +179,15 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'gsc.aberrants/hypermorph': 'aberrant-hypermorph',
   'gsc.aberrants/aberrant': 'aberrant',
   'gsc.goliath-rockgrinder/rockgrinder': 'goliath-rockgrinder',
+
+  // Adeptus Custodes (MGSD GLBs).
+  'cus.shield-captain-tyvan/captain': 'shield-captain-tyvan',
+  'cus.custodian-guard/spear': 'custodian-guard-spear',
+  'cus.custodian-guard/vexilla': 'custodian-guard-vexilla',
+  'cus.custodian-guard/blade': 'custodian-guard-shield',
+  'cus.vertus-praetors/praetor': 'vertus-praetor',
+  'cus.prosecutors/prosecutor': 'prosecutor',
+  'cus.vigilators/vigilator': 'vigilator',
 }
 
 /** The enabled GLB slug for a model type, or undefined (use the procedural figure). */
