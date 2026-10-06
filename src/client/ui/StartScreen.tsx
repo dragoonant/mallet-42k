@@ -7,6 +7,7 @@ import { loadBundle } from '../../data'
 import type { DataBundle } from '../../data/types'
 import { AI_DIFFICULTY_OPTIONS, DEFAULT_AI_DIFFICULTY, resolveFactionId, splittablePatrolRefs, patrolUnitChoices, RANDOM_UNIT_CHOICE, useGameStore, type AiDifficulty, type FactionKey, type OpponentKind } from '../store/game'
 import { primaryScoringSummary } from './labels'
+import { randomArmyPaint, usePaintStore } from '../figures/paint'
 import { PainterPanel } from './PainterPanel'
 import { buttonActive, buttonBase, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 
@@ -88,7 +89,8 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
   const error = useGameStore((s) => s.error)
   const [bundle, setBundle] = useState<DataBundle | null>(null)
   const [faction, setFaction] = useState<FactionKey>('space-marines')
-  // '' = automatic (the first other faction); otherwise a faction id, which may equal your own (mirror match).
+  // '' = random (any faction with a patrol, your own included, rolled on Start); otherwise a faction id,
+  // which may equal your own (mirror match).
   const [opponentFaction, setOpponentFaction] = useState<string>('')
   const [opponent, setOpponent] = useState<OpponentKind>('bot')
   const [difficulty, setDifficulty] = useState<AiDifficulty>(DEFAULT_AI_DIFFICULTY)
@@ -162,10 +164,13 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
   const canSplitB = !!bundle && opponent === 'hotseat' && !!opponentFaction && splittablePatrolRefs(bundle, opponentFaction).length > 0
 
   const start = async () => {
+    const randomFaction = factions.length ? factions[Math.floor(Math.random() * factions.length)].id : undefined
+    // The opponent gets a fresh random colour scheme every game (game-only; your saved paint is untouched).
+    usePaintStore.getState().setSeatPaint('B', randomArmyPaint())
     try {
       await newGame({
         playerFaction: faction,
-        opponentFaction: opponentFaction || undefined,
+        opponentFaction: opponentFaction || randomFaction,
         opponent,
         mission: `mission.${mission}`,
         seed,
@@ -257,7 +262,7 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
 
         <div style={label}>Opponent's Faction</div>
         <select style={select} value={opponentFaction} data-testid="setup-opponent-faction" onChange={(e) => setOpponentFaction(e.target.value)}>
-          <option value="">Automatic</option>
+          <option value="">Random</option>
           {factions.map((f) => (
             <option key={f.id} value={f.id}>
               {f.label}

@@ -71,6 +71,7 @@ interface UnitModelProps {
   datasheetId: string
   modelType: string
   faction: string
+  seat: 'A' | 'B'
   x: number
   y: number
   z: number
@@ -112,6 +113,7 @@ const UnitModel = memo(function UnitModel(p: UnitModelProps) {
             datasheetId={p.datasheetId}
             modelId={p.modelType}
             faction={p.faction}
+            seat={p.seat}
             rotationY={p.rotationY}
             moving={moving}
             action={p.action}
@@ -185,6 +187,7 @@ export function UnitsLayer() {
                   datasheetId={unit.datasheetId}
                   modelType={m.datasheetModelId}
                   faction={faction}
+                  seat={unit.player}
                   x={m.pos.x}
                   y={m.pos.y}
                   z={m.pos.z}

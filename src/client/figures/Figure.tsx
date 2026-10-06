@@ -40,6 +40,8 @@ export interface FigureProps {
   modelId?: string
   /** Faction id, e.g. "sm" | "ork" | "necrons" — resolves the paintScheme. Unknown ids paint neutral grey. */
   faction: string
+  /** Owning seat in a game; picks up that seat's game-only colours (paint.ts bySeat). Omit outside a game. */
+  seat?: 'A' | 'B'
   /** Target world position. Figure eases its own group toward it every frame (snapping only on
    *  first mount, so placing a figure never makes it slide in from the origin) instead of
    *  requiring a wrapper — a caller that already eases position itself (e.g. wrapping Figure in
@@ -78,6 +80,7 @@ export const Figure = memo(function Figure({
   datasheetId,
   modelId,
   faction,
+  seat,
   position = ORIGIN,
   rotationY,
   moving,
@@ -170,7 +173,7 @@ export const Figure = memo(function Figure({
 
   const { archetype, kit } = useMemo(() => resolveFigureKit(datasheetId, datasheet, modelId), [datasheetId, datasheet, modelId])
   const base = useMemo(() => resolveBase(datasheet, archetype), [datasheet, archetype])
-  const paint = useArmyPaint(faction)
+  const paint = useArmyPaint(faction, seat)
   const colors = useMemo(() => applyPaintToColors(resolvePaintColors(factionData), paint), [factionData, paint])
   const baseStyle = useMemo(() => resolveBaseStyle(paint), [paint])
 
