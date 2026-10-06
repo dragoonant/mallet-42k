@@ -66,3 +66,73 @@ export function weaponFlavour(weaponId: string, weapon: WeaponData | undefined, 
   if (faction === 'necrons' || faction === 'tau-empire') return 'psychic'
   return 'bolter'
 }
+
+// ---------- visual families (src/client/vfx/families.ts) ----------
+//
+// The 5 ranged flavours above are the SFX palette. The vfx layer has 14 looks, a finer split of the same
+// weapons: one call classifies a weapon into a VfxFamily from the same evidence (abilities, name, faction).
+// weaponFlavour() is deliberately untouched so audio keeps its mapping; `familyFlavour` maps a family back
+// onto the SFX palette for any caller that only has a family.
+import type { VfxFamily } from './vfx/types'
+export type { VfxFamily } from './vfx/types'
+
+export const VFX_FAMILIES: readonly VfxFamily[] = ['bolt', 'autocannon', 'las', 'lascannon', 'plasma', 'melta', 'flamer', 'missile', 'grenade', 'gauss', 'pulse', 'dakka', 'bio', 'psychic']
+
+export interface VfxClassification {
+  family: VfxFamily
+  /** 'keyword' = an ability/name rule matched; 'faction' = nothing in the weapon matched, the firing faction decided;
+   *  'default' = nothing matched at all (plain bolt). */
+  via: 'keyword' | 'faction' | 'default'
+}
+
+/** Engine faction ids by the prefix of a weapon id ('ork.w.shoota'), for weapons classified with no faction given. */
+const ID_PREFIX_FACTION: [string, string][] = [
+  ['ork.', 'ork'], ['nec', 'necrons'], ['tyr', 'tyranids'], ['gsc.', 'genestealer-cults'], ['tau.', 'tau-empire'],
+  ['am.', 'astra-militarum'], ['gk.', 'grey-knights'], ['csm', 'chaos-space-marines'], ['ade', 'adepta-sororitas'], ['cus.', 'adeptus-custodes'],
+]
+
+export function classifyVfxFamily(weaponId: string, weapon: WeaponData | undefined, faction: string): VfxClassification {
+  const text = `${weaponId.slice(weaponId.indexOf('.w.') + 1)} ${weapon?.name ?? ''}`.toLowerCase()
+  const fac = faction || ID_PREFIX_FACTION.find(([p]) => weaponId.startsWith(p))?.[1] || ''
+  const kw = (family: VfxFamily): VfxClassification => ({ family, via: 'keyword' })
+
+  if (hasAbility(weapon, 'PSYCHIC') || /smite|witchfire|psychic|psychoclastic|psilencer|psycannon|purge soul|rite of possession|rite-of-possession/.test(text)) return kw('psychic')
+  // Spat, flung or sprayed biomass: Tyranid guns, and the cult's webber.
+  if (/fleshborer|barb|devourer|venom|spine|spore|acid|borer|webber|web/.test(text) || (fac === 'tyranids' && !/torrent/.test(text))) return kw('bio')
+  if (/gauss|tachyon|doomsday|necron/.test(text)) return kw('gauss')
+  if (/melta|fusion/.test(text) || hasAbility(weapon, 'MELTA')) return kw('melta')
+  if (hasAbility(weapon, 'TORRENT') || /flame|flamer|burna|pyre|incinerat/.test(text)) return kw('flamer')
+  if (/pulse|ion.?raker|railgun|rail.?rifle|burst.?cannon|markerlight/.test(text)) return kw('pulse')
+  if (/grenade|krak|frag|demolition|charge cache|satchel/.test(text)) return kw('grenade')
+  if (/rokkit|rocket|missile|hunter.?killer|bombast|field.?gun|howitzer|launcher|mortar|malleus|kannon/.test(text)) return kw('missile')
+  if (/lascannon|las.?cannon|laser|beam/.test(text)) return kw('lascannon')
+  if (/plasma|blaster|blasta|supercharge/.test(text)) return kw(fac === 'ork' || fac === 'orks' ? 'dakka' : 'plasma')
+  if (/shoota|slugga|dakka|stikk|big.?shoota|kopta/.test(text)) return kw('dakka')
+  if (/autocannon|assault cannon|assault-cannon|heavy.?bolter|heavy.?stubber|stubber|seismic|cannon/.test(text)) return kw('autocannon')
+  if (/lasgun|laspistol|lascarbine|las.?pistol/.test(text)) return kw('las')
+  if (/bolt|combi|storm|hurricane|spear|sentinel blade|sentinel-blade|autogun|autopistol|hybrid firearm|pistol/.test(text)) return kw('bolt')
+  switch (fac) {
+    case 'ork': case 'orks': return { family: 'dakka', via: 'faction' }
+    case 'tyranids': return { family: 'bio', via: 'faction' }
+    case 'necrons': return { family: 'gauss', via: 'faction' }
+    case 'tau-empire': return { family: 'pulse', via: 'faction' }
+    case 'astra-militarum': return { family: 'las', via: 'faction' }
+    case 'grey-knights': return { family: 'psychic', via: 'faction' }
+    default: return { family: 'bolt', via: 'default' }
+  }
+}
+
+/** The visual family of a ranged weapon. */
+export function vfxFamily(weaponId: string, weapon: WeaponData | undefined, faction: string): VfxFamily {
+  return classifyVfxFamily(weaponId, weapon, faction).family
+}
+
+const FAMILY_FLAVOUR: Record<VfxFamily, RangedFlavour> = {
+  bolt: 'bolter', autocannon: 'heavy', las: 'bolter', lascannon: 'heavy', plasma: 'heavy', melta: 'flame', flamer: 'flame',
+  missile: 'heavy', grenade: 'heavy', gauss: 'psychic', pulse: 'psychic', dakka: 'shoota', bio: 'shoota', psychic: 'psychic',
+}
+
+/** A family mapped back onto the 5 SFX/tracer flavours. */
+export function familyFlavour(family: VfxFamily): RangedFlavour {
+  return FAMILY_FLAVOUR[family]
+}

@@ -1,2 +1,5 @@
 export { VfxLayer, vfx } from './VfxLayer'
 export type { FactionLike, ShotKind, Vec3Like, VfxApi } from './types'
+export { FAMILY_FX, MAX_VOLLEY_SHOTS } from './families'
+export type { FamilyFx } from './families'
+export type { VfxFamily, VolleyOptions, VolleyShot } from './types'

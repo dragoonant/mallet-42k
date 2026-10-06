@@ -17,9 +17,9 @@ import { setPresentationIdle } from './idleStore'
 import { usePresentationSettings, type AnimSpeed } from './settings'
 import { announcementHoldMs, clearAnnouncement, holdAnnouncement, type AnnouncementKind } from './announceStore'
 import { playRoll, rerollTrayShown, type RollRequest } from '../dice'
-import { vfx, type ShotKind } from '../vfx'
+import { vfx } from '../vfx'
+import { planVolleys } from './volleys'
 import { audio, playEventSounds, type SoundLookup } from '../audio'
-import { isRangedFlavour, weaponFlavour } from '../weaponFlavour'
 import { colors } from '../ui/theme'
 
 type EventOf<T extends GameEvent['type']> = Extract<GameEvent, { type: T }>
@@ -83,15 +83,6 @@ function playerColor(player: PlayerId | null): string {
   if (player === 'A') return colors.playerA
   if (player === 'B') return colors.playerB
   return colors.muted
-}
-
-/** Tracer look for a weapon — the same classification its firing sound comes from (see
- *  src/client/weaponFlavour.ts), so a bolter can never sound like a bolter while drawing an ork
- *  tracer. A melee flavour has no tracer; shooting only ever asks about ranged weapons, so the
- *  fallback is just a total function's tail. */
-function shotKindFor(weaponId: string, weapon: WeaponData | undefined, faction: string): ShotKind {
-  const flavour = weaponFlavour(weaponId, weapon, faction)
-  return isRangedFlavour(flavour) ? flavour : 'bolter'
 }
 
 function bearing(from: { x: number; z: number }, to: { x: number; z: number }): number {
@@ -214,22 +205,22 @@ function deadlyDemiseRequest(state: GameState, e: EventOf<'DeadlyDemiseRolled'>)
 
 // ---------- TargetsDeclared: turn the firing/attacking figures and fire vfx ----------
 
-function playTargetsDeclared(e: EventOf<'TargetsDeclared'>, from: GameState, to: GameState, bundle: DataBundle | null): void {
+function playTargetsDeclared(e: EventOf<'TargetsDeclared'>, from: GameState, to: GameState, bundle: DataBundle | null, rest: GameEvent[]): void {
   const cues = useCueStore.getState()
   const attackerFaction = factionOf(to, e.unitId)
 
   if (e.phase === 'shooting') {
+    // One staggered volley per weapon+target group, a projectile per attack (hit/miss from the attack's own
+    // hit rolls when they are in this batch, else estimated from the weapon's skill — see volleys.ts).
+    for (const v of planVolleys(e, rest, from, to, bundle, attackerFaction)) {
+      vfx.volley({ family: v.family, shots: v.shots })
+    }
     for (const t of e.targets) {
       const firer = modelPoint(from, to, t.modelId)
-      const targetUnit = to.units[t.targetUnitId]
-      if (!firer || !targetUnit) continue
       const targetModels = unitModels(to, t.targetUnitId)
-      if (targetModels.length === 0) continue
+      if (!firer || targetModels.length === 0) continue
       const anchor = modelsAnchor(targetModels)
-      const to3 = { x: anchor.x, y: firer.y, z: anchor.z }
-      const weapon = bundle?.weapons[t.weaponId]
-      vfx.shoot(firer, to3, shotKindFor(t.weaponId, weapon, attackerFaction))
-      cues.setModelFacing(t.modelId, bearing(firer, to3), CUE_MS.facing)
+      cues.setModelFacing(t.modelId, bearing(firer, { x: anchor.x, z: anchor.z }), CUE_MS.facing)
     }
     return
   }
@@ -288,6 +279,7 @@ async function playEvent(
   announcedPhases: Set<Phase>,
   lookup: SoundLookup,
   sounds = true,
+  rest: GameEvent[] = [],
 ): Promise<void> {
   const settings = usePresentationSettings.getState()
   const cues = useCueStore.getState()
@@ -332,7 +324,7 @@ async function playEvent(
       return
 
     case 'TargetsDeclared':
-      playTargetsDeclared(event, from, to, bundle)
+      playTargetsDeclared(event, from, to, bundle, rest)
       return
 
     // HitRolled / WoundRolled / FeelNoPainRolled / HazardousTested dice are shown by playBatch as
@@ -428,7 +420,7 @@ async function playBatch(from: GameState, to: GameState, events: GameEvent[], an
         const req = usePresentationSettings.getState().diceOn ? groupRequest(to, group) : null
         if (req) await playRoll(req)
       }
-      await playEvent(event, from, to, bundle, humanSeat, announcedPhases, lookup, key === null)
+      await playEvent(event, from, to, bundle, humanSeat, announcedPhases, lookup, key === null, event.type === 'TargetsDeclared' ? events.slice(i + 1) : [])
     } catch (err) {
       console.warn('[presentation] failed to play event', event.type, err)
     }
