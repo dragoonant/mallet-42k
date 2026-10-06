@@ -67,8 +67,12 @@ function fallbackModel(name: ModelName): THREE.Object3D {
   return g
 }
 
+/** Models whose nose sits on the negative end of their longest axis (the rocket GLB points down -X),
+ *  so after normalise() they need a half-turn to face +Z. */
+const NOSE_ON_NEGATIVE_AXIS = new Set(['rocket'])
+
 /** Centre on the origin, scale the longest side to 1, and turn the longest axis to +Z. */
-function normalise(src: THREE.Object3D): THREE.Object3D {
+function normalise(src: THREE.Object3D, flip = false): THREE.Object3D {
   const box = new THREE.Box3().setFromObject(src)
   const size = box.getSize(new THREE.Vector3())
   const centre = box.getCenter(new THREE.Vector3())
@@ -81,6 +85,7 @@ function normalise(src: THREE.Object3D): THREE.Object3D {
   if (size.x >= size.y && size.x >= size.z) inner.rotation.y = -Math.PI / 2
   else if (size.y >= size.x && size.y >= size.z) inner.rotation.x = Math.PI / 2
   holder.add(inner)
+  if (flip) holder.rotation.y = Math.PI
   return holder
 }
 
@@ -94,7 +99,7 @@ function template(name: ModelName): Template {
     new GLTFLoader()
       .loadAsync(modelUrl(name))
       .then((gltf) => {
-        entry.obj = normalise(gltf.scene)
+        entry.obj = normalise(gltf.scene, NOSE_ON_NEGATIVE_AXIS.has(name))
         entry.version++
         entry.real = true
       })
