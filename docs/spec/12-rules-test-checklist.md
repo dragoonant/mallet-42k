@@ -313,6 +313,12 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | FIGHT-012 | R-9.5 | pile-in cannot end unit within ER of any enemy → no model moves (decision skipped) |
 | FIGHT-013 | R-9.5 | model can reach base contact → must (placing at 0.3" rejected) |
 | FIGHT-RANK-001 | R-9.6 | a model that cannot reach an enemy during pile-in steps into base contact with a teammate already touching an enemy, forming a second rank whose models may then fight |
+| FIGHT-RANK-002 | R-9.5/R-9.6 | a 10-model unit in two loose ranks piling into a 5-model line: the first offered pile-in gives a fighting spot to every model that can plainly reach one within 3" |
+| FIGHT-RANK-003 | R-9.5/R-9.6 | mixed base sizes (25/28.5/32/40mm): back-rank models still close up behind whichever unit-mate ends up touching the enemy |
+| FIGHT-RANK-004 | R-9.5/R-9.6 | enemy standing in a curved arc: front models find contact spots round the arc and the rest form up behind them |
+| FIGHT-RANK-005 | R-9.5/R-9.6 | front rank stopped at the 0.99" edge after its charge: the default pile-in closes to base contact (not the edge) so the back rank can join |
+| FIGHT-RANK-006 | R-9.6 | models that started in base contact with the enemy count as anchors for back-rank models to step up behind |
+| FIGHT-RANK-007 | R-9.5/R-9.6 | narrow enemy front: back-rank models left out by the first placement pass get another try (including trading spots with a unit-mate) and the offered candidates are ranked by how many models can fight |
 | FIGHT-014 | Get Stuck In | pile-in up to 6" for that unit; consolidation up to 6" too; Get In There → pile-in only |
 | FIGHT-015 | R-9.6 | Boy at 1.2" from enemy (not in ER) but in base contact with a Boy that touches an enemy → may attack |
 | FIGHT-016 | R-9.6 | Boy 1.2" away, touching a friend who is only within ER (not base contact) → cannot attack |

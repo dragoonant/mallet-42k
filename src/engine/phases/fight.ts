@@ -11,8 +11,9 @@
 //
 // Documented interpretations (see STATUS/issues):
 // - Pile-in / consolidate feasibility and the actual arrangement share one heuristic search (`planApproachEnemy`,
-//   closest-model-first, walking each model straight toward the nearest enemy point at Engagement Range, capped by
-//   the allowance) — the same non-exhaustive style as charge.ts's `planChargeMove`, not a combinatorial proof.
+//   closest-model-first, walking each model toward the nearest enemy contact/Engagement Range spot, ranking up behind
+//   touching unit-mates otherwise, capped by the allowance; the legal plans are ranked by how many models may then
+//   fight) — the same non-exhaustive style as charge.ts's `planChargeMove`, not a combinatorial proof.
 // - R-9.5/R-9.10 "must end in base contact if possible" is checked per model against its own travel budget plus
 //   overlap with the rest of the unit's own resolved arrangement and other friendlies (FIGHT-013-crowd) — like
 //   charge.ts's R-8.5, still not a joint re-optimisation of the whole arrangement.
@@ -184,13 +185,22 @@ function rankRingPoint(target: Footprint, m: Model, angle: number, stopGap: numb
 }
 
 // R-9.5/R-9.10 heuristic arrangement: a model already in base contact with an enemy never needs to move; otherwise
-// closest-to-enemy models go first, each walking toward the nearest reachable Engagement Range point, capped by
-// `maxDistance` and by terrain/board/overlap legality — a model that cannot legally improve its position stays put.
-function planApproachEnemy(state: GameState, geo: FightGeometry, maxDistance: number, stopGap = ENGAGEMENT_H - 0.01): ResolvedPlacement[] {
+// closest-to-enemy models go first, each walking toward the nearest reachable Engagement Range point (straight in, or
+// around the enemy's base when the straight spot is taken), capped by `maxDistance` and by terrain/board/overlap
+// legality. A model that cannot get within Engagement Range itself ranks up (R-9.6) into base contact with any
+// unit-mate that ends in base contact with an enemy (including ones that started there); a second pass retries every
+// model still unable to fight once the whole front rank is known. A model that cannot legally improve stays put.
+function planApproachEnemy(state: GameState, geo: FightGeometry, maxDistance: number, stopGap = ENGAGEMENT_H - 0.01, farFirst = false): ResolvedPlacement[] {
   const stay = (m: Model): ResolvedPlacement => ({ model: m, from: m.pos, to: m.pos, facing: m.facing, path: [m.pos, m.pos], distance: 0 })
   if (geo.enemies.length === 0) return geo.models.map(stay)
-  const order = [...geo.models].sort((a, b) => Math.min(...geo.enemies.map((t) => horizontalGap(a, t))) - Math.min(...geo.enemies.map((t) => horizontalGap(b, t))))
+  const minGap = (m: Model): number => Math.min(...geo.enemies.map((t) => horizontalGap(m, t)))
+  const order = [...geo.models].sort((a, b) => minGap(a) - minGap(b))
   const placed: ResolvedPlacement[] = []
+  const deferred: { i: number; m: Model; direct: ResolvedPlacement | null }[] = []
+  const lifted = new Set<string>() // unit-mates temporarily ignored as blockers while the second pass swaps spots
+  const fpOf = (pl: ResolvedPlacement): Footprint => ({ pos: pl.to, facing: pl.facing, base: pl.model.base })
+  const inER = (pl: ResolvedPlacement): boolean => geo.enemies.some((e) => horizontalGap(fpOf(pl), e) <= ENGAGEMENT_H && Math.abs(pl.to.y - e.pos.y) <= 5 + EPS)
+  const touchesEnemy = (pl: ResolvedPlacement): boolean => geo.enemies.some((e) => inBaseContact(fpOf(pl), e))
   // legality of one model ending at `to0` (budget, board, overlaps, enemy crossing, terrain); null when illegal
   const tryPlace = (m: Model, to0: Vec3): ResolvedPlacement | null => {
     const to = { ...to0, y: terrainService.heightAt(state, to0.x, to0.z) }
@@ -198,20 +208,25 @@ function planApproachEnemy(state: GameState, geo: FightGeometry, maxDistance: nu
     if (travel > maxDistance + 1e-3) return null
     const fp: Footprint = { pos: to, facing: m.facing, base: m.base }
     if (!whollyOnBoard(fp, state.board)) return null
-    const overlapBlockers: Footprint[] = [...placed.map((pl) => ({ pos: pl.to, facing: pl.facing, base: pl.model.base })), ...geo.otherFriendly, ...geo.enemies]
+    const overlapBlockers: Footprint[] = [...placed.filter((pl) => pl.model.id !== m.id && !lifted.has(pl.model.id)).map(fpOf), ...geo.otherFriendly, ...geo.enemies]
     if (overlapBlockers.some((b) => basesOverlap(fp, b))) return null
     const path: Path = [m.pos, to]
     if (pathCrossesModels(fp, path, geo.enemies) || crossesBigFriendly(state, m, fp, path, geo.otherFriendly)) return null
     if (terrainService.crossesImpassable(state, m, path) || !terrainService.canEndAt(state, m, to).ok) return null
     return { model: m, from: m.pos, to, facing: m.facing, path, distance: travel }
   }
-  const rankUp = (m: Model): ResolvedPlacement | null => {
+  // shortest legal spot on a ring of horizontal gap `gap` around one of `anchors` that also ends closer to the enemy
+  // model this model started closest to (R-9.5)
+  const bestOnRings = (m: Model, anchors: Footprint[], gap: number): ResolvedPlacement | null => {
     let best: ResolvedPlacement | null = null
-    for (const pl of placed) {
-      const tfp: Footprint = { pos: pl.to, facing: pl.facing, base: pl.model.base }
-      if (!geo.enemies.some((e) => inBaseContact(tfp, e))) continue
-      for (let i = 0; i < 48; i++) {
-        const cand = tryPlace(m, rankRingPoint(tfp, m, (2 * Math.PI * i) / 48, 0.004))
+    for (const a of anchors) {
+      if (horizontalGap(m, a) > maxDistance + gap + 0.05) continue
+      // 48 spots round the ring, plus a fan around the nearest spot (straight back toward the model), which a model
+      // at the very edge of its allowance can only just reach
+      const toward = Math.atan2(m.pos.z - a.pos.z, m.pos.x - a.pos.x)
+      const angles = [...Array.from({ length: 48 }, (_, i) => (2 * Math.PI * i) / 48), ...[0, 1, -1, 2, -2, 4, -4, 7, -7, 11, -11].map((k) => toward + (k * Math.PI) / 72)]
+      for (const ang of angles) {
+        const cand = tryPlace(m, rankRingPoint(a, m, ang, gap))
         if (!cand || (best && cand.distance >= best.distance)) continue
         if (!closerToClosestEnemyAtStart(m, m.pos, cand.to, geo.enemies)) continue
         best = cand
@@ -219,36 +234,72 @@ function planApproachEnemy(state: GameState, geo: FightGeometry, maxDistance: nu
     }
     return best
   }
-  for (const m of order) {
-    if (geo.movable && !geo.movable.has(m.id)) { placed.push(stay(m)); continue } // a deferred pile-in moves only the deferred models
-    if (geo.enemies.some((t) => inBaseContact(m, t))) { placed.push(stay(m)); continue }
+  // around an enemy's base when the straight-line spot is blocked (crowded front, curved line)
+  const aroundEnemy = (m: Model): ResolvedPlacement | null => bestOnRings(m, geo.enemies, Math.min(stopGap, 0.004))
+  // R-9.6 rank-up: base contact with any placed unit-mate that is itself in base contact with an enemy
+  const rankUp = (m: Model): ResolvedPlacement | null => bestOnRings(m, placed.filter((pl) => pl.model.id !== m.id && touchesEnemy(pl)).map(fpOf), 0.004)
+  const directFor = (m: Model): ResolvedPlacement | null => {
     let chosen: { point: Vec3; travel: number } | null = null
     for (const t of geo.enemies) {
       const c = contactPoint(m, t, stopGap)
       if (!chosen || c.travel < chosen.travel) chosen = c
     }
-    let direct: ResolvedPlacement | null = null
-    if (chosen) {
-      let to: Vec3
-      if (chosen.travel <= maxDistance + EPS) {
-        to = chosen.point
-      } else {
-        const dx = chosen.point.x - m.pos.x, dz = chosen.point.z - m.pos.z
-        const d = Math.hypot(dx, dz)
-        const scale = d > EPS ? maxDistance / d : 0
-        to = { x: m.pos.x + dx * scale, y: m.pos.y, z: m.pos.z + dz * scale }
-      }
-      direct = tryPlace(m, to)
+    if (!chosen) return null
+    let to: Vec3
+    if (chosen.travel <= maxDistance + EPS) {
+      to = chosen.point
+    } else {
+      const dx = chosen.point.x - m.pos.x, dz = chosen.point.z - m.pos.z
+      const d = Math.hypot(dx, dz)
+      const scale = d > EPS ? maxDistance / d : 0
+      to = { x: m.pos.x + dx * scale, y: m.pos.y, z: m.pos.z + dz * scale }
     }
-    // R-9.6 rank-up: a model that cannot reach the enemy itself steps into base contact with a placed teammate that is
-    // itself in base contact with an enemy, so it may still fight through the chain.
-    const d0 = direct
-    const directInER = d0 !== null && geo.enemies.some((e) => horizontalGap({ pos: d0.to, facing: d0.facing, base: m.base }, e) <= ENGAGEMENT_H)
-    if (!directInER) {
-      const ranked = rankUp(m)
-      if (ranked) { placed.push(ranked); continue }
-    }
+    return tryPlace(m, to)
+  }
+  for (const m of order) {
+    if (geo.movable && !geo.movable.has(m.id)) { placed.push(stay(m)); continue } // a deferred pile-in moves only the deferred models
+    if (geo.enemies.some((t) => inBaseContact(m, t))) { placed.push(stay(m)); continue }
+    const direct = directFor(m)
+    if (direct && inER(direct)) { placed.push(direct); continue }
+    const around = aroundEnemy(m)
+    if (around) { placed.push(around); continue }
+    // farFirst: models that can only rank up wait until the front rank is placed, then pick spots farthest-first (the
+    // most constrained models choose before nearer ones that have more spots within reach)
+    if (farFirst) { deferred.push({ i: placed.length, m, direct }); placed.push(stay(m)); continue }
+    const ranked = rankUp(m)
+    if (ranked) { placed.push(ranked); continue }
     placed.push(direct ?? stay(m))
+  }
+  for (const d of deferred.sort((x, y) => minGap(y.m) - minGap(x.m))) placed[d.i] = rankUp(d.m) ?? d.direct ?? stay(d.m)
+  // second pass: anyone still unable to fight retries now that every unit-mate's final spot is known; failing that, it
+  // swaps with a second-rank unit-mate — it takes a rank-up spot and that unit-mate finds another one (a greedy first
+  // pass often gives the one spot a far-back model can reach to a nearer model that had other options)
+  const chained = (pl: ResolvedPlacement): boolean => !touchesEnemy(pl) && !inER(pl)
+    && placed.some((t) => t.model.id !== pl.model.id && touchesEnemy(t) && inBaseContact(fpOf(pl), fpOf(t)))
+  for (let pass = 0; pass < 2; pass++) {
+    let changed = false
+    for (let i = 0; i < placed.length; i++) {
+      const pl = placed[i]
+      const m = pl.model
+      if (geo.movable && !geo.movable.has(m.id)) continue
+      if (geo.enemies.some((t) => inBaseContact(m, t))) continue
+      if (inER(pl) || chained(pl)) continue
+      const alt = aroundEnemy(m) ?? rankUp(m)
+      if (alt) { placed[i] = alt; changed = true; continue }
+      for (let j = 0; j < placed.length; j++) {
+        const q = placed[j]
+        if (j === i || !chained(q) || (geo.movable && !geo.movable.has(q.model.id))) continue
+        lifted.add(q.model.id)
+        const mNew = rankUp(m)
+        lifted.delete(q.model.id)
+        if (!mNew) continue
+        placed[i] = mNew
+        const qNew = aroundEnemy(q.model) ?? rankUp(q.model)
+        if (qNew) { placed[j] = qNew; changed = true; break }
+        placed[i] = pl
+      }
+    }
+    if (!changed) break
   }
   return placed
 }
@@ -886,16 +937,43 @@ function legalApproachMoves(state: GameState, unitId: UnitId, dist: number, obje
     ? (m: Model, to: Vec3): boolean => dist2D(to, obj.pos) < dist2D(m.pos, obj.pos) - EPS && terrainOk(m, to)
     : (m: Model, to: Vec3): boolean => closerToClosestEnemyAtStart(m, m.pos, to, geo.enemies) && terrainOk(m, to)
   const repair = (pl: ModelPlacement[]): ModelPlacement[] => repairCoherency(geo.models, pl, { allowance: () => dist - 0.02, blockers: [...geo.otherFriendly, ...geo.enemies], ok })
-  const plans: (() => ModelPlacement[])[] = obj
-    ? [() => toPlacements(planApproachPoint(state, geo.models, { x: obj.pos.x, y: terrainService.heightAt(state, obj.pos.x, obj.pos.z), z: obj.pos.z }, geo.otherFriendly, geo.enemies, dist))]
-    : [ENGAGEMENT_H - 0.01, 0.004, 0.3].map((gap) => () => toPlacements(planApproachEnemy(state, geo, dist, gap)))
-  for (const plan of plans) {
-    const pl = plan()
+  if (obj) {
+    const pl = toPlacements(planApproachPoint(state, geo.models, { x: obj.pos.x, y: terrainService.heightAt(state, obj.pos.x, obj.pos.z), z: obj.pos.z }, geo.otherFriendly, geo.enemies, dist))
     if (consider(pl) || consider(repair(pl))) return out
+    if (consider([])) return out
+    consider(repair([]))
+    return out
   }
-  if (consider([])) return out
-  consider(repair([]))
-  return out
+  // toward the enemy: every plan is validated (base contact first, then near contact, then the Engagement Range edge;
+  // each as planned and coherency-repaired; finally staying put), then the legal ones are ranked by how many models may
+  // fight afterwards (R-9.6), so the first candidate — the UI's default "Pile in" — puts the most models into the fight.
+  // Ties keep this order, so a base-contact plan beats an equally good ER-edge one.
+  const all: ModelPlacement[][] = []
+  const gather = (pl: ModelPlacement[]): void => { consider(pl); while (out.length) all.push(out.shift() as ModelPlacement[]) }
+  for (const [gap, farFirst] of [[0.004, false], [0.004, true], [0.3, false], [ENGAGEMENT_H - 0.01, false]] as const) {
+    const pl = toPlacements(planApproachEnemy(state, geo, dist, gap, farFirst))
+    gather(pl)
+    gather(repair(pl))
+  }
+  gather([])
+  gather(repair([]))
+  const scored = all.map((pl, i) => ({ pl, i, n: fightersAfter(geo, pl) }))
+  scored.sort((a, b) => b.n - a.n || a.i - b.i)
+  return scored.slice(0, limit).map((x) => x.pl)
+}
+
+// R-9.6 over a proposed arrangement: models within Engagement Range of an enemy, or in base contact with a unit-mate
+// that is itself in base contact with an enemy (mirrors attackEligibleModels on final positions)
+function fightersAfter(geo: FightGeometry, placements: ModelPlacement[]): number {
+  const moved = new Map(placements.map((p) => [p.modelId, p.pos]))
+  const fps: Footprint[] = geo.models.map((m) => ({ pos: moved.get(m.id) ?? m.pos, facing: m.facing, base: m.base }))
+  const touching = fps.map((f) => geo.enemies.some((e) => inBaseContact(f, e)))
+  let n = 0
+  fps.forEach((f, i) => {
+    if (geo.enemies.some((e) => horizontalGap(f, e) <= ENGAGEMENT_H + EPS && Math.abs(f.pos.y - e.pos.y) <= 5 + EPS)) { n++; return }
+    if (fps.some((g, j) => j !== i && touching[j] && inBaseContact(f, g))) n++
+  })
+  return n
 }
 
 // ---------- legal-action candidates (W1-G) ----------
