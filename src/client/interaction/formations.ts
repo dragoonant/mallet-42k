@@ -352,7 +352,7 @@ export function formationPlacementsForUnit(
   kind: FormationKind,
 ): FormationPlacement[] {
   const { body, leader } = splitBodyAndLeader(state, unitId)
-  return generateFormation(body, leader, anchor, facing, kind)
+  return withFloor(state, generateFormation(body, leader, anchor, facing, kind))
 }
 
 /** A safe starting facing for a fresh deployment, before the player has rotated it: perpendicular to

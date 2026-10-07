@@ -277,10 +277,11 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 
 ## Client+engine (units stand on terrain and ruin floors; cover badge)
 - Engine: `surfaceY` (terrain.ts) snaps placement y to the surface under the base; `checkPlacements` (geometry.ts) applies it to move, charge, pile-in, consolidate, deployment and reserves. A mid-air y that differs from the model's current y is still rejected by `canEndAt`.
-- Client: ruin floor selector (Ground/1/2, PageUp/PageDown) sets placement y; ghosts and previews draw at the chosen height. Nudging a single model keeps its y (floors may be lost on a nudge).
+- Client: ruin floor selector (Ground/1/2, PageUp/PageDown) sets placement y; ghosts and previews draw at the chosen height. Fixed: the picker now shows on hover (not only once staged) and stays after the pointer leaves the board; the selected floor is applied to every formation the client builds (before, y never changed). A one-model nudge keeps its floor while still on that floor polygon (else selected floor, else ground) and drags track the pointer on the floor plane.
 - Terrain render: ruin and barricade walls at true height, thickness and gaps (0.6 opacity); old 3.2 height cap removed.
 - "In cover" badge (`CoverBadges`): enemies with Benefit of Cover against the selected shooter's first ranged weapon, else any unit partly in a ruin footprint.
 - Proof: `?scenario=terrain-height` + `tests/e2e/terrain-height.spec.ts` -> `e2e-out/terrain-height.png`.
+- Floor picker + nudge proof: `?scenario=floor-picker` (Terminators beside ruin-l1) in the same spec -> `e2e-out/floor-picker.png`. A floor climb costs its height in move distance, so a 5" move must start within about 2" of the ruin wall.
 
 ## Not yet built
 

@@ -13,6 +13,9 @@ import { useGameStore, type NewGameOptions } from '../store/game'
 
 const MM = 25.4
 const SCENARIO_FACTION = 'necrons'
+/** Scenarios that start in another faction / phase than the default (Necrons, Fight). */
+const SCENARIO_FACTIONS: Record<string, string> = { 'floor-picker': 'sm' }
+const MOVEMENT_SCENARIOS = new Set(['floor-picker'])
 
 export interface ScenarioInit {
   bundle: DataBundle
@@ -133,7 +136,26 @@ const terrainHeight: ScenarioBuilder = (state) => {
   state.units[foe].models.forEach((id, i) => setModelPos(state.models[id], { x: c.x + col(i), y: 0, z: c.z + 3.5 }))
 }
 
+// Space Marines in the Movement phase: 3 models of A's first unit stand on open ground just outside the ruin's upper floor,
+// ready to move in (floor-picker + nudge e2e).
+const floorPicker: ScenarioBuilder = (state) => {
+  const ruin = Object.values(state.board.pieces).find((p) => p.kind === 'ruin' && p.floors.some((f) => f.height > 0))
+  if (!ruin) throw new Error('floor-picker scenario: no ruin with an upper floor on the board')
+  const xs = ruin.footprint.map((q) => q.x)
+  const zs = ruin.footprint.map((q) => q.z)
+  const midX = (Math.min(...xs) + Math.max(...xs)) / 2
+  const south = Math.min(...zs) - 0.78
+  const me = Object.values(state.units).find((u) => u.player === 'A' && u.models.length >= 3 && !u.bodyguardUnitId)
+  if (!me) throw new Error('floor-picker scenario: no A unit with 3+ models')
+  keepModels(state, me.id, 3)
+  for (const id of state.units[me.id].models) state.models[id].base = { shape: 'round', radius: dia(32) / 2 }
+  // a single rank along x, already facing +z (into the ruin), tight against the wall: a floor climb eats 3" of the move
+  state.units[me.id].location = 'board'
+  state.units[me.id].models.forEach((id, i) => setModelPos(state.models[id], { x: midX + (i - 1) * 1.4, y: 0, z: south }, Math.PI / 2))
+}
+
 export const SCENARIOS: Record<string, ScenarioBuilder> = {
+  'floor-picker': floorPicker,
   'pile-in': pileIn,
   'pile-in-mixed': pileInMixed,
   'terrain-height': terrainHeight,
@@ -145,8 +167,9 @@ export async function buildScenario(name: string, seed = 'scenario'): Promise<Sc
   if (!build) throw new Error(`unknown scenario "${name}" (known: ${Object.keys(SCENARIOS).join(', ')})`)
   const bundle = await loadBundle()
   registerDataBundle(bundle)
-  const patrol = Object.values(bundle.patrols).find((p) => p.faction === `faction.${SCENARIO_FACTION}` || p.faction === SCENARIO_FACTION)
-  if (!patrol) throw new Error(`scenario: no patrol for ${SCENARIO_FACTION}`)
+  const factionKey = SCENARIO_FACTIONS[name] ?? SCENARIO_FACTION
+  const patrol = Object.values(bundle.patrols).find((p) => p.faction === `faction.${factionKey}` || p.faction === factionKey)
+  if (!patrol) throw new Error(`scenario: no patrol for ${factionKey}`)
   const mission = Object.values(bundle.missions)[0]
   const player = (): GameSetup['players']['A'] => {
     const enh = patrol.enhancements.find((e) => e.default) ?? patrol.enhancements[0]
@@ -165,15 +188,33 @@ export async function buildScenario(name: string, seed = 'scenario'): Promise<Sc
   state.round = 1
   state.activePlayer = 'A'
   state.firstPlayer = 'A'
-  state.phase = 'fight'
+  const movement = MOVEMENT_SCENARIOS.has(name)
+  state.phase = movement ? 'movement' : 'fight'
   state.pending = null
   const rng = new SeededRng(`${seed}:scenario`)
   const { ctx } = createContext(state, rng, DEFAULT_MODULES)
-  DEFAULT_MODULES.phases.fight.enter(ctx)
+  DEFAULT_MODULES.phases[movement ? 'movement' : 'fight'].enter(ctx)
   advanceGame(ctx, DEFAULT_MODULES)
   state.rng = rng.serialize()
   state.hash = ''
   state.hash = hashState(state)
+  if (movement) {
+    // pick A's scenario unit and declare a Normal move so the first prompt is its move destination
+    let r = { state, pending: state.pending as PendingDecision | null }
+    const pick = r.pending
+    if (pick?.kind === 'chooseUnitToActivate' && pick.player === 'A') {
+      const unitId = pick.context.eligible.find((id) => state.units[id].models.length === 3 && state.units[id].location === 'board') ?? pick.context.eligible[0]
+      const s1 = step(state, { type: 'chooseUnitToActivate', player: 'A', decisionId: pick.id, unitId })
+      if (!s1.rejection) {
+        r = { state: s1.state, pending: s1.pending }
+        if (r.pending?.kind === 'declareMove') {
+          const s2 = step(r.state, { type: 'declareMove', player: 'A', decisionId: r.pending.id, unitId, moveType: 'normal' })
+          if (!s2.rejection) r = { state: s2.state, pending: s2.pending }
+        }
+      }
+    }
+    return { bundle, setup, state: r.state, pending: r.pending }
+  }
   // Fight selection offers our unit first: take it so the first prompt is its Pile in.
   let result = { state, pending: state.pending as PendingDecision | null }
   const sel = result.pending

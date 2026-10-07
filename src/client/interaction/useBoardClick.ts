@@ -11,7 +11,9 @@
 // drag started, never a fresher one, so anything read here has to be fetched live.
 import { useCallback, useRef } from 'react'
 import { useUiStore } from '../ui/uiStore'
+import { useGameStore } from '../store/game'
 import { updateMoveHover } from './moveHover'
+import { liftToPlane, nudgeY } from './floors'
 
 const CLICK_MAX_DRAG_IN = 0.4
 
@@ -20,19 +22,24 @@ function applyNudge(point: { x: number; z: number }) {
   const nudge = ui.nudge
   const draft = ui.draft
   if (!nudge || !draft || draft.decisionId !== nudge.decisionId) return true
+  const gs = useGameStore.getState().state
+  const yAt = (x: number, z: number, y: number) => (gs ? nudgeY(gs, x, z, y) : y)
   if (nudge.mode === 'model') {
-    const target = { x: point.x - nudge.grab.x, z: point.z - nudge.grab.z }
+    const cur = draft.placements.find((p) => p.modelId === nudge.modelId)
+    const q = liftToPlane(point.x, point.z, cur?.pos.y ?? 0)
+    const target = { x: q.x - nudge.grab.x, z: q.z - nudge.grab.z }
     ui.setDraft({
       ...draft,
-      placements: draft.placements.map((p) => (p.modelId === nudge.modelId ? { ...p, pos: { ...p.pos, x: target.x, z: target.z } } : p)),
+      placements: draft.placements.map((p) => (p.modelId === nudge.modelId ? { ...p, pos: { x: target.x, y: yAt(target.x, target.z, p.pos.y), z: target.z } } : p)),
     })
   } else {
-    const dx = point.x - nudge.grab.x
-    const dz = point.z - nudge.grab.z
+    const q = liftToPlane(point.x, point.z, nudge.basePlacements[0]?.pos.y ?? 0)
+    const dx = q.x - nudge.grab.x
+    const dz = q.z - nudge.grab.z
     ui.setDraft({
       ...draft,
       anchor: { x: draft.anchor.x + dx, z: draft.anchor.z + dz },
-      placements: nudge.basePlacements.map((p) => ({ ...p, pos: { ...p.pos, x: p.pos.x + dx, z: p.pos.z + dz } })),
+      placements: nudge.basePlacements.map((p) => ({ ...p, pos: { x: p.pos.x + dx, y: yAt(p.pos.x + dx, p.pos.z + dz, p.pos.y), z: p.pos.z + dz } })),
     })
   }
   return true

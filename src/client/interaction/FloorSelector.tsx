@@ -10,21 +10,34 @@ import { floorHeightsAt, standingY, useFloorStore, withFloor } from './floors'
 
 export function FloorSelector() {
   const state = useGameStore((s) => s.state)
+  const pending = useGameStore((s) => s.pending)
   const draft = useUiStore((s) => s.draft)
+  const preview = useUiStore((s) => s.movePreview)
   const setDraft = useUiStore((s) => s.setDraft)
   const selected = useFloorStore((s) => s.height)
   const setHeight = useFloorStore((s) => s.setHeight)
+  const stored = useFloorStore((s) => s.anchor)
 
-  const heights = state && draft ? floorHeightsAt(state, draft.anchor.x, draft.anchor.z) : [0]
-  const current = state && draft ? standingY(state, draft.anchor.x, draft.anchor.z, selected) : 0
+  // Destination = staged draft, else the live hover preview, else the last one seen (the pointer leaves the board
+  // to click the picker, which clears the preview).
+  const pid = pending?.id ?? null
+  const live = pid && draft?.decisionId === pid ? draft.anchor : pid && preview?.decisionId === pid ? preview.anchor : null
+  useEffect(() => {
+    if (pid && live) useFloorStore.getState().setAnchor({ decisionId: pid, x: live.x, z: live.z })
+  }, [pid, live?.x, live?.z])
+  const anchor = live ?? (pid && stored?.decisionId === pid ? stored : null)
+
+  const heights = state && anchor ? floorHeightsAt(state, anchor.x, anchor.z) : [0]
+  const current = state && anchor ? standingY(state, anchor.x, anchor.z, selected) : 0
   const multi = heights.length > 1
 
   const choose = (h: number) => {
-    const d = useUiStore.getState().draft
     const st = useGameStore.getState().state
-    if (!d || !st) return
+    if (!st) return
     setHeight(h)
-    setDraft({ ...d, placements: withFloor(st, d.placements, h) })
+    const ui = useUiStore.getState()
+    if (ui.draft) setDraft({ ...ui.draft, placements: withFloor(st, ui.draft.placements, h) })
+    else if (ui.movePreview) ui.setMovePreview({ ...ui.movePreview, placements: withFloor(st, ui.movePreview.placements, h) })
   }
 
   useEffect(() => {
@@ -39,8 +52,14 @@ export function FloorSelector() {
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  // leaving the staged placement resets the selection to the ground floor
-  useEffect(() => () => useFloorStore.getState().setHeight(0), [])
+  // moving on to another decision resets the selection to the ground floor
+  useEffect(
+    () => () => {
+      useFloorStore.getState().setHeight(0)
+      useFloorStore.getState().setAnchor(null)
+    },
+    [pid],
+  )
 
   if (!multi) return null
   return (

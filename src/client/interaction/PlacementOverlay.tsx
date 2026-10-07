@@ -8,7 +8,7 @@
 // which reads the same `validateDraft` result to disable Confirm with a reason — this component is
 // purely presentational plus the nudge-drag pointer handlers, never dispatches an Action itself.
 import { useMemo, useState } from 'react'
-import type { ThreeEvent } from '@react-three/fiber'
+import { useThree, type ThreeEvent } from '@react-three/fiber'
 import { Html, Line } from '@react-three/drei'
 import { enemyModelsOnBoard, dist2D, type Model, type UnitId } from '@/engine'
 import { EngagementRing, MoveRangeRing, Ruler } from '../board'
@@ -18,6 +18,7 @@ import { useUiStore } from '../ui/uiStore'
 import { colors } from '../ui/theme'
 import { combinedUnitIds, combinedUnitModels, modelsAnchor } from './geometry'
 import { placementInfo } from './decisions'
+import { cameraRef } from './floors'
 import { validateDraft, type CoherencyLink } from './formationValidation'
 import { fightersAfter, isApproachPending, validateApproach } from './approachDraft'
 
@@ -187,6 +188,7 @@ export function PlacementOverlay() {
   const previewDraft = useUiStore((s) => s.previewDraft)
   const deployTargetUnitId = useUiStore((s) => s.deployTargetUnitId)
   const startNudge = useUiStore((s) => s.startNudge)
+  cameraRef.current = useThree((s) => s.camera).position // useBoardClick lifts nudge drags onto a ruin floor's plane with it
   const [hoveredModelId, setHoveredModelId] = useState<string | null>(null)
 
   if (!state || !pending || pending.player === botSeat) return null

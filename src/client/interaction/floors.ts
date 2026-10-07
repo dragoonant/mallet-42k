@@ -9,9 +9,18 @@ interface FloorStore {
   /** Selected standing height in inches; 0 = ground floor. */
   height: number
   setHeight: (h: number) => void
+  /** Last move/deploy destination seen for a decision (hover preview or staged draft), so the picker stays
+   *  reachable after the pointer leaves the board to click it. */
+  anchor: { decisionId: string; x: number; z: number } | null
+  setAnchor: (a: { decisionId: string; x: number; z: number } | null) => void
 }
 
-export const useFloorStore = create<FloorStore>((set) => ({ height: 0, setHeight: (height) => set({ height }) }))
+export const useFloorStore = create<FloorStore>((set) => ({
+  height: 0,
+  setHeight: (height) => set({ height }),
+  anchor: null,
+  setAnchor: (anchor) => set({ anchor }),
+}))
 
 function inPoly(x: number, z: number, poly: { x: number; z: number }[]): boolean {
   let inside = false
@@ -44,4 +53,23 @@ export function withFloor<T extends ModelPlacement>(state: GameState, placements
     const y = standingY(state, p.pos.x, p.pos.z, height)
     return y === p.pos.y ? p : { ...p, pos: { ...p.pos, y } }
   })
+}
+
+/** y for one model dragged to (x, z): keeps its current floor if the spot is still on that floor's polygon,
+ *  else the selected floor if one exists there, else the ground. */
+export function nudgeY(state: GameState, x: number, z: number, currentY: number, height: number = useFloorStore.getState().height): number {
+  if (currentY > 0 && floorHeightsAt(state, x, z).includes(currentY)) return currentY
+  return standingY(state, x, z, height)
+}
+
+/** Camera position (set by PlacementOverlay) so a nudge drag, whose pointer stream hits the ground mat at y = 0, can be
+ *  lifted onto the plane a model on a ruin floor stands in — otherwise the model runs ahead of the cursor. */
+export const cameraRef: { current: { x: number; y: number; z: number } | null } = { current: null }
+
+/** Where the pointer ray through ground point (x, z) meets the horizontal plane at height y. */
+export function liftToPlane(x: number, z: number, y: number): { x: number; z: number } {
+  const c = cameraRef.current
+  if (!c || y <= 0 || c.y <= y) return { x, z }
+  const k = (c.y - y) / c.y
+  return { x: c.x + (x - c.x) * k, z: c.z + (z - c.z) * k }
 }
