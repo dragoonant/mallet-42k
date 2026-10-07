@@ -51,6 +51,14 @@ export interface PlacementDraft {
   placements: ModelPlacement[]
 }
 
+/** A clamped hover preview: the draft plus the engine verdict the clamp already computed (never re-derived in the UI). */
+export interface MovePreview extends PlacementDraft {
+  ok: boolean
+  reason?: string
+  distance: number
+  maxDistance: number
+}
+
 export interface Vec2 {
   x: number
   z: number
@@ -110,6 +118,9 @@ interface UiState {
   /** A suggested-placement option's would-be result, shown as a ghost marker while its button is
    *  hovered — never dispatched, purely a preview (src/client/ui/DecisionPrompt.tsx). */
   previewDraft: PlacementDraft | null
+  /** Live hover preview of where a move-family unit would end up under the cursor (already clamped to legal
+   *  range, src/client/interaction/moveClamp.ts); null while a draft is staged or no move is pending. */
+  movePreview: MovePreview | null
   topDown: boolean
   /** Measure tool (HUD toggle + key M): click-drag on the board draws a ruler. `measureAnchor` is
    *  the live drag's raw start point; `measureLine` is the resolved a/b to draw, kept after
@@ -148,6 +159,7 @@ interface UiState {
   setDeployTarget(id: string | null): void
   setDraft(draft: PlacementDraft | null): void
   setPreviewDraft(draft: PlacementDraft | null): void
+  setMovePreview(preview: MovePreview | null): void
   toggleTopDown(): void
   toggleMeasure(): void
   setMeasureAnchor(p: Vec2 | null): void
@@ -192,6 +204,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   deployTargetUnitId: null,
   draft: null,
   previewDraft: null,
+  movePreview: null,
   topDown: false,
   measureOn: false,
   measureAnchor: null,
@@ -217,6 +230,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   setDeployTarget: (id) => set({ deployTargetUnitId: id, draft: null }),
   setDraft: (draft) => set({ draft }),
   setPreviewDraft: (previewDraft) => set({ previewDraft }),
+  setMovePreview: (movePreview) => set({ movePreview }),
   toggleTopDown: () => set((s) => ({ topDown: !s.topDown })),
   toggleMeasure: () =>
     set((s) => (s.measureOn ? { measureOn: false, measureAnchor: null, measureLine: null } : { measureOn: true })),
@@ -244,7 +258,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   startNudge: (n) => set({ nudge: n }),
   clearNudge: () => set({ nudge: null }),
   resetForDecision: () =>
-    set({ deployTargetUnitId: null, draft: null, previewDraft: null, hoveredUnitId: null, hoveredUnitIds: [], hoveredModelId: null, hoveredObjectiveId: null, nudge: null }),
+    set({ deployTargetUnitId: null, draft: null, previewDraft: null, movePreview: null, hoveredUnitId: null, hoveredUnitIds: [], hoveredModelId: null, hoveredObjectiveId: null, nudge: null }),
   resetAll: () => {
     // New game: rotate to the next battlefield unless ?board= forces one.
     let battlefieldIndex = get().battlefieldIndex
@@ -263,6 +277,7 @@ export const useUiStore = create<UiState>((set, get) => ({
       deployTargetUnitId: null,
       draft: null,
       previewDraft: null,
+      movePreview: null,
       measureOn: false,
       measureAnchor: null,
       measureLine: null,

@@ -11,6 +11,7 @@
 // drag started, never a fresher one, so anything read here has to be fetched live.
 import { useCallback, useRef } from 'react'
 import { useUiStore } from '../ui/uiStore'
+import { updateMoveHover } from './moveHover'
 
 const CLICK_MAX_DRAG_IN = 0.4
 
@@ -41,7 +42,11 @@ export function useBoardClick(onClick: (point: { x: number; z: number }) => void
   const down = useRef<{ x: number; z: number } | null>(null)
 
   return useCallback(
-    (point: { x: number; z: number }, kind: 'move' | 'down' | 'up') => {
+    (point: { x: number; z: number }, kind: 'move' | 'down' | 'up' | 'hover' | 'leave') => {
+      if (kind === 'hover' || kind === 'leave') {
+        updateMoveHover(kind === 'hover' ? point : null)
+        return
+      }
       if (kind === 'move') {
         applyNudge(point)
         return

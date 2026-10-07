@@ -11,6 +11,7 @@ import { useUiStore, type PlacementDraft } from '../ui/uiStore'
 import { combinedUnitIds, combinedUnitModels, modelsAnchor, type Anchor2D } from './geometry'
 import { directionFacing, formationPlacementsForUnit, zoneFacing, type FormationKind, type FormationPlacement } from './formations'
 import { placementInfo } from './decisions'
+import { clampMoveDraft, moveFacing } from './moveClamp'
 import { deployUnitInfiltrates, inInfiltratorArea, validateDraft } from './formationValidation'
 
 /** Average of a convex polygon's own vertices — always interior for the rectangle/triangle deployment
@@ -251,6 +252,12 @@ export function computeBoardClickDraft(
   // unit out of coherency with no way to fix it short of the fallback list.
   const models = combinedUnitModels(state, info.unitId)
   if (models.length === 0) return null
+  // moveUnit / chargeMove: clamp the click to the farthest legal destination (range + the engine's own checks).
+  const clamp = clampMoveDraft(state, pending, point)
+  if (clamp) {
+    if (ui.formationFacingAuto) ui.setFormationFacing(moveFacing(state, pending, point, { kind: ui.formationKind, facing: ui.formationFacing, auto: true }), true)
+    return clamp.draft
+  }
   const anchor = modelsAnchor(models)
   const facing = ui.formationFacingAuto ? directionFacing(anchor, point, ui.formationFacing) : ui.formationFacing
   const placements = formationPlacementsForUnit(state, info.unitId, point, facing, ui.formationKind)

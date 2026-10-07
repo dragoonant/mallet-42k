@@ -11,7 +11,7 @@ import { useGameStore } from '../store/game'
 import { useUiStore } from './uiStore'
 import {
   combinedUnitIds, combinedUnitModels, distance2D, formationPlacementsForUnit, modelsAnchor, placementInfo, validateDraft,
-  isApproachPending, startDraft, autoDraft, placementsToSend, validateApproach, fightersAfter,
+  isApproachPending, startDraft, autoDraft, validateApproach, fightersAfter,
 } from '../interaction'
 import { neededChargeDistance } from '@/engine/phases/charge'
 import { isTeleporting } from '@/engine/teleport'
@@ -20,6 +20,7 @@ import {
   shootingTargetHelp, type PromptHelp,
 } from './labels'
 import { offeredAmbushMarker, useAmbushHover } from '../interaction/CultAmbushMarkers'
+import { commitStagedDraft } from '../interaction/commitDraft'
 import { FormationPicker } from './FormationPicker'
 import { rerollTrayModel, rollForOffer } from './rerollInfo'
 import { RerollTray } from './RerollTray'
@@ -776,7 +777,6 @@ export function DecisionPrompt() {
   const formationFacing = useUiStore((s) => s.formationFacing)
   const primeFormation = useUiStore((s) => s.primeFormation)
   const recallFormation = useUiStore((s) => s.recallFormation)
-  const rememberFormation = useUiStore((s) => s.rememberFormation)
 
   // Delayed hover help on an option (currently the move types — see moveTypeHelp). Kept here rather
   // than in each button so only one card is ever open, and so the timer is cancelled on unmount.
@@ -868,17 +868,7 @@ export function DecisionPrompt() {
     : null
 
   const confirmDraft = () => {
-    if (!activeDraft || (draftValidation && !draftValidation.ok)) return
-    const { unitId } = activeDraft
-    const placements = approach ? placementsToSend(state, activeDraft.placements) : activeDraft.placements
-    const base = { player: pending.player, decisionId: pending.id }
-    if (pending.kind === 'deployUnit') dispatch({ ...base, type: 'deployUnit', unitId, placements })
-    else if (pending.kind === 'moveUnit') dispatch({ ...base, type: 'moveUnit', unitId, placements })
-    else if (pending.kind === 'chargeMove') dispatch({ ...base, type: 'chargeMove', unitId, placements })
-    else if (pending.kind === 'pileIn') dispatch({ ...base, type: 'pileIn', unitId, placements })
-    else if (pending.kind === 'consolidate') dispatch({ ...base, type: 'consolidate', unitId, placements })
-    rememberFormation(unitId, formationKind, formationFacing)
-    setDraft(null)
+    commitStagedDraft()
   }
 
   const resetDraft = () => {

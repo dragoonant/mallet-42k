@@ -347,7 +347,7 @@ function DistanceLabel({
   return <FloatingLabel pos={p.pos} text={`${d.toFixed(1)}" / ${allowance.toFixed(1)}"`} color={over ? BLOCKED_COLOR : colors.text} />
 }
 
-function FloatingLabel({ pos, text, color }: { pos: { x: number; z: number }; text: string; color: string }) {
+export function FloatingLabel({ pos, text, color }: { pos: { x: number; z: number }; text: string; color: string }) {
   const html = useMemo(
     () => (
       <div

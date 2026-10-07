@@ -10,7 +10,10 @@ import { usePresentationSettings } from './presentation/settings'
 import { useDisplayState } from './presentation/presentedStore'
 import { useGameStore } from './store/game'
 import { useUiStore } from './ui/uiStore'
-import { computeBoardClickDraft, CultAmbushMarkers, DeathGhosts, PlacementOverlay, resolveMeasureLine, UnitLabels, UnitsLayer, useBoardClick } from './interaction'
+import { computeBoardClickDraft, CultAmbushMarkers, DeathGhosts, MovePreviewOverlay, PlacementOverlay, resolveMeasureLine, UnitLabels, UnitsLayer, useBoardClick } from './interaction'
+import { isClampedMovePending } from './interaction/moveClamp'
+import { commitStagedDraft } from './interaction/commitDraft'
+import { COMMIT_CLICK_RADIUS_IN, useMoveKeys } from './interaction/moveHover'
 import { VfxLayer } from './vfx'
 import { spikeMode } from '../spike/flag'
 import { PerfProbe } from '../spike/PerfProbe'
@@ -43,14 +46,23 @@ export function Scene() {
   const measureOn = useUiStore((s) => s.measureOn)
   const measureLine = useUiStore((s) => s.measureLine)
 
+  useMoveKeys()
   const onBoardClick = useBoardClick((point) => {
     // A click on a Figure also resolves here (the board plane sits behind every figure) — the unit
     // card is only left open by this when UnitsLayer's own handler re-selects it right after, so an
     // actual empty-board click is what ends up clearing the card.
     selectUnit(null)
     if (!state || !pending || pending.player === botSeat) return
+    // A second click on the staged move destination commits it (same path as the Confirm button / Enter).
+    const staged = useUiStore.getState().draft
+    if (staged && staged.decisionId === pending.id && isClampedMovePending(pending) && Math.hypot(point.x - staged.anchor.x, point.z - staged.anchor.z) <= COMMIT_CLICK_RADIUS_IN) {
+      if (commitStagedDraft()) return
+    }
     const draft = computeBoardClickDraft(state, pending, deployTargetUnitId, point)
-    if (draft) setDraft(draft)
+    if (draft) {
+      setDraft(draft)
+      useUiStore.getState().setMovePreview(null)
+    }
   })
 
   // Measure tool (M2, key M): while active, board pointer events drive a live ruler instead of the
@@ -63,7 +75,7 @@ export function Scene() {
   // handler closure attached at capture time for every following move/up — it does NOT swap in the
   // fresher closure a later Scene re-render would otherwise pass down — so anything this handler
   // reads has to be fetched live on each call instead of trusted from the render it was created in.
-  const onBoardPointer = (point: { x: number; z: number }, kind: 'move' | 'down' | 'up') => {
+  const onBoardPointer = (point: { x: number; z: number }, kind: 'move' | 'down' | 'up' | 'hover' | 'leave') => {
     const ui = useUiStore.getState()
     if (ui.measureOn) {
       const liveState = useGameStore.getState().state
@@ -122,6 +134,7 @@ export function Scene() {
       <UnitsLayer />
       <UnitLabels />
       <PlacementOverlay />
+      <MovePreviewOverlay />
       <DeathGhosts />
       <VfxLayer />
       {measureOn && measureLine && <Ruler a={measureLine.a} b={measureLine.b} />}

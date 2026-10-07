@@ -31,12 +31,14 @@ function GroundMesh({
   onPointerMove,
   onPointerDown,
   onPointerUp,
+  onPointerOut,
 }: {
   width: number
   depth: number
   onPointerMove: PointerHandler
   onPointerDown: PointerHandler
   onPointerUp: PointerHandler
+  onPointerOut: PointerHandler
 }) {
   const battlefieldIndex = useUiStore((s) => s.battlefieldIndex)
   const maxAniso = useThree((s) => s.gl.capabilities.getMaxAnisotropy())
@@ -54,6 +56,7 @@ function GroundMesh({
       onPointerMove={onPointerMove}
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
+      onPointerOut={onPointerOut}
       receiveShadow
     >
       <planeGeometry args={[width, depth]} />
@@ -70,7 +73,7 @@ export interface BoardProps {
    *  occupant's colour. Before sides are chosen this defaults to A. */
   attacker?: PlayerId
   /** Fires with a board-space point (inches, board-centred) on pointer move/click over the mat. */
-  onBoardPointer?: (point: { x: number; z: number }, kind: 'move' | 'down' | 'up') => void
+  onBoardPointer?: (point: { x: number; z: number }, kind: 'move' | 'down' | 'up' | 'hover' | 'leave') => void
 }
 
 /** The 44"x30" battle mat: textured ground plane and deployment-zone tint (§50-client §4). */
@@ -93,8 +96,11 @@ export function Board({ width: widthProp, depth: depthProp, deploymentZones, att
   // only when no camera-drag modifier (Space/Shift/Alt) is held — those combinations pan/rotate the
   // camera instead (CameraRig.tsx). Right/middle-button events never reach onBoardPointer at all, so
   // a right- or middle-drag orbit/pan can't also read as a click, a Measure drag, or a model nudge.
-  const emit = (e: ThreeEvent<PointerEvent>, kind: 'move' | 'down' | 'up') => {
+  const emit = (e: ThreeEvent<PointerEvent>, kind: 'move' | 'down' | 'up' | 'hover' | 'leave') => {
     if (!onBoardPointer) return
+    // buttonless movement is a hover (live move preview); leaving the mat clears it
+    if (kind === 'leave') return onBoardPointer({ x: e.point.x, z: e.point.z }, 'leave')
+    if (kind === 'move' && (e.buttons & 1) === 0) return isCameraDragModifier(e) ? undefined : onBoardPointer({ x: e.point.x, z: e.point.z }, 'hover')
     if (kind === 'down' && (e.button !== 0 || isCameraDragModifier(e))) return
     if (kind === 'move' && ((e.buttons & 1) === 0 || isCameraDragModifier(e))) return
     if (kind === 'up' && e.button !== 0) return
@@ -108,6 +114,7 @@ export function Board({ width: widthProp, depth: depthProp, deploymentZones, att
           width={width}
           depth={depth}
           onPointerMove={(e) => emit(e, 'move')}
+          onPointerOut={(e) => emit(e, 'leave')}
           onPointerDown={(e) => {
             dragging.current = true
             emit(e, 'down')
