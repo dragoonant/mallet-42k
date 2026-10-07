@@ -132,6 +132,18 @@ export function acrossBarricade(state: GameState, a: Vec2, b: Vec2): boolean {
   return false
 }
 
+// Snap a requested standing height to a legal surface: if pos.y equals a crate top or ruin floor height whose polygon
+// contains (x,z) keep it (canEndAt stays the judge of keyword/overhang legality); anything else (0, a stale height from
+// the model's previous spot, garbage) becomes ground level 0.
+export function surfaceY(board: { pieces?: Record<string, TerrainPiece> }, _model: Pick<Model, 'base'> | undefined, pos: Vec3): number {
+  if (!Number.isFinite(pos.y) || Math.abs(pos.y) <= EPS) return 0
+  for (const p of Object.values(board.pieces ?? {})) {
+    if (p.kind === 'crate' && Math.abs(pos.y - p.height) <= EPS && pointInPolygon(pos, p.footprint)) return p.height
+    if (p.kind === 'ruin') for (const f of p.floors) if (Math.abs(pos.y - f.height) <= EPS && pointInPolygon(pos, f.polygon)) return f.height
+  }
+  return 0
+}
+
 export interface TerrainService {
   // surface height under (x, z): 0 on open ground, a floor height inside a ruin, the top of a HILL/container
   heightAt(state: GameState, x: number, z: number): number

@@ -2,6 +2,7 @@
 // four move-family decisions (which need a board click, handled by src/client/interaction/**); every
 // other decision kind — including declareTargets/declareCharge, which also accept a click on an enemy
 // Figure via UnitsLayer — renders as a plain clickable list here, so no decision can ever get stuck.
+import { FloorSelector } from '../interaction/FloorSelector'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import {
   unitModels,
@@ -1151,6 +1152,8 @@ export function DecisionPrompt() {
           </button>
         )}
       </div>
+
+      {activeDraft && <FloorSelector />}
 
       {activeDraft && draftValidation && !draftValidation.ok && (
         <div style={{ ...hint, color: colors.danger }} data-testid="draft-issue">

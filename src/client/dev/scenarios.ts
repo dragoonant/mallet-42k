@@ -111,9 +111,32 @@ const pileInMixed: ScenarioBuilder = (state) => {
   chargeReady(state, me)
 }
 
+// Terrain-height: an INFANTRY unit stands on a ruin's upper floor and an enemy unit stands on the ground just
+// beside it. Uses the first ruin on the board that has an upper floor.
+const terrainHeight: ScenarioBuilder = (state) => {
+  const ruin = Object.values(state.board.pieces).find((p) => p.kind === 'ruin' && p.floors.some((f) => f.height > 0))
+  if (!ruin) throw new Error('terrain-height scenario: no ruin with an upper floor on the board')
+  const floor = [...ruin.floors].filter((f) => f.height > 0).sort((a, b) => a.height - b.height)[0]
+  const c = {
+    x: floor.polygon.reduce((a, q) => a + q.x, 0) / floor.polygon.length,
+    z: floor.polygon.reduce((a, q) => a + q.z, 0) / floor.polygon.length,
+  }
+  const me: UnitId = 'A:warriors'
+  const foe: UnitId = 'B:warriors'
+  keepModels(state, me, 3)
+  keepModels(state, foe, 3)
+  for (const id of [...state.units[me].models, ...state.units[foe].models]) state.models[id].base = { shape: 'round', radius: dia(32) / 2 }
+  const col = (i: number) => (i - 1) * 1.4
+  state.units[me].location = 'board'
+  state.units[me].models.forEach((id, i) => setModelPos(state.models[id], { x: c.x + col(i), y: floor.height, z: c.z }))
+  state.units[foe].location = 'board'
+  state.units[foe].models.forEach((id, i) => setModelPos(state.models[id], { x: c.x + col(i), y: 0, z: c.z + 3.5 }))
+}
+
 export const SCENARIOS: Record<string, ScenarioBuilder> = {
   'pile-in': pileIn,
   'pile-in-mixed': pileInMixed,
+  'terrain-height': terrainHeight,
 }
 
 /** Builds the scenario's game state positioned in the human's Fight phase, ready for the first decision. */

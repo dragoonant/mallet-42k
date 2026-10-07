@@ -275,6 +275,13 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, 6 games all finished (mean 5 rounds), genestealer-cults 1 win, no draws |
 | Known gaps | No GLB models or bespoke sounds; marker option labels not customised; rulings in `docs/needs-rules-check.md` under "genestealer-cults build" (GSC-01 to GSC-22) |
 
+## Client+engine (units stand on terrain and ruin floors; cover badge)
+- Engine: `surfaceY` (terrain.ts) snaps placement y to the surface under the base; `checkPlacements` (geometry.ts) applies it to move, charge, pile-in, consolidate, deployment and reserves. A mid-air y that differs from the model's current y is still rejected by `canEndAt`.
+- Client: ruin floor selector (Ground/1/2, PageUp/PageDown) sets placement y; ghosts and previews draw at the chosen height. Nudging a single model keeps its y (floors may be lost on a nudge).
+- Terrain render: ruin and barricade walls at true height, thickness and gaps (0.6 opacity); old 3.2 height cap removed.
+- "In cover" badge (`CoverBadges`): enemies with Benefit of Cover against the selected shooter's first ranged weapon, else any unit partly in a ruin footprint.
+- Proof: `?scenario=terrain-height` + `tests/e2e/terrain-height.spec.ts` -> `e2e-out/terrain-height.png`.
+
 ## Not yet built
 
 - Anything beyond M8 (see Client tables for what M3/M6/M8 cover); AI Monte Carlo/hard tier, generated models, scale-up, multiplayer, Phase B glTF animation/asset pipeline for figures (see PLAN.md, docs/spec/30-figures.md §9)

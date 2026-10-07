@@ -1,0 +1,47 @@
+// Ruin floor selection for placement/moves. The chosen floor height (0 = ground) is client-only state; every
+// placement the client builds gets its y from it (per model: only models whose centre lies inside a floor
+// polygon of that height stand on it, the rest stay on the ground). The engine (canEndAt) stays the authority
+// on whether a floor placement is legal — a rejection surfaces like any other rejected move.
+import { create } from 'zustand'
+import type { GameState, ModelPlacement } from '@/engine'
+
+interface FloorStore {
+  /** Selected standing height in inches; 0 = ground floor. */
+  height: number
+  setHeight: (h: number) => void
+}
+
+export const useFloorStore = create<FloorStore>((set) => ({ height: 0, setHeight: (height) => set({ height }) }))
+
+function inPoly(x: number, z: number, poly: { x: number; z: number }[]): boolean {
+  let inside = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i]
+    const b = poly[j]
+    if (a.z > z !== b.z > z && x < ((b.x - a.x) * (z - a.z)) / (b.z - a.z) + a.x) inside = !inside
+  }
+  return inside
+}
+
+/** Distinct standing heights offered at (x, z): ground (0) plus every ruin upper floor whose polygon contains it. */
+export function floorHeightsAt(state: GameState, x: number, z: number): number[] {
+  const hs = new Set<number>([0])
+  for (const p of Object.values(state.board.pieces)) {
+    if (p.kind !== 'ruin') continue
+    for (const f of p.floors) if (f.height > 0 && inPoly(x, z, f.polygon)) hs.add(f.height)
+  }
+  return [...hs].sort((a, b) => a - b)
+}
+
+/** y a model centred at (x, z) stands at when `height` is the selected floor: that floor's height if it has one there, else 0. */
+export function standingY(state: GameState, x: number, z: number, height: number): number {
+  return height > 0 && floorHeightsAt(state, x, z).includes(height) ? height : 0
+}
+
+/** Re-height placements to the given floor (defaults to the currently selected one). */
+export function withFloor<T extends ModelPlacement>(state: GameState, placements: T[], height: number = useFloorStore.getState().height): T[] {
+  return placements.map((p) => {
+    const y = standingY(state, p.pos.x, p.pos.z, height)
+    return y === p.pos.y ? p : { ...p, pos: { ...p.pos, y } }
+  })
+}

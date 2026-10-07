@@ -37,14 +37,13 @@ const CONCRETE_TINT = '#a9a9a4' // upper-floor slabs, matched to the grey ruins
 // z-fight the model's own outer walls.
 const GLB_FLOOR_INSET = 0.12
 
-// Ruins render as low, broken walls rather than the full data height — a stylistic choice so the
-// board reads clearly at table-top camera angles; the engine's own terrain heights govern LoS/cover.
-const RUIN_WALL_VISUAL_CAP = 3
-const RUIN_WALL_VISUAL_SCALE = 0.55
-const WALL_THICKNESS = 0.35
+// Walls are drawn at true data height/thickness (no cap) so a figure on an upper floor visibly stands on it;
+// see-through enough to read units inside.
+const ENGINE_DEFAULT_WALL_THICKNESS = 0.25 // matches engine wallOccupiesPoint default
+const RUIN_WALL_OPACITY = 0.6
 // Solid terrain is capped and semi-transparent so it never fully hides units or a deployment zone
 // behind it at table-top camera angles (LoS/cover still come from the engine's real terrain heights).
-const BLOCK_VISUAL_CAP = 3.2
+const BLOCK_VISUAL_CAP = 6 // crates (3") and barricades (1.5") draw at true height; cap only guards oversize data
 const TERRAIN_OPACITY = 0.85
 
 // Texture-repeat scale: one full tile per this many inches of surface (bricks/concrete/metal read
@@ -137,42 +136,42 @@ function RuinPiece({ piece }: { piece: TerrainPieceData }) {
   )
 }
 
-function RuinWall({ seed, wall }: { seed: string; wall: WallData }) {
+/** Splits a wall into solid boxes (u = 0..1 along a->b, y range) honouring the engine's gaps, so the drawn
+ *  panel is solid exactly where the engine says it is (wallOccupiesPoint / wallCrosses3D). */
+function wallBoxes(wall: WallData): { u0: number; u1: number; y0: number; y1: number }[] {
+  const gaps = [...(wall.gaps ?? [])].sort((p, q) => p.from - q.from)
+  const out: { u0: number; u1: number; y0: number; y1: number }[] = []
+  let u = 0
+  for (const g of gaps) {
+    const from = Math.max(g.from, u), to = Math.min(g.to, 1)
+    if (to <= from) continue
+    if (from > u) out.push({ u0: u, u1: from, y0: 0, y1: wall.height })
+    const bottom = g.bottom ?? 0, top = g.top ?? wall.height
+    if (bottom > 0) out.push({ u0: from, u1: to, y0: 0, y1: Math.min(bottom, wall.height) })
+    if (top < wall.height) out.push({ u0: from, u1: to, y0: Math.max(top, 0), y1: wall.height })
+    u = to
+  }
+  if (u < 1) out.push({ u0: u, u1: 1, y0: 0, y1: wall.height })
+  return out
+}
+
+/** A ruin wall at its TRUE data height, thickness and gaps (what the engine uses for LoS and for where a
+ *  base may stand). Semi-transparent so models inside the ruin stay visible. */
+function RuinWall({ wall }: { seed: string; wall: WallData }) {
   const { mid, length, rotationY } = segmentTransform(wall.a, wall.b)
-  const wallHeight = Math.min(wall.height * RUIN_WALL_VISUAL_SCALE, RUIN_WALL_VISUAL_CAP)
-
-  const rubble = useMemo(() => {
-    // A couple of deterministically-placed jagged chunks along the run so the broken-wall
-    // silhouette is stable across re-renders instead of flickering with fresh randomness.
-    return [0.22, 0.62].map((t, i) => {
-      const bumpSeed = `${seed}-${i}`
-      const width = length * (0.16 + 0.1 * seededUnit(bumpSeed))
-      const extra = 0.3 + 1.1 * seededUnit(`${bumpSeed}-h`)
-      const offset = (t - 0.5) * length
-      return { offset, width, height: wallHeight + extra }
-    })
-  }, [seed, length, wallHeight])
-
+  const thickness = wall.thickness ?? ENGINE_DEFAULT_WALL_THICKNESS
+  const boxes = useMemo(() => wallBoxes(wall), [wall])
   const concrete = useTiledPBR(CONCRETE_URLS)
-  const wallTextures = useMemo(
-    () => cloneRepeat(concrete, length / WALL_REPEAT_INCHES, wallHeight / WALL_REPEAT_INCHES),
-    [concrete, length, wallHeight],
+  const textures = useMemo(
+    () => boxes.map((bx) => cloneRepeat(concrete, ((bx.u1 - bx.u0) * length) / WALL_REPEAT_INCHES, (bx.y1 - bx.y0) / WALL_REPEAT_INCHES)),
+    [concrete, boxes, length],
   )
-  const rubbleTextures = useMemo(
-    () => rubble.map((r) => cloneRepeat(concrete, r.width / WALL_REPEAT_INCHES, r.height / WALL_REPEAT_INCHES)),
-    [concrete, rubble],
-  )
-
   return (
     <group position={[mid.x, 0, mid.z]} rotation={[0, rotationY, 0]}>
-      <mesh position={[0, wallHeight / 2, 0]} castShadow receiveShadow>
-        <boxGeometry args={[length, wallHeight, WALL_THICKNESS]} />
-        <meshStandardMaterial {...wallTextures} color={RUIN_WALL_TINT} roughness={1} transparent opacity={TERRAIN_OPACITY} />
-      </mesh>
-      {rubble.map((r, i) => (
-        <mesh key={i} position={[r.offset, r.height / 2, 0]}>
-          <boxGeometry args={[r.width, r.height, WALL_THICKNESS * 1.05]} />
-          <meshStandardMaterial {...rubbleTextures[i]} color={RUBBLE_TINT} roughness={1} transparent opacity={TERRAIN_OPACITY} />
+      {boxes.map((bx, i) => (
+        <mesh key={i} position={[((bx.u0 + bx.u1) / 2 - 0.5) * length, (bx.y0 + bx.y1) / 2, 0]} castShadow receiveShadow>
+          <boxGeometry args={[(bx.u1 - bx.u0) * length, bx.y1 - bx.y0, thickness]} />
+          <meshStandardMaterial {...textures[i]} color={RUIN_WALL_TINT} roughness={1} transparent opacity={RUIN_WALL_OPACITY} />
         </mesh>
       ))}
     </group>

@@ -1,6 +1,7 @@
 // Measurement (W1-A): base-to-base 3D distance, within / wholly within, engagement range, coherency, pivots, paths,
 // placement validation (10-rules §2, 00-arch §7). Pure functions over Model / Vec3 / Polygon; no state mutation.
 import type { Polygon, Vec2 } from '../data/types'
+import { surfaceY } from './terrain'
 import type { Board, Model, ModelBase, ModelId, MoveConstraints, Objective, Path, Rejection, Vec3 } from './types'
 
 export const EPS = 1e-6
@@ -352,7 +353,7 @@ export interface PlacementCheckInput {
   // friendly models of other units and enemy models currently on the board
   otherFriendly: Model[]
   enemies: Model[]
-  board: Pick<Board, 'w' | 'h'>
+  board: Pick<Board, 'w' | 'h'> & Partial<Pick<Board, 'pieces'>>
   pivotCost?: number
   fly?: boolean
   // models of `mustEndInEngagementWith` units, keyed by unit id (only needed when that constraint is used)
@@ -374,8 +375,12 @@ export function checkPlacements(input: PlacementCheckInput): { rejection: Reject
     if (!model) return { rejection: { code: 'E_SCHEMA', reason: `model ${p.modelId} is not in the unit` } }
     if (seen.has(p.modelId)) return { rejection: { code: 'E_SCHEMA', reason: `model ${p.modelId} placed twice` } }
     seen.add(p.modelId)
-    const to = roundVec3(p.pos)
+    // a height that is not a real surface is snapped to the ground only when it is the model's own stale height
+    // (planners carry m.pos.y along); an explicit mid-air request stays as sent so canEndAt rejects it (MOVE-021-air)
+    const sy = surfaceY(board, model, p.pos)
+    const to = roundVec3({ ...p.pos, y: sy === 0 && Math.abs(p.pos.y) > EPS && Math.abs(p.pos.y - model.pos.y) > EPS ? p.pos.y : sy })
     const path: Path = p.path && p.path.length >= 2 ? p.path.map(roundVec3) : [model.pos, to]
+    if (p.path && p.path.length >= 2) path[path.length - 1] = { ...path[path.length - 1], y: to.y }
     if (dist3D(path[0], model.pos) > 1e-3) return { rejection: { code: 'E_SCHEMA', reason: `path of ${p.modelId} must start at its current position` } }
     if (dist3D(path[path.length - 1], to) > 1e-3) return { rejection: { code: 'E_SCHEMA', reason: `path of ${p.modelId} must end at pos` } }
     const facing = p.facing ?? model.facing

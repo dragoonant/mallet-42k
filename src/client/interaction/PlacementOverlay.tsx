@@ -99,7 +99,7 @@ function DraftMarkers({
 }: {
   /** Models that would be able to fight from where they stand in this draft — drawn with an orange ring + sword mark. */
   fighting?: ReadonlySet<string>
-  placements: { modelId: string; pos: { x: number; z: number } }[]
+  placements: { modelId: string; pos: { x: number; y?: number; z: number } }[]
   perModel?: Record<string, string[]>
   color?: string
   opacity?: number
@@ -132,29 +132,29 @@ function DraftMarkers({
         return (
           <group key={p.modelId}>
             {isFrontRank && !blocked && (
-              <mesh position={[p.pos.x, 0.065, p.pos.z]} rotation={[-Math.PI / 2, 0, 0]}>
+              <mesh position={[p.pos.x, (p.pos.y ?? 0) + 0.065, p.pos.z]} rotation={[-Math.PI / 2, 0, 0]}>
                 <ringGeometry args={[0.62, 0.74, 24]} />
                 <meshBasicMaterial color={FRONT_RANK_COLOR} transparent opacity={0.55} />
               </mesh>
             )}
             {fighting?.has(p.modelId) && !blocked && (
               <>
-                <mesh position={[p.pos.x, 0.075, p.pos.z]} rotation={[-Math.PI / 2, 0, 0]}>
+                <mesh position={[p.pos.x, (p.pos.y ?? 0) + 0.075, p.pos.z]} rotation={[-Math.PI / 2, 0, 0]}>
                   <ringGeometry args={[0.66, 0.82, 24]} />
                   <meshBasicMaterial color={FIGHT_COLOR} transparent opacity={0.95} />
                 </mesh>
-                <Html position={[p.pos.x, 0.9, p.pos.z]} center style={{ pointerEvents: 'none', fontSize: 13, lineHeight: 1, color: FIGHT_COLOR, textShadow: '0 0 3px #000' }}>
+                <Html position={[p.pos.x, (p.pos.y ?? 0) + 0.9, p.pos.z]} center style={{ pointerEvents: 'none', fontSize: 13, lineHeight: 1, color: FIGHT_COLOR, textShadow: '0 0 3px #000' }}>
                   ⚔
                 </Html>
               </>
             )}
-            <mesh position={[p.pos.x, 0.07, p.pos.z]} rotation={[-Math.PI / 2, 0, 0]}>
+            <mesh position={[p.pos.x, (p.pos.y ?? 0) + 0.07, p.pos.z]} rotation={[-Math.PI / 2, 0, 0]}>
               <ringGeometry args={[0.45, 0.6, 24]} />
               <meshBasicMaterial color={blocked ? BLOCKED_COLOR : color} transparent opacity={isFrontRank ? Math.min(1, opacity + 0.15) : opacity} />
             </mesh>
             {onModelPointerDown && (
               <mesh
-                position={[p.pos.x, 0.07, p.pos.z]}
+                position={[p.pos.x, (p.pos.y ?? 0) + 0.07, p.pos.z]}
                 rotation={[-Math.PI / 2, 0, 0]}
                 onPointerDown={(e) => {
                   e.stopPropagation()
@@ -317,7 +317,7 @@ function ReasonLabel({
   perModel,
 }: {
   modelId: string
-  placements: { modelId: string; pos: { x: number; z: number } }[]
+  placements: { modelId: string; pos: { x: number; y?: number; z: number } }[]
   perModel: Record<string, string[]>
 }) {
   const p = placements.find((x) => x.modelId === modelId)
@@ -347,7 +347,7 @@ function DistanceLabel({
   return <FloatingLabel pos={p.pos} text={`${d.toFixed(1)}" / ${allowance.toFixed(1)}"`} color={over ? BLOCKED_COLOR : colors.text} />
 }
 
-export function FloatingLabel({ pos, text, color }: { pos: { x: number; z: number }; text: string; color: string }) {
+export function FloatingLabel({ pos, text, color }: { pos: { x: number; y?: number; z: number }; text: string; color: string }) {
   const html = useMemo(
     () => (
       <div
@@ -369,5 +369,5 @@ export function FloatingLabel({ pos, text, color }: { pos: { x: number; z: numbe
     ),
     [text, color],
   )
-  return <Html position={[pos.x, 0.6, pos.z]}>{html}</Html>
+  return <Html position={[pos.x, (pos.y ?? 0) + 0.6, pos.z]}>{html}</Html>
 }

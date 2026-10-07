@@ -41,18 +41,18 @@ export function MovePreviewOverlay() {
   return (
     <group>
       <Line points={ring} color="#4f8cff" lineWidth={1.5} dashed dashSize={0.5} gapSize={0.35} transparent opacity={0.8} />
-      <Line points={[[start.x, 0.2, start.z], [preview.anchor.x, 0.2, preview.anchor.z]]} color={color} lineWidth={1.5} transparent opacity={0.85} />
+      <Line points={[[start.x, 0.2, start.z], [preview.anchor.x, (preview.placements[0]?.pos.y ?? 0) + 0.2, preview.anchor.z]]} color={color} lineWidth={1.5} transparent opacity={0.85} />
       {preview.placements.map((p) => {
         const b = baseById.get(p.modelId)
         const r = b ? Math.max(b.radius, b.radius2 ?? 0) : 0.6
         return (
-          <mesh key={p.modelId} position={[p.pos.x, 0.07, p.pos.z]} rotation={[-Math.PI / 2, 0, 0]}>
+          <mesh key={p.modelId} position={[p.pos.x, (p.pos.y ?? 0) + 0.07, p.pos.z]} rotation={[-Math.PI / 2, 0, 0]}>
             <circleGeometry args={[r, 24]} />
             <meshBasicMaterial color={color} transparent opacity={0.4} depthWrite={false} />
           </mesh>
         )
       })}
-      <FloatingLabel pos={preview.anchor} text={label} color={color} />
+      <FloatingLabel pos={{ ...preview.anchor, y: preview.placements[0]?.pos.y ?? 0 }} text={label} color={color} />
     </group>
   )
 }
