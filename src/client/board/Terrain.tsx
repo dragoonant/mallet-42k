@@ -1,10 +1,12 @@
-import { Suspense, useMemo } from 'react'
+import { Suspense, useEffect, useMemo, useRef } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import type { FloorData, TerrainPieceData, WallData } from '@/data/types'
 import { extrudedPolygonGeometry, polygonBoundingRadius, polygonCentroid, seededUnit, segmentTransform } from './geometry'
-import { idVariant, planRuin, planTurns, polygonBounds, simpleTurns, type Bounds } from './ruinFit'
-import { useRuinModel, type RuinModel } from './ruinModels'
+import { fitScaleXZ, idVariant, planRuin, planTurns, polygonBounds, simpleTurns, type Bounds } from './ruinFit'
+import { useRuinCatalog, useRuinModel, type RuinModel } from './ruinModels'
+import { DECAL_MARGIN, floorSlabGeometry, ruinDecalTexture, rubbleGeometry, rubbleMaterial, scatterRubble } from './ruinDressing'
 import {
   BARRIER_MODEL_URL,
   CONCRETE_URLS,
@@ -40,7 +42,9 @@ const GLB_FLOOR_INSET = 0.12
 // Walls are drawn at true data height/thickness (no cap) so a figure on an upper floor visibly stands on it;
 // see-through enough to read units inside.
 const ENGINE_DEFAULT_WALL_THICKNESS = 0.25 // matches engine wallOccupiesPoint default
-const RUIN_WALL_OPACITY = 0.6
+// Ruins are opaque; a tall one fades to this when it sits between the camera and the board centre.
+const RUIN_FADE_OPACITY = 0.35
+const RUIN_FADE_MIN_HEIGHT = 3
 // Solid terrain is capped and semi-transparent so it never fully hides units or a deployment zone
 // behind it at table-top camera angles (LoS/cover still come from the engine's real terrain heights).
 const BLOCK_VISUAL_CAP = 6 // crates (3") and barricades (1.5") draw at true height; cap only guards oversize data
@@ -98,15 +102,17 @@ function TerrainPiece({ piece }: { piece: TerrainPieceData }) {
   }
 }
 
-/** Draws a loaded terrain GLB scaled (non-uniformly) so its bounding box exactly covers `bounds` in
- *  X/Z and `height` in Y, rotated `turns` quarter-turns about Y before the scale is applied. */
-function FittedModel({ model, bounds, height, turns }: { model: RuinModel; bounds: Bounds; height: number; turns: number }) {
+/** Draws a loaded terrain GLB rotated `turns` quarter-turns about Y and scaled to cover `bounds`. With
+ *  `uniform` the X/Z scales follow whirr's rule (if they differ by >15% both use the smaller, centred, so
+ *  the model is never stretched); otherwise each axis fits exactly. Height always fits `height`. */
+function FittedModel({ model, bounds, height, turns, uniform = false }: { model: RuinModel; bounds: Bounds; height: number; turns: number; uniform?: boolean }) {
   const [sx, sy, sz] = model.size
   const swap = turns % 2 === 1
   const rx = swap ? sz : sx
   const rz = swap ? sx : sz
+  const [kx, kz] = uniform ? fitScaleXZ(rx, rz, bounds) : [bounds.w / rx, bounds.d / rz]
   return (
-    <group position={[bounds.cx, 0, bounds.cz]} scale={[bounds.w / rx, height / sy, bounds.d / rz]}>
+    <group position={[bounds.cx, 0, bounds.cz]} scale={[kx, height / sy, kz]}>
       <group rotation={[0, (turns * Math.PI) / 2, 0]}>
         <primitive object={model.object} />
       </group>
@@ -114,24 +120,121 @@ function FittedModel({ model, bounds, height, turns }: { model: RuinModel; bound
   )
 }
 
+/** Fades the group's materials to RUIN_FADE_OPACITY while a tall piece sits between the camera and the
+ *  board centre, smoothly. Materials are cloned per mesh the first time they fade, so shared GLB
+ *  materials are never touched. Cheap: one segment-distance test per frame, work only while easing. */
+function useOccluderFade(group: React.RefObject<THREE.Group | null>, centre: { x: number; z: number }, radius: number, height: number) {
+  const invalidate = useThree((s) => s.invalidate)
+  const cur = useRef(1)
+  useFrame(({ camera }, dt) => {
+    const g = group.current
+    if (!g) return
+    let target = 1
+    if (height >= RUIN_FADE_MIN_HEIGHT) {
+      const cx = camera.position.x, cy = camera.position.y, cz = camera.position.z
+      const px = centre.x, py = height / 2, pz = centre.z
+      const l2 = cx * cx + cy * cy + cz * cz // camera -> board centre (origin) segment
+      // u = ((P-C).(O-C)) / |O-C|^2: where along camera->origin the piece projects
+      const u = l2 > 0 ? ((px - cx) * -cx + (py - cy) * -cy + (pz - cz) * -cz) / l2 : 0
+      if (u > 0 && u < 1) {
+        const dist = Math.hypot(px - cx * (1 - u), py - cy * (1 - u), pz - cz * (1 - u))
+        if (dist < Math.max(radius * 0.8, 2.5)) target = RUIN_FADE_OPACITY
+      }
+    }
+    if (Math.abs(cur.current - target) < 0.004) {
+      if (cur.current === target) return
+      cur.current = target
+    } else {
+      cur.current += (target - cur.current) * Math.min(1, dt * 9)
+      invalidate()
+    }
+    const op = cur.current
+    g.traverse((o) => {
+      const mesh = o as THREE.Mesh
+      if (!mesh.isMesh || mesh.userData.noFade) return
+      if (!mesh.userData.fadeOwned) {
+        mesh.material = Array.isArray(mesh.material) ? mesh.material.map((m) => m.clone()) : mesh.material.clone()
+        mesh.userData.fadeOwned = true
+      }
+      for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+        const want = op < 0.999
+        if (m.transparent !== want) {
+          m.transparent = want
+          m.depthWrite = !want
+          m.needsUpdate = true
+        }
+        m.opacity = op
+      }
+    })
+  })
+}
+
 function RuinPiece({ piece }: { piece: TerrainPieceData }) {
   const floors = piece.floors ?? []
-  const plan = useMemo(() => planRuin(piece.id, piece.footprint, piece.height), [piece.id, piece.footprint, piece.height])
+  const walls = piece.walls ?? []
+  const catalog = useRuinCatalog()
+  const plan = useMemo(
+    () => (catalog ? planRuin(piece.id, piece.footprint, piece.height, catalog) : null),
+    [catalog, piece.id, piece.footprint, piece.height],
+  )
   const bounds = useMemo(() => polygonBounds(piece.footprint), [piece.footprint])
   const glb = useRuinModel(plan?.slug)
-  // 'pending' draws nothing for the instant the GLB streams in (no flash of the fallback);
-  // 'failed' (missing file / manifest / disabled slug) draws the procedural ruin.
+  const group = useRef<THREE.Group>(null)
+  const centre = useMemo(() => ({ x: bounds.cx, z: bounds.cz }), [bounds])
+  useOccluderFade(group, centre, Math.hypot(bounds.w, bounds.d) / 2, piece.height)
+  // Nothing is drawn for the instant the manifest/GLB streams in (no flash of the fallback);
+  // 'failed' (missing file / manifest / disabled slug / no plan) draws the procedural ruin.
+  const waiting = catalog === null || (plan !== null && glb.status === 'pending')
   return (
     <group>
-      {glb.status === 'ready' && plan ? (
-        <FittedModel model={glb.model} bounds={bounds} height={piece.height} turns={planTurns(plan, glb.model.size, bounds)} />
-      ) : glb.status === 'failed' ? (
-        (piece.walls ?? []).map((wall, i) => <RuinWall key={i} seed={`${piece.id}-${i}`} wall={wall} />)
-      ) : null}
-      {/* Upper floors are gameplay (models stand on them), so they are always drawn, in grey concrete. */}
-      {floors.map((floor, i) => (
-        <UpperFloor key={i} floor={floor} inset={glb.status === 'ready' ? GLB_FLOOR_INSET : 0} />
-      ))}
+      <RuinGround id={piece.id} footprint={piece.footprint} bounds={bounds} walls={walls} floors={floors} />
+      <group ref={group}>
+        {glb.status === 'ready' && plan ? (
+          <FittedModel model={glb.model} bounds={bounds} height={piece.height} turns={planTurns(plan, glb.model.size, bounds)} uniform />
+        ) : !waiting ? (
+          walls.map((wall, i) => <RuinWall key={i} seed={`${piece.id}-${i}`} wall={wall} />)
+        ) : null}
+        {/* Upper floors are gameplay (models stand on them), so they are always drawn, in grey concrete. */}
+        {floors.map((floor, i) => (
+          <UpperFloor key={i} id={`${piece.id}-f${i}`} floor={floor} inset={glb.status === 'ready' ? GLB_FLOOR_INSET : 0} />
+        ))}
+      </group>
+    </group>
+  )
+}
+
+/** Dust/stain decal under and around the footprint plus scattered low rubble, so the ruin sits on the
+ *  mat instead of floating on it. Decal never writes depth; rubble stays under 0.4" and off the walls. */
+function RuinGround({ id, footprint, bounds, walls, floors }: { id: string; footprint: TerrainPieceData['footprint']; bounds: Bounds; walls: WallData[]; floors: FloorData[] }) {
+  const tex = useMemo(() => ruinDecalTexture(id, bounds.w, bounds.d), [id, bounds.w, bounds.d])
+  const chunks = useMemo(() => scatterRubble(id, footprint, bounds, walls, floors), [id, footprint, bounds, walls, floors])
+  const mesh = useRef<THREE.InstancedMesh>(null)
+  const invalidate = useThree((s) => s.invalidate)
+  useEffect(() => {
+    const m = mesh.current
+    if (!m) return
+    const dummy = new THREE.Object3D()
+    const c = new THREE.Color()
+    chunks.forEach((k, i) => {
+      dummy.position.set(k.x, 0, k.z)
+      dummy.rotation.set(0, k.rot, 0)
+      dummy.scale.set(k.sx, k.sy, k.sz)
+      dummy.updateMatrix()
+      m.setMatrixAt(i, dummy.matrix)
+      c.setHSL(0.1, 0.04, 0.5 + k.tone * 0.3)
+      m.setColorAt(i, c)
+    })
+    m.instanceMatrix.needsUpdate = true
+    if (m.instanceColor) m.instanceColor.needsUpdate = true
+    invalidate()
+  }, [chunks, invalidate])
+  return (
+    <group>
+      <mesh position={[bounds.cx, 0.02, bounds.cz]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={1} userData={{ noFade: true }}>
+        <planeGeometry args={[bounds.w + DECAL_MARGIN * 2, bounds.d + DECAL_MARGIN * 2]} />
+        <meshBasicMaterial map={tex} transparent depthWrite={false} polygonOffset polygonOffsetFactor={-2} polygonOffsetUnits={-2} toneMapped={false} />
+      </mesh>
+      <instancedMesh key={chunks.length} ref={mesh} args={[rubbleGeometry(), rubbleMaterial(), chunks.length]} castShadow receiveShadow frustumCulled={false} />
     </group>
   )
 }
@@ -171,28 +274,25 @@ function RuinWall({ wall }: { seed: string; wall: WallData }) {
       {boxes.map((bx, i) => (
         <mesh key={i} position={[((bx.u0 + bx.u1) / 2 - 0.5) * length, (bx.y0 + bx.y1) / 2, 0]} castShadow receiveShadow>
           <boxGeometry args={[(bx.u1 - bx.u0) * length, bx.y1 - bx.y0, thickness]} />
-          <meshStandardMaterial {...textures[i]} color={RUIN_WALL_TINT} roughness={1} transparent opacity={RUIN_WALL_OPACITY} />
+          <meshStandardMaterial {...textures[i]} color={RUIN_WALL_TINT} roughness={1} />
         </mesh>
       ))}
     </group>
   )
 }
 
-function UpperFloor({ floor, inset = 0 }: { floor: FloorData; inset?: number }) {
+function UpperFloor({ id, floor, inset = 0 }: { id: string; floor: FloorData; inset?: number }) {
   const thickness = 0.4
+  // Broken rockcrete slab: top face exactly at floor.height, footprint polygon unchanged (only inset
+  // under a drawn GLB), chipped rim band and jagged underside via vertex colours.
   const geometry = useMemo(
-    () => extrudedPolygonGeometry(inset > 0 ? insetPolygon(floor.polygon, inset) : floor.polygon, thickness),
-    [floor.polygon, inset],
+    () => floorSlabGeometry(id, inset > 0 ? insetPolygon(floor.polygon, inset) : floor.polygon, thickness),
+    [id, floor.polygon, inset],
   )
-  const { width, depth } = useMemo(() => polygonFootprintSize(floor.polygon), [floor.polygon])
   const concrete = useTiledPBR(CONCRETE_URLS)
-  const textures = useMemo(
-    () => cloneRepeat(concrete, width / CONCRETE_REPEAT_INCHES, depth / CONCRETE_REPEAT_INCHES),
-    [concrete, width, depth],
-  )
   return (
-    <mesh position={[0, floor.height - thickness, 0]} geometry={geometry} castShadow receiveShadow>
-      <meshStandardMaterial {...textures} color={CONCRETE_TINT} roughness={0.9} side={THREE.DoubleSide} />
+    <mesh position={[0, floor.height, 0]} geometry={geometry} castShadow receiveShadow>
+      <meshStandardMaterial {...concrete} vertexColors color={CONCRETE_TINT} roughness={0.95} side={THREE.DoubleSide} />
     </mesh>
   )
 }

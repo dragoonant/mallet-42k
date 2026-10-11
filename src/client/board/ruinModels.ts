@@ -6,7 +6,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { useThree } from '@react-three/fiber'
 import { Box3, Group, MeshStandardMaterial, Vector3, type Mesh, type Object3D } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { ENABLED_RUIN_MODELS, type RuinSlug } from './ruinModels.config'
+import { ENABLED_RUIN_MODELS } from './ruinModels.config'
+import type { RuinCatalogEntry } from './ruinFit'
+
+type RuinSlug = string
+type ManifestEntry = { size?: number[]; shape?: string }
 
 type Size3 = [number, number, number]
 export interface RuinModel { object: Object3D; size: Size3 }
@@ -15,7 +19,7 @@ export type RuinModelState = { status: 'pending' | 'failed' } | { status: 'ready
 type Entry = { status: 'loading' | 'ready' | 'failed'; root?: Object3D; size?: Size3 }
 const cache = new Map<string, Entry>()
 const listeners = new Set<() => void>()
-let manifestPromise: Promise<Record<string, { size?: number[] }> | null> | null = null
+let manifestPromise: Promise<Record<string, ManifestEntry> | null> | null = null
 
 const base = () => `${import.meta.env.BASE_URL}assets/terrain/ruins/`
 
@@ -26,7 +30,7 @@ function loadManifest() {
         const res = await fetch(`${base()}manifest.json`)
         if (!res.ok) return null
         const json = await res.json()
-        return json && typeof json === 'object' ? (json as Record<string, { size?: number[] }>) : null
+        return json && typeof json === 'object' ? (json as Record<string, ManifestEntry>) : null
       } catch {
         return null
       }
@@ -44,7 +48,7 @@ function request(slug: RuinSlug): Entry {
   e = { status: 'loading' }
   cache.set(slug, e)
   const entry = e
-  if (!ENABLED_RUIN_MODELS.includes(slug)) {
+  if (!(ENABLED_RUIN_MODELS as readonly string[]).includes(slug)) {
     entry.status = 'failed'
     return entry
   }
@@ -112,4 +116,32 @@ export function useRuinModel(slug: RuinSlug | undefined): RuinModelState {
   const model = useMemo(() => (root && size ? { object: root.clone(true), size } : null), [root, size])
   if (!slug || !entry || entry.status === 'failed') return { status: 'failed' }
   return model ? { status: 'ready', model } : { status: 'pending' }
+}
+
+let catalogCache: RuinCatalogEntry[] | null = null
+
+/** Enabled manifest entries usable for ruin footprints (shape-tagged ones, plus the legacy named
+ *  ruin models), or null while the manifest is loading. [] when the manifest is missing. */
+export function useRuinCatalog(): readonly RuinCatalogEntry[] | null {
+  const [catalog, setCatalog] = useState<RuinCatalogEntry[] | null>(catalogCache)
+  useEffect(() => {
+    if (catalogCache) return
+    let live = true
+    loadManifest().then((m) => {
+      const enabled = ENABLED_RUIN_MODELS as readonly string[]
+      const list: RuinCatalogEntry[] = []
+      for (const [slug, e] of Object.entries(m ?? {})) {
+        if (!enabled.includes(slug)) continue
+        const shape = e.shape === 'corner' || e.shape === 'rect' ? e.shape : undefined
+        if (!shape && !['ruin-corner', 'ruin-facade', 'ruin-small', 'ruin-tall'].includes(slug)) continue
+        list.push({ slug, shape, size: e.size })
+      }
+      catalogCache = list
+      if (live) setCatalog(list)
+    })
+    return () => {
+      live = false
+    }
+  }, [])
+  return catalog
 }

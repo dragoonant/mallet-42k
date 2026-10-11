@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { planRuin, planTurns, polygonBounds } from '@/client/board/ruinFit'
+import { fitScaleXZ, LEGACY_CATALOG, planRuin, planTurns, polygonBounds } from '@/client/board/ruinFit'
 
 const L1 = [
   { x: -8, z: 0 }, { x: -2, z: 0 }, { x: -2, z: 2 }, { x: -6, z: 2 }, { x: -6, z: 6 }, { x: -8, z: 6 },
@@ -27,5 +27,26 @@ describe('terrain GLB fitting', () => {
     expect(planRuin('t', rect(0, 0, 3, 3), 5)?.slug).toBe('ruin-tall')
     const plan = planRuin('ruin-s1', rect(0, 0, 4, 6), 3)!
     expect(planTurns(plan, [1, 0.5, 0.6], polygonBounds(rect(0, 0, 4, 6))) % 2).toBe(1)
+  })
+
+  it('fits uniformly (smaller scale) when x/z scales differ by more than 15%, else per axis', () => {
+    const b = polygonBounds(rect(0, 0, 6, 4))
+    expect(fitScaleXZ(1, 1, b)).toEqual([4, 4])
+    const near = fitScaleXZ(1, 0.9, polygonBounds(rect(0, 0, 6, 6)))
+    expect(near[0]).toBeCloseTo(6)
+    expect(near[1]).toBeCloseTo(6 / 0.9)
+  })
+
+  it('picks among manifest variants deterministically by id, honouring shape', () => {
+    const cat = [
+      ...LEGACY_CATALOG,
+      { slug: 'ruin-corner-b', shape: 'corner' as const },
+      { slug: 'ruin-wide', shape: 'rect' as const, size: [1, 0.8, 0.5] },
+    ]
+    const slugs = new Set(['r1', 'r2', 'r3'].map((id) => planRuin(id, rect(0, 0, 6, 4), 3, cat)?.slug))
+    expect(slugs.has('ruin-wide')).toBe(true)
+    expect(planRuin('r2', rect(0, 0, 6, 4), 3, cat)).toEqual(planRuin('r2', rect(0, 0, 6, 4), 3, cat))
+    const l = new Set(['a1', 'a2'].map((id) => planRuin(id, L1, 6, cat)?.slug))
+    expect(l).toEqual(new Set(['ruin-corner', 'ruin-corner-b']))
   })
 })
