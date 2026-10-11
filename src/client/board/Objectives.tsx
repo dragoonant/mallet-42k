@@ -96,7 +96,7 @@ export function Objectives() {
           <group key={objective.id} position={[objective.pos.x, 0, objective.pos.z]}>
             <ObjectiveZone zone={zoneR} color={color} owned={!!owner} contested={contested} lit={lit} hovered={hoveredObjectiveId === objective.id} />
             <Token radius={markerRadius} color={color} />
-            <Html position={[0, 1.7, 0]} center distanceFactor={18} style={{ pointerEvents: 'none' }} occlude={false}>
+            <Html zIndexRange={[5, 0]} position={[0, 1.7, 0]} center distanceFactor={18} style={{ pointerEvents: 'none' }} occlude={false}>
               <div
                 data-testid={`objective-label-${objective.id}`}
                 style={{ fontFamily: fontStack, fontSize: 12, whiteSpace: 'nowrap', textAlign: 'center', textShadow: '0 1px 2px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.9)' }}

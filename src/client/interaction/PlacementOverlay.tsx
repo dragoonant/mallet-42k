@@ -144,7 +144,7 @@ function DraftMarkers({
                   <ringGeometry args={[0.66, 0.82, 24]} />
                   <meshBasicMaterial color={FIGHT_COLOR} transparent opacity={0.95} />
                 </mesh>
-                <Html position={[p.pos.x, (p.pos.y ?? 0) + 0.9, p.pos.z]} center style={{ pointerEvents: 'none', fontSize: 13, lineHeight: 1, color: FIGHT_COLOR, textShadow: '0 0 3px #000' }}>
+                <Html zIndexRange={[5, 0]} position={[p.pos.x, (p.pos.y ?? 0) + 0.9, p.pos.z]} center style={{ pointerEvents: 'none', fontSize: 13, lineHeight: 1, color: FIGHT_COLOR, textShadow: '0 0 3px #000' }}>
                   ⚔
                 </Html>
               </>
@@ -371,5 +371,5 @@ export function FloatingLabel({ pos, text, color }: { pos: { x: number; y?: numb
     ),
     [text, color],
   )
-  return <Html position={[pos.x, (pos.y ?? 0) + 0.6, pos.z]}>{html}</Html>
+  return <Html zIndexRange={[5, 0]} position={[pos.x, (pos.y ?? 0) + 0.6, pos.z]}>{html}</Html>
 }

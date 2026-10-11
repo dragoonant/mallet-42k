@@ -8,7 +8,7 @@ import type { Action, GameState } from '@/engine'
 import { useUiStore } from './uiStore'
 import { buttonBase, buttonPrimary, colors, mutedText } from './theme'
 import {
-  groupWeapons, initialPlan, resolvePlan, retarget, reachingEntries, weaponTags,
+  groupWeapons, initialPlan, resolvePlan, retarget, reachingEntries, setRowFire, weaponTags, modeOf, weaponHasAbility,
   type DeclarePending, type ShootPlan, type WeaponGroup,
 } from '../interaction/shootPlan'
 
@@ -81,14 +81,26 @@ export function WeaponPanel({ state, pending, passAction, dispatch }: Props) {
     const reach = reachingEntries(g, c).length
     const total = g.entries.filter((e) => e.weaponId === c.variant).length
     const lost = resolved.dropped[g.key] ?? 0
+    const firing = resolved.firing[g.key] ?? 0
+    // the tick shows what will actually fire, not what was last clicked
+    const ticked = c.fire && firing > 0
+    const isPistolRow = weaponHasAbility(state, c.variant, 'PISTOL')
+    const blind = reach === 0
+    const reason = blind
+      ? `No model can see ${unitName(c.target)} with this one.`
+      : c.fire && lost > 0 && firing === 0
+        ? `Not firing: ${lost === 1 ? 'that model uses' : 'those models use'} their ${isPistolRow ? 'other weapons' : 'Pistol'} instead. Tick to switch.`
+        : c.fire && lost > 0
+          ? `${lost} not firing: using their ${isPistolRow ? 'other weapons' : 'Pistol'} instead.`
+          : null
     const tags = weaponTags(state, c.variant)
     const selected = plan.selectedKey === g.key
     return (
-      <div key={g.key} style={{ ...rowBase, borderColor: selected ? colors.accent : colors.border, opacity: c.fire ? 1 : 0.6 }} data-testid={`weapon-row-${g.key}`} onClick={() => setPlan((p) => ({ ...p, selectedKey: g.key }))}>
+      <div key={g.key} style={{ ...rowBase, borderColor: selected ? colors.accent : colors.border, opacity: ticked ? 1 : 0.6 }} data-testid={`weapon-row-${g.key}`} onClick={() => setPlan((p) => ({ ...p, selectedKey: g.key }))}>
         <div style={line}>
-          <input type="checkbox" checked={c.fire} data-testid={`weapon-fire-${g.key}`} aria-label={`Fire ${g.name}`} onChange={(e) => patch(g.key, { fire: e.target.checked })} />
+          <input type="checkbox" checked={ticked} disabled={blind} data-testid={`weapon-fire-${g.key}`} aria-label={`Fire ${g.name}`} onChange={(e) => setPlan((cur) => setRowFire(state, pending, groups, cur, g.key, e.target.checked))} />
           <strong data-testid={`weapon-name-${g.key}`}>{g.variants.length > 1 ? state.weapons[c.variant]?.name ?? g.name : g.name}</strong>
-          <span style={mutedText}>×{reach === total ? total : `${reach}/${total}`} · {state.weapons[c.variant]?.range ?? g.range}&quot; · →</span>
+          <span style={mutedText}>×{firing === total ? total : `${firing}/${total}`} · {state.weapons[c.variant]?.range ?? g.range}&quot; · →</span>
           <select style={select} value={c.target} data-testid={`weapon-target-${g.key}`} aria-label={`Target for ${g.name}`} onChange={(e) => {
             const target = e.target.value
             const variantOk = g.entries.some((x) => x.weaponId === c.variant && x.legalTargets.includes(target))
@@ -98,11 +110,11 @@ export function WeaponPanel({ state, pending, passAction, dispatch }: Props) {
             {g.legalTargets.map((t) => <option key={t} value={t}>{unitName(t)}</option>)}
           </select>
         </div>
-        {(tags.length > 0 || lost > 0 || reach < total) && (
+        {(tags.length > 0 || reason || reach < total) && (
           <div style={line}>
             {tags.map((t) => <span key={t.label} style={tag} title={t.tip}>{t.label}</span>)}
-            {reach < total && <span style={{ ...mutedText, fontSize: 11 }}>{total - reach} can&apos;t see {unitName(c.target)}</span>}
-            {lost > 0 && c.fire && <span style={{ ...mutedText, fontSize: 11, color: colors.accent }}>{lost} held back (Pistol rule)</span>}
+            {reach < total && reach > 0 && <span style={{ ...mutedText, fontSize: 11 }}>{total - reach} can&apos;t see {unitName(c.target)}</span>}
+            {reason && <span style={{ ...mutedText, fontSize: 11, color: colors.accent }} data-testid={`weapon-reason-${g.key}`}>{reason}</span>}
           </div>
         )}
         {g.variants.length > 1 && (
@@ -128,16 +140,22 @@ export function WeaponPanel({ state, pending, passAction, dispatch }: Props) {
         Tick the weapons that fire and pick a target for each. Click another enemy on the board to retarget the highlighted row.
       </div>
       <div style={list}>{groups.map(renderRow)}</div>
-      {resolved.conflicts.map((cf, i) => (
-        <div key={i} style={{ ...mutedText, background: 'rgba(245,217,90,0.08)', borderRadius: 6, padding: '5px 7px', fontSize: 11.5 }} data-testid="pistol-conflict">
-          {cf.modelIds.length} model{cf.modelIds.length === 1 ? '' : 's'} carry both {cf.pistolNames.join(', ')} (Pistol) and {cf.otherNames.join(', ')}. A model uses one kind per activation, so{' '}
-          <strong style={{ color: colors.text }}>{plan.pistolMode === 'pistol' ? cf.pistolNames.join(', ') : cf.otherNames.join(', ')}</strong> will fire.
-          <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-            <button style={plan.pistolMode === 'pistol' ? buttonPrimary : buttonBase} data-testid="pistol-mode-pistol" onClick={() => setPlan((p) => ({ ...p, pistolMode: 'pistol' }))}>Pistols</button>
-            <button style={plan.pistolMode === 'other' ? buttonPrimary : buttonBase} data-testid="pistol-mode-other" onClick={() => setPlan((p) => ({ ...p, pistolMode: 'other' }))}>Other weapons</button>
-          </div>
+      {resolved.conflicts.length > 0 && (
+        <div style={{ ...mutedText, background: 'rgba(245,217,90,0.08)', borderRadius: 6, padding: '5px 7px', fontSize: 11.5, display: 'flex', flexDirection: 'column', gap: 4 }} data-testid="pistol-conflict">
+          <div>A model fires either its Pistol or its other guns in one activation, never both. Pick which for:</div>
+          {resolved.conflicts.map((cf) => {
+            const mode = modeOf(plan, cf.sig)
+            const many = resolved.conflicts.length > 1
+            return (
+              <div key={cf.sig} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }} data-testid={`pistol-group-${cf.sig}`}>
+                {many && <strong style={{ color: colors.text }}>{cf.label}:</strong>}
+                <button style={mode === 'pistol' ? buttonPrimary : buttonBase} data-testid="pistol-mode-pistol" title={cf.pistolNames.join(', ')} onClick={() => setPlan((p) => ({ ...p, pistolMode: { ...p.pistolMode, [cf.sig]: 'pistol' } }))}>Pistol ({cf.pistolNames.join(', ')})</button>
+                <button style={mode === 'other' ? buttonPrimary : buttonBase} data-testid="pistol-mode-other" title={cf.otherNames.join(', ')} onClick={() => setPlan((p) => ({ ...p, pistolMode: { ...p.pistolMode, [cf.sig]: 'other' } }))}>Other ({cf.otherNames.join(', ')})</button>
+              </div>
+            )
+          })}
         </div>
-      ))}
+      )}
       {resolved.errors.map((e) => <div key={e} style={{ ...mutedText, color: colors.danger }} data-testid="weapon-error">{e}</div>)}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button style={canFire ? buttonPrimary : { ...buttonPrimary, opacity: 0.5, cursor: 'not-allowed' }} disabled={!canFire} data-testid="btn-fire" onClick={fire}>

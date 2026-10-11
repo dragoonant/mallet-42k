@@ -14,9 +14,9 @@ import { useGameStore, type NewGameOptions } from '../store/game'
 const MM = 25.4
 const SCENARIO_FACTION = 'necrons'
 /** Scenarios that start in another faction / phase than the default (Necrons, Fight). */
-const SCENARIO_FACTIONS: Record<string, string> = { 'floor-picker': 'sm', 'weapon-select': 'sm', 'weapon-select-mixed': 'sm', 'weapon-select-psyker': 'sm' }
+const SCENARIO_FACTIONS: Record<string, string> = { 'floor-picker': 'sm', 'weapon-select': 'sm', 'weapon-select-mixed': 'sm', 'weapon-select-split': 'sm', 'weapon-select-psyker': 'sm' }
 /** Shooting-phase scenarios: scenario name -> the human (A) unit ref that is activated, so the first prompt is its declareTargets. */
-const SHOOTING_SCENARIOS: Record<string, string> = { 'weapon-select': 'terminator-squad', 'weapon-select-mixed': 'infernus-squad', 'weapon-select-psyker': 'librarian-tantus' }
+const SHOOTING_SCENARIOS: Record<string, string> = { 'weapon-select': 'terminator-squad', 'weapon-select-mixed': 'infernus-squad', 'weapon-select-split': 'infernus-squad', 'weapon-select-psyker': 'librarian-tantus' }
 const MOVEMENT_SCENARIOS = new Set(['floor-picker'])
 
 export interface ScenarioInit {
@@ -175,7 +175,16 @@ const weaponSelect = (ref: string): ScenarioBuilder => (state) => {
   for (const id of state.units[me].models) state.models[id].facing = Math.PI / 2
 }
 
+// Infernus with a mixed loadout: the sergeant swaps the pyreblaster for a storm bolter, so the sergeant and the four
+// marines each need their own Pistol-or-other choice.
+const weaponSelectSplit: ScenarioBuilder = (state) => {
+  weaponSelect('infernus-squad')(state)
+  const sergeant = state.models[state.units['A:infernus-squad'].models[0]]
+  sergeant.weapons = sergeant.weapons.map((w) => (w === 'sm.w.pyreblaster' ? 'sm.w.storm-bolter' : w))
+}
+
 export const SCENARIOS: Record<string, ScenarioBuilder> = {
+  'weapon-select-split': weaponSelectSplit,
   'weapon-select': weaponSelect('terminator-squad'),
   'weapon-select-mixed': weaponSelect('infernus-squad'),
   'weapon-select-psyker': weaponSelect('librarian-tantus'),

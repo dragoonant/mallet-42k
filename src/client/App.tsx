@@ -17,7 +17,8 @@ import { spikeMode } from '../spike/flag'
 import { startSpikeGame } from '../spike/driver'
 import { PerfOverlay } from '../spike/PerfOverlay'
 
-const overlayLayer: CSSProperties = { position: 'absolute', inset: 0, pointerEvents: 'none' }
+// zIndex 10 puts every HUD panel above the board's drei <Html> labels (their zIndexRange is capped at 5).
+const overlayLayer: CSSProperties = { position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 10 }
 
 // Right-hand rail: the Dice Log with the dice tray stacked directly under it. The tray used to sit
 // bottom-centre, i.e. behind the decision prompt — owner playtest: "dice rolls are being done behind

@@ -42,7 +42,7 @@ export function UnitLabels() {
         const wounds = models.reduce((sum, m) => sum + m.woundsRemaining, 0)
         const color = unit.battleShocked ? SHOCK_COLOR : unit.player === 'A' ? colors.playerA : colors.playerB
         return (
-          <Html key={unit.id} position={[cx, topY, cz]} center distanceFactor={18} style={{ pointerEvents: 'none' }} occlude={false}>
+          <Html key={unit.id} zIndexRange={[5, 0]} position={[cx, topY, cz]} center distanceFactor={18} style={{ pointerEvents: 'none' }} occlude={false}>
             <div style={{ transform: 'translateY(-100%)' }}>
               {unit.battleShocked && <ShockBolt unitId={unit.id} />}
               <div style={{ ...labelStyle, color }} data-testid={`unit-label-${unit.id}`}>

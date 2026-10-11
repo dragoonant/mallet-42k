@@ -59,7 +59,7 @@ export function CoverBadges() {
         const cz = models.reduce((s, m) => s + m.pos.z, 0) / models.length
         const topY = Math.max(...models.map((m) => m.pos.y + m.height)) + 1.0
         return (
-          <Html key={id} position={[cx, topY, cz]} center distanceFactor={18} style={{ pointerEvents: 'none' }} occlude={false}>
+          <Html key={id} zIndexRange={[5, 0]} position={[cx, topY, cz]} center distanceFactor={18} style={{ pointerEvents: 'none' }} occlude={false}>
             <div
               data-testid={`cover-badge-${id}`}
               style={{ display: 'flex', alignItems: 'center', gap: 4, fontFamily: fontStack, fontSize: 11, fontWeight: 700, color: '#bfe8ff', background: 'rgba(14,30,48,0.82)', border: '1px solid rgba(120,200,255,0.6)', borderRadius: 10, padding: '1px 7px 1px 4px', whiteSpace: 'nowrap', transform: 'translateY(-100%)' }}
