@@ -6,7 +6,7 @@ import type { FloorData, TerrainPieceData, WallData } from '@/data/types'
 import { extrudedPolygonGeometry, polygonBoundingRadius, polygonCentroid, seededUnit, segmentTransform } from './geometry'
 import { fitScaleXZ, idVariant, planRuin, planTurns, polygonBounds, simpleTurns, type Bounds } from './ruinFit'
 import { useRuinCatalog, useRuinModel, type RuinModel } from './ruinModels'
-import { DECAL_MARGIN, floorSlabGeometry, ruinDecalTexture, rubbleGeometry, rubbleMaterial, scatterRubble } from './ruinDressing'
+import { DECAL_MARGIN, floorSlabGeometry, ruinDecalTexture, rubbleGeometry, rubbleMaterial, scatterRubble, slabConcreteTexture } from './ruinDressing'
 import {
   BARRIER_MODEL_URL,
   CONCRETE_URLS,
@@ -34,7 +34,7 @@ const PALETTE: Record<TerrainPieceData['kind'], { base: string; accent: string }
 // the texture's own detail. These let the brick/concrete/metal photos read as intended.
 const RUIN_WALL_TINT = '#a4a4a0' // weathered grey concrete (procedural ruin fallback)
 const RUBBLE_TINT = '#8c8c87'
-const CONCRETE_TINT = '#a9a9a4' // upper-floor slabs, matched to the grey ruins
+const CONCRETE_TINT = '#ffffff' // upper-floor slabs, matched to the grey ruins
 // Pulls the floor slab in from the footprint edge when a ruin GLB is drawn, so its sides never
 // z-fight the model's own outer walls.
 const GLB_FLOOR_INSET = 0.12
@@ -121,24 +121,35 @@ function FittedModel({ model, bounds, height, turns, uniform = false }: { model:
 }
 
 /** Fades the group's materials to RUIN_FADE_OPACITY while a tall piece sits between the camera and the
- *  board centre, smoothly. Materials are cloned per mesh the first time they fade, so shared GLB
+ *  ground point being looked at, smoothly. Materials are cloned per mesh the first time they fade, so shared GLB
  *  materials are never touched. Cheap: one segment-distance test per frame, work only while easing. */
 function useOccluderFade(group: React.RefObject<THREE.Group | null>, centre: { x: number; z: number }, radius: number, height: number) {
   const invalidate = useThree((s) => s.invalidate)
   const cur = useRef(1)
+  const dir = useMemo(() => new THREE.Vector3(), [])
   useFrame(({ camera }, dt) => {
     const g = group.current
     if (!g) return
     let target = 1
     if (height >= RUIN_FADE_MIN_HEIGHT) {
+      // Where the camera is looking: its view ray meets the ground plane (y = 0).
+      camera.getWorldDirection(dir)
       const cx = camera.position.x, cy = camera.position.y, cz = camera.position.z
-      const px = centre.x, py = height / 2, pz = centre.z
-      const l2 = cx * cx + cy * cy + cz * cz // camera -> board centre (origin) segment
-      // u = ((P-C).(O-C)) / |O-C|^2: where along camera->origin the piece projects
-      const u = l2 > 0 ? ((px - cx) * -cx + (py - cy) * -cy + (pz - cz) * -cz) / l2 : 0
-      if (u > 0 && u < 1) {
-        const dist = Math.hypot(px - cx * (1 - u), py - cy * (1 - u), pz - cz * (1 - u))
-        if (dist < Math.max(radius * 0.8, 2.5)) target = RUIN_FADE_OPACITY
+      if (dir.y < -0.02) {
+        const k = cy / -dir.y
+        const tx = cx + dir.x * k, tz = cz + dir.z * k
+        const sx = tx - cx, sz = tz - cz
+        const l2 = sx * sx + sz * sz
+        // Only a piece the looked-at ground point is NOT inside can occlude it.
+        if (l2 > 1e-6 && Math.hypot(tx - centre.x, tz - centre.z) > radius * 0.9) {
+          const t = ((centre.x - cx) * sx + (centre.z - cz) * sz) / l2 // closest approach along camera -> target
+          if (t > 0 && t < 1) {
+            const dist = Math.hypot(centre.x - (cx + sx * t), centre.z - (cz + sz * t))
+            const rayY = cy * (1 - t) // sight line height above the piece centre
+            // faded only when the sight line really passes through the piece's volume (never from above)
+            if (dist < Math.max(radius * 0.8, 2.5) && rayY < height) target = RUIN_FADE_OPACITY
+          }
+        }
       }
     }
     if (Math.abs(cur.current - target) < 0.004) {
@@ -289,10 +300,10 @@ function UpperFloor({ id, floor, inset = 0 }: { id: string; floor: FloorData; in
     () => floorSlabGeometry(id, inset > 0 ? insetPolygon(floor.polygon, inset) : floor.polygon, thickness),
     [id, floor.polygon, inset],
   )
-  const concrete = useTiledPBR(CONCRETE_URLS)
+  const slabMap = useMemo(() => slabConcreteTexture(), [])
   return (
     <mesh position={[0, floor.height, 0]} geometry={geometry} castShadow receiveShadow>
-      <meshStandardMaterial {...concrete} vertexColors color={CONCRETE_TINT} roughness={0.95} side={THREE.DoubleSide} />
+      <meshStandardMaterial map={slabMap} vertexColors color={CONCRETE_TINT} roughness={0.95} side={THREE.DoubleSide} />
     </mesh>
   )
 }

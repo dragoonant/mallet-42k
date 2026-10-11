@@ -7,6 +7,20 @@ type W = {
   __malletCamera: { lookAt(x: number, z: number, d: number): void }
 }
 
+/** Waits until the ruin GLBs have been requested and have gone quiet (no new .glb response for 2s). */
+async function ruinsLoaded(page: import('@playwright/test').Page) {
+  await page.waitForFunction(() => performance.getEntriesByType('resource').some((e) => e.name.includes('.glb')), null, { timeout: 30_000 })
+  await page.waitForFunction(
+    () => {
+      const glb = (performance.getEntriesByType('resource') as PerformanceResourceTiming[]).filter((e) => e.name.includes('.glb'))
+      const last = Math.max(...glb.map((e) => e.responseEnd))
+      return glb.every((e) => e.responseEnd > 0) && performance.now() - last > 2000
+    },
+    null,
+    { timeout: 30_000, polling: 250 },
+  )
+}
+
 async function open(page: import('@playwright/test').Page, url: string) {
   await page.setViewportSize({ width: 1600, height: 900 })
   await page.goto(url)
@@ -28,7 +42,8 @@ async function renameRuins(page: import('@playwright/test').Page, lN: number, rN
     }
     w.__mallet.useGameStore.setState({ state: { ...g.state, board: { ...g.state.board, pieces } } })
   }, [lN, rN])
-  await page.waitForTimeout(3000)
+  await ruinsLoaded(page)
+  await page.waitForTimeout(1500)
 }
 
 async function orbit(page: import('@playwright/test').Page, dx: number, dy: number) {
@@ -44,6 +59,7 @@ const look = (page: import('@playwright/test').Page, x: number, z: number, d: nu
 
 test('ruin gallery: default ids, wide view', async ({ page }) => {
   await open(page, './?scenario=terrain-height&board=1')
+  await ruinsLoaded(page)
   await look(page, 0, 0, 55)
   await page.waitForTimeout(2500)
   await page.screenshot({ path: 'e2e-out/ruin-gallery-1.png' })

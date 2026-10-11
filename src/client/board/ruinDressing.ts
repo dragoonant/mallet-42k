@@ -72,24 +72,25 @@ export function ruinDecalTexture(id: string, w: number, d: number): THREE.Canvas
     for (let i = 0; i < px; i++) {
       const wx = ((i + 0.5) / px) * W - W / 2 // inches from centre
       const wz = ((j + 0.5) / pz) * D - D / 2
-      // signed distance (inches) to the footprint box: <0 inside
-      const qx = Math.abs(wx) - w / 2, qz = Math.abs(wz) - d / 2
-      const sd = Math.hypot(Math.max(qx, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qz), 0)
+      // superellipse radius: 0 at centre, 1 at the middle of each quad edge, >1 toward the corners
+      const ex = Math.abs(wx) / (W / 2), ez = Math.abs(wz) / (D / 2)
+      const r = Math.pow(Math.pow(ex, 3) + Math.pow(ez, 3), 1 / 3)
       const n = fbm(seed, wx * 0.45, wz * 0.45)
       const n2 = fbm(seed + 91, wx * 1.3, wz * 1.3)
-      // opaque-ish out to the footprint edge, ragged fall-off across the margin
-      const edge = 1 - THREE.MathUtils.smoothstep(sd + (n - 0.5) * 1.6, -0.2, DECAL_MARGIN * 0.9)
-      // darker rubble stain hugging the footprint
-      const stain = (1 - THREE.MathUtils.smoothstep(sd + (n2 - 0.5) * 1.0, -1.5, 0.9)) * (0.55 + 0.45 * n)
-      const dust = 0.5 + 0.5 * n
-      const r = 150 + 40 * dust - 70 * stain
-      const g = 142 + 38 * dust - 68 * stain
-      const b = 128 + 34 * dust - 62 * stain
+      // organic ragged outline: noisy radial fall-off, then a hard guarantee of alpha 0 from r = 0.88
+      const ragged = r + (n - 0.5) * 0.34
+      const edge = (1 - THREE.MathUtils.smoothstep(ragged, 0.3, 0.8)) * (1 - THREE.MathUtils.smoothstep(r, 0.78, 0.88))
+      const stain = (1 - THREE.MathUtils.smoothstep(r + (n2 - 0.5) * 0.25, 0.1, 0.6)) * (0.5 + 0.5 * n)
+      const dust = 0.5 + 0.5 * n2
+      // muted, slightly desaturated brown-grey; low alpha keeps the result within ~20% of the ground
+      const rr = 128 + 22 * dust - 40 * stain
+      const gg = 120 + 20 * dust - 38 * stain
+      const bb = 110 + 18 * dust - 34 * stain
       const k = (j * px + i) * 4
-      img.data[k] = r
-      img.data[k + 1] = g
-      img.data[k + 2] = b
-      img.data[k + 3] = Math.round(255 * Math.min(1, edge * (0.5 + 0.35 * stain + 0.25 * dust)))
+      img.data[k] = rr
+      img.data[k + 1] = gg
+      img.data[k + 2] = bb
+      img.data[k + 3] = Math.round(255 * Math.min(1, edge * (0.22 + 0.16 * stain + 0.08 * dust)))
     }
   }
   ctx.putImageData(img, 0, 0)
@@ -226,11 +227,30 @@ const TILE = 8 // inches per texture tile
  *  vertex colours fading to dark. `thickness` is the average slab depth. */
 export function floorSlabGeometry(id: string, polygon: Polygon, thickness: number): THREE.BufferGeometry {
   const rng = seededRng(`${id}-slab`)
-  const pos: number[] = [], col: number[] = [], uv: number[] = []
+  const pos: number[] = [], col: number[] = [], uv: number[] = [], nor: number[] = []
+  let area2 = 0
+  for (let i = 0; i < polygon.length; i++) {
+    const p = polygon[i], q = polygon[(i + 1) % polygon.length]
+    area2 += p.x * q.z - q.x * p.z
+  }
+  const orient = area2 > 0 ? 1 : -1 // outward normal of edge a->b is (dz, -dx) * orient / len
+  let nx = 0, nz = 0 // current face normal (horizontal part); ny = 1 for top faces
+  let ny = 1
   const push = (x: number, y: number, z: number, c: number[], u: number, v: number) => {
     pos.push(x, y, z)
     col.push(c[0], c[1], c[2])
     uv.push(u, v)
+    nor.push(nx, ny, nz)
+  }
+  type V = [number, number, number, number[], number, number] // x, y, z, colour, u, v
+  /** Pushes a triangle wound so its geometric normal agrees with the current face normal (three flips the
+   *  normal of back-facing fragments on DoubleSide, so a wrongly wound face would be lit from below). */
+  const tri3 = (p: V, q: V, r: V) => {
+    const ux = q[0] - p[0], uy = q[1] - p[1], uz = q[2] - p[2]
+    const vx = r[0] - p[0], vy = r[1] - p[1], vz = r[2] - p[2]
+    const cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx
+    const ok = cx * nx + cy * ny + cz * nz >= 0
+    for (const k of ok ? [p, q, r] : [p, r, q]) push(k[0], k[1], k[2], k[3], k[4], k[5])
   }
   // Top face: inner polygon (light) + rim ring (dark outer edge fading inward).
   const bandW = Math.min(0.4, Math.min(...(() => {
@@ -239,22 +259,23 @@ export function floorSlabGeometry(id: string, polygon: Polygon, thickness: numbe
   })()) * 0.2)
   const inner = offsetPolygon(polygon, bandW)
   const tri = THREE.ShapeUtils.triangulateShape(inner.map((p) => new THREE.Vector2(p.x, p.z)), [])
-  for (const t of tri) {
-    for (const k of [t[0], t[2], t[1]]) push(inner[k].x, 0, inner[k].z, COL_TOP, inner[k].x / TILE, inner[k].z / TILE)
-  }
+  const top = (p: { x: number; z: number }, c: number[]): V => [p.x, 0, p.z, c, p.x / TILE, p.z / TILE]
+  for (const t of tri) tri3(top(inner[t[0]], COL_TOP), top(inner[t[1]], COL_TOP), top(inner[t[2]], COL_TOP))
   const n = polygon.length
   for (let i = 0; i < n; i++) {
     const a = polygon[i], b = polygon[(i + 1) % n], ai = inner[i], bi = inner[(i + 1) % n]
     const tone = 0.85 + rng() * 0.3
     const rim = COL_RIM.map((c) => c * tone)
-    for (const [p, c] of [[a, rim], [ai, COL_TOP], [bi, COL_TOP], [a, rim], [bi, COL_TOP], [b, rim]] as [{ x: number; z: number }, number[]][]) {
-      push(p.x, 0, p.z, c, p.x / TILE, p.z / TILE)
-    }
+    tri3(top(a, rim), top(ai, COL_TOP), top(bi, COL_TOP))
+    tri3(top(a, rim), top(bi, COL_TOP), top(b, rim))
   }
   // Skirt: each edge cut into ~0.5" segments whose bottom hangs a random, jagged depth.
   for (let i = 0; i < n; i++) {
     const a = polygon[i], b = polygon[(i + 1) % n]
     const len = Math.hypot(b.x - a.x, b.z - a.z)
+    ny = 0
+    nx = ((b.z - a.z) / (len || 1)) * orient
+    nz = (-(b.x - a.x) / (len || 1)) * orient
     const segs = Math.max(1, Math.round(len / 0.5))
     const depth: number[] = []
     for (let s = 0; s <= segs; s++) depth.push(thickness * (0.55 + rng() * 0.9))
@@ -264,15 +285,61 @@ export function floorSlabGeometry(id: string, polygon: Polygon, thickness: numbe
       const x1 = a.x + (b.x - a.x) * t1, z1 = a.z + (b.z - a.z) * t1
       const u0 = (len * t0) / TILE, u1 = (len * t1) / TILE
       const d0 = depth[s], d1 = depth[s + 1]
-      // winding chosen for outward-facing normals when the polygon is counter-clockwise in x/z
-      push(x0, 0, z0, COL_SKIRT_TOP, u0, 0); push(x1, 0, z1, COL_SKIRT_TOP, u1, 0); push(x0, -d0, z0, COL_SKIRT_BOT, u0, d0 / TILE)
-      push(x1, 0, z1, COL_SKIRT_TOP, u1, 0); push(x1, -d1, z1, COL_SKIRT_BOT, u1, d1 / TILE); push(x0, -d0, z0, COL_SKIRT_BOT, u0, d0 / TILE)
+      const A: V = [x0, 0, z0, COL_SKIRT_TOP, u0, 0], B: V = [x1, 0, z1, COL_SKIRT_TOP, u1, 0]
+      const C: V = [x0, -d0, z0, COL_SKIRT_BOT, u0, d0 / TILE], D: V = [x1, -d1, z1, COL_SKIRT_BOT, u1, d1 / TILE]
+      tri3(A, B, C)
+      tri3(B, D, C)
     }
   }
   const g = new THREE.BufferGeometry()
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3))
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2))
-  g.computeVertexNormals()
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3))
   return g
+}
+
+let slabTex: THREE.CanvasTexture | null = null
+/** Seamless warm-grey weathered rockcrete albedo (canvas fBm: speckle, pitting, hairline cracks) for floor
+ *  slabs; one TILE (8") per repeat in floorSlabGeometry's UVs. Wraps because the noise lattice is periodic. */
+export function slabConcreteTexture(): THREE.CanvasTexture {
+  if (slabTex) return slabTex
+  const N = 256
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = N
+  const ctx = canvas.getContext('2d')!
+  const img = ctx.createImageData(N, N)
+  const period = 8 // lattice cells per tile edge; wrap the lattice for tiling
+  const wrapNoise = (seed: number, u: number, v: number, f: number) => {
+    const P = period * f
+    const x = u * P, y = v * P
+    const xi = Math.floor(x), yi = Math.floor(y)
+    const fx = x - xi, fy = y - yi
+    const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy)
+    const L = (a: number, b: number) => lattice(seed, ((a % P) + P) % P, ((b % P) + P) % P)
+    const a = L(xi, yi), b = L(xi + 1, yi), c = L(xi, yi + 1), d = L(xi + 1, yi + 1)
+    return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy
+  }
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const u = i / N, v = j / N
+      const broad = 0.5 * wrapNoise(3, u, v, 1) + 0.3 * wrapNoise(5, u, v, 2) + 0.2 * wrapNoise(7, u, v, 4)
+      const fine = wrapNoise(11, u, v, 16) * 0.6 + wrapNoise(13, u, v, 32) * 0.4
+      const crack = Math.abs(wrapNoise(17, u, v, 3) - 0.5) < 0.012 ? 0.55 : 1
+      const pit = wrapNoise(19, u, v, 12) > 0.82 ? 0.78 : 1
+      const t = (0.62 + 0.3 * broad + 0.16 * (fine - 0.5)) * crack * pit
+      const k = (j * N + i) * 4
+      img.data[k] = 205 * t
+      img.data[k + 1] = 198 * t
+      img.data[k + 2] = 186 * t
+      img.data[k + 3] = 255
+    }
+  }
+  ctx.putImageData(img, 0, 0)
+  const tex = new THREE.CanvasTexture(canvas)
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping
+  tex.colorSpace = THREE.SRGBColorSpace
+  tex.anisotropy = 4
+  slabTex = tex
+  return tex
 }
