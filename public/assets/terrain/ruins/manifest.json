@@ -1,35 +1,35 @@
 {
   "ruin-corner": {
     "size": [
-      1.0,
+      1,
       1.3611,
       0.7598
     ]
   },
   "ruin-facade": {
     "size": [
-      1.0,
+      1,
       1.2455,
       0.6983
     ]
   },
   "ruin-small": {
     "size": [
-      1.0,
+      1,
       1.3473,
       0.5808
     ]
   },
   "ruin-tall": {
     "size": [
-      1.0,
+      1,
       2.2276,
       0.7822
     ]
   },
   "barricade": {
     "size": [
-      1.0,
+      1,
       0.1704,
       0.5398
     ]
@@ -38,86 +38,69 @@
     "size": [
       0.9072,
       0.1347,
-      1.0
+      1
     ]
   },
   "bunker-a": {
     "size": [
       0.6075,
       0.3499,
-      1.0
+      1
     ]
   },
   "bunker-b": {
     "size": [
       0.6598,
       0.3916,
-      1.0
+      1
     ]
   },
-  "ruin-corner-2": {
+  "ruin-citadel-corner-1": {
     "size": [
-      1.0,
-      0.8512,
-      0.7552
+      0.9916,
+      0.9118,
+      1.0018
     ],
     "shape": "corner"
   },
-  "ruin-corner-3": {
+  "ruin-citadel-corner-3": {
     "size": [
-      1.0001,
-      0.975,
-      1.0029
-    ],
-    "shape": "corner",
-    "cornerTurns": 3
-  },
-  "ruin-corner-4": {
-    "size": [
-      0.9814,
-      1.0047,
-      0.8677
+      0.9987,
+      0.9744,
+      0.8952
     ],
     "shape": "corner",
     "cornerTurns": 1
   },
-  "ruin-corner-5": {
+  "ruin-citadel-corner-4": {
     "size": [
-      1.0019,
-      0.7603,
-      0.925
+      1.0004,
+      0.8095,
+      0.6489
     ],
     "shape": "corner"
   },
-  "ruin-rect-1": {
+  "ruin-citadel-wall-1": {
     "size": [
-      1.0002,
-      0.9748,
-      0.3185
+      0.9997,
+      0.6519,
+      0.3892
     ],
     "shape": "rect"
   },
-  "ruin-rect-2": {
-    "size": [
-      0.9999,
-      0.6751,
-      0.598
-    ],
-    "shape": "rect"
-  },
-  "ruin-rect-3": {
-    "size": [
-      0.9996,
-      0.7647,
-      0.5956
-    ],
-    "shape": "rect"
-  },
-  "ruin-rect-4": {
+  "ruin-citadel-wall-2": {
     "size": [
       0.9998,
-      0.9775,
-      0.6014
+      0.9131,
+      0.3338
+    ],
+    "shape": "rect"
+  },
+  "ruin-citadel-wall-3": {
+    "size": [
+      1.0016,
+      0.8084,
+      0.3323
     ],
     "shape": "rect"
   }
