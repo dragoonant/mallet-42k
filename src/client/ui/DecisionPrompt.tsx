@@ -24,6 +24,8 @@ import {
 import { offeredAmbushMarker, useAmbushHover } from '../interaction/CultAmbushMarkers'
 import { commitStagedDraft } from '../interaction/commitDraft'
 import { FormationPicker } from './FormationPicker'
+import { WeaponPanel } from './WeaponPanel'
+import { opensWeaponPanel } from '../interaction/decisions'
 import { rerollTrayModel, rollForOffer } from './rerollInfo'
 import { RerollTray } from './RerollTray'
 import { overwatchReach } from './overwatchInfo'
@@ -378,6 +380,7 @@ function orderOptionLabel(state: GameState, optionId: string): string | null {
  *  rather than as the safe half of the choice the player was offered. */
 const PASS_LABEL: Partial<Record<PendingDecision['kind'], string>> = {
   commandReroll: 'Keep the roll',
+  declareTargets: 'Fire nothing',
 }
 
 const MOVE_TYPE_LABEL: Partial<Record<MoveType, string>> = {
@@ -770,6 +773,7 @@ export function DecisionPrompt() {
   const hoverUnit = useUiStore((s) => s.hoverUnit)
   const hoverModel = useUiStore((s) => s.hoverModel)
   const hoverObjective = useUiStore((s) => s.hoverObjective)
+  const shootStage = useUiStore((s) => s.shootStage)
   const clearBoardHover = () => {
     hoverUnit(null)
     hoverModel(null)
@@ -919,6 +923,7 @@ export function DecisionPrompt() {
     )
   }
 
+  const weaponPanelOpen = opensWeaponPanel(pending) && shootStage?.decisionId === pending.id
   const kindTitle = chooseOptionInfo?.title ?? KIND_TITLE[pending.kind] ?? pending.kind
   const isDeploy = pending.kind === 'deployUnit'
 
@@ -978,12 +983,18 @@ export function DecisionPrompt() {
             {pending.context.overwatch ? 'Fire Overwatch (every hit needs an unmodified 6)' : pending.context.attackKind === 'melee' ? 'pick who to fight' : 'pick a target'}
           </div>
           <div>
-            Every weapon that can see the unit you pick fires at it. Hover an option for its weapons, the target&apos;s
-            Toughness and Save, and what each weapon needs to hit and wound.
+            {pending.context.attackKind === 'ranged'
+              ? 'Click an enemy to choose which weapons fire at it, or use a Target button to fire everything that can reach it at once. '
+              : 'Every weapon that can see the unit you pick fires at it. '}
+            Hover an option for its weapons, the target&apos;s Toughness and Save, and what each weapon needs to hit and wound.
             {pending.context.engagedWith.length > 0 &&
               ` In Engagement Range of ${pending.context.engagedWith.map((u) => state.units[u]?.name ?? u).join(', ')}.`}
           </div>
         </div>
+      )}
+
+      {pending.kind === 'declareTargets' && weaponPanelOpen && (
+        <WeaponPanel key={pending.id} state={state} pending={pending} passAction={passAction} dispatch={dispatch} />
       )}
 
       {pending.kind === 'declareCharge' && (
@@ -1147,7 +1158,7 @@ export function DecisionPrompt() {
             </button>
           </>
         )}
-        {passAction && (
+        {passAction && !weaponPanelOpen && (
           <button style={buttonBase} data-testid="btn-pass" onClick={() => dispatch(passAction)}>
             {PASS_LABEL[pending.kind] ?? 'Pass'}
           </button>
@@ -1162,7 +1173,7 @@ export function DecisionPrompt() {
         </div>
       )}
 
-      {showFallbackList && (
+      {showFallbackList && !weaponPanelOpen && (
         <div style={optionList}>
           {info && listItems.length > 0 && <div style={hint}>Or use a suggested placement — hover one to preview it:</div>}
           {listItems.map((it) => {

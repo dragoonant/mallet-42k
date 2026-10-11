@@ -98,6 +98,13 @@ async function handlePlay(page: Page, s: Snap, cam: Cam, turn: TurnState): Promi
       const before = s.pending!.id
       if (await clickCanvasAt(page, project({ x: m.x, y: 0.5, z: m.z }, cam, W, H), W, H)) {
         await page.waitForTimeout(150)
+        // A ranged enemy click opens the weapon panel (src/client/ui/WeaponPanel.tsx): Fire confirms the staged volley.
+        const fire = page.getByTestId('btn-fire')
+        if (await fire.isVisible().catch(() => false)) {
+          if (await fire.isEnabled().catch(() => false)) await fire.click()
+          else await page.getByTestId('btn-fire-nothing').click().catch(() => {})
+          await page.waitForTimeout(150)
+        }
         const after = await snap(page)
         if (after.pending?.id !== before) return { moved: false, shot: true }
       }
@@ -106,6 +113,9 @@ async function handlePlay(page: Page, s: Snap, cam: Cam, turn: TurnState): Promi
 
   switch (p.kind) {
     case 'declareTargets': {
+      // panel left open by a click that could not fire: answer it first (Fire nothing), else the Target buttons are hidden
+      const nothing = page.getByTestId('btn-fire-nothing')
+      if (await nothing.isVisible().catch(() => false)) { await nothing.click(); return { moved: false, shot: false } }
       const b = await promptButton(page, /^Target /)
       if (b) { await b.click(); return { moved: false, shot: false } }
       await clickFirstOption(page, false)

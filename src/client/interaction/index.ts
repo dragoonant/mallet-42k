@@ -1,4 +1,4 @@
-export { placementInfo, clickableUnitIds, unitClickAction, isPlacementDecision } from './decisions'
+export { placementInfo, clickableUnitIds, unitClickAction, isPlacementDecision, opensWeaponPanel } from './decisions'
 export type { PlacementInfo, PlacementActionType } from './decisions'
 export { computeBoardClickDraft } from './boardClick'
 export { useBoardClick } from './useBoardClick'

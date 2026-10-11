@@ -150,6 +150,10 @@ interface UiState {
   formationFacingAuto: boolean
   formationMemory: Record<string, FormationMemoryEntry>
   nudge: NudgeState | null
+  /** Weapon panel (src/client/ui/WeaponPanel.tsx): the enemy unit last clicked while a ranged declareTargets
+   *  decision is pending. `nonce` changes on every click so re-clicking the same unit still registers. */
+  shootStage: { decisionId: string; targetUnitId: string; nonce: number } | null
+  stageShoot(decisionId: string, targetUnitId: string): void
   selectUnit(id: string | null): void
   /** One unit id, several (all lit together), or null to clear. */
   hoverUnit(ids: string | readonly string[] | null): void
@@ -219,6 +223,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   formationFacingAuto: true,
   formationMemory: {},
   nudge: null,
+  shootStage: null,
+  stageShoot: (decisionId, targetUnitId) => set((s) => ({ shootStage: { decisionId, targetUnitId, nonce: (s.shootStage?.nonce ?? 0) + 1 } })),
   selectUnit: (id) => set({ selectedUnitId: id, glowModelIds: [] }),
   hoverUnit: (ids) => {
     const list = ids === null ? [] : typeof ids === 'string' ? [ids] : [...ids]
@@ -258,7 +264,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   startNudge: (n) => set({ nudge: n }),
   clearNudge: () => set({ nudge: null }),
   resetForDecision: () =>
-    set({ deployTargetUnitId: null, draft: null, previewDraft: null, movePreview: null, hoveredUnitId: null, hoveredUnitIds: [], hoveredModelId: null, hoveredObjectiveId: null, nudge: null }),
+    set({ deployTargetUnitId: null, draft: null, previewDraft: null, movePreview: null, hoveredUnitId: null, hoveredUnitIds: [], hoveredModelId: null, hoveredObjectiveId: null, nudge: null, shootStage: null }),
   resetAll: () => {
     // New game: rotate to the next battlefield unless ?board= forces one.
     let battlefieldIndex = get().battlefieldIndex
@@ -288,6 +294,7 @@ export const useUiStore = create<UiState>((set, get) => ({
       formationFacingAuto: true,
       formationMemory: {},
       nudge: null,
+      shootStage: null,
     })
   },
 }))

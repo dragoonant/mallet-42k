@@ -16,7 +16,7 @@ import { useGameStore } from '../store/game'
 import { useDisplayState } from '../presentation/presentedStore'
 import { useUiStore } from '../ui/uiStore'
 import { useCueStore } from '../presentation'
-import { clickableUnitIds, unitClickAction } from './decisions'
+import { clickableUnitIds, opensWeaponPanel, unitClickAction } from './decisions'
 import { losStatusByUnit } from './lineOfSight'
 
 const POSITION_EASE_PER_SEC = 10
@@ -95,6 +95,11 @@ const UnitModel = memo(function UnitModel(p: UnitModelProps) {
       e.stopPropagation()
       const { pending, legal, dispatch } = useGameStore.getState()
       if (isClickable && pending) {
+        // Ranged targeting opens the weapon panel (choose weapons, then Fire / Enter) instead of firing at once.
+        if (opensWeaponPanel(pending)) {
+          useUiStore.getState().stageShoot(pending.id, unitId)
+          return
+        }
         const action = unitClickAction(pending, legal, unitId)
         if (action) {
           dispatch(action)

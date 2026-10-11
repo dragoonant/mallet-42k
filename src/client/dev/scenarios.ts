@@ -14,7 +14,9 @@ import { useGameStore, type NewGameOptions } from '../store/game'
 const MM = 25.4
 const SCENARIO_FACTION = 'necrons'
 /** Scenarios that start in another faction / phase than the default (Necrons, Fight). */
-const SCENARIO_FACTIONS: Record<string, string> = { 'floor-picker': 'sm' }
+const SCENARIO_FACTIONS: Record<string, string> = { 'floor-picker': 'sm', 'weapon-select': 'sm', 'weapon-select-mixed': 'sm', 'weapon-select-psyker': 'sm' }
+/** Shooting-phase scenarios: scenario name -> the human (A) unit ref that is activated, so the first prompt is its declareTargets. */
+const SHOOTING_SCENARIOS: Record<string, string> = { 'weapon-select': 'terminator-squad', 'weapon-select-mixed': 'infernus-squad', 'weapon-select-psyker': 'librarian-tantus' }
 const MOVEMENT_SCENARIOS = new Set(['floor-picker'])
 
 export interface ScenarioInit {
@@ -154,7 +156,29 @@ const floorPicker: ScenarioBuilder = (state) => {
   state.units[me.id].models.forEach((id, i) => setModelPos(state.models[id], { x: midX + (i - 1) * 1.4, y: 0, z: south }, Math.PI / 2))
 }
 
+// Space Marines in the Shooting phase: one A unit (see SHOOTING_SCENARIOS) 8" from two B units on open ground, side by
+// side, so weapon-selection can aim different guns at different targets. Infernus (bolt pistol + pyreblaster) shows the
+// Pistol rule; the Librarian (Smite / focused Smite profiles, storm bolter) shows profile groups and Hazardous.
+const weaponSelect = (ref: string): ScenarioBuilder => (state) => {
+  clearTerrain(state)
+  const me = `A:${ref}`
+  const foes: UnitId[] = ['B:terminator-squad', 'B:infernus-squad']
+  for (const id of Object.keys(state.units)) {
+    if (state.units[id].player === 'A' && id !== me) state.units[id].location = 'reserves'
+  }
+  for (const id of foes) keepModels(state, id, 3)
+  for (const id of [me, ...foes]) setBase(state, id, 40)
+  const line = (n: number, cx: number, z: number) => Array.from({ length: n }, (_, i) => ({ x: cx + (i - (n - 1) / 2) * 1.6, z }))
+  place(state, me, line(state.units[me].models.length, 0, -8))
+  place(state, foes[0], line(3, -5, 0))
+  place(state, foes[1], line(3, 5, 0))
+  for (const id of state.units[me].models) state.models[id].facing = Math.PI / 2
+}
+
 export const SCENARIOS: Record<string, ScenarioBuilder> = {
+  'weapon-select': weaponSelect('terminator-squad'),
+  'weapon-select-mixed': weaponSelect('infernus-squad'),
+  'weapon-select-psyker': weaponSelect('librarian-tantus'),
   'floor-picker': floorPicker,
   'pile-in': pileIn,
   'pile-in-mixed': pileInMixed,
@@ -189,11 +213,12 @@ export async function buildScenario(name: string, seed = 'scenario'): Promise<Sc
   state.activePlayer = 'A'
   state.firstPlayer = 'A'
   const movement = MOVEMENT_SCENARIOS.has(name)
-  state.phase = movement ? 'movement' : 'fight'
+  const shootRef = SHOOTING_SCENARIOS[name]
+  state.phase = movement ? 'movement' : shootRef ? 'shooting' : 'fight'
   state.pending = null
   const rng = new SeededRng(`${seed}:scenario`)
   const { ctx } = createContext(state, rng, DEFAULT_MODULES)
-  DEFAULT_MODULES.phases[movement ? 'movement' : 'fight'].enter(ctx)
+  DEFAULT_MODULES.phases[movement ? 'movement' : shootRef ? 'shooting' : 'fight'].enter(ctx)
   advanceGame(ctx, DEFAULT_MODULES)
   state.rng = rng.serialize()
   state.hash = ''
@@ -212,6 +237,17 @@ export async function buildScenario(name: string, seed = 'scenario'): Promise<Sc
           if (!s2.rejection) r = { state: s2.state, pending: s2.pending }
         }
       }
+    }
+    return { bundle, setup, state: r.state, pending: r.pending }
+  }
+  if (shootRef) {
+    // Shooting selection: take the scenario's unit so the first prompt is its declareTargets.
+    let r = { state, pending: state.pending as PendingDecision | null }
+    const pick = r.pending
+    const unitId = `A:${shootRef}`
+    if (pick?.kind === 'chooseUnitToActivate' && pick.player === 'A' && pick.context.eligible.includes(unitId)) {
+      const s1 = step(state, { type: 'chooseUnitToActivate', player: 'A', decisionId: pick.id, unitId })
+      if (!s1.rejection) r = { state: s1.state, pending: s1.pending }
     }
     return { bundle, setup, state: r.state, pending: r.pending }
   }
