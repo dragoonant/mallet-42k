@@ -4,7 +4,7 @@
 // specific simplifications). `easy` picks randomly among the top 3 scored actions; `normal` always takes the best.
 import {
   DEFAULT_SERVICES, boardModelsOf, boardUnitsOf, deploymentZone, distance, hasKeyword, legalActions, modelProfile,
-  modelStats, unitModels, validate, basesOverlap, type Footprint, whollyOnBoard, whollyWithinPolygon, pointInPolygon, withinEngagementRange, withinObjectiveRange,
+  modelStats, unitModels, unitModelsForCoherency, isCoherent, coherencyGroups, validate, basesOverlap, type Footprint, whollyOnBoard, whollyWithinPolygon, pointInPolygon, withinEngagementRange, withinObjectiveRange,
   type Action, type DeclareChargeAction, type DeclareMoveAction, type DeclareTargetsAction, type Decider,
   type DeployUnitAction, type GameState, type ModelPlacement, type ObjectiveId, type PendingDecision, type PlayerId,
   type PlayerView, type Polygon, type UnitId, type UseStratagemAction,
@@ -397,6 +397,19 @@ function scoreDeclareTargets(state: GameState, pending: PendingDecision, action:
   return total
 }
 
+// R-2.6 cost of losing `modelId`: 0 if the rest of its (attached) unit stays coherent, otherwise minus a rough count of
+// the extra models the end-of-turn cull would take (models outside the largest connected group, at least 1). A removal
+// that restores coherency to an already-broken unit scores a bonus instead.
+function removalCoherencyScore(state: GameState, modelId: string): number {
+  const model = state.models[modelId]
+  if (!model) return 0
+  const models = unitModelsForCoherency(state, model.unitId)
+  const rest = models.filter((m) => m.id !== modelId)
+  if (isCoherent(rest)) return isCoherent(models) ? 0 : 1
+  const largest = coherencyGroups(rest)[0]?.length ?? 0
+  return -Math.max(1, rest.length - largest)
+}
+
 function scoreAllocateAttack(state: GameState, player: PlayerId, pending: PendingDecision, action: Action): number {
   if (pending.kind !== 'allocateAttack' || action.type !== 'allocateAttack') return 0
   const model = state.models[action.modelId]
@@ -409,6 +422,11 @@ function scoreAllocateAttack(state: GameState, player: PlayerId, pending: Pendin
   if (iAmDefending) {
     if (profile.champion) score -= 3
     if (wounded) score += 2 // finish an already-damaged model rather than spread damage
+    // the failed save will likely kill it: don't lose the model whose removal splits the unit (the cull then takes
+    // more). A multi-wound model that survives this hit only matters in proportion to how close it is to dying.
+    const dmg = pending.context.damage ?? 1
+    const dies = model.woundsRemaining <= dmg ? 1 : dmg / model.woundsRemaining
+    score += removalCoherencyScore(state, action.modelId) * 4 * dies
   } else {
     // Precision: attacking player choosing which enemy model eats it — go for value
     if (profile.champion) score += 3
@@ -509,6 +527,14 @@ function scoreChooseOption(state: GameState, pending: PendingDecision, action: A
     } else {
       score += unitValue(state, hintUnitId) * 0.03 // e.g. oathTarget/bagTarget/stompTarget: aim at the best target
     }
+  }
+  // R-2.6 cull (options are model ids): remove the model that makes the unit coherent again, else the one that leaves
+  // the biggest connected group; spare champions and attached CHARACTERs
+  if (topic === 'coherencyCull' && state.models[action.optionId]) {
+    const m = state.models[action.optionId]
+    score += removalCoherencyScore(state, m.id) * 4
+    if (modelProfile(state, m).champion) score -= 3
+    if (hasKeyword(state, m.unitId, 'CHARACTER')) score -= 5
   }
   const label = (option?.label ?? '').toLowerCase()
   if (/(skip|none|decline)/.test(label)) score -= 1
