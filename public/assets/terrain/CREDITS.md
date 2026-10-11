@@ -18,4 +18,9 @@ no attribution required, used here anyway as a courtesy). Downloaded at 1k resol
 | Battlefield `crackmud` (derived from mud_cracked_dry_03) | https://polyhaven.com/a/mud_cracked_dry_03 | Board ground, stretched once over the 44x30 mat (public/assets/terrain/battlefield/crackmud/); derived from the CC0 Poly Haven texture with procedural battle damage added in-house |
 | Battlefield `laterite` (derived from red_laterite_soil_stones) | https://polyhaven.com/a/red_laterite_soil_stones | Board ground, stretched once over the 44x30 mat (public/assets/terrain/battlefield/laterite/); derived from the CC0 Poly Haven texture with procedural battle damage added in-house |
 
+| Cobblestone Floor 08 | https://polyhaven.com/a/cobblestone_floor_08 | Flagstone / rockcrete patches baked into every battlefield mat |
+| Burned Ground 01 | https://polyhaven.com/a/burned_ground_01 | Scorch / crater-ash layer baked into every battlefield mat |
+
+Battlefield mats are now baked offline (art/board-textures/gen_mats.py, 2048x1396 albedo/normal/roughness, de-tiled photo layers plus procedural rubble, scorch, craters, puddles); `dirt`, `dryrocks`, `rocks08` also blend in `aerial_ground_rock` / `dirt_aerial_02`.
+
 License: [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) for every asset above.

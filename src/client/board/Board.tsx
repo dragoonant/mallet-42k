@@ -43,8 +43,8 @@ function GroundMesh({
   const battlefieldIndex = useUiStore((s) => s.battlefieldIndex)
   const maxAniso = useThree((s) => s.gl.capabilities.getMaxAnisotropy())
   const invalidate = useThree((s) => s.invalidate)
-  // Stretched once across the mat: image long axis = board x (44"), no tiling.
-  const { map, normalMap, roughnessMap } = useBattlefieldPBR(BATTLEFIELDS[battlefieldIndex].urls, maxAniso)
+  // Baked 2048x1396 mats (art/board-textures/gen_mats.py): 1 texel ~ 1/46.5", mapped once over exactly the board.
+  const { map, normalMap, roughnessMap } = useBattlefieldPBR(BATTLEFIELDS[battlefieldIndex].urls, Math.min(8, maxAniso))
   // frameloop="demand": a texture swap (HUD cycle button) must schedule its own repaint.
   useEffect(() => {
     invalidate()
