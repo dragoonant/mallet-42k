@@ -23,7 +23,14 @@ export type FitPlan =
 
 /** One enabled manifest entry. `shape` is present on newer models ('corner' = L footprint, 'rect');
  *  entries without it keep the original name-based rules. */
-export interface RuinCatalogEntry { slug: string; shape?: 'corner' | 'rect'; size?: readonly number[] }
+export interface RuinCatalogEntry {
+  slug: string
+  shape?: 'corner' | 'rect'
+  size?: readonly number[]
+  /** Quarter turns (rotation.y = n * PI/2) from the (min X, min Z) corner to where the model's own L corner
+   *  sits; 0 when its walls are on the -X/-Z edges, 3 for a corner at (max X, min Z), etc. */
+  cornerTurns?: number
+}
 
 /** The four original models, used when no manifest catalog is available (and by the unit tests). */
 export const LEGACY_CATALOG: readonly RuinCatalogEntry[] = [
@@ -94,7 +101,9 @@ export function planRuin(id: string, polygon: Polygon, height: number, catalog: 
     const all = [{ sx: -1, sz: -1 }, { sx: -1, sz: 1 }, { sx: 1, sz: -1 }, { sx: 1, sz: 1 }]
     const missing = all.find((c) => !corners.some((m) => m.sx === c.sx && m.sz === c.sz))!
     // The L's corner vertex is the bbox corner opposite the notch.
-    return { shape: 'L', slug: pool[idVariant(id) % pool.length], turns: cornerTurns(-missing.sx, -missing.sz) }
+    const slug = pool[idVariant(id) % pool.length]
+    const native = catalog.find((e) => e.slug === slug)?.cornerTurns ?? 0
+    return { shape: 'L', slug, turns: (cornerTurns(-missing.sx, -missing.sz) - native + 4) % 4 }
   }
   if (corners.length === 4) {
     const v = idVariant(id)

@@ -4,13 +4,13 @@
 // are shared by every instance (clones copy only the node tree).
 import { useEffect, useMemo, useState } from 'react'
 import { useThree } from '@react-three/fiber'
-import { Box3, Group, MeshStandardMaterial, Vector3, type Mesh, type Object3D } from 'three'
+import { Box3, CanvasTexture, Color, Group, MeshStandardMaterial, Vector3, type Mesh, type Object3D, type Texture } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { ENABLED_RUIN_MODELS } from './ruinModels.config'
 import type { RuinCatalogEntry } from './ruinFit'
 
 type RuinSlug = string
-type ManifestEntry = { size?: number[]; shape?: string }
+type ManifestEntry = { size?: number[]; shape?: string; cornerTurns?: number }
 
 type Size3 = [number, number, number]
 export interface RuinModel { object: Object3D; size: Size3 }
@@ -39,6 +39,73 @@ function loadManifest() {
   return manifestPromise
 }
 
+// Colour unification (like whirr-machine's tintedMaterial): the GLB albedos differ (bluish, dark, sandy), so
+// every ruin's baked albedo is desaturated toward grey, brought to one mean brightness and multiplied by one
+// shared weathered-rockcrete tint, via a canvas re-bake (survives material clones, e.g. the occluder fade).
+const RUIN_TINT: [number, number, number] = [1.05, 1.0, 0.92]
+const RUIN_KEEP_SAT = 0.25 // fraction of the baked saturation kept
+const RUIN_CONTRAST = 0.6 // scorch/soot streaks are pulled toward the mean (1 = untouched)
+const RUIN_TARGET_LUMA = 0.5 // mean sRGB brightness every ruin is normalised to (before the tint)
+const rebaked = new Map<Texture, Texture>()
+
+function unifyTexture(tex: Texture): Texture {
+  const hit = rebaked.get(tex)
+  if (hit) return hit
+  let out = tex
+  try {
+    const img = tex.image as CanvasImageSource & { width: number; height: number }
+    const w = img.width, h = img.height
+    const cv = document.createElement('canvas')
+    cv.width = w
+    cv.height = h
+    const ctx = cv.getContext('2d', { willReadFrequently: true })
+    if (ctx && w > 0 && h > 0) {
+      ctx.drawImage(img, 0, 0)
+      const data = ctx.getImageData(0, 0, w, h)
+      const px = data.data
+      let sum = 0
+      for (let i = 0; i < px.length; i += 4) sum += 0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]
+      const mean = sum / (px.length / 4) / 255
+      const gain = Math.min(1.8, Math.max(0.6, RUIN_TARGET_LUMA / Math.max(mean, 0.02)))
+      for (let i = 0; i < px.length; i += 4) {
+        const l = 0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]
+        const lc = mean * 255 + (l - mean * 255) * RUIN_CONTRAST
+        for (let c = 0; c < 3; c++) {
+          const v = (lc + (px[i + c] - l) * RUIN_KEEP_SAT) * gain * RUIN_TINT[c]
+          px[i + c] = v < 0 ? 0 : v > 255 ? 255 : v
+        }
+      }
+      ctx.putImageData(data, 0, 0)
+      const t = new CanvasTexture(cv)
+      t.flipY = tex.flipY
+      t.colorSpace = tex.colorSpace
+      t.wrapS = tex.wrapS
+      t.wrapT = tex.wrapT
+      t.anisotropy = tex.anisotropy
+      t.channel = tex.channel
+      out = t
+    }
+  } catch {
+    out = tex // tainted/unsupported image: keep the baked albedo
+  }
+  rebaked.set(tex, out)
+  return out
+}
+
+const unified = new WeakSet<object>()
+function unifyMaterial(mat: MeshStandardMaterial) {
+  if (unified.has(mat)) return
+  unified.add(mat)
+  if (mat.map) mat.map = unifyTexture(mat.map)
+  else {
+    const hsl = { h: 0, s: 0, l: 0 }
+    mat.color.getHSL(hsl)
+    mat.color.setHSL(hsl.h, hsl.s * RUIN_KEEP_SAT, Math.min(0.6, Math.max(0.25, hsl.l)))
+    mat.color.multiply(new Color(RUIN_TINT[0], RUIN_TINT[1], RUIN_TINT[2]).convertSRGBToLinear())
+  }
+  mat.needsUpdate = true
+}
+
 const validSize = (s: unknown): s is Size3 =>
   Array.isArray(s) && s.length === 3 && s.every((n) => typeof n === 'number' && Number.isFinite(n) && n > 0)
 
@@ -63,7 +130,10 @@ function request(slug: RuinSlug): Entry {
           mesh.castShadow = true // inert when the light doesn't cast (Low graphics)
           mesh.receiveShadow = true
           for (const mat of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
-            if (mat instanceof MeshStandardMaterial) mat.metalness = 0 // no env map: metal reads black
+            if (mat instanceof MeshStandardMaterial) {
+              mat.metalness = 0 // no env map: metal reads black
+              unifyMaterial(mat)
+            }
           }
         })
         // Normalise to a bottom-centre origin from the measured box so a slightly-off GLB origin
@@ -134,7 +204,7 @@ export function useRuinCatalog(): readonly RuinCatalogEntry[] | null {
         if (!enabled.includes(slug)) continue
         const shape = e.shape === 'corner' || e.shape === 'rect' ? e.shape : undefined
         if (!shape && !['ruin-corner', 'ruin-facade', 'ruin-small', 'ruin-tall'].includes(slug)) continue
-        list.push({ slug, shape, size: e.size })
+        list.push({ slug, shape, size: e.size, cornerTurns: Number.isInteger(e.cornerTurns) ? (((e.cornerTurns as number) % 4) + 4) % 4 : 0 })
       }
       catalogCache = list
       if (live) setCatalog(list)

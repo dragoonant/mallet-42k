@@ -54,5 +54,71 @@
       0.3916,
       1.0
     ]
+  },
+  "ruin-corner-2": {
+    "size": [
+      1.0,
+      0.8512,
+      0.7552
+    ],
+    "shape": "corner"
+  },
+  "ruin-corner-3": {
+    "size": [
+      1.0001,
+      0.975,
+      1.0029
+    ],
+    "shape": "corner",
+    "cornerTurns": 3
+  },
+  "ruin-corner-4": {
+    "size": [
+      0.9814,
+      1.0047,
+      0.8677
+    ],
+    "shape": "corner",
+    "cornerTurns": 1
+  },
+  "ruin-corner-5": {
+    "size": [
+      1.0019,
+      0.7603,
+      0.925
+    ],
+    "shape": "corner"
+  },
+  "ruin-rect-1": {
+    "size": [
+      1.0002,
+      0.9748,
+      0.3185
+    ],
+    "shape": "rect"
+  },
+  "ruin-rect-2": {
+    "size": [
+      0.9999,
+      0.6751,
+      0.598
+    ],
+    "shape": "rect"
+  },
+  "ruin-rect-3": {
+    "size": [
+      0.9996,
+      0.7647,
+      0.5956
+    ],
+    "shape": "rect"
+  },
+  "ruin-rect-4": {
+    "size": [
+      0.9998,
+      0.9775,
+      0.6014
+    ],
+    "shape": "rect"
   }
 }
