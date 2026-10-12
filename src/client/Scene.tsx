@@ -10,7 +10,7 @@ import { usePresentationSettings } from './presentation/settings'
 import { useDisplayState } from './presentation/presentedStore'
 import { useGameStore } from './store/game'
 import { useUiStore } from './ui/uiStore'
-import { computeBoardClickDraft, CultAmbushMarkers, CoverBadges, DeathGhosts, MovePreviewOverlay, PlacementOverlay, resolveMeasureLine, UnitLabels, UnitsLayer, useBoardClick } from './interaction'
+import { computeBoardClickDraft, CultAmbushMarkers, UnitStatusIcons, DeathGhosts, MovePreviewOverlay, PlacementOverlay, resolveMeasureLine, UnitLabels, UnitsLayer, useBoardClick } from './interaction'
 import { isClampedMovePending } from './interaction/moveClamp'
 import { commitStagedDraft } from './interaction/commitDraft'
 import { COMMIT_CLICK_RADIUS_IN, useMoveKeys } from './interaction/moveHover'
@@ -133,7 +133,7 @@ export function Scene() {
       <CultAmbushMarkers />
       <UnitsLayer />
       <UnitLabels />
-      <CoverBadges />
+      <UnitStatusIcons />
       <PlacementOverlay />
       <MovePreviewOverlay />
       <DeathGhosts />

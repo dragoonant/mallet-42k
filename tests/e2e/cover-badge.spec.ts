@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 
 // `?scenario=terrain-height`: Necron warriors A stand inside ruin-l1 with warriors B nearby; the badge shows
 // for units that have cover against the enemy that sees them.
-test('cover badge appears above the unit label', async ({ page }) => {
+test('cover shield icon appears above the unit label', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(String(e)))
   await page.setViewportSize({ width: 1600, height: 900 })
@@ -22,7 +22,11 @@ test('cover badge appears above the unit label', async ({ page }) => {
   const id = (await badge.getAttribute('data-testid'))!.replace('cover-badge-', '')
   const b = await badge.boundingBox()
   const l = await page.getByTestId(`unit-label-${id}`).boundingBox()
-  expect(b!.height).toBeGreaterThan(20)
+  expect(b!.height).toBeGreaterThan(14)
+  await expect(badge).toHaveText('') // shield only, no words
+  await expect(page.getByText(/in cover|partial cover/i)).toHaveCount(0)
+  await expect(page.getByTestId(`unit-status-${id}`)).toBeVisible()
+  await expect(page.getByTestId(`unit-label-${id}`)).not.toContainText('Shocked')
   expect(b!.y + b!.height).toBeLessThanOrEqual(l!.y + 1)
   await page.screenshot({ path: 'tests/e2e/__shots__/cover-badge.png' })
   expect(errors).toEqual([])
