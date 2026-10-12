@@ -4,8 +4,10 @@ import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import type { FloorData, TerrainPieceData, WallData } from '@/data/types'
 import { extrudedPolygonGeometry, polygonBoundingRadius, polygonCentroid, seededUnit, segmentTransform } from './geometry'
-import { fitScaleXZ, idVariant, planRuin, planTurns, polygonBounds, simpleTurns, wallsCoverPerimeter, type Bounds } from './ruinFit'
-import { useRuinCatalog, useRuinModel, type RuinModel } from './ruinModels'
+import { fittedScale, idVariant, polygonBounds, simpleTurns, type Bounds } from './ruinFit'
+import { useRuinModel, type RuinModel, type RuinModelState } from './ruinModels'
+import { planPillars, planWallPanels, panelScale, slabPool, wallBoxes, type KitModel, type KitPanel } from './ruinKit'
+import { CRATER_FLOOR_MAX_HEIGHT, ENGINE_DEFAULT_WALL_THICKNESS, RUIN_KIT_FLOOR_THICKNESS, RUIN_KIT_WALL_SLUGS, glbVisualHeight } from './terrainCatalog'
 import { DECAL_MARGIN, floorSlabGeometry, ruinDecalTexture, rubbleGeometry, rubbleMaterial, scatterRubble, slabConcreteTexture } from './ruinDressing'
 import {
   BARRIER_MODEL_URL,
@@ -37,13 +39,9 @@ const PALETTE: Record<TerrainPieceData['kind'], { base: string; accent: string }
 const RUIN_WALL_TINT = '#b4b4ae'
 const RUBBLE_TINT = '#8c8c87'
 const CONCRETE_TINT = '#ffffff' // upper-floor slabs, matched to the grey ruins
-// Pulls the floor slab in from the footprint edge when a ruin GLB is drawn, so its sides never
-// z-fight the model's own outer walls.
-const GLB_FLOOR_INSET = 0.12
 
 // Walls are drawn at true data height/thickness (no cap) so a figure on an upper floor visibly stands on it;
 // see-through enough to read units inside.
-const ENGINE_DEFAULT_WALL_THICKNESS = 0.25 // matches engine wallOccupiesPoint default
 // Ruins are opaque; a tall one fades to this when it sits between the camera and the board centre.
 const RUIN_FADE_OPACITY = 0.35
 const RUIN_FADE_MIN_HEIGHT = 3
@@ -61,7 +59,6 @@ const CONCRETE_REPEAT_INCHES = 8
 // poke above CRATER_FLOOR_MAX_HEIGHT (the terrain-fit e2e counts mesh above 0.3in as "inside"): the blast-crater
 // model is flattened to that height, loose debris stays under it, and the tall rocks sit only on the rim.
 const CRATER_SCORCH_HEIGHT = 0.05
-const CRATER_FLOOR_MAX_HEIGHT = 0.28
 const CRATER_DEBRIS_COUNT = 5
 const CRATER_RIM_ROCK_MIN = 8
 const CRATER_RIM_ROCK_MAX = 10
@@ -109,13 +106,9 @@ function TerrainPiece({ piece }: { piece: TerrainPieceData }) {
  *  `uniform` the X/Z scales follow whirr's rule (if they differ by >15% both use the smaller, centred, so
  *  the model is never stretched); otherwise each axis fits exactly. Height always fits `height`. */
 function FittedModel({ model, bounds, height, turns, uniform = false }: { model: RuinModel; bounds: Bounds; height: number; turns: number; uniform?: boolean }) {
-  const [sx, sy, sz] = model.size
-  const swap = turns % 2 === 1
-  const rx = swap ? sz : sx
-  const rz = swap ? sx : sz
-  const [kx, kz] = uniform ? fitScaleXZ(rx, rz, bounds) : [bounds.w / rx, bounds.d / rz]
+  const scale = fittedScale(model.size, bounds, height, turns, uniform)
   return (
-    <group userData={{ fittedModel: true }} position={[bounds.cx, 0, bounds.cz]} scale={[kx, height / sy, kz]}>
+    <group userData={{ fittedModel: true }} position={[bounds.cx, 0, bounds.cz]} scale={scale}>
       <group rotation={[0, (turns * Math.PI) / 2, 0]}>
         <primitive object={model.object} />
       </group>
@@ -186,33 +179,78 @@ function useOccluderFade(group: React.RefObject<THREE.Group | null>, centre: { x
 function RuinPiece({ piece }: { piece: TerrainPieceData }) {
   const floors = piece.floors ?? []
   const walls = piece.walls ?? []
-  const catalog = useRuinCatalog()
-  const plan = useMemo(
-    () => (catalog ? planRuin(piece.id, piece.footprint, piece.height, catalog, wallsCoverPerimeter(piece.footprint, walls)) : null),
-    [catalog, piece.id, piece.footprint, piece.height, walls],
-  )
   const bounds = useMemo(() => polygonBounds(piece.footprint), [piece.footprint])
-  const glb = useRuinModel(plan?.slug)
+  // The ruin kit's wall-section models (fixed list, so the hook order is stable).
+  const states: RuinModelState[] = [useRuinModel(RUIN_KIT_WALL_SLUGS[0]), useRuinModel(RUIN_KIT_WALL_SLUGS[1])]
+  const ready = RUIN_KIT_WALL_SLUGS.flatMap((slug, i) => {
+    const st = states[i]
+    return st.status === 'ready' ? [{ slug, model: st.model }] : []
+  })
+  const pool = slabPool(ready.map((r) => ({ slug: r.slug, size: r.model.size })))
+  const anyPending = states.some((st) => st.status === 'pending')
   const group = useRef<THREE.Group>(null)
   const centre = useMemo(() => ({ x: bounds.cx, z: bounds.cz }), [bounds])
   useOccluderFade(group, centre, Math.hypot(bounds.w, bounds.d) / 2, piece.height)
-  // Nothing is drawn for the instant the manifest/GLB streams in (no flash of the fallback);
-  // 'failed' (missing file / manifest / disabled slug / no plan) draws the procedural ruin.
-  const waiting = catalog === null || (plan !== null && glb.status === 'pending')
+  // Nothing is drawn for the instant the models stream in (no flash of the fallback); when none of the kit models
+  // loads the procedural plain walls are drawn instead.
+  const waiting = anyPending && pool.length === 0
+  const kit = pool.length > 0 && walls.length > 0
   return (
     <group>
       <RuinGround id={piece.id} footprint={piece.footprint} bounds={bounds} walls={walls} floors={floors} />
       <group ref={group} userData={waiting ? undefined : { fittedModel: true }}>
-        {glb.status === 'ready' && plan ? (
-          <FittedModel model={glb.model} bounds={bounds} height={piece.height} turns={planTurns(plan, glb.model.size, bounds)} />
+        {kit ? (
+          <RuinKit pieceId={piece.id} walls={walls} pool={pool} models={ready} />
         ) : !waiting ? (
           walls.map((wall, i) => <RuinWall key={i} seed={`${piece.id}-${i}`} wall={wall} />)
         ) : null}
         {/* Upper floors are gameplay (models stand on them), so they are always drawn, in grey concrete. */}
         {floors.map((floor, i) => (
-          <UpperFloor key={i} id={`${piece.id}-f${i}`} floor={floor} inset={glb.status === 'ready' ? GLB_FLOOR_INSET : 0} />
+          <UpperFloor key={i} id={`${piece.id}-f${i}`} floor={floor} />
         ))}
       </group>
+    </group>
+  )
+}
+
+/** The ruin kit: every data wall as panels cut from wall-section GLBs (stretched to the wall's exact length x height x
+ *  thickness), plus a pillar where walls meet. Floors are drawn by the caller. */
+function RuinKit({ pieceId, walls, pool, models }: { pieceId: string; walls: WallData[]; pool: KitModel[]; models: { slug: string; model: RuinModel }[] }) {
+  const bySlug = useMemo(() => new Map(models.map((m) => [m.slug, m.model])), [models])
+  const pillars = useMemo(() => planPillars(pieceId, walls), [pieceId, walls])
+  const slabMap = useMemo(() => slabConcreteTexture(), [])
+  return (
+    <group>
+      {walls.map((wall, i) => (
+        <KitWall key={i} pieceId={pieceId} index={i} wall={wall} pool={pool} bySlug={bySlug} />
+      ))}
+      {pillars.map((p, i) => (
+        <mesh key={i} position={[p.x, p.height / 2, p.z]} castShadow receiveShadow>
+          <boxGeometry args={[p.side, p.height, p.side]} />
+          <meshStandardMaterial map={slabMap} color={CONCRETE_TINT} roughness={0.95} />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+function KitWall({ pieceId, index, wall, pool, bySlug }: { pieceId: string; index: number; wall: WallData; pool: KitModel[]; bySlug: Map<string, RuinModel> }) {
+  const { mid, rotationY } = segmentTransform(wall.a, wall.b)
+  const panels = useMemo(() => planWallPanels(pieceId, index, wall, pool), [pieceId, index, wall, pool])
+  return (
+    <group position={[mid.x, 0, mid.z]} rotation={[0, rotationY, 0]}>
+      {panels.map((p, i) => (
+        <KitPanelMesh key={i} panel={p} model={bySlug.get(p.slug)!} />
+      ))}
+    </group>
+  )
+}
+
+function KitPanelMesh({ panel, model }: { panel: KitPanel; model: RuinModel }) {
+  const object = useMemo(() => model.object.clone(true), [model])
+  return (
+    <group position={[panel.x, panel.y0, 0]} scale={panelScale(panel, model.size)}>
+      <primitive object={object} />
     </group>
   )
 }
@@ -253,25 +291,6 @@ function RuinGround({ id, footprint, bounds, walls, floors }: { id: string; foot
   )
 }
 
-/** Splits a wall into solid boxes (u = 0..1 along a->b, y range) honouring the engine's gaps, so the drawn
- *  panel is solid exactly where the engine says it is (wallOccupiesPoint / wallCrosses3D). */
-function wallBoxes(wall: WallData): { u0: number; u1: number; y0: number; y1: number }[] {
-  const gaps = [...(wall.gaps ?? [])].sort((p, q) => p.from - q.from)
-  const out: { u0: number; u1: number; y0: number; y1: number }[] = []
-  let u = 0
-  for (const g of gaps) {
-    const from = Math.max(g.from, u), to = Math.min(g.to, 1)
-    if (to <= from) continue
-    if (from > u) out.push({ u0: u, u1: from, y0: 0, y1: wall.height })
-    const bottom = g.bottom ?? 0, top = g.top ?? wall.height
-    if (bottom > 0) out.push({ u0: from, u1: to, y0: 0, y1: Math.min(bottom, wall.height) })
-    if (top < wall.height) out.push({ u0: from, u1: to, y0: Math.max(top, 0), y1: wall.height })
-    u = to
-  }
-  if (u < 1) out.push({ u0: u, u1: 1, y0: 0, y1: wall.height })
-  return out
-}
-
 /** A ruin wall at its TRUE data height, thickness and gaps (what the engine uses for LoS and for where a
  *  base may stand). Semi-transparent so models inside the ruin stay visible. */
 function RuinWall({ wall }: { seed: string; wall: WallData }) {
@@ -296,7 +315,7 @@ function RuinWall({ wall }: { seed: string; wall: WallData }) {
 }
 
 function UpperFloor({ id, floor, inset = 0 }: { id: string; floor: FloorData; inset?: number }) {
-  const thickness = 0.4
+  const thickness = RUIN_KIT_FLOOR_THICKNESS
   // Broken rockcrete slab: top face exactly at floor.height, footprint polygon unchanged (only inset
   // under a drawn GLB), chipped rim band and jagged underside via vertex colours.
   const geometry = useMemo(
@@ -507,7 +526,7 @@ function CraterPiece({ piece }: { piece: TerrainPieceData }) {
         <FittedModel
           model={craterGlb.model}
           bounds={craterBounds}
-          height={Math.min(Math.max(piece.height, 0.05), CRATER_FLOOR_MAX_HEIGHT)}
+          height={glbVisualHeight('crater', piece.height)}
           turns={simpleTurns(craterGlb.model.size, craterBounds)}
         />
       ) : (

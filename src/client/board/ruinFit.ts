@@ -153,3 +153,13 @@ export function fitScaleXZ(rx: number, rz: number, b: Bounds): [number, number] 
   }
   return [sx, sz]
 }
+
+/** Scale [kx, ky, kz] that fits a GLB of `size` (after `turns` quarter turns) to `bounds` x `height`. Used by the board
+ *  and by tests/client/terrainCatalog.test.ts (the fitted bbox is size-after-turns * scale). */
+export function fittedScale(size: readonly [number, number, number], bounds: Bounds, height: number, turns: number, uniform = false): [number, number, number] {
+  const swap = turns % 2 === 1
+  const rx = swap ? size[2] : size[0]
+  const rz = swap ? size[0] : size[2]
+  const [kx, kz] = uniform ? fitScaleXZ(rx, rz, bounds) : [bounds.w / rx, bounds.d / rz]
+  return [kx, height / size[1], kz]
+}

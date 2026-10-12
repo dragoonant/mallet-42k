@@ -6,7 +6,7 @@ import type { Bounds } from './ruinFit'
 
 /** Dust decal margin around the footprint bounding box (inches). */
 export const DECAL_MARGIN = 2.2
-export const RUBBLE_MAX_HEIGHT = 0.38
+export const RUBBLE_MAX_HEIGHT = 0.3
 
 /** Small deterministic PRNG (mulberry32) seeded from a string. */
 export function seededRng(seed: string): () => number {
