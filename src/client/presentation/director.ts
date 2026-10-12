@@ -170,15 +170,26 @@ function withRerolls(rollId: string | undefined, entries: { index: number | unde
 function groupRequest(state: GameState, group: GameEvent[]): RollRequest | null {
   const entries: { index: number | undefined; die: number; passed: boolean }[] = []
   const needed = new Set<number>()
+  const impossible: EventOf<'SaveRolled'>[] = []
   for (const e of group) {
     if (e.type === 'HitRolled') { if (!e.auto) entries.push({ index: e.dieIndex, die: e.die, passed: e.hit }) }
     // `needed` on these events is what the MODIFIED total must reach (e.g. Sv 3+); the tray shows the die face needed
     else if (e.type === 'WoundRolled') { if (!e.auto) { entries.push({ index: e.dieIndex, die: e.die, passed: e.wounded }); needed.add(dieTarget(e)) } }
-    else if (e.type === 'SaveRolled') { if (e.kind !== 'none') { entries.push({ index: e.dieIndex, die: e.die, passed: e.saved }); needed.add(dieTarget(e)) } }
+    else if (e.type === 'SaveRolled') {
+      // die 0 = the engine skipped an impossible save (even a 6 can't make it): no die to show, a note instead
+      if (e.kind !== 'none' && e.die === 0) impossible.push(e)
+      else if (e.kind !== 'none') { entries.push({ index: e.dieIndex, die: e.die, passed: e.saved }); needed.add(dieTarget(e)) }
+    }
     else if (e.type === 'FeelNoPainRolled') { entries.push({ index: undefined, die: e.die, passed: e.ignored }); needed.add(e.needed) }
     else if (e.type === 'HazardousTested') entries.push({ index: undefined, die: e.die, passed: !e.failed })
   }
-  if (entries.length === 0) return null
+  const note = impossible.length > 0 ? impossibleSaveNote(state, impossible) : undefined
+  if (entries.length === 0) {
+    if (!note) return null
+    const e = impossible[0]
+    const label = e.kind === 'invuln' ? 'Invulnerable save' : 'Armour save'
+    return { label: attackLabel(state, e.attack, label), purpose: 'save', dice: [], note }
+  }
   // A batch's dice read left to right in the order they were rolled.
   if (entries.every((en) => en.index !== undefined)) entries.sort((a, b) => (a.index as number) - (b.index as number))
   const first = group[0]
@@ -195,12 +206,23 @@ function groupRequest(state: GameState, group: GameEvent[]): RollRequest | null 
     case 'WoundRolled': return { label: attackLabel(state, e.attack, 'To wound'), purpose: 'wound', target, ...common }
     case 'SaveRolled': {
       const label = e.kind === 'invuln' ? 'Invulnerable save' : 'Armour save'
-      return { label: attackLabel(state, e.attack, label), purpose: 'save', target, ...common }
+      return { label: attackLabel(state, e.attack, label), purpose: 'save', target, ...common, ...(note ? { note } : {}) }
     }
     case 'FeelNoPainRolled': return { label: `${unitLabel(state, e.unitId)} — Feel No Pain`, purpose: 'fnp', target, ...common }
     case 'HazardousTested': return { label: `${unitLabel(state, e.unitId)} — Hazardous`, purpose: 'hazardous', ...common }
     default: return null
   }
+}
+
+/** "No save possible: needs 7+ (AP -2)" — for saves the engine skipped because even a 6 couldn't make them. */
+function impossibleSaveNote(state: GameState, events: EventOf<'SaveRolled'>[]): string {
+  const e = events[0]
+  const ap = e.kind === 'armour' ? state.weapons[e.attack.weaponId]?.AP ?? 0 : 0
+  const face = e.needed - ap
+  const count = events.length > 1 ? ` (${events.length} attacks)` : ''
+  return face > 6 && ap !== 0
+    ? `No save possible: needs ${face}+ (AP ${ap})${count}`
+    : `No save possible${count}`
 }
 
 function chargeRequest(state: GameState, e: EventOf<'ChargeRolled'>): RollRequest {

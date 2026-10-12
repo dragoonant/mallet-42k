@@ -138,6 +138,11 @@ export function DiceTray() {
           </span>
           {queued > 0 && <span style={queueBadge}>+{queued} queued</span>}
         </div>
+        {request.note && (
+          <div style={summaryText} data-testid="dice-tray-note">
+            {request.note}
+          </div>
+        )}
         {collapsed && (
           <div style={summaryText} data-testid="dice-tray-summary">
             {n} dice{hits !== null ? `: ${hits} ${passWord}${hits !== 1 && (passWord === 'hit' || passWord === 'wound') ? 's' : ''}` : ''}

@@ -28,6 +28,9 @@ export interface RollRequest {
   /** The same dice were just on screen in the interactive re-roll tray: skip the tumble and only flip
    *  the re-rolled ones. */
   skipTumble?: boolean
+  /** One extra line under the heading, e.g. why some attacks got no roll at all. A request may carry
+   *  a note and no dice. */
+  note?: string
 }
 
 /** A queued/settled roll as the tray renders it internally. */
