@@ -11,6 +11,7 @@ import { DEFAULT_SERVICES, type GameState, type UnitId } from '@/engine'
 import { useDisplayState } from '../presentation/presentedStore'
 import { useUiStore, type PlacementDraft } from '../ui/uiStore'
 import { Tooltip } from '../ui/Tooltip'
+import { registerLabelPart } from './labelLayout'
 import { effectEntries, turnFlagEntries } from './statusIcons'
 
 type CoverKind = 'full' | 'partial'
@@ -152,11 +153,13 @@ function StatusRow({ id, icons, position }: { id: UnitId; icons: Icon[]; positio
   return (
     <Html zIndexRange={[5, 0]} position={position} center style={{ pointerEvents: 'none' }} occlude={false}>
       {/* The outer box keeps natural size and sits above the unit label; the inner row scales about its bottom centre. */}
+      <div ref={(el) => registerLabelPart(id, 'rowWrap', el)}>
       <div ref={lift} style={{ transform: 'translateY(calc(-100% - 22px))', pointerEvents: 'none' }}>
         <style>{'@keyframes m42k-shock-pulse { 0%, 100% { opacity: 1; transform: scale(1) } 50% { opacity: 0.6; transform: scale(0.88) } }'}</style>
         <div ref={row} data-testid={`unit-status-${id}`} style={{ display: 'flex', gap: 4, justifyContent: 'center', transformOrigin: '50% 100%', pointerEvents: 'none' }}>
           {icons.map((icon, i) => <IconBadge key={`${icon.kind}-${i}`} icon={icon} />)}
         </div>
+      </div>
       </div>
     </Html>
   )
