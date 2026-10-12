@@ -2,8 +2,10 @@
 // attacker, so: with a friendly unit selected during the active player's Shooting phase, enemy units that
 // would get cover against it (LosService.benefitOfCover, first ranged weapon) are flagged; otherwise any
 // unit partly within a ruin footprint is flagged (area-terrain cover). Computed per state/selection change.
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
+import { Vector3 } from 'three'
 import { DEFAULT_SERVICES, type GameState, type UnitId } from '@/engine'
 import { useDisplayState } from '../presentation/presentedStore'
 import { useUiStore, type PlacementDraft } from '../ui/uiStore'
@@ -74,6 +76,46 @@ function coverUnits(base: GameState, selectedUnitId: string | null, draft: Place
   return out
 }
 
+// On-screen width the badge targets: BADGE_PX at the default overview distance, growing as the camera zooms in and
+// shrinking as it zooms out, but always clamped to [BADGE_MIN_PX, BADGE_MAX_PX] so it never balloons when zoomed in.
+const BADGE_PX = 110
+const BADGE_MIN_PX = 70
+const BADGE_MAX_PX = 140
+const BADGE_REF_DISTANCE = 36
+
+function CoverBadge({ id, kind, position, shocked }: { id: UnitId; kind: CoverKind; position: [number, number, number]; shocked: boolean }) {
+  const badge = useRef<HTMLDivElement>(null)
+  const camera = useThree((s) => s.camera)
+  const anchor = useMemo(() => new Vector3(), [])
+  const partial = kind === 'partial'
+  useFrame(() => {
+    const el = badge.current
+    if (!el) return
+    const natural = el.offsetWidth // layout width, unaffected by the transform below
+    if (natural <= 0) return
+    const dist = Math.max(camera.position.distanceTo(anchor.set(...position)), 0.1)
+    const px = Math.min(BADGE_MAX_PX, Math.max(BADGE_MIN_PX, (BADGE_PX * BADGE_REF_DISTANCE) / dist))
+    const scale = `scale(${(px / natural).toFixed(3)})`
+    if (el.style.transform !== scale) el.style.transform = scale
+  })
+  return (
+    <Html zIndexRange={[5, 0]} position={position} center style={{ pointerEvents: 'none' }} occlude={false}>
+      {/* The outer box keeps natural size and sits above the unit label; the inner badge scales about its bottom centre. */}
+      <div style={{ transform: `translateY(calc(-100% - ${shocked ? 64 : 22}px))` }}>
+        <div
+          ref={badge}
+          data-testid={`cover-badge-${id}`}
+          data-cover={kind}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: fontStack, fontSize: 24, fontWeight: 800, color: partial ? '#ffe3a8' : '#bfe8ff', background: 'rgba(14,30,48,0.88)', border: `2px solid ${partial ? 'rgba(255,184,79,0.8)' : 'rgba(120,200,255,0.7)'}`, borderRadius: 18, padding: '2px 14px 2px 8px', whiteSpace: 'nowrap', transformOrigin: '50% 100%' }}
+        >
+          <svg width={24} height={27} viewBox="0 0 12 14"><path d="M6 1 L11 3 V7 C11 10 8.5 12.2 6 13 C3.5 12.2 1 10 1 7 V3 Z" fill={partial ? '#ffb84f' : '#5fb4ff'} stroke="#e8f6ff" strokeWidth={1} /></svg>
+          {partial ? 'Partial cover' : 'In cover'}
+        </div>
+      </div>
+    </Html>
+  )
+}
+
 export function CoverBadges() {
   const state = useDisplayState()
   const selectedUnitId = useUiStore((s) => s.selectedUnitId)
@@ -90,19 +132,7 @@ export function CoverBadges() {
         const cx = models.reduce((s, m) => s + m.pos.x, 0) / models.length
         const cz = models.reduce((s, m) => s + m.pos.z, 0) / models.length
         const topY = Math.max(...models.map((m) => m.pos.y + m.height)) + 0.25
-        const partial = kind === 'partial'
-        return (
-          <Html key={id} zIndexRange={[5, 0]} position={[cx, topY, cz]} center distanceFactor={18} style={{ pointerEvents: 'none' }} occlude={false}>
-            <div
-              data-testid={`cover-badge-${id}`}
-              data-cover={kind}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: fontStack, fontSize: 24, fontWeight: 800, color: partial ? '#ffe3a8' : '#bfe8ff', background: 'rgba(14,30,48,0.88)', border: `2px solid ${partial ? 'rgba(255,184,79,0.8)' : 'rgba(120,200,255,0.7)'}`, borderRadius: 18, padding: '2px 14px 2px 8px', whiteSpace: 'nowrap', transform: `translateY(calc(-100% - ${unit?.battleShocked ? 64 : 22}px))` }}
-            >
-              <svg width={24} height={27} viewBox="0 0 12 14"><path d="M6 1 L11 3 V7 C11 10 8.5 12.2 6 13 C3.5 12.2 1 10 1 7 V3 Z" fill={partial ? '#ffb84f' : '#5fb4ff'} stroke="#e8f6ff" strokeWidth={1} /></svg>
-              {partial ? 'Partial cover' : 'In cover'}
-            </div>
-          </Html>
-        )
+        return <CoverBadge key={id} id={id} kind={kind} position={[cx, topY, cz]} shocked={!!unit?.battleShocked} />
       })}
     </>
   )

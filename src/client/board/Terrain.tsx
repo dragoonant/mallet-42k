@@ -4,7 +4,7 @@ import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import type { FloorData, TerrainPieceData, WallData } from '@/data/types'
 import { extrudedPolygonGeometry, polygonBoundingRadius, polygonCentroid, seededUnit, segmentTransform } from './geometry'
-import { fitScaleXZ, idVariant, planRuin, planTurns, polygonBounds, simpleTurns, type Bounds } from './ruinFit'
+import { fitScaleXZ, idVariant, planRuin, planTurns, polygonBounds, simpleTurns, wallsCoverPerimeter, type Bounds } from './ruinFit'
 import { useRuinCatalog, useRuinModel, type RuinModel } from './ruinModels'
 import { DECAL_MARGIN, floorSlabGeometry, ruinDecalTexture, rubbleGeometry, rubbleMaterial, scatterRubble, slabConcreteTexture } from './ruinDressing'
 import {
@@ -32,7 +32,9 @@ const PALETTE: Record<TerrainPieceData['kind'], { base: string; accent: string }
 // Near-white tints for textured materials — a meshStandardMaterial's `color` multiplies its `map`,
 // so a dark tint here (the old PALETTE values) crushes the PBR texture toward black regardless of
 // the texture's own detail. These let the brick/concrete/metal photos read as intended.
-const RUIN_WALL_TINT = '#a4a4a0' // weathered grey concrete (procedural ruin fallback)
+// Weathered grey concrete (procedural ruin walls). Flat grey + the concrete normal/roughness maps: the concrete albedo
+// is a dark rust brown that renders near-black on a 6in wall under the scene lighting.
+const RUIN_WALL_TINT = '#b4b4ae'
 const RUBBLE_TINT = '#8c8c87'
 const CONCRETE_TINT = '#ffffff' // upper-floor slabs, matched to the grey ruins
 // Pulls the floor slab in from the footprint edge when a ruin GLB is drawn, so its sides never
@@ -55,17 +57,18 @@ const TERRAIN_OPACITY = 0.85
 const WALL_REPEAT_INCHES = 8
 const CONCRETE_REPEAT_INCHES = 8
 
-const CRATER_MAX_HEIGHT = 1.5
+// A crater is standable ground (the engine lets bases end anywhere inside it), so nothing inside the footprint may
+// poke above CRATER_FLOOR_MAX_HEIGHT (the terrain-fit e2e counts mesh above 0.3in as "inside"): the blast-crater
+// model is flattened to that height, loose debris stays under it, and the tall rocks sit only on the rim.
 const CRATER_SCORCH_HEIGHT = 0.05
-const CRATER_ROCK_MIN = 8
-const CRATER_ROCK_MAX = 10
-// Per-tier height caps (as a fraction of CRATER_MAX_HEIGHT) so the central rock is reliably the
-// tallest regardless of which model/shape gets picked for the mid/outer rings.
-const CRATER_CENTRAL_HEIGHT_FRACTION = 1
-const CRATER_MID_HEIGHT_FRACTION = 0.65
-const CRATER_OUTER_HEIGHT_FRACTION = 0.45
-// Adjacent same-ring rocks are sized so their footprints overlap by roughly this fraction.
-const CRATER_RING_OVERLAP = 0.25
+const CRATER_FLOOR_MAX_HEIGHT = 0.28
+const CRATER_DEBRIS_COUNT = 5
+const CRATER_RIM_ROCK_MIN = 8
+const CRATER_RIM_ROCK_MAX = 10
+const CRATER_RIM_THICKNESS = 0.3 // radial depth of a rim rock
+const CRATER_RIM_OFFSET = 0.1 // its centre sits this far outside the footprint edge (so it reaches 0.25in outside, 0.05in inside)
+const CRATER_RIM_MIN_HEIGHT = 0.5
+const CRATER_RIM_MAX_HEIGHT = 1.3
 
 export interface TerrainProps {
   pieces: TerrainPieceData[]
@@ -78,7 +81,7 @@ export function Terrain({ pieces }: TerrainProps) {
     <Suspense fallback={null}>
       <group>
         {pieces.map((piece) => (
-          <TerrainPiece key={piece.id} piece={piece} />
+          <group key={piece.id} userData={{ terrainId: piece.id }}><TerrainPiece piece={piece} /></group>
         ))}
       </group>
     </Suspense>
@@ -112,7 +115,7 @@ function FittedModel({ model, bounds, height, turns, uniform = false }: { model:
   const rz = swap ? sx : sz
   const [kx, kz] = uniform ? fitScaleXZ(rx, rz, bounds) : [bounds.w / rx, bounds.d / rz]
   return (
-    <group position={[bounds.cx, 0, bounds.cz]} scale={[kx, height / sy, kz]}>
+    <group userData={{ fittedModel: true }} position={[bounds.cx, 0, bounds.cz]} scale={[kx, height / sy, kz]}>
       <group rotation={[0, (turns * Math.PI) / 2, 0]}>
         <primitive object={model.object} />
       </group>
@@ -185,8 +188,8 @@ function RuinPiece({ piece }: { piece: TerrainPieceData }) {
   const walls = piece.walls ?? []
   const catalog = useRuinCatalog()
   const plan = useMemo(
-    () => (catalog ? planRuin(piece.id, piece.footprint, piece.height, catalog) : null),
-    [catalog, piece.id, piece.footprint, piece.height],
+    () => (catalog ? planRuin(piece.id, piece.footprint, piece.height, catalog, wallsCoverPerimeter(piece.footprint, walls)) : null),
+    [catalog, piece.id, piece.footprint, piece.height, walls],
   )
   const bounds = useMemo(() => polygonBounds(piece.footprint), [piece.footprint])
   const glb = useRuinModel(plan?.slug)
@@ -199,9 +202,9 @@ function RuinPiece({ piece }: { piece: TerrainPieceData }) {
   return (
     <group>
       <RuinGround id={piece.id} footprint={piece.footprint} bounds={bounds} walls={walls} floors={floors} />
-      <group ref={group}>
+      <group ref={group} userData={waiting ? undefined : { fittedModel: true }}>
         {glb.status === 'ready' && plan ? (
-          <FittedModel model={glb.model} bounds={bounds} height={piece.height} turns={planTurns(plan, glb.model.size, bounds)} uniform />
+          <FittedModel model={glb.model} bounds={bounds} height={piece.height} turns={planTurns(plan, glb.model.size, bounds)} />
         ) : !waiting ? (
           walls.map((wall, i) => <RuinWall key={i} seed={`${piece.id}-${i}`} wall={wall} />)
         ) : null}
@@ -285,7 +288,7 @@ function RuinWall({ wall }: { seed: string; wall: WallData }) {
       {boxes.map((bx, i) => (
         <mesh key={i} position={[((bx.u0 + bx.u1) / 2 - 0.5) * length, (bx.y0 + bx.y1) / 2, 0]} castShadow receiveShadow>
           <boxGeometry args={[(bx.u1 - bx.u0) * length, bx.y1 - bx.y0, thickness]} />
-          <meshStandardMaterial {...textures[i]} color={RUIN_WALL_TINT} roughness={1} />
+          <meshStandardMaterial normalMap={textures[i].normalMap} roughnessMap={textures[i].roughnessMap} color={RUIN_WALL_TINT} roughness={1} />
         </mesh>
       ))}
     </group>
@@ -431,12 +434,12 @@ function ProceduralCrate({ piece }: { piece: TerrainPieceData }) {
   )
 }
 
-type CraterRockTier = 'central' | 'mid' | 'outer'
+interface CraterRock { object: THREE.Object3D; x: number; z: number; rotY: number; scale: [number, number, number]; offset: [number, number, number] }
 
-/** A low rocky mound: 8-10 deterministically seeded rock instances in three tiers — one central
- *  peak, a mid ring, and an outer ring — overlapping enough to read as a solid pile rather than
- *  loose scattered pebbles, over a dark scorched disc. Visual only — cover/LoS read the data's own
- *  height via the engine's own terrain service, never this cluster's shape. */
+/** A crater: the flat blast-crater model (flattened under CRATER_FLOOR_MAX_HEIGHT) with a few low stones scattered on
+ *  its floor, ringed by taller rocks sitting on the footprint edge (long side along the rim, only ~0.4in deep) so the
+ *  pile reads as a raised lip without covering ground a base may stand on. Visual only — cover/LoS read the data's
+ *  own height via the engine's terrain service. */
 function CraterPiece({ piece }: { piece: TerrainPieceData }) {
   const center = useMemo(() => polygonCentroid(piece.footprint), [piece.footprint])
   const radius = useMemo(() => polygonBoundingRadius(piece.footprint, center), [piece.footprint, center])
@@ -451,96 +454,52 @@ function CraterPiece({ piece }: { piece: TerrainPieceData }) {
   const rockScenes = rockGltfs.map((g) => g.scene)
 
   const rocks = useMemo(() => {
-    const count = CRATER_ROCK_MIN + Math.floor(seededUnit(`${piece.id}-count`) * (CRATER_ROCK_MAX - CRATER_ROCK_MIN + 1))
-    const midCount = Math.max(2, Math.round((count - 1) * 0.45))
-    const outerCount = Math.max(2, count - 1 - midCount)
-
-    // A small fixed jitter applied to the whole mid/outer ring (scaled down for the outer ring) so
-    // the two rings don't read as perfectly concentric circles around the same center.
-    const jitterAngle = seededUnit(`${piece.id}-ring-jitter-a`) * Math.PI * 2
-    const jitterDist = radius * 0.06 * seededUnit(`${piece.id}-ring-jitter-d`)
-    const jitterX = Math.cos(jitterAngle) * jitterDist
-    const jitterZ = Math.sin(jitterAngle) * jitterDist
-
-    const specs: { tier: CraterRockTier; ringIndex: number; ringCount: number }[] = [{ tier: 'central', ringIndex: 0, ringCount: 1 }]
-    for (let i = 0; i < midCount; i++) specs.push({ tier: 'mid', ringIndex: i, ringCount: midCount })
-    for (let i = 0; i < outerCount; i++) specs.push({ tier: 'outer', ringIndex: i, ringCount: outerCount })
-
-    return specs.map((spec, i) => {
-      const seed = `${piece.id}-rock-${i}`
-      const modelIndex = Math.floor(seededUnit(`${seed}-m`) * rockScenes.length) % rockScenes.length
-      const scene = rockScenes[modelIndex]
-
-      let angle: number
-      let dist: number
-      let targetHorizontal: number
-      let heightFraction: number
-      let offsetX = 0
-      let offsetZ = 0
-
-      if (spec.tier === 'central') {
-        // Footprint covers ~70% of the crater radius and is capped at the full crater height, so
-        // it reads as the peak of the mound regardless of which mid/outer rocks get picked.
-        angle = seededUnit(`${seed}-a`) * Math.PI * 2
-        dist = radius * 0.08 * seededUnit(`${seed}-d`) // near-centered, slight jitter
-        targetHorizontal = radius * 0.7
-        heightFraction = CRATER_CENTRAL_HEIGHT_FRACTION
-      } else {
-        const isMid = spec.tier === 'mid'
-        const sector = (spec.ringIndex / spec.ringCount) * Math.PI * 2
-        angle = sector + (seededUnit(`${seed}-a`) - 0.5) * ((Math.PI / spec.ringCount) * 0.6)
-        dist = isMid
-          ? radius * (0.42 + 0.06 * seededUnit(`${seed}-d`)) // mid ring ~45% of radius
-          : radius * (0.75 + 0.1 * seededUnit(`${seed}-d`)) // outer ring ~75-85% of radius
-        // Size each ring rock from the chord between its neighbors so adjacent footprints overlap
-        // by roughly CRATER_RING_OVERLAP instead of leaving gaps or being wildly oversized.
-        const chord = 2 * dist * Math.sin(Math.PI / spec.ringCount)
-        const overlapFraction = CRATER_RING_OVERLAP + 0.1 * seededUnit(`${seed}-o`)
-        targetHorizontal = Math.min(Math.max(chord / (1 - overlapFraction), radius * 0.18), radius * 0.55)
-        heightFraction = isMid ? CRATER_MID_HEIGHT_FRACTION : CRATER_OUTER_HEIGHT_FRACTION
-        offsetX = isMid ? jitterX : jitterX * 0.6
-        offsetZ = isMid ? jitterZ : jitterZ * 0.6
-      }
-
-      // Scale from the model's own measured Box3 — never a fixed constant — so different rock
-      // models (and their differing native sizes) land at a consistent footprint size.
+    const out: CraterRock[] = []
+    const add = (seed: string, x: number, z: number, rotY: number, width: number, depth: number, maxHeight: number) => {
+      const scene = rockScenes[Math.floor(seededUnit(`${seed}-m`) * rockScenes.length) % rockScenes.length]
       const box = new THREE.Box3().setFromObject(scene)
-      const size = new THREE.Vector3()
-      box.getSize(size)
-      const horizontalExtent = Math.max(size.x, size.z) || 1
-      const scaleXZ = targetHorizontal / horizontalExtent
-      const rawHeight = size.y * scaleXZ
-      // Flatten (never stretch) so no rock exceeds its tier's height cap — central stays tallest.
-      const tierMaxHeight = CRATER_MAX_HEIGHT * heightFraction
-      const yFactor = rawHeight > 0 ? Math.min(1, tierMaxHeight / rawHeight) : 1
-      const scaleY = scaleXZ * yFactor
-
-      const clone = scene.clone(true)
-      clone.traverse((obj) => {
+      const size = box.getSize(new THREE.Vector3())
+      const c = box.getCenter(new THREE.Vector3())
+      const sx = width / (size.x || 1)
+      const sz = depth / (size.z || 1)
+      // Never stretch taller than the rock's own proportions; flatten to the cap instead.
+      const sy = Math.min(maxHeight / (size.y || 1), Math.max(sx, sz))
+      const object = scene.clone(true)
+      object.traverse((obj) => {
         const mesh = obj as THREE.Mesh
-        if (mesh.isMesh) {
-          mesh.castShadow = true
-          mesh.receiveShadow = true
-          // The moon-rock glTFs pack an ARM (AO/roughness/metalness) texture; without an
-          // environment map, any nonzero metalness reads as flat black, so force it off.
-          const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
-          for (const mat of materials) {
-            if (mat instanceof THREE.MeshStandardMaterial) mat.metalness = 0
-          }
+        if (!mesh.isMesh) return
+        mesh.castShadow = true
+        mesh.receiveShadow = true
+        // The moon-rock glTFs pack an ARM (AO/roughness/metalness) texture; without an environment map, any
+        // nonzero metalness reads as flat black, so force it off.
+        for (const mat of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+          if (mat instanceof THREE.MeshStandardMaterial) mat.metalness = 0
         }
       })
-      return {
-        object: clone,
-        x: center.x + offsetX + Math.cos(angle) * dist,
-        z: center.z + offsetZ + Math.sin(angle) * dist,
-        y: -box.min.y * scaleY,
-        scaleXZ,
-        scaleY,
-        rotY: seededUnit(`${seed}-r`) * Math.PI * 2, // randomised yaw per rock
-      }
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [piece.id, piece.footprint, center, radius, rockScenes])
+      out.push({ object, x, z, rotY, scale: [sx, sy, sz], offset: [-c.x * sx, -box.min.y * sy, -c.z * sz] })
+    }
+    // Loose stones on the crater floor.
+    for (let i = 0; i < CRATER_DEBRIS_COUNT; i++) {
+      const seed = `${piece.id}-debris-${i}`
+      const a = (i / CRATER_DEBRIS_COUNT) * Math.PI * 2 + seededUnit(`${seed}-a`) * 0.9
+      const d = radius * (0.2 + 0.5 * seededUnit(`${seed}-d`))
+      const w = 0.35 + 0.25 * seededUnit(`${seed}-w`)
+      add(seed, center.x + Math.cos(a) * d, center.z + Math.sin(a) * d, seededUnit(`${seed}-r`) * Math.PI * 2, w, w * (0.7 + 0.3 * seededUnit(`${seed}-q`)), CRATER_FLOOR_MAX_HEIGHT - 0.02)
+    }
+    // Rim rocks: long side tangent to the edge, shallow in the radial direction.
+    const count = CRATER_RIM_ROCK_MIN + Math.floor(seededUnit(`${piece.id}-count`) * (CRATER_RIM_ROCK_MAX - CRATER_RIM_ROCK_MIN + 1))
+    const rimR = radius + CRATER_RIM_OFFSET
+    const start = seededUnit(`${piece.id}-rim-start`) * Math.PI * 2
+    for (let i = 0; i < count; i++) {
+      const seed = `${piece.id}-rim-${i}`
+      const a = start + (i / count) * Math.PI * 2 + (seededUnit(`${seed}-a`) - 0.5) * 0.12
+      const length = ((2 * Math.PI * rimR) / count) * (1.0 + 0.2 * seededUnit(`${seed}-l`))
+      const height = CRATER_RIM_MIN_HEIGHT + (CRATER_RIM_MAX_HEIGHT - CRATER_RIM_MIN_HEIGHT) * seededUnit(`${seed}-h`)
+      const tangentYaw = Math.atan2(-Math.cos(a), -Math.sin(a)) // turns the model's +X along the rim tangent
+      add(seed, center.x + Math.cos(a) * rimR, center.z + Math.sin(a) * rimR, tangentYaw + (seededUnit(`${seed}-f`) < 0.5 ? 0 : Math.PI), length, CRATER_RIM_THICKNESS, height)
+    }
+    return out
+  }, [piece.id, center, radius, rockScenes])
 
   return (
     <group>
@@ -548,7 +507,7 @@ function CraterPiece({ piece }: { piece: TerrainPieceData }) {
         <FittedModel
           model={craterGlb.model}
           bounds={craterBounds}
-          height={Math.max(piece.height, 0.05)}
+          height={Math.min(Math.max(piece.height, 0.05), CRATER_FLOOR_MAX_HEIGHT)}
           turns={simpleTurns(craterGlb.model.size, craterBounds)}
         />
       ) : (
@@ -557,13 +516,9 @@ function CraterPiece({ piece }: { piece: TerrainPieceData }) {
         </mesh>
       )}
       {rocks.map((r, i) => (
-        <primitive
-          key={i}
-          object={r.object}
-          position={[r.x, r.y, r.z]}
-          scale={[r.scaleXZ, r.scaleY, r.scaleXZ]}
-          rotation={[0, r.rotY, 0]}
-        />
+        <group key={i} position={[r.x, 0, r.z]} rotation={[0, r.rotY, 0]}>
+          <primitive object={r.object} position={r.offset} scale={r.scale} />
+        </group>
       ))}
     </group>
   )

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fitScaleXZ, LEGACY_CATALOG, planRuin, planTurns, polygonBounds } from '@/client/board/ruinFit'
+import { fitScaleXZ, LEGACY_CATALOG, planRuin, planTurns, polygonBounds, wallsCoverPerimeter } from '@/client/board/ruinFit'
 
 const L1 = [
   { x: -8, z: 0 }, { x: -2, z: 0 }, { x: -2, z: 2 }, { x: -6, z: 2 }, { x: -6, z: 6 }, { x: -8, z: 6 },
@@ -48,5 +48,27 @@ describe('terrain GLB fitting', () => {
     expect(planRuin('r2', rect(0, 0, 6, 4), 3, cat)).toEqual(planRuin('r2', rect(0, 0, 6, 4), 3, cat))
     const l = new Set(['a1', 'a2'].map((id) => planRuin(id, L1, 6, cat)?.slug))
     expect(l).toEqual(new Set(['ruin-corner', 'ruin-corner-b']))
+  })
+
+  it('never covers a rectangle whose data walls run all the way round with a wall-only model', () => {
+    const cat = [
+      ...LEGACY_CATALOG,
+      { slug: 'ruin-citadel-wall-1', shape: 'rect' as const, size: [1, 0.65, 0.39], wallOnly: true },
+      { slug: 'ruin-citadel-wall-2', shape: 'rect' as const, size: [1, 0.9, 0.33], wallOnly: true },
+    ]
+    const ids = ['ruin-s0', 'ruin-s1', 'ruin-s2', 'ruin-s3', 'ruin-s4', 'ruin-s5']
+    const perimeter = new Set(ids.map((id) => planRuin(id, rect(0, 0, 6, 4), 4, cat, true)?.slug))
+    expect(perimeter).toEqual(new Set(['ruin-small']))
+    const open = new Set(ids.map((id) => planRuin(id, rect(0, 0, 6, 4), 4, cat, false)?.slug))
+    expect(open.has('ruin-citadel-wall-1')).toBe(true)
+  })
+
+  it('wallsCoverPerimeter needs a wall on every footprint edge', () => {
+    const poly = rect(0, 0, 6, 4)
+    const edge = (a: number, b: number) => ({ a: poly[a], b: poly[b] })
+    const all = [edge(0, 1), edge(1, 2), edge(2, 3), edge(3, 0)]
+    expect(wallsCoverPerimeter(poly, all)).toBe(true)
+    expect(wallsCoverPerimeter(poly, [edge(1, 0), edge(2, 1), edge(3, 2), edge(0, 3)])).toBe(true)
+    expect(wallsCoverPerimeter(poly, all.slice(0, 3))).toBe(false)
   })
 })

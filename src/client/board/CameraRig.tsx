@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { useBoardSize } from './Board'
 import { initCameraModifiers, isSpaceHeld } from './cameraModifiers'
+import { installTerrainProbe, probeEnabled } from './terrainProbe'
 
 const OVERVIEW_POLAR = THREE.MathUtils.degToRad(55)
 const TOP_DOWN_POLAR = THREE.MathUtils.degToRad(4)
@@ -37,7 +38,8 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
   const controls = useRef<OrbitControlsImpl | null>(null)
   const targetPolar = useRef(OVERVIEW_POLAR)
   const pendingFocus = useRef<{ x: number; z: number } | null>(null)
-  const { camera, gl } = useThree()
+  const { camera, gl, scene } = useThree()
+  useEffect(() => (probeEnabled() ? installTerrainProbe(scene) : undefined), [scene])
   const invalidate = useThree((s) => s.invalidate)
   const boardSize = useBoardSize()
   const boardRef = useRef(boardSize)

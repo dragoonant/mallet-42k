@@ -30,11 +30,14 @@ export interface RuinCatalogEntry {
   /** Quarter turns (rotation.y = n * PI/2) from the (min X, min Z) corner to where the model's own L corner
    *  sits; 0 when its walls are on the -X/-Z edges, 3 for a corner at (max X, min Z), etc. */
   cornerTurns?: number
+  /** A model that is only wall panels (no walls on one or more sides, open ground between them). It must not cover a
+   *  rectangle whose data walls run all the way round the perimeter: the panel would stand in the middle of the footprint. */
+  wallOnly?: boolean
 }
 
 /** The four original models, used when no manifest catalog is available (and by the unit tests). */
 export const LEGACY_CATALOG: readonly RuinCatalogEntry[] = [
-  { slug: 'ruin-corner' }, { slug: 'ruin-facade' }, { slug: 'ruin-small' }, { slug: 'ruin-tall' },
+  { slug: 'ruin-corner' }, { slug: 'ruin-facade', wallOnly: true }, { slug: 'ruin-small' }, { slug: 'ruin-tall' },
 ]
 
 const EPS = 1e-3
@@ -79,9 +82,9 @@ function cornerPool(catalog: readonly RuinCatalogEntry[]): string[] {
 
 /** Candidate slugs for a rectangle. Legacy: facade + small (tall pieces: ruin-tall); plus every
  *  'rect' entry (for tall pieces only those at least as tall as wide, when any exist). */
-function rectPool(catalog: readonly RuinCatalogEntry[], tall: boolean): string[] {
-  const has = (slug: string) => catalog.some((e) => !e.shape && e.slug === slug)
-  const rects = catalog.filter((e) => e.shape === 'rect')
+function rectPool(catalog: readonly RuinCatalogEntry[], tall: boolean, perimeterWalls: boolean): string[] {
+  const has = (slug: string) => catalog.some((e) => !e.shape && e.slug === slug && !(perimeterWalls && e.wallOnly))
+  const rects = catalog.filter((e) => e.shape === 'rect' && !(perimeterWalls && e.wallOnly))
   const tallRects = rects.filter((e) => e.size && e.size[1] >= Math.max(e.size[0], e.size[2]))
   const shaped = (tall && tallRects.length ? tallRects : rects).map((e) => e.slug).sort()
   const legacy = tall ? ['ruin-tall'].filter(has) : ['ruin-facade', 'ruin-small'].filter(has)
@@ -92,7 +95,7 @@ function rectPool(catalog: readonly RuinCatalogEntry[], tall: boolean): string[]
 
 /** Plans a ruin: L footprint -> a corner model; rectangle -> one of the rect models, chosen
  *  deterministically from the piece id so a piece always looks the same. null = no model fits. */
-export function planRuin(id: string, polygon: Polygon, height: number, catalog: readonly RuinCatalogEntry[] = LEGACY_CATALOG): FitPlan | null {
+export function planRuin(id: string, polygon: Polygon, height: number, catalog: readonly RuinCatalogEntry[] = LEGACY_CATALOG, perimeterWalls = false): FitPlan | null {
   const b = polygonBounds(polygon)
   const corners = matchedCorners(polygon, b)
   if (polygon.length === 6 && corners.length === 3) {
@@ -107,7 +110,7 @@ export function planRuin(id: string, polygon: Polygon, height: number, catalog: 
   }
   if (corners.length === 4) {
     const v = idVariant(id)
-    const pool = rectPool(catalog, height > Math.max(b.w, b.d))
+    const pool = rectPool(catalog, height > Math.max(b.w, b.d), perimeterWalls)
     if (!pool.length) return null
     // Pick and flip use independent bits of the variant so neighbours differ in both.
     return { shape: 'rect', slug: pool[v % pool.length], flip: Math.floor(v / Math.max(pool.length, 2)) % 2 === 1 }
@@ -127,6 +130,15 @@ export function simpleTurns(modelSize: readonly [number, number, number], b: Bou
   const modelLongX = modelSize[0] >= modelSize[2]
   const footLongX = b.w >= b.d
   return modelLongX === footLongX ? 0 : 1
+}
+
+/** True when the data walls cover every edge of the footprint (so a model must have walls on all sides). */
+export function wallsCoverPerimeter(polygon: Polygon, walls: readonly { a: { x: number; z: number }; b: { x: number; z: number } }[]): boolean {
+  const same = (p: { x: number; z: number }, q: { x: number; z: number }) => Math.abs(p.x - q.x) < EPS && Math.abs(p.z - q.z) < EPS
+  return polygon.every((p, i) => {
+    const q = polygon[(i + 1) % polygon.length]
+    return walls.some((w) => (same(w.a, p) && same(w.b, q)) || (same(w.a, q) && same(w.b, p)))
+  })
 }
 
 /** Whirr-style uniform fit. Given the model's size after `turns`, returns x/z scales: if they differ

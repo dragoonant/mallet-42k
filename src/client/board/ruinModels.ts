@@ -204,7 +204,7 @@ export function useRuinCatalog(): readonly RuinCatalogEntry[] | null {
         if (!enabled.includes(slug)) continue
         const shape = e.shape === 'corner' || e.shape === 'rect' ? e.shape : undefined
         if (!shape && !['ruin-corner', 'ruin-facade', 'ruin-small', 'ruin-tall'].includes(slug)) continue
-        list.push({ slug, shape, size: e.size, cornerTurns: Number.isInteger(e.cornerTurns) ? (((e.cornerTurns as number) % 4) + 4) % 4 : 0 })
+        list.push({ slug, shape, size: e.size, wallOnly: /-wall-\d+$/.test(slug) || slug === 'ruin-facade', cornerTurns: Number.isInteger(e.cornerTurns) ? (((e.cornerTurns as number) % 4) + 4) % 4 : 0 })
       }
       catalogCache = list
       if (live) setCatalog(list)
