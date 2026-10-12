@@ -271,6 +271,8 @@ async function playMission(page: Page, mission: string, shotPrefix: string, opts
   if (opts.toEnd) {
     await page.waitForTimeout(1200)
     await shot('m6-05-end.png')
+    await page.getByTestId('end-cinematic-skip').click({ timeout: 2000 }).catch(() => {}) // skip win/lose video
+    await page.waitForTimeout(600)
     audit.endText = (await page.getByTestId('end-screen').textContent().catch(() => null)) ?? null
   }
   const eventsList = Object.values(audit.events).sort((a: any, b: any) => a.seq - b.seq).map((e: any) => {

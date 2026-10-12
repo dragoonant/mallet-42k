@@ -243,6 +243,14 @@ test('play a full game fast: Space Marines vs Bot reaches a GameResult within 12
 
   milestones.humanAttacks = await humanAttackCount(page)
   const final = await snap(page)
+  // Win/lose video: Skip must hand off to the score card well before the 5s clip would end.
+  const cineShown = await page.getByTestId('end-cinematic').isVisible().catch(() => false)
+  if (cineShown) {
+    await page.getByTestId('end-cinematic-skip').click()
+    await expect(page.getByTestId('end-screen')).toBeVisible({ timeout: 2000 })
+    await expect(page.getByTestId('end-cinematic')).toHaveCount(0)
+  }
+  console.log(`[play-fast] end cinematic shown=${cineShown}`)
   await expect(page.getByTestId('end-screen')).toBeVisible({ timeout: 10_000 }).catch(() => {})
   await page.screenshot({ path: 'e2e-out/play-fast-end.png' })
 
