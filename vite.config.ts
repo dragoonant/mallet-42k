@@ -13,6 +13,7 @@ export default defineConfig(({ mode }) => ({
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         vfx: fileURLToPath(new URL('./vfx.html', import.meta.url)),
+        dice: fileURLToPath(new URL('./dice.html', import.meta.url)),
       },
     },
   },
