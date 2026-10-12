@@ -259,9 +259,9 @@ const DEFAULT_HEIGHT_BY_ARCHETYPE: Record<ArchetypeKind, number> = {
 }
 
 export interface ResolvedBase {
-  /** Half-extent along local X, in inches. */
+  /** Side-to-side half-extent (local X), in inches. */
   radiusX: number
-  /** Half-extent along local Z, in inches (equals radiusX for a round base). */
+  /** Front-to-back half-extent (local Z, the facing axis), in inches (equals radiusX for a round base). */
   radiusZ: number
   /** Figure height (crown above the base disc), in world (inch) units. */
   height: number
@@ -274,9 +274,10 @@ export function resolveBase(datasheet: DatasheetData | undefined, archetype: Arc
   const mm = base?.mm ?? DEFAULT_BASE_MM
   const mm2 = base?.shape === 'oval' ? (base.mm2 ?? mm) : mm
   const height = datasheet?.figure.scale ?? DEFAULT_HEIGHT_BY_ARCHETYPE[archetype]
+  // the engine's `mm` is front-to-back and figures face local +Z, so the long axis of an oval is Z
   return {
-    radiusX: mm / 2 / MM_PER_INCH,
-    radiusZ: mm2 / 2 / MM_PER_INCH,
+    radiusX: mm2 / 2 / MM_PER_INCH,
+    radiusZ: mm / 2 / MM_PER_INCH,
     height,
   }
 }
