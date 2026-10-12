@@ -21,6 +21,7 @@ import { vfx, type ShotKind } from '../vfx'
 import { audio, playEventSounds, type SoundLookup } from '../audio'
 import { isRangedFlavour, weaponFlavour } from '../weaponFlavour'
 import { colors } from '../ui/theme'
+import { dieTarget } from '../ui/eventSummary'
 
 type EventOf<T extends GameEvent['type']> = Extract<GameEvent, { type: T }>
 
@@ -171,8 +172,9 @@ function groupRequest(state: GameState, group: GameEvent[]): RollRequest | null 
   const needed = new Set<number>()
   for (const e of group) {
     if (e.type === 'HitRolled') { if (!e.auto) entries.push({ index: e.dieIndex, die: e.die, passed: e.hit }) }
-    else if (e.type === 'WoundRolled') { if (!e.auto) { entries.push({ index: e.dieIndex, die: e.die, passed: e.wounded }); needed.add(e.needed) } }
-    else if (e.type === 'SaveRolled') { if (e.kind !== 'none') { entries.push({ index: e.dieIndex, die: e.die, passed: e.saved }); needed.add(e.needed) } }
+    // `needed` on these events is what the MODIFIED total must reach (e.g. Sv 3+); the tray shows the die face needed
+    else if (e.type === 'WoundRolled') { if (!e.auto) { entries.push({ index: e.dieIndex, die: e.die, passed: e.wounded }); needed.add(dieTarget(e)) } }
+    else if (e.type === 'SaveRolled') { if (e.kind !== 'none') { entries.push({ index: e.dieIndex, die: e.die, passed: e.saved }); needed.add(dieTarget(e)) } }
     else if (e.type === 'FeelNoPainRolled') { entries.push({ index: undefined, die: e.die, passed: e.ignored }); needed.add(e.needed) }
     else if (e.type === 'HazardousTested') entries.push({ index: undefined, die: e.die, passed: !e.failed })
   }

@@ -57,6 +57,13 @@ interface Group {
   saveDetail: string[]
 }
 
+/** The d6 face a wound/save roll actually had to show. The events' `needed` is the characteristic the MODIFIED
+ *  total is compared against (e.g. Sv 3+), and `final - die` is every modifier applied (AP, cover, ±1 abilities),
+ *  so the die itself needed `needed - (final - die)` — e.g. Sv 3+ against AP -1 is a 4+ on the die. */
+export function dieTarget(e: { die: number; final: number; needed: number }): number {
+  return Math.min(7, Math.max(2, e.needed - (e.final - e.die)))
+}
+
 /** Chance a d6 passes `needed`+ (natural 1 always fails, natural 6 always passes). */
 function probOf(needed: number): number {
   return Math.min(5 / 6, Math.max(1 / 6, (7 - needed) / 6))
@@ -165,8 +172,9 @@ export function summariseEvents(events: readonly GameEvent[], state: GameState, 
           if (e.critical) g.critWounds++
           if (e.auto) g.autoWounds++
         }
-        if (!e.auto) g.expWounds += probOf(e.needed)
-        g.woundDetail.push(e.auto ? 'auto-wound' : `${e.die}${e.final !== e.die ? `→${e.final}` : ''} vs ${e.needed}+${e.wounded ? (e.critical ? ' crit' : ' wound') : ' fail'} (${pct(probOf(e.needed))})`)
+        const wt = e.auto ? 0 : dieTarget(e)
+        if (!e.auto) g.expWounds += probOf(wt)
+        g.woundDetail.push(e.auto ? 'auto-wound' : `${e.die} vs ${wt}+${e.wounded ? (e.critical ? ' crit' : ' wound') : ' fail'} (${pct(probOf(wt))})`)
         break
       }
       case 'AttackAllocated': {
@@ -179,10 +187,11 @@ export function summariseEvents(events: readonly GameEvent[], state: GameState, 
           g.unsaved++
           g.saveDetail.push('no save')
         } else {
-          g.expSaved += probOf(e.needed)
+          const st = dieTarget(e)
+          g.expSaved += probOf(st)
           if (e.saved) g.saved++
           else g.failed++
-          g.saveDetail.push(`${e.kind === 'invuln' ? 'invuln' : 'armour'} ${e.die}${e.final !== e.die ? `→${e.final}` : ''} vs ${e.needed}+ ${e.saved ? 'saved' : 'failed'} (${pct(probOf(e.needed))})`)
+          g.saveDetail.push(`${e.kind === 'invuln' ? 'invuln' : 'armour'} ${e.die} vs ${st}+ ${e.saved ? 'saved' : 'failed'} (${pct(probOf(st))})`)
         }
         break
       }
