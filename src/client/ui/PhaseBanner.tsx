@@ -69,7 +69,6 @@ export function PhaseBanner() {
       role="status"
       aria-live="polite"
       onClick={skipAnnouncement}
-      title="Click to continue"
     >
       <div style={{ ...titleStyle, color: accent }}>{current.title}</div>
       <div style={subtitleStyle}>{current.subtitle}</div>

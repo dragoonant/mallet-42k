@@ -28,6 +28,8 @@ workflows) → `STATUS.md` (what exists) → `PLAN.md` (scope, decisions, milest
   (e.g. `it('SHOOT-012 ...')`). Coverage is measured by test names.
 - Concurrent agents share one working tree: each owns only the files its prompt lists, never edits
   `STATUS.md` unless told to, never runs `git commit`/`npm install` unless told to.
+- No native browser tooltips (`title=` on HTML/SVG elements). Hover/focus help uses the shared styled
+  tooltip in `src/client/ui/Tooltip.tsx`; `tests/client/noNativeTooltips.test.ts` enforces it.
 - Commit messages: `M<n>: <what>` + blank line + the Co-Authored-By line for the current model.
   Pushing to `main` after each stage is pre-approved by the owner. Pages deploys from `main`.
 

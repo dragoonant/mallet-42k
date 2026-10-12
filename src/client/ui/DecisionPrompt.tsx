@@ -31,6 +31,7 @@ import { RerollTray } from './RerollTray'
 import { overwatchReach } from './overwatchInfo'
 import { usePresentedStore } from '../presentation/presentedStore'
 import { buttonBase, buttonDanger, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
+import { Tooltip } from './Tooltip'
 
 /** The nearest thing worth orienting a move/charge/pile-in/consolidate destination against — an
  *  objective it lands on, or the nearest enemy unit — so a suggested placement reads as "toward
@@ -1082,17 +1083,17 @@ export function DecisionPrompt() {
             const abandon = isTeleporting(state, uid)
             const nm = state.units[uid]?.name ?? uid
             return (
-              <button
-                key={`res-${uid}`}
-                style={{ ...(abandon ? buttonDanger : buttonBase), flexShrink: 0, width: '100%', textAlign: 'left' }}
-                title={abandon ? 'A teleporting unit that is not placed is destroyed.' : undefined}
-                onClick={() => {
-                  if (abandon && !window.confirm(`Abandon ${nm}? It cannot return to Reserves and will be destroyed.`)) return
-                  dispatch(reserveAction)
-                }}
-              >
-                {abandon ? `Abandon ${nm} (destroyed)` : `Reserves: ${nm}`}
-              </button>
+              <Tooltip key={`res-${uid}`} title="Abandon" body="A teleporting unit that is not placed is destroyed." disabled={!abandon}>
+                <button
+                  style={{ ...(abandon ? buttonDanger : buttonBase), flexShrink: 0, width: '100%', textAlign: 'left' }}
+                  onClick={() => {
+                    if (abandon && !window.confirm(`Abandon ${nm}? It cannot return to Reserves and will be destroyed.`)) return
+                    dispatch(reserveAction)
+                  }}
+                >
+                  {abandon ? `Abandon ${nm} (destroyed)` : `Reserves: ${nm}`}
+                </button>
+              </Tooltip>
             )
           })}
         </div>
@@ -1141,15 +1142,16 @@ export function DecisionPrompt() {
         )}
         {activeDraft && (
           <>
-            <button
-              style={draftValidation && !draftValidation.ok ? { ...buttonPrimary, opacity: 0.5, cursor: 'not-allowed' } : buttonPrimary}
-              data-testid="btn-confirm"
-              disabled={!!draftValidation && !draftValidation.ok}
-              title={draftValidation && !draftValidation.ok ? `Can't confirm: ${draftValidation.reasons.join(', ')}` : undefined}
-              onClick={confirmDraft}
-            >
-              Confirm
-            </button>
+            <Tooltip title="Can't confirm" body={draftValidation && !draftValidation.ok ? draftValidation.reasons.join(', ') : undefined} disabled={!draftValidation || draftValidation.ok} wrap>
+              <button
+                style={draftValidation && !draftValidation.ok ? { ...buttonPrimary, opacity: 0.5, cursor: 'not-allowed' } : buttonPrimary}
+                data-testid="btn-confirm"
+                disabled={!!draftValidation && !draftValidation.ok}
+                onClick={confirmDraft}
+              >
+                Confirm
+              </button>
+            </Tooltip>
             <button style={buttonBase} data-testid="btn-reset-formation" onClick={resetDraft}>
               Reset
             </button>

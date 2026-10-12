@@ -6,6 +6,7 @@ import { useEffect } from 'react'
 import { useGameStore } from '../store/game'
 import { useUiStore } from '../ui/uiStore'
 import { colors } from '../ui/theme'
+import { Tooltip } from '../ui/Tooltip'
 import { floorHeightsAt, standingY, useFloorStore, withFloor } from './floors'
 
 export function FloorSelector() {
@@ -66,24 +67,24 @@ export function FloorSelector() {
     <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }} data-testid="floor-selector">
       <span style={{ opacity: 0.8 }}>Floor:</span>
       {heights.map((h, i) => (
-        <button
-          key={h}
-          type="button"
-          data-testid={`floor-${i}`}
-          onClick={() => choose(h)}
-          title={h === 0 ? 'Ground (PageDown)' : `Ruin floor at ${h}" (PageUp)`}
-          style={{
-            padding: '2px 8px',
-            fontSize: 11,
-            cursor: 'pointer',
-            borderRadius: 4,
-            border: `1px solid ${colors.text}`,
-            background: h === current ? colors.text : 'transparent',
-            color: h === current ? '#111' : colors.text,
-          }}
-        >
-          {h === 0 ? 'Ground' : i}
-        </button>
+        <Tooltip key={h} title={h === 0 ? 'Ground' : `Ruin floor at ${h}"`} body={h === 0 ? 'Press PageDown to drop to the ground.' : 'Press PageUp to climb a floor.'}>
+          <button
+            type="button"
+            data-testid={`floor-${i}`}
+            onClick={() => choose(h)}
+            style={{
+              padding: '2px 8px',
+              fontSize: 11,
+              cursor: 'pointer',
+              borderRadius: 4,
+              border: `1px solid ${colors.text}`,
+              background: h === current ? colors.text : 'transparent',
+              color: h === current ? '#111' : colors.text,
+            }}
+          >
+            {h === 0 ? 'Ground' : i}
+          </button>
+        </Tooltip>
       ))}
     </div>
   )

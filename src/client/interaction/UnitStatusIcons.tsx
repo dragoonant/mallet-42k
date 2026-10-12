@@ -10,6 +10,7 @@ import { Vector3 } from 'three'
 import { DEFAULT_SERVICES, type GameState, type UnitId } from '@/engine'
 import { useDisplayState } from '../presentation/presentedStore'
 import { useUiStore, type PlacementDraft } from '../ui/uiStore'
+import { Tooltip } from '../ui/Tooltip'
 import { effectEntries, turnFlagEntries } from './statusIcons'
 
 type CoverKind = 'full' | 'partial'
@@ -91,7 +92,7 @@ const RED = '#ff6a5f'
 const GREEN = '#7be08a'
 const LIGHT = '#e8f6ff'
 
-interface Icon { testid?: string; kind: string; tint: string; title: string; data?: Record<string, string>; pulse?: boolean }
+interface Icon { testid?: string; kind: string; tint: string; title: string; body?: string; data?: Record<string, string>; pulse?: boolean }
 
 const SHIELD = 'M6 1 L11 3 V7 C11 10 8.5 12.2 6 13 C3.5 12.2 1 10 1 7 V3 Z'
 const STAR = 'M7 1 L8.8 5 L13 5.4 L9.8 8.2 L10.8 12.4 L7 10.2 L3.2 12.4 L4.2 8.2 L1 5.4 L5.2 5 Z'
@@ -115,15 +116,16 @@ function glyph(kind: string, tint: string): ReactElement {
 
 function IconBadge({ icon }: { icon: Icon }) {
   return (
-    <div
-      title={icon.title}
-      data-testid={icon.testid ?? `status-icon-${icon.kind}`}
-      data-status-icon={icon.kind}
-      {...icon.data}
-      style={{ pointerEvents: 'auto', width: ICON_PX, height: ICON_PX, borderRadius: '50%', background: 'rgba(14,30,48,0.88)', border: `1.5px solid ${icon.tint}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help', animation: icon.pulse ? 'm42k-shock-pulse 1.2s ease-in-out infinite' : undefined, boxShadow: icon.pulse ? `0 0 6px ${AMBER}` : undefined }}
-    >
-      <svg width={ICON_PX - 6} height={ICON_PX - 6} viewBox="0 0 14 14">{glyph(icon.kind, icon.tint)}</svg>
-    </div>
+    <Tooltip title={icon.title} body={icon.body} placement="top">
+      <div
+        data-testid={icon.testid ?? `status-icon-${icon.kind}`}
+        data-status-icon={icon.kind}
+        {...icon.data}
+        style={{ pointerEvents: 'auto', width: ICON_PX, height: ICON_PX, borderRadius: '50%', background: 'rgba(14,30,48,0.88)', border: `1.5px solid ${icon.tint}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help', animation: icon.pulse ? 'm42k-shock-pulse 1.2s ease-in-out infinite' : undefined, boxShadow: icon.pulse ? `0 0 6px ${AMBER}` : undefined }}
+      >
+        <svg width={ICON_PX - 6} height={ICON_PX - 6} viewBox="0 0 14 14" aria-hidden="true">{glyph(icon.kind, icon.tint)}</svg>
+      </div>
+    </Tooltip>
   )
 }
 
@@ -177,15 +179,16 @@ export function UnitStatusIcons() {
         if (kind) {
           icons.push({
             testid: `cover-badge-${unit.id}`, kind: 'cover', tint: kind === 'partial' ? AMBER : BLUE, data: { 'data-cover': kind },
-            title: kind === 'partial' ? 'Partial cover: some attackers that can see this unit are blocked by cover.' : 'In cover: ranged attackers against this unit get a worse result on its armour saves.',
+            title: kind === 'partial' ? 'Partial cover' : 'In cover',
+            body: kind === 'partial' ? 'Some attackers that can see this unit are blocked by cover.' : 'Ranged attackers against this unit get a worse result on its armour saves.',
           })
         }
-        if (unit.battleShocked) icons.push({ testid: `shock-bolt-${unit.id}`, kind: 'shock', tint: AMBER, pulse: true, title: 'Battle-shocked: this unit is rattled and cannot hold objectives until it recovers.' })
+        if (unit.battleShocked) icons.push({ testid: `shock-bolt-${unit.id}`, kind: 'shock', tint: AMBER, pulse: true, title: 'Battle-shocked', body: 'This unit is rattled and cannot hold objectives until it recovers.' })
         for (const e of effectEntries(state, unit)) {
           const tint = e.hostile ? RED : e.kind === 'stratagem' ? '#c9a0ff' : e.kind === 'aura' ? '#ffe27a' : e.kind === 'buffSave' ? BLUE : GREEN
-          icons.push({ kind: e.kind, tint, title: `${e.name}${e.hostile ? ' (enemy effect)' : ''}: ${e.hint}` })
+          icons.push({ kind: e.kind, tint, title: `${e.name}${e.hostile ? ' (enemy effect)' : ''}`, body: e.hint })
         }
-        for (const f of turnFlagEntries(unit)) icons.push({ kind: f.kind, tint: '#cfd8e3', title: `${f.name}: ${f.hint}` })
+        for (const f of turnFlagEntries(unit)) icons.push({ kind: f.kind, tint: '#cfd8e3', title: f.name, body: f.hint })
         if (icons.length === 0) return null
         const cx = models.reduce((s, m) => s + m.pos.x, 0) / models.length
         const cz = models.reduce((s, m) => s + m.pos.z, 0) / models.length

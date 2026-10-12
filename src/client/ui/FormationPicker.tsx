@@ -11,6 +11,7 @@ import {
   formationPlacementsForUnit, isPlacementDecision, normalizeAngle, placementInfo, type FormationKind,
 } from '../interaction'
 import { buttonActive, buttonBase, colors, fontStack, mutedText, panel } from './theme'
+import { Tooltip } from './Tooltip'
 
 // Anchored near the TOP of the screen (under the phase tracker / scoring hint), not stacked above
 // the bottom decision prompt: the prompt's own height varies a lot (a deploy palette row, a hint
@@ -141,29 +142,29 @@ export function FormationPicker() {
       {kinds.map((kind) => {
         const key = Object.entries(FORMATION_KEYS).find(([, k]) => k === kind)?.[0]
         return (
-          <button
-            key={kind}
-            data-testid={`formation-${kind}`}
-            style={kind === formationKind ? kindButtonActive : kindButton}
-            title={FORMATION_HINTS[kind]}
-            onClick={() => pick(kind)}
-          >
-            <span>{FORMATION_LABELS[kind]}</span>
-            {key && <span style={keyHint}>{key}</span>}
-          </button>
+          <Tooltip key={kind} title={FORMATION_LABELS[kind]} body={FORMATION_HINTS[kind]}>
+            <button
+              data-testid={`formation-${kind}`}
+              style={kind === formationKind ? kindButtonActive : kindButton}
+              onClick={() => pick(kind)}
+            >
+              <span>{FORMATION_LABELS[kind]}</span>
+              {key && <span style={keyHint}>{key}</span>}
+            </button>
+          </Tooltip>
         )
       })}
       <span style={divider} />
-      <button style={buttonBase} data-testid="formation-rotate-ccw" title="Rotate 15° (Q)" onClick={() => rotateBy(-ROTATE_STEP_RAD)}>
+      <button style={buttonBase} data-testid="formation-rotate-ccw" onClick={() => rotateBy(-ROTATE_STEP_RAD)}>
         ↺
       </button>
       <span style={facingReadout} data-testid="formation-facing">
         {facingDeg}°
       </span>
-      <button style={buttonBase} data-testid="formation-rotate-cw" title="Rotate 15° (E)" onClick={() => rotateBy(ROTATE_STEP_RAD)}>
+      <button style={buttonBase} data-testid="formation-rotate-cw" onClick={() => rotateBy(ROTATE_STEP_RAD)}>
         ↻
       </button>
-      <button style={buttonBase} data-testid="formation-flip" title="Flip front/back (R)" onClick={flip}>
+      <button style={buttonBase} data-testid="formation-flip" onClick={flip}>
         Flip
       </button>
     </div>

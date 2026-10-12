@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { Action, GameState } from '@/engine'
 import { useUiStore } from './uiStore'
 import { buttonBase, buttonPrimary, colors, mutedText } from './theme'
+import { Tooltip } from './Tooltip'
 import {
   groupWeapons, initialPlan, resolvePlan, retarget, reachingEntries, setRowFire, weaponTags, modeOf, weaponHasAbility,
   type DeclarePending, type ShootPlan, type WeaponGroup,
@@ -112,7 +113,7 @@ export function WeaponPanel({ state, pending, passAction, dispatch }: Props) {
         </div>
         {(tags.length > 0 || reason || reach < total) && (
           <div style={line}>
-            {tags.map((t) => <span key={t.label} style={tag} title={t.tip}>{t.label}</span>)}
+            {tags.map((t) => <Tooltip key={t.label} title={t.label} body={t.tip}><span style={tag}>{t.label}</span></Tooltip>)}
             {reach < total && reach > 0 && <span style={{ ...mutedText, fontSize: 11 }}>{total - reach} can&apos;t see {unitName(c.target)}</span>}
             {reason && <span style={{ ...mutedText, fontSize: 11, color: colors.accent }} data-testid={`weapon-reason-${g.key}`}>{reason}</span>}
           </div>
@@ -149,8 +150,8 @@ export function WeaponPanel({ state, pending, passAction, dispatch }: Props) {
             return (
               <div key={cf.sig} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }} data-testid={`pistol-group-${cf.sig}`}>
                 {many && <strong style={{ color: colors.text }}>{cf.label}:</strong>}
-                <button style={mode === 'pistol' ? buttonPrimary : buttonBase} data-testid="pistol-mode-pistol" title={cf.pistolNames.join(', ')} onClick={() => setPlan((p) => ({ ...p, pistolMode: { ...p.pistolMode, [cf.sig]: 'pistol' } }))}>Pistol ({cf.pistolNames.join(', ')})</button>
-                <button style={mode === 'other' ? buttonPrimary : buttonBase} data-testid="pistol-mode-other" title={cf.otherNames.join(', ')} onClick={() => setPlan((p) => ({ ...p, pistolMode: { ...p.pistolMode, [cf.sig]: 'other' } }))}>Other ({cf.otherNames.join(', ')})</button>
+                <button style={mode === 'pistol' ? buttonPrimary : buttonBase} data-testid="pistol-mode-pistol" onClick={() => setPlan((p) => ({ ...p, pistolMode: { ...p.pistolMode, [cf.sig]: 'pistol' } }))}>Pistol ({cf.pistolNames.join(', ')})</button>
+                <button style={mode === 'other' ? buttonPrimary : buttonBase} data-testid="pistol-mode-other" onClick={() => setPlan((p) => ({ ...p, pistolMode: { ...p.pistolMode, [cf.sig]: 'other' } }))}>Other ({cf.otherNames.join(', ')})</button>
               </div>
             )
           })}
