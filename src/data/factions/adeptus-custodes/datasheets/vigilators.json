@@ -1,0 +1,24 @@
+[
+  {
+    "id": "cus.vigilators",
+    "faction": "adeptus-custodes",
+    "name": "Vigilators",
+    "keywords": ["INFANTRY", "IMPERIUM", "ANATHEMA PSYKANA", "VIGILATORS"],
+    "factionKeywords": ["ADEPTUS CUSTODES"],
+    "stats": { "M": 6, "T": 3, "Sv": 3, "W": 1, "Ld": 6, "OC": 1 },
+    "composition": [
+      {
+        "modelId": "vigilator",
+        "name": "Vigilator",
+        "min": 5, "max": 5, "default": 5,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["cus.w.executioner-greatblade"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      }
+    ],
+    "abilities": ["cus.a.deft-parry"],
+    "coreAbilities": [],
+    "points": [ { "models": 5, "points": 0 } ],
+    "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+  }
+]

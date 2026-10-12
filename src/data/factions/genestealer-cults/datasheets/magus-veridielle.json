@@ -1,0 +1,25 @@
+[
+  {
+    "id": "gsc.magus-veridielle",
+    "faction": "genestealer-cults",
+    "name": "Magus Veridielle",
+    "keywords": ["INFANTRY", "CHARACTER", "PSYKER", "GREAT DEVOURER", "MAGUS", "VERIDIELLE"],
+    "factionKeywords": ["GENESTEALER CULTS"],
+    "stats": { "M": 6, "T": 3, "Sv": 5, "W": 4, "Ld": 6, "OC": 1 },
+    "composition": [
+      {
+        "modelId": "magus",
+        "name": "Magus Veridielle",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["gsc.w.autopistol-magus", "gsc.w.magus-stave"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      }
+    ],
+    "abilities": ["gsc.a.spiritual-leader"],
+    "coreAbilities": [ { "ability": "DEEP_STRIKE" }, { "ability": "LEADER" } ],
+    "leader": { "attachTo": ["gsc.neophyte-hybrids", "gsc.acolyte-hybrids"], "effects": [] },
+    "points": [ { "models": 1, "points": 0 } ],
+    "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+  }
+]

@@ -69,9 +69,66 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ...SFX_IDS.filter((id) => id.startsWith('wpn-')).map((id) => [id.slice(4), id] as const),
   ['chainsword', 'melee-chainsword'] as const,
   ['power-klaw', 'power-klaw-crunch'] as const,
+  // Grey Knights have their own generated sounds (public/audio: purge-soul, psilencer-burst, psycannon-burst, nemesis-force-swing).
+  ['purge-soul', 'purge-soul'] as const,
+  ['psilencer', 'psilencer-burst'] as const,
+  ['heavy-psycannon', 'psycannon-burst'] as const,
+  ['psycannon', 'psycannon-burst'] as const,
+  ['greatsword', 'nemesis-force-swing'] as const,
+  // T'au have their own generated sounds; the missile, stave and fists still borrow.
+  // Custodes: the spear's bolt-gun, spear/lance sweeps, sentinel blades and the executioner greatblade.
+  ['guardian-spear-ranged', 'guardian-spear-shot'] as const,
+  ['guardian-spear-melee', 'guardian-spear-swing'] as const,
+  ['interceptor-lance', 'guardian-spear-swing'] as const,
+  ['sentinel-blade', 'sentinel-blade-strike'] as const,
+  ['executioner-greatblade', 'castellan-axe-cleave'] as const,
+  ['pulse-rifle', 'pulse-rifle-shot'] as const,
+  ['pulse-carbine', 'pulse-carbine-burst'] as const,
+  ['pulse-pistol', 'pulse-rifle-shot'] as const,
+  ['burst-cannon', 'burst-cannon-whir'] as const,
+  ['fusion-blaster', 'fusion-blast'] as const,
+  ['cyclic-ion-raker', 'ion-raker'] as const,
+  ['support-turret-missile', 'wpn-hunter-killer-missile'] as const,
+  ['honour-stave', 'wpn-force-weapon'] as const,
+  ['battlesuit-fists', 'wpn-power-fist'] as const,
+  ['ghostkeel-fists', 'wpn-power-fist'] as const,
+  // Genestealer Cults borrow too: mining gear and improvised bludgeons crunch like fists, cult claws rend like talons.
+  ['hybrid-firearm', 'cult-autogun-burst'] as const,
+  ['leader-pistol', 'wpn-laspistol'] as const,
+  ['heavy-stubber', 'wpn-big-shoota'] as const,
+  ['seismic-cannon', 'seismic-cannon'] as const,
+  ['webber', 'webber-spray'] as const,
+  ['demolition-charge', 'wpn-grenade-launcher'] as const,
+  ['clearance-incinerator', 'wpn-heavy-flamer'] as const,
+  ['magus-stave', 'wpn-staff-of-possession'] as const,
+  ['cult-claws-and-knife', 'wpn-claws-and-teeth'] as const,
+  ['heavy-mining-tool', 'rock-drill-grind'] as const,
+  ['leaders-cult-weapons', 'wpn-power-weapon'] as const,
+  ['heavy-improvised-weapon', 'wpn-brutal-assault-weapon'] as const,
+  ['hypermorph-tail', 'wpn-talons'] as const,
+  ['drilldozer-blade', 'rock-drill-grind'] as const,
+  // Adeptus Custodes borrow too: the guardian's storm-bolter-in-a-blade barks like a storm bolter, spear and blades ring like power weapons.
+  ['sentinel-blade-ranged', 'wpn-storm-bolter'] as const,
+  ['guardian-spear-ranged', 'wpn-boltgun'] as const,
+  ['hurricane-bolter', 'wpn-storm-bolter'] as const,
+  ['sentinel-blade', 'wpn-power-weapon'] as const,
+  ['guardian-spear-melee', 'wpn-power-weapon'] as const,
+  ['misericordia', 'wpn-close-combat-weapon'] as const,
+  ['interceptor-lance', 'wpn-relic-weapon'] as const,
+  ['executioner-greatblade', 'wpn-relic-weapon'] as const,
 ].sort((a, b) => b[0].length - a[0].length)
 
 const WEAPON_TRIM: Partial<Record<SfxId, number>> = {
+  'guardian-spear-shot': 0.85,
+  'sentinel-blade-strike': 0.8,
+  'castellan-axe-cleave': 0.78,
+  'pulse-rifle-shot': 0.75,
+  'pulse-carbine-burst': 0.7,
+  'burst-cannon-whir': 0.72,
+  'fusion-blast': 0.65,
+  'ion-raker': 0.55,
+  'cult-autogun-burst': 0.65,
+  'webber-spray': 0.9,
   'wpn-autopistol': 0.66,
   'wpn-boltgun': 0.8,
   'wpn-assault-cannon': 0.3,
@@ -145,6 +202,10 @@ const DEATH_SOUND: Record<string, SfxId> = {
   'astra-militarum': 'death-astra-militarum',
   'adepta-sororitas': 'death-adepta-sororitas',
   'chaos-space-marines': 'death-chaos-space-marines',
+  'grey-knights': 'death-grey-knights',
+  'tau-empire': 'death-tau',
+  'adeptus-custodes': 'death-adeptus-custodes',
+  'genestealer-cults': 'death-genestealer-cults',
 }
 
 /** Measured decoded RMS runs 0.05-0.40 across these; the loud three are pulled back toward ~0.15. */
@@ -155,6 +216,8 @@ const DEATH_TRIM: Partial<Record<SfxId, number>> = {
   'death-orks': 0.5,
   'death-tyranids': 0.5,
   'death-space-marines': 0.6,
+  'death-tau': 0.65,
+  'death-adeptus-custodes': 0.8,
 }
 
 function deathSound(faction: string): EventSound {

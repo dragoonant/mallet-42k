@@ -12,6 +12,7 @@ interface Ghost {
   datasheetId: string
   modelType: string
   faction: string
+  seat: 'A' | 'B'
   pos: readonly [number, number, number]
   rotationY: number
   until: number
@@ -42,7 +43,7 @@ export function DeathGhosts() {
       const unit = state.units[last.unitId]
       const faction = unit ? state.players[unit.player]?.faction : undefined
       if (!unit || !faction) continue
-      spawned.push({ modelId, datasheetId: unit.datasheetId, modelType: last.modelType, faction, pos: last.pos, rotationY: last.rot, until: Date.now() + DEATH_MS })
+      spawned.push({ modelId, datasheetId: unit.datasheetId, modelType: last.modelType, faction, seat: unit.player, pos: last.pos, rotationY: last.rot, until: Date.now() + DEATH_MS })
     }
     const next: Record<string, LastKnown> = {}
     for (const m of Object.values(state.models)) next[m.id] = { unitId: m.unitId, modelType: m.datasheetModelId, pos: [m.pos.x, m.pos.y, m.pos.z], rot: m.facing }
@@ -61,7 +62,7 @@ export function DeathGhosts() {
   return (
     <group>
       {ghosts.map((g) => (
-        <Figure key={g.modelId} datasheetId={g.datasheetId} modelId={g.modelType} faction={g.faction} pose="death" position={g.pos} rotationY={g.rotationY} />
+        <Figure key={g.modelId} datasheetId={g.datasheetId} modelId={g.modelType} faction={g.faction} seat={g.seat} pose="death" position={g.pos} rotationY={g.rotationY} />
       ))}
     </group>
   )

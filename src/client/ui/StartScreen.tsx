@@ -5,8 +5,9 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { loadBundle } from '../../data'
 import type { DataBundle } from '../../data/types'
-import { AI_DIFFICULTY_OPTIONS, DEFAULT_AI_DIFFICULTY, resolveFactionId, splittablePatrolRefs, useGameStore, type AiDifficulty, type FactionKey, type OpponentKind } from '../store/game'
+import { AI_DIFFICULTY_OPTIONS, DEFAULT_AI_DIFFICULTY, resolveFactionId, splittablePatrolRefs, patrolUnitChoices, RANDOM_UNIT_CHOICE, useGameStore, type AiDifficulty, type FactionKey, type OpponentKind } from '../store/game'
 import { primaryScoringSummary } from './labels'
+import { randomArmyPaint, usePaintStore } from '../figures/paint'
 import { PainterPanel } from './PainterPanel'
 import { buttonActive, buttonBase, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 
@@ -19,10 +20,14 @@ const FACTION_BLURBS: Record<string, string> = {
   'chaos-space-marines': 'Fallen warriors who bargain with dark powers: stronger shots and blows, paid for in their own blood.',
   tyranids: 'A ravenous swarm that leaps, spits and keeps coming — losing a few hundred claws never slows the brood.',
   'adepta-sororitas': 'Armoured battle-nuns who pray for lucky dice: save Miracle dice and swap them in for a crucial roll.',
+  'tau-empire': 'Sleek gunline soldiers and stealthy battlesuits who mark a target, then pour precise fire into it from afar.',
+  'genestealer-cults': 'A secret brood of hooded workers and four-armed hybrids who spring from hiding, led by a psychic magus.',
+  'adeptus-custodes': 'Towering golden bodyguards of the Emperor: few in number, nearly unbreakable, and each fight they choose a stance to strike harder.',
+  'grey-knights': 'A small band of silver-armoured psykers who blink across the board and punish anything that lingers.',
 }
 
 // Button order for the factions the game ships; any other faction in the bundle follows alphabetically.
-const FACTION_ORDER = ['sm', 'ork', 'necrons', 'chaos-space-marines', 'tyranids', 'adepta-sororitas', 'astra-militarum']
+const FACTION_ORDER = ['sm', 'ork', 'necrons', 'chaos-space-marines', 'tyranids', 'adepta-sororitas', 'astra-militarum', 'grey-knights', 'tau-empire', 'genestealer-cults', 'adeptus-custodes']
 
 interface FactionChoice {
   id: string
@@ -36,35 +41,39 @@ function randomSeed(): string {
   return Math.random().toString(36).slice(2, 10)
 }
 
-// Title art (public/assets/ui/title-bg.webp, 1024x572) carries the logo and subtitle between ~8% and
-// ~42% of its height. The art is drawn at height --art (whole image visible, never wider-than-screen
-// scaling), shifted up 8% to drop the empty sky, with a blurred copy filling any side gutters. The
-// spacer ends just under the subtitle and the setup panel fills the rest of the screen, scrolling
-// inside itself with Start Battle pinned at the bottom, so the page never needs scrolling.
-// Portrait screens draw the art at 180vw wide so the logo stays large enough to read.
+// Title art (public/assets/ui/title-bg.webp, 1024x572) fills the whole screen (cover, anchored a little
+// above centre so the logo survives cropping). It shows alone for INTRO_MS — a click or key skips it —
+// then a dark scrim and the setup card fade in over it. The card is centred and scrolls inside itself
+// with Start Battle pinned at the bottom, so the page never needs scrolling. Portrait screens show the
+// whole art at full width over a blurred fill instead, since cover would crop the logo away.
 const TITLE_BG = `${import.meta.env.BASE_URL}assets/ui/title-bg.webp`
+const INTRO_MS = 3000
 const layoutCss = `
-.ss-overlay { --art: min(100vh, 55.86vw); position: fixed; inset: 0; overflow-y: auto; font-family: ${fontStack};
-  color: ${colors.text}; background: #08080c; display: flex; flex-direction: column; }
+.ss-overlay { position: fixed; inset: 0; overflow: hidden; font-family: ${fontStack};
+  color: ${colors.text}; background: #08080c; display: flex; align-items: center; justify-content: center; }
 .ss-overlay::before { content: ''; position: fixed; inset: -40px; pointer-events: none;
   background: url(${TITLE_BG}) center / cover no-repeat; filter: blur(18px) brightness(0.45); }
 .ss-overlay::after { content: ''; position: fixed; inset: 0; pointer-events: none;
-  background: url(${TITLE_BG}) center calc(var(--art) * -0.08) / auto var(--art) no-repeat; }
-.ss-spacer { flex: none; height: calc(var(--art) * 0.36); }
-.ss-card { position: relative; z-index: 1; margin: 0 auto 16px; width: 1180px; max-width: calc(100% - 32px);
-  box-sizing: border-box; flex: 1 1 auto; min-height: 300px; max-height: calc(100vh - var(--art) * 0.36 - 16px); }
+  background: url(${TITLE_BG}) center 30% / cover no-repeat; }
+.ss-scrim { position: fixed; inset: 0; z-index: 1; pointer-events: none; background: rgba(4, 4, 8, 0.55);
+  opacity: 0; transition: opacity 900ms ease; }
+.ss-card { position: relative; z-index: 2; width: 1180px; max-width: calc(100% - 32px); box-sizing: border-box;
+  max-height: calc(100vh - 48px); opacity: 0; visibility: hidden; transform: translateY(14px);
+  transition: opacity 900ms ease, transform 900ms ease, visibility 0s linear 900ms; }
+.ss-ready .ss-scrim { opacity: 1; }
+.ss-ready .ss-card { opacity: 1; visibility: visible; transform: none; transition: opacity 900ms ease, transform 900ms ease; }
 .ss-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 26px; overflow-y: auto;
   min-height: 0; flex: 1 1 auto; padding-right: 4px; }
 .ss-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 @media (max-width: 1100px) { .ss-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 700px) { .ss-grid { grid-template-columns: 1fr; } }
 @media (max-aspect-ratio: 1/1) {
-  .ss-overlay { --art: 100vw; }
-  .ss-overlay::after { background-size: 180vw auto; }
-  .ss-card { max-height: none; overflow: visible; }
-  .ss-grid { overflow: visible; }
+  .ss-overlay::after { background-size: 100vw auto; background-position: center 30%; }
 }
 `
+
+// Automated browsers (Playwright) skip the intro so E2E runs don't wait on it.
+const skipIntro = typeof navigator !== 'undefined' && navigator.webdriver
 
 const card: CSSProperties = { ...panel, background: 'rgba(12, 12, 18, 0.86)', padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }
 const srOnly: CSSProperties = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }
@@ -84,7 +93,8 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
   const error = useGameStore((s) => s.error)
   const [bundle, setBundle] = useState<DataBundle | null>(null)
   const [faction, setFaction] = useState<FactionKey>('space-marines')
-  // '' = automatic (the first other faction); otherwise a faction id, which may equal your own (mirror match).
+  // '' = random (any faction with a patrol, your own included, rolled on Start); otherwise a faction id,
+  // which may equal your own (mirror match).
   const [opponentFaction, setOpponentFaction] = useState<string>('')
   const [opponent, setOpponent] = useState<OpponentKind>('bot')
   const [difficulty, setDifficulty] = useState<AiDifficulty>(DEFAULT_AI_DIFFICULTY)
@@ -93,6 +103,20 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
   const [seed, setSeed] = useState<string>(() => randomSeed())
   const [splitA, setSplitA] = useState(false)
   const [splitB, setSplitB] = useState(false)
+  const [ready, setReady] = useState(skipIntro)
+
+  useEffect(() => {
+    if (ready) return
+    const show = () => setReady(true)
+    const timer = window.setTimeout(show, INTRO_MS)
+    window.addEventListener('keydown', show)
+    window.addEventListener('pointerdown', show)
+    return () => {
+      window.clearTimeout(timer)
+      window.removeEventListener('keydown', show)
+      window.removeEventListener('pointerdown', show)
+    }
+  }, [ready])
 
   useEffect(() => {
     let cancelled = false
@@ -130,21 +154,49 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
     setSecondaryId(patrol?.secondaries.find((s) => s.default)?.id ?? patrol?.secondaries[0]?.id ?? '')
   }, [patrol])
 
+  // Either/or unit slots in the patrol (Grey Knights: Terminators or Dreadknight). A pick is kept per group id; unset = patrol default.
+  const [pickA, setPickA] = useState<Record<string, string>>({})
+  const [pickB, setPickB] = useState<Record<string, string>>({})
+  const choicesA = bundle ? patrolUnitChoices(bundle, faction) : []
+  const choicesB = bundle && opponentFaction ? patrolUnitChoices(bundle, opponentFaction) : []
+  useEffect(() => { setPickA({}) }, [faction])
+  useEffect(() => { setPickB({}) }, [opponentFaction])
+  const refName = (factionKey: string, ref: string): string => {
+    const p = bundle && Object.values(bundle.patrols).find((x) => x.faction === resolveFactionId(factionKey))
+    const ds = p?.units.find((u) => u.ref === ref)?.datasheet
+    return (ds && bundle?.datasheets[ds]?.name) || ref
+  }
+  const unitChoiceRow = (factionKey: string, choices: { id: string; refs: string[]; default: string }[], pick: Record<string, string>, setPick: (v: Record<string, string>) => void, who: string) =>
+    choices.map((g) => (
+      <label key={g.id} style={blurb} data-testid={`setup-unit-choice-${who}-${g.id}`}>
+        {who === 'A' ? 'Your' : opponent === 'bot' ? "The bot's" : "Player B's"} patrol fields:{' '}
+        <select style={select} value={pick[g.id] ?? (who === 'B' && opponent === 'bot' ? RANDOM_UNIT_CHOICE : g.default)} onChange={(e) => setPick({ ...pick, [g.id]: e.target.value })}>
+          {g.refs.map((r) => <option key={r} value={r}>{refName(factionKey, r)}</option>)}
+          <option value={RANDOM_UNIT_CHOICE}>Random</option>
+        </select>
+      </label>
+    ))
+
   // Patrol Squads that are split at setup (Sororitas); AM/Tyranids get the engine's own prompt at deployment instead.
   const canSplitA = !!bundle && splittablePatrolRefs(bundle, faction).length > 0
   const canSplitB = !!bundle && opponent === 'hotseat' && !!opponentFaction && splittablePatrolRefs(bundle, opponentFaction).length > 0
 
   const start = async () => {
+    const randomFaction = factions.length ? factions[Math.floor(Math.random() * factions.length)].id : undefined
+    // The opponent gets a fresh random colour scheme every game (game-only; your saved paint is untouched).
+    usePaintStore.getState().setSeatPaint('B', randomArmyPaint())
     try {
       await newGame({
         playerFaction: faction,
-        opponentFaction: opponentFaction || undefined,
+        opponentFaction: opponentFaction || randomFaction,
         opponent,
         mission: `mission.${mission}`,
         seed,
         secondaryId: secondaryId || undefined,
         splitSquads: canSplitA && splitA,
         opponentSplitSquads: canSplitB && splitB,
+        unitChoices: Object.keys(pickA).length ? pickA : undefined,
+        opponentUnitChoices: Object.keys(pickB).length ? pickB : undefined,
         difficulty: opponent === 'bot' ? difficulty : undefined,
       })
       onStarted()
@@ -154,10 +206,10 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
   }
 
   return (
-    <div className="ss-overlay" data-testid="start-screen">
+    <div className={ready ? 'ss-overlay ss-ready' : 'ss-overlay'} data-testid="start-screen">
       <style>{layoutCss}</style>
       <h1 style={srOnly}>Mallet 42,000 — SD Assault: Galaxy in Conflict</h1>
-      <div className="ss-spacer" />
+      <div className="ss-scrim" />
       <div className="ss-card" style={card}>
         <div className="ss-grid">
         <div className="ss-col">
@@ -188,6 +240,7 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
           </>
         )}
 
+        {unitChoiceRow(faction, choicesA, pickA, setPickA, 'A')}
         {canSplitA && (
           <label style={blurb} data-testid="setup-split-A">
             <input type="checkbox" checked={splitA} onChange={(e) => setSplitA(e.target.checked)} /> Split your Battle Sisters Squad into two units of 5 (Patrol Squads)
@@ -227,7 +280,7 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
 
         <div style={label}>Opponent's Faction</div>
         <select style={select} value={opponentFaction} data-testid="setup-opponent-faction" onChange={(e) => setOpponentFaction(e.target.value)}>
-          <option value="">Automatic</option>
+          <option value="">Random</option>
           {factions.map((f) => (
             <option key={f.id} value={f.id}>
               {f.label}
@@ -235,6 +288,7 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
           ))}
         </select>
 
+        {opponentFaction && unitChoiceRow(opponentFaction, choicesB, pickB, setPickB, 'B')}
         {canSplitB && (
           <label style={blurb} data-testid="setup-split-B">
             <input type="checkbox" checked={splitB} onChange={(e) => setSplitB(e.target.checked)} /> Split Player B's Battle Sisters Squad into two units of 5 (Patrol Squads)

@@ -132,6 +132,18 @@ export function acrossBarricade(state: GameState, a: Vec2, b: Vec2): boolean {
   return false
 }
 
+// Snap a requested standing height to a legal surface: if pos.y equals a crate top or ruin floor height whose polygon
+// contains (x,z) keep it (canEndAt stays the judge of keyword/overhang legality); anything else (0, a stale height from
+// the model's previous spot, garbage) becomes ground level 0.
+export function surfaceY(board: { pieces?: Record<string, TerrainPiece> }, _model: Pick<Model, 'base'> | undefined, pos: Vec3): number {
+  if (!Number.isFinite(pos.y) || Math.abs(pos.y) <= EPS) return 0
+  for (const p of Object.values(board.pieces ?? {})) {
+    if (p.kind === 'crate' && Math.abs(pos.y - p.height) <= EPS && pointInPolygon(pos, p.footprint)) return p.height
+    if (p.kind === 'ruin') for (const f of p.floors) if (Math.abs(pos.y - f.height) <= EPS && pointInPolygon(pos, f.polygon)) return f.height
+  }
+  return 0
+}
+
 export interface TerrainService {
   // surface height under (x, z): 0 on open ground, a floor height inside a ruin, the top of a HILL/container
   heightAt(state: GameState, x: number, z: number): number
@@ -223,4 +235,20 @@ export const terrainService: TerrainService = {
       .filter((p) => (p.kind === 'ruin' || p.kind === 'crater' || p.kind === 'forest') && whollyWithinPolygon(model, p.footprint))
       .map((p) => p.id)
   },
+}
+
+// Deployment terrain check: a model may only be set up where it could legally end a move (no wall/crate/barricade
+// overlap) and, if it cannot pass ruin walls (VEHICLE/MONSTER without FLY), not even partly inside a ruin footprint —
+// otherwise it starts the game boxed in by walls it can never cross (a Deff Dread trapped in a corner ruin).
+export function deployTerrainBlock(state: GameState, model: Model, pos: Vec3, facing: number = model.facing): string | null {
+  const m: Model = { ...model, facing }
+  const end = terrainService.canEndAt(state, m, pos)
+  if (!end.ok) return end.reason ?? 'blocked by terrain'
+  if (!canPassWalls(state, model)) {
+    const fp: Footprint = { pos, facing, base: model.base }
+    for (const p of Object.values(state.board.pieces)) {
+      if (p.kind === 'ruin' && partlyWithinPolygon(fp, p.footprint)) return 'cannot be set up inside a ruin it cannot move out of'
+    }
+  }
+  return null
 }

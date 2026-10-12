@@ -1,0 +1,41 @@
+{
+  "id": "cus.cp.guardians-of-the-throne",
+  "faction": "adeptus-custodes",
+  "name": "Guardians of the Throne",
+  "units": [
+    { "ref": "captain", "datasheet": "cus.shield-captain-tyvan", "size": 1, "enhancement": "cus.e.auramite-thunderbolt", "attachTo": "guard" },
+    { "ref": "prosecutors", "datasheet": "cus.prosecutors", "size": 5 },
+    { "ref": "vigilators", "datasheet": "cus.vigilators", "size": 5 },
+    { "ref": "guard", "datasheet": "cus.custodian-guard", "size": 4 },
+    { "ref": "praetors", "datasheet": "cus.vertus-praetors", "size": 1 }
+  ],
+  "unitChoices": [
+    { "id": "escort", "refs": ["guard", "praetors"], "default": "guard" }
+  ],
+  "stratagems": ["cus.s.gilded-spear", "cus.s.inescapable-vengeance", "cus.s.overawing-magnificence"],
+  "enhancements": [
+    { "id": "cus.e.auramite-thunderbolt", "default": true },
+    { "id": "cus.e.blade-of-the-vaults", "default": false }
+  ],
+  "secondaries": [
+    {
+      "id": "cus.sec.guardian-of-the-realm",
+      "name": "Guardian of the Realm",
+      "text": "At the end of every phase, in either player's turn, score 1 victory point if your SHIELD-CAPTAIN model destroyed an enemy model during that phase, or 2 victory points instead if any unit it destroyed a model of was within range of an objective marker when the phase began. At most 2 victory points per phase. Kills by other models do not count.",
+      "default": true,
+      "scoring": [
+        { "id": "guardian-of-the-realm", "when": "phase.end", "rounds": { "from": 1, "to": 5 }, "who": "both", "rule": "custom", "pointsPer": 1, "cap": 999, "code": "guardianOfTheRealm", "params": { "bonusPoints": 2, "keyword": "SHIELD-CAPTAIN" } }
+      ]
+    },
+    {
+      "id": "cus.sec.drive-the-talons-deep",
+      "name": "Drive the Talons Deep",
+      "text": "From round 2, at the end of your opponent's turn, score 3 victory points if at least one of your ADEPTUS CUSTODES units that is not Battle-shocked has every model wholly inside your opponent's deployment zone. The award is flat, however many units qualify.",
+      "default": false,
+      "scoring": [
+        { "id": "drive-the-talons-deep", "when": "turn.end", "rounds": { "from": 2, "to": 5 }, "who": "opponent", "rule": "custom", "pointsPer": 3, "cap": 999, "code": "reclaimAndDominate", "params": { "keyword": "ADEPTUS CUSTODES" } }
+      ]
+    }
+  ],
+  "warlord": "captain"
+}

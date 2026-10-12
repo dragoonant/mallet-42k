@@ -71,7 +71,7 @@ still gate it so bespoke hooks stay cheap. A descriptor with `code` may omit `ef
 Condition keys (all optional): `phase`, `ownTurn`, `attackerKeyword`, `attackerNotKeyword`, `targetKeyword` (Keyword or Keyword[] = any of),
 `targetNotKeyword`, `weaponType (ranged|melee)`, `weaponAbility`, `weaponId`, `range ({within:n} | "half")`,
 `targetInCover`, `targetOnObjective`, `unitOnObjective`, `unitBelowHalf`, `unitStationary`, `unitAdvanced`,
-`targetBelowStartingStrength`, `targetBelowHalf`, `targetIsClosestEligible` (Tyranids: Feeding Frenzy / Voracious Assault), `unitFellBack`, `unitCharged`, `unitBattleShocked`, `leaderAttached`, `mortalWound` (onFeelNoPainRoll only: the point saved is a mortal wound), `roll ({gte,lte, unmodified?})`,
+`targetBelowStartingStrength`, `targetBelowHalf`, `targetIsClosestEligible` (Tyranids: Feeding Frenzy / Voracious Assault), `unitFellBack`, `unitCharged`, `unitBattleShocked`, `leaderAttached`, `mortalWound` (onFeelNoPainRoll only: the point saved is a mortal wound), `sourcePsychic` (onFeelNoPainRoll only: the point comes from a [PSYCHIC] weapon or a Psychic-tagged ability's mortal wounds), `roll ({gte,lte, unmodified?})`,
 `round ({gte,lte})`, `oathTarget` (target is the marked unit), `strengthVsToughness (gt|gte|eq|lte|lt|double|half — attack S vs target T)`, `any`, `not`.
 
 Effect keys (any subset; unknown keys rejected):
@@ -164,13 +164,13 @@ Unit-level state in the engine (`wounds`, `battleShocked`, `moved`, `advanced`) 
 
 ## 7. Enhancements
 
-`{id, faction, detachment?, name, text, cost (pts), restriction:{keyword?: Keyword[], notKeyword?: Keyword[]}, effect: AbilityDescriptor | Id, choice?: {unitKeyword}}` — always attaches to one CHARACTER model; `effect.scope` defaults to `{who: bearer}`. `choice` means the player names one friendly unit with that keyword at setup (`PlayerSetup.enhancementChoice.unitRef`; Tellyporta → BOYZ); `createGame` rejects a missing or mismatched ref.
+`{id, faction, detachment?, name, text, cost (pts), restriction:{keyword?: Keyword[], notKeyword?: Keyword[]}, effect: AbilityDescriptor | AbilityDescriptor[] | Id, choice?: {unitKeyword}}` — always attaches to one CHARACTER model; `effect.scope` defaults to `{who: bearer}`. `choice` means the player names one friendly unit with that keyword at setup (`PlayerSetup.enhancementChoice.unitRef`; Tellyporta → BOYZ); `createGame` rejects a missing or mismatched ref.
 
 ## 8. Factions and combat patrols
 
 `faction`: `{id, name, factionKeyword, armyRule: Id, detachments:[{id, name, rule: Id, stratagems: Id[], enhancements: Id[]}], paintScheme:{primary, secondary, trim, metal, decal} (hex), combatPatrols: Id[]}`.
 
-`combat-patrol`: `{id, faction, name, detachment?, warlord: ref, units:[{ref, datasheet, size, wargear?: [{modelId, count, weapons: Id[]}], patrolSquads?: [{ref, size, wargear: [{modelId, count, weapons: Id[]}]}], attachTo?: ref, enhancement?: Id}], stratagems: Id[], enhancements: [{id, default}], secondaries: [{id, name, text, default, scoring: ScoringRule[]}]}`. `ref` is unique inside the patrol and becomes the engine `unitId` prefix. `attachTo` references another unit's `ref` (leader attachment chosen at setup; the setup UI may change it within `leader.attachTo`). Exactly one enhancement and one secondary have `default: true`; the player may swap to the optional one at setup (11-combat-patrol CP-1.4/1.5).
+`combat-patrol`: `{id, faction, name, detachment?, warlord: ref, units:[{ref, datasheet, size, wargear?: [{modelId, count, weapons: Id[]}], patrolSquads?: [{ref, size, wargear: [{modelId, count, weapons: Id[]}]}], attachTo?: ref, enhancement?: Id}], unitChoices?: [{id, refs: ref[], default: ref}] (exactly one ref per group is fielded; Grey Knights Terminators/Dreadknight), stratagems: Id[], enhancements: [{id, default}], secondaries: [{id, name, text, default, scoring: ScoringRule[]}]}`. `ref` is unique inside the patrol and becomes the engine `unitId` prefix. `attachTo` references another unit's `ref` (leader attachment chosen at setup; the setup UI may change it within `leader.attachTo`). Exactly one enhancement and one secondary have `default: true`; the player may swap to the optional one at setup (11-combat-patrol CP-1.4/1.5).
 
 ## 9. Missions
 

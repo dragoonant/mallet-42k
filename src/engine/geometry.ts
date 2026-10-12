@@ -1,6 +1,7 @@
 // Measurement (W1-A): base-to-base 3D distance, within / wholly within, engagement range, coherency, pivots, paths,
 // placement validation (10-rules §2, 00-arch §7). Pure functions over Model / Vec3 / Polygon; no state mutation.
 import type { Polygon, Vec2 } from '../data/types'
+import { surfaceY } from './terrain'
 import type { Board, Model, ModelBase, ModelId, MoveConstraints, Objective, Path, Rejection, Vec3 } from './types'
 
 export const EPS = 1e-6
@@ -155,6 +156,29 @@ export function partlyWithinPolygon(m: Footprint, poly: Polygon): boolean {
   if (pointInPolygon(m.pos, poly)) return true
   for (const e of baseEdgePoints(m)) if (pointInPolygon(e, poly)) return true
   return false
+}
+
+// A convex polygon grown outward by `r` inches (Minkowski sum with a circle, the circle approximated by a circumscribed 48-gon so the
+// result never under-covers; max overshoot ~0.2%). Used for the Infiltrators area: "more than 9in from the enemy deployment zone".
+export function growConvexPolygon(poly: Polygon, r: number, segments = 48): Polygon {
+  const k = r / Math.cos(Math.PI / segments)
+  const pts: Vec2[] = []
+  for (const p of poly) for (let i = 0; i < segments; i++) {
+    const a = (2 * Math.PI * (i + 0.5)) / segments
+    pts.push({ x: p.x + k * Math.cos(a), z: p.z + k * Math.sin(a) })
+  }
+  pts.sort((a, b) => a.x - b.x || a.z - b.z)
+  const cross = (o: Vec2, a: Vec2, b: Vec2) => (a.x - o.x) * (b.z - o.z) - (a.z - o.z) * (b.x - o.x)
+  const half = (list: Vec2[]): Vec2[] => {
+    const h: Vec2[] = []
+    for (const p of list) {
+      while (h.length >= 2 && cross(h[h.length - 2], h[h.length - 1], p) <= 0) h.pop()
+      h.push(p)
+    }
+    h.pop()
+    return h
+  }
+  return [...half(pts), ...half([...pts].reverse())]
 }
 
 export function whollyOnBoard(m: Footprint, board: Pick<Board, 'w' | 'h'>): boolean {
@@ -329,7 +353,7 @@ export interface PlacementCheckInput {
   // friendly models of other units and enemy models currently on the board
   otherFriendly: Model[]
   enemies: Model[]
-  board: Pick<Board, 'w' | 'h'>
+  board: Pick<Board, 'w' | 'h'> & Partial<Pick<Board, 'pieces'>>
   pivotCost?: number
   fly?: boolean
   // models of `mustEndInEngagementWith` units, keyed by unit id (only needed when that constraint is used)
@@ -351,8 +375,12 @@ export function checkPlacements(input: PlacementCheckInput): { rejection: Reject
     if (!model) return { rejection: { code: 'E_SCHEMA', reason: `model ${p.modelId} is not in the unit` } }
     if (seen.has(p.modelId)) return { rejection: { code: 'E_SCHEMA', reason: `model ${p.modelId} placed twice` } }
     seen.add(p.modelId)
-    const to = roundVec3(p.pos)
+    // a height that is not a real surface is snapped to the ground only when it is the model's own stale height
+    // (planners carry m.pos.y along); an explicit mid-air request stays as sent so canEndAt rejects it (MOVE-021-air)
+    const sy = surfaceY(board, model, p.pos)
+    const to = roundVec3({ ...p.pos, y: sy === 0 && Math.abs(p.pos.y) > EPS && Math.abs(p.pos.y - model.pos.y) > EPS ? p.pos.y : sy })
     const path: Path = p.path && p.path.length >= 2 ? p.path.map(roundVec3) : [model.pos, to]
+    if (p.path && p.path.length >= 2) path[path.length - 1] = { ...path[path.length - 1], y: to.y }
     if (dist3D(path[0], model.pos) > 1e-3) return { rejection: { code: 'E_SCHEMA', reason: `path of ${p.modelId} must start at its current position` } }
     if (dist3D(path[path.length - 1], to) > 1e-3) return { rejection: { code: 'E_SCHEMA', reason: `path of ${p.modelId} must end at pos` } }
     const facing = p.facing ?? model.facing
@@ -383,6 +411,11 @@ export function checkPlacements(input: PlacementCheckInput): { rejection: Reject
     const targets = input.engagementTargets?.[unitId] ?? []
     if (!unitsWithinEngagementRange(finals, targets)) return { rejection: { code: 'E_ENGAGEMENT', reason: `unit must end within engagement range of ${unitId}`, details: { targetUnitId: unitId } } }
   }
+  if (constraints.mustTouch) {
+    const mt = constraints.mustTouch
+    const marker: Footprint = { pos: mt.pos, facing: 0, base: { shape: 'round', radius: mt.radius } }
+    if (!finals.some((f) => horizontalGap(f, marker) <= 0.05 + EPS)) return { rejection: { code: 'E_NOT_AN_OPTION', reason: 'one model must touch the Cult Ambush marker' } }
+  }
   if (constraints.coherency && !isCoherent(finals)) return { rejection: { code: 'E_COHERENCY', reason: 'unit would end out of coherency' } }
   return { rejection: null, resolved }
 }
@@ -399,6 +432,7 @@ export function emptyMoveConstraints(maxDistance: number, overrides: Partial<Mov
     region: null,
     minDistanceFromEnemies: 0,
     coherency: true,
+    mustTouch: null,
     ...overrides,
   }
 }
@@ -410,9 +444,9 @@ export function transformPolygon(poly: Polygon, pos: Vec2, rot: number): Polygon
 }
 
 // "Your battlefield edge" for a deployment zone: the board-perimeter segments that lie on the zone's boundary; returns the
-// part of the board within `depth` of them. One edge gives a rectangle; two adjacent edges (a corner zone) give an
-// L-shaped hexagon. A board side where the zone only touches a short stub (under half the longest side's length) is
-// ignored, so a full-width strip is not widened by the zone's short ends. Other shapes fall back to the longest side.
+// part of the board within `depth` of them. Combat Patrol gives each player exactly one battlefield edge, so only the
+// board side with the longest run of zone boundary is used (a rectangle); a corner zone such as a triangle yields its
+// longest side, not an L [RC AM-16].
 export function battlefieldEdgeStrip(board: Pick<Board, 'w' | 'h'>, zone: Polygon, depth: number): Polygon {
   const hw = board.w / 2, hh = board.h / 2
   type Side = 'L' | 'R' | 'T' | 'B'
@@ -437,10 +471,7 @@ export function battlefieldEdgeStrip(board: Pick<Board, 'w' | 'h'>, zone: Polygo
   }
   const sides = (Object.keys(spans) as Side[]).filter((s) => spans[s] !== null)
   if (sides.length === 0) return zone
-  const longest = Math.max(...sides.map((s) => total[s]))
-  let kept = sides.filter((s) => total[s] >= longest / 2)
-  const adjacent = (a: Side, b: Side): boolean => (a === 'L' || a === 'R') !== (b === 'L' || b === 'R')
-  if (kept.length > 2 || (kept.length === 2 && !adjacent(kept[0], kept[1]))) kept = [kept.sort((a, b) => total[b] - total[a])[0]]
+  const kept = sides.reduce((best, s) => (total[s] > total[best] ? s : best), sides[0])
   const rect = (s: Side): { x0: number; x1: number; z0: number; z1: number } => {
     const [lo, hi] = spans[s]!
     const dx = Math.min(depth, board.w), dz = Math.min(depth, board.h)
@@ -452,13 +483,24 @@ export function battlefieldEdgeStrip(board: Pick<Board, 'w' | 'h'>, zone: Polygo
     }
   }
   const rectPoly = (r: { x0: number; x1: number; z0: number; z1: number }): Polygon => [{ x: r.x0, z: r.z0 }, { x: r.x1, z: r.z0 }, { x: r.x1, z: r.z1 }, { x: r.x0, z: r.z1 }]
-  if (kept.length === 1) return rectPoly(rect(kept[0]))
-  // two adjacent edges: the union of their two rectangles as one L-shaped hexagon (both run into the shared corner)
-  const v = rect(kept.find((s) => s === 'L' || s === 'R')!), h = rect(kept.find((s) => s === 'T' || s === 'B')!)
-  const left = v.x0 < 0, top = h.z0 < 0
-  const cx = left ? -hw : hw, cz = top ? -hh : hh
-  // far ends of the two arms and the inner corner of the L
-  const armX = left ? h.x1 : h.x0, armZ = top ? v.z1 : v.z0
-  const innerX = left ? v.x1 : v.x0, innerZ = top ? h.z1 : h.z0
-  return [{ x: cx, z: cz }, { x: armX, z: cz }, { x: armX, z: innerZ }, { x: innerX, z: innerZ }, { x: innerX, z: armZ }, { x: cx, z: armZ }]
+  return rectPoly(rect(kept))
+}
+
+// the board side a deployment zone's longest edge lies along ('L' = -x, 'R' = +x, 'T' = -z, 'B' = +z). Zones touching no
+// board side fall back to the side nearest the zone's centroid. Used by Grey Knights No Escape ("closest to their edge").
+export function playerBattlefieldEdge(board: Pick<Board, 'w' | 'h'>, zone: Polygon): 'L' | 'R' | 'T' | 'B' {
+  const hw = board.w / 2, hh = board.h / 2
+  const total = { L: 0, R: 0, T: 0, B: 0 }
+  for (let i = 0; i < zone.length; i++) {
+    const a = zone[i], b = zone[(i + 1) % zone.length]
+    if (Math.abs(a.x + hw) < 1e-6 && Math.abs(b.x + hw) < 1e-6) total.L += Math.abs(b.z - a.z)
+    else if (Math.abs(a.x - hw) < 1e-6 && Math.abs(b.x - hw) < 1e-6) total.R += Math.abs(b.z - a.z)
+    else if (Math.abs(a.z + hh) < 1e-6 && Math.abs(b.z + hh) < 1e-6) total.T += Math.abs(b.x - a.x)
+    else if (Math.abs(a.z - hh) < 1e-6 && Math.abs(b.z - hh) < 1e-6) total.B += Math.abs(b.x - a.x)
+  }
+  const sides = (['L', 'R', 'T', 'B'] as const).filter((s) => total[s] > 0).sort((x, y) => total[y] - total[x])
+  if (sides.length > 0) return sides[0]
+  const cx = zone.reduce((n, p) => n + p.x, 0) / Math.max(1, zone.length), cz = zone.reduce((n, p) => n + p.z, 0) / Math.max(1, zone.length)
+  const d = { L: cx + hw, R: hw - cx, T: cz + hh, B: hh - cz }
+  return ([...['L', 'R', 'T', 'B']] as ('L' | 'R' | 'T' | 'B')[]).sort((x, y) => d[x] - d[y])[0]
 }

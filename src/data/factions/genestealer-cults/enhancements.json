@@ -1,0 +1,39 @@
+[
+  {
+    "id": "gsc.e.psionic-shield",
+    "faction": "genestealer-cults",
+    "name": "Psionic Shield",
+    "text": "While the bearer is leading a unit, add 1 to the saving throw of every ranged attack allocated to a model in that unit.",
+    "cost": 0,
+    "restriction": { "keyword": ["MAGUS"] },
+    "effect": {
+      "id": "gsc.e.psionic-shield.effect",
+      "name": "Psionic Shield",
+      "text": "While leading a unit, +1 to saving throws against ranged attacks allocated to that unit's models.",
+      "trigger": "saveRoll",
+      "when": { "weaponType": "ranged", "leaderAttached": true },
+      "effect": { "modifyRoll": { "roll": "save", "value": 1 } },
+      "scope": { "who": "self" }
+    }
+  },
+  {
+    "id": "gsc.e.resonance-stave",
+    "faction": "genestealer-cults",
+    "name": "Resonance Stave",
+    "text": "The bearer's melee weapons gain Anti-Infantry 5+ and Devastating Wounds.",
+    "cost": 0,
+    "restriction": { "keyword": ["MAGUS"] },
+    "effect": {
+      "id": "gsc.e.resonance-stave.effect",
+      "name": "Resonance Stave",
+      "text": "The bearer's melee weapons gain [ANTI-INFANTRY 5+] and [DEVASTATING WOUNDS].",
+      "trigger": "always",
+      "when": { "weaponType": "melee" },
+      "effect": [
+        { "grantWeaponAbility": { "ability": "ANTI", "keyword": "INFANTRY", "value": 5 } },
+        { "grantWeaponAbility": { "ability": "DEVASTATING_WOUNDS" } }
+      ],
+      "scope": { "who": "bearer" }
+    }
+  }
+]

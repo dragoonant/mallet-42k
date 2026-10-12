@@ -38,7 +38,8 @@ export interface UnitAdvanced extends EventBase { type: 'UnitAdvanced'; unitId: 
 export interface UnitFellBack extends EventBase { type: 'UnitFellBack'; unitId: UnitId }
 export interface UnitRemainedStationary extends EventBase { type: 'UnitRemainedStationary'; unitId: UnitId }
 export interface DesperateEscapeRolled extends EventBase { type: 'DesperateEscapeRolled'; unitId: UnitId; dice: number[]; casualties: number }
-export interface ReinforcementsArrived extends EventBase { type: 'ReinforcementsArrived'; unitId: UnitId; via: 'deepStrike' | 'strategicReserves' | 'rapidIngress' | 'nextWave' }
+export interface ReinforcementsArrived extends EventBase { type: 'ReinforcementsArrived'; unitId: UnitId; via: 'deepStrike' | 'strategicReserves' | 'rapidIngress' | 'nextWave' | 'teleportAssault' }
+export interface UnitRemovedFromBattlefield extends EventBase { type: 'UnitRemovedFromBattlefield'; unitId: UnitId; source: string }
 export interface UnitLostInReserves extends EventBase { type: 'UnitLostInReserves'; unitId: UnitId }
 export interface CoherencyCulled extends EventBase { type: 'CoherencyCulled'; unitId: UnitId; modelIds: ModelId[] }
 
@@ -108,7 +109,7 @@ export interface DecisionRequested extends EventBase { type: 'DecisionRequested'
 export type GameEvent =
   | GameCreated | RoundStarted | RoundEnded | TurnStarted | PhaseStarted | PhaseEnded | GameEnded | SidesChosen | FirstTurnChosen | UnitDeployed
   | CpChanged | BattleShockTested | BattleShocked | BattleShockRecovered | OathTargetChosen | WaaaghCalled
-  | MoveDeclared | UnitMoved | UnitAdvanced | UnitFellBack | UnitRemainedStationary | DesperateEscapeRolled | ReinforcementsArrived | UnitLostInReserves | CoherencyCulled
+  | MoveDeclared | UnitMoved | UnitAdvanced | UnitFellBack | UnitRemainedStationary | DesperateEscapeRolled | ReinforcementsArrived | UnitRemovedFromBattlefield | UnitLostInReserves | CoherencyCulled
   | AttackSequenceStarted | TargetsDeclared | HitRolled | WoundRolled | AttackAllocated | SaveRolled | DamageApplied | FeelNoPainRolled
   | ModelDestroyed | UnitDestroyed | HazardousTested | DeadlyDemiseRolled | AttackSequenceEnded | LeaderDetached
   | ChargeDeclared | ChargeRolled | ChargeFailed | ChargeMoved | PiledIn | Consolidated | FightUnitSelected

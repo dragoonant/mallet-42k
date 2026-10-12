@@ -1,0 +1,61 @@
+[
+  {
+    "id": "gsc.a.cult-ambush",
+    "name": "Cult Ambush",
+    "text": "When this unit is destroyed, roll a D6 (+3 if BATTLELINE). On a 4+ it joins your Cult Ambush pool and you place a marker over 9 inches from all enemies. After your opponent's Reinforcements step, each marker returns one pooled unit at full strength via Deep Strike, touching it. Enemy models ending a move within 9 inches remove it. No returns in rounds 4-5.",
+    "trigger": "unitDestroyed",
+    "scope": {
+      "who": "self"
+    },
+    "code": "cultAmbush",
+    "params": {
+      "battlelineBonus": 3,
+      "success": 4,
+      "markerGap": 9,
+      "lastRound": 3
+    }
+  },
+  {
+    "id": "gsc.a.spiritual-leader",
+    "name": "Spiritual Leader",
+    "text": "While this model leads a unit, every model in that unit has a 5+ Feel No Pain save against wounds caused by Psychic attacks.",
+    "trigger": "feelNoPainRoll",
+    "when": {
+      "sourcePsychic": true,
+      "leaderAttached": true
+    },
+    "effect": {
+      "feelNoPain": 5
+    },
+    "scope": {
+      "who": "self"
+    }
+  },
+  {
+    "id": "gsc.a.vile-insurrectionists",
+    "name": "Vile Insurrectionists",
+    "text": "Each time a model in this unit makes an attack, you may re-roll a hit roll of 1.",
+    "trigger": "hitRoll",
+    "effect": {
+      "reroll": "ones"
+    },
+    "scope": {
+      "who": "self"
+    }
+  },
+  {
+    "id": "gsc.a.vile-insurrectionists-wounds",
+    "name": "Vile Insurrectionists (objective)",
+    "text": "If the target of the attack is within range of an objective marker, you may also re-roll a wound roll of 1.",
+    "trigger": "woundRoll",
+    "when": {
+      "targetOnObjective": true
+    },
+    "effect": {
+      "reroll": "ones"
+    },
+    "scope": {
+      "who": "self"
+    }
+  }
+]

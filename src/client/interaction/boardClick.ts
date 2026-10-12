@@ -11,6 +11,7 @@ import { useUiStore, type PlacementDraft } from '../ui/uiStore'
 import { combinedUnitIds, combinedUnitModels, modelsAnchor, type Anchor2D } from './geometry'
 import { directionFacing, formationPlacementsForUnit, zoneFacing, type FormationKind, type FormationPlacement } from './formations'
 import { placementInfo } from './decisions'
+import { clampMoveDraft, moveFacing } from './moveClamp'
 import { deployUnitInfiltrates, inInfiltratorArea, validateDraft } from './formationValidation'
 
 /** Average of a convex polygon's own vertices — always interior for the rectangle/triangle deployment
@@ -214,6 +215,24 @@ export function computeBoardClickDraft(
         }
       }
     }
+    // Cult Ambush return: one model must touch the marker. Snap the drop to the anchor nearest the click, around the
+    // marker, that is a legal arrival; fall back to centring on the marker.
+    const touch = pending.constraints.mustTouch
+    if (touch) {
+      const excl = combinedUnitIds(state, deployTargetUnitId)
+      const anchors: { x: number; z: number }[] = [{ x: touch.pos.x, z: touch.pos.z }]
+      for (let r = 1; r <= 8; r++) for (let k = 0; k < 16; k++) anchors.push({ x: touch.pos.x + r * Math.cos((k / 16) * Math.PI * 2), z: touch.pos.z + r * Math.sin((k / 16) * Math.PI * 2) })
+      anchors.sort((a, b) => Math.hypot(a.x - point.x, a.z - point.z) - Math.hypot(b.x - point.x, b.z - point.z))
+      for (const a of anchors) {
+        const placements = formationPlacementsForUnit(state, deployTargetUnitId, a, facing, kind)
+        if (placements.length > 0 && validateDraft(state, models, placements, null, excl, true).ok) {
+          return { decisionId: pending.id, unitId: deployTargetUnitId, anchor: a, placements }
+        }
+      }
+      const c = { x: touch.pos.x, z: touch.pos.z }
+      const fallback = formationPlacementsForUnit(state, deployTargetUnitId, c, facing, kind)
+      return fallback.length > 0 ? { decisionId: pending.id, unitId: deployTargetUnitId, anchor: c, placements: fallback } : null
+    }
     let clamped = clampAnchorToZone(state, deployTargetUnitId, models, point, facing, kind, pending.context.zone)
     if (clamped.placements.length === 0) return null
     // Crowded strip: the clamped draft overlaps a unit already deployed — hunt for the nearest spot that really fits.
@@ -233,6 +252,12 @@ export function computeBoardClickDraft(
   // unit out of coherency with no way to fix it short of the fallback list.
   const models = combinedUnitModels(state, info.unitId)
   if (models.length === 0) return null
+  // moveUnit / chargeMove: clamp the click to the farthest legal destination (range + the engine's own checks).
+  const clamp = clampMoveDraft(state, pending, point)
+  if (clamp) {
+    if (ui.formationFacingAuto) ui.setFormationFacing(moveFacing(state, pending, point, { kind: ui.formationKind, facing: ui.formationFacing, auto: true }), true)
+    return clamp.draft
+  }
   const anchor = modelsAnchor(models)
   const facing = ui.formationFacingAuto ? directionFacing(anchor, point, ui.formationFacing) : ui.formationFacing
   const placements = formationPlacementsForUnit(state, info.unitId, point, facing, ui.formationKind)

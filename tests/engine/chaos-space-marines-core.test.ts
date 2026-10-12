@@ -330,3 +330,63 @@ describe('C5 fight on death (CHA-022, CHA-023, CHA-024)', () => {
     expect(s.models['A:grunts#0']).toBeUndefined()
   })
 })
+
+describe('C5 fight on death pile-in (CSM-09, CSM-10, RC-ADE-10 shared helper)', () => {
+  const act = (ctx: EngineContext, action: Action) => {
+    const pending = ctx.state.pending as PendingDecision
+    const rej = fightModule.validate?.(ctx.state, action, pending)
+    if (rej) throw new Error(`rejected: ${rej.code} ${rej.reason}`)
+    ctx.state.pending = null
+    const handled = fightModule.handle(ctx, action, pending)
+    if (handled) throw new Error(`handle rejected: ${handled.code} ${handled.reason}`)
+    return fightModule.advance(ctx)
+  }
+  it('CHA-022 CSM-09 a deferred model out of Engagement Range may pile in (3") and then attacks what it now reaches; it never consolidates', () => {
+    const s = meleeState(1, true)
+    for (const id of s.units['B:mob'].models.filter((m) => m !== 'B:mob#1')) removeModel(s, id)
+    s.models['B:mob#1'].woundsRemaining = 5
+    placeUnit(s, 'A:grunts', [{ x: -10, y: 0, z: -5 }])
+    placeUnit(s, 'B:mob', [{ x: -10, y: 0, z: -4.2 }])
+    grantFightOnDeath(s, 'A:grunts', 4)
+    const { ctx, events } = createContext(s, new ScriptedRng([4, 6, 1, 4, ...Array(40).fill(1)]), modulesWith([]))
+    fightModule.enter(ctx)
+    fightModule.advance(ctx)
+    const pick = s.pending as unknown as PendingDecision
+    s.pending = null
+    fightModule.handle(ctx, { type: 'chooseFightUnit', player: 'B', decisionId: DID, unitId: 'B:mob' }, pick)
+    fightModule.advance(ctx)
+    if ((s.pending as PendingDecision | null)?.kind === 'pileIn') {
+      const p = s.pending as unknown as PendingDecision
+      s.pending = null
+      fightModule.handle(ctx, { type: 'pileIn', player: 'B', decisionId: DID, unitId: 'B:mob', placements: [] }, p)
+      fightModule.advance(ctx)
+    }
+    expect((s.pending as PendingDecision | null)?.kind).toBe('declareTargets')
+    const decl: Action = { type: 'declareTargets', player: 'B', decisionId: DID, unitId: 'B:mob', targets: [{ modelId: 'B:mob#1', weaponId: 'blu.w.choppa', targetUnitId: 'A:grunts' }] }
+    const pending = s.pending as unknown as PendingDecision
+    expect(fightModule.validate?.(s, decl, pending)).toBeNull()
+    // the victim stands 3" away when it dies: place it out of Engagement Range once B's declaration is legal
+    s.models['A:grunts#0'].pos = { x: -10, y: 0, z: -7.4 }
+    s.pending = null
+    fightModule.handle(ctx, decl, pending)
+    fightModule.advance(ctx)
+    expect(isDeferredDead(s, 'A:grunts#0')).toBe(true)
+    expect((s.pending as PendingDecision | null)?.kind).toBe('pileIn')
+    expect((s.pending as PendingDecision | null)?.player).toBe('A')
+    const pile = s.pending as unknown as Extract<PendingDecision, { kind: 'pileIn' }>
+    expect(pile.context.unitId).toBe('A:grunts')
+    const options = fightModule.legalActions?.(s, pile) as Action[]
+    const moved = options.find((a) => a.type === 'pileIn' && a.placements.length > 0)
+    expect(moved, 'a pile-in that moves the deferred model is offered').toBeDefined()
+    const start = { ...s.models['A:grunts#0'].pos }
+    act(ctx, moved as Action)
+    expect(s.models['A:grunts#0'].pos.z).toBeGreaterThan(start.z)
+    // CSM-10: after the pile-in it is in Engagement Range, so it may now attack
+    expect((s.pending as PendingDecision | null)?.kind).toBe('declareTargets')
+    expect((s.pending as unknown as Extract<PendingDecision, { kind: 'declareTargets' }>).context.weapons.map((w) => w.modelId)).toEqual(['A:grunts#0'])
+    act(ctx, { type: 'declareTargets', player: 'A', decisionId: DID, unitId: 'A:grunts', targets: [{ modelId: 'A:grunts#0', weaponId: 'red.w.blade', targetUnitId: 'B:mob' }] })
+    expect(deferredDeaths(s)).toHaveLength(0)
+    expect(s.models['A:grunts#0']).toBeUndefined()
+    expect(events.filter((e) => e.type === 'Consolidated' && e.unitId === 'A:grunts')).toHaveLength(0)
+  })
+})

@@ -60,6 +60,37 @@ export type KitId =
   | 'am-sentinel'
   | 'am-field-gun'
   | 'am-rocket-battery'
+  | 'gk-knight'
+  | 'gk-terminator'
+  | 'gk-librarian'
+  | 'gk-dreadknight'
+  | 'tau-fire-warrior'
+  | 'tau-shasui'
+  | 'tau-fireblade'
+  | 'tau-ethereal'
+  | 'tau-stealth'
+  | 'tau-ghostkeel'
+  | 'gsc-neophyte'
+  | 'gsc-neophyte-leader'
+  | 'gsc-neophyte-icon'
+  | 'gsc-neophyte-stubber'
+  | 'gsc-neophyte-seismic'
+  | 'gsc-neophyte-webber'
+  | 'gsc-acolyte'
+  | 'gsc-acolyte-leader'
+  | 'gsc-acolyte-demolitions'
+  | 'gsc-acolyte-mining'
+  | 'gsc-aberrant'
+  | 'gsc-hypermorph'
+  | 'gsc-magus'
+  | 'gsc-rockgrinder'
+  | 'cus-guard-spear'
+  | 'cus-guard-blade'
+  | 'cus-vexilla'
+  | 'cus-captain'
+  | 'cus-prosecutor'
+  | 'cus-vigilator'
+  | 'cus-praetor'
   | 'generic-infantry'
   | 'generic-heavy'
   | 'generic-monster'
@@ -79,7 +110,7 @@ export interface PaintColors {
  *  datasheet in this data set that isn't a flyer resolves to a biped). */
 export type HeadShape = 'marine-helmet' | 'terminator-helmet' | 'ork-head' | 'ork-boss-head' | 'necron-skull' | 'necron-lord' | 'sister-bob' | 'sister-hood' | 'arco-mask' | 'tyranid-head' | 'tyranid-prime-head' | 'tyranid-brute-head' | 'generic-head'
   | 'chaos-helmet' | 'chaos-sorcerer' | 'possessed-head' | 'cultist-hood'
-  | 'guard-helmet' | 'officer-cap' | 'sentinel-cab'
+  | 'guard-helmet' | 'officer-cap' | 'sentinel-cab' | 'tau-helmet' | 'tau-ethereal' | 'custodes-helm'
 export type WeaponShape =
   | 'none'
   | 'bolt-rifle'
@@ -114,6 +145,10 @@ export type WeaponShape =
   | 'plasma-pistol'
   | 'power-sword'
   | 'plasma-cannon'
+  | 'pulse-rifle'
+  | 'fusion-blaster'
+  | 'burst-cannon'
+  | 'honour-stave'
 export type ShoulderPad = 'none' | 'small' | 'large'
 
 export interface BipedConfig {
@@ -163,6 +198,8 @@ export interface ArtilleryConfig {
 export interface VehicleConfig {
   weapon: 'kustom-mega-blasta' | 'kopta-rokkits' | 'none'
   hasRotor: boolean
+  /** 'dozer' = a tracked mining crawler (Goliath Rockgrinder); default is the gyrocopter rig. */
+  style?: 'copter' | 'dozer'
 }
 
 /** Props shared by every body renderer (BipedBody / VehicleBody). Authored at unit height

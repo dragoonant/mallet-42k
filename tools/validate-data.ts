@@ -82,8 +82,33 @@ export function validateDataFile(
     return { file: relPath, schema: kind, ok: false, errors: [`invalid JSON: ${(err as Error).message}`] }
   }
 
-  const ok = Boolean(validateFn(data))
-  return { file: relPath, schema: kind, ok, errors: ok ? [] : formatErrors(validateFn.errors) }
+  const schemaOk = Boolean(validateFn(data))
+  const errors = schemaOk ? [] : formatErrors(validateFn.errors)
+  if (kind === 'combatPatrol') errors.push(...checkUnitChoices(data))
+  return { file: relPath, schema: kind, ok: errors.length === 0, errors }
+}
+
+/** Cross-reference check for a combat patrol's unitChoices (faction spec §7.1 E1). */
+export function checkUnitChoices(data: unknown): string[] {
+  const d = data as { units?: { ref?: string }[]; unitChoices?: { id: string; refs: string[]; default: string }[] }
+  const groups = d?.unitChoices
+  if (!Array.isArray(groups)) return []
+  const errors: string[] = []
+  const unitRefs = new Set((d.units ?? []).map((u) => u.ref))
+  const ids = new Set<string>()
+  const owner = new Map<string, string>()
+  for (const g of groups) {
+    if (ids.has(g.id)) errors.push(`unitChoices: duplicate group id "${g.id}"`)
+    ids.add(g.id)
+    for (const r of g.refs ?? []) {
+      if (!unitRefs.has(r)) errors.push(`unitChoices "${g.id}": ref "${r}" is not in units[].ref`)
+      const prev = owner.get(r)
+      if (prev !== undefined && prev !== g.id) errors.push(`unitChoices: ref "${r}" belongs to both "${prev}" and "${g.id}"`)
+      owner.set(r, g.id)
+    }
+    if (!(g.refs ?? []).includes(g.default)) errors.push(`unitChoices "${g.id}": default "${g.default}" is not one of refs`)
+  }
+  return errors
 }
 
 /** Validates every JSON data file under `root` (default `src/data/`). Trivially empty when there is no data yet. */

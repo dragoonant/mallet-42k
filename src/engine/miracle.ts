@@ -197,5 +197,13 @@ export const miracleHandler: DecisionHandler = {
       marks.splice(marks.indexOf(resume), 1)
       ctx.services.hooks.battleShockTest?.(ctx, unitId, source, Number(modifier))
     }
+    // RC-ADE-23: tests queued behind this offer run next, one at a time; a queued test may open its own Miracle offer
+    for (;;) {
+      if (ctx.state.pending) break
+      const q = marks.findIndex((m) => m.startsWith('bsqueue:'))
+      if (q < 0) break
+      const [unitId, source, modifier] = marks.splice(q, 1)[0].slice('bsqueue:'.length).split('|')
+      ctx.services.hooks.battleShockTest?.(ctx, unitId, source, Number(modifier))
+    }
   },
 }

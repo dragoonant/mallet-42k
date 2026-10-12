@@ -436,6 +436,26 @@ describe('Miracle die option ids and forced Battle-shock tests', () => {
     expect(hookService.battleShockTest(c2.ctx, SIS, 'some-ability')).toBe(false)
     expect(t.pending).toBeNull()
   })
+
+  it('ADE-039 RC-ADE-23: a second Sororitas unit tested while the first Miracle offer is open is queued, then offered its own die', () => {
+    const s = makeState()
+    s.players.A.miracle.dice = [6, 5]
+    placeUnit(s, SIS, { x: 0, z: 0, gap: 0.3 })
+    placeUnit(s, SAC, { x: 0, z: 8, gap: 0.3 })
+    const { ctx, events } = ctxOf(s, [1, 1, 1, 1])
+    expect(hookService.battleShockTest(ctx, SIS, 'some-ability')).toBe('pending')
+    expect(hookService.battleShockTest(ctx, SAC, 'some-ability')).toBe('pending')
+    expect(s.phaseState.marks.some((m) => m.startsWith('bsqueue:'))).toBe(true)
+    answer(ctx, 'skip')
+    expect(of(events, 'BattleShockTested')).toHaveLength(1)
+    const next = s.pending as ChooseOptionDecision
+    expect(next.context.topic).toBe('miracleDie')
+    expect(next.context.unitId).toBe(SAC)
+    answer(ctx, 'use:0')
+    expect(of(events, 'BattleShockTested')).toHaveLength(2)
+    expect(s.pending).toBeNull()
+    expect(s.phaseState.marks.some((m) => m.startsWith('bsqueue:'))).toBe(false)
+  })
 })
 
 // =====================================================================================================================
@@ -659,3 +679,39 @@ describe('Patrol Squads (E5)', () => {
 
 export type { Services, UseStratagemAction }
 void setModelPos
+
+describe('Deferred removal in the Fight phase -- pile-in (RC-ADE-10)', () => {
+  it('ADE-025 RC-ADE-10: a deferred Sacresant out of Engagement Range piles in first (3", coherency vs the live models), then fights what it now reaches', () => {
+    const s = makeState()
+    s.activePlayer = 'B'
+    s.phase = 'fight'
+    s.phaseState = emptyPhaseState()
+    placeUnit(s, SAC, s.units[SAC].models.map((_, i) => [-15, i * 1.5] as [number, number]))
+    placeUnit(s, EARC, [[-11.6, 0]])
+    s.phaseState.fight = { step: 'remaining', subStep: 'deferred', currentUnitId: EARC, fought: [], nextToSelect: 'A', counterOffensive: false }
+    const { ctx } = ctxOf(s, [4, ...SIX])
+    effectService.grant(ctx, SAC, [], { sourceAbilityId: 'ade.s.a-martyrs-death', sourceUnitId: SAC, scope: { who: 'self' }, duration: 'untilEndOfPhase' })
+    const victim = s.units[SAC].models[0]
+    s.models[victim].woundsRemaining = 1
+    attackService.destroyModel(ctx, victim, { player: 'B', unitId: EARC, modelId: null, kind: 'melee' })
+    expect(s.models[victim]?.removalDeferred).toBe(true)
+    expect(resolveDeferredActivations(ctx, EARC)).toBe('awaiting')
+    const pile = s.pending
+    expect(pile?.kind).toBe('pileIn')
+    if (pile?.kind !== 'pileIn') return
+    expect(pile.player).toBe('A')
+    expect(pile.context.unitId).toBe(SAC)
+    const options = fightModule.legalActions!(s, pile) as Action[]
+    const moved = options.find((a) => a.type === 'pileIn' && a.placements.length > 0)
+    expect(moved, 'a pile-in that moves the deferred model is offered').toBeDefined()
+    s.pending = null
+    expect(fightModule.validate!(s, { ...(moved as Action), decisionId: pile.id } as Action, pile)).toBeNull()
+    expect(fightModule.handle(ctx, { ...(moved as Action), decisionId: pile.id } as Action, pile)).toBeUndefined()
+    expect(s.models[victim].pos.x).toBeGreaterThan(-15)
+    expect(resolveDeferredActivations(ctx, EARC)).toBe('awaiting')
+    const next = s.pending as unknown as PendingDecision | null
+    expect(next?.kind).toBe('declareTargets')
+    if (next?.kind !== 'declareTargets') return
+    expect(next.context.weapons.some((w) => w.modelId === victim && w.legalTargets.includes(EARC))).toBe(true)
+  })
+})

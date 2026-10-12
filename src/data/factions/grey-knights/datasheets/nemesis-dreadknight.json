@@ -1,0 +1,26 @@
+[
+  {
+    "id": "gk.nemesis-dreadknight",
+    "faction": "grey-knights",
+    "name": "Nemesis Dreadknight",
+    "keywords": ["VEHICLE", "WALKER", "PSYKER", "IMPERIUM", "NEMESIS DREADKNIGHT"],
+    "factionKeywords": ["GREY KNIGHTS"],
+    "stats": { "M": 8, "T": 8, "Sv": 2, "W": 13, "Ld": 6, "OC": 4 },
+    "invuln": 4,
+    "composition": [
+      {
+        "modelId": "dreadknight",
+        "name": "Nemesis Dreadknight",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "oval", "mm": 120, "mm2": 92 },
+        "weapons": { "default": ["gk.w.heavy-psycannon", "gk.w.nemesis-greatsword-strike", "gk.w.nemesis-greatsword-sweep"] },
+        "figure": { "archetype": "vehicle", "kit": "generic-heavy" }
+      }
+    ],
+    "abilities": [],
+    "coreAbilities": [ { "ability": "DEADLY_DEMISE", "value": "D3" } ],
+    "damaged": { "threshold": 4, "effect": { "modifyRoll": { "roll": "hit", "value": -1 } } },
+    "points": [ { "models": 1, "points": 0 } ],
+    "figure": { "archetype": "vehicle", "kit": "generic-heavy" }
+  }
+]

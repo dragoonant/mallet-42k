@@ -12,11 +12,13 @@ import type { Pose } from './figures'
 import { DiceTray } from './dice'
 import { audio } from './audio'
 import { PresentationDirector } from './presentation'
+import { scenarioFromUrl, startScenario } from './dev/scenarios'
 import { spikeMode } from '../spike/flag'
 import { startSpikeGame } from '../spike/driver'
 import { PerfOverlay } from '../spike/PerfOverlay'
 
-const overlayLayer: CSSProperties = { position: 'absolute', inset: 0, pointerEvents: 'none' }
+// zIndex 10 puts every HUD panel above the board's drei <Html> labels (their zIndexRange is capped at 5).
+const overlayLayer: CSSProperties = { position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 10 }
 
 // Right-hand rail: the Dice Log with the dice tray stacked directly under it. The tray used to sit
 // bottom-centre, i.e. behind the decision prompt — owner playtest: "dice rolls are being done behind
@@ -78,6 +80,13 @@ export function App() {
   useEffect(() => {
     if (spike) void startSpikeGame()
   }, [spike])
+
+  // Dev/QA: `?scenario=<name>` opens straight into a test position (src/client/dev/scenarios.ts).
+  useEffect(() => {
+    const name = scenarioFromUrl()
+    if (!name) return
+    startScenario(name).then(() => { resetAll(); setScreen('game') }, (e) => console.error('[scenario]', e))
+  }, [resetAll])
 
   const gallery = useGalleryQuery()
   if (gallery.active) {

@@ -16,8 +16,8 @@
 // decision it raises mid-movement-phase is delegated to `attackService.handler`.
 //
 // Surge moves (R-5.9, e.g. Krump da Gitz!) are entirely handled by stratagems.ts (roll, flag, pushReaction) at a
-// *Shooting*-phase window (`shooting.attacksResolved`) — out of this module's reach; see `resolveSurgeMove` below,
-// exported for whichever module ends up draining `pendingReactions(state, 'surge')`.
+// *Shooting*-phase window (`shooting.attacksResolved`); shooting.ts doResolve then drains `pendingReactions(state, 'surge')`
+// through `resolveSurgeMove` below (RC-014/061).
 //
 // Transports (R-5.17–R-5.20): no Combat Patrol datasheet has one, so embark/disembark are implemented in
 // transports.ts as bookkeeping + legality predicates only — not wired into an interactive decision here. See issues.
@@ -29,12 +29,20 @@ import {
   pathCrossesModels, pathEntersEngagement, pivotCost as pivotCostFor, samplePath, whollyOnBoard,
   type Footprint, type ResolvedPlacement,
 } from '../geometry'
+import type { TimingWindowId } from '../../data/types'
 import { hookService } from '../hooks-impl'
 import { leaderService } from '../leaders'
 import { pendingReactions, consumeReaction } from '../code-hooks'
+import {
+  CULT_AMBUSH_MARKER_RADIUS, CULT_AMBUSH_REACTION_KIND, cultAmbushArrivalPlacements, cultAmbushOnMoveEnded, cultAmbushReactionMarker, cultAmbushReturnStep,
+  pendingCultAmbushReactions,
+} from '../cult-ambush'
 import { attackService } from '../attack'
+import { isBigGunsUnit, targetLegality } from './shooting'
+import { weaponService } from '../weapons'
 import { terrainService } from '../terrain'
 import { transportService } from '../transports'
+import { clearTeleport, destroyTeleportingUnit, isTeleporting } from '../teleport'
 import { notImplementedHandle, otherPlayer, type AdvanceResult, type EngineContext, type PhaseModule } from '../modules'
 import {
   boardModelsOf, boardUnitsOf, datasheetOf, deploymentZone, enemyModelsOnBoard, hasKeyword, keywordsOf, modelStats, removeModel,
@@ -43,7 +51,7 @@ import {
 import { autoDeployPlacements } from '../setup'
 import type { Action, ModelPlacement } from '../actions'
 import {
-  EngineInvariantError,
+  EngineInvariantError, type DiceRoll,
   type DeclaredTarget, type GameState, type Model, type ModelId, type MoveConstraints,
   type MoveType, type PendingDecision, type PlayerId, type Polygon, type Rejection, type UnitId, type Vec3,
 } from '../types'
@@ -63,6 +71,39 @@ function writeMark(state: GameState, key: string, value: string | null): void {
 function setMoveType(state: GameState, unitId: UnitId, mt: MoveType): void {
   for (const id of leaderService.halves(state, unitId)) state.units[id].turn.moveType = mt
 }
+// E4 (Adeptus Custodes Overawing Magnificence): which opposing unit pairs were in Engagement Range when the Movement
+// phase began — marks `erAtStart:<a>|<b>` (canonical ids, a < b), so "was within Engagement Range of that unit at the
+// start of the phase" can still be answered after the mover has fallen back
+function canonicalUnitId(state: GameState, unitId: UnitId): UnitId {
+  return state.units[unitId]?.bodyguardUnitId ?? unitId
+}
+export function snapshotEngagementAtMovementStart(state: GameState): void {
+  const units = [...boardUnitsOf(state, 'A'), ...boardUnitsOf(state, 'B')].filter((u) => !u.bodyguardUnitId)
+  for (const a of units) {
+    for (const b of units) {
+      if (a.player === b.player || a.id >= b.id) continue
+      if (leaderService.unitsInEngagement(state, a.id, b.id)) state.phaseState.marks.push(`erAtStart:${a.id}|${b.id}`)
+    }
+  }
+}
+export function engagedAtMovementStart(state: GameState, unitA: UnitId, unitB: UnitId): boolean {
+  const a = canonicalUnitId(state, unitA)
+  const b = canonicalUnitId(state, unitB)
+  const [lo, hi] = a < b ? [a, b] : [b, a]
+  return state.phaseState.marks.includes(`erAtStart:${lo}|${hi}`)
+}
+
+// E3 (Auramite Thunderbolt): re-roll kinds the unit's abilities offer on its Advance roll (mirror of the Charge roll's)
+export function collectAdvanceRerollKinds(ctx: EngineContext, unitId: UnitId, roll: DiceRoll): Set<'ones' | 'fails' | 'all' | 'oneDie'> {
+  const results = ctx.services.hooks.collect(ctx, 'onAdvanceRoll', {
+    movingUnitId: unitId,
+    roll: { purpose: 'advance', roll, dieIndex: 0, unmodified: rollSum(roll), rerolled: (roll.rerolled ?? []).length > 0 },
+  })
+  const kinds = new Set<'ones' | 'fails' | 'all' | 'oneDie'>()
+  for (const r of results) if (r.result.kind === 'roll' && r.result.reroll) kinds.add(r.result.reroll as 'ones' | 'fails' | 'all' | 'oneDie')
+  return kinds
+}
+
 function setAdvanceRoll(state: GameState, unitId: UnitId, roll: number): void {
   for (const id of leaderService.halves(state, unitId)) state.units[id].turn.advanceRoll = roll
 }
@@ -124,7 +165,7 @@ function buildMoveConstraints(state: GameState, unitId: UnitId, moveType: MoveTy
 // Escape re-validation of already-submitted placements (MOVE-011-coherency): a casualty chosen after submission may
 // break coherency of the remaining models, which is not a re-validation failure — R-2.6's end-of-turn coherency cull
 // (owned elsewhere) is what actually enforces coherency once casualties are done being picked.
-function resolveMove(state: GameState, unitId: UnitId, moveType: MoveType, placements: ModelPlacement[], opts: { skipCoherency?: boolean; distance?: number } = {}):
+function resolveMove(state: GameState, unitId: UnitId, moveType: MoveType, placements: ModelPlacement[], opts: { skipCoherency?: boolean; distance?: number; allowEngaged?: boolean } = {}):
   { rejection: Rejection } | { rejection: null; resolved: ResolvedPlacement[] } {
   const models = unitModelsForCoherency(state, unitId)
   const allowance = moveAllowance(state, unitId)
@@ -134,7 +175,7 @@ function resolveMove(state: GameState, unitId: UnitId, moveType: MoveType, place
   const enemies = enemyModelsOnBoard(state, state.units[unitId].player)
   const otherFriendly = friendlyOthers(state, unitId)
   const max = Object.values(perModel).reduce((a, b) => Math.max(a, b), 0)
-  const constraints = emptyMoveConstraints(max, { perModel, mustEndOutsideEngagement: true, coherency: !opts.skipCoherency })
+  const constraints = emptyMoveConstraints(max, { perModel, mustEndOutsideEngagement: !opts.allowEngaged, coherency: !opts.skipCoherency })
   // MOVE-019-mixedfly: FLY is a per-model property (an attached unit may mix FLY and non-FLY models). Mid-path
   // exemptions (crossing enemies / entering ER) are decided per model in checkPaths. checkPlacements takes a single
   // flag for path *measurement*, so straight-line 3D measurement is used only when every model has FLY [interp: a
@@ -151,16 +192,20 @@ function resolveMove(state: GameState, unitId: UnitId, moveType: MoveType, place
 // movement.moveStarted) and moves no model at all may end its move as it stands — otherwise a declared Normal/Advance
 // move could have no legal answer at all. The end-of-turn coherency cull (R-2.6) resolves it. Any placement that
 // actually moves a model still has to end coherent.
-function moveRejection(state: GameState, unitId: UnitId, moveType: MoveType, placements: ModelPlacement[], distance?: number): Rejection | null {
-  const r = resolveMove(state, unitId, moveType, placements, distance === undefined ? {} : { distance })
-  if (r.rejection?.code !== 'E_COHERENCY') return r.rejection
+function resolveMoveStayExempt(state: GameState, unitId: UnitId, moveType: MoveType, placements: ModelPlacement[], distance?: number): ReturnType<typeof resolveMove> {
+  const opts = distance === undefined ? {} : { distance }
+  const r = resolveMove(state, unitId, moveType, placements, opts)
+  if (r.rejection?.code !== 'E_COHERENCY') return r
   const models = unitModelsForCoherency(state, unitId)
   const stays = placements.every((p) => {
     const m = models.find((x) => x.id === p.modelId)
     return m !== undefined && Math.hypot(p.pos.x - m.pos.x, p.pos.y - m.pos.y, p.pos.z - m.pos.z) <= 1e-3
   })
-  if (!stays || isCoherent(models)) return r.rejection
-  return resolveMove(state, unitId, moveType, placements, { skipCoherency: true, ...(distance === undefined ? {} : { distance }) }).rejection
+  if (!stays || isCoherent(models)) return r
+  return resolveMove(state, unitId, moveType, placements, { skipCoherency: true, ...opts })
+}
+function moveRejection(state: GameState, unitId: UnitId, moveType: MoveType, placements: ModelPlacement[], distance?: number): Rejection | null {
+  return resolveMoveStayExempt(state, unitId, moveType, placements, distance).rejection
 }
 
 // ---------- Reactive Normal move (Tyranid Skulking Horrors, docs/spec/factions/tyranids.md 7.1 item 4) ----------
@@ -174,17 +219,54 @@ function readReactive(state: GameState): ReactiveMove | null {
 // opens a moveUnit decision {moveType:'normal'} for the unit's owner (the non-active player) with maxDistance = distance and
 // Normal-move constraints; the interrupted activation resumes afterwards (phase marks keep its place); never writes
 // unit.turn.moveType. The owner may also pass (stay put).
-export function startReactiveMove(ctx: EngineContext, unitId: UnitId, distance: number, source: string): void {
+// C6: `window` is the timing window the decision is raised under (default 'movement.unitMoved'; T'au Rapid Repositioning: 'phase.end').
+export function startReactiveMove(ctx: EngineContext, unitId: UnitId, distance: number, source: string, window: TimingWindowId = 'movement.unitMoved'): void {
   const s = ctx.state
   const unit = s.units[unitId]
   if (!unit || unit.location !== 'board' || !(distance > 0)) return
   writeMark(s, REACTIVE_KEY, JSON.stringify({ unitId, distance, source } satisfies ReactiveMove))
   const perModel: Record<ModelId, number> = Object.fromEntries(unitModelsForCoherency(s, unitId).map((m) => [m.id, distance]))
   ctx.decide({
-    kind: 'moveUnit', player: unit.player, window: 'movement.unitMoved', canPass: true,
+    kind: 'moveUnit', player: unit.player, window, canPass: true,
     context: { unitId, moveType: 'normal', advanceRoll: null },
     constraints: emptyMoveConstraints(distance, { perModel, mustEndOutsideEngagement: true, coherency: true }),
   })
+}
+
+// C6: legal actions for a reactive move decision, or null when the pending decision is not one (callers fall through)
+export function reactiveMoveLegalActions(state: GameState, pending: PendingDecision): Action[] | null {
+  if (pending.kind !== 'moveUnit') return null
+  const rv = readReactive(state)
+  return rv && rv.unitId === pending.context.unitId ? reactiveCandidates(state, pending, rv) : null
+}
+
+// C6: validation of a reactive move answer; undefined when the pending decision is not a reactive move
+export function validateReactiveMove(state: GameState, action: Action, pending: PendingDecision): Rejection | null | undefined {
+  if (pending.kind !== 'moveUnit') return undefined
+  const rv = readReactive(state)
+  if (!rv || rv.unitId !== pending.context.unitId) return undefined
+  if (action.type !== 'moveUnit') return null
+  if (action.unitId !== rv.unitId) return { code: 'E_INVALID_TARGET', reason: 'placements are for the wrong unit', details: { expected: rv.unitId } }
+  return moveRejection(state, rv.unitId, 'normal', action.placements, rv.distance)
+}
+
+// C6: applies a reactive move answer (the interrupted activation and unit.turn.moveType stay untouched); null = not a reactive move
+export function handleReactiveMove(ctx: EngineContext, action: Action, pending: PendingDecision): Rejection | void | null {
+  if (pending.kind !== 'moveUnit') return null
+  const s = ctx.state
+  const rv = readReactive(s)
+  if (!rv || rv.unitId !== pending.context.unitId) return null
+  if (action.type === 'pass') { writeMark(s, REACTIVE_KEY, null); return }
+  if (action.type !== 'moveUnit') return null
+  const result = resolveMove(s, rv.unitId, 'normal', action.placements, { distance: rv.distance })
+  if (result.rejection) return result.rejection
+  writeMark(s, REACTIVE_KEY, null)
+  for (const r of result.resolved) setModelPos(s.models[r.model.id], r.to, r.facing)
+  ctx.emit({
+    type: 'UnitMoved', unitId: rv.unitId, moveType: 'normal',
+    paths: Object.fromEntries(result.resolved.filter((r) => r.distance > EPS).map((r) => [r.model.id, r.path])), player: pending.player,
+  })
+  cultAmbushOnMoveEnded(ctx, rv.unitId)
 }
 
 function reactiveCandidates(state: GameState, pending: Extract<PendingDecision, { kind: 'moveUnit' }>, rv: ReactiveMove): Action[] {
@@ -201,6 +283,14 @@ function reactiveCandidates(state: GameState, pending: Extract<PendingDecision, 
   }
   out.push({ type: 'pass', player: pending.player, decisionId: pending.id })
   return out
+}
+
+// RC-034 (R-5.2 applied to every move): a non-FLY MONSTER/VEHICLE may not pass through another friendly MONSTER/VEHICLE.
+// Shared with charge and fight (pile-in / consolidate), which grant no exemption.
+export function crossesBigFriendly(state: GameState, model: Model, fp: Footprint, path: Vec3[], otherFriendly: Model[]): boolean {
+  const isBig = (unitId: UnitId): boolean => hasKeyword(state, unitId, 'MONSTER') || hasKeyword(state, unitId, 'VEHICLE')
+  if (!isBig(model.unitId) || hasKeyword(state, model.unitId, 'FLY')) return false
+  return pathCrossesModels(fp, path, otherFriendly.filter((m) => isBig(m.unitId)))
 }
 
 function checkPaths(state: GameState, moveType: MoveType, result: { rejection: null; resolved: ResolvedPlacement[] }, enemies: Footprint[], otherFriendly: Model[], flyOf: (m: Model) => boolean):
@@ -228,7 +318,14 @@ function checkPaths(state: GameState, moveType: MoveType, result: { rejection: n
     if (isBig(r.model.unitId) && pathCrossesModels(fp, r.path, bigFriendly)) {
       return { rejection: { code: 'E_OVERLAP', reason: `${r.model.id}'s path would cross another MONSTER/VEHICLE model`, details: { modelId: r.model.id } } }
     }
-    if (moveType === 'fallBack') continue // R-5.5: Fall Back may pass through and within ER of enemy models
+    if (moveType === 'fallBack') {
+      // R-5.5: Fall Back may pass through and within ER of enemy models. RC-010 (R-5.6): in the re-submitted move after
+      // Desperate Escape casualties, only a model that took a test may cross enemies.
+      if (readMark(state, 'mv:deResub') === '1' && !r.model.flags.desperateEscapeTested && pathCrossesModels(fp, r.path, enemies)) {
+        return { rejection: { code: 'E_OVERLAP', reason: `${r.model.id} did not take a Desperate Escape test and may not cross an enemy model`, details: { modelId: r.model.id } } }
+      }
+      continue
+    }
     if (pathEntersEngagement(fp, r.path, enemies)) {
       return { rejection: { code: 'E_ENGAGEMENT', reason: `${r.model.id}'s path would enter engagement range`, details: { modelId: r.model.id } } }
     }
@@ -263,6 +360,31 @@ function allowedMoveTypes(state: GameState, unitId: UnitId): MoveType[] {
 }
 
 // ---------- Fire Overwatch (a pushed 'overwatch' reaction targeting the just-moved unit) ----------
+// RC-015 default selection (the AI default of the fix plan; a player-facing declareTargets choice is not offered): a model
+// never spends a ONE_SHOT weapon on 6s-only Overwatch, fires its Pistols OR its other weapons (non-Pistols preferred;
+// an engaged non-MONSTER/VEHICLE unit may fire Pistols only; MONSTER/VEHICLE models fire Pistols and others together),
+// and fires one profile per profileGroup (R-6.7, SHOOT-011). Shared with charge.ts overwatch.
+export function defaultOverwatchSelection(state: GameState, all: DeclaredTarget[]): DeclaredTarget[] {
+  const isPistol = (t: DeclaredTarget): boolean => { const w = state.weapons[t.weaponId]; return !!w && weaponService.hasAbility(w, 'PISTOL') }
+  const isOneShot = (t: DeclaredTarget): boolean => { const w = state.weapons[t.weaponId]; return !!w && w.abilities.some((a) => a.ability === 'ONE_SHOT') }
+  const out: DeclaredTarget[] = []
+  const modelIds = [...new Set(all.map((t) => t.modelId))]
+  for (const mid of modelIds) {
+    let mine = all.filter((t) => t.modelId === mid && !isOneShot(t))
+    const unitId = state.models[mid]?.unitId
+    const big = !!unitId && isBigGunsUnit(state, unitId)
+    const engaged = !!unitId && leaderService.inEngagementWithEnemy(state, unitId)
+    if (!big && engaged) mine = mine.filter(isPistol) // engaged non-MONSTER/VEHICLE: Pistols only
+    else if (!big && mine.some((t) => !isPistol(t))) mine = mine.filter((t) => !isPistol(t))
+    const groups = new Set<string>()
+    for (const t of mine) {
+      if (t.profileGroup) { if (groups.has(t.profileGroup)) continue; groups.add(t.profileGroup) }
+      out.push(t)
+    }
+  }
+  return out
+}
+
 export function overwatchTargets(state: GameState, shooterUnitId: UnitId, targetUnitId: UnitId): DeclaredTarget[] {
   const out: DeclaredTarget[] = []
   for (const half of leaderService.halves(state, shooterUnitId)) {
@@ -273,11 +395,14 @@ export function overwatchTargets(state: GameState, shooterUnitId: UnitId, target
         if (!w || w.kind !== 'ranged') continue
         // [ONE SHOT]: a weapon already fired this battle is never a legal Overwatch choice either
         if (w.abilities.some((a) => a.ability === 'ONE_SHOT') && m.oneShotUsed.includes(wid)) continue
+        if (!weaponService.isAvailable(state, m.id, wid)) continue // C4
+        // R-6.22: "as though it were your Shooting phase" — each weapon needs range + line of sight from its own model
+        if (targetLegality(state, half, m.id, weaponService.effectiveWeapon(state, m.id, wid), targetUnitId)) continue
         out.push({ modelId: m.id, weaponId: wid, targetUnitId, profileGroup: w.profileGroup, attacks: null })
       }
     }
   }
-  return out
+  return defaultOverwatchSelection(state, out)
 }
 
 function drainOverwatch(ctx: EngineContext, moverUnitId: UnitId): AdvanceResult {
@@ -291,7 +416,7 @@ function drainOverwatch(ctx: EngineContext, moverUnitId: UnitId): AdvanceResult 
     consumeReaction(ctx.state, 'overwatch', req.unitId)
     const targets = overwatchTargets(ctx.state, req.unitId, moverUnitId)
     if (targets.length === 0) continue
-    attackService.begin(ctx, { kind: 'ranged', attackerUnitId: req.unitId, overwatch: true, targets })
+    attackService.begin(ctx, { kind: 'ranged', attackerUnitId: req.unitId, overwatch: true, targets, overwatchHitOn: hookService.overwatchHitOnFor!(ctx.state, req.unitId, req.stratagemId) })
   }
 }
 
@@ -301,7 +426,7 @@ const ATTACK_CHOOSE_TOPICS = new Set(['saveType', 'hazardousCasualty', 'rerollOf
 // resolution of an R-5.9 surge move (Krump da Gitz!) — translate the whole unit toward `towardUnitId` by up to
 // `distance`, stopping short of engagement range. [interp: real per-model "as close as possible" pathing, allowing a
 // unit to fan out around obstacles, is not attempted — a straight rigid translation toward the nearest point of the
-// target is used instead, validated the same way as any other move]
+// target is the starting point, then RC-013 pushes each model further toward its nearest target model]
 export function resolveSurgeMove(ctx: EngineContext, unitId: UnitId, distance: number, towardUnitId: UnitId | null): boolean {
   const state = ctx.state
   const unit = state.units[unitId]
@@ -327,8 +452,7 @@ export function resolveSurgeMove(ctx: EngineContext, unitId: UnitId, distance: n
   // somewhere with no surface, and it stays illegal for every larger travel along the same straight line (it never
   // becomes legal again further out) — so a binary search for the largest legal travel finds the true closest legal
   // spot instead of an arbitrary halved fraction.
-  const attempt = (travel: number): { rejection: null; resolved: ResolvedPlacement[] } | null => {
-    const placements: ModelPlacement[] = models.map((m) => ({ modelId: m.id, pos: { x: m.pos.x + dx * travel, y: m.pos.y, z: m.pos.z + dz * travel } }))
+  const validate = (placements: ModelPlacement[]): { rejection: null; resolved: ResolvedPlacement[] } | null => {
     const constraints = emptyMoveConstraints(distance, { mustEndOutsideEngagement: true, coherency: true })
     const result = checkPlacements({ unitModels: models, placements, constraints, otherFriendly, enemies, board: state.board })
     if (result.rejection) return null
@@ -343,6 +467,8 @@ export function resolveSurgeMove(ctx: EngineContext, unitId: UnitId, distance: n
     }
     return result
   }
+  const attempt = (travel: number) =>
+    validate(models.map((m) => ({ modelId: m.id, pos: { x: m.pos.x + dx * travel, y: m.pos.y, z: m.pos.z + dz * travel } })))
   let best = attempt(0)
   if (!best) return false // can't even legally stay put (already-engaged / already-shocked is checked above)
   const fullAttempt = attempt(distance)
@@ -356,12 +482,49 @@ export function resolveSurgeMove(ctx: EngineContext, unitId: UnitId, distance: n
       if (midResult) { lo = mid; best = midResult } else { hi = mid }
     }
   }
+  // RC-013 (R-5.9 "as close as possible"): the rigid result is only the starting point; each model then pushes on toward
+  // its nearest target model as far as its own distance allowance, coherency, Engagement Range and the path checks allow
+  // (same binary search), closest-to-target models first.
+  if (towardUnitId) {
+    const targetModels = unitModels(state, towardUnitId).filter((t) => state.units[t.unitId]?.location === 'board')
+    const nearest = (p: Vec3): { t: Model; d: number } | null => {
+      let out: { t: Model; d: number } | null = null
+      for (const t of targetModels) { const d = dist2D(p, t.pos); if (!out || d < out.d) out = { t, d } }
+      return out
+    }
+    let cur: ModelPlacement[] = best.resolved.map((r) => ({ modelId: r.model.id, pos: r.to, facing: r.facing }))
+    const order = [...models].sort((a, b) => (nearest(a.pos)?.d ?? 0) - (nearest(b.pos)?.d ?? 0))
+    for (const m of order) {
+      const here = cur.find((p) => p.modelId === m.id)
+      const near = here ? nearest(here.pos) : null
+      if (!here || !near || near.d <= EPS) continue
+      const ux = (near.t.pos.x - here.pos.x) / near.d, uz = (near.t.pos.z - here.pos.z) / near.d
+      const withPos = (t: number): ModelPlacement[] => cur.map((p) => (p.modelId === m.id ? { ...p, pos: { x: here.pos.x + ux * t, y: here.pos.y, z: here.pos.z + uz * t } } : p))
+      const maxStep = Math.max(0, distance - dist2D(m.pos, here.pos))
+      if (maxStep <= 1e-3) continue
+      let ok = validate(withPos(maxStep)) ? maxStep : 0
+      if (ok === 0) {
+        let lo = 0, hi = maxStep
+        for (let i = 0; i < 30 && hi - lo > 1e-3; i++) {
+          const mid = (lo + hi) / 2
+          if (validate(withPos(mid))) lo = mid; else hi = mid
+        }
+        ok = lo
+      }
+      if (ok > 1e-3) {
+        const next = withPos(ok)
+        const res = validate(next)
+        if (res) { cur = next; best = res }
+      }
+    }
+  }
   for (const r of best.resolved) setModelPos(state.models[r.model.id], r.to, r.facing)
   for (const id of leaderService.halves(state, unitId)) state.units[id].turn.surgeMovedThisPhase = true
   ctx.emit({
     type: 'UnitMoved', unitId, moveType: 'surge',
     paths: Object.fromEntries(best.resolved.filter((r) => r.distance > EPS).map((r) => [r.model.id, r.path])), player: unit.player,
   })
+  cultAmbushOnMoveEnded(ctx, unitId)
   return true
 }
 
@@ -401,16 +564,18 @@ function eligibleArrivals(state: GameState, player: PlayerId): UnitId[] {
   const out: UnitId[] = []
   for (const u of Object.values(state.units)) {
     if (u.player !== player || u.location !== 'reserves' || seen.has(u.id)) continue
-    if (u.bodyguardUnitId) continue // leader half of an attached pair: represented by its bodyguard (canonical) id
+    if (u.bodyguardUnitId && state.units[u.bodyguardUnitId] && state.units[u.bodyguardUnitId].location !== 'destroyed' && state.units[u.bodyguardUnitId].models.length > 0) continue // leader half of an attached pair: represented by its bodyguard (canonical) id
     if (transportService.transportOf(state, u.id)) continue
-    if (state.round < 2 || state.round > 3) continue
+    // GRE-2.3: a Teleport Assault unit arrives in any round; every other Reserves unit only in rounds 2-3
+    if (!isTeleporting(state, u.id) && (state.round < 2 || state.round > 3)) continue
     const halves = reservesHalves(state, u.id)
     const groupIds = halves.length > 0 ? halves : [u.id]
     for (const id of groupIds) seen.add(id)
     if (u.deepStrikeWith) seen.add(u.deepStrikeWith)
     out.push(u.id)
   }
-  return out.sort()
+  // GRE-2.2: teleporting units are mandatory and come first
+  return [...out.filter((id) => isTeleporting(state, id)).sort(), ...out.filter((id) => !isTeleporting(state, id)).sort()]
 }
 
 // R-5.14: any Reserves unit not on the battlefield at the end of round 3 is destroyed. `endOfRound3` is set once the
@@ -424,6 +589,8 @@ function cullStrandedReserves(ctx: EngineContext, endOfRound3 = false): void {
     if (!u || u.location !== 'reserves') return
     // C3: a unit spawned by Send in the Next Wave never waits in Reserves (it arrives at once), so it is not culled
     if (pendingReactions(s, 'nextWave').some((r) => r.unitId === unitId)) return
+    // Cult Ambush: a returning copy is set up at once as well
+    if (pendingCultAmbushReactions(s).some((r) => r.unitId === unitId)) return
     const player = u.player
     ctx.emit({ type: 'UnitLostInReserves', unitId, player })
     let destroyed = false
@@ -431,12 +598,17 @@ function cullStrandedReserves(ctx: EngineContext, endOfRound3 = false): void {
       destroyed = removeModel(s, mid)
       ctx.emit({ type: 'ModelDestroyed', unitId, modelId: mid, byPlayer: null, byUnitId: null, byModelId: null, kind: 'other', player })
     }
-    if (destroyed) ctx.emit({ type: 'UnitDestroyed', unitId, byPlayer: null, byUnitId: null, byModelId: null, kind: 'other', player })
+    if (destroyed) {
+      ctx.emit({ type: 'UnitDestroyed', unitId, byPlayer: null, byUnitId: null, byModelId: null, kind: 'other', player })
+      // CSM-06: a stranded unit counts as destroyed for mission rules (Marked for Execution on a stranded Warlord)
+      ctx.services.missions.unitDestroyed?.(ctx, { unitId, byPlayer: null, byUnitId: null, byModelId: null })
+    }
   }
   for (const u of Object.values(s.units)) {
     if (u.location !== 'reserves') continue
     const transportId = transportService.transportOf(s, u.id)
     if (transportId !== null && s.units[transportId]?.location === 'reserves') continue // culled below with its transport
+    if (isTeleporting(s, u.id)) continue // GRE-2.3: Teleport Assault units are never culled (destroyed at battle end instead)
     destroyStrandedUnit(u.id)
     // R-5.14/R-5.20: a transport destroyed here (or already dead, e.g. removed mid-game) never leaves its own
     // passengers embarked in limbo — they go down with it too.
@@ -450,7 +622,18 @@ function nextWaveZone(state: GameState, player: PlayerId): Polygon {
   return battlefieldEdgeStrip(state.board, deploymentZone(state, player), 9)
 }
 
-function resolveArrival(state: GameState, groupIds: UnitId[], placements: ModelPlacement[], via: 'deepStrike' | 'rapidIngress' | 'strategicReserves' | 'nextWave' = 'deepStrike'):
+type ArrivalVia = 'deepStrike' | 'rapidIngress' | 'strategicReserves' | 'nextWave' | 'teleportAssault' | 'cultAmbush'
+
+// Cult Ambush: the marker circle the returning unit must touch (written when its arrival decision is raised)
+function arrivalMarker(state: GameState): Vec3 | null {
+  const raw = readMark(state, 'mv:arriveMarker')
+  return raw === null ? null : (JSON.parse(raw) as Vec3)
+}
+function cultAmbushArrivalConstraints(marker: Vec3 | null): MoveConstraints {
+  return emptyMoveConstraints(9999, { minDistanceFromEnemies: 9, coherency: false, mustTouch: marker ? { pos: marker, radius: CULT_AMBUSH_MARKER_RADIUS } : null })
+}
+
+function resolveArrival(state: GameState, groupIds: UnitId[], placements: ModelPlacement[], via: ArrivalVia = 'deepStrike'):
   { rejection: Rejection } | { rejection: null; resolved: ResolvedPlacement[] } {
   const models = groupIds.flatMap((id) => unitModels(state, id))
   const player = state.units[groupIds[0]].player
@@ -460,7 +643,9 @@ function resolveArrival(state: GameState, groupIds: UnitId[], placements: ModelP
     ? strategicReservesConstraints(state, player)
     : via === 'nextWave'
       ? emptyMoveConstraints(9999, { region: nextWaveZone(state, player), mustEndOutsideEngagement: true, coherency: false })
-      : emptyMoveConstraints(9999, { minDistanceFromEnemies: 9, coherency: false })
+      : via === 'cultAmbush'
+        ? cultAmbushArrivalConstraints(arrivalMarker(state))
+        : emptyMoveConstraints(9999, { minDistanceFromEnemies: 9, coherency: false })
   const result = checkPlacements({ unitModels: models, placements, constraints, otherFriendly, enemies, board: state.board })
   if (result.rejection) return result
   // MOVE-021-terrain/air: a Deep Strike (or Rapid Ingress) arrival is still an "end a move here" placement — it may
@@ -499,6 +684,7 @@ function validateArrival(state: GameState, action: Action, pending: Extract<Pend
   if (action.toReserves) {
     // a Send in the Next Wave copy must be set up at once (it has no Reserves to wait in)
     if (readMark(state, 'mv:arriveVia') === 'nextWave') return { code: 'E_NOT_AN_OPTION', reason: 'a Next Wave unit must be set up now; it cannot go to Reserves' }
+    if (readMark(state, 'mv:arriveVia') === 'cultAmbush') return { code: 'E_NOT_AN_OPTION', reason: 'a Cult Ambush return must be set up now; it cannot go to Reserves' }
     return null
   }
   const groupIds = pending.context.unitIds
@@ -506,12 +692,24 @@ function validateArrival(state: GameState, action: Action, pending: Extract<Pend
   const provided = new Set(action.placements.map((p) => p.modelId))
   for (const id of needed) if (!provided.has(id)) return { code: 'E_OUT_OF_RANGE', reason: `arrival must place every model of ${groupIds.join(' & ')} together`, details: { missing: id } }
   for (const id of provided) if (!needed.has(id)) return { code: 'E_SCHEMA', reason: `model ${id} is not part of this arrival` }
-  const r = resolveArrival(state, groupIds, action.placements, (readMark(state, 'mv:arriveVia') ?? 'deepStrike') as 'deepStrike' | 'rapidIngress' | 'strategicReserves' | 'nextWave')
+  const r = resolveArrival(state, groupIds, action.placements, (readMark(state, 'mv:arriveVia') ?? 'deepStrike') as ArrivalVia)
   return r.rejection
 }
 
-function raiseArrivalDecision(ctx: EngineContext, unitId: UnitId, player: PlayerId, via: 'deepStrike' | 'rapidIngress' | 'strategicReserves' | 'nextWave'): void {
+function raiseArrivalDecision(ctx: EngineContext, unitId: UnitId, player: PlayerId, via: ArrivalVia, marker: Vec3 | null = null): void {
   const s = ctx.state
+  if (via === 'cultAmbush') {
+    // Cult Ambush: one freshly spawned copy, Deep Strike rules plus one model touching the marker
+    writeMark(s, 'mv:arriveGroup', JSON.stringify([unitId]))
+    writeMark(s, 'mv:arriveVia', via)
+    writeMark(s, 'mv:arriveMarker', marker ? JSON.stringify(marker) : null)
+    ctx.decide({
+      kind: 'deployUnit', player, window: 'movement.reinforcements', canPass: false,
+      context: { unitIds: [unitId], zone: boardPolygon(s), infiltrators: [], reservesAllowed: [] },
+      constraints: cultAmbushArrivalConstraints(marker),
+    })
+    return
+  }
   if (via === 'nextWave') {
     // C3: one freshly spawned unit; it must be placed (no going back to Reserves)
     writeMark(s, 'mv:arriveGroup', JSON.stringify([unitId]))
@@ -570,10 +768,19 @@ function doReinforcementsStep(ctx: EngineContext): AdvanceResult {
     const head = queue.find((id) => s.units[id]?.location === 'reserves')
     writeMark(s, 'mv:arriveQueue', JSON.stringify(head === undefined ? [] : queue.slice(queue.indexOf(head) + 1)))
     if (head !== undefined) {
-      raiseArrivalDecision(ctx, head, s.activePlayer, reserveRouteFor(s, head))
+      raiseArrivalDecision(ctx, head, s.activePlayer, isTeleporting(s, head) ? 'teleportAssault' : reserveRouteFor(s, head))
       return 'pending'
     }
   }
+  // Genestealer Cults: the non-active player's Cult Ambush markers, after every Reinforcements arrival and before Rapid Ingress
+  const ambushes = pendingCultAmbushReactions(s)
+  if (ambushes.length > 0) {
+    const req = ambushes[0]
+    consumeReaction(s, CULT_AMBUSH_REACTION_KIND, req.unitId)
+    raiseArrivalDecision(ctx, req.unitId, req.player, 'cultAmbush', cultAmbushReactionMarker(req))
+    return 'pending'
+  }
+  if (cultAmbushReturnStep(ctx) === 'pending') return 'pending'
   if (ctx.window('movement.end', 'end', ctx.order.active())) return 'pending'
   const reqs = pendingReactions(s, 'rapidIngress')
   if (reqs.length > 0) {
@@ -603,6 +810,8 @@ function finishUnit(state: GameState, unitId: UnitId, extraIds: UnitId[] = []): 
   writeMark(state, 'mv:deRolled', null)
   writeMark(state, 'mv:deRemaining', null)
   writeMark(state, 'mv:deGroup', null)
+  writeMark(state, 'mv:deFails', null)
+  writeMark(state, 'mv:deResub', null)
 }
 
 function doSelect(ctx: EngineContext): 'pending' | 'declare' | 'reinforcements' {
@@ -647,8 +856,32 @@ function doDeclare(ctx: EngineContext): 'pending' | 'move' | 'select' {
     return 'select'
   }
   if (unit.turn.moveType === 'advance' && unit.turn.advanceRoll === null) {
-    const roll = ctx.rollOnce(`advance:${unitId}`, { purpose: 'advance', player: unit.player, sides: 6, count: 1, mode: 'sum', unitId })
+    let roll = ctx.rollOnce(`advance:${unitId}`, { purpose: 'advance', player: unit.player, sides: 6, count: 1, mode: 'sum', unitId })
     if (roll === null) return 'pending'
+    // E3: an ability re-roll of the Advance roll (a die already re-rolled is never re-rolled again, R-1.6). The roll never
+    // "fails", so ones/fails kinds re-roll a 1 automatically and 'all' is an optional offer.
+    if ((roll.rerolled ?? []).length === 0) {
+      const kinds = collectAdvanceRerollKinds(ctx, unitId, roll)
+      if (kinds.size > 0) {
+        if (kinds.has('all')) {
+          const offerKey = `mv:advRerollOffered:${unitId}`
+          if (!ctx.marked(offerKey)) {
+            ctx.once(offerKey)
+            ctx.decide({
+              kind: 'chooseOption', player: unit.player, window: 'movement.moveStarted', canPass: false,
+              context: { topic: 'rerollOffer', unitId, abilityId: null, data: { rollId: roll.id, dieIndexes: [0], purpose: 'advance' } },
+              options: [
+                { id: 'reroll', label: 'Re-roll', action: { type: 'chooseOption', player: unit.player, decisionId: '', optionId: 'reroll' } },
+                { id: 'keep', label: 'Keep', action: { type: 'chooseOption', player: unit.player, decisionId: '', optionId: 'keep' } },
+              ],
+            })
+            return 'pending'
+          }
+        } else if (rollSum(roll) === 1) {
+          roll = ctx.reroll(roll, [0], 'advanceRoll')
+        }
+      }
+    }
     // C6: halveRoll:'advance' effects (Artillery Strike) and onAdvanceRoll modifiers adjust the roll before it is added to M
     const advance = hookService.advanceRollFor(s, unitId, rollSum(roll))
     setAdvanceRoll(s, unitId, advance)
@@ -679,7 +912,7 @@ function doMove(ctx: EngineContext): 'pending' | 'select' {
   if (!unitId) throw new EngineInvariantError('movement: move step with no current unit')
   const unit = s.units[unitId]
   const placementsRaw = readMark(s, 'mv:placements')
-  if (unit.location !== 'board' && placementsRaw === null) {
+  if (unit.location !== 'board' && placementsRaw === null && readMark(s, 'mv:deResub') === null) {
     // the tracked half was wiped out (e.g. Fire Overwatch during the moveStarted window) before it ever submitted a
     // placement — MOVE-011-leader's stale-link bug applies here too: detach before finishing so a surviving attached
     // partner's bodyguardUnitId/attachedLeaderId doesn't keep pointing at a destroyed unit. (Once placements *have*
@@ -692,6 +925,13 @@ function doMove(ctx: EngineContext): 'pending' | 'select' {
   }
   const moveType = unit.turn.moveType as MoveType
   if (placementsRaw === null) {
+    // R-5.5b: a declared Fall Back left with no legal end (Overwatch casualties at movement.moveStarted) reverts to Remain Stationary
+    if (moveType === 'fallBack' && readMark(s, 'mv:deResub') === null && moveUnitCandidatesFor(s, unitId, 'fallBack', unit.player, '__stuck__').length === 0) {
+      setMoveType(s, unitId, 'stationary')
+      ctx.emit({ type: 'UnitRemainedStationary', unitId, player: unit.player })
+      finishUnit(s, unitId)
+      return 'select'
+    }
     ctx.decide({
       kind: 'moveUnit', player: unit.player, window: 'movement.unitMoved', canPass: false,
       context: { unitId, moveType, advanceRoll: unit.turn.advanceRoll },
@@ -704,7 +944,11 @@ function doMove(ctx: EngineContext): 'pending' | 'select' {
   // coherency check here — a casualty picked after submission may break coherency of what's left, which is not a
   // re-validation failure of the *original* (fully coherent) submission; R-2.6's end-of-turn cull handles it.
   const placements: ModelPlacement[] = (JSON.parse(placementsRaw) as ModelPlacement[]).filter((p) => s.models[p.modelId])
-  const result = resolveMove(s, unitId, moveType, placements, { skipCoherency: true })
+  // RC-010: the re-submitted survivors' move (mv:deResub = '1') must end coherent; the original submission is replayed
+  // without the coherency check only when no legal re-submission exists (mv:deResub = '0') or no casualty occurred
+  const result = readMark(s, 'mv:deResub') === '1'
+    ? resolveMoveStayExempt(s, unitId, moveType, placements)
+    : resolveMove(s, unitId, moveType, placements, { skipCoherency: true })
   if (result.rejection) throw new EngineInvariantError('movement: stored placements failed re-validation', { rejection: result.rejection })
   const resolved = result.resolved
 
@@ -726,6 +970,7 @@ function doMove(ctx: EngineContext): 'pending' | 'select' {
       const fails = roll.final.filter((d) => d <= 2).length
       ctx.emit({ type: 'DesperateEscapeRolled', unitId, dice: roll.dice, casualties: fails, player: unit.player })
       writeMark(s, 'mv:deRemaining', String(fails))
+      writeMark(s, 'mv:deFails', String(fails))
     }
   }
 
@@ -744,6 +989,22 @@ function doMove(ctx: EngineContext): 'pending' | 'select' {
     }
   }
 
+  // RC-010 (R-5.6): once the casualties are removed the survivors make their Fall Back move for real and must end
+  // coherent, so ask the owner to re-submit it (tested models only may cross enemies, see checkPaths)
+  if (Number(readMark(s, 'mv:deFails') ?? '0') > 0 && readMark(s, 'mv:deResub') === null && unit.location === 'board' && unitModelsForCoherency(s, unitId).length > 0) {
+    writeMark(s, 'mv:deResub', '1')
+    if (moveUnitCandidatesFor(s, unitId, 'fallBack', unit.player, '__resub__').length > 0) {
+      writeMark(s, 'mv:placements', null)
+      ctx.decide({
+        kind: 'moveUnit', player: unit.player, window: 'movement.unitMoved', canPass: false,
+        context: { unitId, moveType, advanceRoll: unit.turn.advanceRoll },
+        constraints: buildMoveConstraints(s, unitId, moveType),
+      })
+      return 'pending'
+    }
+    writeMark(s, 'mv:deResub', '0')
+  }
+
   // MOVE-011-leader: apply every surviving model's placement (bodyguard and any attached leader alike) even when
   // the tracked half (`unitId`) was itself wiped out by Desperate Escape — only then detach, so the two units are
   // still treated as one combined unit (unitModelsForCoherency/resolveMove above) for as long as this move lasts.
@@ -754,6 +1015,7 @@ function doMove(ctx: EngineContext): 'pending' | 'select' {
     paths: Object.fromEntries(resolved.filter((r) => r.distance > EPS && s.models[r.model.id]).map((r) => [r.model.id, r.path])),
     player: unit.player,
   })
+  cultAmbushOnMoveEnded(ctx, unitId)
   leaderService.detach(ctx, unitId)
   finishUnit(s, unitId, groupIds)
   writeMark(s, 'mv:windowUnit', unitId)
@@ -811,6 +1073,7 @@ function moveUnitCandidatesFor(state: GameState, unitId: UnitId, moveType: MoveT
 }
 
 function moveUnitCandidates(state: GameState, pending: Extract<PendingDecision, { kind: 'moveUnit' }>): Action[] {
+  // a Fall Back with no legal end never reaches this decision (doMove reverts it to Remain Stationary, R-5.5b)
   return moveUnitCandidatesFor(state, pending.context.unitId, pending.context.moveType, pending.player, pending.id)
 }
 
@@ -827,6 +1090,14 @@ function arrivalCandidates(state: GameState, pending: Extract<PendingDecision, {
   const minX = Math.min(...poly.map((p) => p.x)), maxX = Math.max(...poly.map((p) => p.x))
   const minZ = Math.min(...poly.map((p) => p.z)), maxZ = Math.max(...poly.map((p) => p.z))
   const out: Action[] = []
+  if (readMark(state, 'mv:arriveVia') === 'cultAmbush') {
+    const marker = arrivalMarker(state)
+    const auto = marker ? cultAmbushArrivalPlacements(state, models, pending.player, marker) : null
+    if (auto) {
+      const action: Action = { type: 'deployUnit', player: pending.player, decisionId: pending.id, unitId: groupIds[0], placements: auto }
+      if (validateArrival(state, action, pending) === null) return [action]
+    }
+  }
   if (nextWave) {
     const auto = autoDeployPlacements(models, poly, boardModelsOf(state, pending.player), enemyModelsOnBoard(state, pending.player))
     if (auto) {
@@ -841,7 +1112,7 @@ function arrivalCandidates(state: GameState, pending: Extract<PendingDecision, {
       if (validateArrival(state, action, pending) === null) out.push(action)
     }
   }
-  if (out.length === 0) out.push({ type: 'deployUnit', player: pending.player, decisionId: pending.id, unitId: groupIds[0], placements: [], toReserves: true })
+  if (out.length === 0 && readMark(state, 'mv:arriveVia') !== 'cultAmbush') out.push({ type: 'deployUnit', player: pending.player, decisionId: pending.id, unitId: groupIds[0], placements: [], toReserves: true })
   return out
 }
 
@@ -860,6 +1131,7 @@ export const movementModule: PhaseModule = {
   enter(ctx) {
     ctx.state.step = 'select'
     ctx.state.phaseState.activated = []
+    snapshotEngagementAtMovementStart(ctx.state)
   },
   advance(ctx) {
     const s = ctx.state
@@ -932,6 +1204,7 @@ export const movementModule: PhaseModule = {
           type: 'UnitMoved', unitId: rv.unitId, moveType: 'normal',
           paths: Object.fromEntries(result.resolved.filter((r) => r.distance > EPS).map((r) => [r.model.id, r.path])), player: pending.player,
         })
+        cultAmbushOnMoveEnded(ctx, rv.unitId)
         return
       }
       writeMark(s, 'mv:placements', JSON.stringify(action.placements))
@@ -950,10 +1223,15 @@ export const movementModule: PhaseModule = {
     }
     if (pending.kind === 'deployUnit' && action.type === 'deployUnit') {
       const groupIds = pending.context.unitIds
-      const via = (readMark(s, 'mv:arriveVia') ?? 'deepStrike') as 'deepStrike' | 'rapidIngress' | 'strategicReserves' | 'nextWave'
+      const via = (readMark(s, 'mv:arriveVia') ?? 'deepStrike') as ArrivalVia
       writeMark(s, 'mv:arriveVia', null)
       writeMark(s, 'mv:arriveGroup', null)
-      if (action.toReserves) return
+      writeMark(s, 'mv:arriveMarker', null)
+      if (action.toReserves) {
+        // GRE-2.6: declining the mandatory Teleport Assault arrival destroys the unit
+        if (via === 'teleportAssault') destroyTeleportingUnit(ctx, groupIds[0])
+        return
+      }
       const result = resolveArrival(s, groupIds, action.placements, via)
       if (result.rejection) throw new EngineInvariantError('movement: stored arrival placements failed re-validation', { rejection: result.rejection })
       for (const r of result.resolved) setModelPos(s.models[r.model.id], r.to, r.facing)
@@ -964,9 +1242,22 @@ export const movementModule: PhaseModule = {
           s.units[id].turn.moveType = 'normal'
           s.units[id].turn.arrivedThisTurn = true
         }
-        ctx.emit({ type: 'ReinforcementsArrived', unitId: uid, via, player: u.player })
+        // GEN-2.3: a Cult Ambush return is set up "using Deep Strike", so the event says so (no events.ts change)
+        ctx.emit({ type: 'ReinforcementsArrived', unitId: uid, via: via === 'cultAmbush' ? 'deepStrike' : via, player: u.player })
+        if (via === 'teleportAssault') clearTeleport(s, uid)
       }
+      // GEN-2.2: reinforcements count as a move, so an arrival within 9" of an enemy Cult Ambush marker removes it
+      for (const uid of groupIds) cultAmbushOnMoveEnded(ctx, uid)
       writeMark(s, 'mv:justArrived', JSON.stringify(groupIds))
+      return
+    }
+    if (!s.phaseState.attack && pending.kind === 'chooseOption' && pending.context.topic === 'rerollOffer' && action.type === 'chooseOption') {
+      if (action.optionId === 'reroll') {
+        const data = pending.context.data as { rollId: string; dieIndexes: number[] }
+        const roll = s.phaseState.lastRoll
+        if (!roll || roll.id !== data.rollId) throw new EngineInvariantError('rerollOffer: roll is no longer current', { rollId: data.rollId })
+        ctx.reroll(roll, data.dieIndexes, 'advanceRoll')
+      }
       return
     }
     if (s.phaseState.attack && (pending.kind === 'allocateAttack' || (pending.kind === 'chooseOption' && ATTACK_CHOOSE_TOPICS.has(pending.context.topic)))) {

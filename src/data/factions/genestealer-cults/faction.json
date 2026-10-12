@@ -1,0 +1,23 @@
+{
+  "id": "genestealer-cults",
+  "name": "Genestealer Cults",
+  "factionKeyword": "GENESTEALER CULTS",
+  "armyRule": "gsc.a.cult-ambush",
+  "detachments": [
+    {
+      "id": "gsc.d.combat-patrol",
+      "name": "Combat Patrol",
+      "rule": "gsc.a.cult-ambush",
+      "stratagems": ["gsc.s.defend-the-magus", "gsc.s.lurking-killers", "gsc.s.return-to-the-shadows"],
+      "enhancements": ["gsc.e.psionic-shield", "gsc.e.resonance-stave"]
+    }
+  ],
+  "paintScheme": {
+    "primary": "#c79a2e",
+    "secondary": "#5d3a8c",
+    "trim": "#a8492f",
+    "metal": "#8b8f94",
+    "decal": "#e9e2c8"
+  },
+  "combatPatrols": ["gsc.cp.hand-of-the-magus"]
+}

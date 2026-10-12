@@ -1,0 +1,82 @@
+[
+  {
+    "id": "tau.a.for-the-greater-good",
+    "name": "For the Greater Good",
+    "text": "When this unit is picked to shoot in your Shooting phase, you may name another friendly unit with this ability that could also shoot as its Observer, and an enemy unit both can see as the Spotted unit. For the phase, your unit's attacks on the Spotted unit have Ballistic Skill improved by 1 (and ignore cover if the Observer has MARKERLIGHT); attacks on any other enemy unit have it worsened by 1.",
+    "trigger": "always",
+    "effect": { "when": { "weaponType": "ranged" }, "ignoreCover": true },
+    "scope": { "who": "self" },
+    "code": "forTheGreaterGood",
+    "params": { "pickWindow": "shooting.unitSelected", "pickTopic": "abilityChoice", "marker": "MARKERLIGHT" }
+  },
+  {
+    "id": "tau.a.forward-observers",
+    "name": "Forward Observers",
+    "text": "While this unit is the Observer for a friendly unit, ranged attacks by that unit against the Spotted unit re-roll wound rolls of 1 until the end of the phase.",
+    "trigger": "woundRoll",
+    "effect": { "reroll": "ones" },
+    "scope": { "who": "friendly" },
+    "code": "forwardObservers"
+  },
+  {
+    "id": "tau.a.coordinated-leadership",
+    "name": "Coordinated Leadership",
+    "text": "At the end of your Command phase, if this model is on the battlefield, roll one D6: on a 4 or more you gain 1 Command point.",
+    "trigger": "phaseEnd",
+    "when": { "phase": "command", "ownTurn": true },
+    "code": "coordinatedLeadership",
+    "params": { "on": 4, "cp": 1 }
+  },
+  {
+    "id": "tau.a.hover-drone",
+    "name": "Hover Drone",
+    "text": "The bearer rides a hover drone: it can fly and has a Move characteristic of 10 inches.",
+    "trigger": "always",
+    "effect": { "setStat": { "stat": "M", "value": 10 } },
+    "scope": { "who": "self" }
+  },
+  {
+    "id": "tau.a.volley-fire",
+    "name": "Volley Fire",
+    "text": "While this model leads a unit, every ranged weapon carried by models in that unit has +1 Attacks.",
+    "trigger": "always",
+    "when": { "leaderAttached": true },
+    "effect": { "when": { "weaponType": "ranged" }, "modifyStat": { "stat": "A", "value": 1 } },
+    "scope": { "who": "self" }
+  },
+  {
+    "id": "tau.a.cover-fire",
+    "name": "Cover Fire",
+    "text": "While this unit is within range of an objective marker you control, its Fire Overwatch attacks hit on an unmodified roll of 4 or more instead of only on 6s. Does not apply to other reactive shooting.",
+    "trigger": "always",
+    "code": "coverFire",
+    "params": { "hitOn": 4, "stratagemId": "core.s.fire-overwatch" }
+  },
+  {
+    "id": "tau.a.ds8-support-turret",
+    "name": "DS8 Support Turret",
+    "text": "If this unit Remains Stationary in your Movement phase, its Shas'ui is armed with the support turret missile system until the start of your next Movement phase. Otherwise that weapon is not available.",
+    "trigger": "phaseEnd",
+    "when": { "phase": "movement", "ownTurn": true },
+    "code": "ds8SupportTurret",
+    "params": { "modelId": "shasui", "weaponId": "tau.w.support-turret-missile-system" }
+  },
+  {
+    "id": "tau.a.marker-drone",
+    "name": "Marker Drone",
+    "text": "While the Shas'vre lives, this unit has the MARKERLIGHT keyword and may serve as an Observer even if it Advanced this turn.",
+    "trigger": "always",
+    "effect": { "grantKeyword": "MARKERLIGHT" },
+    "scope": { "who": "self" },
+    "code": "wargearBearerAlive",
+    "params": { "modelId": "shasvre", "observerAfterAdvance": true }
+  },
+  {
+    "id": "tau.a.battlesuit-support-system",
+    "name": "Battlesuit Support System",
+    "text": "This model may shoot later in a turn in which it Fell Back.",
+    "trigger": "always",
+    "effect": { "shootAfterFallBack": true },
+    "scope": { "who": "self" }
+  }
+]

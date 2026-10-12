@@ -6,6 +6,7 @@ import { useGameStore } from '../store/game'
 import { useDisplayState, usePresentedStore } from '../presentation/presentedStore'
 import { describeRoll } from './labels'
 import { colors, mutedText, panel } from './theme'
+import { Tooltip } from './Tooltip'
 
 // Collapsed by default and capped to a handful of rows — expanded, the panel used to cover the
 // board's right edge and part of a deployment corner at 1600x900.
@@ -57,11 +58,13 @@ function DiceFaces({ roll, rerolled }: { roll: DiceRoll; rerolled?: Map<number, 
         // final already includes modifiers; once a die was re-rolled show its new face (net of any modifier)
         const shownFace = re && perDie ? face - roll.dice[i] + re.after : face
         return (
-          <span key={i} title={re ? `Re-rolled from ${re.before}` : undefined} style={re ? { color: colors.accent } : undefined}>
-            {i > 0 ? ', ' : ''}
-            {shownFace}
-            {re ? '↻' : ''}
-          </span>
+          <Tooltip key={i} title="Re-rolled" body={re ? `This die was ${re.before} before the re-roll.` : undefined} disabled={!re}>
+            <span style={re ? { color: colors.accent } : undefined}>
+              {i > 0 ? ', ' : ''}
+              {shownFace}
+              {re ? '↻' : ''}
+            </span>
+          </Tooltip>
         )
       })}
       {typeof roll.needed === 'number' && roll.final.length > 1 ? ` · needs ${roll.needed}+` : ''}

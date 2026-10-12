@@ -77,7 +77,8 @@ export interface PbrTextures {
  *  clone them (see `cloneRepeat`) before setting an instance-specific `.repeat`. */
 export function useTiledPBR(urls: PbrUrls): PbrTextures {
   const [map, normalMap, roughnessMap] = useTexture([urls.map, urls.normalMap, urls.roughnessMap])
-  map.colorSpace = THREE.SRGBColorSpace
+  map.colorSpace = THREE.SRGBColorSpace // albedo is sRGB; normal + roughness stay linear (NoColorSpace)
+  normalMap.colorSpace = roughnessMap.colorSpace = THREE.NoColorSpace
   for (const t of [map, normalMap, roughnessMap]) {
     t.wrapS = t.wrapT = THREE.RepeatWrapping
   }
@@ -115,7 +116,8 @@ export function polygonFootprintSize(polygon: { x: number; z: number }[]): { wid
  *  sRGB diffuse. (Separate from useTiledPBR, which sets RepeatWrapping on the shared cached textures.) */
 export function useBattlefieldPBR(urls: PbrUrls, anisotropy?: number): PbrTextures {
   const [map, normalMap, roughnessMap] = useTexture([urls.map, urls.normalMap, urls.roughnessMap])
-  map.colorSpace = THREE.SRGBColorSpace
+  map.colorSpace = THREE.SRGBColorSpace // albedo is sRGB; normal + roughness stay linear (NoColorSpace)
+  normalMap.colorSpace = roughnessMap.colorSpace = THREE.NoColorSpace
   for (const t of [map, normalMap, roughnessMap]) {
     t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping
     t.repeat.set(1, 1)

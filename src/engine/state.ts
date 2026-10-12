@@ -115,6 +115,15 @@ export function unitModels(state: GameState, unitId: UnitId): Model[] {
   return unitModelsAll(state, unitId).filter((m) => !m.removalDeferred)
 }
 
+// RC-072/RC-090: mortal wounds from a rule a unit of your army is using credit that unit (its owner, first model) as the destroyer
+export type MortalCreditBy = { player: import('./types').PlayerId; unitId: string; modelId: string }
+export function mortalCredit(state: import('./types').GameState, unitId: string): MortalCreditBy | undefined {
+  const unit = state.units[unitId]
+  if (!unit) return undefined
+  const model = unitModels(state, unitId)[0] ?? state.models[unit.models[0]]
+  return model ? { player: unit.player, unitId, modelId: model.id } : undefined
+}
+
 // attached units are one unit for coherency (R-10.1, LEAD-004): includes the attached leader / bodyguard models
 export function unitModelsForCoherency(state: GameState, unitId: UnitId): Model[] {
   const unit = state.units[unitId]
@@ -458,7 +467,19 @@ export function createGameState(setup: GameSetup, bundle: DataBundle, seed: stri
       const base = patrol.units.find((u) => u.ref === ref)
       if (!base?.patrolSquads?.length) throw new EngineInvariantError(`splitUnits: '${ref}' is not a Patrol Squads unit of patrol '${patrol.id}'`)
     }
-    const patrolUnits: (PatrolUnitData & { fromSplit: boolean })[] = patrol.units.flatMap((pu): (PatrolUnitData & { fromSplit: boolean })[] => (split.has(pu.ref) && pu.patrolSquads
+    // E1 unit choice: every group fields exactly one of its refs; the others are never created
+    const skippedRefs = new Set<string>()
+    const choices = ps.unitChoices ?? {}
+    for (const gid of Object.keys(choices)) {
+      const g = (patrol.unitChoices ?? []).find((c) => c.id === gid)
+      if (!g) throw new EngineInvariantError(`unitChoices: unknown group '${gid}' for patrol '${patrol.id}'`)
+      if (!g.refs.includes(choices[gid])) throw new EngineInvariantError(`unitChoices: '${choices[gid]}' is not in group '${gid}'`)
+    }
+    for (const g of patrol.unitChoices ?? []) {
+      const picked = choices[g.id] ?? g.default
+      for (const r of g.refs) if (r !== picked) skippedRefs.add(r)
+    }
+    const patrolUnits: (PatrolUnitData & { fromSplit: boolean })[] = patrol.units.filter((pu) => !skippedRefs.has(pu.ref)).flatMap((pu): (PatrolUnitData & { fromSplit: boolean })[] => (split.has(pu.ref) && pu.patrolSquads
       ? pu.patrolSquads.map((part) => ({ ref: part.ref, datasheet: pu.datasheet, size: part.size, wargear: part.wargear, fromSplit: true, ...(pu.enhancement ? { enhancement: pu.enhancement } : {}) }))
       : [{ ...pu, fromSplit: false }]))
     for (const pu of patrolUnits) {
@@ -532,12 +553,15 @@ export function createGameState(setup: GameSetup, bundle: DataBundle, seed: stri
       throw new EngineInvariantError(`enhancement '${enh.id}' takes no enhancementChoice`)
     }
     wl.enhancementId = enh.id
-    const enhDescriptor = resolveAbility(bundle, enh.effect)
-    const enhAbilityId = addAbility({ ...enhDescriptor, scope: enhDescriptor.scope ?? { who: 'bearer' } }, 'enhancement', enhancementBearer(wl, wlDs, models))
-    void enhAbilityId
+    // C7: a list effect becomes one RuntimeAbility per descriptor (each keeps its own id; default scope bearer)
+    for (const ref of Array.isArray(enh.effect) ? enh.effect : [enh.effect]) {
+      const enhDescriptor = resolveAbility(bundle, ref)
+      addAbility({ ...enhDescriptor, scope: enhDescriptor.scope ?? { who: 'bearer' } }, 'enhancement', enhancementBearer(wl, wlDs, models))
+    }
 
     // leader attachments (R-10.1)
     for (const att of ps.attachments) {
+      if (skippedRefs.has(att.leaderRef) || skippedRefs.has(att.bodyguardRef)) continue
       const leader = units[unitIdFor(pid, att.leaderRef)]
       const bodyguard = units[unitIdFor(pid, att.bodyguardRef)]
       if (!leader || !bodyguard) throw new EngineInvariantError(`attachment ${att.leaderRef} → ${att.bodyguardRef}: unit not found for player ${pid}`)
@@ -551,6 +575,7 @@ export function createGameState(setup: GameSetup, bundle: DataBundle, seed: stri
 
     // reserves (CP-1.9: Deep Strike is the only route, or a Tellyporta pairing)
     for (const ref of ps.reserves) {
+      if (skippedRefs.has(ref)) continue
       const u = units[unitIdFor(pid, ref)]
       if (!u) throw new EngineInvariantError(`reserves unit '${ref}' not found for player ${pid}`)
       const ds = datasheets[u.datasheetId]

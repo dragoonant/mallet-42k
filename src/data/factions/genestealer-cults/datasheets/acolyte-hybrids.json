@@ -1,0 +1,49 @@
+[
+  {
+    "id": "gsc.acolyte-hybrids",
+    "faction": "genestealer-cults",
+    "name": "Acolyte Hybrids",
+    "keywords": ["INFANTRY", "GREAT DEVOURER", "ACOLYTE HYBRIDS"],
+    "factionKeywords": ["GENESTEALER CULTS"],
+    "stats": { "M": 6, "T": 4, "Sv": 5, "W": 1, "Ld": 7, "OC": 2 },
+    "composition": [
+      {
+        "modelId": "leader",
+        "name": "Acolyte Leader",
+        "min": 1, "max": 1, "default": 1,
+        "champion": true,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["gsc.w.autopistol", "gsc.w.leaders-cult-weapons"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "hybrid",
+        "name": "Acolyte Hybrid",
+        "min": 2, "max": 2, "default": 2,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["gsc.w.autopistol", "gsc.w.cult-claws-and-knife"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "demolitions",
+        "name": "Acolyte (demolition charges)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["gsc.w.demolition-charges", "gsc.w.cult-claws-and-knife"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "mining-tool",
+        "name": "Acolyte (heavy mining tool)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["gsc.w.heavy-mining-tool"] },
+        "figure": { "archetype": "heavy", "kit": "generic-infantry" }
+      }
+    ],
+    "abilities": ["gsc.a.cult-ambush", "gsc.a.vile-insurrectionists", "gsc.a.vile-insurrectionists-wounds"],
+    "coreAbilities": [ { "ability": "DEEP_STRIKE" } ],
+    "points": [ { "models": 5, "points": 0 } ],
+    "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+  }
+]

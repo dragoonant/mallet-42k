@@ -242,6 +242,47 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all 6 finished (round 5); astra-militarum appears in game 0 only (as B vs adepta-sororitas) and won it 50-5; the rest of that seed is other pairings (sororitas 3, chaos-space-marines 1, ork 1 wins). An earlier pre-sororitas run of the same seed had astra-militarum winning 6 of 6. No balance tuning |
 | Known gaps | No GLB models (procedural only); the bot ignores the AM stratagems and Orders; rulings in `docs/needs-rules-check.md` under "astra-militarum build" (AM-01 to AM-21) |
 
+## Grey Knights (M10 - Aurellios' Banishers patrol, playable)
+
+| Area | State |
+|---|---|
+| Patrol | Librarian Aurellios, Strike Squad, Brotherhood Terminator Squad (either/or with Nemesis Dreadknight via `patrol.unitChoices`); secondaries Champion of Titan / No Escape. Data in `src/data/factions/grey-knights/` |
+| Engine hooks | `src/engine/factions/grey-knights.ts` (`greyKnightsHooks`): Teleport Assault pick/arrival (mandatory, reserves via `teleportAssault`), Banishment Stone, Dominating Aura, Hammerhand, Sanctic Hood (`sourcePsychic` FNP), Champion of Titan and No Escape scoring (`missions.ts` `modelDestroyed` wiring); Violent Unbinding reuses the CSM `daemonicFervour` fight-on-death code. Core touches: `engine/teleport`, `removeUnitToReserves`, `playerBattlefieldEdge` |
+| Client | Start-screen button and Terminator/Dreadknight picker, procedural figures (new `gk-dreadknight` kit, Terminators reuse `sm-terminator`), weapon flavour/sounds reused from existing assets, palette |
+| Verification | typecheck, `validate:data` (90 files), `build` green; `npm test` 1503 passing (57 files); `tests/e2e/grey-knights.spec.ts` starts GK vs bot, deploys through the UI and reaches round 1 Shooting (`e2e-out/m10-grey-knights-0{1,2,3}-*.png`) |
+| Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all 6 finished (round 5); grey-knights 1 win (one each for astra-militarum, chaos-space-marines, necrons, adepta-sororitas, sm). No balance tuning |
+| Known gaps | No GLB models or generated weapon sounds; bot ignores GK stratagems and only uses a simple Teleport Assault heuristic; Psychic ability mortals not tagged beyond text convention; rulings in `docs/needs-rules-check.md` under "grey-knights build" (GK-01 to GK-20) |
+
+## T'au Empire (M10 - Protectors of Aun'shar patrol, playable)
+
+| Area | State |
+|---|---|
+| Patrol | Aun'Shar, Shas'nel D'tano, Strike Team, Stealth Battlesuits, Ghostkeel Battlesuit; secondaries Kauyon Lure / Leadership Caste. Data in `src/data/factions/tau-empire/` |
+| Engine hooks | `src/engine/factions/tau-empire.ts`: For the Greater Good (observer pick, BS step, ignore cover), Stealth Marker Drone, DS8 Support Turret, DS13/DS15 enhancements, Laser-Marked Targets, Defensive Fusillade, Kauyon Lure and Leadership Caste scoring; shared engine additions C1-C7 (skill delta, shotThisTurn, weaponAvailable, reactive-move helpers) |
+| Client | Start-screen entry, procedural figures (Ghostkeel on the biped rig at bulk 2.2), weapon flavour/sounds reused, palette |
+| Verification | typecheck, `validate:data` (101 files), `build` green; `npm test` 1585 passing (60 files); `tests/e2e/tau-empire.spec.ts` starts T'au vs bot, deploys through the UI and reaches round 1 Shooting (`e2e-out/m10-tau-empire-0{1,2,3}-*.png`, figures visible) |
+| Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all finished; plain rotation never pairs tau-empire, so `SIM_FACTION=tau-empire` run: 6 games, 0 violations, all finished (round 5), tau-empire 5 wins (adepta-sororitas 1). No balance tuning |
+| Known gaps | No GLB models or generated weapon sounds; bot never plays Rapid Repositioning; Strike Team marker drone and Stealth support system cosmetic; rulings in `docs/needs-rules-check.md` under "tau-empire build" (TAU-01 to TAU-23) |
+
+## Genestealer Cults (M10 - Hand of the Magus patrol, playable)
+
+| Area | State |
+|---|---|
+| Patrol | Magus Veridielle, Neophyte Hybrids x2, Acolyte Hybrids, Aberrants, Goliath Rockgrinder; secondaries Rise Up / Will of the Patriarch. Data in `src/data/factions/genestealer-cults/` |
+| Engine hooks | `src/engine/cult-ambush.ts` (marker/return lifecycle, GEN-2.x) and `src/engine/factions/genestealer-cults.ts` (Cult Ambush re-export, Spiritual Leader, Vile Insurrectionists, Defend the Magus, Lurking Killers, Return to the Shadows, Rise Up, Will of the Patriarch); oval-base autodeploy in setup.ts; Fall Back boxed-in fix in movement.ts |
+| Client | Start-screen entry, procedural figures (new tracked dozer style for the Rockgrinder), weapon flavour/sounds reused, palette |
+| Verification | typecheck, `validate:data` (112 files), `build` green; `npm test` 1692 passing (65 files); `tests/e2e/genestealer-cults.spec.ts` starts GSC vs bot, deploys via UI and reaches round 1 Shooting (`e2e-out/m10-genestealer-cults-0{1,2,3}-*.png`, figures visible) |
+| Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, 6 games all finished (mean 5 rounds), genestealer-cults 1 win, no draws |
+| Known gaps | No GLB models or bespoke sounds; marker option labels not customised; rulings in `docs/needs-rules-check.md` under "genestealer-cults build" (GSC-01 to GSC-22) |
+
+## Client+engine (units stand on terrain and ruin floors; cover badge)
+- Engine: `surfaceY` (terrain.ts) snaps placement y to the surface under the base; `checkPlacements` (geometry.ts) applies it to move, charge, pile-in, consolidate, deployment and reserves. A mid-air y that differs from the model's current y is still rejected by `canEndAt`.
+- Client: ruin floor selector (Ground/1/2, PageUp/PageDown) sets placement y; ghosts and previews draw at the chosen height. Fixed: the picker now shows on hover (not only once staged) and stays after the pointer leaves the board; the selected floor is applied to every formation the client builds (before, y never changed). A one-model nudge keeps its floor while still on that floor polygon (else selected floor, else ground) and drags track the pointer on the floor plane.
+- Terrain render: ruin and barricade walls at true height, thickness and gaps (0.6 opacity); old 3.2 height cap removed.
+- "In cover" badge (`CoverBadges`): enemies with Benefit of Cover against the selected shooter's first ranged weapon, else any unit partly in a ruin footprint.
+- Proof: `?scenario=terrain-height` + `tests/e2e/terrain-height.spec.ts` -> `e2e-out/terrain-height.png`.
+- Floor picker + nudge proof: `?scenario=floor-picker` (Terminators beside ruin-l1) in the same spec -> `e2e-out/floor-picker.png`. A floor climb costs its height in move distance, so a 5" move must start within about 2" of the ruin wall.
+
 ## Not yet built
 
 - Anything beyond M8 (see Client tables for what M3/M6/M8 cover); AI Monte Carlo/hard tier, generated models, scale-up, multiplayer, Phase B glTF animation/asset pipeline for figures (see PLAN.md, docs/spec/30-figures.md §9)
@@ -256,3 +297,12 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 - `createGame` now genuinely stops at the first `deployUnit` decision (real deployment, W1-F) — any test/fixture that used to assume a stub deployment completed instantly for free must drive real `deployUnit`/`moveUnit`(Scouts)/`chooseOption` decisions to get past it first; see `tests/fixtures/modules.ts`'s `deployAll` helper (drives every decision whose `window` is `'deployment.unit'` using its own default legal action) and its many call sites in `tests/engine/core*.test.ts`.
 - All five phase modules (command/movement/shooting/charge/fight) plus setup/deployment are now real — the engine plays a complete game end-to-end through `step`/`legalActions`. W1-G headless sim is done (see "Engine (M1 integrated)"); `legalActions` now returns >= 1 concrete answer for every decision kind, so AI/autoplay can drive whole games. Sim is slow (~6 s/game, oval-base gap sampling in charge ring search) — worth an analytic ellipse distance later.
 - `terrain.canEndAt`, `los.ts`'s model-blocker test, several M1-systems modules, and now `attack.ts`'s Indirect Fire cover snapshot (see "Fixed landing this stage" above) were adversarially wrong on first pass — worth a similar adversarial pass on Shooting/Charge/Fight's own heuristics (`planChargeMove`, `planApproachEnemy`) before trusting them past their own happy-path tests.
+
+### M10 adeptus-custodes
+| Item | State |
+|---|---|
+| Patrol | Guardians of the Throne: Shield-Captain Tyvan, Custodian Guard, Prosecutors, Vigilators (Vertus Praetors datasheet present, not in patrol). Data in `src/data/factions/adeptus-custodes/` |
+| Engine hooks | `src/engine/factions/adeptus-custodes.ts` (Martial Ka'tah, Stand Vigil, Gilded Spear, Overawing Magnificence, Guardian of the Realm, Advance re-roll), E4 movement-start engagement snapshot in movement.ts, targetKeyword in attack.ts/weapons.ts |
+| Verification | typecheck, `validate:data`, `build` green; `npm test` 1764 passing (69 files); `tests/e2e/adeptus-custodes.spec.ts` starts vs bot, deploys via UI, reaches round 1 Shooting (`e2e-out/m10-adeptus-custodes-0{1,2,3}-*.png`, figures visible) |
+| Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all 6 games finished (mean 5 rounds); adeptus-custodes was not in the seeded pairings (0 games, 0 wins) |
+| Known gaps | Generic figure kits, borrowed SFX, Praetors not mounted; rulings in `docs/needs-rules-check.md` under "adeptus-custodes build" |

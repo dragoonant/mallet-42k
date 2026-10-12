@@ -10,6 +10,7 @@ import { useGameStore } from '../store/game'
 import { usePresentationSettings, type RerollMute } from '../presentation/settings'
 import { rerollSummary, rerollTrayModel } from './rerollInfo'
 import { buttonBase, buttonPrimary, colors, fontStack, mutedText } from './theme'
+import { Tooltip } from './Tooltip'
 
 const heading: CSSProperties = { fontWeight: 700, fontSize: 14 }
 const infoBlock: CSSProperties = { ...mutedText, background: 'rgba(255,255,255,0.04)', borderRadius: 6, padding: '6px 8px' }
@@ -155,19 +156,19 @@ export function RerollTray({ state, events, pending, roll, keepAction }: RerollT
             )
           }
           return (
-            <div
-              key={i}
-              style={slotStyle(false, false)}
-              title={isLocked ? 'Already re-rolled — a die is never re-rolled twice' : undefined}
-              aria-label={`Die ${i + 1}: ${words}`}
-              data-testid={`reroll-die-${i}`}
-              data-picked="false"
-              data-outcome={outcome}
-              data-locked={isLocked ? 'true' : 'false'}
-            >
-              {face}
-              {isLocked && <span style={lockBadge} aria-hidden="true">↻</span>}
-            </div>
+            <Tooltip key={i} title="Already re-rolled" body="A die is never re-rolled twice." disabled={!isLocked}>
+              <div
+                style={slotStyle(false, false)}
+                aria-label={`Die ${i + 1}: ${words}`}
+                data-testid={`reroll-die-${i}`}
+                data-picked="false"
+                data-outcome={outcome}
+                data-locked={isLocked ? 'true' : 'false'}
+              >
+                {face}
+                {isLocked && <span style={lockBadge} aria-hidden="true">↻</span>}
+              </div>
+            </Tooltip>
           )
         })}
       </div>

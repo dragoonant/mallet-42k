@@ -1,0 +1,25 @@
+[
+  {
+    "id": "cus.vertus-praetors",
+    "faction": "adeptus-custodes",
+    "name": "Vertus Praetors",
+    "keywords": ["MOUNTED", "FLY", "IMPERIUM", "VERTUS PRAETORS"],
+    "factionKeywords": ["ADEPTUS CUSTODES"],
+    "stats": { "M": 12, "T": 6, "Sv": 2, "W": 4, "Ld": 6, "OC": 2 },
+    "invuln": 4,
+    "composition": [
+      {
+        "modelId": "praetor",
+        "name": "Vertus Praetor",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "oval", "mm": 75, "mm2": 42 },
+        "weapons": { "default": ["cus.w.vertus-hurricane-bolter", "cus.w.interceptor-lance"] },
+        "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+      }
+    ],
+    "abilities": ["cus.a.martial-katah"],
+    "coreAbilities": [],
+    "points": [ { "models": 1, "points": 0 } ],
+    "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+  }
+]

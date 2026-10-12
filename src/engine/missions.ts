@@ -9,6 +9,8 @@
 // Oath of Moment / Waaagh!. Per-rule "done" marks (`phaseState.marks`) make every step idempotent across that resume.
 import { alphaXenoformAmount, chitinousTideAmount } from './factions/tyranids'
 import type { MissionRule, ScoringRule, TimingWindowId } from '../data/types'
+import { kauyonLureAmount, leadershipCasteAmount } from './factions/tau-empire'
+import { riseUpAmount, willOfThePatriarchAmount } from './factions/genestealer-cults'
 import { holdTheLineAmount, methodicalDestructionAmount, methodicalDestructionOffer } from './factions/astra-militarum'
 import { OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE, pointInPolygon, whollyWithinPolygon, withinObjectiveRange } from './geometry'
 import { consecratedGroundAmount, hallowedRetributionAmount } from './factions/adepta-sororitas'
@@ -17,12 +19,19 @@ import { leaderService } from './leaders'
 import { liveClaimers, pruneClaim, recordClaim } from './objectives'
 import type { DecisionHandler, EngineContext, WindowTrigger } from './modules'
 import { otherPlayer } from './modules'
+import { isTeleporting } from './teleport'
+import { championOfTitanModelDestroyed, noEscapeAmount } from './factions/grey-knights'
+import { guardianOfTheRealmAmount, guardianOfTheRealmModelDestroyed, guardianOfTheRealmSnapshot } from './factions/adeptus-custodes'
 import { boardUnitsOf, deploymentZone, hasKeyword, keywordsOf, modelIdFor, unitModels } from './state'
 import type {
-  ChooseOptionDecision, ChooseOptionTopic, GameResult, GameState, Objective, ObjectiveId, PendingDecision,
+  ChooseOptionDecision, ChooseOptionTopic, GameResult, GameState, ModelId, Objective, ObjectiveId, PendingDecision,
   PlayerId, Rejection, Unit, UnitId,
 } from './types'
 import type { Action, ChooseOptionAction } from './actions'
+
+export interface ModelDestroyedInfo {
+  unitId: UnitId; modelId: ModelId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: ModelId | null
+}
 
 export interface MissionService {
   onWindow(ctx: EngineContext, window: TimingWindowId, key: string, trigger?: WindowTrigger): void
@@ -34,6 +43,8 @@ export interface MissionService {
   finalResult(state: GameState, reason: GameResult['reason']): GameResult
   // a unit was just destroyed (attack.ts destroyModel): kill-triggered secondaries (Treasures of Aeons, NEC-4)
   unitDestroyed?(ctx: EngineContext, info: { unitId: UnitId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: string | null }): void
+  // E4 (Grey Knights Champion of Titan): a model was just destroyed (attack.ts announceDestroyed, after the onModelDestroyed hooks)
+  modelDestroyed?(ctx: EngineContext, info: ModelDestroyedInfo): void
   // answers chooseOption topics razeObjective / recoverObjective / stompTarget / bagTarget
   readonly handler: DecisionHandler
 }
@@ -59,8 +70,9 @@ function liveController(ctx: EngineContext, id: ObjectiveId): PlayerId | null {
   if (!obj || obj.removed) return null
   const svc = ctx.services.objectives
   if (obj.securedBy) {
-    const stillSecure = s.phase !== 'command' || svc.levelOfControl(s, id)[otherPlayer(obj.securedBy)] <= svc.levelOfControl(s, id)[obj.securedBy]
-    if (stillSecure) return obj.securedBy
+    // RC-048: a higher enemy LoC takes control at any check; with none, control falls back to the securer
+    const lv = svc.levelOfControl(s, id)
+    return lv[otherPlayer(obj.securedBy)] > lv[obj.securedBy] ? otherPlayer(obj.securedBy) : obj.securedBy
   }
   if (svc.modelsInRange(s, id, 'A').length === 0 && svc.modelsInRange(s, id, 'B').length === 0) {
     const anyoneDestroyedYet = Object.values(s.units).some((u) => u.location === 'destroyed')
@@ -263,6 +275,7 @@ function bagTheBigUnAmount(s: GameState, rule: ScoringRule, pid: PlayerId): numb
   // killer it scores the lower "unit" tier rather than nothing — 11-combat-patrol §5.3 does not give an exact
   // number for this case and the alternate roster's data does not exist yet (see issues).
   if (unit.location === 'reserves') return unitPoints
+  if (unit.location === 'destroyed' && !unit.destroyedBy) return unitPoints // RC-050: stranded-Reserves cull credits no killer
   if (unit.location !== 'destroyed' || !unit.destroyedBy) return 0
   // 11-combat-patrol §6: 8 VP if the target is destroyed by ANY unit; 12 only for the Beastboss's own kill, keyed on
   // the killing model (destroyedBy.modelId) with the unitId as a fallback for kills that carry no model attribution
@@ -277,10 +290,11 @@ function bagTheBigUnAmount(s: GameState, rule: ScoringRule, pid: PlayerId): numb
 // every model wholly inside the opponent's deployment zone
 function reclaimAndDominateAmount(s: GameState, rule: ScoringRule, pid: PlayerId): number {
   const zone = deploymentZone(s, otherPlayer(pid))
+  const keyword = (rule.params?.keyword as string | undefined) ?? 'NECRONS'
   for (const u of boardUnitsOf(s, pid)) {
     if (u.bodyguardUnitId) continue
     const halves = leaderService.halves(s, u.id).map((id) => s.units[id]).filter((h) => h.location === 'board')
-    if (halves.length === 0 || !halves.some((h) => hasKeyword(s, h.id, 'NECRONS')) || halves.some((h) => h.battleShocked)) continue
+    if (halves.length === 0 || !halves.some((h) => hasKeyword(s, h.id, keyword)) || halves.some((h) => h.battleShocked)) continue
     const models = halves.flatMap((h) => unitModels(s, h.id))
     if (models.length > 0 && models.every((m) => whollyWithinPolygon(m, zone))) return rule.pointsPer
   }
@@ -348,7 +362,7 @@ function treasuresUnitDestroyed(ctx: EngineContext, info: { unitId: UnitId; byPl
 }
 
 // CHA-4 Marked for Execution: the moment the opponent's Warlord is destroyed (any cause), once per battle. A Warlord that never arrives
-// from Reserves is never "destroyed" through this path, so it does not score.
+// from Reserves counts as destroyed when the end-of-round-3 cull strands it (CSM-06), so it scores the early tier then.
 function markedForExecutionDestroyed(ctx: EngineContext, info: { unitId: UnitId }): void {
   const s = ctx.state
   for (const pid of ['A', 'B'] as PlayerId[]) {
@@ -386,6 +400,7 @@ function unitDestroyedHook(ctx: EngineContext, info: { unitId: UnitId; byPlayer:
 function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): number {
   const s = ctx.state
   switch (rule.code) {
+    case 'guardianOfTheRealm': return guardianOfTheRealmAmount(s, rule, pid)
     case 'reclaimAndDominate': return reclaimAndDominateAmount(s, rule, pid)
     case 'wrathOfTheEmperor': return wrathOfTheEmperorAmount(s, rule, pid)
     case 'alphaXenoform': return alphaXenoformAmount(s, rule, pid)
@@ -397,6 +412,11 @@ function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): num
     case 'bagTheBigUnScore': return bagTheBigUnAmount(s, rule, pid)
     case 'consecratedGround': return consecratedGroundAmount(s, pid, rule.pointsPer)
     case 'holdTheLine': return holdTheLineAmount(s, rule, pid)
+    case 'kauyonLure': return kauyonLureAmount(s, rule, pid)
+    case 'leadershipCaste': return leadershipCasteAmount(s, rule, pid)
+    case 'riseUp': return riseUpAmount(ctx, rule, pid, (id) => holds(ctx, id, pid))
+    case 'willOfThePatriarch': return willOfThePatriarchAmount(s, rule, pid)
+    case 'noEscape': return noEscapeAmount(ctx, rule, pid)
     case 'methodicalDestructionScore': return methodicalDestructionAmount(s, rule, pid)
     default: return 0
   }
@@ -618,6 +638,7 @@ function processWindow(ctx: EngineContext, window: TimingWindowId, key: string):
   const s = ctx.state
   // Treasures of Aeons reads which enemy units were near a marker at the START of the phase in which they die
   if (window.endsWith('.start') && once(s, `treasureSnapshot:${window}`)) snapshotTreasures(s)
+  if (window.endsWith('.start') && once(s, `gotrSnapshot:${window}`)) guardianOfTheRealmSnapshot(s)
   for (const rule of s.mission.rules) {
     if (rule.window !== window) continue
     if (!once(s, `missionRuleDone:${rule.id}:${key}`)) continue
@@ -638,6 +659,8 @@ function processWindow(ctx: EngineContext, window: TimingWindowId, key: string):
 
 function hasForces(state: GameState, player: PlayerId): boolean {
   if (boardUnitsOf(state, player).length > 0) return true
+  // GRE-2.7: a Teleport Assault unit can arrive in any round
+  if (Object.values(state.units).some((u) => u.player === player && u.location === 'reserves' && isTeleporting(state, u.id))) return true
   if (state.round > 3) return false // CP-1.9: Reserves never arrive after round 3
   return Object.values(state.units).some((u) => u.player === player && u.location === 'reserves')
 }
@@ -694,6 +717,10 @@ export const missionService: MissionService = {
   },
   playerHasForces: hasForces,
   unitDestroyed: unitDestroyedHook,
+  modelDestroyed(ctx, info) {
+    championOfTitanModelDestroyed(ctx, info)
+    guardianOfTheRealmModelDestroyed(ctx, info)
+  },
   isTabled(state) { return !hasForces(state, 'A') && !hasForces(state, 'B') },
   finalResult(state, reason) {
     const vp = { A: state.players.A.vp + state.players.A.battleReadyVp, B: state.players.B.vp + state.players.B.battleReadyVp }

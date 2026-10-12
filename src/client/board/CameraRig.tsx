@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { useBoardSize } from './Board'
 import { initCameraModifiers, isSpaceHeld } from './cameraModifiers'
+import { installTerrainProbe, probeEnabled } from './terrainProbe'
 
 const OVERVIEW_POLAR = THREE.MathUtils.degToRad(55)
 const TOP_DOWN_POLAR = THREE.MathUtils.degToRad(4)
@@ -37,7 +38,8 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
   const controls = useRef<OrbitControlsImpl | null>(null)
   const targetPolar = useRef(OVERVIEW_POLAR)
   const pendingFocus = useRef<{ x: number; z: number } | null>(null)
-  const { camera, gl } = useThree()
+  const { camera, gl, scene } = useThree()
+  useEffect(() => (probeEnabled() ? installTerrainProbe(scene) : undefined), [scene])
   const invalidate = useThree((s) => s.invalidate)
   const boardSize = useBoardSize()
   const boardRef = useRef(boardSize)
@@ -98,7 +100,14 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
     // over a group of just-deployed models) without simulating mouse drags/wheel zooms. The
     // topDown lerp above still owns the viewing angle — this only moves target + distance,
     // preserving whatever azimuth the camera currently has.
-    const w = window as unknown as { __malletCamera?: { lookAt(x: number, z: number, distanceIn: number): void } }
+    const w = window as unknown as { __malletCamera?: { lookAt(x: number, z: number, distanceIn: number): void }; __malletProject?: (x: number, y: number, z: number) => { x: number; y: number } }
+    // e2e hook: world point -> page pixel
+    w.__malletProject = (x, y, z) => {
+      camera.updateMatrixWorld()
+      const v = new THREE.Vector3(x, y, z).project(camera)
+      const r = gl.domElement.getBoundingClientRect()
+      return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height }
+    }
     w.__malletCamera = {
       lookAt(x, z, distanceIn) {
         const c = controls.current
@@ -114,8 +123,9 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
     }
     return () => {
       delete w.__malletCamera
+      delete w.__malletProject
     }
-  }, [camera, invalidate, minDistance, maxDistance])
+  }, [camera, gl, invalidate, minDistance, maxDistance])
 
   useFrame((state) => {
     const c = controls.current

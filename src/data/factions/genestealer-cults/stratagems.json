@@ -1,0 +1,63 @@
+[
+  {
+    "id": "gsc.s.defend-the-magus",
+    "faction": "genestealer-cults",
+    "name": "Defend the Magus",
+    "text": "Use at the start of your Shooting phase or of any Fight phase, picking one of your MAGUS units and one enemy unit within Engagement Range of it. Until the end of the phase, attacks by your GENESTEALER CULTS models against that enemy unit may re-roll a hit roll of 1 and a wound roll of 1.",
+    "cost": 1,
+    "category": "epicDeed",
+    "phases": ["shooting", "fight"],
+    "window": ["shooting.start", "fight.start"],
+    "who": "either",
+    "condition": { "any": [ { "phase": "shooting", "ownTurn": true }, { "phase": "fight" } ] },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "MAGUS" }, "count": 1 },
+      { "role": "unit", "owner": "enemy", "state": "inEngagement", "count": 1 }
+    ],
+    "effect": { "reroll": "ones" },
+    "when": { "attackerKeyword": "GENESTEALER CULTS" },
+    "scope": { "who": "attacker" },
+    "duration": "untilEndOfPhase",
+    "code": "defendTheMagus",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "gsc.s.lurking-killers",
+    "faction": "genestealer-cults",
+    "name": "Lurking Killers",
+    "text": "Use in your opponent's Shooting phase, just after an enemy unit picks its targets, when one of your INFANTRY units (not ABERRANTS) is a target. Until the end of the phase, subtract 1 from the hit roll of every attack that targets your unit.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["shooting"],
+    "window": "shooting.targetsDeclared",
+    "who": "reactive",
+    "condition": { "phase": "shooting", "ownTurn": false },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "INFANTRY", "notKeyword": "ABERRANTS" }, "state": "targetedByAttack", "count": 1 }
+    ],
+    "effect": { "modifyRoll": { "roll": "hit", "value": -1 } },
+    "scope": { "who": "attacker" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "gsc.s.return-to-the-shadows",
+    "faction": "genestealer-cults",
+    "name": "Return to the Shadows",
+    "text": "Use in your opponent's Movement phase, just after an enemy unit ends a Normal, Advance or Fall Back move, picking one of your INFANTRY units within 9 inches of it. Your unit makes a Normal move of up to D6 inches, or 6 inches if it is (or is led by) a MAGUS.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["movement"],
+    "window": "movement.unitMoved",
+    "who": "reactive",
+    "condition": { "phase": "movement", "ownTurn": false },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "INFANTRY" }, "count": 1 }
+    ],
+    "scope": { "who": "self" },
+    "duration": "instant",
+    "code": "returnToTheShadows",
+    "params": { "range": 9, "magusKeyword": "MAGUS", "magusDistance": 6, "dice": "D6" },
+    "limit": "oncePerPhase"
+  }
+]

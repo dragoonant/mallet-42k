@@ -1,0 +1,116 @@
+[
+  {
+    "id": "cus.a.martial-katah",
+    "name": "Martial Ka'tah",
+    "text": "At the start of each Fight phase, choose a stance for your army that lasts until the phase ends. Dacatarai: melee weapons carried by models in units with this ability gain [SUSTAINED HITS 1]. Rendax: those melee weapons gain [LETHAL HITS].",
+    "trigger": "phaseStart",
+    "when": {
+      "phase": "fight"
+    },
+    "code": "martialKatahPick",
+    "scope": {
+      "who": "self"
+    },
+    "params": {
+      "pickWindow": "fight.start",
+      "stances": [
+        "dacatarai",
+        "rendax"
+      ]
+    }
+  },
+  {
+    "id": "cus.a.praesidium-shield",
+    "name": "Praesidium Shield",
+    "text": "A model carrying a praesidium shield has 1 additional Wound (already included in the model's Wounds).",
+    "trigger": "always",
+    "scope": {
+      "who": "self"
+    },
+    "effect": {
+      "modifyStat": {
+        "stat": "W",
+        "value": 0
+      }
+    }
+  },
+  {
+    "id": "cus.a.stand-vigil",
+    "name": "Stand Vigil",
+    "text": "Each time a model in this unit makes an attack, you may re-roll a wound roll of 1. If the unit is within range of an objective marker you control, you may re-roll the wound roll instead.",
+    "trigger": "woundRoll",
+    "effect": {
+      "reroll": "ones"
+    },
+    "scope": {
+      "who": "self"
+    }
+  },
+  {
+    "id": "cus.a.stand-vigil-held",
+    "name": "Stand Vigil (held objective)",
+    "text": "While the unit is within range of an objective marker you control, its attacks may re-roll the wound roll.",
+    "trigger": "woundRoll",
+    "effect": {
+      "reroll": "all"
+    },
+    "scope": {
+      "who": "self"
+    },
+    "code": "standVigil"
+  },
+  {
+    "id": "cus.a.purity-of-execution-precision",
+    "name": "Purity of Execution",
+    "text": "Ranged attacks made by models in this unit that target a PSYKER unit have [PRECISION] and [DEVASTATING WOUNDS].",
+    "trigger": "always",
+    "when": {
+      "weaponType": "ranged",
+      "targetKeyword": "PSYKER"
+    },
+    "effect": {
+      "grantWeaponAbility": {
+        "ability": "PRECISION"
+      }
+    },
+    "scope": {
+      "who": "self"
+    }
+  },
+  {
+    "id": "cus.a.purity-of-execution-devastating",
+    "name": "Purity of Execution (Devastating Wounds)",
+    "text": "Ranged attacks made by models in this unit that target a PSYKER unit have [DEVASTATING WOUNDS].",
+    "trigger": "always",
+    "when": {
+      "weaponType": "ranged",
+      "targetKeyword": "PSYKER"
+    },
+    "effect": {
+      "grantWeaponAbility": {
+        "ability": "DEVASTATING_WOUNDS"
+      }
+    },
+    "scope": {
+      "who": "self"
+    }
+  },
+  {
+    "id": "cus.a.deft-parry",
+    "name": "Deft Parry",
+    "text": "Each time a melee attack targets this unit, subtract 1 from the hit roll.",
+    "trigger": "hitRoll",
+    "when": {
+      "weaponType": "melee"
+    },
+    "effect": {
+      "modifyRoll": {
+        "roll": "hit",
+        "value": -1
+      }
+    },
+    "scope": {
+      "who": "attacker"
+    }
+  }
+]

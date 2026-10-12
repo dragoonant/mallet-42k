@@ -39,6 +39,7 @@ import { pushSnapshot, resetPresentation, usePresentedStore } from '../presentat
 import { rerollMuteActive, usePresentationSettings, type CommandRerollSetting, type RerollMute } from '../presentation/settings'
 import { critWouldPay, dieOutcomes, offerIndexes, rollForOffer } from '../ui/rerollInfo'
 import { isAnnouncementHolding } from '../presentation/announceStore'
+import { figureModelsLoading, waitForFigureModels } from '../figures/loadTracker'
 
 // ---------- setup defaults ----------
 /** A faction picked on the start screen: a legacy setup key ('space-marines', 'orks', 'necrons', 'tyranids') or any
@@ -93,6 +94,7 @@ function botPaceDelayMs(): number {
 // must never be able to leave the HUD showing "Opponent is thinking…" forever; see docs on runBotDecision below).
 // Both are a *rare safety net*: normal play resolves the presentation queue in well under a second and
 // decide() in low milliseconds, so neither cap should fire on a healthy turn.
+const FIGURE_LOAD_TIMEOUT_MS = 20000 // cap on waiting for freshly placed figures' models to load
 const PRESENTATION_IDLE_TIMEOUT_MS = 3000 // cap on waiting for the director's queue to drain before deciding anyway
 const PRESENTATION_IDLE_PER_EVENT_MS = 150 // extra wait allowed per event still waiting to be presented (capped at 200 events)
 const BOT_DECISION_TIMEOUT_MS = 3000 // absolute cap on how long we wait for decide() itself
@@ -188,7 +190,14 @@ export function splittablePatrolRefs(bundle: DataBundle, factionKey: FactionKey)
   return patrol ? patrol.units.filter((u) => u.patrolSquads?.length).map((u) => u.ref) : []
 }
 
-function buildPlayerSetup(bundle: DataBundle, factionKey: FactionKey, secondaryId?: string, split = false): PlayerSetup {
+/** The patrol's either/or unit slots (Grey Knights: Terminators or Dreadknight), each with its refs and default. */
+export function patrolUnitChoices(bundle: DataBundle, factionKey: FactionKey): { id: string; refs: string[]; default: string }[] {
+  const factionId = resolveFactionId(factionKey)
+  const patrol = Object.values(bundle.patrols).find((p) => p.faction === factionId)
+  return patrol?.unitChoices ?? []
+}
+
+function buildPlayerSetup(bundle: DataBundle, factionKey: FactionKey, secondaryId?: string, split = false, unitChoices?: Record<string, string>): PlayerSetup {
   const factionId = resolveFactionId(factionKey)
   const patrol = Object.values(bundle.patrols).find((p) => p.faction === factionId)
   if (!patrol) throw new Error(`newGame: no Combat Patrol data for faction "${factionId}"`)
@@ -206,8 +215,27 @@ function buildPlayerSetup(bundle: DataBundle, factionKey: FactionKey, secondaryI
     attachments: defaultAttachments(bundle, patrol),
     reserves: [], // no reserves unless a unit requires them (handled by the deployment decision itself)
     battleReadyVp: 0,
+    ...(unitChoices && Object.keys(unitChoices).length ? { unitChoices } : {}),
     ...(split && splittablePatrolRefs(bundle, factionKey).length ? { splitUnits: splittablePatrolRefs(bundle, factionKey) } : {}),
   }
+}
+
+/** Sentinel unit-choice value: pick one of the group's refs at random (seeded, so a seed replays the same roster). */
+export const RANDOM_UNIT_CHOICE = 'random'
+
+/** Resolves a seat's either/or picks. Random picks (and every unset group on a bot seat) roll from the game seed. */
+function resolveUnitChoices(bundle: DataBundle, factionKey: FactionKey, picks: Record<string, string> | undefined, randomUnset: boolean, seed: string): Record<string, string> | undefined {
+  const out: Record<string, string> = {}
+  for (const g of patrolUnitChoices(bundle, factionKey)) {
+    const pick = picks?.[g.id]
+    if (pick && pick !== RANDOM_UNIT_CHOICE) out[g.id] = pick
+    else if (pick === RANDOM_UNIT_CHOICE || randomUnset) {
+      let h = 2166136261
+      for (const c of `${seed}:unitChoice:${g.id}`) h = Math.imul(h ^ c.charCodeAt(0), 16777619)
+      out[g.id] = g.refs[(h >>> 0) % g.refs.length]
+    }
+  }
+  return Object.keys(out).length ? out : undefined
 }
 
 function buildSetup(bundle: DataBundle, opts: NewGameOptions): GameSetup {
@@ -220,8 +248,9 @@ function buildSetup(bundle: DataBundle, opts: NewGameOptions): GameSetup {
     missionId,
     terrainLayoutId,
     players: {
-      A: buildPlayerSetup(bundle, opts.playerFaction, opts.secondaryId, opts.splitSquads),
-      B: buildPlayerSetup(bundle, opponentFaction, undefined, opts.opponentSplitSquads),
+      A: buildPlayerSetup(bundle, opts.playerFaction, opts.secondaryId, opts.splitSquads, resolveUnitChoices(bundle, opts.playerFaction, opts.unitChoices, false, opts.seed)),
+      B: buildPlayerSetup(bundle, opponentFaction, undefined, opts.opponentSplitSquads,
+        resolveUnitChoices(bundle, opponentFaction, opts.opponentUnitChoices, opts.opponent === 'bot', opts.seed)),
     },
     sides: 'rollOff',
     firstTurn: 'rollOff',
@@ -244,6 +273,10 @@ export interface NewGameOptions {
    *  engine's own deployment prompt, which is offered to whichever seat owns the unit. */
   splitSquads?: boolean
   opponentSplitSquads?: boolean
+  /** Either/or unit picks (patrol.unitChoices group id -> chosen ref, or RANDOM_UNIT_CHOICE) per seat. An omitted group takes
+   *  the patrol default, except on a bot seat, where it is picked at random from the seed. */
+  unitChoices?: Record<string, string>
+  opponentUnitChoices?: Record<string, string>
   /** Bot opponent strength; ignored for 'hotseat'. Defaults to DEFAULT_AI_DIFFICULTY ('normal'). */
   difficulty?: AiDifficulty
   /** Spike-only: rewrite the bundle + setup after buildSetup (see src/spike/incursion.ts). Unused by normal games. */
@@ -297,6 +330,8 @@ export interface GameStore {
   error: string | null
 
   newGame(opts: NewGameOptions): Promise<void>
+  /** Dev/QA seam (src/client/dev/scenarios.ts): adopt an already-built engine state instead of calling createGame. */
+  startFromState(init: { bundle: DataBundle; setup: GameSetup; state: GameState; pending: PendingDecision | null }, opts: { opponent: OpponentKind; seed: string; difficulty?: AiDifficulty }): void
   dispatch(action: Action): void
   clearToast(): void
   clearVpToast(): void
@@ -494,7 +529,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
       // deliberate dead time the player can end with a click, not a stalled decision: hold the stall
       // clock while one is on screen so a run of announced phases can't trip the watchdog into
       // force-answering the bot over the top of the banner.
-      if (isAnnouncementHolding()) {
+      if (isAnnouncementHolding() || figureModelsLoading()) {
         watchdogPendingSince = Date.now()
         return
       }
@@ -549,6 +584,10 @@ export const useGameStore = create<GameStore>()((set, get) => {
       waitedOnPresentation = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - idleBefore > 1
       if (get().pending?.id !== expectedDecisionId) return
       await sleep(botPaceDelayMs())
+      if (get().pending?.id !== expectedDecisionId) return
+      // Figures that just hit the table (the last deployment above all) are still streaming in their
+      // models: hold play until they're on screen rather than running whole phases over stand-ins.
+      await waitForFigureModels(FIGURE_LOAD_TIMEOUT_MS)
       if (get().pending?.id !== expectedDecisionId) return
     }
     const { state, pending, legal, botSeat } = get()
@@ -751,6 +790,27 @@ export const useGameStore = create<GameStore>()((set, get) => {
         set({ loading: false, error: err instanceof Error ? err.message : String(err) })
         throw err
       }
+    },
+
+    startFromState(init, opts) {
+      clearBotTimer()
+      clearProgressWatchdog()
+      usePresentationSettings.getState().muteRerolls(null)
+      registerDataBundle(init.bundle)
+      const botSeat: PlayerId | null = opts.opponent === 'bot' ? 'B' : null
+      const difficulty = opts.difficulty ?? DEFAULT_AI_DIFFICULTY
+      botDecider = botSeat ? makeBotDecider(difficulty, `${opts.seed}:ai:${botSeat}`) : null
+      const headSeq = init.state.log.length - 1
+      resetPresentation(headSeq, init.state)
+      set({
+        bundle: init.bundle, setup: init.setup, state: init.state, pending: init.pending, pendingSeq: headSeq,
+        legal: init.pending ? engineLegalActions(init.state, init.pending) : null,
+        events: [], diceLog: [], actionLog: [], notes: [], toast: null, vpToast: null,
+        opponent: opts.opponent, humanSeat: 'A', botSeat, difficulty: botSeat ? difficulty : null, loading: false, error: null,
+      })
+      scheduleBotIfNeeded()
+      scheduleAutoAnswer()
+      startProgressWatchdog()
     },
 
     dispatch(action) {

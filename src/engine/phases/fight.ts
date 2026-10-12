@@ -6,15 +6,14 @@
 // authoritative "whose turn" for ordinary alternation. Counter-offensive (code-hooks.ts) pushes a `counterOffensive`
 // reaction naming the specific unit to fight next; `doFightSelect` consumes it before any ordinary selection (so it
 // is offered whatever the current step, and only that one unit is offered — FIGHT-025), and the value `nextToSelect`
-// held just before the reaction fires is saved (`fi:coResume` mark) and restored — rather than flipped from the
-// Counter-offensive unit's own player — once that unit finishes, so alternation resumes exactly where it would have
-// without the interruption [interp — R-9.12 does not spell out whether the inserted activation consumes the
-// opponent's own next turn or is a pure insertion; this engine treats it as a pure insertion].
+// held just before the reaction fires is replaced: the Counter-offensive unit counts as a selection, so the opponent
+// selects next (RC-040).
 //
 // Documented interpretations (see STATUS/issues):
 // - Pile-in / consolidate feasibility and the actual arrangement share one heuristic search (`planApproachEnemy`,
-//   closest-model-first, walking each model straight toward the nearest enemy point at Engagement Range, capped by
-//   the allowance) — the same non-exhaustive style as charge.ts's `planChargeMove`, not a combinatorial proof.
+//   closest-model-first, walking each model toward the nearest enemy contact/Engagement Range spot, ranking up behind
+//   touching unit-mates otherwise, capped by the allowance; the legal plans are ranked by how many models may then
+//   fight) — the same non-exhaustive style as charge.ts's `planChargeMove`, not a combinatorial proof.
 // - R-9.5/R-9.10 "must end in base contact if possible" is checked per model against its own travel budget plus
 //   overlap with the rest of the unit's own resolved arrangement and other friendlies (FIGHT-013-crowd) — like
 //   charge.ts's R-8.5, still not a joint re-optimisation of the whole arrangement.
@@ -30,10 +29,12 @@ import {
   type Footprint, type ResolvedPlacement,
 } from '../geometry'
 import { hookService } from '../hooks-impl'
+import { cultAmbushOnMoveEnded } from '../cult-ambush'
 import { leaderService } from '../leaders'
 import { attackService } from '../attack'
-import { purgeDeferredDeaths, resolveDeferredDeaths } from '../fight-on-death'
+import { deferredDeaths, purgeDeferredDeaths, resolveDeferredDeaths } from '../fight-on-death'
 import { terrainService } from '../terrain'
+import { crossesBigFriendly } from './movement'
 import { weaponService } from '../weapons'
 import { pendingReactions, consumeReaction } from '../code-hooks'
 import { finishDeferredRemovalOfUnit, pendingDeathBlowUnits } from '../deathblow'
@@ -121,16 +122,33 @@ function eligibleFighters(state: GameState, player: PlayerId, step: FightState['
 
 // ---------- geometry: the fighting unit's own models vs. every enemy currently on the board ----------
 
-interface FightGeometry { models: Model[]; enemies: Model[]; otherFriendly: Model[] }
+interface FightGeometry { models: Model[]; enemies: Model[]; otherFriendly: Model[]; movable?: Set<string> }
+
+// RC-ADE-10 / CSM-09 / TYR-02: while a deferred (fight-on-death) model's own pile-in decision is open, the mark `fidp` names the
+// unit and the models allowed to move; the geometry then adds those 0-wound models to the unit's live models (coherency is
+// checked against the live models) and only they may move.
+const DEFERRED_PILE_MARK = 'fidp'
+interface DeferredPileIn { key: string; unitId: UnitId; ids: string[] }
+function deferredPileInMark(state: GameState): DeferredPileIn | null {
+  const raw = readMark(state, DEFERRED_PILE_MARK)
+  return raw ? (JSON.parse(raw) as DeferredPileIn) : null
+}
 
 function fightGeometry(state: GameState, unitId: UnitId): FightGeometry {
-  const models = unitModelsForCoherency(state, unitId)
+  let models = unitModelsForCoherency(state, unitId)
+  let movable: Set<string> | undefined
+  const dp = deferredPileInMark(state)
+  if (dp && dp.unitId === unitId) {
+    const have = new Set(models.map((m) => m.id))
+    models = [...models, ...dp.ids.filter((id) => !have.has(id) && state.models[id]).map((id) => state.models[id])]
+    movable = new Set(dp.ids)
+  }
   const player = state.units[unitId].player
   const enemies = enemyModelsOnBoard(state, player)
   const mine = new Set(leaderService.halves?.(state, unitId) ?? [unitId])
   const otherFriendly: Model[] = []
   for (const u of boardUnitsOf(state, player)) if (!mine.has(u.id)) otherFriendly.push(...unitModels(state, u.id))
-  return { models, enemies, otherFriendly }
+  return { models, enemies, otherFriendly, ...(movable ? { movable } : {}) }
 }
 
 // travel (2D, exact elliptical-base-aware) needed for `m` to close its horizontal gap with `target` to `stopGap` —
@@ -151,22 +169,86 @@ function contactPoint(m: Model, target: Model, stopGap: number): { point: Vec3; 
   return { point: pointAt(hi), travel: hi }
 }
 
+// point at horizontal gap `stopGap` from `target` in direction `angle` from its centre (adapted from charge.ts's ringPoint)
+function rankRingPoint(target: Footprint, m: Model, angle: number, stopGap: number): Vec3 {
+  const ux = Math.cos(angle), uz = Math.sin(angle)
+  const pointAt = (t: number): Vec3 => ({ x: target.pos.x + ux * t, y: m.pos.y, z: target.pos.z + uz * t })
+  const gapAt = (t: number): number => horizontalGap({ pos: pointAt(t), facing: m.facing, base: m.base }, target)
+  let hi = target.base.radius + m.base.radius + Math.max(stopGap, 0) + 2
+  for (let guard = 0; gapAt(hi) <= stopGap && guard < 20; guard++) hi *= 1.5
+  let lo = 0
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2
+    if (gapAt(mid) <= stopGap) lo = mid; else hi = mid
+  }
+  return pointAt(lo)
+}
+
 // R-9.5/R-9.10 heuristic arrangement: a model already in base contact with an enemy never needs to move; otherwise
-// closest-to-enemy models go first, each walking toward the nearest reachable Engagement Range point, capped by
-// `maxDistance` and by terrain/board/overlap legality — a model that cannot legally improve its position stays put.
-function planApproachEnemy(state: GameState, geo: FightGeometry, maxDistance: number, stopGap = ENGAGEMENT_H - 0.01): ResolvedPlacement[] {
+// closest-to-enemy models go first, each walking toward the nearest reachable Engagement Range point (straight in, or
+// around the enemy's base when the straight spot is taken), capped by `maxDistance` and by terrain/board/overlap
+// legality. A model that cannot get within Engagement Range itself ranks up (R-9.6) into base contact with any
+// unit-mate that ends in base contact with an enemy (including ones that started there); a second pass retries every
+// model still unable to fight once the whole front rank is known. A model that cannot legally improve stays put.
+function planApproachEnemy(state: GameState, geo: FightGeometry, maxDistance: number, stopGap = ENGAGEMENT_H - 0.01, mode: 'nearest' | 'farFirst' | 'straight' = 'nearest'): ResolvedPlacement[] {
+  const farFirst = mode !== 'nearest'
   const stay = (m: Model): ResolvedPlacement => ({ model: m, from: m.pos, to: m.pos, facing: m.facing, path: [m.pos, m.pos], distance: 0 })
   if (geo.enemies.length === 0) return geo.models.map(stay)
-  const order = [...geo.models].sort((a, b) => Math.min(...geo.enemies.map((t) => horizontalGap(a, t))) - Math.min(...geo.enemies.map((t) => horizontalGap(b, t))))
+  const minGap = (m: Model): number => Math.min(...geo.enemies.map((t) => horizontalGap(m, t)))
+  const order = [...geo.models].sort((a, b) => minGap(a) - minGap(b))
   const placed: ResolvedPlacement[] = []
-  for (const m of order) {
-    if (geo.enemies.some((t) => inBaseContact(m, t))) { placed.push(stay(m)); continue }
+  const deferred: { i: number; m: Model; direct: ResolvedPlacement | null }[] = []
+  const lifted = new Set<string>() // unit-mates temporarily ignored as blockers while the second pass swaps spots
+  const fpOf = (pl: ResolvedPlacement): Footprint => ({ pos: pl.to, facing: pl.facing, base: pl.model.base })
+  const inER = (pl: ResolvedPlacement): boolean => geo.enemies.some((e) => horizontalGap(fpOf(pl), e) <= ENGAGEMENT_H && Math.abs(pl.to.y - e.pos.y) <= 5 + EPS)
+  const touchesEnemy = (pl: ResolvedPlacement): boolean => geo.enemies.some((e) => inBaseContact(fpOf(pl), e))
+  // legality of one model ending at `to0` (budget, board, overlaps, enemy crossing, terrain); null when illegal
+  const tryPlace = (m: Model, to0: Vec3): ResolvedPlacement | null => {
+    const to = { ...to0, y: terrainService.heightAt(state, to0.x, to0.z) }
+    const travel = dist2D(m.pos, to) + Math.abs(to.y - m.pos.y)
+    if (travel > maxDistance + 1e-3) return null
+    const fp: Footprint = { pos: to, facing: m.facing, base: m.base }
+    if (!whollyOnBoard(fp, state.board)) return null
+    // straight mode: unit-mates not yet placed still block their starting spots, so a model never lands where the model
+    // beside it is still standing
+    const waiting: Footprint[] = mode === 'straight' ? geo.models.filter((o) => o.id !== m.id && !placed.some((pl) => pl.model.id === o.id)) : []
+    const overlapBlockers: Footprint[] = [...placed.filter((pl) => pl.model.id !== m.id && !lifted.has(pl.model.id)).map(fpOf), ...waiting, ...geo.otherFriendly, ...geo.enemies]
+    if (overlapBlockers.some((b) => basesOverlap(fp, b))) return null
+    const path: Path = [m.pos, to]
+    if (pathCrossesModels(fp, path, geo.enemies) || crossesBigFriendly(state, m, fp, path, geo.otherFriendly)) return null
+    if (terrainService.crossesImpassable(state, m, path) || !terrainService.canEndAt(state, m, to).ok) return null
+    return { model: m, from: m.pos, to, facing: m.facing, path, distance: travel }
+  }
+  // shortest legal spot on a ring of horizontal gap `gap` around one of `anchors` that also ends closer to the enemy
+  // model this model started closest to (R-9.5)
+  const bestOnRings = (m: Model, anchors: Footprint[], gap: number): ResolvedPlacement | null => {
+    let best: ResolvedPlacement | null = null
+    for (const a of anchors) {
+      if (horizontalGap(m, a) > maxDistance + gap + 0.05) continue
+      // 48 spots round the ring, plus a fan around the nearest spot (straight back toward the model), which a model
+      // at the very edge of its allowance can only just reach
+      const toward = Math.atan2(m.pos.z - a.pos.z, m.pos.x - a.pos.x)
+      const angles = [...Array.from({ length: 48 }, (_, i) => (2 * Math.PI * i) / 48), ...[0, 1, -1, 2, -2, 4, -4, 7, -7, 11, -11].map((k) => toward + (k * Math.PI) / 72)]
+      for (const ang of angles) {
+        const cand = tryPlace(m, rankRingPoint(a, m, ang, gap))
+        if (!cand || (best && cand.distance >= best.distance)) continue
+        if (!closerToClosestEnemyAtStart(m, m.pos, cand.to, geo.enemies)) continue
+        best = cand
+      }
+    }
+    return best
+  }
+  // around an enemy's base when the straight-line spot is blocked (crowded front, curved line)
+  const aroundEnemy = (m: Model): ResolvedPlacement | null => bestOnRings(m, geo.enemies, Math.min(stopGap, 0.004))
+  // R-9.6 rank-up: base contact with any placed unit-mate that is itself in base contact with an enemy
+  const rankUp = (m: Model): ResolvedPlacement | null => bestOnRings(m, placed.filter((pl) => pl.model.id !== m.id && touchesEnemy(pl)).map(fpOf), 0.004)
+  const directFor = (m: Model): ResolvedPlacement | null => {
     let chosen: { point: Vec3; travel: number } | null = null
     for (const t of geo.enemies) {
       const c = contactPoint(m, t, stopGap)
       if (!chosen || c.travel < chosen.travel) chosen = c
     }
-    if (!chosen) { placed.push(stay(m)); continue }
+    if (!chosen) return null
     let to: Vec3
     if (chosen.travel <= maxDistance + EPS) {
       to = chosen.point
@@ -176,17 +258,63 @@ function planApproachEnemy(state: GameState, geo: FightGeometry, maxDistance: nu
       const scale = d > EPS ? maxDistance / d : 0
       to = { x: m.pos.x + dx * scale, y: m.pos.y, z: m.pos.z + dz * scale }
     }
-    to = { ...to, y: terrainService.heightAt(state, to.x, to.z) }
-    const travel = dist2D(m.pos, to) + Math.abs(to.y - m.pos.y)
-    if (travel > maxDistance + 1e-3) { placed.push(stay(m)); continue }
-    const fp: Footprint = { pos: to, facing: m.facing, base: m.base }
-    if (!whollyOnBoard(fp, state.board)) { placed.push(stay(m)); continue }
-    const overlapBlockers: Footprint[] = [...placed.map((pl) => ({ pos: pl.to, facing: pl.facing, base: pl.model.base })), ...geo.otherFriendly]
-    if (overlapBlockers.some((b) => basesOverlap(fp, b))) { placed.push(stay(m)); continue }
-    const path: Path = [m.pos, to]
-    if (pathCrossesModels(fp, path, geo.enemies)) { placed.push(stay(m)); continue }
-    if (terrainService.crossesImpassable(state, m, path) || !terrainService.canEndAt(state, m, to).ok) { placed.push(stay(m)); continue }
-    placed.push({ model: m, from: m.pos, to, facing: m.facing, path, distance: travel })
+    return tryPlace(m, to)
+  }
+  // straight mode: first every model whose own least-travel contact spot (straight in) is free takes it, then the models
+  // that must go round an enemy base, then the rest rank up behind a touching unit-mate (farthest model first)
+  const pre: Model[] = []
+  if (mode === 'straight') {
+    for (const m of order) {
+      if (geo.movable && !geo.movable.has(m.id)) { placed.push(stay(m)); continue }
+      if (geo.enemies.some((t) => inBaseContact(m, t))) { placed.push(stay(m)); continue }
+      const direct = directFor(m)
+      if (direct && touchesEnemy(direct)) placed.push(direct); else pre.push(m)
+    }
+  }
+  for (const m of mode === 'straight' ? pre : order) {
+    if (geo.movable && !geo.movable.has(m.id)) { placed.push(stay(m)); continue } // a deferred pile-in moves only the deferred models
+    if (geo.enemies.some((t) => inBaseContact(m, t))) { placed.push(stay(m)); continue }
+    const direct = directFor(m)
+    if (direct && inER(direct)) { placed.push(direct); continue }
+    const around = aroundEnemy(m)
+    if (around) { placed.push(around); continue }
+    // farFirst: models that can only rank up wait until the front rank is placed, then pick spots farthest-first (the
+    // most constrained models choose before nearer ones that have more spots within reach)
+    if (farFirst) { deferred.push({ i: placed.length, m, direct }); placed.push(stay(m)); continue }
+    const ranked = rankUp(m)
+    if (ranked) { placed.push(ranked); continue }
+    placed.push(direct ?? stay(m))
+  }
+  for (const d of deferred.sort((x, y) => minGap(y.m) - minGap(x.m))) placed[d.i] = rankUp(d.m) ?? d.direct ?? stay(d.m)
+  // second pass: anyone still unable to fight retries now that every unit-mate's final spot is known; failing that, it
+  // swaps with a second-rank unit-mate — it takes a rank-up spot and that unit-mate finds another one (a greedy first
+  // pass often gives the one spot a far-back model can reach to a nearer model that had other options)
+  const chained = (pl: ResolvedPlacement): boolean => !touchesEnemy(pl) && !inER(pl)
+    && placed.some((t) => t.model.id !== pl.model.id && touchesEnemy(t) && inBaseContact(fpOf(pl), fpOf(t)))
+  for (let pass = 0; pass < 2; pass++) {
+    let changed = false
+    for (let i = 0; i < placed.length; i++) {
+      const pl = placed[i]
+      const m = pl.model
+      if (geo.movable && !geo.movable.has(m.id)) continue
+      if (geo.enemies.some((t) => inBaseContact(m, t))) continue
+      if (inER(pl) || chained(pl)) continue
+      const alt = aroundEnemy(m) ?? rankUp(m)
+      if (alt) { placed[i] = alt; changed = true; continue }
+      for (let j = 0; j < placed.length; j++) {
+        const q = placed[j]
+        if (j === i || !chained(q) || (geo.movable && !geo.movable.has(q.model.id))) continue
+        lifted.add(q.model.id)
+        const mNew = rankUp(m)
+        lifted.delete(q.model.id)
+        if (!mNew) continue
+        placed[i] = mNew
+        const qNew = aroundEnemy(q.model) ?? rankUp(q.model)
+        if (qNew) { placed[j] = qNew; changed = true; break }
+        placed[i] = pl
+      }
+    }
+    if (!changed) break
   }
   return placed
 }
@@ -206,7 +334,7 @@ function planApproachPoint(state: GameState, models: Model[], point: Vec3, other
     const fp: Footprint = { pos: to, facing: m.facing, base: m.base }
     const blockers: Footprint[] = [...placed.map((pl) => ({ pos: pl.to, facing: pl.facing, base: pl.model.base })), ...otherFriendly, ...enemies]
     if (travel > maxDistance + 1e-3 || !whollyOnBoard(fp, state.board) || blockers.some((b) => basesOverlap(fp, b))
-      || pathCrossesModels(fp, [m.pos, to], enemies) || terrainService.crossesImpassable(state, m, [m.pos, to]) || !terrainService.canEndAt(state, m, to).ok) {
+      || pathCrossesModels(fp, [m.pos, to], enemies) || crossesBigFriendly(state, m, fp, [m.pos, to], otherFriendly) || terrainService.crossesImpassable(state, m, [m.pos, to]) || !terrainService.canEndAt(state, m, to).ok) {
       placed.push({ model: m, from: m.pos, to: m.pos, facing: m.facing, path: [m.pos, m.pos], distance: 0 })
       continue
     }
@@ -227,6 +355,7 @@ function checkApproachArrangement(state: GameState, geo: FightGeometry, maxDista
     if (r.distance <= EPS) continue
     const fp: Footprint = { pos: r.to, facing: r.facing, base: r.model.base }
     if (pathCrossesModels(fp, r.path, geo.enemies)) return { rejection: { code: 'E_OVERLAP', reason: `${r.model.id}'s path would cross an enemy model`, details: { modelId: r.model.id } } }
+    if (crossesBigFriendly(state, r.model, fp, r.path, geo.otherFriendly)) return { rejection: { code: 'E_OVERLAP', reason: `${r.model.id}'s path would cross another MONSTER/VEHICLE model`, details: { modelId: r.model.id } } }
     if (terrainService.crossesImpassable(state, r.model, r.path)) return { rejection: { code: 'E_OVERLAP', reason: `${r.model.id}'s path is blocked by terrain`, details: { modelId: r.model.id } } }
     const end = terrainService.canEndAt(state, r.model, r.to)
     if (!end.ok) return { rejection: { code: 'E_OVERLAP', reason: end.reason ?? `${r.model.id} cannot end there`, details: { modelId: r.model.id } } }
@@ -254,8 +383,12 @@ function closerToClosestEnemyAtStart(model: Model, from: Vec3, to: Vec3, enemies
 // crossing another enemy's base, AND not overlapping `blockers` (the rest of the unit's own resolved arrangement
 // plus other friendlies — FIGHT-013-crowd: a contact spot already taken by a teammate doesn't count) — mirrors
 // charge.ts's `couldReachBaseContact`.
-function couldReachBaseContact(state: GameState, geo: FightGeometry, model: Model, maxDistance: number, blockers: Footprint[]): boolean {
-  for (const t of geo.enemies) {
+function couldReachBaseContact(state: GameState, geo: FightGeometry, model: Model, maxDistance: number, blockers: Footprint[], others: ResolvedPlacement[] = []): boolean {
+  // RC-036: base contact is required only with the enemy model this model was closest to at the start of its move (the same
+  // model closerToClosestEnemyAtStart uses), not with any enemy it could reach
+  let closest: Model | null = null, bestD = Infinity
+  for (const e of geo.enemies) { const d = distance(model, e); if (d < bestD) { bestD = d; closest = e } }
+  for (const t of closest ? [closest] : []) {
     const c = contactPoint(model, t, 0)
     if (c.travel > maxDistance + 1e-3) continue
     const to = { ...c.point, y: terrainService.heightAt(state, c.point.x, c.point.z) }
@@ -266,6 +399,12 @@ function couldReachBaseContact(state: GameState, geo: FightGeometry, model: Mode
     if (blockers.some((b) => basesOverlap(fp, b))) continue
     if (pathCrossesModels(fp, [model.pos, to], geo.enemies)) continue
     if (!terrainService.canEndAt(state, model, to).ok) continue
+    // RC-036: the move into contact must keep the unit in coherency with the rest of the arrangement
+    if (others.length > 0) {
+      const pl: ModelPlacement[] = [...others.filter((o) => o.model.id !== model.id).map((o) => ({ modelId: o.model.id, pos: o.to, facing: o.facing })), { modelId: model.id, pos: to, facing: model.facing }]
+      const coh = checkPlacements({ unitModels: geo.models, placements: pl, constraints: emptyMoveConstraints(maxDistance, { coherency: true }), otherFriendly: geo.otherFriendly, enemies: geo.enemies, board: state.board })
+      if (coh.rejection) continue
+    }
     return true
   }
   return false
@@ -359,8 +498,8 @@ export function enemyUnitIdsOnBoard(state: GameState, player: PlayerId): UnitId[
 
 // R-9.8: `model` may target `enemyId` if within ER of it, or in base contact with a friendly model of its own unit
 // that is itself in base contact with THAT enemy unit specifically.
-export function legalTargetsFor(state: GameState, unitId: UnitId, model: Model, enemyIds: UnitId[]): UnitId[] {
-  const models = unitModelsForCoherency(state, unitId)
+export function legalTargetsFor(state: GameState, unitId: UnitId, model: Model, enemyIds: UnitId[], friends?: Model[]): UnitId[] {
+  const models = friends ?? unitModelsForCoherency(state, unitId)
   const out: UnitId[] = []
   for (const enemyId of enemyIds) {
     const enemyModels = (leaderService.combinedModels ? leaderService.combinedModels(state, enemyId) : unitModels(state, enemyId)).filter((m) => state.units[m.unitId]?.location === 'board')
@@ -388,15 +527,67 @@ function doPileIn(ctx: EngineContext, unitId: UnitId): 'pending' | 'progress' {
   return 'pending'
 }
 
-function applyPileIn(ctx: EngineContext, unitId: UnitId, action: Extract<Action, { type: 'pileIn' }>): Rejection | void {
+function applyPileIn(ctx: EngineContext, unitId: UnitId, action: Extract<Action, { type: 'pileIn' }>, pending: Extract<PendingDecision, { kind: 'pileIn' }>): Rejection | void {
   const s = ctx.state
   const geo = fightGeometry(s, unitId)
-  const dist = Number(readMark(s, `fi:dist:${unitId}`) ?? hookService.pileInDistance?.(s, unitId, 3) ?? 3)
+  const dist = pending.context.distance
+  const dp = deferredPileInMark(s)
   const check = checkApproachArrangement(s, geo, dist, action.placements)
   if (check.rejection) throw new EngineInvariantError('fight: stored pile-in placements failed re-validation', { rejection: check.rejection })
   for (const r of check.resolved) if (r.distance > EPS) { r.model.pos = r.to; r.model.facing = r.facing }
   ctx.emit({ type: 'PiledIn', unitId, paths: Object.fromEntries(check.resolved.filter((r) => r.distance > EPS).map((r) => [r.model.id, r.path])) })
+  cultAmbushOnMoveEnded(ctx, unitId)
+  if (dp && dp.unitId === unitId) {
+    // a deferred model's own pile-in is not the unit's activation: its fi:piledIn mark stays open
+    ctx.once(dp.key)
+    s.phaseState.marks = s.phaseState.marks.filter((x) => !x.startsWith(`${DEFERRED_PILE_MARK}=`))
+    return
+  }
   ctx.once(`fi:piledIn:${unitId}`)
+}
+
+// Fight on death (Rules Commentary): a destroyed model may pile in (up to pileInDistance, unit coherency kept against the
+// live models), then attack, before the destroying unit consolidates; it does not consolidate. Shared by Daemonic Fervour
+// (fight-on-death.ts), A Martyr's Death (deferredFightStep) and Death Blow. 'pending' while the pile-in decision is open.
+export function deferredPileInStep(ctx: EngineContext, key: string, unitId: UnitId, modelIds: string[]): 'pending' | 'done' {
+  const s = ctx.state
+  if (ctx.marked(key)) return 'done'
+  const canon = leaderService.canonicalUnitId(s, unitId)
+  const ids = modelIds.filter((id) => s.models[id])
+  if (ids.length === 0) { ctx.once(key); return 'done' }
+  writeMark(s, DEFERRED_PILE_MARK, JSON.stringify({ key, unitId: canon, ids } satisfies DeferredPileIn))
+  const dist = hookService.pileInDistance?.(s, canon, 3) ?? 3
+  if (legalApproachMoves(s, canon, dist, null, 1).length === 0) {
+    s.phaseState.marks = s.phaseState.marks.filter((x) => !x.startsWith(`${DEFERRED_PILE_MARK}=`))
+    ctx.once(key)
+    return 'done'
+  }
+  ctx.decide({
+    kind: 'pileIn', player: s.units[canon].player, window: 'fight.unitSelected', canPass: false,
+    context: { unitId: canon, distance: dist }, constraints: emptyMoveConstraints(dist, { coherency: true }),
+  })
+  return 'pending'
+}
+
+// the melee weapons of deferred models, each with targets by the normal R-9.8 eligibility (Engagement Range, or base contact
+// with a unit-mate that is in base contact with that enemy), evaluated after their pile-in. Models with no target are left out.
+export function deferredWeapons(ctx: EngineContext, unitId: UnitId, models: Model[]): DeclareTargetsDecision['context']['weapons'] | 'pending' {
+  const s = ctx.state
+  const canon = leaderService.canonicalUnitId(s, unitId)
+  for (const m of models) if (resolveModelWeapons(ctx, m.id) === 'pending') return 'pending'
+  const have = new Set<string>()
+  const friends = [...unitModelsForCoherency(s, canon), ...models].filter((m) => !have.has(m.id) && have.add(m.id))
+  const enemyIds = enemyUnitIdsOnBoard(s, s.units[canon].player)
+  const weapons: DeclareTargetsDecision['context']['weapons'] = []
+  for (const m of models) {
+    const legalTargets = legalTargetsFor(s, canon, m, enemyIds, friends)
+    if (legalTargets.length === 0) continue
+    for (const weaponId of resolveModelWeapons(ctx, m.id) as WeaponId[]) {
+      const weapon = weaponService.effectiveWeapon(s, m.id, weaponId)
+      weapons.push({ modelId: m.id, weaponId, profileGroup: weapon.profileGroup ?? null, legalTargets, attacks: attacksFor(ctx, m.id, weaponId) })
+    }
+  }
+  return weapons
 }
 
 // ---------- declare targets + attacks (R-9.6..R-9.9) ----------
@@ -438,6 +629,8 @@ function validateDeclareTargets(pending: Extract<PendingDecision, { kind: 'decla
   }
   for (const [key, total] of totals) {
     if (total <= 0) continue
+    // a model with no legal target (not within Engagement Range of any enemy) simply makes no attacks
+    if ((pending.context.weapons.find((w) => `${w.modelId}|${w.weaponId}` === key)?.legalTargets.length ?? 1) === 0) continue
     if ((sums.get(key) ?? 0) !== total) return { code: 'E_SCHEMA', reason: `attacks for ${key} must sum to ${total}`, details: { key, total } }
   }
   return null
@@ -457,26 +650,18 @@ function deferredOpen(state: GameState, unitId: UnitId): boolean {
   return state.phaseState.marks.includes(`${defKey(unitId)}:open`) && !state.phaseState.marks.includes(`${defKey(unitId)}:begun`)
 }
 
-// the deferred models of `entry` fight once, after the destroying unit's attacks (no pile-in, no consolidation), against
-// enemies in Engagement Range only: 'pending' while their declareTargets decision is open, 'done' when resolved / nothing to hit
+// the deferred models of `entry` fight once, after the destroying unit's attacks (a pile-in first, no consolidation), against
+// enemies they are eligible to attack after it: 'pending' while their declareTargets decision is open, 'done' when resolved / nothing to hit
 export function deferredFightStep(ctx: EngineContext, entry: { unitId: UnitId; modelIds: UnitId[] }): 'pending' | 'done' {
   const s = ctx.state
   const key = defKey(entry.unitId)
   if (ctx.marked(`${key}:begun`)) return 'done'
   const player = s.units[entry.unitId].player
+  // RC-ADE-10: pile in first (Fight on Death allows it), then normal fight eligibility for targets
+  if (!ctx.marked(`${key}:open`) && deferredPileInStep(ctx, `${key}:pile`, entry.unitId, entry.modelIds) === 'pending') return 'pending'
   const models = entry.modelIds.map((id) => s.models[id]).filter((m): m is Model => !!m)
-  for (const m of models) if (resolveModelWeapons(ctx, m.id) === 'pending') return 'pending'
-  const enemyIds = enemyUnitIdsOnBoard(s, player)
-  const weapons: DeclareTargetsDecision['context']['weapons'] = []
-  for (const m of models) {
-    for (const weaponId of resolveModelWeapons(ctx, m.id) as WeaponId[]) {
-      const weapon = weaponService.effectiveWeapon(s, m.id, weaponId)
-      const legalTargets = enemyIds.filter((e) => (leaderService.combinedModels ? leaderService.combinedModels(s, e) : unitModels(s, e)).some((em) => horizontalGap(m, em) <= ENGAGEMENT_H + EPS && Math.abs(m.pos.y - em.pos.y) <= 5 + EPS))
-      // a deferred model with nothing in Engagement Range simply does not fight (a listed weapon would have to declare its attacks)
-      if (legalTargets.length === 0) continue
-      weapons.push({ modelId: m.id, weaponId, profileGroup: weapon.profileGroup ?? null, legalTargets, attacks: attacksFor(ctx, m.id, weaponId) })
-    }
-  }
+  const weapons = deferredWeapons(ctx, entry.unitId, models)
+  if (weapons === 'pending') return 'pending'
   if (!weapons.some((w) => w.legalTargets.length > 0)) { ctx.once(`${key}:begun`); return 'done' }
   if (!ctx.once(`${key}:open`)) return 'pending'
   const engagedWith = [...new Set(weapons.flatMap((w) => w.legalTargets))]
@@ -529,6 +714,7 @@ function checkConsolidateArrangement(state: GameState, geo: FightGeometry, dist:
     if (r.distance <= EPS) continue
     const fp: Footprint = { pos: r.to, facing: r.facing, base: r.model.base }
     if (pathCrossesModels(fp, r.path, geo.enemies)) return { rejection: { code: 'E_OVERLAP', reason: `${r.model.id}'s path would cross an enemy model`, details: { modelId: r.model.id } } }
+    if (crossesBigFriendly(state, r.model, fp, r.path, geo.otherFriendly)) return { rejection: { code: 'E_OVERLAP', reason: `${r.model.id}'s path would cross another MONSTER/VEHICLE model`, details: { modelId: r.model.id } } }
     if (terrainService.crossesImpassable(state, r.model, r.path)) return { rejection: { code: 'E_OVERLAP', reason: `${r.model.id}'s path is blocked by terrain`, details: { modelId: r.model.id } } }
     const end = terrainService.canEndAt(state, r.model, r.to)
     if (!end.ok) return { rejection: { code: 'E_OVERLAP', reason: end.reason ?? `${r.model.id} cannot end there`, details: { modelId: r.model.id } } }
@@ -550,6 +736,7 @@ function applyConsolidate(ctx: EngineContext, unitId: UnitId, action: Extract<Ac
   if (check.rejection) throw new EngineInvariantError('fight: stored consolidate placements failed re-validation', { rejection: check.rejection })
   for (const r of check.resolved) if (r.distance > EPS) { r.model.pos = r.to; r.model.facing = r.facing }
   ctx.emit({ type: 'Consolidated', unitId, paths: Object.fromEntries(check.resolved.filter((r) => r.distance > EPS).map((r) => [r.model.id, r.path])) })
+  cultAmbushOnMoveEnded(ctx, unitId)
   ctx.once(`fi:consolidated:${unitId}`)
 }
 
@@ -558,7 +745,6 @@ function applyConsolidate(ctx: EngineContext, unitId: UnitId, action: Extract<Ac
 // R-9.12 [FIGHT-025]: a pending Counter-offensive reaction always names one specific unit to fight next, regardless
 // of which step is current and regardless of what else might independently be eligible — it is offered (and
 // consumed only once chosen, in `handle`) ahead of, and instead of, the ordinary alternation below.
-const COUNTER_RESUME_KEY = 'fi:coResume'
 
 function doFightSelect(ctx: EngineContext): 'pending' | 'nextStep' | 'done' {
   const s = ctx.state
@@ -567,20 +753,6 @@ function doFightSelect(ctx: EngineContext): 'pending' | 'nextStep' | 'done' {
   // then, unlike in `enter()`, which some tests call before placing any units) and cache it for the rest of step 1.
   if (fight.step === 'fightsFirst' && readMark(s, FF_SNAPSHOT_KEY) === null) {
     writeMark(s, FF_SNAPSHOT_KEY, JSON.stringify(computeFfSnapshotIds(s)))
-  }
-  // Death Blow (TYR-6.1): the attacking unit's activation is over, so every model whose removal was deferred may now fight
-  // (optional: use / decline), out of alternation; declining removes it at once. Anything still pending is removed at phase end.
-  for (const unitId of pendingDeathBlowUnits(s)) {
-    const owner = s.units[unitId].player
-    ctx.decide({
-      kind: 'chooseOption', player: owner, window: 'fight.start', canPass: false,
-      context: { topic: 'other', unitId, abilityId: null, data: { choice: 'deathBlow', unitId } },
-      options: [
-        { id: 'fight', label: `Death Blow: fight with ${s.units[unitId].name} before it is removed`, action: { type: 'chooseOption', player: owner, decisionId: '', optionId: 'fight' } },
-        { id: 'decline', label: 'Decline: remove the model now', action: { type: 'chooseOption', player: owner, decisionId: '', optionId: 'decline' } },
-      ],
-    })
-    return 'pending'
   }
   const co = pendingReactions(s, 'counterOffensive')[0]
   if (co) {
@@ -615,13 +787,9 @@ function finishUnit(ctx: EngineContext, unitId: UnitId, player: PlayerId): void 
   const fight = s.phaseState.fight!
   for (const id of leaderService.halves?.(s, unitId) ?? [unitId]) if (s.units[id]) s.units[id].turn.foughtThisPhase = true
   if (!fight.fought.includes(unitId)) fight.fought.push(unitId)
-  // FIGHT-025: once the Counter-offensive unit itself finishes, restore the player who would have been next (saved
-  // when it was selected — `nextToSelect` right before the reaction fired) rather than flipping from its own owner.
-  const resume = readMark(s, COUNTER_RESUME_KEY)
-  if (resume !== null) {
-    fight.nextToSelect = resume as PlayerId
-    s.phaseState.marks = s.phaseState.marks.filter((x) => !x.startsWith(`${COUNTER_RESUME_KEY}=`))
-  } else if (fight.counterOffensive) {
+  // RC-040 / FIGHT-025: the Counter-offensive unit is a selection like any other, so after it the opponent selects (the CO
+  // unit's owner may have two activations in a row only if the opponent has nothing eligible).
+  if (fight.counterOffensive) {
     fight.counterOffensive = false
   } else {
     fight.nextToSelect = otherPlayer(player)
@@ -630,6 +798,53 @@ function finishUnit(ctx: EngineContext, unitId: UnitId, player: PlayerId): void 
   fight.subStep = 'select'
   // Death Blow: the model is removed once it has fought
   finishDeferredRemovalOfUnit(ctx, unitId)
+}
+
+// TYR-02 Death Blow: just after the attacking unit's attacks and before it consolidates (Fight on Death), a model whose removal was
+// deferred may fight: optional use / decline, then a pile-in and its own attacks like any deferred model (not a unit activation:
+// no FightUnitSelected, no unit-selected window, no consolidation), then it is removed. 'pending' while a decision is open.
+function resolveDeathBlows(ctx: EngineContext): 'pending' | 'done' {
+  const s = ctx.state
+  for (let guard = 0; guard < 64; guard++) {
+    const unitId = pendingDeathBlowUnits(s)[0]
+    if (!unitId) return 'done'
+    const owner = s.units[unitId].player
+    const declKey = `dbf:decl:${unitId}`
+    const clear = (): void => {
+      s.phaseState.marks = s.phaseState.marks.filter((x) => !x.startsWith(`dbf:`) || !x.endsWith(`:${unitId}`))
+      s.phaseState.marks = s.phaseState.marks.filter((x) => x !== `fi:declared:${unitId}`)
+      finishDeferredRemovalOfUnit(ctx, unitId)
+    }
+    if (!ctx.marked(`dbf:choice:${unitId}`)) {
+      ctx.decide({
+        kind: 'chooseOption', player: owner, window: 'fight.unitSelected', canPass: false,
+        context: { topic: 'other', unitId, abilityId: null, data: { choice: 'deathBlow', unitId } },
+        options: [
+          { id: 'fight', label: `Death Blow: fight with ${s.units[unitId].name} before it is removed`, action: { type: 'chooseOption', player: owner, decisionId: '', optionId: 'fight' } },
+          { id: 'decline', label: 'Decline: remove the model now', action: { type: 'chooseOption', player: owner, decisionId: '', optionId: 'decline' } },
+        ],
+      })
+      return 'pending'
+    }
+    if (!ctx.marked(`dbf:use:${unitId}`)) continue // declined: already removed by the handler (the list shrinks)
+    if (ctx.marked(declKey)) {
+      if (s.phaseState.attack && s.phaseState.attack.attackerUnitId === unitId && attackService.advance(ctx) === 'pending') return 'pending'
+      clear()
+      continue
+    }
+    const models = s.units[unitId].models.map((id) => s.models[id]).filter((m): m is Model => !!m && !!m.pendingRemoval)
+    if (deferredPileInStep(ctx, `dbf:pile:${unitId}`, unitId, models.map((m) => m.id)) === 'pending') return 'pending'
+    const weapons = deferredWeapons(ctx, unitId, models)
+    if (weapons === 'pending') return 'pending'
+    if (!weapons.some((w) => w.legalTargets.length > 0)) { clear(); continue }
+    ctx.once(declKey)
+    ctx.decide({
+      kind: 'declareTargets', player: owner, window: 'fight.unitSelected', canPass: false,
+      context: { unitId, attackKind: 'melee', overwatch: false, weapons, engagedWith: [...new Set(weapons.flatMap((w) => w.legalTargets))] },
+    })
+    return 'pending'
+  }
+  return 'done'
 }
 
 function driveFightUnit(ctx: EngineContext): 'pending' | 'progress' {
@@ -666,14 +881,19 @@ function driveFightUnit(ctx: EngineContext): 'pending' | 'progress' {
   if (fight.subStep === 'attacks') {
     const r = doAttacks(ctx, unitId)
     if (r === 'pending') return 'pending'
-    // C5: models kept on the board at 0 wounds by Daemonic Fervour make their last attacks now, before this unit consolidates
-    if (resolveDeferredDeaths(ctx) === 'pending') return 'pending'
     fight.subStep = 'deferred'
   }
   if (fight.subStep === 'deferred') {
-    // E4: a deferred last-stand attack (A Martyr's Death) already in progress, then any still to open
-    if (s.phaseState.attack && attackService.advance(ctx) === 'pending') return 'pending'
-    if (resolveDeferredActivations(ctx, unitId) === 'awaiting') return 'pending'
+    // C5 + TYR-02 + E4: repeat until nothing is left, since each can queue another (a Death Blow model killed during a
+    // last stand, a last stand killing a Death Blow model...): 0-wound Daemonic Fervour models make their last attacks,
+    // Death Blow models fight, deferred last-stand activations (A Martyr's Death) open
+    for (let guard = 0; guard < 64; guard++) {
+      if (s.phaseState.attack && attackService.advance(ctx) === 'pending') return 'pending'
+      if (resolveDeferredDeaths(ctx) === 'pending') return 'pending'
+      if (resolveDeathBlows(ctx) === 'pending') return 'pending'
+      if (resolveDeferredActivations(ctx, unitId) === 'awaiting') return 'pending'
+      if (pendingDeathBlowUnits(s).length === 0 && deferredDeaths(s).length === 0) break
+    }
     fight.subStep = 'consolidate'
   }
   if (fight.subStep === 'consolidate') {
@@ -697,13 +917,14 @@ function approachRejection(state: GameState, geo: FightGeometry, dist: number, o
   if (objectiveId !== null) return null
   for (const r of check.resolved) {
     if (r.distance <= EPS) continue
+    if (geo.movable && !geo.movable.has(r.model.id)) return { code: 'E_INVALID_TARGET', reason: `${r.model.id} may not move in this pile-in`, details: { modelId: r.model.id } }
     if (!closerToClosestEnemyAtStart(r.model, r.from, r.to, geo.enemies)) return { code: 'E_OUT_OF_RANGE', reason: `${r.model.id} must end closer to the enemy model it started closest to`, details: { modelId: r.model.id } }
     const fp: Footprint = { pos: r.to, facing: r.facing, base: r.model.base }
     const blockers: Footprint[] = [
       ...check.resolved.filter((o) => o.model.id !== r.model.id).map((o) => ({ pos: o.to, facing: o.facing, base: o.model.base })),
       ...geo.otherFriendly,
     ]
-    if (!geo.enemies.some((e) => inBaseContact(fp, e)) && couldReachBaseContact(state, geo, r.model, dist, blockers)) {
+    if (!geo.enemies.some((e) => inBaseContact(fp, e)) && couldReachBaseContact(state, geo, r.model, dist, blockers, check.resolved)) {
       return { code: 'E_OUT_OF_RANGE', reason: `${r.model.id} could end in base contact with an enemy and must`, details: { modelId: r.model.id } }
     }
   }
@@ -724,23 +945,50 @@ function legalApproachMoves(state: GameState, unitId: UnitId, dist: number, obje
     if (approachRejection(state, geo, dist, objectiveId, placements) === null) out.push(placements)
     return out.length >= limit
   }
-  const toPlacements = (rs: ResolvedPlacement[]): ModelPlacement[] => rs.filter((r) => r.distance > EPS).map((r) => ({ modelId: r.model.id, pos: r.to, facing: r.facing, path: r.path }))
+  const toPlacements = (rs: ResolvedPlacement[]): ModelPlacement[] => rs.filter((r) => r.distance > EPS && (!geo.movable || geo.movable.has(r.model.id))).map((r) => ({ modelId: r.model.id, pos: r.to, facing: r.facing, path: r.path }))
   const obj = objectiveId !== null ? state.objectives[objectiveId] : undefined
   const terrainOk = (m: Model, to: Vec3): boolean => terrainService.canEndAt(state, m, to).ok && !terrainService.crossesImpassable(state, m, [m.pos, to])
   const ok = obj
     ? (m: Model, to: Vec3): boolean => dist2D(to, obj.pos) < dist2D(m.pos, obj.pos) - EPS && terrainOk(m, to)
     : (m: Model, to: Vec3): boolean => closerToClosestEnemyAtStart(m, m.pos, to, geo.enemies) && terrainOk(m, to)
   const repair = (pl: ModelPlacement[]): ModelPlacement[] => repairCoherency(geo.models, pl, { allowance: () => dist - 0.02, blockers: [...geo.otherFriendly, ...geo.enemies], ok })
-  const plans: (() => ModelPlacement[])[] = obj
-    ? [() => toPlacements(planApproachPoint(state, geo.models, { x: obj.pos.x, y: terrainService.heightAt(state, obj.pos.x, obj.pos.z), z: obj.pos.z }, geo.otherFriendly, geo.enemies, dist))]
-    : [ENGAGEMENT_H - 0.01, 0.004, 0.3].map((gap) => () => toPlacements(planApproachEnemy(state, geo, dist, gap)))
-  for (const plan of plans) {
-    const pl = plan()
+  if (obj) {
+    const pl = toPlacements(planApproachPoint(state, geo.models, { x: obj.pos.x, y: terrainService.heightAt(state, obj.pos.x, obj.pos.z), z: obj.pos.z }, geo.otherFriendly, geo.enemies, dist))
     if (consider(pl) || consider(repair(pl))) return out
+    if (consider([])) return out
+    consider(repair([]))
+    return out
   }
-  if (consider([])) return out
-  consider(repair([]))
-  return out
+  // toward the enemy: every plan is validated (base contact first, then near contact, then the Engagement Range edge;
+  // each as planned and coherency-repaired; finally staying put), then the legal ones are ranked by how many models may
+  // fight afterwards (R-9.6), so the first candidate — the UI's default "Pile in" — puts the most models into the fight.
+  // Ties keep this order, so a base-contact plan beats an equally good ER-edge one.
+  const all: ModelPlacement[][] = []
+  const gather = (pl: ModelPlacement[]): void => { consider(pl); while (out.length) all.push(out.shift() as ModelPlacement[]) }
+  for (const [gap, mode] of [[0.004, 'straight'], [0.004, 'nearest'], [0.004, 'farFirst'], [0.3, 'nearest'], [ENGAGEMENT_H - 0.01, 'nearest']] as const) {
+    const pl = toPlacements(planApproachEnemy(state, geo, dist, gap, mode))
+    gather(pl)
+    gather(repair(pl))
+  }
+  gather([])
+  gather(repair([]))
+  const scored = all.map((pl, i) => ({ pl, i, n: fightersAfter(geo, pl) }))
+  scored.sort((a, b) => b.n - a.n || a.i - b.i)
+  return scored.slice(0, limit).map((x) => x.pl)
+}
+
+// R-9.6 over a proposed arrangement: models within Engagement Range of an enemy, or in base contact with a unit-mate
+// that is itself in base contact with an enemy (mirrors attackEligibleModels on final positions)
+function fightersAfter(geo: FightGeometry, placements: ModelPlacement[]): number {
+  const moved = new Map(placements.map((p) => [p.modelId, p.pos]))
+  const fps: Footprint[] = geo.models.map((m) => ({ pos: moved.get(m.id) ?? m.pos, facing: m.facing, base: m.base }))
+  const touching = fps.map((f) => geo.enemies.some((e) => inBaseContact(f, e)))
+  let n = 0
+  fps.forEach((f, i) => {
+    if (geo.enemies.some((e) => horizontalGap(f, e) <= ENGAGEMENT_H + EPS && Math.abs(f.pos.y - e.pos.y) <= 5 + EPS)) { n++; return }
+    if (fps.some((g, j) => j !== i && touching[j] && inBaseContact(f, g))) n++
+  })
+  return n
 }
 
 // ---------- legal-action candidates (W1-G) ----------
@@ -832,8 +1080,8 @@ export const fightModule: PhaseModule = {
     }
     if (pending.kind === 'chooseFightUnit' && action.type === 'chooseFightUnit') {
       const fight = s.phaseState.fight!
-      const co = consumeReaction(s, 'counterOffensive', action.unitId)
-      if (co) writeMark(s, COUNTER_RESUME_KEY, fight.nextToSelect)
+      consumeReaction(s, 'counterOffensive', action.unitId)
+      fight.nextToSelect = otherPlayer(owner(s, action.unitId))
       fight.currentUnitId = action.unitId
       fight.subStep = 'pileIn'
       ctx.emit({ type: 'FightUnitSelected', unitId: action.unitId, step: fight.step })
@@ -841,21 +1089,12 @@ export const fightModule: PhaseModule = {
     }
     if (pending.kind === 'chooseOption' && pending.context.topic === 'other' && (pending.context.data as { choice?: string }).choice === 'deathBlow' && action.type === 'chooseOption') {
       const unitId = (pending.context.data as { unitId: UnitId }).unitId
-      const fight = s.phaseState.fight!
-      const unit = s.units[unitId]
-      // a unit that cannot fight any more (gone from the board, or no longer engaged) simply loses the model
-      if (action.optionId !== 'fight' || !unit || unit.location !== 'board' || unit.turn.foughtThisPhase || !eligibleToFight(s, unitId)) {
-        finishDeferredRemovalOfUnit(ctx, unitId)
-        return
-      }
-      // a pure insertion into the alternation (like Counter-offensive): the next selector is restored when the unit finishes
-      if (readMark(s, COUNTER_RESUME_KEY) === null) writeMark(s, COUNTER_RESUME_KEY, fight.nextToSelect)
-      fight.currentUnitId = unitId
-      fight.subStep = 'pileIn'
-      ctx.emit({ type: 'FightUnitSelected', unitId, step: fight.step, player: owner(s, unitId) })
+      ctx.once(`dbf:choice:${unitId}`)
+      if (action.optionId === 'fight') ctx.once(`dbf:use:${unitId}`)
+      else finishDeferredRemovalOfUnit(ctx, unitId)
       return
     }
-    if (pending.kind === 'pileIn' && action.type === 'pileIn') return applyPileIn(ctx, action.unitId, action)
+    if (pending.kind === 'pileIn' && action.type === 'pileIn') return applyPileIn(ctx, action.unitId, action, pending)
     if (pending.kind === 'declareTargets' && action.type === 'declareTargets') return applyDeclareTargets(ctx, action)
     if (pending.kind === 'consolidate' && action.type === 'consolidate') return applyConsolidate(ctx, action.unitId, action, pending)
     if (pending.kind === 'chooseOption' && pending.context.topic === 'meleeWeapon' && action.type === 'chooseOption') {

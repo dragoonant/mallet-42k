@@ -1,11 +1,11 @@
 // End-of-game modal (docs/spec/50-client.md §5). Reads state.result — the engine sets it once and
 // only once the battle actually ends, so this only ever renders on a finished GameState.
-import type { CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import type { GameState, PlayerId } from '@/engine'
 import { useGameStore } from '../store/game'
 import { useDisplayState } from '../presentation/presentedStore'
 import { secondaryScoringIds } from './labels'
-import { buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
+import { buttonBase, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 
 const overlay: CSSProperties = {
   position: 'fixed',
@@ -26,6 +26,60 @@ const th: CSSProperties = { textAlign: 'right', color: colors.muted, fontWeight:
 const thRound: CSSProperties = { ...th, textAlign: 'left' }
 const td: CSSProperties = { padding: '2px 6px' }
 const tdRound: CSSProperties = { ...td, textAlign: 'left', color: colors.muted }
+
+const FADE_MS = 400
+const cinematic: CSSProperties = { position: 'fixed', inset: 0, background: '#000', zIndex: 30, cursor: 'pointer', fontFamily: fontStack }
+const cinematicVideo: CSSProperties = { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }
+const skipButton: CSSProperties = { ...buttonBase, position: 'absolute', top: 20, right: 20, background: 'rgba(0,0,0,0.55)' }
+const cinematicTitle: CSSProperties = {
+  position: 'absolute',
+  left: 0,
+  right: 0,
+  bottom: '12%',
+  textAlign: 'center',
+  fontSize: 'clamp(48px, 11vw, 140px)',
+  fontWeight: 800,
+  letterSpacing: '0.18em',
+  textIndent: '0.18em',
+  textShadow: '0 4px 32px rgba(0,0,0,0.85)',
+  pointerEvents: 'none',
+}
+
+type CinematicPhase = 'video' | 'fading' | 'card'
+
+/** Full-screen win/lose video shown before the score card. Only mounted while the cinematic is live. */
+function EndCinematic({ kind, fading, onSkip }: { kind: 'victory' | 'defeat'; fading: boolean; onSkip: () => void }) {
+  const [shown, setShown] = useState(false)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setShown(true))
+    return () => cancelAnimationFrame(id)
+  }, [])
+  const win = kind === 'victory'
+  return (
+    <div style={{ ...cinematic, opacity: fading ? 0 : 1, transition: `opacity ${FADE_MS}ms ease`, pointerEvents: fading ? 'none' : 'auto' }} data-testid="end-cinematic" onClick={onSkip}>
+      <video
+        src={`${import.meta.env.BASE_URL}assets/video/${kind}.mp4`}
+        style={{ ...cinematicVideo, opacity: shown ? 1 : 0, transition: 'opacity 1.5s ease' }}
+        autoPlay
+        muted
+        playsInline
+        onEnded={onSkip}
+        onError={onSkip}
+      />
+      <div style={{ ...cinematicTitle, color: win ? colors.accent : colors.danger, opacity: shown ? 1 : 0, transition: 'opacity 1.2s ease 1s' }}>{win ? 'VICTORY' : 'DEFEAT'}</div>
+      <button
+        style={skipButton}
+        onClick={(e) => {
+          e.stopPropagation()
+          onSkip()
+        }}
+        data-testid="end-cinematic-skip"
+      >
+        Skip
+      </button>
+    </div>
+  )
+}
 
 function reasonLabel(reason: string): string {
   if (reason === 'tabled') return 'One army was wiped off the table.'
@@ -52,6 +106,24 @@ export function EndScreen({ onPlayAgain }: { onPlayAgain: () => void }) {
   const state = useDisplayState()
   const bundle = useGameStore((s) => s.bundle)
   const result = state?.result
+  const opponent = useGameStore((s) => s.opponent)
+  const humanSeat = useGameStore((s) => s.humanSeat)
+  const botSeat = useGameStore((s) => s.botSeat)
+  // One human against the AI and a decisive result -> cinematic; hot-seat, draws and bot-vs-bot skip it.
+  const kind: 'victory' | 'defeat' | null =
+    result && result.winner !== 'draw' && opponent === 'bot' && botSeat && botSeat !== humanSeat ? (result.winner === humanSeat ? 'victory' : 'defeat') : null
+  const [phase, setPhase] = useState<CinematicPhase>('video')
+  const live = kind !== null && phase !== 'card'
+  useEffect(() => {
+    if (!result) setPhase('video') // new game: re-arm for the next ending
+  }, [result])
+  // The stings (victory-fanfare / defeat-sting) already play from eventSounds on the gameEnded event.
+  useEffect(() => {
+    if (phase !== 'fading') return
+    const id = setTimeout(() => setPhase('card'), FADE_MS)
+    return () => clearTimeout(id)
+  }, [phase])
+  const skip = () => setPhase((p) => (p === 'video' ? 'fading' : p))
   if (!state || !result) return null
 
   const totalRounds = state.mission.data.rounds ?? 5
@@ -61,7 +133,9 @@ export function EndScreen({ onPlayAgain }: { onPlayAgain: () => void }) {
   const secondaryIdsB = secondaryScoringIds(bundle, state, 'B')
 
   return (
-    <div style={overlay} data-testid="end-screen">
+    <>
+    {kind && live && <EndCinematic kind={kind} fading={phase === 'fading'} onSkip={skip} />}
+    {(!kind || phase !== 'video') && <div style={overlay} data-testid="end-screen">
       <div style={card}>
         <h2 style={heading}>{result.winner === 'draw' ? 'Draw' : `Victory: ${state.players[result.winner].name}`}</h2>
         <p style={mutedText}>
@@ -107,6 +181,7 @@ export function EndScreen({ onPlayAgain }: { onPlayAgain: () => void }) {
           Play again
         </button>
       </div>
-    </div>
+    </div>}
+    </>
   )
 }

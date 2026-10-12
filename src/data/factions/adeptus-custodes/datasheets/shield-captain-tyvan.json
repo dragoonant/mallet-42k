@@ -1,0 +1,27 @@
+[
+  {
+    "id": "cus.shield-captain-tyvan",
+    "faction": "adeptus-custodes",
+    "name": "Shield-Captain Tyvan",
+    "keywords": ["INFANTRY", "CHARACTER", "IMPERIUM", "SHIELD-CAPTAIN", "TYVAN"],
+    "factionKeywords": ["ADEPTUS CUSTODES"],
+    "stats": { "M": 6, "T": 6, "Sv": 2, "W": 6, "Ld": 6, "OC": 2 },
+    "invuln": 4,
+    "composition": [
+      {
+        "modelId": "captain",
+        "name": "Shield-Captain Tyvan",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 40 },
+        "statsOverride": { "W": 7 },
+        "weapons": { "default": ["cus.w.sentinel-blade-ranged", "cus.w.sentinel-blade-tyvan"] },
+        "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+      }
+    ],
+    "abilities": ["cus.a.martial-katah", "cus.a.praesidium-shield"],
+    "coreAbilities": [ { "ability": "DEEP_STRIKE" }, { "ability": "LEADER" } ],
+    "leader": { "attachTo": ["cus.custodian-guard"], "effects": [] },
+    "points": [ { "models": 1, "points": 0 } ],
+    "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+  }
+]

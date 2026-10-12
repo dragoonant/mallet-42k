@@ -1,0 +1,65 @@
+[
+  {
+    "id": "gsc.neophyte-hybrids",
+    "faction": "genestealer-cults",
+    "name": "Neophyte Hybrids",
+    "keywords": ["INFANTRY", "BATTLELINE", "GREAT DEVOURER", "NEOPHYTE HYBRIDS"],
+    "factionKeywords": ["GENESTEALER CULTS"],
+    "stats": { "M": 6, "T": 3, "Sv": 5, "W": 1, "Ld": 7, "OC": 2 },
+    "composition": [
+      {
+        "modelId": "leader",
+        "name": "Neophyte Leader",
+        "min": 1, "max": 1, "default": 1,
+        "champion": true,
+        "base": { "shape": "round", "mm": 25 },
+        "weapons": { "default": ["gsc.w.autopistol", "gsc.w.leader-pistol", "gsc.w.power-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "hybrid",
+        "name": "Neophyte (hybrid firearm)",
+        "min": 5, "max": 5, "default": 5,
+        "base": { "shape": "round", "mm": 25 },
+        "weapons": { "default": ["gsc.w.autopistol", "gsc.w.hybrid-firearm", "gsc.w.close-combat-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "icon",
+        "name": "Neophyte (cult icon)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 25 },
+        "weapons": { "default": ["gsc.w.autopistol", "gsc.w.hybrid-firearm", "gsc.w.close-combat-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "heavy-stubber",
+        "name": "Neophyte (heavy stubber)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 25 },
+        "weapons": { "default": ["gsc.w.autopistol", "gsc.w.heavy-stubber", "gsc.w.close-combat-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "seismic-cannon",
+        "name": "Neophyte (seismic cannon)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 25 },
+        "weapons": { "default": ["gsc.w.autopistol", "gsc.w.seismic-cannon", "gsc.w.close-combat-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "webber",
+        "name": "Neophyte (webber)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 25 },
+        "weapons": { "default": ["gsc.w.autopistol", "gsc.w.webber", "gsc.w.close-combat-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      }
+    ],
+    "abilities": ["gsc.a.cult-ambush"],
+    "coreAbilities": [ { "ability": "DEEP_STRIKE" } ],
+    "points": [ { "models": 10, "points": 0 } ],
+    "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+  }
+]

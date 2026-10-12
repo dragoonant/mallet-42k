@@ -178,7 +178,8 @@ async function playMission(page: Page, mission: string, shotPrefix: string, opts
 
   const start = Date.now()
   let lastId = ''
-  let same = 0
+  let sameSince = Date.now()
+  let passedOnce = false
   let shotObj = false
   let shotScore = false
   let shotStrat = false
@@ -216,16 +217,19 @@ async function playMission(page: Page, mission: string, shotPrefix: string, opts
       await page.waitForTimeout(150)
       continue
     }
+    // Time-based, not iteration-based: narration pauses (phase banner, "Resolving dice…") can hold a decision
+    // for many seconds before the prompt is even answerable, and that is not a stall.
     if (s.pending.id === lastId) {
-      same++
-      if (same === 5) await clickPass(page)
-      if (same > 12) {
+      const waited = Date.now() - sameSince
+      if (waited > 20_000 && !passedOnce) { passedOnce = true; await clickPass(page) }
+      if (waited > 45_000) {
         audit.stuck.push(`${s.pending.kind} R${s.round} ${s.phase}`)
         await clickFirstOption(page, false)
-        if (same > 20) break
+        if (waited > 90_000) break
       }
     } else {
-      same = 0
+      sameSince = Date.now()
+      passedOnce = false
       lastId = s.pending.id
     }
 
@@ -267,6 +271,8 @@ async function playMission(page: Page, mission: string, shotPrefix: string, opts
   if (opts.toEnd) {
     await page.waitForTimeout(1200)
     await shot('m6-05-end.png')
+    await page.getByTestId('end-cinematic-skip').click({ timeout: 2000 }).catch(() => {}) // skip win/lose video
+    await page.waitForTimeout(600)
     audit.endText = (await page.getByTestId('end-screen').textContent().catch(() => null)) ?? null
   }
   const eventsList = Object.values(audit.events).sort((a: any, b: any) => a.seq - b.seq).map((e: any) => {

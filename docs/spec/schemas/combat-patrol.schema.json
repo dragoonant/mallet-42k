@@ -125,6 +125,20 @@
         ]
       }
     },
+    "unitChoices": {
+      "type": "array",
+      "description": "Choice groups: exactly one ref of each group is fielded (PlayerSetup.unitChoices); default is used when omitted",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+          "refs": { "type": "array", "minItems": 2, "items": { "type": "string", "pattern": "^[a-z0-9-]+$" } },
+          "default": { "type": "string", "pattern": "^[a-z0-9-]+$" }
+        },
+        "required": ["id", "refs", "default"]
+      }
+    },
     "stratagems": {
       "$ref": "common.schema.json#/$defs/IdList"
     },

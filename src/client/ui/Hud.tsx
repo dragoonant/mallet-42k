@@ -10,6 +10,7 @@ import { useUiStore } from './uiStore'
 import { modelsAnchor } from '../interaction/geometry'
 import { isPlacementDecision } from '../interaction/decisions'
 import { MissionPanel } from './MissionPanel'
+import { Tooltip } from './Tooltip'
 import { primaryScoringWindowHint, sourceName } from './labels'
 import { BATTLEFIELDS } from '../board/terrainAssets'
 import { buttonBase, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
@@ -305,79 +306,87 @@ function ToolButtons() {
 
   const buttons = (
     <>
-      <button
-        style={{ ...toolBtn, width: 'auto', padding: '0 10px', fontSize: 12, whiteSpace: 'nowrap' }}
-        data-testid="btn-battlefield"
-        aria-label={`Battlefield: ${battlefieldName}`}
-        title="Battlefield: cycle the ground texture (purely cosmetic)."
-        onClick={cycleBattlefield}
-      >
-        Battlefield: {battlefieldName} ▸
-      </button>
-      <button
-        style={measureOn ? toolBtnActive : toolBtn}
-        data-testid="btn-measure"
-        aria-label="Measure"
-        title="Measure (M): click-drag on the board to draw a ruler. Drag from a model to the nearest enemy under the cursor for base-edge-to-base-edge range."
-        onClick={toggleMeasure}
-      >
-        📏
-      </button>
-      <button
-        style={losOn ? toolBtnActive : toolBtn}
-        data-testid="btn-los"
-        aria-label="Line of sight"
-        title="Line of sight (L): with a unit selected, tints enemy units green (visible), yellow (visible but has Benefit of Cover), or red/dim (not visible)."
-        onClick={toggleLos}
-      >
-        👁
-      </button>
-      <button
-        style={topDown ? toolBtnActive : toolBtn}
-        data-testid="btn-camera-topdown"
-        aria-label="Camera angle"
-        title={`Camera (T): switch between the angled overview and a straight-down top-down view. Currently: ${topDown ? 'top-down' : 'perspective'}.`}
-        onClick={toggleTopDown}
-      >
-        📷
-      </button>
-      <button
-        style={toolBtn}
-        data-testid="btn-focus"
-        aria-label="Focus selected unit"
-        title="Focus (F): smoothly centre the camera on the currently selected unit."
-        disabled={!selectedUnitId}
-        onClick={focusSelected}
-      >
-        ⌖
-      </button>
-      <button
-        style={helpOpen ? toolBtnActive : toolBtn}
-        data-testid="btn-keys-help"
-        aria-label="Keyboard shortcuts"
-        title="Show the keyboard shortcuts for these tools."
-        onClick={toggleHelp}
-      >
-        ?
-      </button>
-      <button
-        style={toolBtn}
-        data-testid="btn-painter"
-        aria-label="Paint army"
-        title="Paint army: pick major/minor colours and a base style for your forces."
-        onClick={togglePainter}
-      >
-        🎨
-      </button>
-      <button
-        style={settingsOpen ? toolBtnActive : toolBtn}
-        data-testid="btn-settings"
-        aria-label="Settings"
-        title="Settings: volume/mute, animation speed, dice animation, ambient sound."
-        onClick={toggleSettings}
-      >
-        ⚙
-      </button>
+      <Tooltip title="Battlefield" body={'Cycle the ground texture (purely cosmetic).'} placement="bottom">
+        <button
+          style={{ ...toolBtn, width: 'auto', padding: '0 10px', fontSize: 12, whiteSpace: 'nowrap' }}
+          data-testid="btn-battlefield"
+          aria-label={`Battlefield: ${battlefieldName}`}
+          onClick={cycleBattlefield}
+        >
+          Battlefield: {battlefieldName} ▸
+        </button>
+      </Tooltip>
+      <Tooltip title="Measure (M)" body={'Click-drag on the board to draw a ruler. Drag from a model to the nearest enemy under the cursor for base-edge-to-base-edge range.'} placement="bottom">
+        <button
+          style={measureOn ? toolBtnActive : toolBtn}
+          data-testid="btn-measure"
+          aria-label="Measure"
+          onClick={toggleMeasure}
+        >
+          📏
+        </button>
+      </Tooltip>
+      <Tooltip title="Line of sight (L)" body={'With a unit selected, tints enemy units green (visible), yellow (visible but has Benefit of Cover), or red/dim (not visible).'} placement="bottom">
+        <button
+          style={losOn ? toolBtnActive : toolBtn}
+          data-testid="btn-los"
+          aria-label="Line of sight"
+          onClick={toggleLos}
+        >
+          👁
+        </button>
+      </Tooltip>
+      <Tooltip title="Camera (T)" body={`Switch between the angled overview and a straight-down view. Currently: ${topDown ? 'top-down' : 'perspective'}.`} placement="bottom">
+        <button
+          style={topDown ? toolBtnActive : toolBtn}
+          data-testid="btn-camera-topdown"
+          aria-label="Camera angle"
+          onClick={toggleTopDown}
+        >
+          📷
+        </button>
+      </Tooltip>
+      <Tooltip wrap title="Focus (F)" body={'Smoothly centre the camera on the selected unit.'} placement="bottom">
+        <button
+          style={toolBtn}
+          data-testid="btn-focus"
+          aria-label="Focus selected unit"
+          disabled={!selectedUnitId}
+          onClick={focusSelected}
+        >
+          ⌖
+        </button>
+      </Tooltip>
+      <Tooltip title="Keyboard shortcuts" body={'Show the keyboard shortcuts for these tools.'} placement="bottom">
+        <button
+          style={helpOpen ? toolBtnActive : toolBtn}
+          data-testid="btn-keys-help"
+          aria-label="Keyboard shortcuts"
+          onClick={toggleHelp}
+        >
+          ?
+        </button>
+      </Tooltip>
+      <Tooltip title="Paint army" body={'Pick major/minor colours and a base style for your forces.'} placement="bottom">
+        <button
+          style={toolBtn}
+          data-testid="btn-painter"
+          aria-label="Paint army"
+          onClick={togglePainter}
+        >
+          🎨
+        </button>
+      </Tooltip>
+      <Tooltip title="Settings" body={'Volume/mute, animation speed, dice animation, ambient sound.'} placement="bottom">
+        <button
+          style={settingsOpen ? toolBtnActive : toolBtn}
+          data-testid="btn-settings"
+          aria-label="Settings"
+          onClick={toggleSettings}
+        >
+          ⚙
+        </button>
+      </Tooltip>
     </>
   )
 
@@ -385,16 +394,17 @@ function ToolButtons() {
 
   return (
     <div style={toolsMenuWrap}>
-      <button
-        style={menuOpen ? toolBtnActive : toolBtn}
-        data-testid="btn-tools-menu"
-        aria-label="Battlefield tools"
-        aria-expanded={menuOpen}
-        title="Battlefield tools: Measure, Line of sight, Camera, Focus, Keys, Settings."
-        onClick={() => setMenuOpen((v) => !v)}
-      >
-        ⋯
-      </button>
+      <Tooltip title="Battlefield tools" body={'Measure, Line of sight, Camera, Focus, Keys, Settings.'} placement="bottom">
+        <button
+          style={menuOpen ? toolBtnActive : toolBtn}
+          data-testid="btn-tools-menu"
+          aria-label="Battlefield tools"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((v) => !v)}
+        >
+          ⋯
+        </button>
+      </Tooltip>
       {menuOpen && (
         <div style={toolsMenuPanel} data-testid="tools-menu-panel">
           {buttons}
@@ -462,10 +472,10 @@ export function Hud() {
                 </span>
               ))}
             </span>
-            <span style={mutedText} title={activeTitle}>
+            <Tooltip title="Active player" body={activeTitle}><span style={mutedText}>
               Active: {state.activePlayer}
               {thinking ? '…' : ''}
-            </span>
+            </span></Tooltip>
             <button style={buttonBase} data-testid="btn-mission" onClick={() => setMissionOpen((v) => !v)}>
               Mission
             </button>
@@ -515,7 +525,7 @@ function MiracleDice({ dice: diceIn, id, enabled }: { dice: number[] | undefined
   if (!enabled) return null
   const dice = diceIn ?? []
   return (
-    <div style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 4 }} data-testid={`hud-miracle-${id}`} title="Miracle dice: spend one in place of a roll (Acts of Faith)">
+    <Tooltip title="Miracle dice" body="Spend one in place of a roll (Acts of Faith)." placement="bottom"><div style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 4 }} data-testid={`hud-miracle-${id}`}>
       <span>Miracle</span>
       {dice.length === 0 && <span style={mutedText}>none</span>}
       {dice.map((v, i) => (
@@ -526,7 +536,7 @@ function MiracleDice({ dice: diceIn, id, enabled }: { dice: number[] | undefined
           {v}
         </span>
       ))}
-    </div>
+    </div></Tooltip>
   )
 }
 

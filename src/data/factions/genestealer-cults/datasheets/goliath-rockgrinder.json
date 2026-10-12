@@ -1,0 +1,25 @@
+[
+  {
+    "id": "gsc.goliath-rockgrinder",
+    "faction": "genestealer-cults",
+    "name": "Goliath Rockgrinder",
+    "keywords": ["VEHICLE", "GREAT DEVOURER", "GOLIATH ROCKGRINDER"],
+    "factionKeywords": ["GENESTEALER CULTS"],
+    "stats": { "M": 12, "T": 10, "Sv": 3, "W": 10, "Ld": 7, "OC": 3 },
+    "composition": [
+      {
+        "modelId": "rockgrinder",
+        "name": "Goliath Rockgrinder",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "oval", "mm": 150, "mm2": 90 },
+        "weapons": { "default": ["gsc.w.clearance-incinerator", "gsc.w.demolition-charge-cache", "gsc.w.heavy-stubber", "gsc.w.drilldozer-blade"] },
+        "figure": { "archetype": "vehicle", "kit": "generic-heavy" }
+      }
+    ],
+    "abilities": [],
+    "coreAbilities": [ { "ability": "DEADLY_DEMISE", "value": "D3" }, { "ability": "FIRING_DECK", "value": 6 } ],
+    "damaged": { "threshold": 3, "effect": { "modifyRoll": { "roll": "hit", "value": -1 } } },
+    "points": [ { "models": 1, "points": 0 } ],
+    "figure": { "archetype": "vehicle", "kit": "generic-heavy" }
+  }
+]

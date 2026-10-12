@@ -7,6 +7,7 @@
 // The base's `radius2` axis (defaults to `radius` for round bases) runs along (-sin f, cos f) —
 // "right". So `radius` is a model's front-to-back half-extent and `radius2` is its side-to-side
 // half-extent once it's facing `f`; formation rows are built directly from those two numbers.
+import { withFloor } from './floors'
 import { deployFacing } from '@/engine/setup'
 import { repairCoherency } from '@/engine/phases/legal'
 import type { GameState, Model, ModelId, ModelPlacement, UnitId, Vec3 } from '@/engine'
@@ -351,7 +352,7 @@ export function formationPlacementsForUnit(
   kind: FormationKind,
 ): FormationPlacement[] {
   const { body, leader } = splitBodyAndLeader(state, unitId)
-  return generateFormation(body, leader, anchor, facing, kind)
+  return withFloor(state, generateFormation(body, leader, anchor, facing, kind))
 }
 
 /** A safe starting facing for a fresh deployment, before the player has rotated it: perpendicular to

@@ -1,0 +1,284 @@
+// Dev/QA scenario loader: `/?scenario=<name>` opens a game straight into a test position instead of the start screen.
+// Each builder takes a freshly created (pre-deployment) GameState, patches model positions / turn flags, then
+// `enterAt` puts the engine into the wanted phase and lets it raise the first pending decision. Add a scenario by
+// adding an entry to SCENARIOS. Harmless in production builds (only runs when the URL asks for it).
+import {
+  DEFAULT_MODULES, ENGINE_VERSION, SeededRng, step, advanceGame, createContext, createGameState, hashState, removeModel, setModelPos,
+  type GameSetup, type GameState, type PendingDecision, type UnitId,
+} from '../../engine'
+import type { DataBundle } from '../../data/types'
+import { loadBundle } from '../../data'
+import { registerDataBundle } from '../../engine'
+import { useGameStore, type NewGameOptions } from '../store/game'
+
+const MM = 25.4
+const SCENARIO_FACTION = 'necrons'
+/** Scenarios that start in another faction / phase than the default (Necrons, Fight). */
+const SCENARIO_FACTIONS: Record<string, string> = { 'floor-picker': 'sm', 'weapon-select': 'sm', 'weapon-select-mixed': 'sm', 'weapon-select-split': 'sm', 'weapon-select-psyker': 'sm' }
+/** Shooting-phase scenarios: scenario name -> the human (A) unit ref that is activated, so the first prompt is its declareTargets. */
+const SHOOTING_SCENARIOS: Record<string, string> = { 'weapon-select': 'terminator-squad', 'weapon-select-mixed': 'infernus-squad', 'weapon-select-split': 'infernus-squad', 'weapon-select-psyker': 'librarian-tantus' }
+const MOVEMENT_SCENARIOS = new Set(['floor-picker'])
+
+export interface ScenarioInit {
+  bundle: DataBundle
+  setup: GameSetup
+  state: GameState
+  pending: PendingDecision | null
+}
+
+type ScenarioBuilder = (state: GameState) => void
+
+/** Round-based base diameter in inches. */
+const dia = (mm: number): number => mm / MM
+
+function setBase(state: GameState, unitId: UnitId, mm: number): void {
+  for (const id of state.units[unitId].models) state.models[id].base = { shape: 'round', radius: dia(mm) / 2 }
+}
+
+/** Keep only the first `n` models of a unit (removes the rest from play). */
+function keepModels(state: GameState, unitId: UnitId, n: number): void {
+  for (const id of [...state.units[unitId].models].slice(n)) removeModel(state, id)
+}
+
+function place(state: GameState, unitId: UnitId, pts: { x: number; z: number }[]): void {
+  const u = state.units[unitId]
+  u.location = 'board'
+  u.models.forEach((id, i) => {
+    const p = pts[i] ?? pts[pts.length - 1]
+    setModelPos(state.models[id], { x: p.x, y: 0, z: p.z })
+  })
+}
+
+/** An enemy line of `n` models of one base size along x at z = 0. */
+function enemyLine(state: GameState, unitId: UnitId, n: number, mm: number, gap = 0.2): number {
+  keepModels(state, unitId, n)
+  setBase(state, unitId, mm)
+  const d = dia(mm)
+  const pts = Array.from({ length: n }, (_, i) => ({ x: (i - (n - 1) / 2) * (d + gap), z: 0 }))
+  place(state, unitId, pts)
+  return d / 2
+}
+
+/** Pile-in scenarios are about pure base geometry: no terrain on the board (ruin walls would block the contact spots). */
+function clearTerrain(state: GameState): void {
+  state.board = { ...state.board, pieces: {} }
+}
+
+function chargeReady(state: GameState, unitId: UnitId): void {
+  state.units[unitId].turn.chargedThisTurn = true
+  state.units[unitId].turn.fightsFirst = true
+}
+
+// Human (A) 10 models in two ranks of 5: front 0.9" from the enemy line (inside Engagement Range, not touching), back 0.6" behind.
+const pileIn: ScenarioBuilder = (state) => {
+  clearTerrain(state)
+  const me: UnitId = 'A:warriors'
+  const foe: UnitId = 'B:warriors'
+  const er = enemyLine(state, foe, 6, 32)
+  const mm = 32
+  const d = dia(mm)
+  // models past the first 10 (if the roster has more) are dropped; fewer is fine, the last rank just shortens
+  keepModels(state, me, 10)
+  setBase(state, me, mm)
+  const frontZ = er + 0.9 + d / 2
+  const backZ = frontZ + d + 0.6
+  const xs = [0, 1, 2, 3, 4].map((i) => (i - 2) * (d + 0.15))
+  place(state, me, [...xs.map((x) => ({ x, z: frontZ })), ...xs.map((x) => ({ x, z: backZ }))])
+  chargeReady(state, me)
+}
+
+// Human (A) 4 models each on 25/32/40mm bases (12 total) staggered 1-2" behind the front, facing a 6-model line.
+const pileInMixed: ScenarioBuilder = (state) => {
+  clearTerrain(state)
+  const me: UnitId = 'A:warriors'
+  const foe: UnitId = 'B:warriors'
+  const er = enemyLine(state, foe, 6, 32)
+  keepModels(state, me, 12)
+  const ids = state.units[me].models
+  const sizes = [25, 32, 40]
+  ids.forEach((id, i) => {
+    const mm = sizes[Math.floor(i / 4) % sizes.length]
+    state.models[id].base = { shape: 'round', radius: dia(mm) / 2 }
+  })
+  // three groups of 4 (25/32/40mm), each a row spaced by its own base size; columns sit 0/1/1.5/2" further back
+  const stagger = [0, 1, 1.5, 2]
+  const pts = ids.map((id, i) => {
+    const col = i % 4
+    const group = Math.floor(i / 4)
+    const mm = sizes[group % sizes.length]
+    const pitch = dia(mm) + 0.2
+    const widths = sizes.map((m) => 4 * (dia(m) + 0.2))
+    const total = widths.reduce((a, b) => a + b, 0)
+    const start = -total / 2 + widths.slice(0, group).reduce((a, b) => a + b, 0)
+    return { x: start + (col + 0.5) * pitch, z: er + 0.9 + dia(mm) / 2 + stagger[col] }
+  })
+  place(state, me, pts)
+  chargeReady(state, me)
+}
+
+// Terrain-height: an INFANTRY unit stands on a ruin's upper floor and an enemy unit stands on the ground just
+// beside it. Uses the first ruin on the board that has an upper floor.
+const terrainHeight: ScenarioBuilder = (state) => {
+  const ruin = Object.values(state.board.pieces).find((p) => p.kind === 'ruin' && p.floors.some((f) => f.height > 0))
+  if (!ruin) throw new Error('terrain-height scenario: no ruin with an upper floor on the board')
+  const floor = [...ruin.floors].filter((f) => f.height > 0).sort((a, b) => a.height - b.height)[0]
+  const c = {
+    x: floor.polygon.reduce((a, q) => a + q.x, 0) / floor.polygon.length,
+    z: floor.polygon.reduce((a, q) => a + q.z, 0) / floor.polygon.length,
+  }
+  const me: UnitId = 'A:warriors'
+  const foe: UnitId = 'B:warriors'
+  keepModels(state, me, 3)
+  keepModels(state, foe, 3)
+  for (const id of [...state.units[me].models, ...state.units[foe].models]) state.models[id].base = { shape: 'round', radius: dia(32) / 2 }
+  const col = (i: number) => (i - 1) * 1.4
+  state.units[me].location = 'board'
+  state.units[me].models.forEach((id, i) => setModelPos(state.models[id], { x: c.x + col(i), y: floor.height, z: c.z }))
+  state.units[foe].location = 'board'
+  state.units[foe].models.forEach((id, i) => setModelPos(state.models[id], { x: c.x + col(i), y: 0, z: c.z + 3.5 }))
+}
+
+// Space Marines in the Movement phase: 3 models of A's first unit stand on open ground just outside the ruin's upper floor,
+// ready to move in (floor-picker + nudge e2e).
+const floorPicker: ScenarioBuilder = (state) => {
+  const ruin = Object.values(state.board.pieces).find((p) => p.kind === 'ruin' && p.floors.some((f) => f.height > 0))
+  if (!ruin) throw new Error('floor-picker scenario: no ruin with an upper floor on the board')
+  const xs = ruin.footprint.map((q) => q.x)
+  const zs = ruin.footprint.map((q) => q.z)
+  const midX = (Math.min(...xs) + Math.max(...xs)) / 2
+  const south = Math.min(...zs) - 0.78
+  const me = Object.values(state.units).find((u) => u.player === 'A' && u.models.length >= 3 && !u.bodyguardUnitId)
+  if (!me) throw new Error('floor-picker scenario: no A unit with 3+ models')
+  keepModels(state, me.id, 3)
+  for (const id of state.units[me.id].models) state.models[id].base = { shape: 'round', radius: dia(32) / 2 }
+  // a single rank along x, already facing +z (into the ruin), tight against the wall: a floor climb eats 3" of the move
+  state.units[me.id].location = 'board'
+  state.units[me.id].models.forEach((id, i) => setModelPos(state.models[id], { x: midX + (i - 1) * 1.4, y: 0, z: south }, Math.PI / 2))
+}
+
+// Space Marines in the Shooting phase: one A unit (see SHOOTING_SCENARIOS) 8" from two B units on open ground, side by
+// side, so weapon-selection can aim different guns at different targets. Infernus (bolt pistol + pyreblaster) shows the
+// Pistol rule; the Librarian (Smite / focused Smite profiles, storm bolter) shows profile groups and Hazardous.
+const weaponSelect = (ref: string): ScenarioBuilder => (state) => {
+  clearTerrain(state)
+  const me = `A:${ref}`
+  const foes: UnitId[] = ['B:terminator-squad', 'B:infernus-squad']
+  for (const id of Object.keys(state.units)) {
+    if (state.units[id].player === 'A' && id !== me) state.units[id].location = 'reserves'
+  }
+  for (const id of foes) keepModels(state, id, 3)
+  for (const id of [me, ...foes]) setBase(state, id, 40)
+  const line = (n: number, cx: number, z: number) => Array.from({ length: n }, (_, i) => ({ x: cx + (i - (n - 1) / 2) * 1.6, z }))
+  place(state, me, line(state.units[me].models.length, 0, -8))
+  place(state, foes[0], line(3, -5, 0))
+  place(state, foes[1], line(3, 5, 0))
+  for (const id of state.units[me].models) state.models[id].facing = Math.PI / 2
+}
+
+// Infernus with a mixed loadout: the sergeant swaps the pyreblaster for a storm bolter, so the sergeant and the four
+// marines each need their own Pistol-or-other choice.
+const weaponSelectSplit: ScenarioBuilder = (state) => {
+  weaponSelect('infernus-squad')(state)
+  const sergeant = state.models[state.units['A:infernus-squad'].models[0]]
+  sergeant.weapons = sergeant.weapons.map((w) => (w === 'sm.w.pyreblaster' ? 'sm.w.storm-bolter' : w))
+}
+
+export const SCENARIOS: Record<string, ScenarioBuilder> = {
+  'weapon-select-split': weaponSelectSplit,
+  'weapon-select': weaponSelect('terminator-squad'),
+  'weapon-select-mixed': weaponSelect('infernus-squad'),
+  'weapon-select-psyker': weaponSelect('librarian-tantus'),
+  'floor-picker': floorPicker,
+  'pile-in': pileIn,
+  'pile-in-mixed': pileInMixed,
+  'terrain-height': terrainHeight,
+}
+
+/** Builds the scenario's game state positioned in the human's Fight phase, ready for the first decision. */
+export async function buildScenario(name: string, seed = 'scenario'): Promise<ScenarioInit> {
+  const build = SCENARIOS[name]
+  if (!build) throw new Error(`unknown scenario "${name}" (known: ${Object.keys(SCENARIOS).join(', ')})`)
+  const bundle = await loadBundle()
+  registerDataBundle(bundle)
+  const factionKey = SCENARIO_FACTIONS[name] ?? SCENARIO_FACTION
+  const patrol = Object.values(bundle.patrols).find((p) => p.faction === `faction.${factionKey}` || p.faction === factionKey)
+  if (!patrol) throw new Error(`scenario: no patrol for ${factionKey}`)
+  const mission = Object.values(bundle.missions)[0]
+  const player = (): GameSetup['players']['A'] => {
+    const enh = patrol.enhancements.find((e) => e.default) ?? patrol.enhancements[0]
+    const sec = patrol.secondaries.find((s) => s.default) ?? patrol.secondaries[0]
+    return {
+      name: 'Necrons', faction: patrol.faction, patrolId: patrol.id, enhancementId: enh?.id ?? '', secondaryId: sec?.id ?? '',
+      attachments: [], reserves: [], battleReadyVp: 0,
+    }
+  }
+  const setup: GameSetup = {
+    missionId: mission.id, terrainLayoutId: mission.terrainLayouts[0], players: { A: player(), B: player() },
+    sides: { attacker: 'A' }, firstTurn: 'A', dataVersion: bundle.version,
+  }
+  const state = createGameState(setup, bundle, seed, ENGINE_VERSION)
+  build(state)
+  state.round = 1
+  state.activePlayer = 'A'
+  state.firstPlayer = 'A'
+  const movement = MOVEMENT_SCENARIOS.has(name)
+  const shootRef = SHOOTING_SCENARIOS[name]
+  state.phase = movement ? 'movement' : shootRef ? 'shooting' : 'fight'
+  state.pending = null
+  const rng = new SeededRng(`${seed}:scenario`)
+  const { ctx } = createContext(state, rng, DEFAULT_MODULES)
+  DEFAULT_MODULES.phases[movement ? 'movement' : shootRef ? 'shooting' : 'fight'].enter(ctx)
+  advanceGame(ctx, DEFAULT_MODULES)
+  state.rng = rng.serialize()
+  state.hash = ''
+  state.hash = hashState(state)
+  if (movement) {
+    // pick A's scenario unit and declare a Normal move so the first prompt is its move destination
+    let r = { state, pending: state.pending as PendingDecision | null }
+    const pick = r.pending
+    if (pick?.kind === 'chooseUnitToActivate' && pick.player === 'A') {
+      const unitId = pick.context.eligible.find((id) => state.units[id].models.length === 3 && state.units[id].location === 'board') ?? pick.context.eligible[0]
+      const s1 = step(state, { type: 'chooseUnitToActivate', player: 'A', decisionId: pick.id, unitId })
+      if (!s1.rejection) {
+        r = { state: s1.state, pending: s1.pending }
+        if (r.pending?.kind === 'declareMove') {
+          const s2 = step(r.state, { type: 'declareMove', player: 'A', decisionId: r.pending.id, unitId, moveType: 'normal' })
+          if (!s2.rejection) r = { state: s2.state, pending: s2.pending }
+        }
+      }
+    }
+    return { bundle, setup, state: r.state, pending: r.pending }
+  }
+  if (shootRef) {
+    // Shooting selection: take the scenario's unit so the first prompt is its declareTargets.
+    let r = { state, pending: state.pending as PendingDecision | null }
+    const pick = r.pending
+    const unitId = `A:${shootRef}`
+    if (pick?.kind === 'chooseUnitToActivate' && pick.player === 'A' && pick.context.eligible.includes(unitId)) {
+      const s1 = step(state, { type: 'chooseUnitToActivate', player: 'A', decisionId: pick.id, unitId })
+      if (!s1.rejection) r = { state: s1.state, pending: s1.pending }
+    }
+    return { bundle, setup, state: r.state, pending: r.pending }
+  }
+  // Fight selection offers our unit first: take it so the first prompt is its Pile in.
+  let result = { state, pending: state.pending as PendingDecision | null }
+  const sel = result.pending
+  if (sel?.kind === 'chooseFightUnit' && sel.player === 'A') {
+    const unitId = sel.context.eligible.includes('A:warriors') ? 'A:warriors' : sel.context.eligible[0]
+    const r = step(state, { type: 'chooseFightUnit', player: 'A', decisionId: sel.id, unitId })
+    if (!r.rejection) result = { state: r.state, pending: r.pending }
+  }
+  return { bundle, setup, state: result.state, pending: result.pending }
+}
+
+/** Reads `?scenario=<name>` from the URL; null when absent. */
+export function scenarioFromUrl(): string | null {
+  if (typeof window === 'undefined') return null
+  return new URLSearchParams(window.location.search).get('scenario')
+}
+
+/** Starts the named scenario against the bot (human = A). Resolves once the store holds the game. */
+export async function startScenario(name: string, opts: Partial<Pick<NewGameOptions, 'difficulty' | 'seed'>> = {}): Promise<void> {
+  const init = await buildScenario(name, opts.seed ?? 'scenario')
+  useGameStore.getState().startFromState(init, { opponent: 'bot', seed: opts.seed ?? 'scenario', difficulty: opts.difficulty })
+}

@@ -1,0 +1,33 @@
+[
+  {
+    "id": "tau.stealth-battlesuits",
+    "faction": "tau-empire",
+    "name": "Stealth Battlesuits",
+    "keywords": ["INFANTRY", "FLY", "BATTLESUIT", "STEALTH", "STEALTH BATTLESUITS"],
+    "factionKeywords": ["T'AU EMPIRE"],
+    "stats": { "M": 8, "T": 4, "Sv": 3, "W": 2, "Ld": 7, "OC": 1 },
+    "composition": [
+      {
+        "modelId": "shasvre",
+        "name": "Shas'vre",
+        "min": 1, "max": 1, "default": 1,
+        "champion": true,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["tau.w.fusion-blaster", "tau.w.battlesuit-fists"] },
+        "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+      },
+      {
+        "modelId": "shasui",
+        "name": "Shas'ui",
+        "min": 2, "max": 2, "default": 2,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["tau.w.burst-cannon", "tau.w.battlesuit-fists"] },
+        "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+      }
+    ],
+    "abilities": ["tau.a.for-the-greater-good", "tau.a.forward-observers", "tau.a.marker-drone"],
+    "coreAbilities": [ { "ability": "INFILTRATORS" }, { "ability": "STEALTH" } ],
+    "points": [ { "models": 3, "points": 0 } ],
+    "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+  }
+]

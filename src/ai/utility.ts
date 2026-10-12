@@ -4,13 +4,15 @@
 // specific simplifications). `easy` picks randomly among the top 3 scored actions; `normal` always takes the best.
 import {
   DEFAULT_SERVICES, boardModelsOf, boardUnitsOf, deploymentZone, distance, hasKeyword, legalActions, modelProfile,
-  modelStats, unitModels, validate, basesOverlap, type Footprint, whollyOnBoard, whollyWithinPolygon, pointInPolygon, withinEngagementRange, withinObjectiveRange,
+  modelStats, unitModels, unitModelsForCoherency, isCoherent, coherencyGroups, validate, basesOverlap, type Footprint, whollyOnBoard, whollyWithinPolygon, pointInPolygon, withinEngagementRange, withinObjectiveRange,
   type Action, type DeclareChargeAction, type DeclareMoveAction, type DeclareTargetsAction, type Decider,
   type DeployUnitAction, type GameState, type ModelPlacement, type ObjectiveId, type PendingDecision, type PlayerId,
   type PlayerView, type Polygon, type UnitId, type UseStratagemAction,
 } from '../engine'
 import type { ScoringRule } from '../data/types'
 import { createRng, restoreRng, type Rng } from '../engine/rng'
+import { woundRollNeeded } from '../engine/dice'
+import { deployTerrainBlock } from '../engine/terrain'
 import { commandRerollScore, scoreStratagemOrReaction } from './stratagems'
 import {
   bestMeleeWeapon, bestRangedRangeOfUnit, bestRangedWeapon, expectedAttack, hasAnyMeleeWeapon, hasAnyRangedWeapon,
@@ -395,6 +397,19 @@ function scoreDeclareTargets(state: GameState, pending: PendingDecision, action:
   return total
 }
 
+// R-2.6 cost of losing `modelId`: 0 if the rest of its (attached) unit stays coherent, otherwise minus a rough count of
+// the extra models the end-of-turn cull would take (models outside the largest connected group, at least 1). A removal
+// that restores coherency to an already-broken unit scores a bonus instead.
+function removalCoherencyScore(state: GameState, modelId: string): number {
+  const model = state.models[modelId]
+  if (!model) return 0
+  const models = unitModelsForCoherency(state, model.unitId)
+  const rest = models.filter((m) => m.id !== modelId)
+  if (isCoherent(rest)) return isCoherent(models) ? 0 : 1
+  const largest = coherencyGroups(rest)[0]?.length ?? 0
+  return -Math.max(1, rest.length - largest)
+}
+
 function scoreAllocateAttack(state: GameState, player: PlayerId, pending: PendingDecision, action: Action): number {
   if (pending.kind !== 'allocateAttack' || action.type !== 'allocateAttack') return 0
   const model = state.models[action.modelId]
@@ -407,6 +422,11 @@ function scoreAllocateAttack(state: GameState, player: PlayerId, pending: Pendin
   if (iAmDefending) {
     if (profile.champion) score -= 3
     if (wounded) score += 2 // finish an already-damaged model rather than spread damage
+    // the failed save will likely kill it: don't lose the model whose removal splits the unit (the cull then takes
+    // more). A multi-wound model that survives this hit only matters in proportion to how close it is to dying.
+    const dmg = pending.context.damage ?? 1
+    const dies = model.woundsRemaining <= dmg ? 1 : dmg / model.woundsRemaining
+    score += removalCoherencyScore(state, action.modelId) * 4 * dies
   } else {
     // Precision: attacking player choosing which enemy model eats it — go for value
     if (profile.champion) score += 3
@@ -466,6 +486,31 @@ function scoreDeclareCharge(state: GameState, player: PlayerId, action: DeclareC
   return p * payoff - (1 - p) * 0.4
 }
 
+// Adeptus Custodes Martial Ka'tah: Rendax (Lethal Hits) when the likely melee victims are tough (T 7+) or the Custodes
+// melee Strength wounds them on 5+, otherwise Dacatarai (Sustained Hits 1). Likely victims are the enemy units within 12" of
+// the holder (engaged or inside charge reach); with none that close, the nearest enemy unit.
+function katahPrefersRendax(state: GameState, player: PlayerId, holderId: UnitId | null): boolean {
+  const holder = holderId ? state.units[holderId] : undefined
+  if (!holder) return false
+  const mine = unitModels(state, holder.id)
+  const enemies = boardUnitsOf(state, other(player)).filter((u) => unitModels(state, u.id).length > 0)
+  if (mine.length === 0 || enemies.length === 0) return false
+  const gap = (u: UnitId): number => Math.min(...mine.flatMap((a) => unitModels(state, u).map((b) => distance(a, b))))
+  const ranked = enemies.map((u) => ({ id: u.id, d: gap(u.id) })).sort((a, b) => a.d - b.d)
+  const near = ranked.filter((e) => e.d <= 12)
+  const victims = (near.length > 0 ? near : ranked.slice(0, 1)).map((e) => e.id)
+  let strength = 0
+  for (const m of mine) {
+    const w = bestMeleeWeapon(state, m.id)
+    if (w && state.weapons[w]) strength = Math.max(strength, state.weapons[w].S)
+  }
+  if (strength <= 0) return false
+  const toughness = victims.map((id) => modelStats(state, unitModels(state, id)[0]).T)
+  if (toughness.some((t) => t >= 7)) return true
+  const needed = toughness.map((t) => woundRollNeeded(strength, t))
+  return needed.reduce((a, b) => a + b, 0) / needed.length >= 5
+}
+
 function scoreChooseOption(state: GameState, pending: PendingDecision, action: Action): number {
   if (action.type !== 'chooseOption' || pending.kind !== 'chooseOption') return 0
   const option = pending.options.find((o) => o.action.type === 'chooseOption' && o.action.optionId === action.optionId)
@@ -483,11 +528,23 @@ function scoreChooseOption(state: GameState, pending: PendingDecision, action: A
       score += unitValue(state, hintUnitId) * 0.03 // e.g. oathTarget/bagTarget/stompTarget: aim at the best target
     }
   }
+  // R-2.6 cull (options are model ids): remove the model that makes the unit coherent again, else the one that leaves
+  // the biggest connected group; spare champions and attached CHARACTERs
+  if (topic === 'coherencyCull' && state.models[action.optionId]) {
+    const m = state.models[action.optionId]
+    score += removalCoherencyScore(state, m.id) * 4
+    if (modelProfile(state, m).champion) score -= 3
+    if (hasKeyword(state, m.unitId, 'CHARACTER')) score -= 5
+  }
   const label = (option?.label ?? '').toLowerCase()
   if (/(skip|none|decline)/.test(label)) score -= 1
   // Patrol Squads: a bot keeps its unit whole (one activation, one deployment spot) rather than splitting at random
   if ((pending.context.data as { choice?: string }).choice === 'patrolSquads' && action.optionId === 'keep') score += 0.5
   const code = (pending.context.data as { code?: string }).code
+  if (code === 'martialKatahPick') {
+    const rendax = katahPrefersRendax(state, pending.player, pending.context.unitId ?? null)
+    score += (action.optionId === 'rendax') === rendax ? 2 : 0
+  }
   // Astra Militarum Voice of Command: prefer Take Aim! on gunlines, Move! Move! Move! on units that need to cross the board,
   // Take Cover! on units with a poor save under fire; an Order to every unit (Command Laurels) is always good value.
   if (code === 'voiceOfCommand' && action.optionId !== 'decline') {
@@ -499,6 +556,40 @@ function scoreChooseOption(state: GameState, pending: PendingDecision, action: A
     else if (order.endsWith('take-cover')) score += 1.6
     if (unitId) score += unitValue(state, unitId) * 0.01
     else score += 2
+  }
+  // T'au For the Greater Good: always worth naming an Observer; an Observer with a Markerlight (cover ignored) is hinted higher
+  if (code === 'forTheGreaterGood' && action.optionId !== 'decline') {
+    // value of the pick = the guided unit's expected damage on the Spotted enemy at BS-1, minus what it loses (BS+1) shooting
+    // anything else, so the AI marks the enemy it will actually shoot; a Markerlight Observer also strips cover.
+    const guided = pending.context.unitId
+    const obsId = action.optionId.split('@')[0]
+    if (hintUnitId && guided && state.units[guided]) {
+      const gain = unitRangedDamage(state, guided, hintUnitId, { skillShift: -1 }) * unitValue(state, hintUnitId) * 0.02
+      const markerlight = hasKeyword(state, obsId, 'MARKERLIGHT') || (hint.priority as number) >= 3
+      score += 0.5 + gain * (markerlight ? 1.3 : 1)
+    } else score += 1.5
+  }
+  // Grey Knights Teleport Assault: skip it when the battle ends before the unit's next Movement phase (round 5, GK moved first);
+  // otherwise teleport the most valuable unit, since the arrival is a free >9" redeployment.
+  if (code === 'teleportAssaultPick') {
+    const noArrival = state.round >= 5 && state.firstPlayer === pending.player
+    if (action.optionId === 'decline') score += noArrival ? 4 : 0
+    else if (noArrival) score -= 4
+  }
+  // Genestealer Cults Cult Ambush: a marker goes as close as it legally can to the nearest objective we do not hold (so the
+  // returning unit lands on it); a return is always taken (a free full-strength unit).
+  if (code === 'cultAmbush') {
+    const step = (pending.context.data as { step?: string }).step
+    if (step === 'return') score += action.optionId === 'decline' ? -3 : 4
+    else if (step === 'marker' && action.optionId.startsWith('pt:')) {
+      const [x, z] = action.optionId.slice(3).split(',').map(Number)
+      let best = Infinity
+      for (const o of Object.values(state.objectives)) {
+        if (o.removed || o.controller === pending.player) continue
+        best = Math.min(best, Math.hypot(o.pos.x - x, o.pos.z - z))
+      }
+      score += 3 - (Number.isFinite(best) ? best * 0.1 : 0)
+    } else if (action.optionId === 'decline') score -= 2
   }
   // Methodical Destruction: the VP only come if the pick dies this round, so mark the unit most likely to die (cheapest on the board).
   if (code === 'methodicalDestructionPick' && hintUnitId) score = -unitValue(state, hintUnitId) * 0.03
@@ -532,8 +623,8 @@ function scoreAction(state: GameState, player: PlayerId, pending: PendingDecisio
 function rerollOfferAnswer(state: GameState, pending: PendingDecision, options: Action[]): Action | null {
   if (pending.kind !== 'chooseOption' || pending.context.topic !== 'rerollOffer') return null
   const data = pending.context.data as { rollId?: string; dieIndexes?: number[]; needed?: number; purpose?: string }
-  // Gunnery Officer: re-roll the dice that set a weapon's number of attacks when they came up low (3 or less on average)
-  if (data.purpose === 'attacks' && Array.isArray(data.dieIndexes)) {
+  // Gunnery Officer (attack counts) and Auramite Thunderbolt (Advance roll): re-roll when the die came up low (3 or less, below the 3.5 average)
+  if ((data.purpose === 'attacks' || data.purpose === 'advance') && Array.isArray(data.dieIndexes)) {
     const roll = state.phaseState.lastRoll
     const reroll = options.find((o) => o.type === 'chooseOption' && o.optionId === 'reroll')
     const keep = options.find((o) => o.type === 'chooseOption' && o.optionId === 'keep')
@@ -651,12 +742,14 @@ function chooseFormationDeployment(state: GameState, player: PlayerId, pending: 
     // only cheap (1 W, 5+ or worse save), short-ranged mobs are screening-line material
     if (g.models.length >= 8 && stats.W === 1 && stats.Sv >= 5 && (rangeOf === null || rangeOf <= 18) && !heavy) shapes = [...shapes, 'line']
     const meleeOnly = hasAnyMeleeWeapon(state, g.unitId) && !hasAnyRangedWeapon(state, g.unitId)
+    // a long oval base (Rockgrinder, 150x90 mm) is deeper than a 5" zone when it faces the enemy: also try it side-on
+    const oval = g.models.some((m) => m.base.radius2 !== undefined && Math.abs(m.base.radius - m.base.radius2) > 0.2)
     let unitBest = -Infinity
     for (let z = minZ + 1; z <= maxZ - 1 + 1e-9; z += zStep) {
       for (let x = minX + 1; x <= maxX - 1 + 1e-9; x += xStep) {
         if (!pointInPolygon({ x, z }, zone)) continue
         const toEnemy = Math.atan2(enemyC.z - z, enemyC.x - x)
-        const facings = [toEnemy]
+        const facings = oval ? [toEnemy, toEnemy + Math.PI / 2] : [toEnemy]
         let nearObj: { x: number; z: number } | null = null, nd = Infinity
         for (const o of objs) { const d = Math.hypot(o.pos.x - x, o.pos.z - z); if (d < nd) { nd = d; nearObj = o.pos } }
         if (nearObj && nd > 3) {
@@ -671,6 +764,8 @@ function chooseFormationDeployment(state: GameState, player: PlayerId, pending: 
             if (!placements) continue
             const feet = placements.map((p, i) => ({ pos: p.pos, facing, base: g.models[i].base }))
             if (!feet.every((f) => whollyWithinPolygon(f, zone) && whollyOnBoard(f, state.board) && !occupied.some((o) => basesOverlap(f, o)))) continue
+            // never set up boxed in by terrain (a VEHICLE inside ruin walls it can never cross)
+            if (!feet.every((f, i) => { const m = state.models[g.models[i].id]; return !m || deployTerrainBlock(state, m, f.pos, f.facing) === null })) continue
             const action: DeployUnitAction = { type: 'deployUnit', player, decisionId: pending.id, unitId: g.unitId, placements }
             let score = scoreDeployUnit(state, player, action, threats) + shapeRoleScore(shape === 'line' ? 'screen' : role, shape)
             if (role === 'ranged') { score += Math.min(dEnemy, 36) * 0.03; if (inTerrain) score += 0.8 }

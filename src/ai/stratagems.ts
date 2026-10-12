@@ -9,7 +9,7 @@ import {
 import { diceExprMean } from '../engine/dice'
 import { effectiveCost } from '../engine/stratagems'
 import {
-  bestMeleeWeapon, bestRangedWeapon, expectedAttack, hasAnyMeleeWeapon, hasAnyRangedWeapon, unitMeleeDamage, unitRangedDamage, unitValue,
+  bestMeleeWeapon, bestRangedRangeOfUnit, bestRangedWeapon, expectedAttack, hasAnyMeleeWeapon, hasAnyRangedWeapon, unitMeleeDamage, unitRangedDamage, unitValue,
   type AttackOptions,
 } from './expected'
 import {
@@ -99,7 +99,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
   } else if (id.endsWith('holy-radiance')) {
     if (melee) return -Infinity
     withIt = incomingDamage(state, attackerId, mineId, false, { ...base, hitMod: -1, fnp: 5 })
-  } else if (id.endsWith('hyper-reactive')) {
+  } else if (id.endsWith('hyper-reactive') || id.endsWith('lurking-killers')) {
     withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, hitMod: -1 })
   } else if (id.endsWith('mercurial-resilience')) {
     withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, invuln: 5 })
@@ -114,9 +114,9 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
 }
 
 const DEFENSIVE = ['go-to-ground', 'smokescreen', 'gene-wrought-resilience', 'holy-radiance', 'hyper-reactive',
-  'mercurial-resilience', 'a-martyrs-death', 'daemonic-fervour']
+  'mercurial-resilience', 'a-martyrs-death', 'daemonic-fervour', 'lurking-killers']
 
-// Fire Overwatch: hits only on an unmodified 6, the bound unit only, within 24" and weapon range, with line of sight.
+// Fire Overwatch: hits only on an unmodified 6, the bound unit only (picked within 24"), each weapon within its own range, with line of sight.
 function overwatchGain(state: GameState, player: PlayerId, action: UseStratagemAction, enemyId: UnitId): number {
   const shooterId = mineOf(state, player, action.targets?.unitIds)
   if (!shooterId) return -Infinity
@@ -126,7 +126,7 @@ function overwatchGain(state: GameState, player: PlayerId, action: UseStratagemA
     if (!best) continue
     const inRange = unitModels(state, enemyId).some((e) => {
       const d = Math.hypot(e.pos.x - m.pos.x, e.pos.z - m.pos.z) - e.base.radius - m.base.radius
-      return d <= Math.min(24, best.range)
+      return d <= best.range
     })
     if (!inRange) continue
     if (!DEFAULT_SERVICES.los.unitVisible(state, m.id, enemyId)) continue
@@ -158,6 +158,19 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
   const roundsLeft = Math.max(0, BATTLE_ROUNDS - state.round)
   if (id.endsWith('fire-overwatch') && trigger) return overwatchGain(state, player, action, trigger)
   if (id.endsWith('heroic-intervention') && trigger) return heroicGain(state, player, action, trigger)
+  // T'au Laser-Marked Targets: a free overwatch-style volley at the charger plus -2 to its Charge roll
+  if (id.endsWith('laser-marked-targets') && trigger) {
+    const g = overwatchGain(state, player, action, trigger)
+    return Number.isFinite(g) ? g + unitValue(state, trigger) * 0.02 + 0.5 : 0.5
+  }
+  // T'au Defensive Fusillade: lets an engaged unit that has not shot fire its ranged weapons (as Pistols) into the units holding it
+  if (id.endsWith('defensive-fusillade')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId || !hasAnyRangedWeapon(state, unitId)) return -Infinity
+    let best = 0
+    for (const e of engagedEnemyUnits(state, player, unitId)) best = Math.max(best, unitRangedDamage(state, unitId, e, {}) * unitValue(state, e) * 0.03)
+    return best > 0 ? best : -Infinity
+  }
   if (id.endsWith('counter-offensive') && trigger) {
     const bound = mineOf(state, player, targets.unitIds)
     const candidates = bound ? [bound] : boardUnitsOf(state, player).map((u) => u.id)
@@ -181,8 +194,10 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
     }
     return best > 0 ? best : -Infinity
   }
-  // Necron Will of the Overlord: +1 OC for a unit on a scoring objective that is contested or about to be.
-  if (id.endsWith('will-of-the-overlord')) {
+  // Necron Will of the Overlord: +1 OC for a unit on a scoring objective that is contested or about to be. Custodes Inescapable
+  // Vengeance (Command phase, lasts through the opponent's turn) is the same play, also for a unit within a move (6") of such an objective.
+  if (id.endsWith('will-of-the-overlord') || id.endsWith('inescapable-vengeance')) {
+    const slack = id.endsWith('inescapable-vengeance') ? 6 : 0
     const unitId = targets.unitIds?.[0]
     if (!unitId) return -Infinity
     const models = unitModels(state, unitId)
@@ -190,7 +205,7 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
     const oc = models.reduce((s, m) => s + modelStats(state, m).OC, 0)
     let best = 0
     for (const o of Object.values(state.objectives)) {
-      if (o.removed || !models.some((m) => withinObjectiveRange(m, o))) continue
+      if (o.removed || !models.some((m) => withinObjectiveRange(m, o, 0, 3 + slack))) continue
       const weight = objectiveScoreWeight(state, player, o.id)
       if (weight <= 1) continue
       const enemy = nearestEnemyFromPoint(state, player, o.pos)
@@ -442,6 +457,24 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
     if (dmg < 2) return -Infinity
     return dmg * 0.3 * unitValue(state, enemyId) * 0.03
   }
+  // Genestealer Cults Defend the Magus: re-roll hit/wound 1s for every GSC attacker against the engaged enemy unit
+  if (id.endsWith('defend-the-magus')) {
+    const enemyId = targets.unitIds?.[1]
+    if (!enemyId) return -Infinity
+    let dmg = 0
+    for (const u of boardUnitsOf(state, player)) {
+      if (!hasKeyword(state, u.id, 'GENESTEALER CULTS') || u.battleShocked) continue
+      dmg += state.phase === 'fight' ? unitMeleeDamage(state, u.id, enemyId, {}) : unitRangedDamage(state, u.id, enemyId, {})
+    }
+    if (dmg < 2) return -Infinity
+    return dmg * 0.25 * unitValue(state, enemyId) * 0.03
+  }
+  // Genestealer Cults Return to the Shadows: a free reposition, mostly useful to slip out of a charge lane; modest value
+  if (id.endsWith('return-to-the-shadows')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId || !trigger || state.units[trigger]?.player === player) return -Infinity
+    return unitValue(state, unitId) * 0.01 + 0.4
+  }
   // Artillery Strike: once per battle, 2 CP — hampers every enemy unit's movement, charges and shooting for a turn. Spend it
   // when the enemy is close enough to matter and we can still afford to keep a CP in hand.
   if (id.endsWith('artillery-strike')) {
@@ -451,6 +484,44 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
       for (const u of boardUnitsOf(state, player)) if (minGapBetweenUnits(state, u.id, e.id) <= 30) { near++; break }
     }
     return near >= 2 ? 2.5 + near * 0.6 : -Infinity
+  }
+  // Custodes The Gilded Spear: after the Shield-Captain falls to an enemy attack, our ranged fire at that unit gains Sustained Hits 1
+  // for the rest of the battle (about +17% damage); worth the 1 CP while our gunners can still reach the killer.
+  if (id.endsWith('gilded-spear')) {
+    const mark = state.phaseState.marks.find((m) => m.startsWith('deathReaction:'))
+    let killer: UnitId | null = null
+    if (mark) { try { killer = (JSON.parse(mark.slice('deathReaction:'.length)) as { attackerUnitId?: UnitId }).attackerUnitId ?? null } catch { killer = null } }
+    if (!killer || !state.units[killer] || state.units[killer].location !== 'board') return -Infinity
+    let dmg = 0
+    for (const u of boardUnitsOf(state, player)) {
+      if (u.battleShocked || !hasAnyRangedWeapon(state, u.id)) continue
+      const range = bestRangedRangeOfUnit(state, u.id) ?? 0
+      if (minGapBetweenUnits(state, u.id, killer) > range + 6) continue
+      dmg += unitRangedDamage(state, u.id, killer, {})
+    }
+    if (dmg <= 0) return -Infinity
+    return dmg * 0.17 * unitValue(state, killer) * 0.03 * Math.max(1, roundsLeft + 0.5)
+  }
+  // Custodes Overawing Magnificence: a free Normal move (up to M, ending outside Engagement Range) after the enemy falls back from
+  // our unit; worth it when the freed unit can reach an objective we do not hold, or close on the retreating unit's lane.
+  if (id.endsWith('overawing-magnificence')) {
+    const unitId = targets.unitIds?.[0]
+    const models = unitId ? unitModels(state, unitId) : []
+    if (!unitId || models.length === 0) return -Infinity
+    const move = Math.min(...models.map((m) => modelStats(state, m).M))
+    const here = centerOfUnit(state, unitId)
+    if (!here) return -Infinity
+    let best = 0
+    for (const o of Object.values(state.objectives)) {
+      if (o.removed) continue
+      const reach = Math.hypot(o.pos.x - here.x, o.pos.z - here.z) - 3 // objective range is 3"
+      if (reach > move) continue
+      const weight = objectiveScoreWeight(state, player, o.id)
+      const held = DEFAULT_SERVICES.objectives.controller(state, o.id) === player
+      best = Math.max(best, weight * (held ? 0.5 : 1.2))
+    }
+    if (trigger && state.units[trigger]?.location === 'board' && minGapBetweenUnits(state, unitId, trigger) <= move + 2) best = Math.max(best, 0.8 + unitValue(state, trigger) * 0.005)
+    return best > 0 ? best : -Infinity
   }
   return -Infinity // unmodelled stratagem: hold CP}
 

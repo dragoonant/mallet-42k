@@ -76,3 +76,9 @@ export function unitClickAction(pending: PendingDecision, legal: Action[] | null
 export function isPlacementDecision(pending: PendingDecision | null): boolean {
   return !!pending && placementInfo(pending) !== null
 }
+
+/** Ranged declareTargets (normal shooting and Overwatch) is answered in the weapon panel; melee targeting
+ *  keeps the one-click flow. */
+export function opensWeaponPanel(pending: PendingDecision): boolean {
+  return pending.kind === 'declareTargets' && pending.context.attackKind === 'ranged'
+}

@@ -1,0 +1,39 @@
+{
+  "id": "gsc.cp.hand-of-the-magus",
+  "faction": "genestealer-cults",
+  "name": "Hand of the Magus",
+  "units": [
+    { "ref": "magus", "datasheet": "gsc.magus-veridielle", "size": 1, "enhancement": "gsc.e.psionic-shield", "attachTo": "neophytes-a" },
+    { "ref": "neophytes-a", "datasheet": "gsc.neophyte-hybrids", "size": 10 },
+    { "ref": "neophytes-b", "datasheet": "gsc.neophyte-hybrids", "size": 10 },
+    { "ref": "acolytes", "datasheet": "gsc.acolyte-hybrids", "size": 5 },
+    { "ref": "aberrants", "datasheet": "gsc.aberrants", "size": 5 },
+    { "ref": "rockgrinder", "datasheet": "gsc.goliath-rockgrinder", "size": 1 }
+  ],
+  "stratagems": ["gsc.s.defend-the-magus", "gsc.s.lurking-killers", "gsc.s.return-to-the-shadows"],
+  "enhancements": [
+    { "id": "gsc.e.psionic-shield", "default": true },
+    { "id": "gsc.e.resonance-stave", "default": false }
+  ],
+  "secondaries": [
+    {
+      "id": "gsc.sec.rise-up",
+      "name": "Rise Up",
+      "text": "From round 2, at the end of your opponent's turn, for each objective marker you control that has a NEOPHYTE HYBRIDS unit (not Battle-shocked) within range, roll a D6: on 1-3 score 1 victory point, on 4+ score 3.",
+      "default": true,
+      "scoring": [
+        { "id": "rise-up", "when": "turn.end", "rounds": { "from": 2, "to": 5 }, "who": "opponent", "rule": "custom", "pointsPer": 1, "cap": 99, "code": "riseUp" }
+      ]
+    },
+    {
+      "id": "gsc.sec.will-of-the-patriarch",
+      "name": "Will of the Patriarch",
+      "text": "At the end of the battle, score 15 victory points if your MAGUS model is on the battlefield within 3 inches of the centre of the board.",
+      "default": false,
+      "scoring": [
+        { "id": "will-of-the-patriarch", "when": "battle.end", "rounds": { "from": 1, "to": 5 }, "who": "both", "rule": "custom", "pointsPer": 15, "cap": 15, "code": "willOfThePatriarch" }
+      ]
+    }
+  ],
+  "warlord": "magus"
+}

@@ -11,7 +11,11 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { InstancedPool, additiveMaterial } from './pool'
 import { DEBRIS_COLOR, DUST_COLOR, IMPACT_COLOR, IMPACT_FLASH_COLOR, MORTAL_COLOR, MORTAL_FLASH_COLOR, SAVE_COLOR, TRACER_THICKNESS, TRACER_TRAVEL_S, factionColor, shotPalette } from './palette'
-import type { FactionLike, ShotKind, Vec3Like, VfxApi } from './types'
+import { FxEngine } from './fx'
+import type { FactionLike, ShotKind, Vec3Like, VfxApi, VfxFamily, VolleyOptions } from './types'
+
+/** The legacy 5 tracer looks onto the 14 families, so vfx.shoot() stays a thin wrapper over a one-shot volley. */
+const SHOT_FAMILY: Record<ShotKind, VfxFamily> = { bolter: 'bolt', shoota: 'dakka', heavy: 'autocannon', flame: 'flamer', psychic: 'psychic' }
 
 // ---------- per-pool instance data (plain numeric fields, mutated in place by spawnInto) ----------
 
@@ -190,32 +194,16 @@ function spawnCone(pool: InstancedPool<ConeData>, life: number, from: Vec3Like, 
 const CHARGE_DUST_MAX_PUFFS = 6
 const CHARGE_DUST_SPREAD_S = 0.35
 
-function makeController(pools: Pools): VfxApi {
+function makeController(pools: Pools, fx: FxEngine): VfxApi {
   return {
+    volley(opts: VolleyOptions) {
+      fx.volley(opts, performance.now() / 1000)
+    },
+
     shoot(from: Vec3Like, to: Vec3Like, kind: ShotKind) {
-      const pal = shotPalette(kind)
-      const thickness = TRACER_THICKNESS[kind] ?? 0.05
-      const travel = TRACER_TRAVEL_S[kind] ?? 0.18
-
-      // Muzzle flash at the firer, regardless of weapon kind.
-      spawnBurst(pools.sparkPool, 3, from.x, from.y, from.z, 0.1, 2.2, 0.14, 0.02, pal.trail, 0.2)
-
-      if (kind === 'flame') {
-        spawnCone(pools.conePool, 0.55, from, to, pal.trail)
-        spawnBurst(pools.sparkPool, 4, to.x, to.y, to.z, 0.35, 2, 0.1, 0.02, pal.head, 0.6)
-        return
-      }
-
-      spawnTracer(pools.tracerPool, travel, from, to, thickness, pal.trail)
-      // Bright head travels the same straight line, arriving at `to` exactly when the tracer does.
-      spawnSpark(pools.sparkPool, travel, from.x, from.y, from.z, to.x - from.x, to.y - from.y, to.z - from.z, 0, thickness * 2.4, thickness * 2.4, pal.head)
-
-      if (kind === 'psychic') {
-        const midX = (from.x + to.x) / 2
-        const midY = (from.y + to.y) / 2 + 0.3
-        const midZ = (from.z + to.z) / 2
-        spawnBurst(pools.sparkPool, 3, midX, midY, midZ, 0.2, 1.2, 0.1, 0.02, pal.trail, 0.3)
-      }
+      // Thin wrapper over a one-shot volley of the matching family. from/to are the caller's exact points, so
+      // undo the volley's own muzzle/hit height offsets.
+      fx.volley({ family: SHOT_FAMILY[kind] ?? 'bolt', shots: [{ from: { x: from.x, y: from.y - 0.7, z: from.z }, to: { x: to.x, y: to.y - 0.55, z: to.z }, hit: true }] }, performance.now() / 1000)
     },
 
     hit(at: Vec3Like, severity: number) {
@@ -286,6 +274,7 @@ function noop(): void {
 /** Imperative entry point — safe to call from anywhere in the client at any time. */
 export const vfx: VfxApi = {
   shoot: (from, to, kind) => activeController?.shoot(from, to, kind) ?? noop(),
+  volley: (opts) => activeController?.volley(opts) ?? noop(),
   hit: (at, severity) => activeController?.hit(at, severity) ?? noop(),
   save: (at) => activeController?.save(at) ?? noop(),
   melee: (at, attackerFaction) => activeController?.melee(at, attackerFaction) ?? noop(),
@@ -302,16 +291,17 @@ let invalidateFn: (() => void) | null = null
  *  InstancedMeshes and drives them all from one useFrame tick; owns no engine/game state. */
 export function VfxLayer() {
   const pools = useMemo(() => createPools(), [])
+  const fx = useMemo(() => new FxEngine(), [])
 
   useEffect(() => {
-    const api = makeController(pools)
+    const api = makeController(pools, fx)
     // Every effect call wakes the demand render loop for as long as an effect can live (max ~0.8s + travel).
     activeController = new Proxy(api, {
       get(target, key, receiver) {
         const v = Reflect.get(target, key, receiver)
         if (typeof v !== 'function') return v
         return (...args: unknown[]) => {
-          wakeUntil = performance.now() / 1000 + 1.5
+          wakeUntil = performance.now() / 1000 + 3
           invalidateFn?.()
           return (v as (...a: unknown[]) => unknown).apply(target, args)
         }
@@ -320,11 +310,14 @@ export function VfxLayer() {
     return () => {
       activeController = null
     }
-  }, [pools])
+  }, [pools, fx])
 
   useEffect(() => {
-    return () => disposePools(pools)
-  }, [pools])
+    return () => {
+      disposePools(pools)
+      fx.dispose()
+    }
+  }, [pools, fx])
 
   const invalidate = useThree((s) => s.invalidate)
   useEffect(() => {
@@ -337,6 +330,7 @@ export function VfxLayer() {
   useFrame((state) => {
     const now = performance.now() / 1000
     if (now < wakeUntil) state.invalidate()
+    if (fx.update(now)) state.invalidate()
     pools.sparkPool.tick(now)
     pools.ringPool.tick(now)
     pools.puffPool.tick(now)
@@ -351,6 +345,7 @@ export function VfxLayer() {
       <primitive object={pools.puffPool.mesh} />
       <primitive object={pools.tracerPool.mesh} />
       <primitive object={pools.conePool.mesh} />
+      <primitive object={fx.group} />
     </group>
   )
 }

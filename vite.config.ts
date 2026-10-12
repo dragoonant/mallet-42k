@@ -7,6 +7,15 @@ import react from '@vitejs/plugin-react'
 export default defineConfig(({ mode }) => ({
   base: mode === 'production' ? '/mallet-42k/' : '/',
   plugins: [react()],
+  // vfx.html is a second page (the weapon-effects gallery) built next to the game: <base>vfx.html on Pages.
+  build: {
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        vfx: fileURLToPath(new URL('./vfx.html', import.meta.url)),
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

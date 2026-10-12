@@ -691,6 +691,18 @@ describe('secondaries', () => {
     expect(s.players.B.vp).toBe(8)
   })
 
+  it('MISSION-040 RC-050 R-5.16: a target culled from stranded Reserves (location destroyed, no destroyedBy) scores the unit tier', () => {
+    const s = freshState()
+    s.mission.secondaries.B = [{ id: 'bag-score', when: 'battle.end', rounds: { from: 5, to: 5 }, rule: 'custom', pointsPer: 0, cap: 12, code: 'bagTheBigUnScore', params: { beastbossPoints: 12, unitPoints: 8 } }]
+    s.round = 5
+    s.players.B.secondaryState.bagTargetUnitId = 'A:walker'
+    s.units['A:walker'].location = 'destroyed'
+    s.units['A:walker'].destroyedBy = null
+    const { ctx } = ctxFor(s)
+    modules.services.missions.onWindow(ctx, 'battle.end', 'battle')
+    expect(s.players.B.vp).toBe(8)
+  })
+
   it('MISSION-041 CP-1.4: an optional enhancement chosen at setup is the one applied', () => {
     const s = freshState({ players: {
       A: { name: 'Red', faction: 'red', patrolId: 'red.patrol', enhancementId: 'red.e.tough', secondaryId: 'red.sec.hold', attachments: [{ leaderRef: 'boss', bodyguardRef: 'grunts' }], reserves: [], battleReadyVp: 0 },

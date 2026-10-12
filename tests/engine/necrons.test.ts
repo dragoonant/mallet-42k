@@ -20,6 +20,7 @@ import { commandModule } from '../../src/engine/phases/command'
 import { buildShootingWeaponEntries } from '../../src/engine/phases/shooting'
 import { overwatchTargets } from '../../src/engine/phases/movement'
 import { overwatchTargetsFor } from '../../src/engine/phases/charge'
+import { terrainService } from '../../src/engine/terrain'
 import { stratagemService } from '../../src/engine/stratagems'
 import { weaponService } from '../../src/engine/weapons'
 import { woundRollNeeded } from '../../src/engine/dice'
@@ -256,6 +257,34 @@ describe('Reanimation Protocols (NEC-2.x)', () => {
     expect(s.units[WAR].models).toContain(reaper)
   })
 
+  it('NEC-009b NEC-2.4 RC-066: with differently armed models destroyed the owner is asked which returns (default = most recent); same wargear asks nothing', () => {
+    const s = makeState()
+    deploy(s, WAR, OVR)
+    const ids = s.units[WAR].models
+    const reaper = ids.find((id) => s.models[id].weapons.includes('nec.w.gauss-reaper')) as string
+    const flayer = ids.find((id) => s.models[id].weapons.includes('nec.w.gauss-flayer')) as string
+    removeModel(s, flayer)
+    removeModel(s, reaper) // most recently destroyed
+    const { ctx } = ctxOf(s, [1])
+    expect(runReanimation(ctx)).toBe('pending')
+    const p = s.pending as ChooseOptionDecision
+    expect(p.context.topic).toBe('abilityChoice')
+    expect(p.options.map((o) => o.id)).toEqual([reaper, flayer])
+    answerOption(ctx, flayer)
+    expect(runReanimation(ctx)).toBe('done')
+    expect(s.units[WAR].models).toContain(flayer)
+    expect(s.units[WAR].models).not.toContain(reaper)
+    // two destroyed models with identical wargear: no decision
+    const s2 = makeState()
+    deploy(s2, WAR, OVR)
+    const flayers = s2.units[WAR].models.filter((id) => s2.models[id].weapons.includes('nec.w.gauss-flayer'))
+    removeModel(s2, flayers[0]); removeModel(s2, flayers[1])
+    const c2 = ctxOf(s2, [1])
+    expect(runReanimation(c2.ctx)).toBe('done')
+    expect(s2.pending).toBeNull()
+    expect(s2.units[WAR].models).toContain(flayers[1])
+  })
+
   it('NEC-010 NEC-2.4: the returned model is on the board, in coherency, overlaps nothing and is not newly in Engagement Range', () => {
     const s = makeState()
     deploy(s, WAR, OVR, BOYZ)
@@ -275,6 +304,31 @@ describe('Reanimation Protocols (NEC-2.x)', () => {
       expect(whollyOnBoard(m, s.board)).toBe(true)
       expect(everyone.filter((o) => o.id !== m.id && basesOverlap(m, o))).toEqual([])
       expect(s.units[BOYZ].models.some((id) => withinEngagementRange(m, s.models[id]))).toBe(false)
+    }
+  })
+
+  it('NEC-039 NEC-2.4 RC-102: a returned model never lands inside a solid crate', () => {
+    const s = makeState()
+    deploy(s, WAR, OVR, BOYZ)
+    const warriors = s.units[WAR].models
+    for (const id of warriors.slice(7)) removeModel(s, id)
+    // a tall crate swallowing the area right next to the surviving line
+    const surv = warriors.slice(0, 7).map((id) => s.models[id].pos)
+    const cx = surv.reduce((a, p) => a + p.x, 0) / surv.length, cz = surv.reduce((a, p) => a + p.z, 0) / surv.length
+    const r = (x0: number, z0: number, x1: number, z1: number) => [{ x: x0, z: z0 }, { x: x1, z: z0 }, { x: x1, z: z1 }, { x: x0, z: z1 }]
+    s.board = { ...s.board, pieces: { ...s.board.pieces, 'crate-x': {
+      id: 'crate-x', kind: 'crate', pos: { x: 0, z: 0 }, rot: 0, footprint: r(cx - 8, cz - 8, cx + 8, cz + 8), height: 3, traits: [], walls: [], floors: [],
+    } as never } }
+    const { ctx, events } = ctxOf(s, [6])
+    runReanimation(ctx)
+    const returned = of(events, 'ModelReturned')
+    expect(returned.length).toBeGreaterThan(0)
+    for (const e of returned) {
+      const m = s.models[e.modelId]
+      expect(terrainService.canEndAt(s, m, m.pos).ok).toBe(true)
+      // never standing in the crate at ground level: any spot inside its footprint must be on top of it
+      const inside = Math.abs(m.pos.x - cx) <= 8 && Math.abs(m.pos.z - cz) <= 8
+      if (inside) expect(m.pos.y).toBeGreaterThan(2.9)
     }
   })
 
@@ -308,7 +362,13 @@ describe('Reanimation Protocols (NEC-2.x)', () => {
     // 2D6 for the Battle-shock test the depleted unit must take, then the Reanimation D3
     const { ctx, events } = ctxOf(s, [6, 6, 6], modules)
     s.step = 'command'
-    expect(commandModule.advance(ctx)).toBe('done')
+    // the destroyed Warriors differ in wargear, so the owner picks each return (RC-066): take the default
+    let r = commandModule.advance(ctx)
+    while (r === 'pending' && (s.pending as ChooseOptionDecision | null)?.context.topic === 'abilityChoice') {
+      answerOption(ctx, (s.pending as ChooseOptionDecision).options[0].id)
+      r = commandModule.advance(ctx)
+    }
+    expect(r).toBe('done')
     const order = events.map((e) => e.type)
     expect(order.indexOf('ModelReturned')).toBeGreaterThan(-1)
     expect(order.indexOf('ModelReturned')).toBeLessThan(order.indexOf('VpScored'))
@@ -511,6 +571,37 @@ describe('Secondary objectives (NEC-4)', () => {
     expect(s.players.A.vp).toBe(0)
   })
 
+  it('NEC-023 NEC-4: Deadly Demise mortal wounds from a NECRONS model credit the exploding model — a kill near the treasure marker scores +3 VP', () => {
+    const s = treasureState()
+    s.players.A.secondaryState.treasureObjectiveId = 'west'
+    deploy(s, WAR)
+    placeUnit(s, BOYZ, { x: -11, z: 1, gap: 0.3 })
+    for (const id of s.units[BOYZ].models.slice(1)) removeModel(s, id) // one Boy left, so one mortal wound destroys the unit
+    s.phase = 'shooting'
+    const { ctx } = ctxOf(s)
+    missionService.onWindow(ctx, 'shooting.start', 'start')
+    const exploder = s.units[WAR].models[0]
+    attackService.queueMortalWounds(ctx, BOYZ, 99, 'deadlyDemise', false, { player: 'A', unitId: WAR, modelId: exploder })
+    drive(ctx)
+    expect(s.units[BOYZ].location).toBe('destroyed')
+    expect(s.players.A.vp).toBe(3)
+  })
+
+  it('NEC-023 NEC-4: mortal wounds from a rule a NECRONS unit is using (Tank Shock, grenades, ability mortals) credit that unit — a kill near the treasure marker scores +3 VP (RC-090)', () => {
+    const s = treasureState()
+    s.players.A.secondaryState.treasureObjectiveId = 'west'
+    deploy(s, WAR)
+    placeUnit(s, BOYZ, { x: -11, z: 1, gap: 0.3 })
+    for (const id of s.units[BOYZ].models.slice(1)) removeModel(s, id)
+    s.phase = 'shooting'
+    const { ctx } = ctxOf(s)
+    missionService.onWindow(ctx, 'shooting.start', 'start')
+    hookService.apply(ctx, { kind: 'stratagem', id: 'tank-shock', unitId: WAR, modelId: null }, { kind: 'request', mortalWounds: [{ targetUnitId: BOYZ, count: 99 }] })
+    drive(ctx)
+    expect(s.units[BOYZ].location).toBe('destroyed')
+    expect(s.players.A.vp).toBe(3)
+  })
+
   it('NEC-038 NEC-4: a unit finished off by Devastating Wounds from a NECRONS attack near the treasure marker still scores +3 VP', () => {
     const s = treasureState()
     s.players.A.secondaryState.treasureObjectiveId = 'west'
@@ -702,8 +793,9 @@ describe('Datasheet rules (NEC-6)', () => {
     const s = makeState({ a: { attachments: [] } })
     deploy(s, OVR, BOYZ)
     const arrowIn = (list: DeclaredTarget[]) => list.filter((e) => e.weaponId === 'nec.w.tachyon-arrow')
-    expect(arrowIn(overwatchTargets(s, OVR, BOYZ))).toHaveLength(1)
-    expect(arrowIn(overwatchTargetsFor(s, OVR, BOYZ))).toHaveLength(1)
+    // RC-015: the default Overwatch selection never spends a One Shot weapon (6s-only hits), fired or not
+    expect(arrowIn(overwatchTargets(s, OVR, BOYZ))).toHaveLength(0)
+    expect(arrowIn(overwatchTargetsFor(s, OVR, BOYZ))).toHaveLength(0)
     s.phase = 'shooting'
     const run = ctxOf(s, SIX)
     attackService.begin(run.ctx, { kind: 'ranged', attackerUnitId: OVR, overwatch: false, targets: [target(`${OVR}#0`, 'nec.w.tachyon-arrow', BOYZ, 1)] })

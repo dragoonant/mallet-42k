@@ -1,0 +1,48 @@
+// Screen-space stagger for unit name tags + status-icon rows. Each unit's tag and icon row form one block; blocks that
+// overlap on screen are pushed upward (greedy, lowest block keeps its spot). The solver is pure; the registry and the
+// easing helpers below are used by LabelLayoutDriver (UnitLabels.tsx) and the two components that apply the offset.
+
+export interface LayoutBlock { id: string; x: number; y: number; w: number; h: number }
+
+export const STAGGER_GAP = 4
+
+/** Returns id -> upward shift in px (>= 0). Blocks are sorted bottom-first; each is lifted above anything it overlaps. */
+export function resolveStagger(blocks: LayoutBlock[], gap = STAGGER_GAP): Map<string, number> {
+  const out = new Map<string, number>()
+  const placed: LayoutBlock[] = [] // rects at their final (shifted) position
+  const sorted = [...blocks].sort((a, b) => (b.y + b.h) - (a.y + a.h) || a.id.localeCompare(b.id))
+  for (const b of sorted) {
+    let shift = 0
+    for (let guard = 0; guard <= sorted.length; guard++) {
+      const top = b.y - shift
+      const hit = placed.find((p) => b.x < p.x + p.w && p.x < b.x + b.w && top < p.y + p.h + 0 && p.y < top + b.h + gap)
+      if (!hit) break
+      // Overlap (or within the gap): lift so our bottom sits `gap` above the obstacle's top.
+      shift = b.y + b.h + gap - hit.y
+    }
+    out.set(b.id, shift)
+    placed.push({ ...b, y: b.y - shift })
+  }
+  return out
+}
+
+/** One exponential-ease step toward `target` with a ~120ms settle. */
+export function easeOffset(current: number, target: number, dtSeconds: number): number {
+  const k = 1 - Math.exp(-Math.max(dtSeconds, 0) / 0.04)
+  const next = current + (target - current) * k
+  return Math.abs(target - next) < 0.3 ? target : next
+}
+
+export interface LabelEntry { tagWrap?: HTMLElement | null; rowWrap?: HTMLElement | null; offset: number }
+export const labelRegistry = new Map<string, LabelEntry>()
+
+export function registerLabelPart(id: string, part: 'tagWrap' | 'rowWrap', el: HTMLElement | null) {
+  const e = labelRegistry.get(id) ?? { offset: 0 }
+  e[part] = el
+  labelRegistry.set(id, e)
+}
+
+export function applyOffset(e: LabelEntry) {
+  const t = e.offset === 0 ? '' : `translateY(${(-e.offset).toFixed(1)}px)`
+  for (const el of [e.tagWrap, e.rowWrap]) if (el && el.style.transform !== t) el.style.transform = t
+}

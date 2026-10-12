@@ -131,9 +131,10 @@ export const objectiveService: ObjectiveService = {
       const levels = levelsFor(obj)
       let to: PlayerId | null
       if (obj.securedBy) {
-        // CP-2.5: while secured (and not just broken above), the securer counts as in control at EVERY evaluation,
-        // regardless of the opponent's current LoC — the break check above is the only thing that can end this.
-        to = obj.securedBy
+        // CP-2.5 (RC-048): a secured marker stays the securer's with no models in range, but a strictly higher enemy
+        // LoC takes control at that check; the secured flag itself is only cleared at a Command phase end (above).
+        const opp = otherPlayer(obj.securedBy)
+        to = levels[opp] > levels[obj.securedBy] ? opp : obj.securedBy
       } else {
         to = levels.A > levels.B ? 'A' : levels.B > levels.A ? 'B' : null
         // CP-2.6: an empty or contested marker (no secured flag) stays with whoever stickied it

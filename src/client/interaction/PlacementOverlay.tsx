@@ -8,7 +8,7 @@
 // which reads the same `validateDraft` result to disable Confirm with a reason — this component is
 // purely presentational plus the nudge-drag pointer handlers, never dispatches an Action itself.
 import { useMemo, useState } from 'react'
-import type { ThreeEvent } from '@react-three/fiber'
+import { useThree, type ThreeEvent } from '@react-three/fiber'
 import { Html, Line } from '@react-three/drei'
 import { enemyModelsOnBoard, dist2D, type Model, type UnitId } from '@/engine'
 import { EngagementRing, MoveRangeRing, Ruler } from '../board'
@@ -18,7 +18,9 @@ import { useUiStore } from '../ui/uiStore'
 import { colors } from '../ui/theme'
 import { combinedUnitIds, combinedUnitModels, modelsAnchor } from './geometry'
 import { placementInfo } from './decisions'
+import { cameraRef } from './floors'
 import { validateDraft, type CoherencyLink } from './formationValidation'
+import { fightersAfter, isApproachPending, validateApproach } from './approachDraft'
 
 const OK_COLOR = '#f5d95a'
 const BLOCKED_COLOR = colors.danger
@@ -27,6 +29,7 @@ const LINK_OK_COLOR = '#ffffff'
 const LINK_BAD_COLOR = colors.danger
 const FRONT_RANK_COLOR = '#ffffff'
 const CHEVRON_COLOR = '#ffffff'
+const FIGHT_COLOR = '#ff9a2e'
 
 /** How close (along the facing axis) a model has to be to the formation's own front-most model to
  *  still count as "front rank" — a little over one model depth, so a slightly uneven front row (e.g.
@@ -93,8 +96,11 @@ function DraftMarkers({
   onHover,
   anchor,
   facing,
+  fighting,
 }: {
-  placements: { modelId: string; pos: { x: number; z: number } }[]
+  /** Models that would be able to fight from where they stand in this draft — drawn with an orange ring + sword mark. */
+  fighting?: ReadonlySet<string>
+  placements: { modelId: string; pos: { x: number; y?: number; z: number } }[]
   perModel?: Record<string, string[]>
   color?: string
   opacity?: number
@@ -127,18 +133,29 @@ function DraftMarkers({
         return (
           <group key={p.modelId}>
             {isFrontRank && !blocked && (
-              <mesh position={[p.pos.x, 0.065, p.pos.z]} rotation={[-Math.PI / 2, 0, 0]}>
+              <mesh position={[p.pos.x, (p.pos.y ?? 0) + 0.065, p.pos.z]} rotation={[-Math.PI / 2, 0, 0]}>
                 <ringGeometry args={[0.62, 0.74, 24]} />
                 <meshBasicMaterial color={FRONT_RANK_COLOR} transparent opacity={0.55} />
               </mesh>
             )}
-            <mesh position={[p.pos.x, 0.07, p.pos.z]} rotation={[-Math.PI / 2, 0, 0]}>
+            {fighting?.has(p.modelId) && !blocked && (
+              <>
+                <mesh position={[p.pos.x, (p.pos.y ?? 0) + 0.075, p.pos.z]} rotation={[-Math.PI / 2, 0, 0]}>
+                  <ringGeometry args={[0.66, 0.82, 24]} />
+                  <meshBasicMaterial color={FIGHT_COLOR} transparent opacity={0.95} />
+                </mesh>
+                <Html zIndexRange={[5, 0]} position={[p.pos.x, (p.pos.y ?? 0) + 0.9, p.pos.z]} center style={{ pointerEvents: 'none', fontSize: 13, lineHeight: 1, color: FIGHT_COLOR, textShadow: '0 0 3px #000' }}>
+                  ⚔
+                </Html>
+              </>
+            )}
+            <mesh position={[p.pos.x, (p.pos.y ?? 0) + 0.07, p.pos.z]} rotation={[-Math.PI / 2, 0, 0]}>
               <ringGeometry args={[0.45, 0.6, 24]} />
               <meshBasicMaterial color={blocked ? BLOCKED_COLOR : color} transparent opacity={isFrontRank ? Math.min(1, opacity + 0.15) : opacity} />
             </mesh>
             {onModelPointerDown && (
               <mesh
-                position={[p.pos.x, 0.07, p.pos.z]}
+                position={[p.pos.x, (p.pos.y ?? 0) + 0.07, p.pos.z]}
                 rotation={[-Math.PI / 2, 0, 0]}
                 onPointerDown={(e) => {
                   e.stopPropagation()
@@ -171,6 +188,7 @@ export function PlacementOverlay() {
   const previewDraft = useUiStore((s) => s.previewDraft)
   const deployTargetUnitId = useUiStore((s) => s.deployTargetUnitId)
   const startNudge = useUiStore((s) => s.startNudge)
+  cameraRef.current = useThree((s) => s.camera).position // useBoardClick lifts nudge drags onto a ruin floor's plane with it
   const [hoveredModelId, setHoveredModelId] = useState<string | null>(null)
 
   if (!state || !pending || pending.player === botSeat) return null
@@ -236,18 +254,29 @@ export function PlacementOverlay() {
   const unitDraft = activeDraft?.unitId === info.unitId ? activeDraft : null
   const excludeUnitIds = combinedUnitIds(state, info.unitId)
 
-  const result = unitDraft ? validateDraft(state, models, unitDraft.placements, info.constraints, excludeUnitIds, true) : null
+  const approach = isApproachPending(pending) ? pending : null
+  const result = unitDraft
+    ? approach
+      ? validateApproach(state, approach, models, unitDraft.placements, excludeUnitIds)
+      : validateDraft(state, models, unitDraft.placements, info.constraints, excludeUnitIds, true)
+    : null
+  const fighting = approach && unitDraft ? fightersAfter(state, info.unitId, unitDraft.placements) : undefined
 
   return (
     <group>
-      <MoveRangeRing pos={anchor} range={info.constraints.maxDistance} />
+      {approach ? (
+        // each model has its own limit circle around where it started
+        models.map((m) => <MoveRangeRing key={m.id} pos={{ x: m.pos.x, z: m.pos.z }} range={info.constraints.perModel[m.id] ?? info.constraints.maxDistance} />)
+      ) : (
+        <MoveRangeRing pos={anchor} range={info.constraints.maxDistance} />
+      )}
       {showEngagement &&
         enemyModelsOnBoard(state, pending.player).map((m) => (
           <EngagementRing key={m.id} pos={{ x: m.pos.x, z: m.pos.z }} baseRadius={m.base.radius} />
         ))}
       {unitDraft && result && (
         <>
-          <Ruler a={anchor} b={unitDraft.anchor} />
+          {!approach && <Ruler a={anchor} b={unitDraft.anchor} />}
           <CoherencyLinks links={result.links} />
           <DraftMarkers
             placements={unitDraft.placements}
@@ -255,9 +284,13 @@ export function PlacementOverlay() {
             onModelPointerDown={(e, modelId) => beginNudge(e, modelId, unitDraft.placements)}
             onHover={setHoveredModelId}
             anchor={unitDraft.anchor}
-            facing={unitDraft.placements[0]?.facing}
+            facing={approach ? undefined : unitDraft.placements[0]?.facing}
+            fighting={fighting}
           />
-          {hoveredModelId && (
+          {hoveredModelId && result.perModel[hoveredModelId]?.length ? (
+            <ReasonLabel modelId={hoveredModelId} placements={unitDraft.placements} perModel={result.perModel} />
+          ) : null}
+          {hoveredModelId && !result.perModel[hoveredModelId]?.length && (
             <DistanceLabel modelId={hoveredModelId} models={models} placements={unitDraft.placements} constraints={info.constraints} />
           )}
         </>
@@ -286,7 +319,7 @@ function ReasonLabel({
   perModel,
 }: {
   modelId: string
-  placements: { modelId: string; pos: { x: number; z: number } }[]
+  placements: { modelId: string; pos: { x: number; y?: number; z: number } }[]
   perModel: Record<string, string[]>
 }) {
   const p = placements.find((x) => x.modelId === modelId)
@@ -316,13 +349,13 @@ function DistanceLabel({
   return <FloatingLabel pos={p.pos} text={`${d.toFixed(1)}" / ${allowance.toFixed(1)}"`} color={over ? BLOCKED_COLOR : colors.text} />
 }
 
-function FloatingLabel({ pos, text, color }: { pos: { x: number; z: number }; text: string; color: string }) {
+export function FloatingLabel({ pos, text, color }: { pos: { x: number; y?: number; z: number }; text: string; color: string }) {
   const html = useMemo(
     () => (
       <div
         style={{
           fontFamily: 'system-ui, sans-serif',
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: 700,
           color,
           background: 'rgba(10,10,16,0.85)',
@@ -338,5 +371,5 @@ function FloatingLabel({ pos, text, color }: { pos: { x: number; z: number }; te
     ),
     [text, color],
   )
-  return <Html position={[pos.x, 0.6, pos.z]}>{html}</Html>
+  return <Html zIndexRange={[5, 0]} position={[pos.x, (pos.y ?? 0) + 0.6, pos.z]}>{html}</Html>
 }

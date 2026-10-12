@@ -154,6 +154,11 @@ export const leaderService: LeaderService & LeaderQueries = {
     if (halves.length === 0) return false
     const ss = halves.reduce((n, id) => n + state.units[id].startingStrength, 0)
     const now = halves.reduce((n, id) => n + unitModels(state, id).length, 0)
+    if (ss === 1) {
+      // Rules Commentary: with a Starting Strength of 1 the unit is below it once its model has lost any wound
+      const m = halves.flatMap((id) => unitModels(state, id))[0]
+      return !m || m.woundsRemaining < modelStats(state, m).W
+    }
     return now < ss
   },
   closestEligibleTargets(state, attackerUnitId, kind, legalRanged) {

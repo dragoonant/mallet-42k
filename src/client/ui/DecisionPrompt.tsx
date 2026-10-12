@@ -2,6 +2,8 @@
 // four move-family decisions (which need a board click, handled by src/client/interaction/**); every
 // other decision kind — including declareTargets/declareCharge, which also accept a click on an enemy
 // Figure via UnitsLayer — renders as a plain clickable list here, so no decision can ever get stuck.
+import { FloorSelector } from '../interaction/FloorSelector'
+import { isClampedMovePending } from '../interaction/moveClamp'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import {
   unitModels,
@@ -11,17 +13,25 @@ import { useGameStore } from '../store/game'
 import { useUiStore } from './uiStore'
 import {
   combinedUnitIds, combinedUnitModels, distance2D, formationPlacementsForUnit, modelsAnchor, placementInfo, validateDraft,
+  isApproachPending, startDraft, autoDraft, validateApproach, fightersAfter,
 } from '../interaction'
 import { neededChargeDistance } from '@/engine/phases/charge'
+import { isTeleporting } from '@/engine/teleport'
 import {
   chargeTargetHelp, moveTypeHelp, objectiveLabel, prettifyId, saveAttackContext,
   shootingTargetHelp, type PromptHelp,
 } from './labels'
+import { offeredAmbushMarker, useAmbushHover } from '../interaction/CultAmbushMarkers'
+import { commitStagedDraft } from '../interaction/commitDraft'
 import { FormationPicker } from './FormationPicker'
+import { WeaponPanel } from './WeaponPanel'
+import { opensWeaponPanel } from '../interaction/decisions'
 import { rerollTrayModel, rollForOffer } from './rerollInfo'
 import { RerollTray } from './RerollTray'
+import { overwatchReach } from './overwatchInfo'
 import { usePresentedStore } from '../presentation/presentedStore'
 import { buttonBase, buttonDanger, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
+import { Tooltip } from './Tooltip'
 
 /** The nearest thing worth orienting a move/charge/pile-in/consolidate destination against — an
  *  objective it lands on, or the nearest enemy unit — so a suggested placement reads as "toward
@@ -117,10 +127,38 @@ const METHODICAL_INFO = {
  *  prefix or a variant of the same rule still reads right. */
 const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string } }[] = [
   {
+    match: /martial-?katah/i,
+    info: {
+      title: "Choose a Ka'tah stance",
+      hint: 'Pick the fighting style your Custodes use for this fight phase. Dacatarai makes their melee weapons score an extra hit on a 6 to hit; Rendax makes a 6 to hit wound automatically. It lasts until the end of the phase.',
+    },
+  },
+  {
+    match: /teleport-?assault/i,
+    info: {
+      title: 'Teleport Assault',
+      hint: 'At the end of the turn, a unit with this rule may leave the battlefield now. It must be set up again in your next Movement phase, more than 9" from every enemy model, and a unit still off the board when the battle ends is lost. Pick the unit to send, or leave everyone where they stand.',
+    },
+  },
+  {
+    match: /banishment-?stone/i,
+    info: {
+      title: 'Banishment Stone',
+      hint: 'The bearer just cut down an enemy hero. Roll a die: on a 2 or more you gain 1 Command point.',
+    },
+  },
+  {
     match: /resonant-focus/,
     info: {
       title: 'Resonant Focus target',
       hint: 'Name an enemy unit within 12" of the bearer that he can see. For the rest of this turn, every Necron attack against it re-rolls hit rolls of 1.',
+    },
+  },
+  {
+    match: /for-the-greater-good/i,
+    info: {
+      title: 'For the Greater Good',
+      hint: "Pair this unit with a friendly Observer and an enemy both can see. This unit's shots at that enemy hit one step better, and if the Observer carries a markerlight they ignore cover too. The Observer can still shoot later this phase, but without a partner of its own. Decline to shoot unaided.",
     },
   },
   {
@@ -184,6 +222,13 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
     info: {
       title: 'Disruption Bombardment',
       hint: 'Pick an enemy infantry unit this unit hit. Until the end of their next turn it moves 2 inches slower and rolls 2 lower when it advances or charges.',
+    },
+  },
+  {
+    match: /cult-ambush/i,
+    info: {
+      title: 'Cult Ambush',
+      hint: 'A fallen hybrid brood may rise again. When it is destroyed, pick a spot at least 9 inches from every enemy to leave a hidden ambush marker. Later, during an enemy Movement phase, send a waiting brood back to spring out of a marker, touching it and more than 9 inches from the enemy. An enemy that finishes a move within 9 inches of a marker removes it. Nothing returns after battle round 3. Decline to keep the marker for the next turn.',
     },
   },
   {
@@ -284,7 +329,8 @@ function chooseOptionInfoFor(
     }
   }
   const choice = context.data && typeof context.data.choice === 'string' ? CHOICE_PROMPT_KEYS[context.data.choice] : undefined
-  const key = context.abilityId ?? choice ?? null
+  // Both Cult Ambush steps (marker, return) carry the code; the return step has no ability id.
+  const key = context.data?.code === 'cultAmbush' ? 'cult-ambush' : context.abilityId ?? choice ?? null
   const byAbility = key ? ABILITY_PROMPT_INFO.find((a) => a.match.test(key)) : undefined
   if (byAbility) return byAbility.info
   // Order offers carry ids like "am.order.take-aim@A:shock-a" whichever ability id the engine attaches.
@@ -306,6 +352,17 @@ function chooseOptionInfoFor(
   return CHOOSE_OPTION_INFO[context.topic]
 }
 
+/** For the Greater Good options are "<observer id>@<spotted enemy id>": say who watches and who is marked. */
+function pairOptionLabel(state: GameState, abilityId: string | null, optionId: string): string | null {
+  if (!abilityId || !/for-the-greater-good/i.test(abilityId)) return null
+  const at = optionId.indexOf('@')
+  if (at < 0) return null
+  const observer = state.units[optionId.slice(0, at)]
+  const spotted = state.units[optionId.slice(at + 1)]
+  if (!observer || !spotted) return null
+  return `Observer: ${observer.name} — Spotted: ${spotted.name}`
+}
+
 /** Voice of Command option ids: "<order id>@<unit id>" for one unit, "<order id>@all" for Command Laurels. */
 const ORDER_OPTION = /^[^@]*order[^@]*@/i
 
@@ -324,6 +381,7 @@ function orderOptionLabel(state: GameState, optionId: string): string | null {
  *  rather than as the safe half of the choice the player was offered. */
 const PASS_LABEL: Partial<Record<PendingDecision['kind'], string>> = {
   commandReroll: 'Keep the roll',
+  declareTargets: 'Fire nothing',
 }
 
 const MOVE_TYPE_LABEL: Partial<Record<MoveType, string>> = {
@@ -450,6 +508,8 @@ function labelForOption(pending: PendingDecision, state: GameState, events: read
         const picked = idx?.map((i) => pool[i]).filter((v): v is number => typeof v === 'number')
         return picked && picked.length > 0 ? `Spend a Miracle die (${picked.join(', ')})` : 'Spend a Miracle die'
       }
+      const pairLabel = pairOptionLabel(state, pending.context.abilityId, o.id)
+      if (pairLabel) return pairLabel
       const orderLabel = orderOptionLabel(state, o.id)
       if (orderLabel) return orderLabel
       if (pending.context.topic === 'razeObjective' || pending.context.topic === 'recoverObjective' || pending.context.topic === 'treasureObjective') return objectiveLabel(o.id)
@@ -470,6 +530,9 @@ function abilityOptionLabel(abilityId: string | null, o: { id: string; label: st
       case 'both': return 'Pact: Lethal Hits and Sustained Hits 1 (Foul Zealotry)'
       case 'decline': return 'No pact'
     }
+  }
+  if (/teleport-?assault/i.test(abilityId)) {
+    if (/^(decline|skip|pass|none|stay)$/.test(o.id)) return 'Stay where they are'
   }
   if (/sacrificial-?dagger/i.test(abilityId)) {
     if (o.id === 'use') return 'Use the dagger (1 mortal wound)'
@@ -711,6 +774,7 @@ export function DecisionPrompt() {
   const hoverUnit = useUiStore((s) => s.hoverUnit)
   const hoverModel = useUiStore((s) => s.hoverModel)
   const hoverObjective = useUiStore((s) => s.hoverObjective)
+  const shootStage = useUiStore((s) => s.shootStage)
   const clearBoardHover = () => {
     hoverUnit(null)
     hoverModel(null)
@@ -720,7 +784,6 @@ export function DecisionPrompt() {
   const formationFacing = useUiStore((s) => s.formationFacing)
   const primeFormation = useUiStore((s) => s.primeFormation)
   const recallFormation = useUiStore((s) => s.recallFormation)
-  const rememberFormation = useUiStore((s) => s.rememberFormation)
 
   // Delayed hover help on an option (currently the move types — see moveTypeHelp). Kept here rather
   // than in each button so only one card is ever open, and so the timer is cancelled on unmount.
@@ -764,6 +827,14 @@ export function DecisionPrompt() {
     else primeFormation('keep', 0, true)
   }, [pending?.id])
 
+  // Pile in / consolidate: open with every model where it stands so it can be dragged right away
+  // (staying put is always an option); a board click or "Auto" still replaces the draft.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!state || !isApproachPending(pending) || pending.player === botSeat) return
+    setDraft(startDraft(state, pending))
+  }, [pending?.id])
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!pending || pending.kind !== 'deployUnit' || !deployTargetUnitId) return
@@ -789,8 +860,11 @@ export function DecisionPrompt() {
   const activeDraft = draft && draft.decisionId === pending.id ? draft : null
   const passAction = legal?.find((a) => a.type === 'pass') ?? null
 
+  const approach = isApproachPending(pending) ? pending : null
   const draftValidation = activeDraft
-    ? validateDraft(
+    ? approach
+      ? validateApproach(state, approach, combinedUnitModels(state, activeDraft.unitId), activeDraft.placements, combinedUnitIds(state, activeDraft.unitId))
+      : validateDraft(
         state,
         combinedUnitModels(state, activeDraft.unitId),
         activeDraft.placements,
@@ -801,20 +875,12 @@ export function DecisionPrompt() {
     : null
 
   const confirmDraft = () => {
-    if (!activeDraft || (draftValidation && !draftValidation.ok)) return
-    const { unitId, placements } = activeDraft
-    const base = { player: pending.player, decisionId: pending.id }
-    if (pending.kind === 'deployUnit') dispatch({ ...base, type: 'deployUnit', unitId, placements })
-    else if (pending.kind === 'moveUnit') dispatch({ ...base, type: 'moveUnit', unitId, placements })
-    else if (pending.kind === 'chargeMove') dispatch({ ...base, type: 'chargeMove', unitId, placements })
-    else if (pending.kind === 'pileIn') dispatch({ ...base, type: 'pileIn', unitId, placements })
-    else if (pending.kind === 'consolidate') dispatch({ ...base, type: 'consolidate', unitId, placements })
-    rememberFormation(unitId, formationKind, formationFacing)
-    setDraft(null)
+    commitStagedDraft()
   }
 
   const resetDraft = () => {
     if (!activeDraft) return
+    if (approach) { setDraft(startDraft(state, approach)); return }
     const placements = formationPlacementsForUnit(state, activeDraft.unitId, activeDraft.anchor, formationFacing, formationKind)
     if (placements.length > 0) setDraft({ ...activeDraft, placements })
   }
@@ -858,6 +924,7 @@ export function DecisionPrompt() {
     )
   }
 
+  const weaponPanelOpen = opensWeaponPanel(pending) && shootStage?.decisionId === pending.id
   const kindTitle = chooseOptionInfo?.title ?? KIND_TITLE[pending.kind] ?? pending.kind
   const isDeploy = pending.kind === 'deployUnit'
 
@@ -868,6 +935,12 @@ export function DecisionPrompt() {
       {activeHelp && <OptionHelp help={activeHelp} />}
       <div style={heading}>{kindTitle}</div>
       {chooseOptionInfo && <div style={hint}>{chooseOptionInfo.hint}</div>}
+      {pending.kind === 'chooseOption' && (() => {
+        const step = pending.context.data?.code === 'cultAmbush' ? pending.context.data.step : null
+        if (step === 'marker') return <div style={hint} data-testid="cult-ambush-marker-hint">Blue discs on the board are the legal spots. Hover an option to light its spot, or click a disc.</div>
+        const mk = step === 'return' ? offeredAmbushMarker(pending, state) : null
+        return mk ? <div style={hint} data-testid="cult-ambush-return-hint">Marker offered: the ringed disc at {mk.pos.x.toFixed(1)}, {mk.pos.z.toFixed(1)}.</div> : null
+      })()}
 
       {pending.kind === 'stratagemWindow' && (
         <StratagemOffers
@@ -885,6 +958,25 @@ export function DecisionPrompt() {
           triggerLine={`${REACTION_LABEL[pending.context.reaction] ?? pending.context.reaction}${pending.context.enemyUnitId ? ` — ${state.units[pending.context.enemyUnitId]?.name ?? pending.context.enemyUnitId}` : ''}`}
         />
       )}
+      {pending.kind === 'reactionWindow' && pending.context.reaction === 'overwatch' && pending.context.enemyUnitId && (() => {
+        const enemyId = pending.context.enemyUnitId
+        const rows = pending.context.eligibleUnits.map((u) => overwatchReach(state, u, enemyId))
+        if (rows.length === 0) return null
+        return (
+          <div style={infoBlock} data-testid="overwatch-reach">
+            {rows.map((r) => (
+              <div key={r.unitId}>
+                <strong>{state.units[r.unitId]?.name ?? r.unitId}</strong>:{' '}
+                {r.total === 0
+                  ? 'no ranged weapons'
+                  : `${r.canFire} of ${r.total} ranged weapon${r.total === 1 ? '' : 's'} can reach ${state.units[enemyId]?.name ?? enemyId}`}
+                {r.inRange > r.canFire && ` (${r.inRange - r.canFire} more in range but blocked — no line of sight or not a legal target)`}
+              </div>
+            ))}
+            <div style={{ fontSize: '0.9em' }}>Measured base to base against each weapon&apos;s range.</div>
+          </div>
+        )
+      })()}
       {pending.kind === 'declareTargets' && (
         <div style={infoBlock} data-testid="shoot-context">
           <div style={{ color: colors.text, fontWeight: 600 }}>
@@ -892,12 +984,18 @@ export function DecisionPrompt() {
             {pending.context.overwatch ? 'Fire Overwatch (every hit needs an unmodified 6)' : pending.context.attackKind === 'melee' ? 'pick who to fight' : 'pick a target'}
           </div>
           <div>
-            Every weapon that can see the unit you pick fires at it. Hover an option for its weapons, the target&apos;s
-            Toughness and Save, and what each weapon needs to hit and wound.
+            {pending.context.attackKind === 'ranged'
+              ? 'Click an enemy to choose which weapons fire at it, or use a Target button to fire everything that can reach it at once. '
+              : 'Every weapon that can see the unit you pick fires at it. '}
+            Hover an option for its weapons, the target&apos;s Toughness and Save, and what each weapon needs to hit and wound.
             {pending.context.engagedWith.length > 0 &&
               ` In Engagement Range of ${pending.context.engagedWith.map((u) => state.units[u]?.name ?? u).join(', ')}.`}
           </div>
         </div>
+      )}
+
+      {pending.kind === 'declareTargets' && weaponPanelOpen && (
+        <WeaponPanel key={pending.id} state={state} pending={pending} passAction={passAction} dispatch={dispatch} />
       )}
 
       {pending.kind === 'declareCharge' && (
@@ -925,8 +1023,13 @@ export function DecisionPrompt() {
 
       {(pending.kind === 'pileIn' || pending.kind === 'consolidate') && (
         <div style={infoBlock} data-testid="pile-in-context">
-          Move each model up to {pending.context.distance}&quot;
-          {pending.kind === 'pileIn' ? ', as close as it can get to the closest enemy model.' : ', ending closer to the closest enemy model or an objective you can hold.'}
+          Drag each model up to {pending.context.distance}&quot; (its grey ring) or leave it where it stands.
+          {pending.kind === 'pileIn' ? ' Moved models must end closer to the enemy.' : ' Moved models must end closer to the enemy or an objective.'}
+          {activeDraft && (() => {
+            const f = fightersAfter(state, activeDraft.unitId, activeDraft.placements)
+            const total = activeDraft.placements.length
+            return <div data-testid="pile-in-fighters" style={{ color: f.size > 0 ? '#ffb347' : colors.text, fontWeight: 600, marginTop: 4 }}>⚔ {f.size} of {total} models will be able to fight (orange rings)</div>
+          })()}
         </div>
       )}
 
@@ -977,14 +1080,47 @@ export function DecisionPrompt() {
           {pending.context.reservesAllowed.map((uid) => {
             const reserveAction = legal?.find((a) => a.type === 'deployUnit' && a.unitId === uid && a.toReserves)
             if (!reserveAction) return null
+            const abandon = isTeleporting(state, uid)
+            const nm = state.units[uid]?.name ?? uid
             return (
-              <button key={`res-${uid}`} style={{ ...buttonBase, flexShrink: 0, width: '100%', textAlign: 'left' }} onClick={() => dispatch(reserveAction)}>
-                Reserves: {state.units[uid]?.name ?? uid}
-              </button>
+              <Tooltip key={`res-${uid}`} title="Abandon" body="A teleporting unit that is not placed is destroyed." disabled={!abandon}>
+                <button
+                  style={{ ...(abandon ? buttonDanger : buttonBase), flexShrink: 0, width: '100%', textAlign: 'left' }}
+                  onClick={() => {
+                    if (abandon && !window.confirm(`Abandon ${nm}? It cannot return to Reserves and will be destroyed.`)) return
+                    dispatch(reserveAction)
+                  }}
+                >
+                  {abandon ? `Abandon ${nm} (destroyed)` : `Reserves: ${nm}`}
+                </button>
+              </Tooltip>
             )
           })}
         </div>
       )}
+
+      {pending.kind === 'deployUnit' && pending.constraints.mustTouch && (() => {
+        const auto = legal?.find((a): a is Extract<Action, { type: 'deployUnit' }> => a.type === 'deployUnit' && !a.toReserves && a.placements.length > 0)
+        const mt = pending.constraints.mustTouch
+        return (
+          <div style={infoBlock} data-testid="cult-ambush-context">
+            <div>One model must touch the Cult Ambush marker (the disc on the board at {mt.pos.x.toFixed(1)}, {mt.pos.z.toFixed(1)}), and every model must end more than {pending.constraints.minDistanceFromEnemies}&quot; from enemies. Click near the marker, or use the button.</div>
+            {auto && (
+              <button
+                style={{ ...buttonPrimary, marginTop: 6 }}
+                data-testid="btn-place-at-marker"
+                onClick={() => {
+                  setDeployTarget(auto.unitId)
+                  const first = auto.placements[0]
+                  setDraft({ decisionId: pending.id, unitId: auto.unitId, anchor: { x: first.pos.x, z: first.pos.z }, placements: auto.placements })
+                }}
+              >
+                Place at marker
+              </button>
+            )}
+          </div>
+        )
+      })()}
 
       {bespoke && (
         <div style={hint}>
@@ -992,22 +1128,30 @@ export function DecisionPrompt() {
             ? deployTargetUnitId
               ? 'Click inside your deployment zone to place the unit.'
               : 'Pick a unit above, then click inside your zone.'
-            : 'Click on the board to set a destination — a range ring shows how far the unit can go.'}
+            : approach
+              ? 'Drag a model to move just it (Shift-drag moves them all). A red ring says why it is not allowed.'
+              : 'Click on the board to set a destination — a range ring shows how far the unit can go.'}
         </div>
       )}
 
       <div style={row}>
+        {approach && (
+          <button style={buttonBase} data-testid="btn-auto-approach" onClick={() => setDraft(autoDraft(state, approach, legal))}>
+            {approach.kind === 'pileIn' ? 'Auto pile in' : 'Auto consolidate'}
+          </button>
+        )}
         {activeDraft && (
           <>
-            <button
-              style={draftValidation && !draftValidation.ok ? { ...buttonPrimary, opacity: 0.5, cursor: 'not-allowed' } : buttonPrimary}
-              data-testid="btn-confirm"
-              disabled={!!draftValidation && !draftValidation.ok}
-              title={draftValidation && !draftValidation.ok ? `Can't confirm: ${draftValidation.reasons.join(', ')}` : undefined}
-              onClick={confirmDraft}
-            >
-              Confirm
-            </button>
+            <Tooltip title="Can't confirm" body={draftValidation && !draftValidation.ok ? draftValidation.reasons.join(', ') : undefined} disabled={!draftValidation || draftValidation.ok} wrap>
+              <button
+                style={draftValidation && !draftValidation.ok ? { ...buttonPrimary, opacity: 0.5, cursor: 'not-allowed' } : buttonPrimary}
+                data-testid="btn-confirm"
+                disabled={!!draftValidation && !draftValidation.ok}
+                onClick={confirmDraft}
+              >
+                Confirm
+              </button>
+            </Tooltip>
             <button style={buttonBase} data-testid="btn-reset-formation" onClick={resetDraft}>
               Reset
             </button>
@@ -1016,12 +1160,14 @@ export function DecisionPrompt() {
             </button>
           </>
         )}
-        {passAction && (
+        {passAction && !weaponPanelOpen && (
           <button style={buttonBase} data-testid="btn-pass" onClick={() => dispatch(passAction)}>
             {PASS_LABEL[pending.kind] ?? 'Pass'}
           </button>
         )}
       </div>
+
+      {(activeDraft || isClampedMovePending(pending)) && <FloorSelector />}
 
       {activeDraft && draftValidation && !draftValidation.ok && (
         <div style={{ ...hint, color: colors.danger }} data-testid="draft-issue">
@@ -1029,7 +1175,7 @@ export function DecisionPrompt() {
         </div>
       )}
 
-      {showFallbackList && (
+      {showFallbackList && !weaponPanelOpen && (
         <div style={optionList}>
           {info && listItems.length > 0 && <div style={hint}>Or use a suggested placement — hover one to preview it:</div>}
           {listItems.map((it) => {
@@ -1051,6 +1197,7 @@ export function DecisionPrompt() {
                 onFocus={() => hasHelp && setHelpFor(it.id)}
                 onBlur={cancelHelp}
                 onMouseEnter={() => {
+                  if (/^pt:/.test(it.id)) useAmbushHover.getState().set(it.id)
                   if (hasHelp) scheduleHelp(it.id)
                   if (withPlacements) setPreviewDraft({ decisionId: pending.id, unitId: withPlacements.unitId, anchor: { x: 0, z: 0 }, placements: withPlacements.placements })
                   if (hoverTarget?.kind === 'unit') hoverUnit(hoverTarget.ids)
@@ -1058,6 +1205,7 @@ export function DecisionPrompt() {
                   if (hoverTarget?.kind === 'objective') hoverObjective(hoverTarget.id)
                 }}
                 onMouseLeave={() => {
+                  useAmbushHover.getState().set(null)
                   cancelHelp()
                   setPreviewDraft(null)
                   clearBoardHover()

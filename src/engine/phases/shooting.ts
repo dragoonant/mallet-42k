@@ -30,6 +30,8 @@ import { hookService } from '../hooks-impl'
 import { leaderService } from '../leaders'
 import { losService } from '../los'
 import { attackService } from '../attack'
+import { consumeReaction } from '../code-hooks'
+import { handleReactiveMove, resolveSurgeMove, reactiveMoveLegalActions, validateReactiveMove } from './movement'
 import { weaponService } from '../weapons'
 import { notImplementedHandle, otherPlayer, type AdvanceResult, type EngineContext, type PhaseModule } from '../modules'
 import { boardUnitsOf, datasheetOf, hasCoreAbility, hasKeyword, unitModels } from '../state'
@@ -69,7 +71,7 @@ function optionCheck(pending: PendingDecision, action: Action): Rejection | null
 }
 
 // ---------- keyword / engagement helpers (attached-unit aware via leaderService) ----------
-function isBigGunsUnit(state: GameState, unitId: UnitId): boolean {
+export function isBigGunsUnit(state: GameState, unitId: UnitId): boolean {
   return leaderService.halves(state, unitId).some((id) => hasKeyword(state, id, 'MONSTER') || hasKeyword(state, id, 'VEHICLE'))
 }
 function hasPistolWeapon(state: GameState, unitId: UnitId): boolean {
@@ -96,7 +98,7 @@ function isLoneOperative(state: GameState, unitId: UnitId): boolean {
 }
 
 // ---------- R-6.4/R-6.2/R-6.3/R-6.9 target legality for one (firing model, weapon, candidate target) ----------
-function targetLegality(state: GameState, firingUnitId: UnitId, firingModelId: ModelId, weapon: RuntimeWeapon, targetUnitId: UnitId): Rejection | null {
+export function targetLegality(state: GameState, firingUnitId: UnitId, firingModelId: ModelId, weapon: RuntimeWeapon, targetUnitId: UnitId): Rejection | null {
   const attackerModel = state.models[firingModelId]
   const targetModels = leaderService.halves(state, targetUnitId).flatMap((id) => (state.units[id]?.location === 'board' ? unitModels(state, id) : []))
   if (!attackerModel || targetModels.length === 0) return { code: 'E_INVALID_TARGET', reason: `${targetUnitId} is not on the board`, details: { modelId: firingModelId, weaponId: weapon.id, targetUnitId } }
@@ -144,8 +146,8 @@ function targetLegality(state: GameState, firingUnitId: UnitId, firingModelId: M
 // ---------- R-6.1/R-6.4/R-6.5/R-6.7 the weapons (and their legal targets) this unit may declare right now ----------
 export interface ShootingWeaponEntry { modelId: ModelId; weaponId: WeaponId; profileGroup: Id | null; legalTargets: UnitId[]; attacks: number | null }
 
-function weaponUsableThisActivation(state: GameState, firingUnitId: UnitId, weapon: RuntimeWeapon): boolean {
-  const advancedOverride = hookService.eligibilityFor(state, firingUnitId, 'shoot')
+function weaponUsableThisActivation(state: GameState, firingUnitId: UnitId, weapon: RuntimeWeapon, ignoreAdvance = false): boolean {
+  const advancedOverride = ignoreAdvance || hookService.eligibilityFor(state, firingUnitId, 'shoot')
   const advanced = leaderService.halves(state, firingUnitId).some((id) => state.units[id].turn.moveType === 'advance') && !advancedOverride
   if (advanced && !weaponService.hasAbility(weapon, 'ASSAULT')) return false
   const bigGuns = isBigGunsUnit(state, firingUnitId)
@@ -155,7 +157,7 @@ function weaponUsableThisActivation(state: GameState, firingUnitId: UnitId, weap
 }
 
 // `models` overrides the firing models (E4: a unit's deferred last-stand models shoot alone)
-export function buildShootingWeaponEntries(ctx: EngineContext, firingUnitId: UnitId, models?: Model[]): ShootingWeaponEntry[] {
+export function buildShootingWeaponEntries(ctx: EngineContext, firingUnitId: UnitId, models?: Model[], opts?: { ignoreAdvance?: boolean }): ShootingWeaponEntry[] {
   const s = ctx.state
   const candidates = enemyCanonicalUnits(s, s.units[firingUnitId].player)
   const out: ShootingWeaponEntry[] = []
@@ -165,7 +167,8 @@ export function buildShootingWeaponEntries(ctx: EngineContext, firingUnitId: Uni
       if (!w || w.kind !== 'ranged') continue
       // [ONE SHOT]: once fired (Model.oneShotUsed, set by attack.ts) the weapon is never a legal choice again
       if (weaponService.hasAbility(w, 'ONE_SHOT') && m.oneShotUsed.includes(wid)) continue
-      if (!weaponUsableThisActivation(s, firingUnitId, w)) continue
+      if (!weaponService.isAvailable(s, m.id, wid)) continue // C4
+      if (!weaponUsableThisActivation(s, firingUnitId, w, opts?.ignoreAdvance)) continue
       const legalTargets = candidates.filter((t) => targetLegality(s, firingUnitId, m.id, w, t) === null)
       out.push({ modelId: m.id, weaponId: wid, profileGroup: w.profileGroup, legalTargets, attacks: null })
     }
@@ -174,7 +177,8 @@ export function buildShootingWeaponEntries(ctx: EngineContext, firingUnitId: Uni
 }
 
 // ---------- R-6.1-R-6.3 eligibility to be selected to shoot ----------
-function unitEligibleToShoot(ctx: EngineContext, unitId: UnitId): boolean {
+// C5: `ignoreAdvance` treats an Advanced unit as if it had not Advanced (T'au Observer after Advancing)
+export function unitEligibleToShoot(ctx: EngineContext, unitId: UnitId, opts?: { ignoreAdvance?: boolean }): boolean {
   const s = ctx.state
   const u = s.units[unitId]
   if (!u || u.location !== 'board') return false
@@ -183,7 +187,7 @@ function unitEligibleToShoot(ctx: EngineContext, unitId: UnitId): boolean {
   if (fellBack && !hookService.eligibilityFor(s, unitId, 'shoot')) return false
   const bigGuns = isBigGunsUnit(s, unitId)
   if (leaderService.inEngagementWithEnemy(s, unitId) && !bigGuns && !hasPistolWeapon(s, unitId)) return false
-  return buildShootingWeaponEntries(ctx, unitId).some((e) => e.legalTargets.length > 0)
+  return buildShootingWeaponEntries(ctx, unitId, undefined, opts).some((e) => e.legalTargets.length > 0)
 }
 
 // ---------- select ----------
@@ -286,6 +290,8 @@ function doResolve(ctx: EngineContext): 'pending' | 'selectUnit' {
   if (ctx.window('shooting.targetsDeclared', unitId, ctx.order.defensive(opponent), { unitId })) return 'pending'
   if (s.phaseState.attack && attackService.advance(ctx) === 'pending') return 'pending'
   if (ctx.window('shooting.attacksResolved', unitId, ctx.order.active(), { unitId })) return 'pending'
+  // RC-014/061: Krump da Gitz! (queued in the window above) — the targeted unit surges toward the shooter now
+  for (let r = consumeReaction(s, 'surge'); r; r = consumeReaction(s, 'surge')) resolveSurgeMove(ctx, r.unitId, r.distance ?? 0, r.enemyUnitId)
   // E4: models kept on the table by A Martyr's Death shoot now, then leave
   if (resolveDeferredActivations(ctx, unitId) === 'awaiting') return 'pending'
   writeMark(s, 'sh:resolveUnit', null)
@@ -349,7 +355,7 @@ function shootingLegalActions(state: GameState, pending: PendingDecision): Actio
 
 export const shootingModule: PhaseModule = {
   name: 'shooting',
-  legalActions(state, pending) { return shootingLegalActions(state, pending) },
+  legalActions(state, pending) { return reactiveMoveLegalActions(state, pending) ?? shootingLegalActions(state, pending) },
   enter(ctx) {
     ctx.state.step = 'selectUnit'
     ctx.state.phaseState.activated = []
@@ -394,11 +400,15 @@ export const shootingModule: PhaseModule = {
     }
   },
   validate(state, action, pending) {
+    const rm = validateReactiveMove(state, action, pending)
+    if (rm !== undefined) return rm
     if (pending.kind === 'declareTargets') return validateDeclareTargets(state, action, pending)
     return optionCheck(pending, action)
   },
   handle(ctx, action, pending): Rejection | void {
     const s = ctx.state
+    const reactive = handleReactiveMove(ctx, action, pending)
+    if (reactive !== null) return reactive
     if (action.type === 'pass') {
       if (s.phaseState.attack && pending.kind === 'allocateAttack') return attackService.handler.handle(ctx, action, pending)
       if (pending.kind === 'chooseUnitToActivate') { writeMark(s, 'sh:ended', '1'); return }

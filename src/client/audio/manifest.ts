@@ -21,6 +21,27 @@ export type SfxId =
   | 'death-orks'
   | 'death-necrons'
   | 'death-tyranids'
+  | 'death-grey-knights'
+  | 'psycannon-burst'
+  | 'psilencer-burst'
+  | 'purge-soul'
+  | 'nemesis-force-swing'
+  | 'death-tau'
+  | 'pulse-rifle-shot'
+  | 'pulse-carbine-burst'
+  | 'burst-cannon-whir'
+  | 'fusion-blast'
+  | 'ion-raker'
+  | 'death-genestealer-cults'
+  | 'seismic-cannon'
+  | 'webber-spray'
+  | 'rock-drill-grind'
+  | 'cult-autogun-burst'
+  | 'death-adeptus-custodes'
+  | 'guardian-spear-shot'
+  | 'guardian-spear-swing'
+  | 'sentinel-blade-strike'
+  | 'castellan-axe-cleave'
   | 'death-astra-militarum'
   | 'death-adepta-sororitas'
   | 'death-chaos-space-marines'
@@ -160,6 +181,27 @@ export const SFX_IDS: readonly SfxId[] = [
   'death-orks',
   'death-necrons',
   'death-tyranids',
+  'death-grey-knights',
+  'psycannon-burst',
+  'psilencer-burst',
+  'purge-soul',
+  'nemesis-force-swing',
+  'death-tau',
+  'pulse-rifle-shot',
+  'pulse-carbine-burst',
+  'burst-cannon-whir',
+  'fusion-blast',
+  'ion-raker',
+  'death-genestealer-cults',
+  'seismic-cannon',
+  'webber-spray',
+  'rock-drill-grind',
+  'cult-autogun-burst',
+  'death-adeptus-custodes',
+  'guardian-spear-shot',
+  'guardian-spear-swing',
+  'sentinel-blade-strike',
+  'castellan-axe-cleave',
   'death-astra-militarum',
   'death-adepta-sororitas',
   'death-chaos-space-marines',

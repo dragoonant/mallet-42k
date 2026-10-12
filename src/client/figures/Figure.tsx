@@ -13,6 +13,7 @@ import { SwarmBody } from './SwarmBody'
 import { BODY_KIND, BIPED_CONFIG, VEHICLE_CONFIG, ARTILLERY_CONFIG } from './kitConfigs'
 import { BaseDisc, BASE_THICKNESS } from './BaseDisc'
 import { GlbBody } from './GlbBody'
+import { GlowAura } from './GlowAura'
 import { glbSlugFor } from './glbModels'
 import { useGlbInstance } from './glbLoader'
 import { BipedBody } from './BipedBody'
@@ -39,6 +40,8 @@ export interface FigureProps {
   modelId?: string
   /** Faction id, e.g. "sm" | "ork" | "necrons" — resolves the paintScheme. Unknown ids paint neutral grey. */
   faction: string
+  /** Owning seat in a game; picks up that seat's game-only colours (paint.ts bySeat). Omit outside a game. */
+  seat?: 'A' | 'B'
   /** Target world position. Figure eases its own group toward it every frame (snapping only on
    *  first mount, so placing a figure never makes it slide in from the origin) instead of
    *  requiring a wrapper — a caller that already eases position itself (e.g. wrapping Figure in
@@ -66,6 +69,8 @@ export interface FigureProps {
   highlighted?: boolean
   /** Pointer is on this unit's prompt button: a bright pulsing ring, distinct from `highlighted`. */
   hovered?: boolean
+  /** Pointer is on this model's unit/row in the unit card: a soft pulsing glow around the figure. */
+  glowing?: boolean
   onClick?: (event: ThreeEvent<MouseEvent>) => void
 }
 
@@ -75,6 +80,7 @@ export const Figure = memo(function Figure({
   datasheetId,
   modelId,
   faction,
+  seat,
   position = ORIGIN,
   rotationY,
   moving,
@@ -83,6 +89,7 @@ export const Figure = memo(function Figure({
   selected,
   highlighted,
   hovered,
+  glowing,
   onClick,
 }: FigureProps) {
   // `rotationY` is an engine facing — forward along world (cos f, sin f) — but the figure mesh
@@ -166,7 +173,7 @@ export const Figure = memo(function Figure({
 
   const { archetype, kit } = useMemo(() => resolveFigureKit(datasheetId, datasheet, modelId), [datasheetId, datasheet, modelId])
   const base = useMemo(() => resolveBase(datasheet, archetype), [datasheet, archetype])
-  const paint = useArmyPaint(faction)
+  const paint = useArmyPaint(faction, seat)
   const colors = useMemo(() => applyPaintToColors(resolvePaintColors(factionData), paint), [factionData, paint])
   const baseStyle = useMemo(() => resolveBaseStyle(paint), [paint])
 
@@ -178,6 +185,7 @@ export const Figure = memo(function Figure({
   return (
     <group ref={groupRef} onClick={onClick}>
       <BaseDisc radiusX={base.radiusX} radiusZ={base.radiusZ} colors={colors} selected={selected} highlighted={highlighted} hovered={hovered} glbBody={!!glb} baseStyle={baseStyle} />
+      {glowing && <GlowAura height={base.height} radius={Math.max(base.radiusX, base.radiusZ)} />}
       {glb && <GlbBody object={glb} pose={pose} seed={seedRef.current} faction={faction} paint={paint} />}
       {!glb && <group position={[0, BASE_THICKNESS, 0]} scale={[base.height, base.height, base.height]}>
         {bodyKind === 'swarm' ? (

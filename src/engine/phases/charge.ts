@@ -4,7 +4,7 @@
 // move is applied it is pushed onto a small LIFO stack (`ch:meStack=` mark) of units whose `charge.moveEnded` window
 // (Heroic Intervention, then Tank Shock) is still being drained — a queued Heroic Intervention reuses
 // `phaseState.charge` for its own mini charge (no declare step, no Fights First, no Overwatch) and is itself pushed
-// onto the same stack when its move lands, so a VEHICLE that intervenes can still trigger its own Tank Shock. The
+// onto the same stack when its move lands, (RC-041: Tank Shock is not offered after a Heroic Intervention — out-of-phase). The
 // stack (not the JS call stack) is what survives across `advance()` re-entries — see phases/README §3 rule 1.
 //
 // Documented interpretations (see STATUS/issues):
@@ -30,14 +30,19 @@ import { optionActions, repairCoherency } from './legal'
 import { rollSum } from '../dice'
 import {
   EPS, ENGAGEMENT_H, COHERENCY_H, anyWithinEngagementRange, basesOverlap, checkPlacements, dist2D, distance,
-  emptyMoveConstraints, horizontalGap, inBaseContact, pathCrossesModels, pathEntersEngagement, pathLength,
+  emptyMoveConstraints, horizontalGap, inBaseContact, isCoherent, pathCrossesModels, pathEntersEngagement, pathLength,
   whollyOnBoard, type Footprint, type ResolvedPlacement,
 } from '../geometry'
 import { hookService } from '../hooks-impl'
 import { leaderService } from '../leaders'
 import { attackService } from '../attack'
+import { weaponService } from '../weapons'
+import { defaultOverwatchSelection } from './movement'
+import { targetLegality } from './shooting'
 import { terrainService } from '../terrain'
+import { crossesBigFriendly } from './movement'
 import { pendingReactions, consumeReaction } from '../code-hooks'
+import { cultAmbushOnMoveEnded } from '../cult-ambush'
 import { notImplementedHandle, otherPlayer, type AdvanceResult, type EngineContext, type PhaseModule } from '../modules'
 import { boardUnitsOf, enemyModelsOnBoard, hasKeyword, setModelPos, unitModels, unitModelsForCoherency } from '../state'
 import type { Action, ModelPlacement } from '../actions'
@@ -214,6 +219,7 @@ function tryChargePlacement(state: GameState, geo: ChargeGeometry, m: Model, can
   // W1-G: ending on top of an enemy model (e.g. contact with one oval target model while clipping its neighbour)
   if ([...allTargets, ...geo.nonTargets].some((b) => basesOverlap(fp, b))) return null
   if (!geo.fly && (pathEntersEngagement(fp, path, geo.nonTargets) || pathCrossesModels(fp, path, [...geo.nonTargets, ...allTargets]))) return null
+  if (crossesBigFriendly(state, m, fp, path, geo.otherFriendly)) return null
   if (terrainService.crossesImpassable(state, m, path) || !terrainService.canEndAt(state, m, to).ok) return null
   return { model: m, from: m.pos, to, facing: m.facing, path, distance: travel }
 }
@@ -339,6 +345,7 @@ function checkChargeArrangement(state: GameState, geo: ChargeGeometry, targetUni
       if (pathEntersEngagement(fp, r.path, geo.nonTargets)) return { rejection: { code: 'E_ENGAGEMENT', reason: `${r.model.id}'s path would enter engagement range of a unit it did not charge`, details: { modelId: r.model.id } } }
       if (pathCrossesModels(fp, r.path, [...geo.nonTargets, ...allTargets])) return { rejection: { code: 'E_OVERLAP', reason: `${r.model.id}'s path would cross an enemy model`, details: { modelId: r.model.id } } }
     }
+    if (crossesBigFriendly(state, r.model, fp, r.path, geo.otherFriendly)) return { rejection: { code: 'E_OVERLAP', reason: `${r.model.id}'s path would cross another MONSTER/VEHICLE model`, details: { modelId: r.model.id } } }
     if (terrainService.crossesImpassable(state, r.model, r.path)) return { rejection: { code: 'E_OVERLAP', reason: `${r.model.id}'s path is blocked by terrain`, details: { modelId: r.model.id } } }
     const end = terrainService.canEndAt(state, r.model, r.to)
     if (!end.ok) return { rejection: { code: 'E_OVERLAP', reason: end.reason ?? `${r.model.id} cannot end there`, details: { modelId: r.model.id } } }
@@ -357,11 +364,9 @@ function chargeMoveRejection(state: GameState, geo: ChargeGeometry, targetUnitId
     }
     const fp: Footprint = { pos: r.to, facing: r.facing, base: r.model.base }
     const alreadyInContact = geo.targetGroups.flat().some((t) => inBaseContact(fp, t))
-    const blockers: Footprint[] = [
-      ...check.resolved.filter((o) => o.model.id !== r.model.id).map((o) => ({ pos: o.to, facing: o.facing, base: o.model.base })),
-      ...geo.otherFriendly,
-    ]
-    if (!alreadyInContact && couldReachBaseContact(state, geo, r.model, roll, blockers)) {
+    const rest: Footprint[] = check.resolved.filter((o) => o.model.id !== r.model.id).map((o) => ({ pos: o.to, facing: o.facing, base: o.model.base }))
+    const blockers: Footprint[] = [...rest, ...geo.otherFriendly]
+    if (!alreadyInContact && couldReachBaseContact(state, geo, r.model, roll, blockers, rest)) {
       return { code: 'E_OUT_OF_RANGE', reason: `${r.model.id} could end in base contact with a charged unit and must`, details: { modelId: r.model.id } }
     }
   }
@@ -417,7 +422,7 @@ function closerToAnyTarget(model: Model, from: Vec3, to: Vec3, targetGroups: Mod
 // R-8.5: could `model` legally have reached base contact with a charged unit — own travel budget, board edge,
 // terrain, non-target Engagement Range, AND overlap with `blockers` (the rest of the unit's own resolved
 // arrangement plus other friendlies — CHARGE-012-crowd: a contact spot already taken by a teammate doesn't count).
-function couldReachBaseContact(state: GameState, geo: ChargeGeometry, model: Model, maxDistance: number, blockers: Footprint[]): boolean {
+function couldReachBaseContact(state: GameState, geo: ChargeGeometry, model: Model, maxDistance: number, blockers: Footprint[], rest: Footprint[]): boolean {
   for (const t of geo.targetGroups.flat()) {
     const c = contactCandidate(model, t, 0)
     if (c.travel > maxDistance + 1e-3) continue
@@ -428,8 +433,14 @@ function couldReachBaseContact(state: GameState, geo: ChargeGeometry, model: Mod
     if (!whollyOnBoard(fp, state.board)) continue
     if (blockers.some((b) => basesOverlap(fp, b))) continue
     const path: Path = [model.pos, to]
-    if (!geo.fly && pathEntersEngagement(fp, path, geo.nonTargets)) continue
+    if (!geo.fly && (pathEntersEngagement(fp, path, geo.nonTargets) || pathCrossesModels(fp, path, [...geo.nonTargets, ...geo.targetGroups.flat()]))) continue
+    if (crossesBigFriendly(state, model, fp, path, geo.otherFriendly)) continue
+    if (terrainService.crossesImpassable(state, model, path)) continue
     if (!terrainService.canEndAt(state, model, to).ok) continue
+    // RC-033: the contact spot only counts if the whole unit stays coherent with this model moved there
+    if (!isCoherent([...rest, fp])) continue
+    // ...and every charged unit must still have a model within Engagement Range of the unit's arrangement (R-8.5)
+    if (!geo.targetGroups.every((g) => [...rest, fp].some((f) => anyWithinEngagementRange(f, g)))) continue
     return true
   }
   return false
@@ -460,11 +471,14 @@ export function overwatchTargetsFor(state: GameState, shooterUnitId: UnitId, cha
         if (!w || w.kind !== 'ranged') continue
         // [ONE SHOT]: a weapon already fired this battle is never a legal Overwatch choice either
         if (w.abilities.some((a) => a.ability === 'ONE_SHOT') && m.oneShotUsed.includes(wid)) continue
+        if (!weaponService.isAvailable(state, m.id, wid)) continue // C4
+        // R-6.22: "as though it were your Shooting phase" — each weapon needs range + line of sight from its own model
+        if (targetLegality(state, half, m.id, weaponService.effectiveWeapon(state, m.id, wid), chargerUnitId)) continue
         out.push({ modelId: m.id, weaponId: wid, targetUnitId: chargerUnitId, profileGroup: w.profileGroup, attacks: null })
       }
     }
   }
-  return out
+  return defaultOverwatchSelection(state, out)
 }
 
 function drainChargeOverwatch(ctx: EngineContext, chargerUnitId: UnitId): AdvanceResult {
@@ -475,7 +489,7 @@ function drainChargeOverwatch(ctx: EngineContext, chargerUnitId: UnitId): Advanc
     consumeReaction(ctx.state, 'overwatch', req.unitId)
     const targets = overwatchTargetsFor(ctx.state, req.unitId, chargerUnitId)
     if (targets.length === 0) continue
-    attackService.begin(ctx, { kind: 'ranged', attackerUnitId: req.unitId, overwatch: true, targets })
+    attackService.begin(ctx, { kind: 'ranged', attackerUnitId: req.unitId, overwatch: true, targets, overwatchHitOn: hookService.overwatchHitOnFor!(ctx.state, req.unitId, req.stratagemId) })
   }
 }
 
@@ -515,13 +529,24 @@ function collectChargeRerollKinds(ctx: EngineContext, charge: ChargeState, roll:
   return kinds
 }
 
+// modifyRoll effects on the Charge roll (Laser-Marked Targets: -2) adjust the 2D6 total, never the dice themselves
+function chargeRollModifier(ctx: EngineContext, charge: ChargeState, roll: import('../types').DiceRoll): number {
+  const results = ctx.services.hooks.collect(ctx, 'onChargeRoll', {
+    chargingUnitId: charge.unitId, targetUnitIds: charge.targetUnitIds,
+    roll: { purpose: 'charge', roll, dieIndex: 0, unmodified: rollSum(roll), rerolled: (roll.rerolled ?? []).length > 0 },
+  })
+  let mod = 0
+  for (const r of results) if (r.result.kind === 'roll' && typeof r.result.modifier === 'number') mod += r.result.modifier
+  return mod
+}
+
 function doChargeRoll(ctx: EngineContext, charge: ChargeState): 'pending' | 'ok' | 'failed' {
   const s = ctx.state
   const unitId = charge.unitId
   const unit = s.units[unitId]
   let roll = ctx.rollOnce(`charge:${unitId}`, { purpose: 'charge', player: unit.player, sides: 6, count: 2, mode: 'sum', unitId, commandRerollable: true })
   if (roll === null) return 'pending'
-  let total = rollSum(roll)
+  let total = Math.max(0, rollSum(roll) + chargeRollModifier(ctx, charge, roll))
   // R-1.6: a die that was already re-rolled (e.g. by a Command Re-roll answered before this re-entry) is never
   // re-rolled again, so neither the automatic re-roll nor the offer applies to it
   if (!charge.rerolled && (roll.rerolled ?? []).length > 0) charge.rerolled = true
@@ -530,7 +555,7 @@ function doChargeRoll(ctx: EngineContext, charge: ChargeState): 'pending' | 'ok'
     const kinds = collectChargeRerollKinds(ctx, charge, roll, total)
     if (!feasibleNow && (kinds.has('fails') || kinds.has('all') || kinds.has('ones'))) {
       roll = ctx.reroll(roll, [0, 1], 'chargeRoll')
-      total = rollSum(roll)
+      total = Math.max(0, rollSum(roll) + chargeRollModifier(ctx, charge, roll))
       charge.rerolled = true
     } else if (feasibleNow && kinds.has('all')) {
       const offerKey = `ch:rerollOffered:${unitId}`
@@ -601,6 +626,7 @@ function applyChargeMove(ctx: EngineContext, charge: ChargeState, action: Extrac
     type: 'ChargeMoved', unitId: charge.unitId,
     paths: Object.fromEntries(check.resolved.filter((r) => r.distance > EPS).map((r) => [r.model.id, r.path])),
   })
+  cultAmbushOnMoveEnded(ctx, charge.unitId)
   ctx.once(`ch:applied:${charge.unitId}`)
 }
 
@@ -637,7 +663,17 @@ function driveCharge(ctx: EngineContext): 'pending' | 'progress' {
   const charge = s.phaseState.charge as ChargeState
   const unitId = charge.unitId
   const unit = s.units[unitId]
-  if (!unit || unit.location !== 'board') { s.phaseState.charge = null; return 'progress' }
+  if (!unit || unit.location !== 'board') {
+    // an attached charger may have lost only its canonical half (Laser-Marked Targets shots): the surviving half still charges
+    const halvesKey = `ch:halves:${unitId}=`
+    const rec = s.phaseState.marks.find((m) => m.startsWith(halvesKey))
+    const halves = rec ? rec.slice(halvesKey.length).split(',').filter(Boolean) : leaderService.halves(s, unitId)
+    const alive = halves.find((id) => s.units[id]?.location === 'board')
+    if (!alive) { s.phaseState.charge = null; return 'progress' }
+    charge.unitId = alive
+    ctx.once(`ch:declaredWindow:${alive}`)
+    return 'progress'
+  }
 
   if (charge.targetUnitIds.length === 0) { doDeclareCharge(ctx, charge); return 'pending' }
 
@@ -645,6 +681,17 @@ function driveCharge(ctx: EngineContext): 'pending' | 'progress' {
     s.step = 'declare'
     if (ctx.window('charge.declared', unitId, ctx.order.only(otherPlayer(unit.player)), { unitId })) return 'pending'
     ctx.once(`ch:declaredWindow:${unitId}`)
+  }
+
+  // C3: reactive shots recorded in the charge.declared window (Laser-Marked Targets) resolve before the charge roll
+  if (!ctx.marked(`ch:declOw:${unitId}`)) {
+    // halves are recorded once before the shots: the attack module may detach a destroyed bodyguard from its Leader mid-drain
+    const halvesKey = `ch:halves:${unitId}=`
+    if (!s.phaseState.marks.some((m) => m.startsWith(halvesKey))) s.phaseState.marks.push(halvesKey + leaderService.halves(s, unitId).join(','))
+    if (drainChargeOverwatch(ctx, unitId) === 'pending') return 'pending'
+    ctx.once(`ch:declOw:${unitId}`)
+    // the charger may be gone: the next entry either re-points the charge at a surviving half or cancels it
+    if (s.units[unitId]?.location !== 'board') return 'progress'
   }
 
   s.step = 'roll'

@@ -10,18 +10,25 @@
 import type { CoreAbility, Effect, Scope, TimingWindowId } from '../data/types'
 import type { Action } from './actions'
 import { astraMilitarumHooks } from './factions/astra-militarum'
+import { tauEmpireHooks } from './factions/tau-empire'
+import { genestealerCultsHooks } from './factions/genestealer-cults'
 import { distance, withinEngagementRange, withinObjectiveRange, OBJECTIVE_MARKER_RADIUS } from './geometry'
 import { adeptaSororitasHooks } from './factions/adepta-sororitas'
+import { shotThisTurn } from './attack'
 import type { AttackContext, CodeHook, HookName, HookResult } from './hooks'
 import { chaosSpaceMarinesHooks } from './factions/chaos-space-marines'
+import { greyKnightsHooks } from './factions/grey-knights'
+import { adeptusCustodesHooks } from './factions/adeptus-custodes'
 import { hookService, type HookSourceEntry } from './hooks-impl'
 import { leaderService } from './leaders'
 import type { EngineContext, Services, WindowTrigger } from './modules'
 import * as tyr from './factions/tyranids'
-import { keywordsOf, modelStats, unitModels } from './state'
+import { answerReanimation } from './factions/necrons'
+import { keywordsOf, modelStats, mortalCredit, unitModels, type MortalCreditBy } from './state'
+import { isTeleporting } from './teleport'
 import type {
   ChooseOptionDecision, ChooseOptionTopic, GameState, ModelId, PendingDecision, PlayerId, ReactionWindowDecision, Rejection,
-  RuntimeStratagem, RuntimeWeapon, Unit, UnitId,
+  RuntimeStratagem, RuntimeWeapon, Unit, UnitId, WeaponId,
 } from './types'
 
 export type ReactionKind = ReactionWindowDecision['context']['reaction']
@@ -42,6 +49,8 @@ export interface EngineCodeHook extends CodeHook {
   kind: 'ability' | 'stratagem' | 'mission'
   // declarative effects of the source only apply at these hooks (Veteran Instincts: wound rolls only)
   hooks?: HookName[]
+  // E3: a descriptor with this code applies its `reroll` key at every hook listed here (Auramite Thunderbolt: charge + advance)
+  rerollHooks?: HookName[]
   // false → the ability's own declarative effects are inactive right now (Waaagh! lives in ActiveEffects; Dead 'ard)
   // `data` is the hook-specific context (attack / roll ...) when evaluated for a roll hook; Resonant Focus reads the attack
   gate?(state: GameState, holder: Unit, entry: HookSourceEntry, data?: Record<string, unknown>): boolean
@@ -58,6 +67,13 @@ export interface EngineCodeHook extends CodeHook {
   rerollsAttackCount?(state: GameState, entry: HookSourceEntry, attackerModelId: ModelId, weapon: RuntimeWeapon): boolean
   // C5: core abilities this source currently grants to `unitId` (Gunnery Officer: LONE_OPERATIVE)
   grantsCoreAbility?(state: GameState, entry: HookSourceEntry, unitId: UnitId): CoreAbility['ability'][]
+  // C1 (T'au For the Greater Good): signed BS/WS step for one attack: -1 = one step better (4+ -> 3+), +1 = one step worse; null/0 = no opinion
+  skillDeltaVsTarget?(state: GameState, entry: HookSourceEntry, attackerModelId: ModelId, weapon: RuntimeWeapon,
+    targetUnitId: UnitId, info: { kind: 'ranged' | 'melee'; overwatch: boolean }): number | null
+  // C2 (T'au Cover Fire): Overwatch hit threshold for the shooter under this stratagem (null = no opinion)
+  overwatchHitOn?(state: GameState, entry: HookSourceEntry, shooterUnitId: UnitId, stratagemId: string): number | null
+  // C4 (T'au DS8 Support Turret): false makes the weapon unavailable to the model (null = no opinion)
+  weaponAvailable?(state: GameState, entry: HookSourceEntry, modelId: ModelId, weaponId: WeaponId): boolean | null
   // answers a chooseOption whose context.data.code names this hook, when the hook has no `pick` of its own
   answer?(ctx: EngineContext, action: Action, pending: PendingDecision): Rejection | void
   // side effects at the descriptor's trigger hook, after its `when` passed (Piston-driven Brutality)
@@ -91,7 +107,7 @@ export interface EngineCodeHook extends CodeHook {
 
 // ---------- reactions recorded for the phase modules ----------
 export interface ReactionRequest {
-  kind: ReactionKind | 'surge' | 'nextWave'
+  kind: ReactionKind | 'surge' | 'nextWave' | 'cultAmbush'
   stratagemId: string
   player: PlayerId
   // the reacting / moving friendly unit
@@ -176,10 +192,10 @@ function rollSuccesses(ctx: EngineContext, player: PlayerId, count: number, thre
   return roll.final.filter((d) => d >= threshold).length
 }
 
-function queueMortals(ctx: EngineContext, targetUnitId: UnitId, count: number, source: string): void {
+function queueMortals(ctx: EngineContext, targetUnitId: UnitId, count: number, source: string, by?: MortalCreditBy): void {
   if (count <= 0) return
   const attack = ctx.services.attack
-  attack.queueMortalWounds(ctx, targetUnitId, count, source, false)
+  attack.queueMortalWounds(ctx, targetUnitId, count, source, false, by)
   // resolve at once when nothing else is in flight; if allocation needs a decision the phase module keeps driving
   // services.attack.advance while phaseState.attack is set
   if (!ctx.state.pending && ctx.state.phaseState.attack) attack.advance(ctx)
@@ -334,6 +350,7 @@ const fireOverwatch: EngineCodeHook = {
     const notAgainst = (env.stratagem.params?.notAgainstKeyword as string | undefined) ?? 'TITANIC'
     if (unitHasAny(state, enemyId, notAgainst)) return false
     if (!eligibleToShootNow(state, friendlyId)) return false
+    if (shotThisTurn(state, friendlyId)) return false // C3: once per unit per turn (Laser-Marked Targets counts too)
     // R-6.7 Pistol exception: an engaged non-MONSTER/VEHICLE unit may only fire at a unit it is engaged with, not any
     // enemy in range — matters when the reacting unit is engaged with more than one enemy.
     if (!isBigGunsUnit(state, friendlyId) && leaderService.inEngagementWithEnemy(state, friendlyId) && !leaderService.unitsInEngagement(state, friendlyId, enemyId)) return false
@@ -371,6 +388,7 @@ const rapidIngressArrival: EngineCodeHook = {
     const { state } = env
     const u = state.units[t.ids[0]]
     if (!u || u.location !== 'reserves') return false
+    if (isTeleporting(state, u.id)) return false // GRE E3: Teleport Assault arrivals are not stratagem Reinforcements
     const ds = state.datasheets[u.datasheetId]
     const deepStrike = ds.coreAbilities.some((c) => c.ability === 'DEEP_STRIKE') || u.deepStrikeWith !== null
     if (!deepStrike) return false
@@ -430,7 +448,7 @@ const tankShockMortalWounds: EngineCodeHook = {
   check(env, t) {
     const { state } = env
     const [vehicleUnitId, enemyId, modelId] = t.ids
-    // STRAT-018: only the unit that has just made a Charge move (Heroic Intervention included [interp])
+    // STRAT-018: only the unit that has just made a Charge move in its own Charge phase (RC-041: not Heroic Intervention)
     if (!leaderService.sameUnit(state, vehicleUnitId, env.trigger.unitId)) return false
     const model = state.models[modelId]
     if (!model || !leaderService.sameUnit(state, model.unitId, vehicleUnitId)) return false
@@ -445,7 +463,7 @@ const tankShockMortalWounds: EngineCodeHook = {
     const T = hookService.statFor(s, { unitId: model.unitId, modelId, weapon: null, stat: 'T' }, modelStats(s, model).T)
     const hits = rollSuccesses(ctx, env.player, T, (params.threshold as number | undefined) ?? 5, model.unitId, enemyId)
     const mortal = Math.min(hits, (params.maxMortalWounds as number | undefined) ?? 6)
-    queueMortals(ctx, leaderService.canonicalUnitId(s, enemyId), mortal, env.stratagem.id)
+    queueMortals(ctx, leaderService.canonicalUnitId(s, enemyId), mortal, env.stratagem.id, mortalCredit(s, model.unitId))
   },
 }
 
@@ -472,7 +490,7 @@ const grenadeMortalWounds: EngineCodeHook = {
   apply(ctx, env, t) {
     const params = env.stratagem.params ?? {}
     const hits = rollSuccesses(ctx, env.player, (params.dice as number | undefined) ?? 6, (params.threshold as number | undefined) ?? 4, t.ids[0], t.ids[1])
-    queueMortals(ctx, leaderService.canonicalUnitId(ctx.state, t.ids[1]), hits, env.stratagem.id)
+    queueMortals(ctx, leaderService.canonicalUnitId(ctx.state, t.ids[1]), hits, env.stratagem.id, mortalCredit(ctx.state, t.ids[0]))
   },
 }
 
@@ -513,7 +531,7 @@ const dutyAndHonour: EngineCodeHook = {
 // Reanimation Protocols: the roll / heal / return work lives in factions/necrons.ts and is called by the Command phase
 // module before command.end (NEC-2.6); the hook only names the ability so the data validates and the descriptor is inert
 // at its own `phaseEnd` trigger (that fires after command.end, too late for primary scoring).
-const reanimationProtocols: EngineCodeHook = { name: 'reanimationProtocols', kind: 'ability', hook: 'onPhaseEnd', run: noop }
+const reanimationProtocols: EngineCodeHook = { name: 'reanimationProtocols', kind: 'ability', hook: 'onPhaseEnd', run: noop, answer: answerReanimation }
 
 function markName(params: Record<string, unknown> | undefined): string { return (params?.markName as string | undefined) ?? 'resonantFocus' }
 
@@ -719,6 +737,11 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   grenadeMortalWounds, getStuckInDistance, grantBenefitOfCover, dutyAndHonour,
   reanimationProtocols, resonantFocusPick, resonantFocusReroll, requireFriendlyKeywordOnBoard, plasmacyteSurge,
   ...chaosSpaceMarinesHooks,
+  ...greyKnightsHooks,
+  ...adeptusCustodesHooks,
+  guardianOfTheRealm: missionHook('guardianOfTheRealm', 'onPhaseEnd'),
+  championOfTitan: missionHook('championOfTitan', 'onModelDestroyed'),
+  noEscape: missionHook('noEscape', 'onTurnEnd'),
   markedForExecution: missionHook('markedForExecution', 'onUnitDestroyed'),
   synapseBattleShock, shadowInTheWarp, secretionGoadShoot, secretionGoadFight, skulkingHorrors, disruptionBombardment,
   deathBlow, stratagemCostOverride, patrolSquads, voraciousAssaultHit, teemingBroods, alphaXenoform, chitinousTide,
@@ -744,6 +767,11 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   // astra-militarum (docs/spec/factions/astra-militarum.md §7): voiceOfCommand, commandLaurels, gunneryOfficer, requireActiveOrder,
   // wargearBearerAlive, holdTheLine, methodicalDestructionPick/Score, sendInTheNextWave, bringItDown, artilleryStrike
   ...astraMilitarumHooks(),
+  // tau-empire (docs/spec/factions/tau-empire.md §7): forTheGreaterGood, forwardObservers, coordinatedLeadership, coverFire, ds8SupportTurret,
+  // kauyonLure, leadershipCaste, rapidRepositioning, laserMarkedTargets
+  ...tauEmpireHooks(),
+  // genestealer-cults (docs/spec/factions/genestealer-cults.md §7): cultAmbush, defendTheMagus, returnToTheShadows, riseUp, willOfThePatriarch
+  ...genestealerCultsHooks(),
 }
 
 export type { ChooseOptionDecision }

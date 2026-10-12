@@ -37,7 +37,7 @@ describe('verify: objective control', () => {
     expect(s.players.A.vp).toBe(0) // CP-2.3: control evaluated at the scoring moment → LoC 0 vs 0 → nothing held
   })
 
-  it('MISSION-008-control CP-2.5: while secured the marker counts as controlled by the securer at every evaluation, even when the opponent has higher LoC outside a Command phase end', () => {
+  it('MISSION-008-control CP-2.5 RC-048: a secured marker stays secured when the opponent out-LoCs it outside a Command phase end, but the opponent controls it at that check and the securer regains it when they leave', () => {
     const s = freshState()
     const obj = s.objectives['obj-w']
     placeUnit(s, 'A:grunts', { x: obj.pos.x, z: obj.pos.z })
@@ -50,6 +50,9 @@ describe('verify: objective control', () => {
     s.phase = 'movement'; s.activePlayer = 'B'
     modules.services.objectives.evaluateControl(ctx, 'phaseEnd')
     expect(s.objectives['obj-w'].securedBy).toBe('A')
+    expect(s.objectives['obj-w'].controller).toBe('B')
+    placeUnit(s, 'B:warboss', [{ x: 100, y: 0, z: 100 }])
+    modules.services.objectives.evaluateControl(ctx, 'phaseEnd')
     expect(s.objectives['obj-w'].controller).toBe('A')
   })
 })
@@ -113,6 +116,8 @@ describe('verify: secondaries', () => {
     s.activePlayer = 'B'
     const objW = s.objectives['obj-w']
     placeUnit(s, 'B:mob', s.units['B:mob'].models.map(() => ({ x: objW.pos.x, y: 0, z: objW.pos.z })))
+    placeUnit(s, 'A:grunts', s.units['A:grunts'].models.map(() => ({ x: objW.pos.x, y: 0, z: objW.pos.z })))
+    for (const id of s.units['B:mob'].models.slice(1)) s.models[id].pos = { x: 100, y: 0, z: 100 } // only one mob model stays in range: 2 vs A's 10
     s.objectives['obj-w'].controller = 'A' // held by the opponent (e.g. secured) — B does not control it
     s.objectives['obj-w'].securedBy = 'A' // CP-2.3/R-12.3: control is live at the scoring moment, so the hold must really be a secure
     const { ctx } = ctxFor(s, [5, 5, 5])

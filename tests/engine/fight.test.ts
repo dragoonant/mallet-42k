@@ -234,6 +234,31 @@ describe('fight phase — pile in (FIGHT-010..013, 032, 033)', () => {
     const rej = reject(ctx, { type: 'pileIn', player: 'A', decisionId: DID, unitId: AWalker, placements: [{ modelId: `${AWalker}#0`, pos: shortOfContact }] })
     expect(rej?.code).toBe('E_OUT_OF_RANGE')
   })
+
+  it('FIGHT-RANK-001 pile-in moves back-rank models into base contact with front-rank models so they can fight', () => {
+    const { ctx } = start(unattached(), lotsOfMisses())
+    const brute = ctx.state.models[`${BBrute}#0`]
+    placeUnit(ctx.state, BBrute, [{ x: 10, y: 0, z: -13 }])
+    const r = ctx.state.models[`${A}#0`].base.radius
+    // 2 ranks: three models abreast facing the brute at ~1.5" gap, two more directly behind them with a small gap
+    const frontX = 10 - brute.base.radius - r - 1.5
+    const backX = frontX - 2 * r - 0.5
+    placeUnit(ctx.state, A, [
+      { x: frontX, y: 0, z: -13 }, { x: frontX, y: 0, z: -13 + 2 * r + 0.3 }, { x: frontX, y: 0, z: -13 - 2 * r - 0.3 },
+      { x: backX, y: 0, z: -13 }, { x: backX, y: 0, z: -13 + 2 * r + 0.3 },
+    ])
+    ctx.state.units[A].turn.chargedThisTurn = true
+    chooseFight(ctx, A)
+    const pending = ctx.state.pending as PendingDecision
+    expect(pending.kind).toBe('pileIn')
+    const actions = fightModule.legalActions!(ctx.state, pending) ?? []
+    expect(actions.length).toBeGreaterThan(0)
+    act(ctx, actions[0])
+    const decl = ctx.state.pending as Extract<PendingDecision, { kind: 'declareTargets' }>
+    expect(decl.kind).toBe('declareTargets')
+    const fighters = new Set(decl.context.weapons.filter((w) => w.legalTargets.length > 0).map((w) => w.modelId))
+    expect(fighters.size).toBeGreaterThan(1) // before rank-up only the one model touching the brute could fight
+  })
 })
 
 describe('fight phase — targeting and attacks (FIGHT-015..021)', () => {

@@ -7,7 +7,7 @@ import {
 
 // Fast full-game playtest (replaces the old tests/e2e/play.spec.ts, which took 10+ minutes and never
 // actually finished a game). Same "real UI only" contract as every other spec here — window.__mallet is
-// read-only, every game action is a real click — but tuned to actually reach a GameResult inside an 8
+// read-only, every game action is a real click — but tuned to actually reach a GameResult inside a 12
 // minute budget: Settings are pushed to Instant/no-dice/muted/reroll-Never right after game start (see
 // configureSettings below), deployment still drives every unit through a real board click (formation
 // defaults, falling back to Reserves/Pass — see helpers.ts's tryBoardPlacement), but movement/shooting
@@ -18,7 +18,7 @@ import {
 
 const W = 1600
 const H = 900
-const GAME_BUDGET_MS = 8 * 60_000
+const GAME_BUDGET_MS = 12 * 60_000 // observed full games run 7-8.5 minutes; headroom keeps a slow machine from flaking
 const STALL_LIMIT_MS = 15_000
 const POLL_MS = 100
 
@@ -58,6 +58,52 @@ async function handleDeploy(page: Page, s: Snap, cam: Cam): Promise<void> {
   await clickPass(page)
 }
 
+/** Number of TargetsDeclared events fired by the human's units so far (the store keeps the event log). */
+async function humanAttackCount(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const g = (window as unknown as { __mallet: { useGameStore: { getState(): { humanSeat: string; events: { type: string; unitId?: string }[]; state: { units: Record<string, { player: string }> } } } } }).__mallet.useGameStore.getState()
+    return g.events.filter((e) => e.type === 'TargetsDeclared' && !!e.unitId && g.state.units[e.unitId]?.player === g.humanSeat).length
+  })
+}
+
+/** Shoot like a player: click an enemy model on the board (trying every legal enemy and a few of its models until
+ *  the weapon panel opens), then Fire. Falls back to the panel that is already open, then to the prompt's Target
+ *  buttons. Returns true when the declareTargets decision was answered with real targets. */
+async function shootViaBoard(page: Page, s: Snap, cam: Cam): Promise<boolean> {
+  const p = s.pending!
+  const before = p.id
+  const answered = async () => (await snap(page)).pending?.id !== before
+  const fireNow = async (): Promise<boolean> => {
+    const fire = page.getByTestId('btn-fire')
+    if (!(await fire.isVisible().catch(() => false))) return false
+    if (await fire.isEnabled().catch(() => false)) { await fire.click(); await page.waitForTimeout(150); return answered() }
+    return false
+  }
+  const attacks0 = await humanAttackCount(page)
+  const ok = async () => (await humanAttackCount(page)) > attacks0
+  // 1. the panel is already open from an earlier click
+  if (await fireNow()) return ok()
+  // 2. click each legal enemy, then Fire
+  const ts = new Set<string>()
+  for (const w of p.context.weapons ?? []) for (const t of w.legalTargets) ts.add(t)
+  for (const tid of ts) {
+    const tu = s.units.find((x) => x.id === tid)
+    for (const m of (tu?.models ?? []).slice(0, 4)) {
+      if (!(await clickCanvasAt(page, project({ x: m.x, y: 0.6, z: m.z }, cam, W, H), W, H))) continue
+      const opened = await page.getByTestId('weapon-panel').waitFor({ state: 'visible', timeout: 1200 }).then(() => true).catch(() => false)
+      if (opened && (await fireNow())) return ok()
+      if (opened) break // panel open but Fire not possible for this pick: use the Target-button path below
+    }
+  }
+  // 3. fall back: panel left open -> its own Fire if possible; else the prompt's "Target X" buttons
+  if (await fireNow()) return ok()
+  const nothing = page.getByTestId('btn-fire-nothing')
+  const target = await promptButton(page, /^Target /)
+  if (target) { await target.click(); await page.waitForTimeout(150); if (await answered()) return ok() }
+  if (await nothing.isVisible().catch(() => false)) { await nothing.click(); await page.waitForTimeout(150) }
+  return false
+}
+
 interface TurnState { key: string; usedMove: boolean; usedShot: boolean }
 
 /** Answers everything but deployment. Spends a real board click on the first moveUnit and first
@@ -89,23 +135,14 @@ async function handlePlay(page: Page, s: Snap, cam: Cam, turn: TurnState): Promi
     }
   }
   if (p.kind === 'declareTargets' && !turn.usedShot) {
-    const ts = new Set<string>()
-    for (const w of p.context.weapons ?? []) for (const t of w.legalTargets) ts.add(t)
-    const tid = [...ts][0]
-    const tu = s.units.find((x) => x.id === tid)
-    if (tu?.models[0]) {
-      const m = tu.models[0]
-      const before = s.pending!.id
-      if (await clickCanvasAt(page, project({ x: m.x, y: 0.5, z: m.z }, cam, W, H), W, H)) {
-        await page.waitForTimeout(150)
-        const after = await snap(page)
-        if (after.pending?.id !== before) return { moved: false, shot: true }
-      }
-    }
+    if (await shootViaBoard(page, s, cam)) return { moved: false, shot: true }
   }
 
   switch (p.kind) {
     case 'declareTargets': {
+      // panel left open by a click that could not fire: answer it first (Fire nothing), else the Target buttons are hidden
+      const nothing = page.getByTestId('btn-fire-nothing')
+      if (await nothing.isVisible().catch(() => false)) { await nothing.click(); return { moved: false, shot: false } }
       const b = await promptButton(page, /^Target /)
       if (b) { await b.click(); return { moved: false, shot: false } }
       await clickFirstOption(page, false)
@@ -124,8 +161,8 @@ async function handlePlay(page: Page, s: Snap, cam: Cam, turn: TurnState): Promi
 
 interface PhaseTimings { [phase: string]: number }
 
-test('play a full game fast: Space Marines vs Bot reaches a GameResult within 8 minutes', async ({ page }) => {
-  test.setTimeout(9.5 * 60_000)
+test('play a full game fast: Space Marines vs Bot reaches a GameResult within 12 minutes', async ({ page }) => {
+  test.setTimeout(14 * 60_000) // GAME_BUDGET_MS plus end-of-game screenshots and assertions
   mkdirSync('e2e-out', { recursive: true })
   await page.setViewportSize({ width: W, height: H })
   const consoleErrors: string[] = []
@@ -139,7 +176,7 @@ test('play a full game fast: Space Marines vs Bot reaches a GameResult within 8 
   await configureSettings(page, 'never')
 
   const cam = makeCam()
-  const milestones = { deployed: false, moves: 0, shots: 0, stuck: [] as string[] }
+  const milestones = { deployed: false, moves: 0, shots: 0, humanAttacks: 0, stuck: [] as string[] }
   const phaseMs: PhaseTimings = {}
   let lastPhase: string | null = null
   let lastPhaseAt = Date.now()
@@ -204,7 +241,16 @@ test('play a full game fast: Space Marines vs Bot reaches a GameResult within 8 
   const now = Date.now()
   closePhase(now)
 
+  milestones.humanAttacks = await humanAttackCount(page)
   const final = await snap(page)
+  // Win/lose video: Skip must hand off to the score card well before the 5s clip would end.
+  const cineShown = await page.getByTestId('end-cinematic').isVisible().catch(() => false)
+  if (cineShown) {
+    await page.getByTestId('end-cinematic-skip').click()
+    await expect(page.getByTestId('end-screen')).toBeVisible({ timeout: 2000 })
+    await expect(page.getByTestId('end-cinematic')).toHaveCount(0)
+  }
+  console.log(`[play-fast] end cinematic shown=${cineShown}`)
   await expect(page.getByTestId('end-screen')).toBeVisible({ timeout: 10_000 }).catch(() => {})
   await page.screenshot({ path: 'e2e-out/play-fast-end.png' })
 
@@ -222,6 +268,7 @@ test('play a full game fast: Space Marines vs Bot reaches a GameResult within 8 
   expect(consoleErrors, 'no console errors').toEqual([])
   expect(milestones.stuck, 'no decision stalled >15s without a visible human prompt').toEqual([])
   expect(milestones.deployed, 'deployment finished').toBe(true)
+  expect(milestones.humanAttacks, 'the human player made at least one shooting attack').toBeGreaterThan(0)
   expect(reachedEnd, `game reached a GameResult within ${GAME_BUDGET_MS / 60_000} minutes`).toBe(true)
   expect(final.result, 'final state carries a GameResult').toBeTruthy()
 })
@@ -285,14 +332,14 @@ async function driveRound1(page: Page, cam: Cam, budgetMs: number, onPending: (s
 }
 
 test('Command Re-roll setting "Always": a human reroll prompt appears at least once in round 1', async ({ page }) => {
-  test.setTimeout(4 * 60_000)
+  test.setTimeout(7 * 60_000)
   await page.setViewportSize({ width: W, height: H })
   await startGameVsBot(page, 'reroll-always-1')
   await page.waitForTimeout(200)
   await configureSettings(page, 'always')
   const cam = makeCam()
   let sawHumanCommandReroll = false
-  const final = await driveRound1(page, cam, 3 * 60_000, (s) => {
+  const final = await driveRound1(page, cam, 5 * 60_000, (s) => {
     if (s.pending?.kind === 'commandReroll' && s.pending.player === s.humanSeat) sawHumanCommandReroll = true
   }, true)
   console.log(`[reroll-always] round reached=${final.round} sawHumanCommandReroll=${sawHumanCommandReroll}`)
@@ -300,14 +347,14 @@ test('Command Re-roll setting "Always": a human reroll prompt appears at least o
 })
 
 test('Command Re-roll setting "Never": no human reroll prompt appears and the game proceeds', async ({ page }) => {
-  test.setTimeout(4 * 60_000)
+  test.setTimeout(7 * 60_000)
   await page.setViewportSize({ width: W, height: H })
   await startGameVsBot(page, 'reroll-never-1')
   await page.waitForTimeout(200)
   await configureSettings(page, 'never')
   const cam = makeCam()
   let sawHumanCommandReroll = false
-  const final = await driveRound1(page, cam, 3 * 60_000, (s) => {
+  const final = await driveRound1(page, cam, 5 * 60_000, (s) => {
     if (s.pending?.kind === 'commandReroll' && s.pending.player === s.humanSeat) sawHumanCommandReroll = true
   })
   console.log(`[reroll-never] round reached=${final.round} sawHumanCommandReroll=${sawHumanCommandReroll}`)

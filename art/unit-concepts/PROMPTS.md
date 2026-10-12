@@ -59,3 +59,28 @@ whip-flail arms.
 cap, power sword · `cadian-veteran` plasma gun, vox pack · `cadian-medic` red-cross helmet, medkit ·
 `cadian-standard-bearer` tall regimental banner · `bombast-field-gun` wheeled field gun with two crew ·
 `malleus-rocket-battery` wheeled rocket battery with crew · `armoured-sentinel` two-legged enclosed walker.
+
+### Grey Knights (MGSD, 2026-10-05)
+MGSD proportions; variants made by editing a clean base image in Gemini.
+`librarian-aurellios` psyker Librarian, force weapon · `gk-terminator-justicar` Terminator squad leader, halberd ·
+`gk-terminator` Terminator with storm bolter and halberd · `gk-terminator-psycannon` Terminator with psycannon ·
+`strike-justicar` Strike Squad leader · `strike-knight` Strike Knight, storm bolter and sword ·
+`strike-psilencer` Strike Knight with psilencer · `nemesis-dreadknight` large walker-armour Dreadknight.
+
+### T'au Empire (MGSD, 2026-10-05)
+MGSD proportions; variants made by editing a clean base image in Gemini.
+`aun-shar` Ethereal, robes and honour blade · `shasnel-dtano` Fireblade with markerlight · `fire-warrior-rifle` pulse rifle trooper ·
+`fire-warrior-carbine` pulse carbine trooper · `fire-warrior-shasui` Shas'ui team leader · `stealth-shasvre` Stealth suit leader ·
+`stealth-shasui` Stealth suit with burst cannon · `ghostkeel` large stealth battlesuit.
+
+### Genestealer Cults (MGSD, 2026-10-05)
+MGSD proportions; variants made by editing a clean base image in Gemini. Acolytes intentionally have three arms.
+`magus-veridielle` psychic priestess · `neophyte-leader` miner-militia sergeant · `neophyte-firearm` rifle worker ·
+`neophyte-icon` icon bearer · `neophyte-stubber` heavy stubber · `neophyte-seismic` seismic cannon · `neophyte-webber` webber ·
+`acolyte-leader` hybrid leader · `acolyte-hybrid` hybrid with extra arm · `acolyte-demolitions` demolition charges ·
+`acolyte-mining-tool` mining tool · `aberrant-hypermorph` hulking brute leader · `aberrant` hulking brute · `goliath-rockgrinder` stubby mining vehicle.
+
+### Adeptus Custodes (MGSD, 2026-10-05)
+MGSD proportions; variants made by editing a clean base image in Gemini.
+`shield-captain-tyvan` crested golden captain with shield and sword · `custodian-guard-spear` guardian spear · `custodian-guard-vexilla` standard bearer ·
+`custodian-guard-shield` sentinel blade and shield · `prosecutor` masked bronze rifle warrior · `vigilator` bronze greatsword warrior · `vertus-praetor` lancer on a jetbike.

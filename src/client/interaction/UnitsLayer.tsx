@@ -16,7 +16,7 @@ import { useGameStore } from '../store/game'
 import { useDisplayState } from '../presentation/presentedStore'
 import { useUiStore } from '../ui/uiStore'
 import { useCueStore } from '../presentation'
-import { clickableUnitIds, unitClickAction } from './decisions'
+import { clickableUnitIds, opensWeaponPanel, unitClickAction } from './decisions'
 import { losStatusByUnit } from './lineOfSight'
 
 const POSITION_EASE_PER_SEC = 10
@@ -71,6 +71,7 @@ interface UnitModelProps {
   datasheetId: string
   modelType: string
   faction: string
+  seat: 'A' | 'B'
   x: number
   y: number
   z: number
@@ -81,6 +82,7 @@ interface UnitModelProps {
   isClickable: boolean
   isHovered: boolean
   isHoveredModel: boolean
+  isGlowing: boolean
   los: ComponentProps<typeof LosMarker>['status'] | undefined
 }
 
@@ -93,6 +95,11 @@ const UnitModel = memo(function UnitModel(p: UnitModelProps) {
       e.stopPropagation()
       const { pending, legal, dispatch } = useGameStore.getState()
       if (isClickable && pending) {
+        // Ranged targeting opens the weapon panel (choose weapons, then Fire / Enter) instead of firing at once.
+        if (opensWeaponPanel(pending)) {
+          useUiStore.getState().stageShoot(pending.id, unitId)
+          return
+        }
         const action = unitClickAction(pending, legal, unitId)
         if (action) {
           dispatch(action)
@@ -111,12 +118,14 @@ const UnitModel = memo(function UnitModel(p: UnitModelProps) {
             datasheetId={p.datasheetId}
             modelId={p.modelType}
             faction={p.faction}
+            seat={p.seat}
             rotationY={p.rotationY}
             moving={moving}
             action={p.action}
             selected={p.isSelected}
             highlighted={p.isClickable}
             hovered={p.isHovered || p.isHoveredModel}
+            glowing={p.isGlowing}
             onClick={onClick}
           />
           {p.isSelected && <SelectionRing pos={LOCAL_ORIGIN} baseRadius={p.baseRadius} />}
@@ -141,6 +150,8 @@ export function UnitsLayer() {
   // Single-model hover: an allocateAttack prompt names one model of a unit, and lighting up the
   // whole unit wouldn't answer "which figure is this button?" (owner playtest).
   const hoveredModelId = useUiStore((s) => s.hoveredModelId)
+  // Unit-card hover: the models of the hovered unit / model row glow.
+  const glowModelIds = useUiStore((s) => s.glowModelIds)
   const losOn = useUiStore((s) => s.losOn)
   const unitAction = useCueStore((s) => s.unitAction)
   const modelAction = useCueStore((s) => s.modelAction)
@@ -181,6 +192,7 @@ export function UnitsLayer() {
                   datasheetId={unit.datasheetId}
                   modelType={m.datasheetModelId}
                   faction={faction}
+                  seat={unit.player}
                   x={m.pos.x}
                   y={m.pos.y}
                   z={m.pos.z}
@@ -191,6 +203,7 @@ export function UnitsLayer() {
                   isClickable={isClickable}
                   isHovered={isHovered}
                   isHoveredModel={isHoveredModel}
+                  isGlowing={glowModelIds.includes(modelId)}
                   los={losOn ? losStatus[unit.id] : undefined}
                 />
               )

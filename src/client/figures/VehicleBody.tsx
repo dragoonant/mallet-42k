@@ -74,6 +74,16 @@ export function VehicleBody({ config, colors, pose, seed }: BodyProps & { config
     rotor.rotation.y = t * rotorSpeed
   })
 
+  if (config.style === 'dozer') {
+    return (
+      <group ref={bodyRef}>
+        <DozerParts colors={colors} />
+        <group ref={rotorRef} visible={false} />
+        <group ref={gunRef} />
+      </group>
+    )
+  }
+
   return (
     <group ref={bodyRef}>
       <mesh position={[0, 0.42, 0]} rotation={[Math.PI / 2, 0, 0]}>
@@ -129,6 +139,44 @@ export function VehicleBody({ config, colors, pose, seed }: BodyProps & { config
           </mesh>
         </group>
       )}
+    </group>
+  )
+}
+
+/** Goliath Rockgrinder: a squat armoured crawler on two tracks with a dozer blade, a cab and a rear mining drill-stack. */
+function DozerParts({ colors }: { colors: BodyProps['colors'] }) {
+  return (
+    <group>
+      {[-0.3, 0.3].map((x) => (
+        <mesh key={x} position={[x, 0.16, 0]}>
+          <GBox args={[0.16, 0.28, 1.2]} />
+          <StdMat color="#2a2b30" roughness={0.9} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0.36, -0.02]}>
+        <GBox args={[0.62, 0.28, 0.95]} />
+        <StdMat color={colors.primary} roughness={0.6} />
+      </mesh>
+      <mesh position={[0, 0.58, 0.18]}>
+        <GBox args={[0.46, 0.22, 0.4]} />
+        <StdMat color={colors.secondary} roughness={0.55} />
+      </mesh>
+      <mesh position={[0, 0.6, 0.39]}>
+        <GBox args={[0.38, 0.1, 0.02]} />
+        <StdMat color="#15171c" roughness={0.2} />
+      </mesh>
+      <mesh position={[0, 0.3, 0.72]} rotation={[0.15, 0, 0]}>
+        <GBox args={[0.98, 0.34, 0.06]} />
+        <StdMat color={colors.metal} metalness={0.5} roughness={0.5} />
+      </mesh>
+      <mesh position={[0, 0.58, -0.3]} rotation={[Math.PI / 2, 0, 0]}>
+        <GCylinder args={[0.09, 0.09, 0.5, 8]} />
+        <StdMat color={colors.trim} roughness={0.5} />
+      </mesh>
+      <mesh position={[0, 0.4, 0.6]} rotation={[Math.PI / 2, 0, 0]}>
+        <GCylinder args={[0.05, 0.05, 0.3, 6]} />
+        <StdMat color={colors.metal} metalness={0.6} />
+      </mesh>
     </group>
   )
 }

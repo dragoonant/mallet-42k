@@ -110,7 +110,7 @@ export const commandModule: PhaseModule = {
       s.step = 'scoring'
     }
     // NEC-2.6: Reanimation Protocols resolves at the end of the Command phase, before the scoring rules at command.end
-    if (ctx.once('cmd:reanimation')) runReanimation(ctx)
+    if (runReanimation(ctx) === 'pending') return 'pending'
     // 'scoring': missions.onWindow runs the mission's ScoringRules at this window (R-4.1's "resolve other
     // Command-phase rules"); Oath of Moment / Waaagh! picks are offered at command.start (opened by the core).
     if (ctx.window('command.end', 'end', ctx.order.active())) return 'pending'

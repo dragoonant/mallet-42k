@@ -1,6 +1,7 @@
 // Live client-side checks for a formation draft, so the preview can show trouble before the player
 // hits Confirm — the engine still has the final say (checkPlacements/isCoherent are the same rules
 // it uses internally); this is purely a faster, friendlier heads-up.
+import { deployTerrainBlock } from '../../engine/terrain'
 import {
   DEFAULT_SERVICES,
   basesOverlap,
@@ -13,7 +14,7 @@ import {
   isCoherent,
   otherPlayer,
   partlyWithinPolygon,
-  whollyOnBoard,
+  whollyOnBoard, growConvexPolygon,
   whollyWithinPolygon,
   type Footprint,
   type GameState,
@@ -40,15 +41,11 @@ export interface ValidationResult {
 }
 
 /** True when every footprint sits in the Infiltrators set-up area (R-10.7): wholly on the battlefield,
- *  more than 9" from the enemy deployment zone (grown by 9" as a bounding rectangle, exactly as the
+ *  more than 9" from the enemy deployment zone (grown by 9" as the exact convex offset, as the
  *  engine's setup.ts infiltratorConstraints does) and more than 9" from every enemy model. */
 export function inInfiltratorArea(state: GameState, player: PlayerId, fps: Footprint[]): boolean {
   const dz = deploymentZone(state, otherPlayer(player))
-  const r = 9 + 1e-3
-  const xs = dz.map((p) => p.x)
-  const zs = dz.map((p) => p.z)
-  const x0 = Math.min(...xs) - r, x1 = Math.max(...xs) + r, z0 = Math.min(...zs) - r, z1 = Math.max(...zs) + r
-  const grown: Polygon = [{ x: x0, z: z0 }, { x: x1, z: z0 }, { x: x1, z: z1 }, { x: x0, z: z1 }]
+  const grown: Polygon = growConvexPolygon(dz, 9 + 1e-3)
   const enemies = enemyModelsOnBoard(state, player).map((m): Footprint => ({ pos: m.pos, facing: m.facing, base: m.base }))
   for (const f of fps) {
     if (!whollyOnBoard(f, state.board)) return false
@@ -200,10 +197,30 @@ export function validateDraft(
       const synthetic: Model = { ...cur, facing }
       const endCheck = DEFAULT_SERVICES.terrain.canEndAt(state, synthetic, p.pos)
       const crossed = constraints ? DEFAULT_SERVICES.terrain.crossesImpassable(state, synthetic, [cur.pos, p.pos]) : false
-      if (!endCheck.ok || crossed) {
-        addReason(perModel, p.modelId, endCheck.reason ?? 'blocked by terrain')
+      // setup deployment mirrors the engine: no VEHICLE/MONSTER boxed inside a ruin it can never leave
+      const deployBlock = !constraints && pendingDeploy?.window === 'deployment.unit' ? deployTerrainBlock(state, cur, p.pos, facing) : null
+      if (!endCheck.ok || crossed || deployBlock) {
+        addReason(perModel, p.modelId, deployBlock ?? endCheck.reason ?? 'blocked by terrain')
         reasonSet.add('blocked by terrain')
       }
+    }
+  }
+
+  // Cult Ambush / reinforcement arrivals: the engine's constraints carry a marker to touch and a minimum gap from enemies
+  if (pendingDeploy && !constraints && (pendingDeploy.constraints.mustTouch || (pendingDeploy.window !== 'deployment.unit' && pendingDeploy.constraints.minDistanceFromEnemies > 0))) {
+    const pc = pendingDeploy.constraints
+    const enemies = enemyModelsOnBoard(state, pendingDeploy.player).map((m): Footprint => ({ pos: m.pos, facing: m.facing, base: m.base }))
+    if (pc.minDistanceFromEnemies > 0) {
+      for (const f of finals) {
+        if (enemies.some((e) => horizontalGap(f.fp, e) <= pc.minDistanceFromEnemies + 1e-3)) {
+          addReason(perModel, f.modelId, `within ${pc.minDistanceFromEnemies}" of an enemy`)
+          reasonSet.add(`Every model must end more than ${pc.minDistanceFromEnemies}" from enemy models`)
+        }
+      }
+    }
+    if (pc.mustTouch) {
+      const marker: Footprint = { pos: pc.mustTouch.pos, facing: 0, base: { shape: 'round', radius: pc.mustTouch.radius } }
+      if (!finals.some((f) => horizontalGap(f.fp, marker) <= 0.05 + 1e-3)) reasonSet.add('One model must touch the Cult Ambush marker')
     }
   }
 

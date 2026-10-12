@@ -1,10 +1,15 @@
-import { Suspense, useMemo } from 'react'
+import { Suspense, useEffect, useMemo, useRef } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import type { FloorData, TerrainPieceData, WallData } from '@/data/types'
 import { extrudedPolygonGeometry, polygonBoundingRadius, polygonCentroid, seededUnit, segmentTransform } from './geometry'
-import { idVariant, planRuin, planTurns, polygonBounds, simpleTurns, type Bounds } from './ruinFit'
-import { useRuinModel, type RuinModel } from './ruinModels'
+import { fittedScale, polygonBounds, simpleTurns, type Bounds } from './ruinFit'
+import { useRuinModel, useRuinModelSet, type RuinModel, type RuinModelState } from './ruinModels'
+import { planPillars, planWallPanels, panelScale, slabPool, wallBoxes, type KitModel, type KitPanel } from './ruinKit'
+import { CRATER_FLOOR_MAX_HEIGHT, ENGINE_DEFAULT_WALL_THICKNESS, RUIN_KIT_FLOOR_THICKNESS, glbVisualHeight, variantPool } from './terrainCatalog'
+import { planTerrainVariants, resolveTerrainSeed, seedUnit, type PieceVariant } from './terrainVariants'
+import { DECAL_MARGIN, floorSlabGeometry, ruinDecalTexture, rubbleGeometry, rubbleMaterial, scatterRubble, slabConcreteTexture } from './ruinDressing'
 import {
   BARRIER_MODEL_URL,
   CONCRETE_URLS,
@@ -30,21 +35,20 @@ const PALETTE: Record<TerrainPieceData['kind'], { base: string; accent: string }
 // Near-white tints for textured materials — a meshStandardMaterial's `color` multiplies its `map`,
 // so a dark tint here (the old PALETTE values) crushes the PBR texture toward black regardless of
 // the texture's own detail. These let the brick/concrete/metal photos read as intended.
-const RUIN_WALL_TINT = '#a4a4a0' // weathered grey concrete (procedural ruin fallback)
+// Weathered grey concrete (procedural ruin walls). Flat grey + the concrete normal/roughness maps: the concrete albedo
+// is a dark rust brown that renders near-black on a 6in wall under the scene lighting.
+const RUIN_WALL_TINT = '#b4b4ae'
 const RUBBLE_TINT = '#8c8c87'
-const CONCRETE_TINT = '#a9a9a4' // upper-floor slabs, matched to the grey ruins
-// Pulls the floor slab in from the footprint edge when a ruin GLB is drawn, so its sides never
-// z-fight the model's own outer walls.
-const GLB_FLOOR_INSET = 0.12
+const CONCRETE_TINT = '#ffffff' // upper-floor slabs, matched to the grey ruins
 
-// Ruins render as low, broken walls rather than the full data height — a stylistic choice so the
-// board reads clearly at table-top camera angles; the engine's own terrain heights govern LoS/cover.
-const RUIN_WALL_VISUAL_CAP = 3
-const RUIN_WALL_VISUAL_SCALE = 0.55
-const WALL_THICKNESS = 0.35
+// Walls are drawn at true data height/thickness (no cap) so a figure on an upper floor visibly stands on it;
+// see-through enough to read units inside.
+// Ruins are opaque; a tall one fades to this when it sits between the camera and the board centre.
+const RUIN_FADE_OPACITY = 0.35
+const RUIN_FADE_MIN_HEIGHT = 3
 // Solid terrain is capped and semi-transparent so it never fully hides units or a deployment zone
 // behind it at table-top camera angles (LoS/cover still come from the engine's real terrain heights).
-const BLOCK_VISUAL_CAP = 3.2
+const BLOCK_VISUAL_CAP = 6 // crates (3") and barricades (1.5") draw at true height; cap only guards oversize data
 const TERRAIN_OPACITY = 0.85
 
 // Texture-repeat scale: one full tile per this many inches of surface (bricks/concrete/metal read
@@ -52,62 +56,63 @@ const TERRAIN_OPACITY = 0.85
 const WALL_REPEAT_INCHES = 8
 const CONCRETE_REPEAT_INCHES = 8
 
-const CRATER_MAX_HEIGHT = 1.5
+// A crater is standable ground (the engine lets bases end anywhere inside it), so nothing inside the footprint may
+// poke above CRATER_FLOOR_MAX_HEIGHT (the terrain-fit e2e counts mesh above 0.3in as "inside"): the blast-crater
+// model is flattened to that height, loose debris stays under it, and the tall rocks sit only on the rim.
 const CRATER_SCORCH_HEIGHT = 0.05
-const CRATER_ROCK_MIN = 8
-const CRATER_ROCK_MAX = 10
-// Per-tier height caps (as a fraction of CRATER_MAX_HEIGHT) so the central rock is reliably the
-// tallest regardless of which model/shape gets picked for the mid/outer rings.
-const CRATER_CENTRAL_HEIGHT_FRACTION = 1
-const CRATER_MID_HEIGHT_FRACTION = 0.65
-const CRATER_OUTER_HEIGHT_FRACTION = 0.45
-// Adjacent same-ring rocks are sized so their footprints overlap by roughly this fraction.
-const CRATER_RING_OVERLAP = 0.25
+const CRATER_DEBRIS_COUNT = 5
+const CRATER_RIM_ROCK_MIN = 8
+const CRATER_RIM_ROCK_MAX = 10
+const CRATER_RIM_THICKNESS = 0.3 // radial depth of a rim rock
+const CRATER_RIM_OFFSET = 0.1 // its centre sits this far outside the footprint edge (so it reaches 0.25in outside, 0.05in inside)
+const CRATER_RIM_MIN_HEIGHT = 0.5
+const CRATER_RIM_MAX_HEIGHT = 1.3
 
 export interface TerrainProps {
   pieces: TerrainPieceData[]
+  /** The game's seed: terrain variants are dealt from it so a replay / the other player sees the same board. */
+  seed?: string
 }
 
 /** Terrain meshes generated from a terrain layout's pieces (src/data/terrain). Wrapped in Suspense
  *  so streaming in textures/models (see terrainAssets.ts) never blanks the rest of the scene. */
-export function Terrain({ pieces }: TerrainProps) {
+export function Terrain({ pieces, seed = '' }: TerrainProps) {
+  const variants = useMemo(() => planTerrainVariants(pieces, resolveTerrainSeed(seed)), [pieces, seed])
   return (
     <Suspense fallback={null}>
       <group>
         {pieces.map((piece) => (
-          <TerrainPiece key={piece.id} piece={piece} />
+          <group key={piece.id} userData={{ terrainId: piece.id }}><TerrainPiece piece={piece} variant={variants.get(piece.id)!} /></group>
         ))}
       </group>
     </Suspense>
   )
 }
 
-function TerrainPiece({ piece }: { piece: TerrainPieceData }) {
+function TerrainPiece({ piece, variant }: { piece: TerrainPieceData; variant: PieceVariant }) {
   const colors = PALETTE[piece.kind] ?? PALETTE.wall
 
   switch (piece.kind) {
     case 'ruin':
-      return <RuinPiece piece={piece} />
+      return <RuinPiece piece={piece} variant={variant} />
     case 'barricade':
-      return <BarricadePiece piece={piece} colors={colors} />
+      return <BarricadePiece piece={piece} colors={colors} variant={variant} />
     case 'crate':
-      return <CratePiece piece={piece} />
+      return <CratePiece piece={piece} variant={variant} />
     case 'crater':
-      return <CraterPiece piece={piece} />
+      return <CraterPiece piece={piece} variant={variant} />
     default:
       return <BlockPiece piece={piece} colors={colors} />
   }
 }
 
-/** Draws a loaded terrain GLB scaled (non-uniformly) so its bounding box exactly covers `bounds` in
- *  X/Z and `height` in Y, rotated `turns` quarter-turns about Y before the scale is applied. */
-function FittedModel({ model, bounds, height, turns }: { model: RuinModel; bounds: Bounds; height: number; turns: number }) {
-  const [sx, sy, sz] = model.size
-  const swap = turns % 2 === 1
-  const rx = swap ? sz : sx
-  const rz = swap ? sx : sz
+/** Draws a loaded terrain GLB rotated `turns` quarter-turns about Y and scaled to cover `bounds`. With
+ *  `uniform` the X/Z scales follow whirr's rule (if they differ by >15% both use the smaller, centred, so
+ *  the model is never stretched); otherwise each axis fits exactly. Height always fits `height`. */
+function FittedModel({ model, bounds, height, turns, uniform = false }: { model: RuinModel; bounds: Bounds; height: number; turns: number; uniform?: boolean }) {
+  const scale = fittedScale(model.size, bounds, height, turns, uniform)
   return (
-    <group position={[bounds.cx, 0, bounds.cz]} scale={[bounds.w / rx, height / sy, bounds.d / rz]}>
+    <group userData={{ fittedModel: true }} position={[bounds.cx, 0, bounds.cz]} scale={scale}>
       <group rotation={[0, (turns * Math.PI) / 2, 0]}>
         <primitive object={model.object} />
       </group>
@@ -115,96 +120,227 @@ function FittedModel({ model, bounds, height, turns }: { model: RuinModel; bound
   )
 }
 
-function RuinPiece({ piece }: { piece: TerrainPieceData }) {
+/** Fades the group's materials to RUIN_FADE_OPACITY while a tall piece sits between the camera and the
+ *  ground point being looked at, smoothly. Materials are cloned per mesh the first time they fade, so shared GLB
+ *  materials are never touched. Cheap: one segment-distance test per frame, work only while easing. */
+function useOccluderFade(group: React.RefObject<THREE.Group | null>, centre: { x: number; z: number }, radius: number, height: number) {
+  const invalidate = useThree((s) => s.invalidate)
+  const cur = useRef(1)
+  const dir = useMemo(() => new THREE.Vector3(), [])
+  useFrame(({ camera }, dt) => {
+    const g = group.current
+    if (!g) return
+    let target = 1
+    if (height >= RUIN_FADE_MIN_HEIGHT) {
+      // Where the camera is looking: its view ray meets the ground plane (y = 0).
+      camera.getWorldDirection(dir)
+      const cx = camera.position.x, cy = camera.position.y, cz = camera.position.z
+      if (dir.y < -0.02) {
+        const k = cy / -dir.y
+        const tx = cx + dir.x * k, tz = cz + dir.z * k
+        const sx = tx - cx, sz = tz - cz
+        const l2 = sx * sx + sz * sz
+        // Only a piece the looked-at ground point is NOT inside can occlude it.
+        if (l2 > 1e-6 && Math.hypot(tx - centre.x, tz - centre.z) > radius * 0.9) {
+          const t = ((centre.x - cx) * sx + (centre.z - cz) * sz) / l2 // closest approach along camera -> target
+          if (t > 0 && t < 1) {
+            const dist = Math.hypot(centre.x - (cx + sx * t), centre.z - (cz + sz * t))
+            const rayY = cy * (1 - t) // sight line height above the piece centre
+            // faded only when the sight line really passes through the piece's volume (never from above)
+            if (dist < Math.max(radius * 0.8, 2.5) && rayY < height) target = RUIN_FADE_OPACITY
+          }
+        }
+      }
+    }
+    if (Math.abs(cur.current - target) < 0.004) {
+      if (cur.current === target) return
+      cur.current = target
+    } else {
+      cur.current += (target - cur.current) * Math.min(1, dt * 9)
+      invalidate()
+    }
+    const op = cur.current
+    g.traverse((o) => {
+      const mesh = o as THREE.Mesh
+      if (!mesh.isMesh || mesh.userData.noFade) return
+      if (!mesh.userData.fadeOwned) {
+        mesh.material = Array.isArray(mesh.material) ? mesh.material.map((m) => m.clone()) : mesh.material.clone()
+        mesh.userData.fadeOwned = true
+      }
+      for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+        const want = op < 0.999
+        if (m.transparent !== want) {
+          m.transparent = want
+          m.depthWrite = !want
+          m.needsUpdate = true
+        }
+        m.opacity = op
+      }
+    })
+  })
+}
+
+function RuinPiece({ piece, variant }: { piece: TerrainPieceData; variant: PieceVariant }) {
   const floors = piece.floors ?? []
-  const plan = useMemo(() => planRuin(piece.id, piece.footprint, piece.height), [piece.id, piece.footprint, piece.height])
+  const walls = piece.walls ?? []
   const bounds = useMemo(() => polygonBounds(piece.footprint), [piece.footprint])
-  const glb = useRuinModel(plan?.slug)
-  // 'pending' draws nothing for the instant the GLB streams in (no flash of the fallback);
-  // 'failed' (missing file / manifest / disabled slug) draws the procedural ruin.
+  // The ruin kit's wall-section models: the whole variant pool, loaded together.
+  const states: RuinModelState[] = useRuinModelSet(variantPool('ruinWall'))
+  const ready = variantPool('ruinWall').flatMap((slug, i) => {
+    const st = states[i]
+    return st.status === 'ready' ? [{ slug, model: st.model }] : []
+  })
+  const pool = slabPool(ready.map((r) => ({ slug: r.slug, size: r.model.size })))
+  const anyPending = states.some((st) => st.status === 'pending')
+  const group = useRef<THREE.Group>(null)
+  const centre = useMemo(() => ({ x: bounds.cx, z: bounds.cz }), [bounds])
+  useOccluderFade(group, centre, Math.hypot(bounds.w, bounds.d) / 2, piece.height)
+  // Nothing is drawn for the instant the models stream in (no flash of the fallback); when none of the kit models
+  // loads the procedural plain walls are drawn instead.
+  const waiting = anyPending && pool.length === 0
+  const kit = pool.length > 0 && walls.length > 0
   return (
     <group>
-      {glb.status === 'ready' && plan ? (
-        <FittedModel model={glb.model} bounds={bounds} height={piece.height} turns={planTurns(plan, glb.model.size, bounds)} />
-      ) : glb.status === 'failed' ? (
-        (piece.walls ?? []).map((wall, i) => <RuinWall key={i} seed={`${piece.id}-${i}`} wall={wall} />)
-      ) : null}
-      {/* Upper floors are gameplay (models stand on them), so they are always drawn, in grey concrete. */}
-      {floors.map((floor, i) => (
-        <UpperFloor key={i} floor={floor} inset={glb.status === 'ready' ? GLB_FLOOR_INSET : 0} />
-      ))}
+      <RuinGround id={piece.id} dress={variant.dress} footprint={piece.footprint} bounds={bounds} walls={walls} floors={floors} />
+      <group ref={group} userData={waiting ? undefined : { fittedModel: true }}>
+        {kit ? (
+          <RuinKit pieceId={piece.id} dress={variant.dress} walls={walls} pool={pool} models={ready} />
+        ) : !waiting ? (
+          walls.map((wall, i) => <RuinWall key={i} seed={`${piece.id}-${i}`} wall={wall} />)
+        ) : null}
+        {/* Upper floors are gameplay (models stand on them), so they are always drawn, in grey concrete. */}
+        {floors.map((floor, i) => (
+          <UpperFloor key={i} id={`${piece.id}-f${i}`} floor={floor} />
+        ))}
+      </group>
     </group>
   )
 }
 
-function RuinWall({ seed, wall }: { seed: string; wall: WallData }) {
-  const { mid, length, rotationY } = segmentTransform(wall.a, wall.b)
-  const wallHeight = Math.min(wall.height * RUIN_WALL_VISUAL_SCALE, RUIN_WALL_VISUAL_CAP)
-
-  const rubble = useMemo(() => {
-    // A couple of deterministically-placed jagged chunks along the run so the broken-wall
-    // silhouette is stable across re-renders instead of flickering with fresh randomness.
-    return [0.22, 0.62].map((t, i) => {
-      const bumpSeed = `${seed}-${i}`
-      const width = length * (0.16 + 0.1 * seededUnit(bumpSeed))
-      const extra = 0.3 + 1.1 * seededUnit(`${bumpSeed}-h`)
-      const offset = (t - 0.5) * length
-      return { offset, width, height: wallHeight + extra }
-    })
-  }, [seed, length, wallHeight])
-
-  const concrete = useTiledPBR(CONCRETE_URLS)
-  const wallTextures = useMemo(
-    () => cloneRepeat(concrete, length / WALL_REPEAT_INCHES, wallHeight / WALL_REPEAT_INCHES),
-    [concrete, length, wallHeight],
-  )
-  const rubbleTextures = useMemo(
-    () => rubble.map((r) => cloneRepeat(concrete, r.width / WALL_REPEAT_INCHES, r.height / WALL_REPEAT_INCHES)),
-    [concrete, rubble],
-  )
-
+/** The ruin kit: every data wall as panels cut from wall-section GLBs (stretched to the wall's exact length x height x
+ *  thickness), plus a pillar where walls meet. Floors are drawn by the caller. */
+function RuinKit({ pieceId, dress, walls, pool, models }: { pieceId: string; dress: string; walls: WallData[]; pool: KitModel[]; models: { slug: string; model: RuinModel }[] }) {
+  const bySlug = useMemo(() => new Map(models.map((m) => [m.slug, m.model])), [models])
+  const pillars = useMemo(() => planPillars(dress, walls), [dress, walls])
+  const slabMap = useMemo(() => slabConcreteTexture(), [])
   return (
-    <group position={[mid.x, 0, mid.z]} rotation={[0, rotationY, 0]}>
-      <mesh position={[0, wallHeight / 2, 0]} castShadow receiveShadow>
-        <boxGeometry args={[length, wallHeight, WALL_THICKNESS]} />
-        <meshStandardMaterial {...wallTextures} color={RUIN_WALL_TINT} roughness={1} transparent opacity={TERRAIN_OPACITY} />
-      </mesh>
-      {rubble.map((r, i) => (
-        <mesh key={i} position={[r.offset, r.height / 2, 0]}>
-          <boxGeometry args={[r.width, r.height, WALL_THICKNESS * 1.05]} />
-          <meshStandardMaterial {...rubbleTextures[i]} color={RUBBLE_TINT} roughness={1} transparent opacity={TERRAIN_OPACITY} />
+    <group>
+      {walls.map((wall, i) => (
+        <KitWall key={i} pieceId={pieceId} dress={dress} index={i} wall={wall} pool={pool} bySlug={bySlug} />
+      ))}
+      {pillars.map((p, i) => (
+        <mesh key={i} position={[p.x, p.height / 2, p.z]} castShadow receiveShadow>
+          <boxGeometry args={[p.side, p.height, p.side]} />
+          <meshStandardMaterial map={slabMap} color={CONCRETE_TINT} roughness={0.95} />
         </mesh>
       ))}
     </group>
   )
 }
 
-function UpperFloor({ floor, inset = 0 }: { floor: FloorData; inset?: number }) {
-  const thickness = 0.4
-  const geometry = useMemo(
-    () => extrudedPolygonGeometry(inset > 0 ? insetPolygon(floor.polygon, inset) : floor.polygon, thickness),
-    [floor.polygon, inset],
+function KitWall({ pieceId, dress, index, wall, pool, bySlug }: { pieceId: string; dress: string; index: number; wall: WallData; pool: KitModel[]; bySlug: Map<string, RuinModel> }) {
+  const { mid, rotationY } = segmentTransform(wall.a, wall.b)
+  const panels = useMemo(() => planWallPanels(pieceId, index, wall, pool, dress), [pieceId, dress, index, wall, pool])
+  return (
+    <group position={[mid.x, 0, mid.z]} rotation={[0, rotationY, 0]}>
+      {panels.map((p, i) => (
+        <KitPanelMesh key={i} panel={p} model={bySlug.get(p.slug)!} />
+      ))}
+    </group>
   )
-  const { width, depth } = useMemo(() => polygonFootprintSize(floor.polygon), [floor.polygon])
+}
+
+function KitPanelMesh({ panel, model }: { panel: KitPanel; model: RuinModel }) {
+  const object = useMemo(() => model.object.clone(true), [model])
+  return (
+    <group position={[panel.x, panel.y0, 0]} scale={panelScale(panel, model.size)}>
+      <primitive object={object} />
+    </group>
+  )
+}
+
+/** Dust/stain decal under and around the footprint plus scattered low rubble, so the ruin sits on the
+ *  mat instead of floating on it. Decal never writes depth; rubble stays under 0.4" and off the walls. */
+function RuinGround({ id, dress, footprint, bounds, walls, floors }: { id: string; dress: string; footprint: TerrainPieceData['footprint']; bounds: Bounds; walls: WallData[]; floors: FloorData[] }) {
+  const tex = useMemo(() => ruinDecalTexture(dress, bounds.w, bounds.d), [dress, bounds.w, bounds.d])
+  const chunks = useMemo(() => scatterRubble(dress, footprint, bounds, walls, floors), [dress, footprint, bounds, walls, floors])
+  const mesh = useRef<THREE.InstancedMesh>(null)
+  const invalidate = useThree((s) => s.invalidate)
+  useEffect(() => {
+    const m = mesh.current
+    if (!m) return
+    const dummy = new THREE.Object3D()
+    const c = new THREE.Color()
+    chunks.forEach((k, i) => {
+      dummy.position.set(k.x, 0, k.z)
+      dummy.rotation.set(0, k.rot, 0)
+      dummy.scale.set(k.sx, k.sy, k.sz)
+      dummy.updateMatrix()
+      m.setMatrixAt(i, dummy.matrix)
+      c.setHSL(0.1, 0.04, 0.5 + k.tone * 0.3)
+      m.setColorAt(i, c)
+    })
+    m.instanceMatrix.needsUpdate = true
+    if (m.instanceColor) m.instanceColor.needsUpdate = true
+    invalidate()
+  }, [chunks, invalidate])
+  return (
+    <group>
+      <mesh position={[bounds.cx, 0.02, bounds.cz]} rotation={[-Math.PI / 2, 0, seedUnit(`${dress}:spin`) < 0.5 ? 0 : Math.PI]} renderOrder={1} userData={{ noFade: true }}>
+        <planeGeometry args={[bounds.w + DECAL_MARGIN * 2, bounds.d + DECAL_MARGIN * 2]} />
+        <meshBasicMaterial map={tex} transparent depthWrite={false} polygonOffset polygonOffsetFactor={-2} polygonOffsetUnits={-2} toneMapped={false} />
+      </mesh>
+      <instancedMesh key={chunks.length} ref={mesh} args={[rubbleGeometry(), rubbleMaterial(), chunks.length]} castShadow receiveShadow frustumCulled={false} />
+    </group>
+  )
+}
+
+/** A ruin wall at its TRUE data height, thickness and gaps (what the engine uses for LoS and for where a
+ *  base may stand). Semi-transparent so models inside the ruin stay visible. */
+function RuinWall({ wall }: { seed: string; wall: WallData }) {
+  const { mid, length, rotationY } = segmentTransform(wall.a, wall.b)
+  const thickness = wall.thickness ?? ENGINE_DEFAULT_WALL_THICKNESS
+  const boxes = useMemo(() => wallBoxes(wall), [wall])
   const concrete = useTiledPBR(CONCRETE_URLS)
   const textures = useMemo(
-    () => cloneRepeat(concrete, width / CONCRETE_REPEAT_INCHES, depth / CONCRETE_REPEAT_INCHES),
-    [concrete, width, depth],
+    () => boxes.map((bx) => cloneRepeat(concrete, ((bx.u1 - bx.u0) * length) / WALL_REPEAT_INCHES, (bx.y1 - bx.y0) / WALL_REPEAT_INCHES)),
+    [concrete, boxes, length],
   )
   return (
-    <mesh position={[0, floor.height - thickness, 0]} geometry={geometry} castShadow receiveShadow>
-      <meshStandardMaterial {...textures} color={CONCRETE_TINT} roughness={0.9} side={THREE.DoubleSide} />
+    <group position={[mid.x, 0, mid.z]} rotation={[0, rotationY, 0]}>
+      {boxes.map((bx, i) => (
+        <mesh key={i} position={[((bx.u0 + bx.u1) / 2 - 0.5) * length, (bx.y0 + bx.y1) / 2, 0]} castShadow receiveShadow>
+          <boxGeometry args={[(bx.u1 - bx.u0) * length, bx.y1 - bx.y0, thickness]} />
+          <meshStandardMaterial normalMap={textures[i].normalMap} roughnessMap={textures[i].roughnessMap} color={RUIN_WALL_TINT} roughness={1} />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+function UpperFloor({ id, floor, inset = 0 }: { id: string; floor: FloorData; inset?: number }) {
+  const thickness = RUIN_KIT_FLOOR_THICKNESS
+  // Broken rockcrete slab: top face exactly at floor.height, footprint polygon unchanged (only inset
+  // under a drawn GLB), chipped rim band and jagged underside via vertex colours.
+  const geometry = useMemo(
+    () => floorSlabGeometry(id, inset > 0 ? insetPolygon(floor.polygon, inset) : floor.polygon, thickness),
+    [id, floor.polygon, inset],
+  )
+  const slabMap = useMemo(() => slabConcreteTexture(), [])
+  return (
+    <mesh position={[0, floor.height, 0]} geometry={geometry} castShadow receiveShadow>
+      <meshStandardMaterial map={slabMap} vertexColors color={CONCRETE_TINT} roughness={0.95} side={THREE.DoubleSide} />
     </mesh>
   )
 }
 
-function BarricadePiece({ piece, colors }: { piece: TerrainPieceData; colors: { base: string; accent: string } }) {
-  const glb = useRuinModel('barricade')
+function BarricadePiece({ piece, colors, variant }: { piece: TerrainPieceData; colors: { base: string; accent: string }; variant: PieceVariant }) {
+  const glb = useRuinModel(variant.slug)
   const bounds = useMemo(() => polygonBounds(piece.footprint), [piece.footprint])
   const walls = piece.walls
   if (glb.status === 'pending') return null
   if (glb.status === 'ready') {
-    return <FittedModel model={glb.model} bounds={bounds} height={piece.height} turns={simpleTurns(glb.model.size, bounds)} />
+    return <FittedModel model={glb.model} bounds={bounds} height={piece.height} turns={simpleTurns(glb.model.size, bounds) + (variant.flip ? 2 : 0)} />
   }
   if (!walls || walls.length === 0) {
     return <BlockPiece piece={piece} colors={colors} />
@@ -257,16 +393,15 @@ function BarrierSegment({ wall }: { wall: WallData }) {
   )
 }
 
-/** Crates are low concrete bunkers (bunker-a / bunker-b by id parity). The GLB's flat roof tops out
+/** Crates are low concrete bunkers (a slug from the crate variant pool). The GLB's flat roof tops out
  *  at piece.height, which is the standable floor height, so NO separate roof slab is drawn for it
  *  (nothing to z-fight or poke through). Missing/failed GLB -> procedural grey crate with its lid. */
-function CratePiece({ piece }: { piece: TerrainPieceData }) {
-  const slug = idVariant(piece.id) % 2 === 0 ? 'bunker-a' : 'bunker-b'
-  const glb = useRuinModel(slug)
+function CratePiece({ piece, variant }: { piece: TerrainPieceData; variant: PieceVariant }) {
+  const glb = useRuinModel(variant.slug)
   const bounds = useMemo(() => polygonBounds(piece.footprint), [piece.footprint])
   if (glb.status === 'pending') return null
   if (glb.status === 'ready') {
-    return <FittedModel model={glb.model} bounds={bounds} height={piece.height} turns={simpleTurns(glb.model.size, bounds)} />
+    return <FittedModel model={glb.model} bounds={bounds} height={piece.height} turns={simpleTurns(glb.model.size, bounds) + (variant.flip ? 2 : 0)} />
   }
   return <ProceduralCrate piece={piece} />
 }
@@ -321,18 +456,18 @@ function ProceduralCrate({ piece }: { piece: TerrainPieceData }) {
   )
 }
 
-type CraterRockTier = 'central' | 'mid' | 'outer'
+interface CraterRock { object: THREE.Object3D; x: number; z: number; rotY: number; scale: [number, number, number]; offset: [number, number, number] }
 
-/** A low rocky mound: 8-10 deterministically seeded rock instances in three tiers — one central
- *  peak, a mid ring, and an outer ring — overlapping enough to read as a solid pile rather than
- *  loose scattered pebbles, over a dark scorched disc. Visual only — cover/LoS read the data's own
- *  height via the engine's own terrain service, never this cluster's shape. */
-function CraterPiece({ piece }: { piece: TerrainPieceData }) {
+/** A crater: the flat blast-crater model (flattened under CRATER_FLOOR_MAX_HEIGHT) with a few low stones scattered on
+ *  its floor, ringed by taller rocks sitting on the footprint edge (long side along the rim, only ~0.4in deep) so the
+ *  pile reads as a raised lip without covering ground a base may stand on. Visual only — cover/LoS read the data's
+ *  own height via the engine's terrain service. */
+function CraterPiece({ piece, variant }: { piece: TerrainPieceData; variant: PieceVariant }) {
   const center = useMemo(() => polygonCentroid(piece.footprint), [piece.footprint])
   const radius = useMemo(() => polygonBoundingRadius(piece.footprint, center), [piece.footprint, center])
   const scorchGeometry = useMemo(() => extrudedPolygonGeometry(piece.footprint, CRATER_SCORCH_HEIGHT), [piece.footprint])
   // The decorative scorch decal is replaced by the flat blast-crater GLB when it is available.
-  const craterGlb = useRuinModel('crater')
+  const craterGlb = useRuinModel(variant.slug)
   const craterBounds = useMemo(() => polygonBounds(piece.footprint), [piece.footprint])
 
   // Fixed-length tuple (ROCK_MODEL_URLS never changes at runtime), so calling useGLTF once per
@@ -341,96 +476,52 @@ function CraterPiece({ piece }: { piece: TerrainPieceData }) {
   const rockScenes = rockGltfs.map((g) => g.scene)
 
   const rocks = useMemo(() => {
-    const count = CRATER_ROCK_MIN + Math.floor(seededUnit(`${piece.id}-count`) * (CRATER_ROCK_MAX - CRATER_ROCK_MIN + 1))
-    const midCount = Math.max(2, Math.round((count - 1) * 0.45))
-    const outerCount = Math.max(2, count - 1 - midCount)
-
-    // A small fixed jitter applied to the whole mid/outer ring (scaled down for the outer ring) so
-    // the two rings don't read as perfectly concentric circles around the same center.
-    const jitterAngle = seededUnit(`${piece.id}-ring-jitter-a`) * Math.PI * 2
-    const jitterDist = radius * 0.06 * seededUnit(`${piece.id}-ring-jitter-d`)
-    const jitterX = Math.cos(jitterAngle) * jitterDist
-    const jitterZ = Math.sin(jitterAngle) * jitterDist
-
-    const specs: { tier: CraterRockTier; ringIndex: number; ringCount: number }[] = [{ tier: 'central', ringIndex: 0, ringCount: 1 }]
-    for (let i = 0; i < midCount; i++) specs.push({ tier: 'mid', ringIndex: i, ringCount: midCount })
-    for (let i = 0; i < outerCount; i++) specs.push({ tier: 'outer', ringIndex: i, ringCount: outerCount })
-
-    return specs.map((spec, i) => {
-      const seed = `${piece.id}-rock-${i}`
-      const modelIndex = Math.floor(seededUnit(`${seed}-m`) * rockScenes.length) % rockScenes.length
-      const scene = rockScenes[modelIndex]
-
-      let angle: number
-      let dist: number
-      let targetHorizontal: number
-      let heightFraction: number
-      let offsetX = 0
-      let offsetZ = 0
-
-      if (spec.tier === 'central') {
-        // Footprint covers ~70% of the crater radius and is capped at the full crater height, so
-        // it reads as the peak of the mound regardless of which mid/outer rocks get picked.
-        angle = seededUnit(`${seed}-a`) * Math.PI * 2
-        dist = radius * 0.08 * seededUnit(`${seed}-d`) // near-centered, slight jitter
-        targetHorizontal = radius * 0.7
-        heightFraction = CRATER_CENTRAL_HEIGHT_FRACTION
-      } else {
-        const isMid = spec.tier === 'mid'
-        const sector = (spec.ringIndex / spec.ringCount) * Math.PI * 2
-        angle = sector + (seededUnit(`${seed}-a`) - 0.5) * ((Math.PI / spec.ringCount) * 0.6)
-        dist = isMid
-          ? radius * (0.42 + 0.06 * seededUnit(`${seed}-d`)) // mid ring ~45% of radius
-          : radius * (0.75 + 0.1 * seededUnit(`${seed}-d`)) // outer ring ~75-85% of radius
-        // Size each ring rock from the chord between its neighbors so adjacent footprints overlap
-        // by roughly CRATER_RING_OVERLAP instead of leaving gaps or being wildly oversized.
-        const chord = 2 * dist * Math.sin(Math.PI / spec.ringCount)
-        const overlapFraction = CRATER_RING_OVERLAP + 0.1 * seededUnit(`${seed}-o`)
-        targetHorizontal = Math.min(Math.max(chord / (1 - overlapFraction), radius * 0.18), radius * 0.55)
-        heightFraction = isMid ? CRATER_MID_HEIGHT_FRACTION : CRATER_OUTER_HEIGHT_FRACTION
-        offsetX = isMid ? jitterX : jitterX * 0.6
-        offsetZ = isMid ? jitterZ : jitterZ * 0.6
-      }
-
-      // Scale from the model's own measured Box3 — never a fixed constant — so different rock
-      // models (and their differing native sizes) land at a consistent footprint size.
+    const out: CraterRock[] = []
+    const add = (seed: string, x: number, z: number, rotY: number, width: number, depth: number, maxHeight: number) => {
+      const scene = rockScenes[Math.floor(seededUnit(`${seed}-m`) * rockScenes.length) % rockScenes.length]
       const box = new THREE.Box3().setFromObject(scene)
-      const size = new THREE.Vector3()
-      box.getSize(size)
-      const horizontalExtent = Math.max(size.x, size.z) || 1
-      const scaleXZ = targetHorizontal / horizontalExtent
-      const rawHeight = size.y * scaleXZ
-      // Flatten (never stretch) so no rock exceeds its tier's height cap — central stays tallest.
-      const tierMaxHeight = CRATER_MAX_HEIGHT * heightFraction
-      const yFactor = rawHeight > 0 ? Math.min(1, tierMaxHeight / rawHeight) : 1
-      const scaleY = scaleXZ * yFactor
-
-      const clone = scene.clone(true)
-      clone.traverse((obj) => {
+      const size = box.getSize(new THREE.Vector3())
+      const c = box.getCenter(new THREE.Vector3())
+      const sx = width / (size.x || 1)
+      const sz = depth / (size.z || 1)
+      // Never stretch taller than the rock's own proportions; flatten to the cap instead.
+      const sy = Math.min(maxHeight / (size.y || 1), Math.max(sx, sz))
+      const object = scene.clone(true)
+      object.traverse((obj) => {
         const mesh = obj as THREE.Mesh
-        if (mesh.isMesh) {
-          mesh.castShadow = true
-          mesh.receiveShadow = true
-          // The moon-rock glTFs pack an ARM (AO/roughness/metalness) texture; without an
-          // environment map, any nonzero metalness reads as flat black, so force it off.
-          const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
-          for (const mat of materials) {
-            if (mat instanceof THREE.MeshStandardMaterial) mat.metalness = 0
-          }
+        if (!mesh.isMesh) return
+        mesh.castShadow = true
+        mesh.receiveShadow = true
+        // The moon-rock glTFs pack an ARM (AO/roughness/metalness) texture; without an environment map, any
+        // nonzero metalness reads as flat black, so force it off.
+        for (const mat of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+          if (mat instanceof THREE.MeshStandardMaterial) mat.metalness = 0
         }
       })
-      return {
-        object: clone,
-        x: center.x + offsetX + Math.cos(angle) * dist,
-        z: center.z + offsetZ + Math.sin(angle) * dist,
-        y: -box.min.y * scaleY,
-        scaleXZ,
-        scaleY,
-        rotY: seededUnit(`${seed}-r`) * Math.PI * 2, // randomised yaw per rock
-      }
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [piece.id, piece.footprint, center, radius, rockScenes])
+      out.push({ object, x, z, rotY, scale: [sx, sy, sz], offset: [-c.x * sx, -box.min.y * sy, -c.z * sz] })
+    }
+    // Loose stones on the crater floor.
+    for (let i = 0; i < CRATER_DEBRIS_COUNT; i++) {
+      const seed = `${variant.dress}-debris-${i}`
+      const a = (i / CRATER_DEBRIS_COUNT) * Math.PI * 2 + seededUnit(`${seed}-a`) * 0.9
+      const d = radius * (0.2 + 0.5 * seededUnit(`${seed}-d`))
+      const w = 0.35 + 0.25 * seededUnit(`${seed}-w`)
+      add(seed, center.x + Math.cos(a) * d, center.z + Math.sin(a) * d, seededUnit(`${seed}-r`) * Math.PI * 2, w, w * (0.7 + 0.3 * seededUnit(`${seed}-q`)), CRATER_FLOOR_MAX_HEIGHT - 0.02)
+    }
+    // Rim rocks: long side tangent to the edge, shallow in the radial direction.
+    const count = CRATER_RIM_ROCK_MIN + Math.floor(seededUnit(`${variant.dress}-count`) * (CRATER_RIM_ROCK_MAX - CRATER_RIM_ROCK_MIN + 1))
+    const rimR = radius + CRATER_RIM_OFFSET
+    const start = seededUnit(`${variant.dress}-rim-start`) * Math.PI * 2
+    for (let i = 0; i < count; i++) {
+      const seed = `${variant.dress}-rim-${i}`
+      const a = start + (i / count) * Math.PI * 2 + (seededUnit(`${seed}-a`) - 0.5) * 0.12
+      const length = ((2 * Math.PI * rimR) / count) * (1.0 + 0.2 * seededUnit(`${seed}-l`))
+      const height = CRATER_RIM_MIN_HEIGHT + (CRATER_RIM_MAX_HEIGHT - CRATER_RIM_MIN_HEIGHT) * seededUnit(`${seed}-h`)
+      const tangentYaw = Math.atan2(-Math.cos(a), -Math.sin(a)) // turns the model's +X along the rim tangent
+      add(seed, center.x + Math.cos(a) * rimR, center.z + Math.sin(a) * rimR, tangentYaw + (seededUnit(`${seed}-f`) < 0.5 ? 0 : Math.PI), length, CRATER_RIM_THICKNESS, height)
+    }
+    return out
+  }, [variant.dress, center, radius, rockScenes])
 
   return (
     <group>
@@ -438,8 +529,8 @@ function CraterPiece({ piece }: { piece: TerrainPieceData }) {
         <FittedModel
           model={craterGlb.model}
           bounds={craterBounds}
-          height={Math.max(piece.height, 0.05)}
-          turns={simpleTurns(craterGlb.model.size, craterBounds)}
+          height={glbVisualHeight('crater', piece.height)}
+          turns={simpleTurns(craterGlb.model.size, craterBounds) + (variant.flip ? 2 : 0)}
         />
       ) : (
         <mesh position={[0, 0.001, 0]} geometry={scorchGeometry}>
@@ -447,13 +538,9 @@ function CraterPiece({ piece }: { piece: TerrainPieceData }) {
         </mesh>
       )}
       {rocks.map((r, i) => (
-        <primitive
-          key={i}
-          object={r.object}
-          position={[r.x, r.y, r.z]}
-          scale={[r.scaleXZ, r.scaleY, r.scaleXZ]}
-          rotation={[0, r.rotY, 0]}
-        />
+        <group key={i} position={[r.x, 0, r.z]} rotation={[0, r.rotY, 0]}>
+          <primitive object={r.object} position={r.offset} scale={r.scale} />
+        </group>
       ))}
     </group>
   )

@@ -11,6 +11,7 @@ import {
   formationPlacementsForUnit, isPlacementDecision, normalizeAngle, placementInfo, type FormationKind,
 } from '../interaction'
 import { buttonActive, buttonBase, colors, fontStack, mutedText, panel } from './theme'
+import { Tooltip } from './Tooltip'
 
 // Anchored near the TOP of the screen (under the phase tracker / scoring hint), not stacked above
 // the bottom decision prompt: the prompt's own height varies a lot (a deploy palette row, a hint
@@ -69,6 +70,7 @@ export function FormationPicker() {
   const isDeploy = active && pending!.kind === 'deployUnit' && !!deployTargetUnitId
   const isMove = active && isPlacementDecision(pending)
   const show = isDeploy || isMove
+  const perModelDraft = !!pending && (pending.kind === 'pileIn' || pending.kind === 'consolidate')
   const hasPreview = show && !!draft && draft.decisionId === pending!.id
 
   const pick = (kind: FormationKind) => {
@@ -119,7 +121,8 @@ export function FormationPicker() {
   // captured on window so it wins over OrbitControls' own wheel-zoom for the duration.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (!hasPreview) return
+    // per-model pile-in/consolidate: the wheel zooms the camera (rotate stays on the buttons/keys)
+    if (!hasPreview || perModelDraft) return
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
       e.stopPropagation()
@@ -127,7 +130,7 @@ export function FormationPicker() {
     }
     window.addEventListener('wheel', onWheel, { capture: true, passive: false })
     return () => window.removeEventListener('wheel', onWheel, { capture: true })
-  }, [hasPreview, formationKind, formationFacing])
+  }, [hasPreview, perModelDraft, formationKind, formationFacing])
 
   if (!show) return null
 
@@ -139,29 +142,29 @@ export function FormationPicker() {
       {kinds.map((kind) => {
         const key = Object.entries(FORMATION_KEYS).find(([, k]) => k === kind)?.[0]
         return (
-          <button
-            key={kind}
-            data-testid={`formation-${kind}`}
-            style={kind === formationKind ? kindButtonActive : kindButton}
-            title={FORMATION_HINTS[kind]}
-            onClick={() => pick(kind)}
-          >
-            <span>{FORMATION_LABELS[kind]}</span>
-            {key && <span style={keyHint}>{key}</span>}
-          </button>
+          <Tooltip key={kind} title={FORMATION_LABELS[kind]} body={FORMATION_HINTS[kind]}>
+            <button
+              data-testid={`formation-${kind}`}
+              style={kind === formationKind ? kindButtonActive : kindButton}
+              onClick={() => pick(kind)}
+            >
+              <span>{FORMATION_LABELS[kind]}</span>
+              {key && <span style={keyHint}>{key}</span>}
+            </button>
+          </Tooltip>
         )
       })}
       <span style={divider} />
-      <button style={buttonBase} data-testid="formation-rotate-ccw" title="Rotate 15° (Q)" onClick={() => rotateBy(-ROTATE_STEP_RAD)}>
+      <button style={buttonBase} data-testid="formation-rotate-ccw" onClick={() => rotateBy(-ROTATE_STEP_RAD)}>
         ↺
       </button>
       <span style={facingReadout} data-testid="formation-facing">
         {facingDeg}°
       </span>
-      <button style={buttonBase} data-testid="formation-rotate-cw" title="Rotate 15° (E)" onClick={() => rotateBy(ROTATE_STEP_RAD)}>
+      <button style={buttonBase} data-testid="formation-rotate-cw" onClick={() => rotateBy(ROTATE_STEP_RAD)}>
         ↻
       </button>
-      <button style={buttonBase} data-testid="formation-flip" title="Flip front/back (R)" onClick={flip}>
+      <button style={buttonBase} data-testid="formation-flip" onClick={flip}>
         Flip
       </button>
     </div>

@@ -23,9 +23,12 @@ const CSM = 'chaos-space-marines'
 const TYR = 'tyranids'
 const ADE = 'adepta-sororitas'
 const AM = 'astra-militarum'
+const GK = 'grey-knights'
+const TAU = 'tau-empire'
+const GSC = 'genestealer-cults'
 
 /** The engine faction id a weapon's own id prefix belongs to. */
-const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : SM)
+const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : SM)
 
 function lookupFor(faction: string): SoundLookup {
   return { weapon: (id) => bundle.weapons[id], factionOfUnit: () => faction }
@@ -130,6 +133,64 @@ const EXPECTED: Record<string, WeaponFlavour> = {
   'am.w.close-combat-weapon': 'chain',
   'am.w.battery-close-combat-weapons': 'chain',
   'am.w.close-combat-weapon-sentinel': 'crush',
+  'gk.w.purge-soul-witchfire': 'psychic',
+  'gk.w.purge-soul-focused': 'psychic',
+  'gk.w.storm-bolter': 'bolter',
+  'gk.w.psilencer': 'psychic',
+  'gk.w.psycannon': 'psychic',
+  'gk.w.heavy-psycannon': 'psychic',
+  'gk.w.nemesis-force-weapon-librarian': 'force',
+  'gk.w.nemesis-force-weapon-terminator': 'force',
+  'gk.w.nemesis-force-weapon-strike': 'force',
+  'gk.w.close-combat-weapon': 'chain',
+  'gk.w.nemesis-greatsword-strike': 'force',
+  'gk.w.nemesis-greatsword-sweep': 'force',
+  'tau.w.fireblade-pulse-rifle': 'psychic',
+  'tau.w.pulse-rifle': 'psychic',
+  'tau.w.pulse-carbine': 'psychic',
+  'tau.w.pulse-pistol': 'psychic',
+  'tau.w.support-turret-missile-system': 'heavy',
+  'tau.w.burst-cannon': 'shoota',
+  'tau.w.fusion-blaster': 'flame',
+  'tau.w.twin-fusion-blaster': 'flame',
+  'tau.w.cyclic-ion-raker-standard': 'heavy',
+  'tau.w.cyclic-ion-raker-overcharge': 'heavy',
+  'tau.w.honour-stave': 'force',
+  'tau.w.close-combat-weapon-fireblade': 'chain',
+  'tau.w.close-combat-weapon': 'chain',
+  'tau.w.battlesuit-fists': 'crush',
+  'tau.w.ghostkeel-fists': 'crush',
+  'gsc.w.autopistol-magus': 'shoota',
+  'gsc.w.autopistol': 'shoota',
+  'gsc.w.hybrid-firearm': 'shoota',
+  'gsc.w.leader-pistol': 'shoota',
+  'gsc.w.heavy-stubber': 'shoota',
+  'gsc.w.seismic-cannon': 'heavy',
+  'gsc.w.webber': 'flame',
+  'gsc.w.demolition-charges': 'heavy',
+  'gsc.w.clearance-incinerator': 'flame',
+  'gsc.w.demolition-charge-cache': 'heavy',
+  'gsc.w.magus-stave': 'force',
+  'gsc.w.power-weapon': 'chain',
+  'gsc.w.close-combat-weapon': 'chain',
+  'gsc.w.cult-claws-and-knife': 'chain',
+  'gsc.w.heavy-mining-tool': 'crush',
+  'gsc.w.leaders-cult-weapons': 'chain',
+  'gsc.w.heavy-improvised-weapon': 'crush',
+  'gsc.w.heavy-power-weapon': 'crush',
+  'gsc.w.hypermorph-tail': 'chain',
+  'gsc.w.drilldozer-blade': 'crush',
+  'cus.w.sentinel-blade-ranged': 'bolter',
+  'cus.w.guardian-spear-ranged': 'bolter',
+  'cus.w.vertus-hurricane-bolter': 'bolter',
+  'cus.w.boltgun': 'bolter',
+  'cus.w.sentinel-blade-tyvan': 'chain',
+  'cus.w.sentinel-blade-guard': 'chain',
+  'cus.w.guardian-spear-melee': 'chain',
+  'cus.w.misericordia': 'chain',
+  'cus.w.interceptor-lance': 'chain',
+  'cus.w.close-combat-weapon-prosecutor': 'chain',
+  'cus.w.executioner-greatblade': 'chain',
 }
 
 // Adepta Sororitas weapons, by datasheet NAME (lower-cased) so the check holds whatever id spelling the data uses.
@@ -156,7 +217,7 @@ describe('weapon flavour', () => {
   })
 
   it('the faction ids this classifier is tuned for are the ones the data actually declares', () => {
-    for (const id of [NEC, ORK, SM, CSM, TYR, ADE, AM]) expect(Object.keys(bundle.factions), id).toContain(id)
+    for (const id of [NEC, ORK, SM, CSM, TYR, ADE, AM, GK, TAU]) expect(Object.keys(bundle.factions), id).toContain(id)
   })
 
   it('every adepta-sororitas weapon is classified, by name', () => {

@@ -1,0 +1,63 @@
+[
+  {
+    "id": "tau.s.defensive-fusillade",
+    "faction": "tau-empire",
+    "name": "Defensive Fusillade",
+    "text": "Use in your Shooting phase before you pick the next unit to shoot. Until the end of the phase, every ranged weapon carried by one T'AU EMPIRE unit that has not yet shot is treated as a Pistol, so the unit may shoot even while in Engagement Range of enemies.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["shooting"],
+    "window": ["shooting.start", "shooting.attacksResolved"],
+    "who": "active",
+    "condition": { "phase": "shooting" },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "T'AU EMPIRE" }, "state": "notYetShot" }
+    ],
+    "effect": { "when": { "weaponType": "ranged" }, "grantWeaponAbility": { "ability": "PISTOL" } },
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "tau.s.rapid-repositioning",
+    "faction": "tau-empire",
+    "name": "Rapid Repositioning",
+    "text": "Use at the end of your Shooting phase. One T'AU EMPIRE unit not within Engagement Range of any enemy makes a Normal move of up to D6 inches (a flat 6 inches for BATTLESUIT units). It cannot declare a charge this turn.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["shooting"],
+    "window": "phase.end",
+    "who": "active",
+    "condition": { "phase": "shooting" },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "T'AU EMPIRE" } }
+    ],
+    "effect": { "forbid": "charge" },
+    "scope": { "who": "self" },
+    "duration": "untilEndOfTurn",
+    "code": "rapidRepositioning",
+    "params": { "dice": "D6", "battlesuitDistance": 6 },
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "tau.s.laser-marked-targets",
+    "faction": "tau-empire",
+    "name": "Laser-Marked Targets",
+    "text": "Use in the opponent's Charge phase just after an enemy unit declares a charge. One T'AU EMPIRE unit that is a target of that charge and not in Engagement Range shoots the charger as if in your Shooting phase, hitting only on unmodified 6s. Then the charger subtracts 2 from its Charge rolls this phase. The unit cannot shoot more than once this turn.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["charge"],
+    "window": "charge.declared",
+    "who": "reactive",
+    "condition": { "phase": "charge", "ownTurn": false },
+    "targets": [
+      { "role": "unit", "owner": "enemy", "count": 1 },
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "T'AU EMPIRE" }, "count": 1 }
+    ],
+    "effect": { "modifyRoll": { "roll": "charge", "value": -2 } },
+    "scope": { "who": "target" },
+    "duration": "untilEndOfPhase",
+    "code": "laserMarkedTargets",
+    "limit": "oncePerPhase"
+  }
+]

@@ -252,6 +252,23 @@ describe('charge phase — roll and R-8.4 feasibility (CHARGE-006..013, 031)', (
   })
 })
 
+describe('charge phase — RC-034 big friendly models (CHARGE-032)', () => {
+  it('CHARGE-032 a MONSTER charger may not pass through a friendly VEHICLE', () => {
+    const { ctx, events } = harness(unattached(), [6, 6])
+    ctx.state.activePlayer = 'B'
+    chargeModule.enter(ctx)
+    placeAtGap(ctx.state, BBrute, AWalker, 6)
+    const brute = ctx.state.models[`${BBrute}#0`]
+    const walker = ctx.state.models[`${AWalker}#0`]
+    // a friendly big model (the Kopta) parked on the straight line between the Brute and the Walker
+    placeUnit(ctx.state, BKopta, [{ x: brute.pos.x + 3, y: 0, z: 0 }])
+    declare(ctx, BBrute, [AWalker])
+    // no straight line exists and the planner never walks through a friendly big model, so the charge fails outright
+    expect(events.some((e) => e.type === 'ChargeFailed')).toBe(true)
+    expect(walker.pos.x).toBeGreaterThan(brute.pos.x)
+  })
+})
+
 describe('charge phase — R-8.6 Fights First (CHARGE-014)', () => {
   it('CHARGE-014 a successful charger has Fights First until end of turn', () => {
     const { ctx } = start(unattached(), [6, 6])

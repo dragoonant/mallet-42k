@@ -7,6 +7,7 @@ import { useThree } from '@react-three/fiber'
 import { Mesh, type Object3D } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js'
+import { trackFigureLoad } from './loadTracker'
 
 type Entry = { status: 'loading' | 'ready' | 'failed'; scene?: Object3D }
 const cache = new Map<string, Entry>()
@@ -21,7 +22,7 @@ function request(slug: string): Entry {
   cache.set(slug, e)
   const entry = e
   try {
-    new GLTFLoader()
+    const load = new GLTFLoader()
       .loadAsync(glbUrl(slug))
       .then((gltf) => {
         gltf.scene.traverse((o) => {
@@ -34,6 +35,7 @@ function request(slug: string): Entry {
         entry.status = 'failed'
       })
       .finally(() => listeners.forEach((l) => l()))
+    trackFigureLoad(load)
   } catch {
     entry.status = 'failed'
   }

@@ -1,0 +1,34 @@
+[
+  {
+    "id": "gk.e.banishment-stone",
+    "faction": "grey-knights",
+    "name": "Banishment Stone",
+    "text": "Psychic. Each time the bearer itself destroys an enemy CHARACTER model, roll one D6: on a 2 or more, you gain 1 Command point.",
+    "cost": 0,
+    "restriction": { "keyword": ["LIBRARIAN"] },
+    "effect": {
+      "id": "gk.e.banishment-stone.effect",
+      "name": "Banishment Stone",
+      "text": "When the bearer destroys an enemy CHARACTER model, roll a D6; on 2+ gain 1 CP.",
+      "trigger": "modelDestroyed",
+      "code": "banishmentStone",
+      "scope": { "who": "bearer" }
+    }
+  },
+  {
+    "id": "gk.e.dominating-aura",
+    "faction": "grey-knights",
+    "name": "Dominating Aura",
+    "text": "Psychic. The bearer's Objective Control characteristic is 3.",
+    "cost": 0,
+    "restriction": { "keyword": ["LIBRARIAN"] },
+    "effect": {
+      "id": "gk.e.dominating-aura.effect",
+      "name": "Dominating Aura",
+      "text": "The bearer's OC characteristic becomes 3.",
+      "trigger": "always",
+      "effect": { "setStat": { "stat": "OC", "value": 3 } },
+      "scope": { "who": "bearer" }
+    }
+  }
+]

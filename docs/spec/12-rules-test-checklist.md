@@ -131,6 +131,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | MOVE-008 | R-5.1 | unit in ER offered only Remain Stationary / Fall Back |
 | MOVE-009 | R-5.4 | Remain Stationary → flagged; Heavy would apply; unit cannot later move this phase |
 | MOVE-010 | R-5.5 | Fall Back ending within ER → rejected; no legal end → unit cannot Fall Back (option absent) |
+| MOVE-010b | R-5.5b | declared Fall Back boxed in after declaration (Overwatch casualties) → reverts to Remain Stationary (`UnitRemainedStationary`, not marked fallBack, unit activated, no moveUnit decision); with a strict destination available, staying put / empty placements are rejected |
 | MOVE-011 | R-5.6 | Fall Back with 3 of 5 models crossing enemy bases, dice 1,2,5 → 2 models destroyed (owner chooses which), before movement |
 | MOVE-012 | R-5.6 | FLY Kopta Falls Back over enemies → no Desperate Escape |
 | MOVE-013 | R-5.6 | Battle-shocked 10-Boyz Fall Back, no crossing → 10 tests |
@@ -148,6 +149,8 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | MOVE-025 | R-5.14 | Terms still in Reserves at end of round 3 → `UnitDestroyed`; does not score Stomp 'Em (not a melee kill) |
 | MOVE-026 | R-5.11 | Reinforcements step occurs after all moves; arriving unit cannot then embark |
 | MOVE-027 | R-5.9 | Krump da Gitz surge move by a Battle-shocked unit → not offered; by unit in ER → not offered; twice in a phase → second not offered |
+| MOVE-027c | R-5.9 | RC-013: a surging unit's models each end as close as possible to the target (per-model push after the rigid translation), still coherent and outside Engagement Range |
+| MOVE-040 | R-5.6 | RC-010: after Desperate Escape casualties the survivors re-submit the Fall Back move (coherency enforced, only tested models may cross enemies); no second roll |
 | MOVE-028 | CP-5.2 | Tellyporta via `PlayerSetup.enhancementChoice = {unitRef:'boyz-a'}`: Gordrang + Boyz A (`deepStrikeWith` set both ways) in Reserves; Boyz A arrive round 2 without Gordrang → rejected (must arrive together within 3"); `unitRef` naming the Deffkoptas (not BOYZ) or an enemy unit → `createGame` throws `EngineInvariantError` |
 | MOVE-029 | R-5.17 | (transport fixture) unit ends Normal move with all models within 3" of friendly transport → may embark; one model at 3.1" → cannot |
 | MOVE-030 | R-5.18 | (transport fixture) disembark after transport moved → unit cannot move or charge; before → acts normally, cannot Remain Stationary |
@@ -291,6 +294,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | CHARGE-029 | Brutal but Kunnin' | used on Boyz that Fell Back → charge offered this phase only for that unit |
 | CHARGE-030 | R-8.4 | charge move into a ruin: Term must pass through doorway/walls as INFANTRY → allowed; Dread through wall → path invalid |
 | CHARGE-031 | R-8.4 | failed charge (roll 4, target 6" away): every model's `pos` identical before and after, `ChargeFailed` emitted, unit flagged as having declared (CHARGE-028) |
+| CHARGE-032 | R-8.5 | RC-034: a MONSTER/VEHICLE charger's path through a friendly MONSTER/VEHICLE model is rejected (E_OVERLAP); same rule applies to pile-in/consolidate (FIGHT-*) and is skipped for FLY |
 
 ## FIGHT — fight phase
 | ID | Ref | Scenario → expected |
@@ -308,6 +312,14 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | FIGHT-011 | R-9.5 | model already in base contact → cannot move |
 | FIGHT-012 | R-9.5 | pile-in cannot end unit within ER of any enemy → no model moves (decision skipped) |
 | FIGHT-013 | R-9.5 | model can reach base contact → must (placing at 0.3" rejected) |
+| FIGHT-RANK-001 | R-9.6 | a model that cannot reach an enemy during pile-in steps into base contact with a teammate already touching an enemy, forming a second rank whose models may then fight |
+| FIGHT-RANK-002 | R-9.5/R-9.6 | a 10-model unit in two loose ranks piling into a 5-model line: the first offered pile-in gives a fighting spot to every model that can plainly reach one within 3" |
+| FIGHT-RANK-003 | R-9.5/R-9.6 | mixed base sizes (25/28.5/32/40mm): back-rank models still close up behind whichever unit-mate ends up touching the enemy |
+| FIGHT-RANK-004 | R-9.5/R-9.6 | enemy standing in a curved arc: front models find contact spots round the arc and the rest form up behind them |
+| FIGHT-RANK-005 | R-9.5/R-9.6 | front rank stopped at the 0.99" edge after its charge: the default pile-in closes to base contact (not the edge) so the back rank can join |
+| FIGHT-RANK-006 | R-9.6 | models that started in base contact with the enemy count as anchors for back-rank models to step up behind |
+| FIGHT-RANK-007 | R-9.5/R-9.6 | narrow enemy front: back-rank models left out by the first placement pass get another try (including trading spots with a unit-mate) and the offered candidates are ranked by how many models can fight |
+| FIGHT-RANK-008 | R-9.5/R-9.6 | two ranks of five 0.9" from a six-model line on open ground: front models step straight into contact, back models step up behind them, all ten can fight |
 | FIGHT-014 | Get Stuck In | pile-in up to 6" for that unit; consolidation up to 6" too; Get In There → pile-in only |
 | FIGHT-015 | R-9.6 | Boy at 1.2" from enemy (not in ER) but in base contact with a Boy that touches an enemy → may attack |
 | FIGHT-016 | R-9.6 | Boy 1.2" away, touching a friend who is only within ER (not base contact) → cannot attack |
@@ -319,7 +331,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | FIGHT-022 | R-9.10 | consolidation 3" toward closest enemy, base contact if possible |
 | FIGHT-023 | R-9.10 | no enemy reachable within ER → move up to 3" toward closest objective if the unit ends within range of it; otherwise no move |
 | FIGHT-024 | R-9.10 | consolidation into ER of a fresh enemy unit → that enemy becomes eligible to fight this phase (step 2) |
-| FIGHT-025 | R-9.12 | Counter-offensive after enemy unit fought → my chosen unit fights immediately, then alternation resumes with the player who would have been next **[interp]** |
+| FIGHT-025 | R-9.12 | Counter-offensive after enemy unit fought → my chosen unit fights immediately; it counts as a selection, so the opponent selects next (RC-040; no double activation for the Counter-offensive player) **[interp]** |
 | FIGHT-026 | R-9.12 | Counter-offensive on a unit that already fought → `E_INVALID_TARGET` |
 | FIGHT-027 | Epic Challenge | usable only when the CHARACTER's unit is in ER of an attached unit; Precision on its melee attacks until end of phase |
 | FIGHT-028 | R-9.13 | after Fight phase: coherency cull (R-2.6), then `turn.end` windows, then next player's Command phase |
@@ -370,7 +382,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | STRAT-015 | Go to Ground | target Dread (VEHICLE) → not offered |
 | STRAT-016 | Smokescreen | no SMOKE unit → never offered |
 | STRAT-017 | Heroic Intervention | alias → CHARGE-023, CHARGE-024, CHARGE-025 |
-| STRAT-018 | Tank Shock | offered in `stratagemWindow` `charge.moveEnded` only to the player whose VEHICLE just made a Charge move (Dread charge → offered; Dread that Heroically Intervened → offered, it is a Charge move **[interp]**; Dread that did not charge this phase → not offered) |
+| STRAT-018 | Tank Shock | offered in `stratagemWindow` `charge.moveEnded` only to the player whose VEHICLE just made a Charge move (Dread charge → offered; Dread that Heroically Intervened → not offered, out-of-phase rule (RC-041); Dread that did not charge this phase → not offered) |
 | STRAT-019 | Fire Overwatch | once per turn across both Movement and Charge phases |
 | STRAT-020 | Epic Challenge | alias → FIGHT-027 |
 | STRAT-021 | Duty and Honour | marker stays SM-controlled with no models; Orks have LoC 4 there at the start of their turn (`controllerAtTurnStart` = B) or at a turn end → sticky flag cleared; Ork presence only mid-turn (left before turn end) → flag kept |
@@ -399,6 +411,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | MISSION-006 | CP-2.4 | end of Ork Command phase, Boyz (BATTLELINE) on marker, controlled → secured; SM Terms (not BATTLELINE) → not secured |
 | MISSION-007 | CP-2.5 | secured marker, Boyz leave; end of next SM Command phase SM has LoC 2 there → SM controls and secure cleared; Orks with 0 there in between → still Ork-controlled at Ork scoring |
 | MISSION-008 | CP-2.5 | secured marker; SM presence at end of SM Movement phase only (not Command) → secure not broken |
+| MISSION-008 | CP-2.5 | RC-048: secured marker; opponent LoC higher at a non-Command check → opponent controls it then, secure flag intact; once they leave the securer controls again |
 | MISSION-009 | CP-2.4 | Battle-shocked BATTLELINE on marker → cannot secure |
 | MISSION-010 | CP-2.1 | round 1 → no primary VP for either player |
 | MISSION-011 | CP-2.1 | round 5: first player scores at end of Command phase; second player at end of their turn |
@@ -432,6 +445,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | MISSION-038 | R-12.7 | Battle Ready constant default 0 for both; config 10/10 changes nothing about winner |
 | MISSION-039 | CP-2.5 §2.5 | objectives placed at exact mission coordinates; marker radius 0.787" used for range |
 | MISSION-040 | R-5.16 | Reserves unit never arrived → counts as destroyed for Bag the Big 'Un |
+| MISSION-040 | R-5.16 | RC-050: target culled from stranded Reserves (destroyed, no killer) → Bag the Big 'Un unit tier (8 VP) |
 | MISSION-041 | CP-1.4 | optional enhancement chosen at setup → data applied (Tellyporta grants Deep Strike) |
 | MISSION-042 | Sweeping Raid | markers B (−3,9) and C (3,−9) are NML; A and D are DZ markers |
 | MISSION-043 | CP-3.2 | layout `terrain.cp-01` loaded with every mission: each piece's footprint > 1" from every marker point; the piece set is invariant under 180° rotation about the origin (each footprint maps onto another's within 0.01") |
@@ -485,7 +499,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | NEC-020 | NEC-4 | Treasures of Aeons: pick offered at round 1 start among NML markers only |
 | NEC-021 | NEC-4 | Treasures of Aeons: enemy unit within range of the treasure marker at phase start, moves away, destroyed by Warriors that phase → +3 VP |
 | NEC-022 | NEC-4 | Treasures of Aeons: unit within range of the owner's DZ marker at phase start destroyed → +3 VP; unit outside both at phase start but inside when destroyed → 0 VP |
-| NEC-023 | NEC-4 | Treasures of Aeons: kill by Deadly Demise mortal wounds (no `byModelId`) → 0 VP |
+| NEC-023 | NEC-4 | Treasures of Aeons: a kill with no `byModelId` (Hazardous / self-inflicted) → 0 VP; a Tank Shock or grenade kill by a NECRONS unit → +3 VP (RC-090); a kill by Deadly Demise from a NECRONS model → +3 VP (RC-072) |
 | NEC-024 | NEC-5 | Mercurial Resilience: offered after enemy targets declared in opponent's Shooting; Warriors gain 5+ invuln until phase end; Overlord keeps 4+ |
 | NEC-025 | NEC-5 | Mercurial Resilience in a Fight phase (either turn) after an enemy unit selects targets |
 | NEC-026 | NEC-5 | Disruption Fields: Skorpekh hyperphase S7 → S8; vs T8 now wounds on 4+ (was 5+); ranged weapons unchanged; not offered for a unit that already fought |
@@ -501,6 +515,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | NEC-036 | NEC-3 | Resonant Focus re-roll survives the bearer's death: Overlord destroyed after the mark is placed → marked-unit hit re-roll of 1s still applies (Doomstalker and Warriors), still not vs another unit, gone at turn end |
 | NEC-037 | NEC-6 | a fired One Shot weapon is not a legal Overwatch weapon: after the tachyon arrow is fired it is absent from Fire Overwatch targets in both the Movement and Charge phases, and `attackService.begin` refuses it centrally |
 | NEC-038 | NEC-4 | Treasures of Aeons: a unit finished off by Devastating Wounds from a NECRONS attack near the treasure marker (in range at phase start) → +3 VP, credited to the attacking model |
+| NEC-039 | NEC-2.4 | RC-102: a returned model must pass `terrainService.canEndAt` (not inside a solid crate/wall, not mid-air); candidate heights are neighbour y, surface height, ground |
 
 ## CHA — Chaos Space Marines: Zarkan's Daemonkin (docs/spec/factions/chaos-space-marines.md)
 | ID | Ref | Scenario → expected |
@@ -520,13 +535,14 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | CHA-013 | CHA-3 | Prey on the Weak: enemy hit only by bolt pistol / Legionary boltguns → no prompt; Rite attacks all miss → no prompt |
 | CHA-014 | CHA-4 | Marked for Execution: opponent WARLORD destroyed in round 2 → +12 VP; in round 4 → +6 VP; never scores twice |
 | CHA-015 | CHA-4 | Marked for Execution: WARLORD killed by its own Hazardous roll still scores |
+| CHA-014 | CHA-4 | CSM-06: Warlord stranded in Reserves at the end of round 3 counts as destroyed → +12 VP, once |
 | CHA-016 | CHA-4 | Sites of Power: round 1 → 0 VP; round 2, end of own turn, 2 vs 2 markers → +2 VP; 1 vs 2 → 0; 0 vs 0 → +2 |
 | CHA-017 | CHA-5 | Vindictive Strategy: target at Starting Strength → no hit re-roll; one model lost → hit roll of 1 re-rolled, wound roll of 1 not |
 | CHA-018 | CHA-5 | Vindictive Strategy: target below half-strength → hit 1s and wound 1s both re-rolled; attached target uses combined Starting Strength |
 | CHA-019 | CHA-5 | Vindictive Strategy not offered for a unit already selected to shoot / that already fought this phase |
 | CHA-020 | CHA-5 | Violent Unbinding: enemy melee attack destroys Zarkan, attacker within 6" → window opens before the next attack; D6 = 6 → 3 MW to the attacker |
 | CHA-021 | CHA-5 | Violent Unbinding: attacker more than 6" away (shooting) → stratagem not offered; D6 = 1 → no mortal wounds |
-| CHA-022 | CHA-5 | Daemonic Fervour: Possessed targeted in the Fight phase, model destroyed, D6 = 4 → model stays at 0 W, not allocatable, fights after the enemy unit's attacks, then removed |
+| CHA-022 | CHA-5 | Daemonic Fervour: Possessed targeted in the Fight phase, model destroyed, D6 = 4 → model stays at 0 W, not allocatable; before the enemy unit consolidates it may pile in (3", coherency kept against the live models), then attacks with normal fight eligibility (CSM-09/CSM-10), never consolidates; then removed |
 | CHA-023 | CHA-5 | Daemonic Fervour: D6 = 3 → removed normally; Possessed already fought this phase → no roll |
 | CHA-024 | CHA-5 | Daemonic Fervour: deferred model has no OC and is skipped by coherency; `UnitDestroyed` only after the last deferred model is removed; kill credited to the attacker |
 | CHA-025 | CHA-6 | Sacrificial Dagger: Zarkan selected to shoot, use → his unit suffers 1 MW; Rite of Possession gets +1 hit and +1 wound this phase; bolt pistol does not |
@@ -559,7 +575,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | TYR-016 | TYR-5.1 | Hyper-Reactive after an enemy targets Termagants in the opponent's Shooting → their hit rolls −1 until phase end; not offered for the Psychophage (not INFANTRY) |
 | TYR-017 | TYR-5.1 | Hyper-Reactive in a Fight phase after an enemy unit selects the Leapers as its melee target |
 | TYR-018 | TYR-5.2 | Voracious Assault: Termagants shoot the closest eligible enemy → hit re-roll offered; at a farther unit → none |
-| TYR-019 | TYR-5.2 | Voracious Assault: two enemy units tied for closest → both qualify |
+| TYR-019 | TYR-5.2 | Voracious Assault: two enemy units tied for closest → only one counts as the closest (the declared target if it is one of them) |
 | TYR-019b | TYR-5.2 | Voracious Assault: offered in either player's Fight phase for a unit not yet selected to fight; in Shooting only in your own phase for a unit not yet selected to shoot (`notYetShot`) |
 | TYR-020 | TYR-5.3 | Teeming Broods on Termagants at 12/20 with D6 = 4 → 16 models; returned models at 1 W, in coherency, not in ER of enemies |
 | TYR-021 | TYR-5.3 | Teeming Broods on a 10-model split unit at 8/10 with D6 = 5 → only 2 return (Starting Strength cap) |
@@ -567,7 +583,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | TYR-023 | TYR-5.4 | the spawned unit arrives as Strategic Reserves in a later own Movement phase: wholly within 6" of an edge, >9" from enemies, not in the enemy DZ in round 2; cannot arrive in the step it was created |
 | TYR-024 | TYR-5.4 | a spawned unit still in Reserves at the end of round 3 is removed; the opponent gets no kill credit |
 | TYR-025 | TYR-5.5 | Teeming Broods target list includes destroyed TERMAGANTS units; no other stratagem lists destroyed units |
-| TYR-026 | TYR-6.1 | Death Blow: Prime (not yet fought) killed in melee, D6 = 4 → not removed, `ModelRemovalDeferred`; once the attacker's activation ends its controller may fight with it (use/decline), then `ModelDestroyed` credits the original killer; declining removes it at once |
+| TYR-026 | TYR-6.1 | Death Blow: Prime (not yet fought) killed in melee, D6 = 4 → not removed, `ModelRemovalDeferred`; after the attacker's attacks and before it consolidates its controller may fight with it (use/decline; pile-in then attacks, no unit selection, no consolidate; TYR-02), then `ModelDestroyed` credits the original killer; declining removes it at once |
 | TYR-027 | TYR-6.1 | Death Blow: D6 = 3 → removed at once; killed by a ranged attack or mortal wounds → no roll; already fought this phase → no roll |
 | TYR-028 | TYR-6.1 | while removal is pending the Prime takes no further allocated attacks and adds 0 OC |
 | TYR-029 | TYR-6.2 | Feeding Frenzy: Psychophage melee vs a full-strength unit → no modifier; vs 19/20 Termagants → +1 hit; vs 9/20 → +1 hit and +1 wound |
@@ -578,7 +594,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | TYR-034 | TYR-6.4 | Disruption Bombardment: only a VEHICLE/MONSTER was hit, or nothing was hit → no effect |
 | TYR-035 | TYR-6.5 | Pouncing Leap: Heroic Intervention with the Leapers costs 0 CP (offered at 0 CP) and is offered even after HI was used on another unit this phase; Termagants still pay 1 CP |
 | TYR-036 | TYR-6.6 | Patrol Squads: split offered at Declare Battle Formations → two TERMAGANTS units of 10, each SS 10, each with Skulking Horrors |
-| TYR-037 | TYR-6 | Leapers deploy via Infiltrators more than 9" from the enemy DZ and enemy models; 8.9" is rejected |
+| TYR-037 | TYR-6 | Leapers deploy via Infiltrators more than 9" from the enemy DZ and enemy models; 8.9" is rejected; the area is the exact 9" offset of the zone (triangular cp-04 wedges included) |
 | TYR-038 | TYR-6 | Leapers fight in the Fights First step without having charged; Psychophage FNP 5+ and Deadly Demise 1 resolve |
 | TYR-039 | TYR-6 | psychoclastic torrent auto-hits and ignores cover; the maw's Anti-Psyker 4+ makes a 4+ wound roll vs a PSYKER critical, triggering Devastating Wounds |
 | TYR-040 | TYR-1 | patrol loads: 5 units, 30 models, the Prime is WARLORD with Psychostatic Veil; default secondary Alpha Xenoform |
@@ -655,7 +671,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | ADE-022 | ADE-4 | Consecrated Ground: only Battle-shocked units within 6" → 0 VP; opponent's turn end → nothing |
 | ADE-023 | ADE-5 | Ascetic Discipline: unmodified 6 to wound with a boltgun → AP −2 on that attack; non-critical wound keeps AP 0; expires at phase end |
 | ADE-024 | ADE-5 | Ascetic Discipline not offered for a unit already selected to shoot or fight this phase; IS offered in the opponent's Fight phase for an own unit that has not yet fought; not offered in the opponent's Shooting phase |
-| ADE-025 | ADE-5 | A Martyr's Death (Fight): a Sacresant destroyed before it has fought (by any enemy unit attacking the unit this phase), D6 ≥4 → model stays, fights after the destroying unit's attacks, then removed; D6 3 → removed at once |
+| ADE-025 | ADE-5 | A Martyr's Death (Fight): a Sacresant destroyed before it has fought (by any enemy unit attacking the unit this phase), D6 ≥4 → model stays, piles in (3") then fights with normal fight eligibility after the destroying unit's attacks and before it consolidates (RC-ADE-10), then removed; D6 3 → removed at once |
 | ADE-026 | ADE-5 | A Martyr's Death with a discarded die: D6 3 + 1 → deferred; pool −1 |
 | ADE-027 | ADE-5 | A Martyr's Death (Shooting): deferred Battle Sisters shoot after the enemy unit finishes shooting, then removed; deferred models cannot be allocated further attacks and add no OC |
 | ADE-028 | ADE-5 | A Martyr's Death: the destroyed model has already shot / fought this phase → no D6 for it, removed normally (other models of the unit that have not acted still roll) |
@@ -669,4 +685,148 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | ADE-036 | ADE-6 | Condemnor boltgun: wound roll 2+ vs PSYKER is critical → Devastating Wounds mortal; Precision allows allocation to a CHARACTER in an attached unit |
 | ADE-037 | ADE-6 | combi-weapon Anti-Infantry 4+: unmodified 4 to wound vs INFANTRY is critical → Devastating Wounds |
 | ADE-038 | ADE-6 | Ministorum flamer / heavy flamer: Torrent auto-hits D6 attacks, Ignores Cover; hallowed mace Lethal Hits auto-wounds on a critical hit |
-| ADE-039 | ADE-2.2 | limitation: a Battle-shock test forced mid-resolution (source other than `command`) rolls its 2D6 straight through and never raises a `miracleDie` decision, even with a non-empty pool; the Command-phase test does |
+| ADE-039 | ADE-2.2 | a Battle-shock test forced mid-resolution (source other than `command`) opens a `miracleDie` decision and is finished by the Miracle handler; further Sororitas units tested while that offer is open are queued (`bsqueue:`) and each get their own offer (RC-ADE-23); empty pool or non-Sororitas rolls straight through |
+
+## GRE — Grey Knights: Aurellios' Banishers (docs/spec/factions/grey-knights.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| GRE-001 | GRE-1 | patrol loads (default): 3 units, 11 models; Librarian is WARLORD with Banishment Stone, attached to Terminators; default secondary Champion of Titan |
+| GRE-002 | GRE-1.1, 1.2 | `unitChoices:{heavy:'dreadknight'}` → 3 units, 7 models, no Terminator unit exists (not in Reserves), Librarian unattached; an unknown ref throws EngineInvariantError |
+| GRE-003 | GRE-2.1 | end of opponent's turn: pick offered to the Grey Knights player only, candidates exclude units in Engagement Range and the Dreadknight; picking removes the unit (`location:'reserves'`, `UnitRemovedFromBattlefield`); decline leaves the board unchanged |
+| GRE-004 | GRE-2.1 | only one unit per opponent turn; no pick offered at the end of the Grey Knights player's own turn |
+| GRE-005 | GRE-2.1 | attached Librarian + Terminators picked → both halves removed and later arrive together, still attached |
+| GRE-006 | GRE-2.2 | next own Movement: Reinforcements requires set-up >9" from every enemy model; a placement at 8.9" is rejected; on success `ReinforcementsArrived{via:'teleportAssault'}` and the unit cannot make a further move but may shoot and charge |
+| GRE-007 | GRE-2.3 | Grey Knights moving second: removed at end of round-1 opponent turn → arrives in own round-1 Movement; removed in round 3/4 → arrives in round 4/5 and is never culled by the round-3 Reserves cull |
+| GRE-008 | GRE-2.4 | Grey Knights first, unit removed at end of round 5 → destroyed at battle end before `battle.end` scoring (UnitLostInReserves, null attribution) |
+| GRE-009 | GRE-2.5 | No Escape scored at a turn end with the teleporting unit still counted on its marker; the removal happens after scoring |
+| GRE-010 | GRE-2.6 | passing the mandatory arrival destroys the teleporting unit |
+| GRE-011 | GRE-2.7 | Grey Knights with only a teleporting unit left at the opponent's turn end → not tabled; battle continues |
+| GRE-012 | GRE-3.1 | Banishment Stone: bearer's force weapon kills an enemy CHARACTER model, D6 2 → +1 CP; D6 1 → no CP; Terminator kills the CHARACTER → no roll; a second gain in the same round discarded by R-4.2 |
+| GRE-013 | GRE-3.1 | Banishment Stone: bearer kills a non-CHARACTER model → no roll |
+| GRE-014 | GRE-3.2 | Dominating Aura: bearer OC 3 (Terminators unchanged at 2); Battle-shocked → 0 |
+| GRE-015 | GRE-4.1 | Champion of Titan: Warlord kills an enemy CHARACTER model → +6 VP; two in one phase → +12; a CHARACTER killed by the Strike Squad → 0; a non-CHARACTER killed by the Warlord → 0 |
+| GRE-016 | GRE-4.1 | Champion of Titan scores in the opponent's Fight phase too, and for a CHARACTER leader inside an enemy attached unit |
+| GRE-017 | GRE-4.2 | No Escape: end of opponent's turn, controlling both edge-closest markers → +10; only one → 0; at the end of own turn → 0 |
+| GRE-018 | GRE-4.2 | No Escape scores at most once per battle (second qualifying turn end → 0); a razed marker is skipped for "closest" |
+| GRE-019 | GRE-5.1 | Vindictive Strategy: S5 vs Strike Squad T4 → −1 to wound; S4 → no change; offered in opponent's Shooting and either Fight phase, not in own Shooting; not offered for the Dreadknight |
+| GRE-020 | GRE-5.2 | Violent Unbinding: Strike Squad model destroyed before fighting, D6 4 → stays at 0 W, fights after the enemy unit's attacks, then removed; D6 3 → removed at once |
+| GRE-021 | GRE-5.2 | Violent Unbinding: a model of a unit that already fought this phase → no roll |
+| GRE-022 | GRE-5.3 | Daemonic Fervour (2 CP): in the opponent's Fight phase, unit in Engagement Range → that turn's Teleport Assault pick offers it; without the stratagem it is excluded; the grant does not carry to a later turn |
+| GRE-023 | GRE-5.3 | Daemonic Fervour not offered in own Fight phase, nor for a unit not in Engagement Range, nor for the Dreadknight |
+| GRE-024 | GRE-6.1 | Sanctic Hood: attached Terminators/Librarian get FNP 4+ vs a Psychic weapon attack (incl. its Devastating Wounds mortals); no FNP vs a bolter; Librarian not attached → no FNP; mortal wounds from an enemy Psychic ability also get FNP 4+ |
+| GRE-025 | GRE-6.2 | Hammerhand: after a successful charge Terminator force weapons and the attached Librarian's force weapon have Lethal Hits (critical hit auto-wounds) until end of turn; next turn without a charge → none; Heroic Intervention charge also triggers it |
+| GRE-026 | GRE-6.3 | Dreadknight at 4 W → −1 to hit on heavy psycannon and greatsword; at 5 W → no modifier; destroyed → Deadly Demise D3 on 6 |
+| GRE-027 | GRE-6 | weapons: Purge Soul focused profile Hazardous test after shooting and Precision allocation to a CHARACTER; psilencer Sustained Hits 1; storm bolter Rapid Fire 2 at half range; greatsword strike D6 damage |
+
+## TAU — T'au Empire: Protectors of Aun'shar (docs/spec/factions/tau-empire.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| TAU-001 | TAU-1 | patrol loads: 5 units, 16 models; Aun'Shar is WARLORD with DS13 and unattached; Fireblade attached to Strike Team; default secondary Kauyon Lure |
+| TAU-002 | TAU-2.1 | selecting Strike Team to shoot offers an FtGG pick listing Stealth/Ghostkeel as Observers and enemies visible to both; Aun'Shar is never an Observer option |
+| TAU-003 | TAU-2.1 | an Observer candidate that is Battle-shocked, already shot this phase, or already an Observer is absent from the options |
+| TAU-004 | TAU-2.2 | Guided pulse rifle (BS 4+) vs the Spotted unit hits on 3+; with the target in Stealth (−1 hit) it hits on 4+ |
+| TAU-005 | TAU-2.2 | BS change is not hit-capped: Damaged Ghostkeel (−1) Guided vs a Stealth target (−1) → cap −1 applied to modifiers, BS 3+ → hits on 4+ |
+| TAU-006 | TAU-2.2 | Observer with MARKERLIGHT (Strike Team) → Guided attacks vs Spotted ignore cover; Observer Ghostkeel (no MARKERLIGHT) → cover still applies |
+| TAU-007 | TAU-2.3 | Guided unit splits fire: attacks vs a non-Spotted enemy need one worse (4+ → 5+) |
+| TAU-008 | TAU-2.4 | after observing, the Observer can still be selected to shoot later in the phase, but no FtGG pick is offered for it |
+| TAU-009 | TAU-2.6 | Fire Overwatch by a unit that was Guided earlier gets no BS change; marks are gone in the next phase |
+| TAU-010 | TAU-2.5 | Stealth Battlesuits that Advanced can be an Observer while the Shas'vre lives; once the Shas'vre is destroyed they cannot (and lose MARKERLIGHT) |
+| TAU-011 | TAU-2.5 | an Advanced Strike Team (no marker drone rule) is not offered as Observer |
+| TAU-012 | TAU-3 | DS13: Strike Team within 6" of Aun'Shar has Sv 3+ and FNP 5+; at 6.1" neither; Aun'Shar itself Sv 4+, FNP 5+ |
+| TAU-013 | TAU-3 | DS13: Ghostkeel (not INFANTRY) within 6" gets nothing |
+| TAU-014 | TAU-3 | DS13/DS15: Aun'Shar has Lone Operative (not targetable beyond 12") and Stealth (−1 to hit vs ranged) |
+| TAU-015 | TAU-3 | DS15: Ghostkeel within 6" of Aun'Shar → its ranged critical hits auto-wound; melee does not |
+| TAU-016 | TAU-4 | Kauyon Lure: round 1 own Command phase end → 0 VP; round 2 with Strike Team partly in own DZ → +5 VP |
+| TAU-017 | TAU-4 | Kauyon Lure: only qualifying unit Battle-shocked in that Command phase → 0 VP; two qualifying units → still 5 VP |
+| TAU-018 | TAU-4 | Leadership Caste: Aun'Shar alive at battle end → +20 VP; destroyed → 0 |
+| TAU-019 | TAU-5 | Defensive Fusillade: Strike Team in Engagement Range shoots pulse rifles (now Pistol) at the engaged unit; not offered for a unit that already shot |
+| TAU-020 | TAU-5 | Rapid Repositioning: offered at own Shooting phase end; Strike Team gets a D6 Normal move (rolled), Stealth/Ghostkeel get 6" with no roll |
+| TAU-021 | TAU-5 | Rapid Repositioning: the moved unit cannot declare a charge that turn; not offered to a unit in Engagement Range |
+| TAU-022 | TAU-5 | Laser-Marked Targets: after an enemy declares a charge vs the Strike Team, the Strike Team shoots before the charge roll, hitting only on unmodified 6 |
+| TAU-023 | TAU-5 | Laser-Marked Targets: the charger's Charge roll is reduced by 2 (2D6 = 9 → 7) for that phase; a second charger is unaffected |
+| TAU-024 | TAU-5 | Laser-Marked Targets: charger destroyed by the shooting → no charge roll, no move |
+| TAU-025 | TAU-5 | Laser-Marked Targets refused for a unit that fired Overwatch earlier this turn; after it, Fire Overwatch is refused for that unit this turn |
+| TAU-026 | TAU-5 | Laser-Marked Targets not offered for a unit that is not a target of the declared charge, nor in own turn |
+| TAU-027 | TAU-6.1 | Coordinated Leadership: own Command phase end D6 4 → +1 CP; 3 → no CP; a second CP gain in the same round is capped |
+| TAU-028 | TAU-6.2 | Aun'Shar moves up to 10" and over a model (FLY) |
+| TAU-029 | TAU-6.3 | Volley Fire: led Strike Team pulse rifle A 2 (A 3 at half range with Rapid Fire 1); Fireblade rifle A 2; without the leader A 1 |
+| TAU-030 | TAU-6.4 | Cover Fire: Strike Team on a controlled marker fires Overwatch → hits on unmodified 4+, crits only on 6; off the marker → 6s only |
+| TAU-031 | TAU-6.4 | Cover Fire does not apply to Laser-Marked Targets shooting (still 6s only) |
+| TAU-032 | TAU-6.5 | DS8: Strike Team Remained Stationary → support turret missile system offered in that Shooting phase and in Overwatch during the opponent's turn |
+| TAU-033 | TAU-6.5 | DS8: Strike Team moved (Normal/Advance) → turret absent from weapon choices; next own Movement it moves → turret gone again |
+| TAU-034 | TAU-6.5 | support turret: Indirect Fire vs a non-visible target (−1 hit, unmodified 1–3 fail) and Twin-linked wound re-roll |
+| TAU-035 | TAU-6.7 | Forward Observers: Stealth as Observer → Guided Strike Team re-rolls wound rolls of 1 vs the Spotted unit only |
+| TAU-036 | TAU-6.8 | Ghostkeel Falls Back and can still shoot; Stealth unit Falls Back → cannot shoot at all |
+| TAU-037 | TAU-6.9 | Ghostkeel at 4 W → −1 to hit; destroyed → Deadly Demise D3 on a 6 |
+| TAU-038 | TAU-6 | weapons: fusion blaster Melta 2 at ≤6" adds 2 damage; overcharge cyclic ion raker triggers a Hazardous test; pulse pistol only weapon usable in Engagement Range without Fusillade |
+| TAU-039 | TAU-6 | Infiltrators: Stealth Battlesuits and Ghostkeel may deploy anywhere >9" from the enemy DZ and enemy models |
+| TAU-040 | TAU-6 | Stealth: ranged attacks vs Stealth Battlesuits/Ghostkeel are −1 to hit; Lone Operative Ghostkeel cannot be targeted from beyond 12" |
+
+## GEN — Genestealer Cults: Hand of the Magus (docs/spec/factions/genestealer-cults.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| GEN-001 | GEN-1 | patrol loads: 6 units, 32 models; Magus is WARLORD with Psionic Shield, attached to `neophytes-a`; default secondary Rise Up; Rockgrinder has 1 model |
+| GEN-002 | GEN-2.1 | Neophytes destroyed → D6 +3 always ≥ 4: unit enters the pool and a marker-placement chooseOption is raised for its owner |
+| GEN-003 | GEN-2.1 | Acolytes destroyed with D6 = 3 → no pool entry, no marker decision; D6 = 4 → pool + decision |
+| GEN-004 | GEN-2.1 | Aberrants and Rockgrinder destroyed → no Cult Ambush roll at all |
+| GEN-005 | GEN-2.7 | every offered marker point is >9" from all enemy models and wholly on the board; with enemies covering the board → no decision, unit still in pool |
+| GEN-006 | GEN-2.2 | enemy unit ends a Normal move with a model 8.9" from a marker → marker removed; ending at 9.1" → kept |
+| GEN-007 | GEN-2.2 | marker removed by an enemy charge move, pile-in and consolidate; own units moving near it never remove it |
+| GEN-008 | GEN-2.3 | opponent's next Movement phase, after their reinforcements: return offered per marker; unit returns at full model count, full wounds, original loadouts, one model touching the marker, all >9" from enemies; marker gone |
+| GEN-009 | GEN-2.3 | placement with no model touching the marker is rejected (`mustTouch`) |
+| GEN-010 | GEN-2.3 | owner declines → marker and pool entry persist; usable at the following opponent Movement phase (GEN-2.4) |
+| GEN-011 | GEN-2.3 | return is not offered in the owner's own Movement phase |
+| GEN-012 | GEN-2.4 | two markers, one pool unit → only one return; pool unit may use a marker created by a different unit |
+| GEN-013 | GEN-2.5 | Magus leading Neophytes; whole unit destroyed → only the 10 Neophytes return, unled; Magus stays destroyed |
+| GEN-014 | GEN-2.5 | returned copy destroyed again → opponent's destroyed-unit counts rise twice; copy rolls Cult Ambush again |
+| GEN-015 | GEN-2.5 | returned Acolytes whose demolition charges were already fired cannot fire them again; charges not yet fired are still available (One Shot state carried over) |
+| GEN-016 | GEN-2.6 | round 4 opponent Movement phase: no return offered even with markers and pool units |
+| GEN-017 | GEN-2.6 | unit destroyed in round 4 → roll emitted, no marker decision |
+| GEN-018 | GEN-3 | Psionic Shield: Magus-led Neophytes (Sv 5+) save an AP 0 ranged attack on 4+ and an AP −1 one on 5+; melee attacks unchanged (5+ / 6+); Magus alone → no bonus |
+| GEN-019 | GEN-3 | Resonance Stave: stave vs INFANTRY critical wounds on 5+; a critical wound becomes mortal wounds (Devastating Wounds); vs VEHICLE wounds normally |
+| GEN-020 | GEN-4 | Rise Up: end of opponent's round-1 turn → no roll; round 2 with 2 controlled markers holding Neophytes → 2 D6 rolled, VP = Σ(1 on 1–3, 3 on 4+) |
+| GEN-021 | GEN-4 | Rise Up: marker held only by Acolytes, or by Battle-shocked Neophytes → no roll for it; end of own turn → no scoring |
+| GEN-022 | GEN-4 | Will of the Patriarch: Magus base edge 2.9" from centre at battle end → +15 VP; 3.2" or destroyed → 0 |
+| GEN-023 | GEN-5 | Defend the Magus: offered at start of own Shooting only if an enemy is in ER of the MAGUS unit; Neophyte hit roll of 1 vs that enemy re-rolled, wound 1 re-rolled; vs another enemy no re-roll |
+| GEN-024 | GEN-5 | Defend the Magus at start of the opponent's Fight phase works; gone at phase end; persists if the Magus dies mid-phase |
+| GEN-025 | GEN-5 | Lurking Killers: offered after enemy targets declared vs own Acolytes; attacks against them −1 to hit until phase end, including from a second enemy unit |
+| GEN-026 | GEN-5 | Lurking Killers not offered for Aberrants or the Rockgrinder |
+| GEN-027 | GEN-5 | Return to the Shadows: enemy ends a Normal move 8" from Neophytes → offered; D6 rolled; Normal move up to that distance; not offered if enemy only Remained Stationary or unit is in ER |
+| GEN-028 | GEN-5 | Return to the Shadows on Magus-led unit → flat 6", no roll |
+| GEN-029 | GEN-6.1 | Spiritual Leader: led unit gets FNP 5+ vs Smite (PSYCHIC) damage; none vs a bolter; Magus alone → none |
+| GEN-030 | GEN-6.2 | Vile Insurrectionists: hit 1s re-rolled always; wound 1s re-rolled only when the target is within range of an objective marker |
+| GEN-031 | GEN-6.2 | Vile Insurrectionists applies to a leading Magus's attacks |
+| GEN-032 | GEN-6.3 | demolition charges usable once per battle and trigger Hazardous; Rockgrinder cache can fire every turn |
+| GEN-033 | GEN-6.4 | Hypermorph fights with heavy improvised weapon (5 A) plus tail (1 A) |
+| GEN-034 | GEN-6.5 | Rockgrinder at 3 W: −1 to hit; at 4 W: none; destroyed → Deadly Demise D3 on a 6 |
+| GEN-035 | GEN-6.7 | Deep Strike: Magus, Neophytes, Acolytes may start in Reserves; Aberrants and Rockgrinder may not |
+| GEN-036 | GEN-6.9 | Rockgrinder offers no embark option to any unit |
+| GEN-037 | GEN-6 | weapons: webber auto-hits D6 with Devastating Wounds; seismic cannon Heavy +1 to hit when stationary and Rapid Fire 2 at ≤12"; clearance incinerator Torrent Ignores Cover |
+
+## CUS — Adeptus Custodes: Guardians of the Throne (docs/spec/factions/adeptus-custodes.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| CUS-001 | CUS-1 | patrol loads (default): 4 units, 15 models; Tyvan is WARLORD with Auramite Thunderbolt, attached to the Guard; default secondary Guardian of the Realm |
+| CUS-002 | CUS-1.1, 1.2 | `unitChoices:{escort:'praetors'}` → 4 units, 12 models, no Guard unit exists, Tyvan unattached |
+| CUS-003 | CUS-1.4, 6.1 | Guard wargear as built: vexilla model has only a misericordia (never selectable to shoot); shield models start at 4 W, spear models at 3; Tyvan starts at 7 W |
+| CUS-004 | CUS-2.1 | at the start of each Fight phase (both turns) the Custodes player gets a mandatory Dacatarai/Rendax choice; no choice when no Ka'tah unit is on the battlefield |
+| CUS-005 | CUS-2.2 | Dacatarai: Guard spear critical hit → 1 extra hit; Prosecutors' and Vigilators' melee unaffected; ranged weapons unaffected |
+| CUS-006 | CUS-2.3 | Rendax: Praetor lance critical hit auto-wounds; effect gone after the phase ends |
+| CUS-007 | CUS-2.4 | attached Tyvan + Guard: Tyvan's sentinel blade also gains the stance |
+| CUS-008 | CUS-3.1 | Auramite Thunderbolt: failed charge of Tyvan's unit is re-rolled; a passing charge offers an optional re-roll; Advance roll of the unit offers a re-roll; other units get none |
+| CUS-009 | CUS-3.2 | Blade of the Vaults: bearer's critical wound with sentinel blade (AP −2) → resolved at AP −3; non-critical wound stays −2; a Guard model's critical wound is unchanged |
+| CUS-010 | CUS-4.1 | Guardian of the Realm: Tyvan kills a model whose unit started the phase off every marker → +1 VP at phase end; started within range of a marker → +2; two kills in one phase → still 2 max |
+| CUS-011 | CUS-4.1 | Guardian of the Realm: kill by a Guard model of Tyvan's attached unit → 0; kill in the opponent's Fight phase scores; a victim unit that arrived by Deep Strike this phase counts as not in range |
+| CUS-012 | CUS-4.2 | Drive the Talons Deep: round 2+, end of opponent's turn, a non-shocked Custodes unit wholly in the enemy zone → +3; one model straddling the edge → 0; round 1 → 0; end of own turn → 0; Battle-shocked unit → 0 |
+| CUS-013 | CUS-4.2 | Necron Reclaim and Dominate still filters on NECRONS after the keyword param change |
+| CUS-014 | CUS-5.1 | Gilded Spear: offered only just after an enemy attack destroys Tyvan (any phase, incl. Overwatch); afterwards Custodes ranged attacks against that enemy unit have Sustained Hits 1 for the rest of the battle; against other units, and in melee, no change |
+| CUS-015 | CUS-5.1 | Gilded Spear: not offered when Tyvan is destroyed outside an enemy attack (e.g. mortal wounds from an enemy ability, own Hazardous) or when a non-Captain model dies; enemy attached unit marked → both halves stay marked after the leader dies |
+| CUS-016 | CUS-5.2 | Inescapable Vengeance (2 CP): own Command phase, target unit OC +1 (Guard 3, Prosecutors 3); persists through the opponent's turn; gone at the start of the owner's next turn; Battle-shocked unit not targetable |
+| CUS-017 | CUS-5.3 | Overawing Magnificence: enemy falls back from Custodes INFANTRY unit → offered; unit makes a normal move up to 6" and must end outside Engagement Range |
+| CUS-018 | CUS-5.3 | Overawing Magnificence not offered: unit still in Engagement Range of another enemy; unit was not engaged with the mover at phase start; enemy made a normal move; Vertus Praetors (not INFANTRY); own turn |
+| CUS-019 | CUS-6.2 | Stand Vigil: wound roll of 1 re-rolled; on a controlled marker a failed 3 may be re-rolled too; on an uncontrolled / contested marker only 1s; attached Tyvan's attacks also benefit |
+| CUS-020 | CUS-6.3 | Purity of Execution: boltgun vs PSYKER unit → Precision (may allocate to a CHARACTER) and Devastating Wounds (crit wound → mortal wounds); vs non-PSYKER → neither; melee unaffected |
+| CUS-021 | CUS-6.4 | Deft Parry: melee attacks against Vigilators −1 to hit; ranged attacks unchanged; combined with another −1 still capped at −1 |
+| CUS-022 | CUS-6 | weapons: executioner greatblade Anti-PSYKER 4+ (wound roll 4 vs PSYKER is critical → Devastating Wounds); interceptor lance +1 to wound on the charge; hurricane bolter Rapid Fire 3 + Twin-linked at half range; sentinel blade Pistol usable in Engagement Range |
+| CUS-023 | CUS-6 | Deep Strike: Tyvan, Guard may start in Reserves; Praetors, Prosecutors, Vigilators may not |
+| CUS-024 | E2 | weapon-ability queries without an attack context are unchanged (Champion Duellist, Veil of Time, Epic Challenge regression) |

@@ -1,35 +1,35 @@
 {
   "ruin-corner": {
     "size": [
-      1.0,
+      1,
       1.3611,
       0.7598
     ]
   },
   "ruin-facade": {
     "size": [
-      1.0,
+      1,
       1.2455,
       0.6983
     ]
   },
   "ruin-small": {
     "size": [
-      1.0,
+      1,
       1.3473,
       0.5808
     ]
   },
   "ruin-tall": {
     "size": [
-      1.0,
+      1,
       2.2276,
       0.7822
     ]
   },
   "barricade": {
     "size": [
-      1.0,
+      1,
       0.1704,
       0.5398
     ]
@@ -38,21 +38,70 @@
     "size": [
       0.9072,
       0.1347,
-      1.0
+      1
     ]
   },
   "bunker-a": {
     "size": [
-      0.6075,
-      0.3499,
-      1.0
+      0.999,
+      0.6887,
+      0.579
     ]
   },
   "bunker-b": {
     "size": [
-      0.6598,
-      0.3916,
-      1.0
+      1.0003,
+      0.5758,
+      0.5364
     ]
+  },
+  "ruin-citadel-corner-1": {
+    "size": [
+      0.9916,
+      0.9118,
+      1.0018
+    ],
+    "shape": "corner"
+  },
+  "ruin-citadel-corner-3": {
+    "size": [
+      0.9987,
+      0.9744,
+      0.8952
+    ],
+    "shape": "corner",
+    "cornerTurns": 1
+  },
+  "ruin-citadel-corner-4": {
+    "size": [
+      1.0004,
+      0.8095,
+      0.6489
+    ],
+    "shape": "corner"
+  },
+  "ruin-citadel-wall-1": {
+    "size": [
+      0.9997,
+      0.6519,
+      0.3892
+    ],
+    "shape": "rect"
+  },
+  "ruin-citadel-wall-2": {
+    "size": [
+      0.9998,
+      0.9131,
+      0.3338
+    ],
+    "shape": "rect"
+  },
+  "ruin-citadel-wall-3": {
+    "size": [
+      1.0016,
+      0.8084,
+      0.3323
+    ],
+    "shape": "rect"
   }
 }

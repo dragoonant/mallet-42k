@@ -308,7 +308,7 @@ export interface AttackSequenceState {
   targets: DeclaredTarget[]
   groups: AttackGroup[]
   current: CurrentAttack | null
-  mortalQueue: { targetUnitId: UnitId; count: number; source: string; lostOnDeath: boolean }[]
+  mortalQueue: { targetUnitId: UnitId; count: number; source: string; lostOnDeath: boolean; by?: { player: PlayerId; unitId: UnitId; modelId: ModelId } }[]
   hazardousPending: WeaponId[]
   targetUnitIds: UnitId[]
 }
@@ -393,6 +393,8 @@ export interface MoveConstraints {
   region: Polygon | null
   minDistanceFromEnemies: number
   coherency: boolean
+  // Cult Ambush (GEN-2.3): at least one placed model's base must touch (edge distance <= 0.05") this circle
+  mustTouch?: { pos: Vec3; radius: number } | null
 }
 
 export interface DecisionBase {
@@ -537,6 +539,10 @@ export interface PlayerSetup {
   battleReadyVp: number
   // E5 Patrol Squads: patrol unit refs to split into their `patrolSquads` parts at Declare Battle Formations
   splitUnits?: string[]
+  // E1 unit choice (Grey Knights Terminators / Dreadknight): group id -> chosen unit ref; an omitted group takes its default.
+  // createGame throws EngineInvariantError for an unknown group id or a ref not in the group. Unchosen refs are never
+  // created; attachments naming them are dropped.
+  unitChoices?: Record<string, string>
 }
 
 export interface GameSetup {

@@ -59,7 +59,7 @@ export interface TargetsDeclaredHookContext extends HookContextBase { hook: 'onT
 export interface AttacksAllocatedHookContext extends HookContextBase { hook: 'onAttacksAllocated'; attack: AttackContext }
 export interface AttackCountHookContext extends HookContextBase { hook: 'onAttackCount'; attack: AttackContext; attacks: number }
 // mortal: set only for onFeelNoPainRoll — true when the point being saved is a mortal wound (Condition.mortalWound)
-export interface AttackRollHookContext extends HookContextBase { hook: 'onHitRoll' | 'onWoundRoll' | 'onSaveRoll' | 'onDamageRoll' | 'onFeelNoPainRoll'; attack: AttackContext; roll: RollContext; mortal?: boolean }
+export interface AttackRollHookContext extends HookContextBase { hook: 'onHitRoll' | 'onWoundRoll' | 'onSaveRoll' | 'onDamageRoll' | 'onFeelNoPainRoll'; attack: AttackContext; roll: RollContext; mortal?: boolean; psychicSource?: boolean }
 export interface DamageHookContext extends HookContextBase { hook: 'onDamage'; attack: AttackContext | null; targetUnitId: UnitId; targetModelId: ModelId; damage: number; mortal: boolean }
 export interface DestroyedHookContext extends HookContextBase { hook: 'onModelDestroyed' | 'onUnitDestroyed'; destroyedUnitId: UnitId; destroyedModelId: ModelId | null; byUnitId: UnitId | null; byModelId: ModelId | null; kind: AttackKind | 'mortal' | 'other' }
 export interface DeploymentHookContext extends HookContextBase { hook: 'onDeployment' | 'onReinforcements'; deployingUnitId: UnitId }

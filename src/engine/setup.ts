@@ -1,12 +1,13 @@
 // Pre-battle sequence (10-rules §13): phase 'setup' (P4 sides) and phase 'deployment' (P6 deploy, P7 first turn, P8 Scouts).
 // Owner: W1-F.
-import { basesOverlap, checkPlacements, emptyMoveConstraints, whollyWithinPolygon, type Footprint, type ResolvedPlacement } from './geometry'
+import { basesOverlap, checkPlacements, emptyMoveConstraints, growConvexPolygon, horizontalGap, whollyWithinPolygon, type Footprint, type ResolvedPlacement } from './geometry'
 import type { EngineContext, PhaseModule } from './modules'
 import { otherPlayer } from './modules'
+import { deployTerrainBlock } from './terrain'
 import { assignSides, boardModelsOf, deploymentZone, hasCoreAbility, unitModels, setModelPos } from './state'
 import type { Action, DeployUnitAction, ModelPlacement } from './actions'
 import type {
-  DeployUnitDecision, GameState, Model, MoveConstraints, PendingDecision, PlayerId, Polygon, Rejection, Unit, UnitId,
+  DeployUnitDecision, GameState, Model, MoveConstraints, PendingDecision, PlayerId, Polygon, Rejection, Unit, UnitId, Vec3,
 } from './types'
 
 // R-1.4: each player rolls 1D6, higher wins, ties re-roll; never modified or re-rolled
@@ -46,16 +47,13 @@ function comboInfiltrates(state: GameState, unit: Unit): boolean {
 }
 
 // an Infiltrators unit may instead be set up anywhere wholly on the battlefield more than 9" horizontally from the enemy
-// deployment zone and from every enemy model (R-10.7). The zone is grown by 9" as a bounding rectangle (exact for the
-// rectangular Combat Patrol zones); minDistanceFromEnemies covers the models.
+// deployment zone and from every enemy model (R-10.7). The forbidden area is the enemy zone grown by 9" (exact offset of the
+// convex zone, so the triangular cp-04 wedges work too); minDistanceFromEnemies covers the models.
 function infiltratorConstraints(state: GameState, player: PlayerId): MoveConstraints {
   const dz = deploymentZone(state, otherPlayer(player))
-  const r = 9 + 1e-3
-  const xs = dz.map((p) => p.x), zs = dz.map((p) => p.z)
-  const x0 = Math.min(...xs) - r, x1 = Math.max(...xs) + r, z0 = Math.min(...zs) - r, z1 = Math.max(...zs) + r
   return emptyMoveConstraints(1e9, {
     region: null, mustEndOutsideEngagement: false, minDistanceFromEnemies: 9,
-    forbidden: [[{ x: x0, z: z0 }, { x: x1, z: z0 }, { x: x1, z: z1 }, { x: x0, z: z1 }]],
+    forbidden: [growConvexPolygon(dz, 9 + 1e-3)],
   })
 }
 
@@ -178,6 +176,10 @@ function resolveDeploy(
     if (!alt.rejection) result = alt
   }
   if (result.rejection) return { rejection: result.rejection }
+  for (const r of result.resolved) {
+    const blocked = deployTerrainBlock(state, r.model, r.to, r.facing)
+    if (blocked) return { rejection: { code: 'E_OVERLAP', reason: `${r.model.id} ${blocked}`, details: { modelId: r.model.id } } }
+  }
   return { rejection: null, toReserves: false, resolved: result.resolved }
 }
 
@@ -193,7 +195,11 @@ export function deployFacing(zone: Polygon): number {
 // a simple, always-legal placement for `unitId`'s models wholly within `zone` and clear of everything already placed —
 // used by legalActions() so a generic Decider (AI, autoplay tests) can drive deployUnit without solving placement
 // itself; returns null only if the zone genuinely has no room left (raster scan of its bounding box)
-export function autoDeployPlacements(models: Model[], zone: Polygon, otherFriendly: Model[], enemies: Model[]): ModelPlacement[] | null {
+export function autoDeployPlacements(
+  models: Model[], zone: Polygon, otherFriendly: Model[], enemies: Model[],
+  opts: { mustTouch?: MoveConstraints['mustTouch']; minDistanceFromEnemies?: number; canPlace?: (model: Model, pos: Vec3, facing?: number) => boolean } = {},
+): ModelPlacement[] | null {
+  if (opts.mustTouch) return touchingPlacements(models, zone, otherFriendly, enemies, opts.mustTouch, opts.minDistanceFromEnemies ?? 0, opts.canPlace)
   const facing = deployFacing(zone)
   // a small inward safety pad keeps candidates well clear of the zone/board edge, avoiding floating-point boundary
   // ambiguity in pointInPolygon (exact edge points are not reliably "inside" under ray-casting)
@@ -204,21 +210,73 @@ export function autoDeployPlacements(models: Model[], zone: Polygon, otherFriend
   const out: ModelPlacement[] = []
   for (const m of models) {
     const step = Math.max(0.5, m.base.radius * 2 + 0.1)
-    let found: { x: number; z: number } | null = null
-    for (let z = minZ + m.base.radius; z <= maxZ - m.base.radius + 1e-9 && !found; z += step) {
-      for (let x = minX + m.base.radius; x <= maxX - m.base.radius + 1e-9 && !found; x += step) {
-        const cand: Footprint = { pos: { x, y: 0, z }, facing, base: m.base }
-        if (!whollyWithinPolygon(cand, zone)) continue
-        if (placedHere.some((o) => basesOverlap(cand, o)) || otherFriendly.some((o) => basesOverlap(cand, o)) || enemies.some((o) => basesOverlap(cand, o))) continue
-        found = { x, z }
+    let found: { x: number; z: number; facing: number } | null = null
+    // an oval base is narrower than its long radius: scan with the short radius and also try it turned a quarter, whollyWithinPolygon
+    // below decides the fit (a 150x90 mm Rockgrinder does not fit a 5" deep zone broadside but does lengthways)
+    const rScan = Math.min(m.base.radius, m.base.radius2 ?? m.base.radius)
+    const facings = m.base.radius2 !== undefined ? [facing, facing + Math.PI / 2] : [facing]
+    const stepZ = m.base.radius2 !== undefined ? 0.5 : step // a coarse row step would skip the gap beside a packed row of smaller models
+    for (const f of facings) {
+      for (let z = minZ + rScan; z <= maxZ - rScan + 1e-9 && !found; z += stepZ) {
+        for (let x = minX + rScan; x <= maxX - rScan + 1e-9 && !found; x += step) {
+          const cand: Footprint = { pos: { x, y: 0, z }, facing: f, base: m.base }
+          if (!whollyWithinPolygon(cand, zone)) continue
+          if (placedHere.some((o) => basesOverlap(cand, o)) || otherFriendly.some((o) => basesOverlap(cand, o)) || enemies.some((o) => basesOverlap(cand, o))) continue
+          if (opts.canPlace && !opts.canPlace(m, cand.pos, f)) continue
+          found = { x, z, facing: f }
+        }
       }
+      if (found) break
     }
     if (!found) return null
-    const footprint: Footprint = { pos: { x: found.x, y: 0, z: found.z }, facing, base: m.base }
+    const footprint: Footprint = { pos: { x: found.x, y: 0, z: found.z }, facing: found.facing, base: m.base }
     placedHere.push(footprint)
-    out.push({ modelId: m.id, pos: footprint.pos, facing })
+    out.push({ modelId: m.id, pos: footprint.pos, facing: found.facing })
   }
   return out
+}
+
+// Cult Ambush (GEN-2.3) placement: the first model sits tangent to the marker (tried at 24 angles), the rest grow into a
+// compact blob around it, nearest the marker first (so coherency holds); every spot is wholly in `zone`, clear of everything
+// placed and more than `minEnemy`" from enemy models. null = no angle works.
+function touchingPlacements(
+  models: Model[], zone: Polygon, otherFriendly: Model[], enemies: Model[], marker: NonNullable<MoveConstraints['mustTouch']>, minEnemy: number,
+  canPlace?: (model: Model, pos: Vec3) => boolean,
+): ModelPlacement[] | null {
+  if (models.length === 0) return null
+  const facing = deployFacing(zone)
+  const blockers: Footprint[] = [...otherFriendly, ...enemies]
+  const rOf = (m: Model): number => Math.max(m.base.radius, m.base.radius2 ?? 0)
+  const free = (c: Footprint, mine: Footprint[], m: Model): boolean =>
+    whollyWithinPolygon(c, zone) && !mine.some((o) => basesOverlap(c, o)) && !blockers.some((o) => basesOverlap(c, o))
+    && (!canPlace || canPlace(m, c.pos)) && (minEnemy <= 0 || !enemies.some((e) => horizontalGap(c, e) <= minEnemy + 1e-3))
+  const dist2 = (a: { x: number; z: number }): number => Math.hypot(a.x - marker.pos.x, a.z - marker.pos.z)
+  for (let k = 0; k < 24; k++) {
+    const a0 = (k * 2 * Math.PI) / 24
+    const d0 = marker.radius + rOf(models[0]) + 0.02
+    const first: Footprint = { pos: { x: marker.pos.x + Math.cos(a0) * d0, y: 0, z: marker.pos.z + Math.sin(a0) * d0 }, facing, base: models[0].base }
+    if (!free(first, [], models[0])) continue
+    const mine: Footprint[] = [first]
+    let ok = true
+    for (let i = 1; i < models.length && ok; i++) {
+      let best: Footprint | null = null
+      let bestD = Infinity
+      for (const anchor of mine) {
+        const ar = Math.max(anchor.base.radius, anchor.base.radius2 ?? 0)
+        const dd = ar + rOf(models[i]) + 0.05
+        for (let a = 0; a < 24; a++) {
+          const ang = (a * 2 * Math.PI) / 24
+          const cand: Footprint = { pos: { x: anchor.pos.x + Math.cos(ang) * dd, y: 0, z: anchor.pos.z + Math.sin(ang) * dd }, facing, base: models[i].base }
+          const d = dist2(cand.pos)
+          if (d < bestD && free(cand, mine, models[i])) { best = cand; bestD = d }
+        }
+      }
+      if (!best) ok = false
+      else mine.push(best)
+    }
+    if (ok) return models.map((m, i) => ({ modelId: m.id, pos: mine[i].pos, facing }))
+  }
+  return null
 }
 
 // last-resort placement search for crowded or shallow zones: start each model chain at a fine grid spot, then grow the unit
@@ -226,21 +284,23 @@ export function autoDeployPlacements(models: Model[], zone: Polygon, otherFriend
 // Returns the first chain the caller's check accepts (the caller runs the real validation: coherency, overlaps, region).
 export function chainDeployPlacements(
   models: Model[], zone: Polygon, otherFriendly: Model[], enemies: Model[], accept: (p: ModelPlacement[]) => boolean,
+  canPlace?: (model: Model, pos: Vec3, facing?: number) => boolean,
 ): ModelPlacement[] | null {
   if (models.length === 0) return null
   const facing = deployFacing(zone)
   const xs = zone.map((p) => p.x), zs = zone.map((p) => p.z)
   const minX = Math.min(...xs), maxX = Math.max(...xs), minZ = Math.min(...zs), maxZ = Math.max(...zs)
   const blockers: Footprint[] = [...otherFriendly, ...enemies]
-  const free = (c: Footprint, mine: Footprint[]): boolean =>
+  const free = (c: Footprint, mine: Footprint[], m: Model): boolean =>
     whollyWithinPolygon(c, zone) && !mine.some((o) => basesOverlap(c, o)) && !blockers.some((o) => basesOverlap(c, o))
+    && (!canPlace || canPlace(m, c.pos, c.facing))
   const rOf = (m: Model): number => Math.max(m.base.radius, m.base.radius2 ?? 0)
   const angles: number[] = []
   for (let a = 0; a < 360; a += 10) angles.push((a * Math.PI) / 180)
   for (let z = minZ; z <= maxZ + 1e-9; z += 0.5) {
     for (let x = minX; x <= maxX + 1e-9; x += 0.5) {
       const first: Footprint = { pos: { x, y: 0, z }, facing, base: models[0].base }
-      if (!free(first, [])) continue
+      if (!free(first, [], models[0])) continue
       const mine: Footprint[] = [first]
       let ok = true
       for (let i = 1; i < models.length && ok; i++) {
@@ -253,7 +313,7 @@ export function chainDeployPlacements(
             const dist = anchorR + rOf(models[i]) + extra
             for (const a of angles) {
               const cand: Footprint = { pos: { x: anchor.pos.x + Math.cos(a) * dist, y: 0, z: anchor.pos.z + Math.sin(a) * dist }, facing, base: models[i].base }
-              if (free(cand, mine)) { placed = cand; break }
+              if (free(cand, mine, models[i])) { placed = cand; break }
             }
             if (placed) break
           }
@@ -412,40 +472,55 @@ export const setupModule: PhaseModule = {
 
   legalActions(state, pending) {
     if (pending.kind === 'deployUnit') {
-      const unitId = pending.context.unitIds[0]
-      if (!unitId) return []
-      const models = comboModels(state, state.units[unitId])
-      const zone = pending.constraints.region ?? deploymentZone(state, pending.player)
-      const mk = (placements: ModelPlacement[]): DeployUnitAction => ({ type: 'deployUnit', player: pending.player, decisionId: pending.id, unitId, placements })
-      const placements = autoDeployPlacements(models, zone, boardModelsOf(state, pending.player), boardModelsOf(state, otherPlayer(pending.player)))
-      if (placements) {
-        const action = mk(placements)
-        if (resolveDeploy(state, action, pending).rejection === null) return [action]
-      }
-      // W1-G: the raster scan can wrap a unit across a row gap left by earlier drops (out of coherency) — fall back to
-      // a compact square block slid across the zone, accepting the first one the real validation accepts
-      if (models.length === 0) return comboCanDeepStrike(state, state.units[unitId]) ? [{ ...mk([]), toReserves: true }] : []
-      const rad = Math.max(...models.map((m) => Math.max(m.base.radius, m.base.radius2 ?? 0)))
-      const spacing = 2 * rad + 0.2
-      const minX = Math.min(...zone.map((p) => p.x)), maxX = Math.max(...zone.map((p) => p.x))
-      const minZ = Math.min(...zone.map((p) => p.z)), maxZ = Math.max(...zone.map((p) => p.z))
-      const facing = deployFacing(zone)
-      // M10: a square block is too deep for a 5" zone once the unit is 11 models (Overlord + 10 Warriors); widen the block
-      // (more columns, fewer rows) until the real validation accepts one
-      for (let cols = Math.ceil(Math.sqrt(models.length)); cols <= models.length; cols++) {
-        for (let z0 = minZ + rad + 0.1; z0 < maxZ; z0 += 1) {
-          for (let x0 = minX + rad + 0.1; x0 < maxX; x0 += 1) {
-            const action = mk(models.map((m, i) => ({ modelId: m.id, pos: { x: x0 + (i % cols) * spacing, y: 0, z: z0 + Math.floor(i / cols) * spacing }, facing })))
-            if (resolveDeploy(state, action, pending).rejection === null) return [action]
+      // a placement for one unit, or [] if it has no room left anywhere in the zone
+      const tryUnit = (unitId: UnitId): Action[] => {
+        const models = comboModels(state, state.units[unitId])
+        const zone = pending.constraints.region ?? deploymentZone(state, pending.player)
+        const mk = (placements: ModelPlacement[]): DeployUnitAction => ({ type: 'deployUnit', player: pending.player, decisionId: pending.id, unitId, placements })
+        const canPlace = (m: Model, pos: Vec3, f?: number): boolean => deployTerrainBlock(state, m, pos, f ?? m.facing) === null
+        const placements = autoDeployPlacements(models, zone, boardModelsOf(state, pending.player), boardModelsOf(state, otherPlayer(pending.player)), { canPlace })
+        if (placements) {
+          const action = mk(placements)
+          if (resolveDeploy(state, action, pending).rejection === null) return [action]
+        }
+        // W1-G: the raster scan can wrap a unit across a row gap left by earlier drops (out of coherency) — fall back to
+        // a compact square block slid across the zone, accepting the first one the real validation accepts
+        if (models.length === 0) return comboCanDeepStrike(state, state.units[unitId]) ? [{ ...mk([]), toReserves: true }] : []
+        const rad = Math.max(...models.map((m) => Math.max(m.base.radius, m.base.radius2 ?? 0)))
+        const spacing = 2 * rad + 0.2
+        const minX = Math.min(...zone.map((p) => p.x)), maxX = Math.max(...zone.map((p) => p.x))
+        const minZ = Math.min(...zone.map((p) => p.z)), maxZ = Math.max(...zone.map((p) => p.z))
+        const facing = deployFacing(zone)
+        // M10: a square block is too deep for a 5" zone once the unit is 11 models (Overlord + 10 Warriors); widen the block
+        // (more columns, fewer rows) until the real validation accepts one
+        for (let cols = Math.ceil(Math.sqrt(models.length)); cols <= models.length; cols++) {
+          for (let z0 = minZ + rad + 0.1; z0 < maxZ; z0 += 1) {
+            for (let x0 = minX + rad + 0.1; x0 < maxX; x0 += 1) {
+              const action = mk(models.map((m, i) => ({ modelId: m.id, pos: { x: x0 + (i % cols) * spacing, y: 0, z: z0 + Math.floor(i / cols) * spacing }, facing })))
+              if (resolveDeploy(state, action, pending).rejection === null) return [action]
+            }
           }
         }
+        // shallow or crowded zone: grow the unit model-by-model from fine-grid starts (lines, zig-zags, diagonals)
+        const chained = chainDeployPlacements(models, zone, boardModelsOf(state, pending.player), boardModelsOf(state, otherPlayer(pending.player)),
+          (p) => resolveDeploy(state, mk(p), pending).rejection === null, canPlace)
+        if (chained) return [mk(chained)]
+        // truly no room on the board: a Deep Strike unit may be held in Reserves instead
+        if (comboCanDeepStrike(state, state.units[unitId])) return [{ ...mk([]), toReserves: true }]
+        return []
       }
-      // shallow or crowded zone: grow the unit model-by-model from fine-grid starts (lines, zig-zags, diagonals)
-      const chained = chainDeployPlacements(models, zone, boardModelsOf(state, pending.player), boardModelsOf(state, otherPlayer(pending.player)),
-        (p) => resolveDeploy(state, mk(p), pending).rejection === null)
-      if (chained) return [mk(chained)]
-      // truly no room on the board: a Deep Strike unit may be held in Reserves instead
-      if (comboCanDeepStrike(state, state.units[unitId])) return [{ ...mk([]), toReserves: true }]
+      // hardest-to-fit first (biggest base, then most models): a large army that drops its infantry first can leave a
+      // vehicle or a long oval base with no gap big enough later. Offer the first unit that actually fits.
+      const ids = pending.context.unitIds.filter((id) => state.units[id] && !(state.units[id].bodyguardUnitId && pending.context.unitIds.length > 1))
+      const size = (id: UnitId): [number, number] => {
+        const ms = comboModels(state, state.units[id])
+        return [Math.max(0, ...ms.map((m) => Math.max(m.base.radius, m.base.radius2 ?? 0))), ms.length]
+      }
+      ids.sort((a, b) => { const [ra, na] = size(a), [rb, nb] = size(b); return rb - ra || nb - na })
+      for (const id of ids) {
+        const found = tryUnit(id)
+        if (found.length > 0) return found
+      }
       return []
     }
     if (pending.kind === 'moveUnit') {

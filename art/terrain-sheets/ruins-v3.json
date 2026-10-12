@@ -1,0 +1,66 @@
+{
+  "ruin-citadel-corner-1": {
+    "size": [
+      0.9916,
+      0.9118,
+      1.0018
+    ],
+    "shape": "corner"
+  },
+  "ruin-citadel-corner-2": {
+    "size": [
+      0.9995,
+      0.9514,
+      0.8808
+    ],
+    "shape": "corner"
+  },
+  "ruin-citadel-corner-3": {
+    "size": [
+      0.9987,
+      0.9744,
+      0.8952
+    ],
+    "shape": "corner"
+  },
+  "ruin-citadel-corner-4": {
+    "size": [
+      1.0004,
+      0.8095,
+      0.6489
+    ],
+    "shape": "corner"
+  },
+  "ruin-citadel-wall-1": {
+    "size": [
+      0.9997,
+      0.6519,
+      0.3892
+    ],
+    "shape": "rect"
+  },
+  "ruin-citadel-wall-2": {
+    "size": [
+      0.9998,
+      0.9131,
+      0.3338
+    ],
+    "shape": "rect"
+  },
+  "ruin-citadel-wall-3": {
+    "size": [
+      1.0016,
+      0.8084,
+      0.3323
+    ],
+    "shape": "rect"
+  },
+  "ruin-citadel-wall-4": {
+    "size": [
+      0.9954,
+      0.6771,
+      0.5999
+    ],
+    "shape": "rect"
+  }
+}

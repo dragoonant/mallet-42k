@@ -361,6 +361,9 @@
         "mortalWound": {
           "type": "boolean"
         },
+        "sourcePsychic": {
+          "type": "boolean"
+        },
         "roll": {
           "$ref": "#/$defs/RangeBound"
         },
