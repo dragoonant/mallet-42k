@@ -8,6 +8,7 @@ import { Box3, CanvasTexture, Color, Group, MeshStandardMaterial, Vector3, type 
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { ENABLED_RUIN_MODELS } from './ruinModels.config'
 import type { RuinCatalogEntry } from './ruinFit'
+import { LEGACY_TERRAIN_SLUGS, NEW_TERRAIN_SLUGS } from './terrainCatalog'
 
 type RuinSlug = string
 type ManifestEntry = { size?: number[]; shape?: string; cornerTurns?: number }
@@ -106,6 +107,11 @@ function unifyMaterial(mat: MeshStandardMaterial) {
   mat.needsUpdate = true
 }
 
+const isEnabledSlug = (slug: string): boolean =>
+  (ENABLED_RUIN_MODELS as readonly string[]).includes(slug) ||
+  LEGACY_TERRAIN_SLUGS.includes(slug) ||
+  Object.values(NEW_TERRAIN_SLUGS).some((l) => l.includes(slug))
+
 const validSize = (s: unknown): s is Size3 =>
   Array.isArray(s) && s.length === 3 && s.every((n) => typeof n === 'number' && Number.isFinite(n) && n > 0)
 
@@ -115,7 +121,9 @@ function request(slug: RuinSlug): Entry {
   e = { status: 'loading' }
   cache.set(slug, e)
   const entry = e
-  if (!(ENABLED_RUIN_MODELS as readonly string[]).includes(slug)) {
+  // A slug is drawable when ruinModels.config lists it or it is declared in a terrainCatalog variant pool
+  // (so adding a variant slug there is the only edit needed).
+  if (!isEnabledSlug(slug)) {
     entry.status = 'failed'
     return entry
   }
@@ -186,6 +194,30 @@ export function useRuinModel(slug: RuinSlug | undefined): RuinModelState {
   const model = useMemo(() => (root && size ? { object: root.clone(true), size } : null), [root, size])
   if (!slug || !entry || entry.status === 'failed') return { status: 'failed' }
   return model ? { status: 'ready', model } : { status: 'pending' }
+}
+
+/** Like useRuinModel for a fixed list of slugs (e.g. a variant pool): one subscription, one state per slug. */
+export function useRuinModelSet(slugs: readonly RuinSlug[]): RuinModelState[] {
+  const invalidate = useThree((s) => s.invalidate)
+  const gl = useThree((s) => s.gl)
+  const [, setTick] = useState(0)
+  const key = slugs.join('|')
+  const entries = slugs.map((slug) => request(slug))
+  useEffect(() => {
+    const l = () => {
+      setTick((n) => n + 1)
+      gl.shadowMap.needsUpdate = true
+      invalidate()
+    }
+    listeners.add(l)
+    return () => {
+      listeners.delete(l)
+    }
+  }, [key, gl, invalidate])
+  const ready = entries.map((e) => (e.status === 'ready' ? e.root : undefined))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const models = useMemo(() => entries.map((e) => (e.status === 'ready' && e.root && e.size ? { object: e.root.clone(true), size: e.size } : null)), [key, ...ready])
+  return entries.map((e, i): RuinModelState => (e.status === 'failed' ? { status: 'failed' } : models[i] ? { status: 'ready', model: models[i]! } : { status: 'pending' }))
 }
 
 let catalogCache: RuinCatalogEntry[] | null = null

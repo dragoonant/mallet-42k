@@ -127,7 +127,7 @@ export function Scene() {
       <CameraRig topDown={topDown} focusTarget={focusTarget} viewFromFar={viewFromFar} />
 
       <Board deploymentZones={zones} attacker={attacker} onBoardPointer={onBoardPointer} />
-      <Terrain pieces={terrainPieces} />
+      <Terrain pieces={terrainPieces} seed={state.seed} />
       <Objectives />
 
       <CultAmbushMarkers />

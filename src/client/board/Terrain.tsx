@@ -4,10 +4,11 @@ import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import type { FloorData, TerrainPieceData, WallData } from '@/data/types'
 import { extrudedPolygonGeometry, polygonBoundingRadius, polygonCentroid, seededUnit, segmentTransform } from './geometry'
-import { fittedScale, idVariant, polygonBounds, simpleTurns, type Bounds } from './ruinFit'
-import { useRuinModel, type RuinModel, type RuinModelState } from './ruinModels'
+import { fittedScale, polygonBounds, simpleTurns, type Bounds } from './ruinFit'
+import { useRuinModel, useRuinModelSet, type RuinModel, type RuinModelState } from './ruinModels'
 import { planPillars, planWallPanels, panelScale, slabPool, wallBoxes, type KitModel, type KitPanel } from './ruinKit'
-import { CRATER_FLOOR_MAX_HEIGHT, ENGINE_DEFAULT_WALL_THICKNESS, RUIN_KIT_FLOOR_THICKNESS, RUIN_KIT_WALL_SLUGS, glbVisualHeight } from './terrainCatalog'
+import { CRATER_FLOOR_MAX_HEIGHT, ENGINE_DEFAULT_WALL_THICKNESS, RUIN_KIT_FLOOR_THICKNESS, glbVisualHeight, variantPool } from './terrainCatalog'
+import { planTerrainVariants, resolveTerrainSeed, seedUnit, type PieceVariant } from './terrainVariants'
 import { DECAL_MARGIN, floorSlabGeometry, ruinDecalTexture, rubbleGeometry, rubbleMaterial, scatterRubble, slabConcreteTexture } from './ruinDressing'
 import {
   BARRIER_MODEL_URL,
@@ -69,34 +70,37 @@ const CRATER_RIM_MAX_HEIGHT = 1.3
 
 export interface TerrainProps {
   pieces: TerrainPieceData[]
+  /** The game's seed: terrain variants are dealt from it so a replay / the other player sees the same board. */
+  seed?: string
 }
 
 /** Terrain meshes generated from a terrain layout's pieces (src/data/terrain). Wrapped in Suspense
  *  so streaming in textures/models (see terrainAssets.ts) never blanks the rest of the scene. */
-export function Terrain({ pieces }: TerrainProps) {
+export function Terrain({ pieces, seed = '' }: TerrainProps) {
+  const variants = useMemo(() => planTerrainVariants(pieces, resolveTerrainSeed(seed)), [pieces, seed])
   return (
     <Suspense fallback={null}>
       <group>
         {pieces.map((piece) => (
-          <group key={piece.id} userData={{ terrainId: piece.id }}><TerrainPiece piece={piece} /></group>
+          <group key={piece.id} userData={{ terrainId: piece.id }}><TerrainPiece piece={piece} variant={variants.get(piece.id)!} /></group>
         ))}
       </group>
     </Suspense>
   )
 }
 
-function TerrainPiece({ piece }: { piece: TerrainPieceData }) {
+function TerrainPiece({ piece, variant }: { piece: TerrainPieceData; variant: PieceVariant }) {
   const colors = PALETTE[piece.kind] ?? PALETTE.wall
 
   switch (piece.kind) {
     case 'ruin':
-      return <RuinPiece piece={piece} />
+      return <RuinPiece piece={piece} variant={variant} />
     case 'barricade':
-      return <BarricadePiece piece={piece} colors={colors} />
+      return <BarricadePiece piece={piece} colors={colors} variant={variant} />
     case 'crate':
-      return <CratePiece piece={piece} />
+      return <CratePiece piece={piece} variant={variant} />
     case 'crater':
-      return <CraterPiece piece={piece} />
+      return <CraterPiece piece={piece} variant={variant} />
     default:
       return <BlockPiece piece={piece} colors={colors} />
   }
@@ -176,13 +180,13 @@ function useOccluderFade(group: React.RefObject<THREE.Group | null>, centre: { x
   })
 }
 
-function RuinPiece({ piece }: { piece: TerrainPieceData }) {
+function RuinPiece({ piece, variant }: { piece: TerrainPieceData; variant: PieceVariant }) {
   const floors = piece.floors ?? []
   const walls = piece.walls ?? []
   const bounds = useMemo(() => polygonBounds(piece.footprint), [piece.footprint])
-  // The ruin kit's wall-section models (fixed list, so the hook order is stable).
-  const states: RuinModelState[] = [useRuinModel(RUIN_KIT_WALL_SLUGS[0]), useRuinModel(RUIN_KIT_WALL_SLUGS[1])]
-  const ready = RUIN_KIT_WALL_SLUGS.flatMap((slug, i) => {
+  // The ruin kit's wall-section models: the whole variant pool, loaded together.
+  const states: RuinModelState[] = useRuinModelSet(variantPool('ruinWall'))
+  const ready = variantPool('ruinWall').flatMap((slug, i) => {
     const st = states[i]
     return st.status === 'ready' ? [{ slug, model: st.model }] : []
   })
@@ -197,10 +201,10 @@ function RuinPiece({ piece }: { piece: TerrainPieceData }) {
   const kit = pool.length > 0 && walls.length > 0
   return (
     <group>
-      <RuinGround id={piece.id} footprint={piece.footprint} bounds={bounds} walls={walls} floors={floors} />
+      <RuinGround id={piece.id} dress={variant.dress} footprint={piece.footprint} bounds={bounds} walls={walls} floors={floors} />
       <group ref={group} userData={waiting ? undefined : { fittedModel: true }}>
         {kit ? (
-          <RuinKit pieceId={piece.id} walls={walls} pool={pool} models={ready} />
+          <RuinKit pieceId={piece.id} dress={variant.dress} walls={walls} pool={pool} models={ready} />
         ) : !waiting ? (
           walls.map((wall, i) => <RuinWall key={i} seed={`${piece.id}-${i}`} wall={wall} />)
         ) : null}
@@ -215,14 +219,14 @@ function RuinPiece({ piece }: { piece: TerrainPieceData }) {
 
 /** The ruin kit: every data wall as panels cut from wall-section GLBs (stretched to the wall's exact length x height x
  *  thickness), plus a pillar where walls meet. Floors are drawn by the caller. */
-function RuinKit({ pieceId, walls, pool, models }: { pieceId: string; walls: WallData[]; pool: KitModel[]; models: { slug: string; model: RuinModel }[] }) {
+function RuinKit({ pieceId, dress, walls, pool, models }: { pieceId: string; dress: string; walls: WallData[]; pool: KitModel[]; models: { slug: string; model: RuinModel }[] }) {
   const bySlug = useMemo(() => new Map(models.map((m) => [m.slug, m.model])), [models])
-  const pillars = useMemo(() => planPillars(pieceId, walls), [pieceId, walls])
+  const pillars = useMemo(() => planPillars(dress, walls), [dress, walls])
   const slabMap = useMemo(() => slabConcreteTexture(), [])
   return (
     <group>
       {walls.map((wall, i) => (
-        <KitWall key={i} pieceId={pieceId} index={i} wall={wall} pool={pool} bySlug={bySlug} />
+        <KitWall key={i} pieceId={pieceId} dress={dress} index={i} wall={wall} pool={pool} bySlug={bySlug} />
       ))}
       {pillars.map((p, i) => (
         <mesh key={i} position={[p.x, p.height / 2, p.z]} castShadow receiveShadow>
@@ -234,9 +238,9 @@ function RuinKit({ pieceId, walls, pool, models }: { pieceId: string; walls: Wal
   )
 }
 
-function KitWall({ pieceId, index, wall, pool, bySlug }: { pieceId: string; index: number; wall: WallData; pool: KitModel[]; bySlug: Map<string, RuinModel> }) {
+function KitWall({ pieceId, dress, index, wall, pool, bySlug }: { pieceId: string; dress: string; index: number; wall: WallData; pool: KitModel[]; bySlug: Map<string, RuinModel> }) {
   const { mid, rotationY } = segmentTransform(wall.a, wall.b)
-  const panels = useMemo(() => planWallPanels(pieceId, index, wall, pool), [pieceId, index, wall, pool])
+  const panels = useMemo(() => planWallPanels(pieceId, index, wall, pool, dress), [pieceId, dress, index, wall, pool])
   return (
     <group position={[mid.x, 0, mid.z]} rotation={[0, rotationY, 0]}>
       {panels.map((p, i) => (
@@ -257,9 +261,9 @@ function KitPanelMesh({ panel, model }: { panel: KitPanel; model: RuinModel }) {
 
 /** Dust/stain decal under and around the footprint plus scattered low rubble, so the ruin sits on the
  *  mat instead of floating on it. Decal never writes depth; rubble stays under 0.4" and off the walls. */
-function RuinGround({ id, footprint, bounds, walls, floors }: { id: string; footprint: TerrainPieceData['footprint']; bounds: Bounds; walls: WallData[]; floors: FloorData[] }) {
-  const tex = useMemo(() => ruinDecalTexture(id, bounds.w, bounds.d), [id, bounds.w, bounds.d])
-  const chunks = useMemo(() => scatterRubble(id, footprint, bounds, walls, floors), [id, footprint, bounds, walls, floors])
+function RuinGround({ id, dress, footprint, bounds, walls, floors }: { id: string; dress: string; footprint: TerrainPieceData['footprint']; bounds: Bounds; walls: WallData[]; floors: FloorData[] }) {
+  const tex = useMemo(() => ruinDecalTexture(dress, bounds.w, bounds.d), [dress, bounds.w, bounds.d])
+  const chunks = useMemo(() => scatterRubble(dress, footprint, bounds, walls, floors), [dress, footprint, bounds, walls, floors])
   const mesh = useRef<THREE.InstancedMesh>(null)
   const invalidate = useThree((s) => s.invalidate)
   useEffect(() => {
@@ -282,7 +286,7 @@ function RuinGround({ id, footprint, bounds, walls, floors }: { id: string; foot
   }, [chunks, invalidate])
   return (
     <group>
-      <mesh position={[bounds.cx, 0.02, bounds.cz]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={1} userData={{ noFade: true }}>
+      <mesh position={[bounds.cx, 0.02, bounds.cz]} rotation={[-Math.PI / 2, 0, seedUnit(`${dress}:spin`) < 0.5 ? 0 : Math.PI]} renderOrder={1} userData={{ noFade: true }}>
         <planeGeometry args={[bounds.w + DECAL_MARGIN * 2, bounds.d + DECAL_MARGIN * 2]} />
         <meshBasicMaterial map={tex} transparent depthWrite={false} polygonOffset polygonOffsetFactor={-2} polygonOffsetUnits={-2} toneMapped={false} />
       </mesh>
@@ -330,13 +334,13 @@ function UpperFloor({ id, floor, inset = 0 }: { id: string; floor: FloorData; in
   )
 }
 
-function BarricadePiece({ piece, colors }: { piece: TerrainPieceData; colors: { base: string; accent: string } }) {
-  const glb = useRuinModel('barricade')
+function BarricadePiece({ piece, colors, variant }: { piece: TerrainPieceData; colors: { base: string; accent: string }; variant: PieceVariant }) {
+  const glb = useRuinModel(variant.slug)
   const bounds = useMemo(() => polygonBounds(piece.footprint), [piece.footprint])
   const walls = piece.walls
   if (glb.status === 'pending') return null
   if (glb.status === 'ready') {
-    return <FittedModel model={glb.model} bounds={bounds} height={piece.height} turns={simpleTurns(glb.model.size, bounds)} />
+    return <FittedModel model={glb.model} bounds={bounds} height={piece.height} turns={simpleTurns(glb.model.size, bounds) + (variant.flip ? 2 : 0)} />
   }
   if (!walls || walls.length === 0) {
     return <BlockPiece piece={piece} colors={colors} />
@@ -389,16 +393,15 @@ function BarrierSegment({ wall }: { wall: WallData }) {
   )
 }
 
-/** Crates are low concrete bunkers (bunker-a / bunker-b by id parity). The GLB's flat roof tops out
+/** Crates are low concrete bunkers (a slug from the crate variant pool). The GLB's flat roof tops out
  *  at piece.height, which is the standable floor height, so NO separate roof slab is drawn for it
  *  (nothing to z-fight or poke through). Missing/failed GLB -> procedural grey crate with its lid. */
-function CratePiece({ piece }: { piece: TerrainPieceData }) {
-  const slug = idVariant(piece.id) % 2 === 0 ? 'bunker-a' : 'bunker-b'
-  const glb = useRuinModel(slug)
+function CratePiece({ piece, variant }: { piece: TerrainPieceData; variant: PieceVariant }) {
+  const glb = useRuinModel(variant.slug)
   const bounds = useMemo(() => polygonBounds(piece.footprint), [piece.footprint])
   if (glb.status === 'pending') return null
   if (glb.status === 'ready') {
-    return <FittedModel model={glb.model} bounds={bounds} height={piece.height} turns={simpleTurns(glb.model.size, bounds)} />
+    return <FittedModel model={glb.model} bounds={bounds} height={piece.height} turns={simpleTurns(glb.model.size, bounds) + (variant.flip ? 2 : 0)} />
   }
   return <ProceduralCrate piece={piece} />
 }
@@ -459,12 +462,12 @@ interface CraterRock { object: THREE.Object3D; x: number; z: number; rotY: numbe
  *  its floor, ringed by taller rocks sitting on the footprint edge (long side along the rim, only ~0.4in deep) so the
  *  pile reads as a raised lip without covering ground a base may stand on. Visual only — cover/LoS read the data's
  *  own height via the engine's terrain service. */
-function CraterPiece({ piece }: { piece: TerrainPieceData }) {
+function CraterPiece({ piece, variant }: { piece: TerrainPieceData; variant: PieceVariant }) {
   const center = useMemo(() => polygonCentroid(piece.footprint), [piece.footprint])
   const radius = useMemo(() => polygonBoundingRadius(piece.footprint, center), [piece.footprint, center])
   const scorchGeometry = useMemo(() => extrudedPolygonGeometry(piece.footprint, CRATER_SCORCH_HEIGHT), [piece.footprint])
   // The decorative scorch decal is replaced by the flat blast-crater GLB when it is available.
-  const craterGlb = useRuinModel('crater')
+  const craterGlb = useRuinModel(variant.slug)
   const craterBounds = useMemo(() => polygonBounds(piece.footprint), [piece.footprint])
 
   // Fixed-length tuple (ROCK_MODEL_URLS never changes at runtime), so calling useGLTF once per
@@ -499,18 +502,18 @@ function CraterPiece({ piece }: { piece: TerrainPieceData }) {
     }
     // Loose stones on the crater floor.
     for (let i = 0; i < CRATER_DEBRIS_COUNT; i++) {
-      const seed = `${piece.id}-debris-${i}`
+      const seed = `${variant.dress}-debris-${i}`
       const a = (i / CRATER_DEBRIS_COUNT) * Math.PI * 2 + seededUnit(`${seed}-a`) * 0.9
       const d = radius * (0.2 + 0.5 * seededUnit(`${seed}-d`))
       const w = 0.35 + 0.25 * seededUnit(`${seed}-w`)
       add(seed, center.x + Math.cos(a) * d, center.z + Math.sin(a) * d, seededUnit(`${seed}-r`) * Math.PI * 2, w, w * (0.7 + 0.3 * seededUnit(`${seed}-q`)), CRATER_FLOOR_MAX_HEIGHT - 0.02)
     }
     // Rim rocks: long side tangent to the edge, shallow in the radial direction.
-    const count = CRATER_RIM_ROCK_MIN + Math.floor(seededUnit(`${piece.id}-count`) * (CRATER_RIM_ROCK_MAX - CRATER_RIM_ROCK_MIN + 1))
+    const count = CRATER_RIM_ROCK_MIN + Math.floor(seededUnit(`${variant.dress}-count`) * (CRATER_RIM_ROCK_MAX - CRATER_RIM_ROCK_MIN + 1))
     const rimR = radius + CRATER_RIM_OFFSET
-    const start = seededUnit(`${piece.id}-rim-start`) * Math.PI * 2
+    const start = seededUnit(`${variant.dress}-rim-start`) * Math.PI * 2
     for (let i = 0; i < count; i++) {
-      const seed = `${piece.id}-rim-${i}`
+      const seed = `${variant.dress}-rim-${i}`
       const a = start + (i / count) * Math.PI * 2 + (seededUnit(`${seed}-a`) - 0.5) * 0.12
       const length = ((2 * Math.PI * rimR) / count) * (1.0 + 0.2 * seededUnit(`${seed}-l`))
       const height = CRATER_RIM_MIN_HEIGHT + (CRATER_RIM_MAX_HEIGHT - CRATER_RIM_MIN_HEIGHT) * seededUnit(`${seed}-h`)
@@ -518,7 +521,7 @@ function CraterPiece({ piece }: { piece: TerrainPieceData }) {
       add(seed, center.x + Math.cos(a) * rimR, center.z + Math.sin(a) * rimR, tangentYaw + (seededUnit(`${seed}-f`) < 0.5 ? 0 : Math.PI), length, CRATER_RIM_THICKNESS, height)
     }
     return out
-  }, [piece.id, center, radius, rockScenes])
+  }, [variant.dress, center, radius, rockScenes])
 
   return (
     <group>
@@ -527,7 +530,7 @@ function CraterPiece({ piece }: { piece: TerrainPieceData }) {
           model={craterGlb.model}
           bounds={craterBounds}
           height={glbVisualHeight('crater', piece.height)}
-          turns={simpleTurns(craterGlb.model.size, craterBounds)}
+          turns={simpleTurns(craterGlb.model.size, craterBounds) + (variant.flip ? 2 : 0)}
         />
       ) : (
         <mesh position={[0, 0.001, 0]} geometry={scorchGeometry}>

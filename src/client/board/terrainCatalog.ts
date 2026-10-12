@@ -15,10 +15,55 @@ import type { TerrainPieceData } from '@/data/types'
 
 export type VisualSource = 'kit' | 'glb' | 'procedural'
 
+// ---- VARIANT POOLS -------------------------------------------------------------------------------------------------
+// Each visual family has a pool of GLB slugs; terrainVariants.ts deals them out per board from the game seed so two
+// pieces of one kind differ when the pool has enough entries. TO ADD A VARIANT: append its slug to the matching list in
+// NEW_TERRAIN_SLUGS below (that is the only edit; the model must have a manifest.json entry in public/assets/terrain/ruins,
+// and tests/client/terrainCatalog.test.ts then checks its fit automatically).
+export type VariantKind = 'ruinWall' | 'crate' | 'barricade' | 'crater'
+
+/** LEGACY: the original models. While INCLUDE_LEGACY_TERRAIN_SLUGS is true they stay in the pools. */
+const LEGACY_BY_KIND: Record<VariantKind, readonly string[]> = {
+  ruinWall: ['ruin-citadel-wall-1', 'ruin-citadel-wall-3'],
+  crate: ['bunker-a', 'bunker-b'],
+  barricade: ['barricade'],
+  crater: ['crater'],
+}
+export const LEGACY_TERRAIN_SLUGS: readonly string[] = Object.values(LEGACY_BY_KIND).flat()
+/** Single switch: set to false once NEW_TERRAIN_SLUGS has entries and the legacy models should drop out of every pool
+ *  (a kind with no new slug keeps its legacy ones so it never ends up empty). Files are kept either way. */
+export const INCLUDE_LEGACY_TERRAIN_SLUGS = true
+
+/** New variant slugs per kind (empty until the new art lands). */
+export const NEW_TERRAIN_SLUGS: Record<VariantKind, readonly string[]> = {
+  ruinWall: [],
+  crate: [],
+  barricade: [],
+  crater: [],
+}
+
+/** Every slug declared for a kind, legacy included (what the fit tests must cover). */
+function declared(kind: VariantKind): readonly string[] {
+  return [...LEGACY_BY_KIND[kind], ...NEW_TERRAIN_SLUGS[kind]]
+}
+export const declaredPool = declared
+
+/** The slugs the board may actually draw for a kind (legacy filtered out when the switch is off). */
+export function variantPool(kind: VariantKind): readonly string[] {
+  if (INCLUDE_LEGACY_TERRAIN_SLUGS) return declared(kind)
+  const fresh = NEW_TERRAIN_SLUGS[kind]
+  return fresh.length ? fresh : LEGACY_BY_KIND[kind]
+}
+
+/** Terrain kind -> variant family (kinds without a pool are procedural). */
+export const VARIANT_KIND_OF: Partial<Record<TerrainPieceData['kind'], VariantKind>> = {
+  ruin: 'ruinWall', crate: 'crate', barricade: 'barricade', crater: 'crater',
+}
+
 /** GLBs the ruin kit may cut wall panels from; only the slab-like ones (thin in depth, see RUIN_KIT_MAX_DEPTH_RATIO) are used.
  *  ruin-citadel-wall-2 is a plain sci-fi bulkhead (a blank slab from the front) and ruin-facade is thick, so both are left out:
  *  the gothic window wall (1) and the broken arch wall (3) read as citadel ruins. */
-export const RUIN_KIT_WALL_SLUGS = ['ruin-citadel-wall-1', 'ruin-citadel-wall-3'] as const
+export const RUIN_KIT_WALL_SLUGS: readonly string[] = declared('ruinWall')
 /** A model counts as slab-like when depth / length is at most this. */
 export const RUIN_KIT_MAX_DEPTH_RATIO = 0.45
 /** Panel depth = wall thickness + this (0.1in of surface relief each side; the tolerance is 0.15in each side). */
@@ -38,10 +83,10 @@ export interface CatalogEntry {
 }
 
 export const TERRAIN_CATALOG: Record<TerrainPieceData['kind'], CatalogEntry> = {
-  ruin: { source: 'kit', slugs: RUIN_KIT_WALL_SLUGS, fitsFootprint: false },
-  crate: { source: 'glb', slugs: ['bunker-a', 'bunker-b'], fitsFootprint: true },
-  barricade: { source: 'glb', slugs: ['barricade'], fitsFootprint: true },
-  crater: { source: 'glb', slugs: ['crater'], fitsFootprint: true },
+  ruin: { source: 'kit', slugs: declaredPool('ruinWall'), fitsFootprint: false },
+  crate: { source: 'glb', slugs: declaredPool('crate'), fitsFootprint: true },
+  barricade: { source: 'glb', slugs: declaredPool('barricade'), fitsFootprint: true },
+  crater: { source: 'glb', slugs: declaredPool('crater'), fitsFootprint: true },
   wall: { source: 'procedural', slugs: [], fitsFootprint: false },
   forest: { source: 'procedural', slugs: [], fitsFootprint: false },
 }

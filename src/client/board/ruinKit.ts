@@ -4,6 +4,7 @@
 // (no three/react) so tests can assert the fit; Terrain.tsx draws it.
 import type { Vec2, WallData } from '@/data/types'
 import { seededUnit } from './geometry'
+import { seedUnit, seededShuffle } from './terrainVariants'
 import { ENGINE_DEFAULT_WALL_THICKNESS, RUIN_KIT_DEPTH_PAD, RUIN_KIT_MAX_DEPTH_RATIO } from './terrainCatalog'
 
 export interface KitModel { slug: string; size: readonly [number, number, number] }
@@ -46,9 +47,13 @@ export interface KitPanel {
 export const wallThickness = (w: WallData): number => w.thickness ?? ENGINE_DEFAULT_WALL_THICKNESS
 export const wallLength = (w: WallData): number => Math.hypot(w.b.x - w.a.x, w.b.z - w.a.z)
 
-/** Panels for one wall; deterministic from piece id + wall index. Panels tile each solid box exactly. */
-export function planWallPanels(pieceId: string, wallIndex: number, wall: WallData, pool: readonly KitModel[]): KitPanel[] {
-  if (!pool.length) return []
+/** Panels for one wall; deterministic from `seed` (the board's per-piece dress seed; defaults to the piece id) + wall
+ *  index. The pool is shuffled per piece and no two neighbouring panels use the same model when the pool has a choice,
+ *  so mirrored ruins differ panel for panel. Panels tile each solid box exactly. */
+export function planWallPanels(pieceId: string, wallIndex: number, wall: WallData, poolIn: readonly KitModel[], seed: string = pieceId): KitPanel[] {
+  if (!poolIn.length) return []
+  const pool = seededShuffle(poolIn, `${seed}-pool`)
+  let prev = -1
   const L = wallLength(wall)
   const depth = wallThickness(wall) + RUIN_KIT_DEPTH_PAD
   const out: KitPanel[] = []
@@ -59,8 +64,11 @@ export function planWallPanels(pieceId: string, wallIndex: number, wall: WallDat
     // about one panel per 1.1 wall-heights of length, so a panel keeps roughly the proportions of its model
     const n = Math.max(1, Math.round(len / (Math.max(wall.height, 1) * 1.1)))
     for (let k = 0; k < n; k++) {
-      const seed = `${pieceId}-w${wallIndex}-b${bi}-p${k}`
-      const model = pool[Math.floor(seededUnit(`${seed}-m`) * pool.length) % pool.length]
+      const pseed = `${seed}-w${wallIndex}-b${bi}-p${k}`
+      let pick = Math.floor(seedUnit(`${pseed}-m`) * pool.length) % pool.length
+      if (pool.length > 1 && pick === prev) pick = (pick + 1) % pool.length
+      prev = pick
+      const model = pool[pick]
       out.push({
         slug: model.slug,
         x: (bx.u0 - 0.5) * L + ((k + 0.5) / n) * len,
@@ -68,7 +76,7 @@ export function planWallPanels(pieceId: string, wallIndex: number, wall: WallDat
         width: len / n,
         height,
         depth,
-        mirror: seededUnit(`${seed}-f`) < 0.5,
+        mirror: seedUnit(`${pseed}-f`) < 0.5,
       })
     }
   })
