@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { RollRequest } from '../types'
 import { Scene, type ActiveRoll } from './Scene'
+import { TOTALS_CSS, TotalsCard } from './Totals'
 
 interface TableResult {
   faces: number[]
@@ -23,9 +24,7 @@ const PRESETS: { label: string; count: number; target: number; name: string }[] 
   { label: 'Big squad 25 on 4+', count: 25, target: 4, name: 'To hit' },
 ]
 
-const FACE_ICON = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅']
-
-const CSS = `
+const CSS = TOTALS_CSS + `
 .dt{display:flex;height:100%;width:100%}
 .dt-panel{width:260px;flex:none;box-sizing:border-box;padding:16px;background:#171a1f;border-right:1px solid #2a2f37;overflow:auto}
 .dt-panel h1{font-size:16px;margin:0 0 12px;letter-spacing:.04em;color:#f2c94c}
@@ -40,88 +39,9 @@ const CSS = `
 .dt-seg .on{background:#3b4452;border-color:#f2c94c}
 .dt-hint{font-size:12px;color:#7d8791;margin-top:10px}
 .dt-stage{position:relative;flex:1;min-width:0}
-.dt-tot{position:absolute;top:14px;right:14px;min-width:270px;max-width:340px;box-sizing:border-box;padding:14px 16px;background:rgba(14,17,21,.88);border:1px solid #333a44;border-radius:10px;backdrop-filter:blur(4px);animation:dtin .25s ease-out}
-@keyframes dtin{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
-.dt-tot h2{margin:0;font-size:14px;color:#c4cbd3;font-weight:600}
-.dt-tot .sub{font-size:12px;color:#8a949f;margin-bottom:6px}
-.dt-big{font-size:42px;font-weight:800;line-height:1.1;color:#f2c94c}
-.dt-big small{font-size:20px;color:#9aa3ad;font-weight:600}
-.dt-big.sum{color:#7df9ff}
-.dt-tally{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin:10px 0 8px;text-align:center}
-.dt-tally div{background:#1c2027;border-radius:6px;padding:3px 0}
-.dt-tally .ic{font-size:26px;line-height:1.1}
-.dt-tally .n{font-size:13px;color:#c4cbd3}
-.dt-tally .win .ic{color:#f2c94c}.dt-tally .lose .ic{color:#6c7580}.dt-tally .ace .ic{color:#e07272}
-.dt-meta{display:flex;gap:16px;font-size:13px;color:#aeb6bf}.dt-meta b{color:#e8e6e1;font-size:15px}
-@media (max-width:760px){.dt{flex-direction:column}.dt-panel{width:auto;border-right:0;border-bottom:1px solid #2a2f37;max-height:42%}.dt-tot{top:auto;bottom:10px;right:10px;left:10px;max-width:none}}
+.dt-stage>.dt-tot{position:absolute;top:14px;right:14px;min-width:270px;max-width:340px}
+@media (max-width:760px){.dt{flex-direction:column}.dt-panel{width:auto;border-right:0;border-bottom:1px solid #2a2f37;max-height:42%}.dt-stage>.dt-tot{top:auto;bottom:10px;right:10px;left:10px;max-width:none}}
 `
-
-function useCountUp(value: number, active: boolean): number {
-  const [v, setV] = useState(0)
-  useEffect(() => {
-    if (!active) {
-      setV(0)
-      return
-    }
-    let raf = 0
-    const t0 = performance.now()
-    const tick = () => {
-      const k = Math.min(1, (performance.now() - t0) / 600)
-      setV(Math.round(value * (1 - Math.pow(1 - k, 3))))
-      if (k < 1) raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [value, active])
-  return v
-}
-
-function Totals({ req, result }: { req: RollRequest; result: TableResult }) {
-  const n = req.dice.length
-  const hasTarget = req.target != null
-  const big = useCountUp(hasTarget ? result.successes : result.sum, true)
-  const sum = useCountUp(result.sum, true)
-  const tally = [1, 2, 3, 4, 5, 6].map((f) => req.dice.filter((d) => d === f).length)
-  return (
-    <div className="dt-tot" data-testid="totals">
-      <h2>{req.label ?? req.purpose}</h2>
-      <div className="sub">
-        {n} {n === 1 ? 'die' : 'dice'}, {hasTarget ? `target ${req.target}+` : 'no target'}
-      </div>
-      {hasTarget ? (
-        <div className="dt-big">
-          {big} <small>successes / {n}</small>
-        </div>
-      ) : (
-        <div className="dt-big sum">
-          {big} <small>total</small>
-        </div>
-      )}
-      <div className="dt-tally">
-        {tally.map((c, i) => {
-          const f = i + 1
-          const cls = hasTarget ? (f === 1 ? 'ace' : f >= (req.target ?? 7) ? 'win' : 'lose') : ''
-          return (
-            <div key={f} className={cls}>
-              <div className="ic">{FACE_ICON[i]}</div>
-              <div className="n">x{c}</div>
-            </div>
-          )
-        })}
-      </div>
-      <div className="dt-meta">
-        <span>
-          Sum <b>{sum}</b>
-        </span>
-        {hasTarget && (
-          <span>
-            Crits (6) <b>{result.crits}</b>
-          </span>
-        )}
-      </div>
-    </div>
-  )
-}
 
 export function DiceTableApp() {
   const [count, setCount] = useState(10)
@@ -263,7 +183,15 @@ export function DiceTableApp() {
       </div>
       <div className="dt-stage">
         <Scene rolls={rolls} onSettled={onSettled} />
-        {shown && <Totals key={shown.result.faces.join('')} req={shown.req} result={shown.result} />}
+        {shown && (
+          <TotalsCard
+            key={shown.result.faces.join('')}
+            title={shown.req.label ?? shown.req.purpose}
+            faces={shown.result.faces}
+            target={shown.req.target}
+            successes={shown.req.target == null ? null : shown.result.successes}
+          />
+        )}
       </div>
     </div>
   )

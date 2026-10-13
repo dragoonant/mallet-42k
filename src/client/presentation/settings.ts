@@ -4,7 +4,7 @@
 // from the director (director.ts) so the director can read the latest value on every event without
 // re-subscribing, and so the settings panel can change it without importing the director.
 import { create } from 'zustand'
-import { setSpeed as setDiceSpeed, type DiceSpeed } from '../dice'
+import { setSpeed as setDiceSpeed, setDiceStyle, type DiceSpeed, type DiceStyle } from '../dice'
 import { audio } from '../audio'
 
 /** Same vocabulary as the dice tray's own speed (src/client/dice/types.ts) — 'instant' skips both
@@ -29,6 +29,8 @@ export type RerollMute = { scope: 'phase'; round: number; phase: string } | { sc
 
 export interface PresentationSettings {
   animSpeed: AnimSpeed
+  /** Dice presentation: the quick 2D tray (default) or slow 3D dice on a table mat. */
+  diceStyle: DiceStyle
   diceOn: boolean
   ambientOn: boolean
   commandRerollSetting: CommandRerollSetting
@@ -39,10 +41,14 @@ export interface PresentationSettings {
 }
 
 const STORAGE_KEY = 'mallet42k:presentation-settings'
-const DEFAULTS: PresentationSettings = { animSpeed: 'normal', diceOn: true, ambientOn: true, commandRerollSetting: 'onlyWhenItMatters', lowGraphics: false, battlefieldAmbience: true }
+const DEFAULTS: PresentationSettings = { animSpeed: 'normal', diceStyle: 'tray', diceOn: true, ambientOn: true, commandRerollSetting: 'onlyWhenItMatters', lowGraphics: false, battlefieldAmbience: true }
 
 function isAnimSpeed(v: unknown): v is AnimSpeed {
   return v === 'normal' || v === 'fast' || v === 'instant'
+}
+
+function isDiceStyle(v: unknown): v is DiceStyle {
+  return v === 'tray' || v === 'table'
 }
 
 function isCommandRerollSetting(v: unknown): v is CommandRerollSetting {
@@ -57,6 +63,7 @@ function load(): PresentationSettings {
     const parsed = JSON.parse(raw) as Partial<PresentationSettings>
     return {
       animSpeed: isAnimSpeed(parsed.animSpeed) ? parsed.animSpeed : DEFAULTS.animSpeed,
+      diceStyle: isDiceStyle(parsed.diceStyle) ? parsed.diceStyle : DEFAULTS.diceStyle,
       diceOn: parsed.diceOn !== false,
       ambientOn: parsed.ambientOn !== false,
       commandRerollSetting: isCommandRerollSetting(parsed.commandRerollSetting) ? parsed.commandRerollSetting : DEFAULTS.commandRerollSetting,
@@ -81,6 +88,7 @@ interface PresentationSettingsStore extends PresentationSettings {
   /** Session-only "stop asking about re-rolls" — see RerollMute. */
   rerollMute: RerollMute
   setAnimSpeed(speed: AnimSpeed): void
+  setDiceStyle(style: DiceStyle): void
   setDiceOn(on: boolean): void
   setAmbientOn(on: boolean): void
   setCommandRerollSetting(setting: CommandRerollSetting): void
@@ -96,33 +104,39 @@ export const usePresentationSettings = create<PresentationSettingsStore>((set, g
   setAnimSpeed(animSpeed) {
     setDiceSpeed(animSpeed)
     set({ animSpeed })
-    persist({ animSpeed, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience: get().battlefieldAmbience })
+    persist({ animSpeed, diceStyle: get().diceStyle, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience: get().battlefieldAmbience })
+  },
+
+  setDiceStyle(diceStyle) {
+    setDiceStyle(diceStyle)
+    set({ diceStyle })
+    persist({ animSpeed: get().animSpeed, diceStyle, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience: get().battlefieldAmbience })
   },
 
   setDiceOn(diceOn) {
     set({ diceOn })
-    persist({ animSpeed: get().animSpeed, diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience: get().battlefieldAmbience })
+    persist({ animSpeed: get().animSpeed, diceStyle: get().diceStyle, diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience: get().battlefieldAmbience })
   },
 
   setAmbientOn(ambientOn) {
     audio.setAmbientEnabled(ambientOn)
     set({ ambientOn })
-    persist({ animSpeed: get().animSpeed, diceOn: get().diceOn, ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience: get().battlefieldAmbience })
+    persist({ animSpeed: get().animSpeed, diceStyle: get().diceStyle, diceOn: get().diceOn, ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience: get().battlefieldAmbience })
   },
 
   setCommandRerollSetting(commandRerollSetting) {
     set({ commandRerollSetting })
-    persist({ animSpeed: get().animSpeed, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience: get().battlefieldAmbience })
+    persist({ animSpeed: get().animSpeed, diceStyle: get().diceStyle, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience: get().battlefieldAmbience })
   },
 
   setLowGraphics(lowGraphics) {
     set({ lowGraphics })
-    persist({ animSpeed: get().animSpeed, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics, battlefieldAmbience: get().battlefieldAmbience })
+    persist({ animSpeed: get().animSpeed, diceStyle: get().diceStyle, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics, battlefieldAmbience: get().battlefieldAmbience })
   },
 
   setBattlefieldAmbience(battlefieldAmbience) {
     set({ battlefieldAmbience })
-    persist({ animSpeed: get().animSpeed, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience })
+    persist({ animSpeed: get().animSpeed, diceStyle: get().diceStyle, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience })
   },
 
   // Not persisted, on purpose — see RerollMute. Pass null to start asking again.
@@ -144,3 +158,12 @@ export function rerollMuteActive(mute: RerollMute, at: { round: number; phase: s
 // before audio.unlock(): AudioManager just remembers the request and honours it once unlocked.
 setDiceSpeed(usePresentationSettings.getState().animSpeed)
 audio.setAmbientEnabled(usePresentationSettings.getState().ambientOn)
+setDiceStyle(usePresentationSettings.getState().diceStyle)
+// ?dice=table (or ?dice=tray) forces a dice style for this session only (not persisted) — for testing.
+if (typeof window !== 'undefined') {
+  const q = new URLSearchParams(window.location.search).get('dice')
+  if (q === 'table' || q === 'tray') {
+    setDiceStyle(q)
+    usePresentationSettings.setState({ diceStyle: q })
+  }
+}

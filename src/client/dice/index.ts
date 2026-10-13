@@ -2,7 +2,8 @@
 // from wherever a roll happens (store glue, an ability handler, a test) to animate it — rolls are
 // queued and play in order, never overlapping. setSpeed() controls tumble/hold duration globally.
 export { DiceTray } from './DiceTray'
-export { playRoll, setSpeed, getSpeed } from './playRoll'
+export { DiceTableOverlay } from './table/DiceTableOverlay'
+export { playRoll, setSpeed, getSpeed, setDiceStyle, getDiceStyle } from './playRoll'
 export { Die } from './Die'
 export { DURATIONS, rerollTrayShown, useDiceStore } from './diceStore'
-export type { DiceSpeed, RollRequest, DieResult } from './types'
+export type { DiceSpeed, DiceStyle, RollRequest, DieResult } from './types'

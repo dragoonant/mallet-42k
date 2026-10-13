@@ -36,6 +36,11 @@ const SPEED_OPTIONS: { key: AnimSpeed; label: string }[] = [
   { key: 'instant', label: 'Instant' },
 ]
 
+const DICE_STYLE_OPTIONS: { key: 'tray' | 'table'; label: string }[] = [
+  { key: 'tray', label: 'Tray (quick)' },
+  { key: 'table', label: 'Table (slow, 3D)' },
+]
+
 const rerollOptionRow: CSSProperties = { ...buttonBase, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%', padding: '6px 8px', gap: 2, textAlign: 'left' }
 const rerollOptionRowActive: CSSProperties = { ...rerollOptionRow, ...buttonActive }
 const rerollOptionLabel: CSSProperties = { fontFamily: fontStack, fontWeight: 600 }
@@ -67,6 +72,8 @@ export function SettingsPanel() {
   const { settings, setVolume, setMuted } = useAudioSettings(audio)
   const animSpeed = usePresentationSettings((s) => s.animSpeed)
   const diceOn = usePresentationSettings((s) => s.diceOn)
+  const diceStyle = usePresentationSettings((s) => s.diceStyle)
+  const setDiceStyle = usePresentationSettings((s) => s.setDiceStyle)
   const ambientOn = usePresentationSettings((s) => s.ambientOn)
   const commandRerollSetting = usePresentationSettings((s) => s.commandRerollSetting)
   const lowGraphics = usePresentationSettings((s) => s.lowGraphics)
@@ -116,6 +123,21 @@ export function SettingsPanel() {
               style={animSpeed === opt.key ? speedBtnActive : speedBtn}
               onClick={() => setAnimSpeed(opt.key)}
               data-testid={`settings-speed-${opt.key}`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <div style={mutedText}>Dice rolls</div>
+        <div style={speedRow}>
+          {DICE_STYLE_OPTIONS.map((opt) => (
+            <button
+              key={opt.key}
+              style={diceStyle === opt.key ? speedBtnActive : speedBtn}
+              onClick={() => setDiceStyle(opt.key)}
+              data-testid={`settings-dice-style-${opt.key}`}
             >
               {opt.label}
             </button>

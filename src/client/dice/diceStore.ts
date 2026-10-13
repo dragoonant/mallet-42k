@@ -3,7 +3,7 @@
 // store (module-level, like src/client/ui/uiStore.ts) so playRoll() can push work from anywhere —
 // store glue, a test, a future "reroll" button — without needing a React context.
 import { create } from 'zustand'
-import type { DiceSpeed, DieResult, RollRequest } from './types'
+import type { DiceSpeed, DiceStyle, DieResult, RollRequest } from './types'
 
 export interface QueuedRoll {
   id: string
@@ -20,6 +20,7 @@ export interface CurrentRoll {
 
 interface DiceStoreState {
   speed: DiceSpeed
+  style: DiceStyle
   queue: QueuedRoll[]
   current: CurrentRoll | null
 }
@@ -30,6 +31,24 @@ export const DURATIONS: Record<DiceSpeed, { tumbleMs: number; holdMs: number; fl
   normal: { tumbleMs: 520, holdMs: 480, flipMs: 260 },
   fast: { tumbleMs: 170, holdMs: 160, flipMs: 110 },
   instant: { tumbleMs: 0, holdMs: 0, flipMs: 0 },
+}
+
+/** Timings for the 3D table style (slower than the tray so players can follow the dice and read the
+ *  values). `throwMs` is how long each die's scripted throw lasts; the roll counts as tumbling for a
+ *  further 400ms while the last die settles, then totals stay up for `holdMs`. */
+export const TABLE_DURATIONS: Record<Exclude<DiceSpeed, 'instant'>, { throwMs: number; holdMs: number }> = {
+  normal: { throwMs: 2800, holdMs: 2500 },
+  fast: { throwMs: 1400, holdMs: 1200 },
+}
+/** Pause before the re-thrown dice leave the hand, and settle time after they land (skipTumble rolls). */
+export const TABLE_RETHROW_LEAD_MS = 400
+export const TABLE_SETTLE_MS = 400
+/** A re-throw of only the rerolled dice is a shorter throw than a full roll. */
+export const TABLE_RETHROW_FACTOR = 0.75
+
+/** True when rolls should be shown on the 3D table (style chosen and speed isn't instant). */
+export function isTableActive(style: DiceStyle, speed: DiceSpeed): boolean {
+  return style === 'table' && speed !== 'instant'
 }
 
 /** Roll ids whose dice the player has already seen in the interactive re-roll tray (ui/RerollTray.tsx), so
@@ -45,6 +64,7 @@ export function nextId(): string {
 
 export const useDiceStore = create<DiceStoreState>(() => ({
   speed: 'normal',
+  style: 'tray',
   queue: [],
   current: null,
 }))
@@ -63,6 +83,12 @@ export function computeResults(req: RollRequest): DieResult[] {
   })
 }
 
+let endHold: (() => void) | null = null
+/** End the current roll's post-tumble hold early (table style: click / Space). No-op while tumbling. */
+export function skipHold(): void {
+  endHold?.()
+}
+
 /** Advance the queue: if nothing is currently playing and something is waiting, start it and
  *  schedule its tumble -> settle -> resolve/advance timers. Safe to call redundantly. */
 export function kick(): void {
@@ -70,14 +96,25 @@ export function kick(): void {
   if (s.current || s.queue.length === 0) return
   const [next, ...rest] = s.queue
   const { tumbleMs: speedTumbleMs, holdMs: baseHoldMs } = DURATIONS[s.speed]
-  const tumbleMs = next.request.skipTumble ? 0 : speedTumbleMs
   const dice = computeResults(next.request)
+  const table = isTableActive(s.style, s.speed)
+  let tumbleMs = next.request.skipTumble ? 0 : speedTumbleMs
   // A grouped whole-squad window stays up a little longer so the result can be read (+1/12 per die, capped).
-  const holdMs = baseHoldMs === 0 ? 0 : baseHoldMs + Math.round((baseHoldMs / 12) * Math.min(dice.length - 1, 15))
+  let holdMs = baseHoldMs === 0 ? 0 : baseHoldMs + Math.round((baseHoldMs / 12) * Math.min(dice.length - 1, 15))
+  if (table) {
+    const t = TABLE_DURATIONS[s.speed as 'normal' | 'fast']
+    holdMs = t.holdMs
+    if (!next.request.skipTumble) tumbleMs = t.throwMs + TABLE_SETTLE_MS
+    else if (dice.some((d) => d.wasRerolled)) tumbleMs = TABLE_RETHROW_LEAD_MS + Math.round(t.throwMs * TABLE_RETHROW_FACTOR) + TABLE_SETTLE_MS
+  }
   const startPhase: CurrentRoll['phase'] = tumbleMs === 0 ? 'settled' : 'tumbling'
   useDiceStore.setState({ queue: rest, current: { id: next.id, request: next.request, dice, phase: startPhase } })
 
+  let finished = false
   const finish = () => {
+    if (finished) return
+    finished = true
+    endHold = null
     const st = useDiceStore.getState()
     if (st.current?.id === next.id) useDiceStore.setState({ current: null })
     next.resolve()
@@ -88,7 +125,13 @@ export function kick(): void {
       st.current?.id === next.id ? { current: { ...st.current, phase: 'settled' } } : {},
     )
     if (holdMs === 0) finish()
-    else setTimeout(finish, holdMs)
+    else {
+      const t = setTimeout(finish, holdMs)
+      endHold = () => {
+        clearTimeout(t)
+        finish()
+      }
+    }
   }
   if (tumbleMs === 0) settle()
   else setTimeout(settle, tumbleMs)

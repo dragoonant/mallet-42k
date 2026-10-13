@@ -9,7 +9,7 @@ import { StartScreen, Hud, UnitCard, DiceLog, EventFeed, Toast, VpToast, PhaseBa
 import { FigureGalleryStage } from './figures'
 import { applyPaintFromUrl } from './figures/paint'
 import type { Pose } from './figures'
-import { DiceTray } from './dice'
+import { DiceTray, DiceTableOverlay } from './dice'
 import { audio } from './audio'
 import { PresentationDirector } from './presentation'
 import { scenarioFromUrl, startScenario } from './dev/scenarios'
@@ -123,6 +123,7 @@ export function App() {
           <DiceTray />
         </div>
         <EventFeed />
+        <DiceTableOverlay />
         <StratagemPanel />
         <DecisionPrompt />
         <Toast />

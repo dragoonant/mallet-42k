@@ -17,6 +17,12 @@ export interface ActiveRoll {
   id: number
   faces: number[]
   target?: number
+  /** Per-die pass/fail (same order as faces); overrides target for highlighting. */
+  pass?: boolean[]
+  /** Re-throw mode: only dice flagged here are thrown at t0; the rest rest settled from the start. */
+  rethrow?: boolean[]
+  /** With rethrow: faces the re-thrown dice were showing before they were picked up. */
+  prevFaces?: number[]
   seed: number
   t0: number // seconds (performance.now()/1000) when thrown
   dur: number // seconds for one die's throw
@@ -57,7 +63,7 @@ const ONE = new Color('#d98a8a')
 const GOLD = new Color('#f2c94c')
 const CRIT = new Color('#7df9ff')
 
-function Die({ plan, roll }: { plan: Plan; roll: ActiveRoll }) {
+function Die({ plan, prev, index, roll }: { plan: Plan; prev?: Plan; index: number; roll: ActiveRoll }) {
   const g = useRef<Group>(null)
   const ring = useRef<Group>(null)
   const body = useMemo(() => new MeshStandardMaterial({ color: BASE, roughness: 0.35, metalness: 0.05 }), [])
@@ -72,9 +78,11 @@ function Die({ plan, roll }: { plan: Plan; roll: ActiveRoll }) {
   const reveal = useRef(0)
   const tmpP = useMemo(() => new Vector3(), [])
   const tmpQ = useMemo(() => new Quaternion(), [])
-  const crit = roll.target != null && plan.value === 6
-  const pass = roll.target != null && plan.value >= roll.target
-  const ace = roll.target != null && plan.value === 1
+  const judged = roll.target != null || roll.pass != null
+  const crit = judged && plan.value === 6
+  const pass = judged && (roll.pass ? roll.pass[index] === true : plan.value >= (roll.target ?? 7))
+  const ace = judged && plan.value === 1
+  const thrown = roll.rethrow ? roll.rethrow[index] === true : true
 
   useEffect(
     () => () => {
@@ -89,13 +97,15 @@ function Die({ plan, roll }: { plan: Plan; roll: ActiveRoll }) {
     const grp = g.current
     if (!grp) return
     const now = performance.now() / 1000
-    const el = now - roll.t0 - plan.delay
+    const el = thrown ? now - roll.t0 - plan.delay : Infinity
     const u = Math.min(1, Math.max(0, el / roll.dur))
-    grp.visible = el >= 0
-    poseAt(plan, u, tmpP, tmpQ)
+    // A die waiting to be re-thrown rests on its old face; once picked up it flies with the new one.
+    const waiting = prev != null && el < 0
+    grp.visible = el >= 0 || waiting
+    poseAt(waiting ? prev : plan, waiting ? 1 : u, tmpP, tmpQ)
     grp.position.copy(tmpP)
     grp.quaternion.copy(tmpQ)
-    if (u >= 1 && roll.target != null) reveal.current = Math.min(1, reveal.current + dt * 4)
+    if (u >= 1 && judged) reveal.current = Math.min(1, reveal.current + dt * 4)
     const r = reveal.current
     const tint = ace ? ONE : pass ? BASE : DIM
     body.color.copy(BASE).lerp(tint, r)
@@ -141,16 +151,21 @@ function Die({ plan, roll }: { plan: Plan; roll: ActiveRoll }) {
 
 function RollDice({ roll }: { roll: ActiveRoll }) {
   const plans = useMemo(() => buildPlans(roll.faces, mulberry32(roll.seed)), [roll])
+  // Same seed + same dice count gives the same slots, so the old faces rest exactly where the new ones land.
+  const prevPlans = useMemo(
+    () => (roll.prevFaces ? buildPlans(roll.prevFaces, mulberry32(roll.seed)) : null),
+    [roll],
+  )
   return (
     <>
       {plans.map((p, i) => (
-        <Die key={i} plan={p} roll={roll} />
+        <Die key={i} plan={p} prev={roll.rethrow?.[i] ? prevPlans?.[i] : undefined} index={i} roll={roll} />
       ))}
     </>
   )
 }
 
-function Felt() {
+function Felt({ overlay }: { overlay: boolean }) {
   const t = 0.1
   const edges: [number, number, number, number][] = [
     [0, TRAY_H / 2, TRAY_W, t],
@@ -160,20 +175,31 @@ function Felt() {
   ]
   return (
     <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[80, 60]} />
-        <meshStandardMaterial color="#183f2f" roughness={1} />
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.004, 0]} receiveShadow>
-        <planeGeometry args={[TRAY_W, TRAY_H]} />
-        <meshStandardMaterial color="#1f5240" roughness={1} />
-      </mesh>
-      {edges.map(([x, z, w, h], i) => (
-        <mesh key={i} rotation={[-Math.PI / 2, 0, 0]} position={[x, 0.008, z]}>
-          <planeGeometry args={[w, h]} />
-          <meshBasicMaterial color="#c9b27a" />
+      {overlay ? (
+        // In the game the panel's CSS supplies the dark felt and its soft edge; this is just the mat the dice land on.
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.004, 0]} receiveShadow>
+          <planeGeometry args={[TRAY_W + 6, TRAY_H + 4]} />
+          <shadowMaterial opacity={0.45} />
         </mesh>
-      ))}
+      ) : (
+        <>
+          <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+            <planeGeometry args={[80, 60]} />
+            <meshStandardMaterial color="#183f2f" roughness={1} />
+          </mesh>
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.004, 0]} receiveShadow>
+            <planeGeometry args={[TRAY_W, TRAY_H]} />
+            <meshStandardMaterial color="#1f5240" roughness={1} />
+          </mesh>
+        </>
+      )}
+      {!overlay &&
+        edges.map(([x, z, w, h], i) => (
+          <mesh key={i} rotation={[-Math.PI / 2, 0, 0]} position={[x, 0.008, z]}>
+            <planeGeometry args={[w, h]} />
+            <meshBasicMaterial color="#c9b27a" />
+          </mesh>
+        ))}
     </group>
   )
 }
@@ -209,10 +235,28 @@ function Watcher({ rolls, onSettled }: { rolls: ActiveRoll[]; onSettled: (id: nu
   return null
 }
 
-export function Scene({ rolls, onSettled }: { rolls: ActiveRoll[]; onSettled: (id: number) => void }) {
+export function Scene({
+  rolls,
+  onSettled,
+  overlay = false,
+  idle = false,
+}: {
+  rolls: ActiveRoll[]
+  onSettled: (id: number) => void
+  /** In-game panel: transparent background, no big felt plane (the panel's CSS is the mat). */
+  overlay?: boolean
+  /** Stop rendering while nothing is on the table. */
+  idle?: boolean
+}) {
   return (
-    <Canvas shadows dpr={[1, 2]} camera={{ fov: 40, near: 0.5, far: 200 }} gl={{ antialias: true }}>
-      <color attach="background" args={['#0e1512']} />
+    <Canvas
+      shadows
+      dpr={[1, 2]}
+      camera={{ fov: 40, near: 0.5, far: 200 }}
+      gl={{ antialias: true, alpha: overlay }}
+      frameloop={idle ? 'never' : 'always'}
+    >
+      {!overlay && <color attach="background" args={['#0e1512']} />}
       <CameraRig n={rolls.filter((r) => r.leaveAt == null).at(-1)?.faces.length ?? 10} />
       <ambientLight intensity={0.65} />
       <directionalLight
@@ -228,7 +272,7 @@ export function Scene({ rolls, onSettled }: { rolls: ActiveRoll[]; onSettled: (i
         shadow-camera-far={40}
         shadow-bias={-0.0004}
       />
-      <Felt />
+      <Felt overlay={overlay} />
       {rolls.map((r) => (
         <RollDice key={r.id} roll={r} />
       ))}
