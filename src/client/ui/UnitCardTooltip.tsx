@@ -23,12 +23,13 @@ const tipBox: CSSProperties = {
   boxSizing: 'border-box',
 }
 
-interface Anchor {
+export interface Anchor {
   left: number
   top: number
 }
 
-function TipPopup({ anchor, children }: { anchor: Anchor; children: ReactNode }) {
+/** Popup placed at `anchor` (portalled, clamped into the viewport). `width` widens it for the datasheet view. */
+export function TipPopup({ anchor, width, testId = 'unit-card-tooltip', children }: { anchor: Anchor; width?: number; testId?: string; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
 
@@ -46,8 +47,8 @@ function TipPopup({ anchor, children }: { anchor: Anchor; children: ReactNode })
     <div
       ref={ref}
       role="tooltip"
-      data-testid="unit-card-tooltip"
-      style={{ ...tipBox, left: pos?.left ?? anchor.left, top: pos?.top ?? anchor.top, visibility: pos ? 'visible' : 'hidden' }}
+      data-testid={testId}
+      style={{ ...tipBox, ...(width ? { width } : null), left: pos?.left ?? anchor.left, top: pos?.top ?? anchor.top, visibility: pos ? 'visible' : 'hidden' }}
     >
       {children}
     </div>,
@@ -55,15 +56,18 @@ function TipPopup({ anchor, children }: { anchor: Anchor; children: ReactNode })
   )
 }
 
+/** Where a popup for `el` goes: just right of the unit card, level with the hovered element. */
+export function anchorBesideCard(el: HTMLElement): Anchor {
+  const row = el.getBoundingClientRect()
+  const card = el.closest('[data-testid="unit-card"]')?.getBoundingClientRect()
+  return { left: (card?.right ?? row.right) + GAP, top: row.top - 6 }
+}
+
 /** A list row that shows `tip` in a popup beside the unit card while hovered or focused. */
 export function TipItem({ testId, tip, children }: { testId: string; tip: ReactNode; children: ReactNode }) {
   const [anchor, setAnchor] = useState<Anchor | null>(null)
 
-  const show = (el: HTMLElement) => {
-    const row = el.getBoundingClientRect()
-    const card = el.closest('[data-testid="unit-card"]')?.getBoundingClientRect()
-    setAnchor({ left: (card?.right ?? row.right) + GAP, top: row.top - 6 })
-  }
+  const show = (el: HTMLElement) => setAnchor(anchorBesideCard(el))
   const hide = () => setAnchor(null)
 
   const style: CSSProperties = {

@@ -1,13 +1,15 @@
 // Selected-unit inspector (docs/spec/50-client.md §5 "Unit card"). Selection comes from
 // src/client/interaction/UnitsLayer.tsx clicking a Figure; this file only reads state.
-import { useEffect, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { modelStats } from '@/engine'
 import type { GameState, Model, RuntimeWeapon } from '@/engine'
 import { useDisplayState } from '../presentation/presentedStore'
 import { useUiStore } from './uiStore'
 import { prettifyId } from './labels'
-import { TipItem, tipMuted, tipTitle } from './UnitCardTooltip'
+import { anchorBesideCard, TipItem, TipPopup, tipMuted, tipTitle, type Anchor } from './UnitCardTooltip'
+import { DATASHEET_WIDTH, UnitDatasheet } from './UnitDatasheet'
 import { WeaponIcon, weaponIconKind } from './weaponIcons'
+import { abilityLine } from './weaponRules'
 import { colors, mutedText, panel } from './theme'
 
 const wrap: CSSProperties = { ...panel, position: 'absolute', left: 12, top: 70, width: 220, padding: 14, pointerEvents: 'auto' }
@@ -90,8 +92,25 @@ function barColor(fraction: number): string {
   return fraction > 0.5 ? '#e8c85a' : '#ff6a5f'
 }
 
-function WoundRows({ rows }: { rows: WoundRow[] }) {
+/** Hover state for a datasheet popup: which models it covers and where it sits. */
+interface SheetHover {
+  key: string
+  modelIds: string[]
+  anchor: Anchor
+}
+
+function DatasheetPopup({ state, unitId, hover }: { state: GameState; unitId: string; hover: SheetHover | null }) {
+  if (!hover) return null
+  return (
+    <TipPopup anchor={hover.anchor} width={DATASHEET_WIDTH} testId="unit-datasheet-popup">
+      <UnitDatasheet state={state} unitId={unitId} modelIds={hover.modelIds} />
+    </TipPopup>
+  )
+}
+
+function WoundRows({ state, unitId, rows }: { state: GameState; unitId: string; rows: WoundRow[] }) {
   const glowModels = useUiStore((s) => s.glowModels)
+  const [sheet, setSheet] = useState<SheetHover | null>(null)
   return (
     <div style={woundsBox}>
       {rows.map((r) => {
@@ -101,9 +120,19 @@ function WoundRows({ rows }: { rows: WoundRow[] }) {
           <div
             key={r.key}
             data-testid="unit-card-wound-row"
-            onMouseEnter={() => glowModels(r.modelIds)}
-            onMouseLeave={() => glowModels([])}
-            style={{ ...woundRowStyle, background: damaged ? 'rgba(255,106,95,0.14)' : 'transparent' }}
+            onMouseEnter={(e) => {
+              glowModels(r.modelIds)
+              setSheet({ key: r.key, modelIds: r.modelIds, anchor: anchorBesideCard(e.currentTarget) })
+            }}
+            onMouseLeave={() => {
+              glowModels([])
+              setSheet(null)
+            }}
+            style={{
+              ...woundRowStyle,
+              cursor: 'help',
+              background: sheet?.key === r.key ? 'rgba(255,255,255,0.1)' : damaged ? 'rgba(255,106,95,0.14)' : 'transparent',
+            }}
           >
             <span
               style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: damaged ? colors.text : colors.muted }}
@@ -120,6 +149,7 @@ function WoundRows({ rows }: { rows: WoundRow[] }) {
           </div>
         )
       })}
+      <DatasheetPopup state={state} unitId={unitId} hover={sheet} />
     </div>
   )
 }
@@ -152,34 +182,6 @@ function statRows(w: RuntimeWeapon): [string, string][] {
     ['Armour Penetration', apText(w.AP)],
     ['Damage', `${w.D} per unsaved wound`],
   ]
-}
-
-/** Plain-English line for one weapon keyword, in our own words. */
-function abilityLine(a: RuntimeWeapon['abilities'][number]): { name: string; text: string } {
-  const v = a.value
-  switch (a.ability) {
-    case 'ASSAULT': return { name: 'Assault', text: 'May still be fired after the unit Advances.' }
-    case 'HEAVY': return { name: 'Heavy', text: 'Gets +1 to hit if the unit did not move this turn.' }
-    case 'RAPID_FIRE': return { name: `Rapid Fire ${v ?? ''}`.trim(), text: `Adds ${v ?? 'extra'} attack(s) per model when the target is within half range.` }
-    case 'TORRENT': return { name: 'Torrent', text: 'A spray of fire: every attack hits automatically.' }
-    case 'BLAST': return { name: 'Blast', text: 'Gains an extra attack for every five models in the target unit; cannot be aimed at a unit locked in combat with your own.' }
-    case 'SUSTAINED_HITS': return { name: `Sustained Hits ${v ?? ''}`.trim(), text: `Each critical hit scores ${v ?? 'extra'} additional hit(s).` }
-    case 'LETHAL_HITS': return { name: 'Lethal Hits', text: 'Each critical hit wounds automatically, skipping the wound roll.' }
-    case 'DEVASTATING_WOUNDS': return { name: 'Devastating Wounds', text: 'Each critical wound deals its damage straight through: no armour or invulnerable save is allowed.' }
-    case 'ANTI': return { name: `Anti-${a.keyword ?? '?'} ${v ?? ''}+`.trim(), text: `Against ${a.keyword ?? 'the named'} targets, a wound roll of ${v ?? 'the listed number'}+ is a critical wound.` }
-    case 'TWIN_LINKED': return { name: 'Twin-linked', text: 'Two barrels working together: wound rolls may be re-rolled.' }
-    case 'LANCE': return { name: 'Lance', text: 'Gets +1 to wound if the bearer charged this turn.' }
-    case 'MELTA': return { name: `Melta ${v ?? ''}`.trim(), text: `Within half range, each unsaved wound does ${v ?? 'extra'} more damage.` }
-    case 'IGNORES_COVER': return { name: 'Ignores Cover', text: 'The target gets no armour bonus from cover.' }
-    case 'INDIRECT_FIRE': return { name: 'Indirect Fire', text: 'Can be fired at targets that are out of sight, with a penalty to hit.' }
-    case 'PISTOL': return { name: 'Pistol', text: 'May be fired even when the unit is in engagement range, but only at an enemy it is locked with.' }
-    case 'HAZARDOUS': return { name: 'Hazardous', text: 'Risky to use: after firing, the bearer may be hurt by its own weapon.' }
-    case 'PRECISION': return { name: 'Precision', text: 'Successful hits may be allocated to a Character leading the target unit.' }
-    case 'EXTRA_ATTACKS': return { name: 'Extra Attacks', text: "Used in addition to the model's other melee weapon rather than instead of it." }
-    case 'ONE_SHOT': return { name: 'One Shot', text: 'Can only be used once per battle.' }
-    case 'PSYCHIC': return { name: 'Psychic', text: 'A psychic attack; rules that affect psychic powers apply to it.' }
-    default: return { name: prettifyId(a.ref ?? a.ability), text: 'A special rule specific to this weapon.' }
-  }
 }
 
 function WeaponTip({ state, wid }: { state: GameState; wid: string }) {
@@ -252,6 +254,7 @@ export function UnitCard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => selectUnit(null), [phase])
   const glowModels = useUiStore((s) => s.glowModels)
+  const [nameSheet, setNameSheet] = useState<SheetHover | null>(null)
   // Never leave figures glowing once the card closes.
   useEffect(() => () => glowModels([]), [glowModels])
 
@@ -286,13 +289,20 @@ export function UnitCard() {
         ✕
       </button>
       <div
-        style={{ color, fontWeight: 700, cursor: 'default' }}
+        style={{ color, fontWeight: 700, cursor: 'help', paddingRight: 18 }}
         data-testid="unit-card-name"
-        onMouseEnter={() => glowModels(unit.models)}
-        onMouseLeave={() => glowModels([])}
+        onMouseEnter={(e) => {
+          glowModels(unit.models)
+          setNameSheet({ key: 'unit', modelIds: unit.models, anchor: anchorBesideCard(e.currentTarget) })
+        }}
+        onMouseLeave={() => {
+          glowModels([])
+          setNameSheet(null)
+        }}
       >
         {unit.name}
       </div>
+      <DatasheetPopup state={state} unitId={unit.id} hover={nameSheet} />
       <div style={mutedText}>{state.players[unit.player].name}</div>
       <div style={{ fontSize: 13, marginTop: 6 }}>
         {models.length}/{unit.startingStrength} models
@@ -308,7 +318,7 @@ export function UnitCard() {
         </div>
       )}
       <div data-testid="unit-card-wounds">
-        <WoundRows rows={rows} />
+        <WoundRows state={state} unitId={unit.id} rows={rows} />
       </div>
       {unit.battleShocked && <div style={warn}>Battle-shocked — its objective control counts as 0</div>}
 
