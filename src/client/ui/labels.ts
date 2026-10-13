@@ -187,7 +187,7 @@ export function describeRoll(roll: DiceRoll, state: GameState): string {
 }
 
 /** Toughness of the unit being attacked, from its first model. Null when it can't be resolved. */
-function unitToughness(state: GameState, unitId: string | null): number | null {
+export function unitToughness(state: GameState, unitId: string | null): number | null {
   const unit = unitId ? state.units[unitId] : undefined
   const model = unit ? state.models[unit.models[0]] : undefined
   if (!model) return null

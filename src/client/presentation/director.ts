@@ -22,6 +22,7 @@ import { planVolleys } from './volleys'
 import { audio, playEventSounds, type SoundLookup } from '../audio'
 import { colors } from '../ui/theme'
 import { dieTarget } from '../ui/eventSummary'
+import { unitToughness } from '../ui/labels'
 
 type EventOf<T extends GameEvent['type']> = Extract<GameEvent, { type: T }>
 
@@ -174,7 +175,7 @@ function groupRequest(state: GameState, group: GameEvent[]): RollRequest | null 
     else if (e.type === 'FeelNoPainRolled') { entries.push({ index: undefined, die: e.die, passed: e.ignored }); needed.add(e.needed) }
     else if (e.type === 'HazardousTested') entries.push({ index: undefined, die: e.die, passed: !e.failed })
   }
-  const note = impossible.length > 0 ? impossibleSaveNote(state, impossible) : undefined
+  let note = impossible.length > 0 ? impossibleSaveNote(state, impossible) : undefined
   if (entries.length === 0) {
     if (!note) return null
     const e = impossible[0]
@@ -188,13 +189,17 @@ function groupRequest(state: GameState, group: GameEvent[]): RollRequest | null 
   const { dice, rerolled } = withRerolls(rollId, entries)
   const passed = entries.map((en) => en.passed)
   const target = needed.size === 1 ? [...needed][0] : undefined
+  // the working behind the target, e.g. "Armour 4+ − 1 AP = 5+ to save" — only when the whole group shares it
+  const rolled = group.find((g) => (g.type === 'SaveRolled' && g.kind !== 'none' && g.die !== 0) || (g.type === 'WoundRolled' && !g.auto))
+  const math = target !== undefined && rolled ? rollMath(state, rolled as EventOf<'SaveRolled'> | EventOf<'WoundRolled'>) : undefined
+  if (math) note = note ? `${math}. ${note}` : math
   const flip = rerolled ? { rerolled } : {}
   const skipTumble = rollId !== undefined && rerollTrayShown.has(rollId)
   const common = { dice, passed, ...flip, ...(skipTumble ? { skipTumble } : {}) }
   const e = first
   switch (e.type) {
     case 'HitRolled': return { label: attackLabel(state, e.attack, 'To hit'), purpose: 'hit', ...common }
-    case 'WoundRolled': return { label: attackLabel(state, e.attack, 'To wound'), purpose: 'wound', target, ...common }
+    case 'WoundRolled': return { label: attackLabel(state, e.attack, 'To wound'), purpose: 'wound', target, ...common, ...(note ? { note } : {}) }
     case 'SaveRolled': {
       const label = e.kind === 'invuln' ? 'Invulnerable save' : 'Armour save'
       return { label: attackLabel(state, e.attack, label), purpose: 'save', target, ...common, ...(note ? { note } : {}) }
@@ -203,6 +208,30 @@ function groupRequest(state: GameState, group: GameEvent[]): RollRequest | null 
     case 'HazardousTested': return { label: `${unitLabel(state, e.unitId)} — Hazardous`, purpose: 'hazardous', ...common }
     default: return null
   }
+}
+
+/** The target as a sum the player can check: "Armour 4+ − 1 AP + 1 cover/bonus = 4+ to save",
+ *  "S 4 vs T 5 = 5+, + 1 bonus = 4+ to wound". `final - die` is every modifier the engine applied; for an armour
+ *  save the weapon's AP is split out of it and whatever is left is cover or an ability. */
+function rollMath(state: GameState, e: EventOf<'SaveRolled'> | EventOf<'WoundRolled'>): string | undefined {
+  const mods = e.final - e.die
+  const target = dieTarget(e)
+  const term = (n: number, what: string): string => (n === 0 ? '' : ` ${n > 0 ? '+' : '−'} ${Math.abs(n)} ${what}`)
+  // a positive modifier lowers the roll needed, so it reads as "+ 1 bonus" and an AP of -1 as "− 1 AP"
+  const floor = e.needed - mods < 2 ? ' (a 1 always fails)' : ''
+  if (e.type === 'SaveRolled') {
+    const weaponAp = state.weapons[e.attack.weaponId]?.AP ?? 0
+    if (e.kind === 'invuln') {
+      const ignored = weaponAp !== 0 ? ` (ignores ${Math.abs(weaponAp)} AP)` : ''
+      return `Invulnerable ${e.needed}+${ignored}${term(mods, mods > 0 ? 'bonus' : 'penalty')} = ${target}+ to save${floor}`
+    }
+    const other = mods - weaponAp
+    return `Armour ${e.needed}+${term(weaponAp, 'AP')}${term(other, other > 0 ? 'cover/bonus' : 'penalty')} = ${target}+ to save${floor}`
+  }
+  const S = state.weapons[e.attack.weaponId]?.S
+  const T = unitToughness(state, e.attack.targetUnitId)
+  const base = typeof S === 'number' && T !== null ? `S ${S} vs T ${T} = ${e.needed}+` : `${e.needed}+`
+  return mods === 0 ? `${base} to wound` : `${base},${term(mods, mods > 0 ? 'bonus' : 'penalty')} = ${target}+ to wound${floor}`
 }
 
 /** "No save possible: needs 7+ (AP -2)" — for saves the engine skipped because even a 6 couldn't make them. */
