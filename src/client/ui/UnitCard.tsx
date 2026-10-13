@@ -264,18 +264,21 @@ export function UnitCard() {
   const rows = woundRows(state, models, unit.datasheetId)
   const weaponIds = Array.from(new Set(models.flatMap((m) => m.weapons)))
   const color = unit.player === 'A' ? colors.playerA : colors.playerB
-  // Distinct Toughness values across the unit (a led unit can mix a leader's profile with its bodyguard's).
-  const toughness = Array.from(
-    new Set(
-      models.flatMap((m) => {
-        try {
-          return [modelStats(state, m).T]
-        } catch {
-          return []
-        }
-      }),
-    ),
-  ).sort((a, b) => a - b)
+  // Distinct Move / Toughness values across the unit (a led unit can mix a leader's profile with its bodyguard's).
+  const distinctStat = (key: 'M' | 'T') =>
+    Array.from(
+      new Set(
+        models.flatMap((m) => {
+          try {
+            return [modelStats(state, m)[key]]
+          } catch {
+            return []
+          }
+        }),
+      ),
+    ).sort((a, b) => a - b)
+  const move = distinctStat('M')
+  const toughness = distinctStat('T')
 
   return (
     <div style={wrap} data-testid="unit-card">
@@ -294,6 +297,11 @@ export function UnitCard() {
       <div style={{ fontSize: 13, marginTop: 6 }}>
         {models.length}/{unit.startingStrength} models
       </div>
+      {move.length > 0 && (
+        <div style={{ fontSize: 13 }} data-testid="unit-card-move">
+          Move {move.map((m) => `${m}"`).join(' / ')}
+        </div>
+      )}
       {toughness.length > 0 && (
         <div style={{ fontSize: 13 }} data-testid="unit-card-toughness">
           Toughness {toughness.join(' / ')}
