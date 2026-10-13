@@ -10,7 +10,7 @@
 // never in the same place; the rail owns the placement, this owns the panel.
 import { useEffect } from 'react'
 import { Die } from './Die'
-import { DURATIONS, isTableActive, useDiceStore } from './diceStore'
+import { DURATIONS, isSlowDiceActive, useDiceStore } from './diceStore'
 import type { CSSProperties } from 'react'
 
 // Whole-squad rolls arrive as one window (director.ts groups them), so dice shrink as the count
@@ -116,7 +116,7 @@ export function DiceTray() {
   if (!current) return null
   // Table style shows the roll on the 3D dice mat instead (table/DiceTableOverlay.tsx); a note-only
   // roll has no dice to throw, so the tray still carries it.
-  if (isTableActive(style, speed) && current.dice.length > 0) return null
+  if (isSlowDiceActive(style, speed) && current.dice.length > 0) return null
 
   const { request, dice, phase, id } = current
   const { tumbleMs: speedTumbleMs, flipMs } = DURATIONS[speed]

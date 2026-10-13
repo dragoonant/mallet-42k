@@ -15,6 +15,7 @@ import { isClampedMovePending } from './interaction/moveClamp'
 import { commitStagedDraft } from './interaction/commitDraft'
 import { COMMIT_CLICK_RADIUS_IN, useMoveKeys } from './interaction/moveHover'
 import { VfxLayer } from './vfx'
+import { BoardDice } from './dice/board/BoardDice'
 import { spikeMode } from '../spike/flag'
 import { PerfProbe } from '../spike/PerfProbe'
 
@@ -138,6 +139,7 @@ export function Scene() {
       <MovePreviewOverlay />
       <DeathGhosts />
       <VfxLayer />
+      <BoardDice />
       {measureOn && measureLine && <Ruler a={measureLine.a} b={measureLine.b} />}
     </Canvas>
   )

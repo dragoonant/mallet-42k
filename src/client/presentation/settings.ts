@@ -48,7 +48,7 @@ function isAnimSpeed(v: unknown): v is AnimSpeed {
 }
 
 function isDiceStyle(v: unknown): v is DiceStyle {
-  return v === 'tray' || v === 'table'
+  return v === 'tray' || v === 'table' || v === 'board'
 }
 
 function isCommandRerollSetting(v: unknown): v is CommandRerollSetting {
@@ -162,7 +162,7 @@ setDiceStyle(usePresentationSettings.getState().diceStyle)
 // ?dice=table (or ?dice=tray) forces a dice style for this session only (not persisted) — for testing.
 if (typeof window !== 'undefined') {
   const q = new URLSearchParams(window.location.search).get('dice')
-  if (q === 'table' || q === 'tray') {
+  if (q === 'table' || q === 'tray' || q === 'board') {
     setDiceStyle(q)
     usePresentationSettings.setState({ diceStyle: q })
   }

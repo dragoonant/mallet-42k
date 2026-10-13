@@ -36,9 +36,10 @@ const SPEED_OPTIONS: { key: AnimSpeed; label: string }[] = [
   { key: 'instant', label: 'Instant' },
 ]
 
-const DICE_STYLE_OPTIONS: { key: 'tray' | 'table'; label: string }[] = [
+const DICE_STYLE_OPTIONS: { key: 'tray' | 'table' | 'board'; label: string }[] = [
   { key: 'tray', label: 'Tray (quick)' },
-  { key: 'table', label: 'Table (slow, 3D)' },
+  { key: 'board', label: 'Battlefield (slow, 3D)' },
+  { key: 'table', label: 'Dice mat (slow, 3D)' },
 ]
 
 const rerollOptionRow: CSSProperties = { ...buttonBase, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%', padding: '6px 8px', gap: 2, textAlign: 'left' }

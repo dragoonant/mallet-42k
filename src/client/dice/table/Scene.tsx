@@ -27,6 +27,10 @@ export interface ActiveRoll {
   t0: number // seconds (performance.now()/1000) when thrown
   dur: number // seconds for one die's throw
   leaveAt?: number
+  /** How the dice leave: fly off the mat (default) or sink into the ground and shrink (battlefield style). */
+  leave?: 'sink'
+  /** Fixed landing slots (local units) instead of the mat grid; battlefield style. */
+  slots?: [number, number][]
   settled: boolean
 }
 
@@ -116,10 +120,15 @@ function Die({ plan, prev, index, roll }: { plan: Plan; prev?: Plan; index: numb
     ring2Mat.opacity = crit ? r * 0.8 : 0
     if (ring.current) ring.current.visible = r > 0
     if (roll.leaveAt != null) {
-      const lv = Math.min(1, (now - roll.leaveAt) / 0.35)
-      grp.position.x += lv * lv * 22
-      grp.position.y += lv * 2
-      grp.quaternion.premultiply(tmpQ.setFromAxisAngle(plan.axis, lv * 6))
+      const lv = Math.min(1, (now - roll.leaveAt) / (roll.leave === 'sink' ? 0.3 : 0.35))
+      if (roll.leave === 'sink') {
+        grp.position.y -= lv * DIE * 0.9
+        grp.scale.setScalar(1 - lv * 0.6)
+      } else {
+        grp.position.x += lv * lv * 22
+        grp.position.y += lv * 2
+        grp.quaternion.premultiply(tmpQ.setFromAxisAngle(plan.axis, lv * 6))
+      }
       ringMat.opacity *= 1 - lv
       ring2Mat.opacity *= 1 - lv
       if (lv >= 1) {
@@ -149,11 +158,11 @@ function Die({ plan, prev, index, roll }: { plan: Plan; prev?: Plan; index: numb
   )
 }
 
-function RollDice({ roll }: { roll: ActiveRoll }) {
-  const plans = useMemo(() => buildPlans(roll.faces, mulberry32(roll.seed)), [roll])
+export function RollDice({ roll }: { roll: ActiveRoll }) {
+  const plans = useMemo(() => buildPlans(roll.faces, mulberry32(roll.seed), roll.slots), [roll])
   // Same seed + same dice count gives the same slots, so the old faces rest exactly where the new ones land.
   const prevPlans = useMemo(
-    () => (roll.prevFaces ? buildPlans(roll.prevFaces, mulberry32(roll.seed)) : null),
+    () => (roll.prevFaces ? buildPlans(roll.prevFaces, mulberry32(roll.seed), roll.slots) : null),
     [roll],
   )
   return (

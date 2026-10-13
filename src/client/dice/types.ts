@@ -6,8 +6,9 @@
 /** Animation speed. `instant` skips the tumble entirely and resolves on the next frame. */
 export type DiceSpeed = 'normal' | 'fast' | 'instant'
 
-/** How rolls are shown: the quick 2D tray (default) or slow 3D dice thrown onto a table mat. */
-export type DiceStyle = 'tray' | 'table'
+/** How rolls are shown: the quick 2D tray (default), slow 3D dice thrown onto the battlefield itself
+ *  ('board'), or slow 3D dice on a separate felt mat overlay ('table'). */
+export type DiceStyle = 'tray' | 'table' | 'board'
 
 export interface RollRequest {
   /** Short label for what this roll is for, e.g. "To hit", "Charge", "Feel No Pain". Shown as the

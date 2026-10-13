@@ -52,13 +52,14 @@ export function layout(n: number) {
   return { cols, rows, cell, width: cols * cell, depth: rows * cell }
 }
 
-export function buildPlans(faces: number[], rnd: () => number): Plan[] {
+export function buildPlans(faces: number[], rnd: () => number, fixedSlots?: [number, number][]): Plan[] {
   const n = faces.length
   const { cols, rows, cell } = layout(n)
-  const jitter = Math.max(0, (cell - 0.95) / 2) * 0.8
-  const slots: [number, number][] = []
-  for (let r = 0; r < rows; r++)
-    for (let c = 0; c < cols; c++) slots.push([(c - (cols - 1) / 2) * cell, (r - (rows - 1) / 2) * cell])
+  const jitter = fixedSlots ? 0.08 : Math.max(0, (cell - 0.95) / 2) * 0.8
+  const slots: [number, number][] = fixedSlots ? fixedSlots.slice() : []
+  if (!fixedSlots)
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++) slots.push([(c - (cols - 1) / 2) * cell, (r - (rows - 1) / 2) * cell])
   for (let i = slots.length - 1; i > 0; i--) {
     const j = Math.floor(rnd() * (i + 1))
     ;[slots[i], slots[j]] = [slots[j], slots[i]]

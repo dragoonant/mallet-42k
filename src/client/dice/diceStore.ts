@@ -46,9 +46,19 @@ export const TABLE_SETTLE_MS = 400
 /** A re-throw of only the rerolled dice is a shorter throw than a full roll. */
 export const TABLE_RETHROW_FACTOR = 0.75
 
-/** True when rolls should be shown on the 3D table (style chosen and speed isn't instant). */
+/** True when rolls should be shown on the 3D table overlay (style chosen and speed isn't instant). */
 export function isTableActive(style: DiceStyle, speed: DiceSpeed): boolean {
   return style === 'table' && speed !== 'instant'
+}
+
+/** True when rolls should be thrown onto the battlefield in the main canvas (dice/board/BoardDice.tsx). */
+export function isBoardActive(style: DiceStyle, speed: DiceSpeed): boolean {
+  return style === 'board' && speed !== 'instant'
+}
+
+/** Either slow 3D style: the tray stays out of the way and the slow timings apply. */
+export function isSlowDiceActive(style: DiceStyle, speed: DiceSpeed): boolean {
+  return isTableActive(style, speed) || isBoardActive(style, speed)
 }
 
 /** Roll ids whose dice the player has already seen in the interactive re-roll tray (ui/RerollTray.tsx), so
@@ -97,7 +107,7 @@ export function kick(): void {
   const [next, ...rest] = s.queue
   const { tumbleMs: speedTumbleMs, holdMs: baseHoldMs } = DURATIONS[s.speed]
   const dice = computeResults(next.request)
-  const table = isTableActive(s.style, s.speed)
+  const table = isSlowDiceActive(s.style, s.speed)
   let tumbleMs = next.request.skipTumble ? 0 : speedTumbleMs
   // A grouped whole-squad window stays up a little longer so the result can be read (+1/12 per die, capped).
   let holdMs = baseHoldMs === 0 ? 0 : baseHoldMs + Math.round((baseHoldMs / 12) * Math.min(dice.length - 1, 15))

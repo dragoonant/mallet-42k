@@ -45,7 +45,7 @@ const CSS =
 
 const noop = () => {}
 
-function makeRoll(id: number, cur: CurrentRoll, speed: 'normal' | 'fast'): ActiveRoll {
+export function makeRoll(id: number, cur: CurrentRoll, speed: 'normal' | 'fast'): ActiveRoll {
   const { request, dice } = cur
   const now = performance.now() / 1000
   const throwS = TABLE_DURATIONS[speed].throwMs / 1000
