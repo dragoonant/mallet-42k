@@ -26,6 +26,34 @@ export function resolveStagger(blocks: LayoutBlock[], gap = STAGGER_GAP): Map<st
   return out
 }
 
+export const RESOLVE_THRESHOLD = 3 // px an un-offset block must move before the layout is re-solved
+const QUANT = 8 // px grid used for the bottom-first ordering so sub-pixel jitter can never swap a pair
+
+/**
+ * Stateful wrapper around resolveStagger. Inputs are un-offset anchor rects; the previous solution is reused until a
+ * block appears/disappears, resizes, or moves more than RESOLVE_THRESHOLD px, so measurement jitter (Html rounding,
+ * the previous frame's applied offset) cannot make blocks flip between stacked and unstacked.
+ */
+export class StaggerSolver {
+  private last = new Map<string, LayoutBlock>()
+  private result = new Map<string, number>()
+  update(blocks: LayoutBlock[]): Map<string, number> {
+    let changed = blocks.length !== this.last.size
+    if (!changed) {
+      for (const b of blocks) {
+        const o = this.last.get(b.id)
+        if (!o || Math.abs(o.x - b.x) > RESOLVE_THRESHOLD || Math.abs(o.y - b.y) > RESOLVE_THRESHOLD || Math.abs(o.w - b.w) > RESOLVE_THRESHOLD || Math.abs(o.h - b.h) > RESOLVE_THRESHOLD) { changed = true; break }
+      }
+    }
+    if (!changed) return this.result
+    this.last = new Map(blocks.map((b) => [b.id, b]))
+    // Quantise y so near-ties order by id, not by jitter.
+    const q = blocks.map((b) => ({ ...b, y: Math.round(b.y / QUANT) * QUANT, x: Math.round(b.x / QUANT) * QUANT }))
+    this.result = resolveStagger(q)
+    return this.result
+  }
+}
+
 /** One exponential-ease step toward `target` with a ~120ms settle. */
 export function easeOffset(current: number, target: number, dtSeconds: number): number {
   const k = 1 - Math.exp(-Math.max(dtSeconds, 0) / 0.04)

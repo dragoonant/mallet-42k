@@ -1,8 +1,9 @@
 // Small floating name + wounds tag over each on-board unit — the board otherwise has no way to tell
 // units apart or see how hurt they are at a glance beyond opening the unit card for one at a time.
+import { useMemo } from 'react'
 import { Html } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
-import { applyOffset, easeOffset, labelRegistry, registerLabelPart, resolveStagger, type LayoutBlock } from './labelLayout'
+import { applyOffset, easeOffset, labelRegistry, registerLabelPart, StaggerSolver, type LayoutBlock } from './labelLayout'
 import { useDisplayState } from '../presentation/presentedStore'
 import { colors, fontStack } from '../ui/theme'
 
@@ -31,6 +32,7 @@ function unionRect(els: (Element | null | undefined)[]): { l: number; t: number;
 // eases each block's offset toward its target. Runs on the existing demand-frame loop; keeps invalidating while easing.
 function LabelLayoutDriver() {
   const invalidate = useThree((s) => s.invalidate)
+  const solver = useMemo(() => new StaggerSolver(), [])
   useFrame((_, delta) => {
     const blocks: LayoutBlock[] = []
     for (const [id, e] of [...labelRegistry]) {
@@ -39,13 +41,13 @@ function LabelLayoutDriver() {
       if (!r) { e.offset = 0; applyOffset(e); continue }
       blocks.push({ id, x: r.l, y: r.t + e.offset, w: r.r - r.l, h: r.b - r.t })
     }
-    const targets = resolveStagger(blocks)
+    const targets = solver.update(blocks)
     let moving = false
     for (const [id, target] of targets) {
       const e = labelRegistry.get(id)!
       const next = easeOffset(e.offset, target, delta)
       if (next !== target) moving = true
-      e.offset = next
+      e.offset = next === target ? next : Math.round(next * 10) / 10 // keep applied == stored so un-offsetting is exact
       applyOffset(e)
     }
     if (moving) invalidate()

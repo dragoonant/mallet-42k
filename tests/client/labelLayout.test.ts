@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { easeOffset, resolveStagger } from '../../src/client/interaction/labelLayout'
+import { easeOffset, resolveStagger, StaggerSolver } from '../../src/client/interaction/labelLayout'
 
 describe('resolveStagger', () => {
   it('leaves separated blocks alone', () => {
@@ -31,5 +31,24 @@ describe('easeOffset', () => {
     let v = 0
     for (let i = 0; i < 20; i++) v = easeOffset(v, 50, 1 / 60)
     expect(v).toBe(50)
+  })
+})
+
+describe('StaggerSolver stability', () => {
+  it('offsets are identical across 60 frames of a crowded static cluster, even with jitter and feedback', () => {
+    const base = Array.from({ length: 6 }, (_, i) => ({ id: `u${i}`, x: 100 + (i % 3) * 20, y: 200 + (i % 2) * 0.4 - i * 0.3, w: 90, h: 36 }))
+    const solver = new StaggerSolver()
+    const offsets = new Map<string, number>()
+    let first: string | null = null
+    for (let f = 0; f < 60; f++) {
+      // Measurement as the component sees it: un-offset position plus sub-pixel noise.
+      const blocks = base.map((b, i) => ({ ...b, y: b.y + ((f * 7 + i) % 5) * 0.2 - 0.4, x: b.x + ((f + i) % 3) * 0.2 }))
+      const t = solver.update(blocks)
+      for (const [id, v] of t) offsets.set(id, v)
+      const snap = JSON.stringify([...offsets].sort())
+      if (first === null) first = snap
+      expect(snap).toBe(first)
+    }
+    expect([...offsets.values()].some((v) => v > 0)).toBe(true)
   })
 })
