@@ -38,7 +38,7 @@
     "id": "core.s.epic-challenge",
     "faction": "core",
     "name": "Epic Challenge",
-    "text": "Use when one of your Character units is selected to fight while within Engagement Range of one or more enemy units that have a leader attached. Pick one Character model in that unit; until the end of the phase its melee attacks gain the Precision ability.",
+    "text": "Use when one of your Character units is selected to fight while in Engagement Range of an enemy unit with a leader attached. Pick one Character model in that unit; until the end of the phase its melee attacks gain Precision. (Precision: wounds from those attacks can be sent straight to the Character leading the target unit, bypassing its bodyguards.)",
     "cost": 1,
     "category": "epicDeed",
     "phases": ["fight"],
