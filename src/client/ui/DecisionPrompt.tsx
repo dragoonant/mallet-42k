@@ -108,7 +108,7 @@ const CHOOSE_OPTION_INFO: Partial<Record<ChooseOptionTopic, { title: string; hin
   meleeWeapon: { title: 'Choose a melee weapon', hint: "Pick which of this model's melee weapons to fight with." },
   weaponProfile: { title: 'Choose a weapon profile', hint: 'Pick which profile of this weapon to fire.' },
   oathTarget: { title: 'Oath of Moment target', hint: 'Name the enemy unit your army re-rolls hits and wounds against this battle.' },
-  waaagh: { title: 'Call the Waaagh!', hint: 'Activate this once-per-battle army rule now, or hold it for later.' },
+  waaagh: { title: 'Call the Waaagh!', hint: "One use for the whole battle, and it lasts until the end of this battle round. Every Ork model with the Waaagh! rule gets +1 Strength and +1 Attack with its melee weapons (except weapons that give extra attacks), a 5+ invulnerable save, and can charge even after it Advanced. Models with Dead 'ard also get a 4+ Feel No Pain save. Choose 'Not this round' to save it for a later round." },
   reserveArrival: { title: 'Bring on reinforcements', hint: 'Choose where this unit arrives from reserves.' },
   leaderAttach: { title: 'Attach a leader', hint: 'Choose which bodyguard unit this leader joins.' },
   hazardousCasualty: { title: 'Hazardous casualty', hint: 'A model must be removed for failing its Hazardous test.' },
