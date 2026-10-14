@@ -28,6 +28,7 @@ export type TimingWindowId =
 export interface Stats { M: number; T: number; Sv: RollTarget; W: number; Ld: RollTarget; OC: number }
 export type PartialStats = Partial<Stats>
 
+// oval: `mm` runs front-to-back (along facing), `mm2` side-to-side — a walker like the Dreadknight sits across its oval (mm < mm2)
 export interface Base { shape: 'round' | 'oval'; mm: number; mm2?: number }
 
 export type StatName = 'A' | 'S' | 'AP' | 'D' | 'M' | 'T' | 'Sv' | 'W' | 'Ld' | 'OC' | 'BS' | 'WS' | 'range'

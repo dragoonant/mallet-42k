@@ -12,7 +12,7 @@
         "modelId": "dreadknight",
         "name": "Nemesis Dreadknight",
         "min": 1, "max": 1, "default": 1,
-        "base": { "shape": "oval", "mm": 120, "mm2": 92 },
+        "base": { "shape": "oval", "mm": 92, "mm2": 120 },
         "weapons": { "default": ["gk.w.heavy-psycannon", "gk.w.nemesis-greatsword-strike", "gk.w.nemesis-greatsword-sweep"] },
         "figure": { "archetype": "vehicle", "kit": "generic-heavy" }
       }
