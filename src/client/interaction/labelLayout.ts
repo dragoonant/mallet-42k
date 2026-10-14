@@ -61,7 +61,15 @@ export function easeOffset(current: number, target: number, dtSeconds: number): 
   return Math.abs(target - next) < 0.3 ? target : next
 }
 
-export interface LabelEntry { tagWrap?: HTMLElement | null; rowWrap?: HTMLElement | null; offset: number }
+export interface LabelEntry {
+  tagWrap?: HTMLElement | null
+  rowWrap?: HTMLElement | null
+  /** Current upward shift in SCREEN px. */
+  offset: number
+  /** Screen px per CSS px for each wrapper (drei distanceFactor scales the tag but not the row). */
+  tagScale?: number
+  rowScale?: number
+}
 export const labelRegistry = new Map<string, LabelEntry>()
 
 export function registerLabelPart(id: string, part: 'tagWrap' | 'rowWrap', el: HTMLElement | null) {
@@ -70,7 +78,24 @@ export function registerLabelPart(id: string, part: 'tagWrap' | 'rowWrap', el: H
   labelRegistry.set(id, e)
 }
 
+/** Removes the applied shift so the next getBoundingClientRect reads the true, un-offset position. */
+export function clearOffset(e: LabelEntry) {
+  for (const el of [e.tagWrap, e.rowWrap]) if (el && el.style.transform !== '') el.style.transform = ''
+}
+
+/** Screen px per CSS px for an un-transformed wrapper (its ancestors may be scaled). */
+export function screenScale(el: HTMLElement | null | undefined): number {
+  if (!el || el.offsetHeight === 0) return 1
+  const s = el.getBoundingClientRect().height / el.offsetHeight
+  return Number.isFinite(s) && s > 0 ? s : 1
+}
+
+/** Applies `e.offset` (screen px) to both wrappers, converting to each wrapper's local CSS px. */
 export function applyOffset(e: LabelEntry) {
-  const t = e.offset === 0 ? '' : `translateY(${(-e.offset).toFixed(1)}px)`
-  for (const el of [e.tagWrap, e.rowWrap]) if (el && el.style.transform !== t) el.style.transform = t
+  const parts: [HTMLElement | null | undefined, number | undefined][] = [[e.tagWrap, e.tagScale], [e.rowWrap, e.rowScale]]
+  for (const [el, scale] of parts) {
+    if (!el) continue
+    const t = e.offset === 0 ? '' : `translateY(${(-e.offset / (scale || 1)).toFixed(2)}px)`
+    if (el.style.transform !== t) el.style.transform = t
+  }
 }

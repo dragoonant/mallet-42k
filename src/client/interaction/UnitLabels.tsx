@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import { Html } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
-import { applyOffset, easeOffset, labelRegistry, registerLabelPart, StaggerSolver, type LayoutBlock } from './labelLayout'
+import { applyOffset, clearOffset, easeOffset, labelRegistry, registerLabelPart, screenScale, StaggerSolver, type LayoutBlock } from './labelLayout'
 import { useDisplayState } from '../presentation/presentedStore'
 import { colors, fontStack } from '../ui/theme'
 
@@ -28,18 +28,29 @@ function unionRect(els: (Element | null | undefined)[]): { l: number; t: number;
   return u
 }
 
-// Measures every unit's tag + icon-row block on screen (undoing the offset already applied), resolves overlaps and
-// eases each block's offset toward its target. Runs on the existing demand-frame loop; keeps invalidating while easing.
+// Measures every unit's tag + icon-row block on screen, resolves overlaps and eases each block's offset toward its
+// target. Runs on the existing demand-frame loop; keeps invalidating while easing.
+// Never-bounce rule: measurements must not depend on the offset we applied. Applied shifts are cleared before
+// measuring (one forced layout per frame, no paint in between), so the solver's input is the true anchor position and
+// the output cannot feed back into the next frame's input. Offsets are in screen px and converted per wrapper,
+// because the tag lives in a distance-scaled Html and the icon row does not.
 function LabelLayoutDriver() {
   const invalidate = useThree((s) => s.invalidate)
   const solver = useMemo(() => new StaggerSolver(), [])
   useFrame((_, delta) => {
+    const entries = [...labelRegistry].filter(([id, e]) => {
+      if (e.tagWrap?.isConnected || e.rowWrap?.isConnected) return true
+      labelRegistry.delete(id)
+      return false
+    })
+    for (const [, e] of entries) clearOffset(e)
     const blocks: LayoutBlock[] = []
-    for (const [id, e] of [...labelRegistry]) {
-      if (!e.tagWrap?.isConnected && !e.rowWrap?.isConnected) { labelRegistry.delete(id); continue }
+    for (const [id, e] of entries) {
+      e.tagScale = screenScale(e.tagWrap)
+      e.rowScale = screenScale(e.rowWrap)
       const r = unionRect([e.tagWrap?.querySelector('[data-testid]'), e.rowWrap?.querySelector('[data-testid]')])
-      if (!r) { e.offset = 0; applyOffset(e); continue }
-      blocks.push({ id, x: r.l, y: r.t + e.offset, w: r.r - r.l, h: r.b - r.t })
+      if (!r) { e.offset = 0; continue }
+      blocks.push({ id, x: r.l, y: r.t, w: r.r - r.l, h: r.b - r.t })
     }
     const targets = solver.update(blocks)
     let moving = false
@@ -47,9 +58,9 @@ function LabelLayoutDriver() {
       const e = labelRegistry.get(id)!
       const next = easeOffset(e.offset, target, delta)
       if (next !== target) moving = true
-      e.offset = next === target ? next : Math.round(next * 10) / 10 // keep applied == stored so un-offsetting is exact
-      applyOffset(e)
+      e.offset = next
     }
+    for (const [, e] of entries) applyOffset(e)
     if (moving) invalidate()
   })
   return null
