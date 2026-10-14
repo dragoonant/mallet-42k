@@ -664,7 +664,7 @@ const deployWrap: CSSProperties = {
   pointerEvents: 'auto',
   zIndex: PROMPT_Z_INDEX,
 }
-const heading: CSSProperties = { fontWeight: 700, fontSize: 14 }
+const heading: CSSProperties = { fontWeight: 700, fontSize: 14, paddingRight: 30 }
 const hint: CSSProperties = { ...mutedText }
 const infoBlock: CSSProperties = { ...mutedText, background: 'rgba(255,255,255,0.04)', borderRadius: 6, padding: '6px 8px' }
 const stratList: CSSProperties = { margin: '4px 0 0 16px', padding: 0, fontSize: 11.5 }
@@ -756,7 +756,45 @@ function StratagemOffers({ state, player, stratagemIds, triggerLine }: { state: 
   )
 }
 
+/** The prompt can be tucked away so it never hides the board (owner: an Overwatch prompt covered most of
+ *  the screen): a minimise button in the panel's corner, and a pill in its place to bring it back. */
 export function DecisionPrompt() {
+  const pending = useGameStore((s) => s.pending)
+  const botSeat = useGameStore((s) => s.botSeat)
+  const minimizedFor = useUiStore((s) => s.promptMinimizedFor)
+  const minimizePrompt = useUiStore((s) => s.minimizePrompt)
+  const minimized = !!pending && pending.player !== botSeat && minimizedFor === pending.id
+  return (
+    <>
+      <div style={{ display: minimized ? 'none' : 'contents' }}>
+        <DecisionPromptBody />
+      </div>
+      {minimized && (
+        <button style={{ ...bannerWrap, ...buttonPrimary, cursor: 'pointer', pointerEvents: 'auto' }} data-testid="btn-prompt-restore" onClick={() => minimizePrompt(null)}>
+          ▲ Show prompt: {KIND_TITLE[pending.kind] ?? 'decision'}
+        </button>
+      )}
+    </>
+  )
+}
+
+function MinimizeButton({ decisionId }: { decisionId: string }) {
+  const minimizePrompt = useUiStore((s) => s.minimizePrompt)
+  return (
+    <Tooltip title="Minimise" body="Hide this prompt to see the board. A button at the bottom brings it back.">
+      <button
+        style={{ ...buttonBase, position: 'absolute', top: 6, right: 6, padding: '0 8px', lineHeight: '20px', fontSize: 14 }}
+        data-testid="btn-prompt-minimize"
+        aria-label="Minimise prompt"
+        onClick={() => minimizePrompt(decisionId)}
+      >
+        –
+      </button>
+    </Tooltip>
+  )
+}
+
+function DecisionPromptBody() {
   const state = useGameStore((s) => s.state)
   const pending = useGameStore((s) => s.pending)
   const legal = useGameStore((s) => s.legal)
@@ -851,6 +889,7 @@ export function DecisionPrompt() {
   if (presentedSeq < pendingSeq) {
     return (
       <div style={wrap} data-testid="prompt">
+        <MinimizeButton decisionId={pending.id} />
         <div style={hint} data-testid="prompt-resolving">Resolving dice…</div>
       </div>
     )
@@ -919,12 +958,18 @@ export function DecisionPrompt() {
       : ((hasOptions(pending) ? pending.options : []).find((o) => o.id === 'keep')?.action ?? null)
     return (
       <div style={wrap} data-testid="prompt">
+        <MinimizeButton decisionId={pending.id} />
         <RerollTray key={pending.id} state={state} events={events} pending={pending} roll={rerollRoll} keepAction={keepAction} />
       </div>
     )
   }
 
   const weaponPanelOpen = opensWeaponPanel(pending) && shootStage?.decisionId === pending.id
+  // The weapon panel was only reachable by clicking an enemy figure, so players never found it: give
+  // it a button too, opened on the first enemy any weapon can reach (the panel retargets from there).
+  const firstShootTarget = opensWeaponPanel(pending)
+    ? listItems.flatMap((it) => (it.action.type === 'declareTargets' ? it.action.targets.map((t) => t.targetUnitId) : []))[0]
+    : undefined
   const kindTitle = chooseOptionInfo?.title ?? KIND_TITLE[pending.kind] ?? pending.kind
   const isDeploy = pending.kind === 'deployUnit'
 
@@ -932,6 +977,7 @@ export function DecisionPrompt() {
     <>
       <FormationPicker />
       <div style={isDeploy ? deployWrap : wrap} data-testid="prompt">
+      <MinimizeButton decisionId={pending.id} />
       {activeHelp && <OptionHelp help={activeHelp} />}
       <div style={heading}>{kindTitle}</div>
       {chooseOptionInfo && <div style={hint}>{chooseOptionInfo.hint}</div>}
@@ -985,7 +1031,7 @@ export function DecisionPrompt() {
           </div>
           <div>
             {pending.context.attackKind === 'ranged'
-              ? 'Click an enemy to choose which weapons fire at it, or use a Target button to fire everything that can reach it at once. '
+              ? 'Click an enemy (or Choose weapons…) to pick which weapons fire at whom, or use a Target button to fire everything that can reach it at once. '
               : 'Every weapon that can see the unit you pick fires at it. '}
             Hover an option for its weapons, the target&apos;s Toughness and Save, and what each weapon needs to hit and wound.
             {pending.context.engagedWith.length > 0 &&
@@ -1159,6 +1205,11 @@ export function DecisionPrompt() {
               Cancel
             </button>
           </>
+        )}
+        {firstShootTarget && !weaponPanelOpen && (
+          <button style={buttonPrimary} data-testid="btn-choose-weapons" onClick={() => useUiStore.getState().stageShoot(pending.id, firstShootTarget)}>
+            Choose weapons…
+          </button>
         )}
         {passAction && !weaponPanelOpen && (
           <button style={buttonBase} data-testid="btn-pass" onClick={() => dispatch(passAction)}>

@@ -154,6 +154,10 @@ interface UiState {
    *  decision is pending. `nonce` changes on every click so re-clicking the same unit still registers. */
   shootStage: { decisionId: string; targetUnitId: string; nonce: number } | null
   stageShoot(decisionId: string, targetUnitId: string): void
+  /** Decision prompt minimised out of the way (its id), so the board behind it can be seen. Keyed to the
+   *  decision so the next prompt still pops up on its own. */
+  promptMinimizedFor: string | null
+  minimizePrompt(decisionId: string | null): void
   selectUnit(id: string | null): void
   /** One unit id, several (all lit together), or null to clear. */
   hoverUnit(ids: string | readonly string[] | null): void
@@ -224,6 +228,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   formationMemory: {},
   nudge: null,
   shootStage: null,
+  promptMinimizedFor: null,
+  minimizePrompt: (decisionId) => set({ promptMinimizedFor: decisionId }),
   stageShoot: (decisionId, targetUnitId) => set((s) => ({ shootStage: { decisionId, targetUnitId, nonce: (s.shootStage?.nonce ?? 0) + 1 } })),
   selectUnit: (id) => set({ selectedUnitId: id, glowModelIds: [] }),
   hoverUnit: (ids) => {
