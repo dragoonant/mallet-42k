@@ -154,6 +154,15 @@ export const BODY_KIND: Record<KitId, 'biped' | 'vehicle' | 'swarm' | 'artillery
   'drk-klaivex': 'biped',
   'drk-raider': 'vehicle',
   'drk-ravager': 'vehicle',
+  'cdm-bloodletter': 'biped',
+  'cdm-bloodletter-icon': 'biped',
+  'cdm-bloodletter-musician': 'biped',
+  'cdm-bloodmaster': 'biped',
+  'cdm-bloodcrusher': 'hound',
+  'cdm-bloodcrusher-icon': 'hound',
+  'cdm-bloodcrusher-musician': 'hound',
+  'cdm-flesh-hound': 'hound',
+  'cdm-gore-hound': 'hound',
 }
 
 export const BIPED_CONFIG: Partial<Record<KitId, BipedConfig>> = {
@@ -1494,6 +1503,19 @@ BIPED_CONFIG['ths-tzaangor'] = {
   headShape: 'tzaangor-head', rightWeapon: 'rusty-blade', leftWeapon: 'slugga', bulk: 1.05, hasBackpack: false,
   shoulderPads: 'small', hasCape: false, skin: 'daemon', bareTorso: true, limbColor: 'skin', hunch: 0.25,
 }
+// Chaos Daemons of Khorne: blood-red hide (primary), dark armour straps (secondary), brass horns and plate (trim), steel blades
+// (metal), bone-white eyes, fangs and runes (decal). Bloodletters are lean with a tail; the icon bearer carries a pole, the
+// instrument bearer a horn; the Bloodmaster is bigger, winged and wields the blood-blade.
+BIPED_CONFIG['cdm-bloodletter'] = {
+  headShape: 'bloodletter-head', rightWeapon: 'hellblade', leftWeapon: 'none', bulk: 1.0, hasBackpack: false,
+  shoulderPads: 'small', hasCape: false, skin: 'none', limbColor: 'primary', chestPlate: true, daemonTail: true,
+}
+BIPED_CONFIG['cdm-bloodletter-icon'] = { ...BIPED_CONFIG['cdm-bloodletter']!, leftWeapon: 'daemon-icon' }
+BIPED_CONFIG['cdm-bloodletter-musician'] = { ...BIPED_CONFIG['cdm-bloodletter']!, leftWeapon: 'war-horn' }
+BIPED_CONFIG['cdm-bloodmaster'] = {
+  headShape: 'bloodmaster-head', rightWeapon: 'blood-blade', leftWeapon: 'none', bulk: 1.4, hasBackpack: false,
+  shoulderPads: 'large', hasCape: false, skin: 'none', limbColor: 'primary', chestPlate: true, daemonTail: true, daemonWings: true,
+}
 
 export const ARTILLERY_CONFIG: Partial<Record<KitId, ArtilleryConfig>> = {
   'am-field-gun': { barrel: 'field-gun' },
@@ -1504,6 +1526,12 @@ export const HOUND_CONFIG: Partial<Record<KitId, HoundConfig>> = {
   'adm-hound-alpha': { rightWeapon: 'arc-maul', leftWeapon: 'plasma-pistol', crest: true },
   'adm-hound-carbine': { rightWeapon: 'phosphor-carbine', leftWeapon: 'none' },
   'adm-hound-pistols': { rightWeapon: 'plasma-pistol', leftWeapon: 'plasma-pistol' },
+  // Chaos Daemons: Juggernauts carry a Bloodletter rider (icon bearer / instrument bearer swap the free hand); hounds are riderless.
+  'cdm-bloodcrusher': { beast: 'juggernaut', rider: 'bloodletter', rightWeapon: 'hellblade', leftWeapon: 'none' },
+  'cdm-bloodcrusher-icon': { beast: 'juggernaut', rider: 'bloodletter', rightWeapon: 'hellblade', leftWeapon: 'daemon-icon' },
+  'cdm-bloodcrusher-musician': { beast: 'juggernaut', rider: 'bloodletter', rightWeapon: 'hellblade', leftWeapon: 'war-horn' },
+  'cdm-flesh-hound': { beast: 'flesh-hound', rider: 'none', rightWeapon: 'none', leftWeapon: 'none' },
+  'cdm-gore-hound': { beast: 'gore-hound', rider: 'none', rightWeapon: 'none', leftWeapon: 'none' },
 }
 
 export const VEHICLE_CONFIG: Partial<Record<KitId, VehicleConfig>> = {

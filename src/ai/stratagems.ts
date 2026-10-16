@@ -119,7 +119,9 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
     withIt = without * ((avgD - 1) / avgD)
   } else if (id.endsWith('a-martyrs-death')) {
     return dyingStrikeValue(state, mineId, attackerId, melee, 0.5)
-  } else if (id.endsWith('daemonic-fervour')) {
+  } else if (id.endsWith('manifest-hate')) {
+    withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, invuln: 4 }) // Chaos Daemons: 4+ invulnerable save for the phase
+  } else if (id.endsWith('daemonic-fervour') || id.endsWith('blood-maddened-banishment')) {
     if (!melee) return -Infinity
     return dyingStrikeValue(state, mineId, attackerId, true, 0.5)
   } else return -Infinity
@@ -128,7 +130,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
 }
 
 const DEFENSIVE = ['skeinwrought-physiology', 'go-to-ground', 'smokescreen', 'gene-wrought-resilience', 'tough-as-squig-hide', 'holy-radiance', 'hyper-reactive',
-  'mercurial-resilience', 'a-martyrs-death', 'daemonic-fervour', 'lurking-killers', 'lives-before-territory', 'quicksilver-reactions', 'whip-fast-reactions', 'evaluation-of-mettle', 'disgustingly-resilient', 'mutant-cunning']
+  'mercurial-resilience', 'a-martyrs-death', 'daemonic-fervour', 'blood-maddened-banishment', 'manifest-hate', 'lurking-killers', 'lives-before-territory', 'quicksilver-reactions', 'whip-fast-reactions', 'evaluation-of-mettle', 'disgustingly-resilient', 'mutant-cunning']
 
 // Fire Overwatch: hits only on an unmodified 6, the bound unit only (picked within 24"), each weapon within its own range, with line of sight.
 function overwatchGain(state: GameState, player: PlayerId, action: UseStratagemAction, enemyId: UnitId): number {
@@ -621,7 +623,8 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
     return dmg * 0.25 * unitValue(state, enemyId) * 0.03
   }
   // Genestealer Cults Return to the Shadows: a free reposition, mostly useful to slip out of a charge lane; modest value
-  if (id.endsWith('return-to-the-shadows')) {
+  // Chaos Daemons Empyric Predators is the same play (6" Normal move toward whoever just moved; the Hounds then forgo Overwatch)
+  if (id.endsWith('return-to-the-shadows') || id.endsWith('empyric-predators')) {
     const unitId = targets.unitIds?.[0]
     if (!unitId || !trigger || state.units[trigger]?.player === player) return -Infinity
     return unitValue(state, unitId) * 0.01 + 0.4

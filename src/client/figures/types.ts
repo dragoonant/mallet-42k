@@ -170,6 +170,15 @@ export type KitId =
   | 'ths-scarab-soulreaper'
   | 'ths-scarab-hellfyre'
   | 'ths-tzaangor'
+  | 'cdm-bloodletter'
+  | 'cdm-bloodletter-icon'
+  | 'cdm-bloodletter-musician'
+  | 'cdm-bloodmaster'
+  | 'cdm-bloodcrusher'
+  | 'cdm-bloodcrusher-icon'
+  | 'cdm-bloodcrusher-musician'
+  | 'cdm-flesh-hound'
+  | 'cdm-gore-hound'
   | 'generic-infantry'
   | 'generic-heavy'
   | 'generic-monster'
@@ -196,6 +205,7 @@ export type HeadShape = 'marine-helmet' | 'terminator-helmet' | 'ork-head' | 'or
   | 'skitarii-hood' | 'skitarii-alpha' | 'tech-priest-hood' | 'pteraxii-helm'
   | 'plague-helm' | 'plague-lord-helm' | 'poxwalker-head'
   | 'rubric-helm' | 'ths-sorcerer' | 'tzaangor-head'
+  | 'bloodletter-head' | 'bloodmaster-head'
 export type WeaponShape =
   | 'none'
   | 'bolt-rifle'
@@ -248,6 +258,7 @@ export type WeaponShape =
   | 'khopesh' | 'missile-rack'
   | 'arc-rifle' | 'plasma-caliver' | 'radium-carbine' | 'omnissian-staff' | 'taser-goad' | 'arc-maul' | 'transonic-cannon' | 'phosphor-torch' | 'phosphor-carbine'
   | 'blight-launcher' | 'plague-spewer' | 'manreaper'
+  | 'hellblade' | 'blood-blade' | 'war-horn' | 'daemon-icon'
 export type ShoulderPad = 'none' | 'small' | 'large'
 
 export interface BipedConfig {
@@ -302,6 +313,9 @@ export interface BipedConfig {
   juggernaut?: boolean
   /** Helmet paint slot for the Chaos helm (default 'secondary'). */
   helmColor?: 'secondary' | 'metal'
+  /** Chaos Daemons dressing: a barbed tail behind the hips and a pair of bat wings behind the shoulders. */
+  daemonTail?: boolean
+  daemonWings?: boolean
 }
 
 /** Towed/emplaced gun with its crew (Astra Militarum Field Ordnance Battery): a long barrel or a rocket rack. */
@@ -315,6 +329,11 @@ export interface HoundConfig {
   leftWeapon: WeaponShape
   /** A brass crest on the rider's hood (the pack's alpha). */
   crest?: boolean
+  /** Chaos Daemons beasts: a Flesh Hound / Gore Hound (no rider, red hide, fanged maw; the Gore Hound's mouth glows) or a
+   *  Juggernaut (a broader, armoured beast with a bladed horn). Omitted = the Skitarii cyber-mastiff. */
+  beast?: 'flesh-hound' | 'gore-hound' | 'juggernaut'
+  /** Who sits on the beast: the Skitarii hooded rider (default), a Bloodletter, or nobody. */
+  rider?: 'skitarii' | 'bloodletter' | 'none'
 }
 
 export interface VehicleConfig {

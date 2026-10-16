@@ -59,6 +59,7 @@ const FACTION_COLOR: Record<string, string> = {
   'adeptus-mechanicus': '#2fb5ad',
   'death-guard': '#b9d44a',
   'thousand-sons': '#5ad1e6',
+  'chaos-daemons': '#e0362a',
 }
 
 const NEUTRAL_MELEE_COLOR = '#e8e8f0'

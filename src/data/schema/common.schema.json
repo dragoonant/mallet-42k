@@ -490,7 +490,7 @@
           "const": "advance"
         },
         "forbid": {
-          "const": "charge"
+          "enum": ["charge", "overwatch"]
         },
         "setStat": {
           "type": "object",

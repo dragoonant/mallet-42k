@@ -439,3 +439,60 @@ describe('thousand sons figures and setup', () => {
     }
   }, 60000)
 })
+
+describe('chaos daemons figures and setup', () => {
+  const sheets = Object.values(bundle.datasheets).filter((d) => d.id.startsWith('cdm.'))
+
+  it('the bundle carries the chaos daemons datasheets', () => {
+    expect(sheets.length).toBe(4)
+  })
+
+  it('the faction can be picked for either seat, against any other faction', async () => {
+    expect(resolveFactionId('chaos-daemons')).toBe('chaos-daemons')
+    await useGameStore.getState().newGame({ playerFaction: 'chaos-daemons', opponentFaction: 'orks', opponent: 'hotseat', seed: 'cdm-vs-ork' })
+    let s = useGameStore.getState().state!
+    expect([s.players.A.faction, s.players.B.faction]).toEqual(['chaos-daemons', 'ork'])
+    await useGameStore.getState().newGame({ playerFaction: 'space-marines', opponentFaction: 'chaos-daemons', opponent: 'hotseat', seed: 'sm-vs-cdm' })
+    s = useGameStore.getState().state!
+    expect([s.players.A.faction, s.players.B.faction]).toEqual(['sm', 'chaos-daemons'])
+    await useGameStore.getState().newGame({ playerFaction: 'chaos-daemons', opponentFaction: 'chaos-daemons', opponent: 'hotseat', seed: 'cdm-mirror' })
+    s = useGameStore.getState().state!
+    expect([s.players.A.faction, s.players.B.faction]).toEqual(['chaos-daemons', 'chaos-daemons'])
+  }, 60000)
+
+  for (const ds of sheets) {
+    for (const m of ds.composition) {
+      it(`${ds.id}/${m.modelId} resolves to a cdm kit with a body config`, () => {
+        const { kit } = resolveFigureKit(ds.id, ds, m.modelId)
+        expect(kit.startsWith('cdm-'), kit).toBe(true)
+        if (BODY_KIND[kit] === 'biped') expect(BIPED_CONFIG[kit], kit).toBeDefined()
+        if (BODY_KIND[kit] === 'hound') expect(HOUND_CONFIG[kit], kit).toBeDefined()
+      })
+
+      // No GLBs yet: a missing model must leave the procedural figure in place rather than throw.
+      it(`${ds.id}/${m.modelId} has no GLB lookup and falls back to the procedural figure`, () => {
+        expect(glbSlugFor(ds.id, m.modelId)).toBeUndefined()
+      })
+    }
+  }
+
+  it('Bloodletters are horned biped daemons, the icon and horn bearers carry their instrument', () => {
+    const letter = BIPED_CONFIG['cdm-bloodletter']!
+    expect(letter.headShape).toBe('bloodletter-head')
+    expect(letter.daemonTail).toBe(true)
+    expect(BIPED_CONFIG['cdm-bloodletter-icon']!.leftWeapon).toBe('daemon-icon')
+    expect(BIPED_CONFIG['cdm-bloodletter-musician']!.leftWeapon).toBe('war-horn')
+    expect(BIPED_CONFIG['cdm-bloodmaster']!.daemonWings).toBe(true)
+  })
+
+  it('Bloodcrushers ride a Juggernaut, Flesh Hounds are riderless hounds', () => {
+    expect(BODY_KIND[resolveFigureKit('cdm.bloodcrushers', undefined, 'bloodcrusher').kit]).toBe('hound')
+    expect(HOUND_CONFIG['cdm-bloodcrusher']!.beast).toBe('juggernaut')
+    expect(HOUND_CONFIG['cdm-flesh-hound']!.rider).toBe('none')
+    expect(HOUND_CONFIG['cdm-gore-hound']!.beast).toBe('gore-hound')
+  })
+
+  it('the faction paint scheme is the one the data declares', () => {
+    expect(bundle.factions['chaos-daemons'].paintScheme.primary).toBe('#8e1a14')
+  })
+})

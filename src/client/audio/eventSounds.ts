@@ -242,6 +242,12 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ['hellfyre-missile-rack', 'wpn-hunter-killer-missile'] as const,
   ['soulreaper-cannon', 'wpn-assault-cannon'] as const,
   ['prosperine-khopesh', 'wpn-power-weapon'] as const,
+  // Chaos Daemons (Khorne): hellblades and the Bloodmaster's blade ring like power weapons, the Juggernaut's horn crashes like
+  // a fist, Flesh Hound fangs tear like talons, and the Gore Hound's burning roar is a flamer.
+  ['blade-of-blood', 'wpn-power-weapon'] as const,
+  ['hellblade', 'wpn-power-weapon'] as const,
+  ['gore-drenched-fangs', 'wpn-talons'] as const,
+  ['burning-roar', 'wpn-flamer'] as const,
 ].sort((a, b) => b[0].length - a[0].length)
 
 const WEAPON_TRIM: Partial<Record<SfxId, number>> = {
@@ -339,6 +345,8 @@ const DEATH_SOUND: Record<string, SfxId> = {
   'death-guard': 'death-chaos-space-marines',
   // Rubric dust and mutant beastmen both fall with the Chaos Marine death cry.
   'thousand-sons': 'death-chaos-space-marines',
+  // Banished daemons howl away in the same guttural voice as the Chaos Space Marines.
+  'chaos-daemons': 'death-chaos-space-marines',
 }
 
 /** Measured decoded RMS runs 0.05-0.40 across these; the loud three are pulled back toward ~0.15. */

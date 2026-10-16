@@ -1,0 +1,36 @@
+[
+  {
+    "id": "cdm.e.incarnated-rage",
+    "faction": "chaos-daemons",
+    "name": "Incarnated Rage",
+    "text": "While the bearer is leading a unit, every melee weapon carried by every model in that unit, the bearer included, has [LETHAL HITS].",
+    "cost": 0,
+    "restriction": { "keyword": ["BLOODMASTER"] },
+    "effect": {
+      "id": "cdm.e.incarnated-rage.effect",
+      "name": "Incarnated Rage",
+      "text": "While leading a unit, the unit's melee weapons gain [LETHAL HITS].",
+      "trigger": "always",
+      "when": { "weaponType": "melee", "leaderAttached": true },
+      "effect": { "grantWeaponAbility": { "ability": "LETHAL_HITS" } },
+      "scope": { "who": "self" }
+    }
+  },
+  {
+    "id": "cdm.e.warp-locus",
+    "faction": "chaos-daemons",
+    "name": "Warp Locus",
+    "text": "The area within 3 inches of the bearer counts as part of your Shadow of Chaos.",
+    "cost": 0,
+    "restriction": { "keyword": ["BLOODMASTER"] },
+    "effect": {
+      "id": "cdm.e.warp-locus.effect",
+      "name": "Warp Locus",
+      "text": "Everything within 3 inches of the bearer is inside your Shadow of Chaos.",
+      "trigger": "always",
+      "code": "warpLocus",
+      "params": { "range": 3 },
+      "scope": { "who": "bearer" }
+    }
+  }
+]

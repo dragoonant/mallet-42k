@@ -23,6 +23,7 @@ import {
 } from './hooks'
 import { frozenClosestEligible, snapshotClosestEligible } from './factions/tyranids'
 import { leaderService } from './leaders'
+import { shadowBattleShockModifiers } from './shadow'
 import type { DecisionHandler, EngineContext, WindowTrigger } from './modules'
 import { keywordsOf, modelStats, mortalCredit, unitModels } from './state'
 import type { ActiveEffect, DiceRoll, GameState, ModelId, PlayerId, RuntimeAbility, RuntimeWeapon, Unit, UnitId } from './types'
@@ -99,6 +100,8 @@ export interface HookQueries {
   overwatchHitOnFor(state: GameState, shooterUnitId: UnitId, stratagemId: string): number
   // E4: some active source (Electro-static Flares) forbids enemies from using Fire Overwatch against this unit
   overwatchForbiddenAgainst(state: GameState, targetUnitId: UnitId): boolean
+  // chaos-daemons E3: a forbid:'overwatch' effect (Empyric Predators) is active on any half of the unit: it cannot Fire Overwatch
+  overwatchForbidden(state: GameState, unitId: UnitId): boolean
 }
 export interface HookService extends Partial<HookQueries> {}
 
@@ -563,21 +566,25 @@ function getStuckIn(state: GameState, unitId: UnitId): { pileIn: number | null; 
   let enemyOnly = false
   let objective: number | null = null
   let found = false
+  const sources: { code?: string; params?: Record<string, unknown> }[] = []
   for (const id of leaderService.halves(state, unitId)) {
-    for (const e of state.units[id].effects) {
-      const src = state.stratagems[e.sourceAbilityId] ?? state.abilities[e.sourceAbilityId]
-      if (!src?.code || !GET_STUCK_IN_CODES.has(src.code)) continue
-      const params = (src.params ?? {}) as { pileIn?: number; consolidate?: number; pileInOnly?: boolean; consolidateOnly?: boolean; enemyOnly?: boolean }
-      found = true
-      const pi = params.consolidateOnly ? null : (params.pileIn ?? 6)
-      const co = params.pileInOnly ? null : (params.consolidate ?? params.pileIn ?? 6)
-      if (pi !== null && (pileIn === null || pi > pileIn)) pileIn = pi
-      if (co !== null) {
-        const eo = params.enemyOnly === true
-        // the larger bonus wins; on a tie an unrestricted source beats an enemyOnly one
-        if (consolidate === null || co > consolidate || (co === consolidate && enemyOnly && !eo)) { consolidate = co; enemyOnly = eo }
-        if (!eo && (objective === null || co > objective)) objective = co
-      }
+    const half = state.units[id]
+    for (const e of half.effects) sources.push(state.stratagems[e.sourceAbilityId] ?? state.abilities[e.sourceAbilityId])
+    // chaos-daemons E4: an always-on datasheet ability with that code (Kh'har'ret's A Gory Path) counts while the half is on the board
+    if (half.location === 'board') for (const aid of state.datasheets[half.datasheetId]?.abilities ?? []) sources.push(state.abilities[aid])
+  }
+  for (const src of sources) {
+    if (!src?.code || !GET_STUCK_IN_CODES.has(src.code)) continue
+    const params = (src.params ?? {}) as { pileIn?: number; consolidate?: number; pileInOnly?: boolean; consolidateOnly?: boolean; enemyOnly?: boolean }
+    found = true
+    const pi = params.consolidateOnly ? null : (params.pileIn ?? 6)
+    const co = params.pileInOnly ? null : (params.consolidate ?? params.pileIn ?? 6)
+    if (pi !== null && (pileIn === null || pi > pileIn)) pileIn = pi
+    if (co !== null) {
+      const eo = params.enemyOnly === true
+      // the larger bonus wins; on a tie an unrestricted source beats an enemyOnly one
+      if (consolidate === null || co > consolidate || (co === consolidate && enemyOnly && !eo)) { consolidate = co; enemyOnly = eo }
+      if (!eo && (objective === null || co > objective)) objective = co
     }
   }
   return found ? { pileIn, consolidate, enemyOnly, objective } : null
@@ -836,6 +843,11 @@ export const hookService: HookService & HookQueries = {
     return matchEffects(state, 'onEligibility', data, new Set<keyof Effect>(['forbid'])).some((m) => m.effect.forbid === 'charge')
   },
 
+  overwatchForbidden(state, unitId) {
+    const data: Data = { queryUnitId: unitId, check: 'charge' }
+    return leaderService.halves(state, unitId).some((id) => matchEffects(state, 'onEligibility', { ...data, queryUnitId: id }, new Set<keyof Effect>(['forbid'])).some((m) => m.effect.forbid === 'overwatch'))
+  },
+
   eligibilityFor(state, unitId, check) {
     const data: Data = { queryUnitId: unitId, check }
     let allow = false
@@ -919,7 +931,7 @@ export const hookService: HookService & HookQueries = {
     } else if (rolls.some((r) => r.autoFail)) {
       passed = false
     } else {
-      const modifiers = [...(modifier !== 0 ? [{ source, value: modifier }] : []), ...results.filter((r) => r.result.kind === 'roll' && (r.result as { modifier?: number }).modifier).map((r) => ({ source: r.source.id, value: (r.result as { modifier: number }).modifier }))]
+      const modifiers = [...(modifier !== 0 ? [{ source, value: modifier }] : []), ...results.filter((r) => r.result.kind === 'roll' && (r.result as { modifier?: number }).modifier).map((r) => ({ source: r.source.id, value: (r.result as { modifier: number }).modifier })), ...shadowBattleShockModifiers(s, unitId)] // chaos-daemons E2: Shadow of Chaos +1 / -1
       // Tyranid Synapse: sources may add dice (the highest single contribution applies), RollModifierResult.extraDice
       let extraDice = Math.max(0, ...rolls.map((r) => r.extraDice ?? 0))
       for (const entry of sourcesFor(s)) {

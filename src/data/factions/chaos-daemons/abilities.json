@@ -1,0 +1,38 @@
+[
+  {
+    "id": "cdm.a.shadow-of-chaos",
+    "name": "The Shadow of Chaos",
+    "text": "Your army carries a Shadow of Chaos: your deployment zone always, plus No Man's Land or the enemy deployment zone for a phase if you held at least half its markers when the phase began. Your units inside it add 1 to Battle-shock tests and, on a pass, heal D3 wounds (BATTLELINE may return D3 models instead). Enemy units inside it subtract 1 and, on a fail, suffer D3 mortal wounds.",
+    "trigger": "always",
+    "code": "shadowOfChaos"
+  },
+  {
+    "id": "cdm.a.a-gory-path",
+    "name": "A Gory Path",
+    "text": "When this model's unit makes a Consolidation move, it may move up to 6 inches instead of up to 3 inches. Pile-in moves stay at 3 inches.",
+    "trigger": "always",
+    "code": "getStuckInDistance",
+    "params": {
+      "pileIn": 3,
+      "consolidate": 6
+    },
+    "scope": {
+      "who": "self"
+    }
+  },
+  {
+    "id": "cdm.a.collar-of-khorne",
+    "name": "Collar of Khorne",
+    "text": "Every model in this unit has a 3+ Feel No Pain save against wounds and mortal wounds caused by Psychic attacks and Psychic abilities.",
+    "trigger": "feelNoPainRoll",
+    "when": {
+      "sourcePsychic": true
+    },
+    "effect": {
+      "feelNoPain": 3
+    },
+    "scope": {
+      "who": "self"
+    }
+  }
+]

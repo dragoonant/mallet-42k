@@ -33,6 +33,7 @@ const PREVIEW: Record<string, { datasheetId: string; modelId?: string }> = {
   'adeptus-mechanicus': { datasheetId: 'adm.skitarii-vanguard', modelId: 'vanguard' },
   'death-guard': { datasheetId: 'dg.plague-marines', modelId: 'boltgun' },
   'thousand-sons': { datasheetId: 'ths.scarab-occult-terminators', modelId: 'combi' },
+  'chaos-daemons': { datasheetId: 'cdm.bloodletters', modelId: 'bloodletter' },
 }
 
 const backdrop: CSSProperties = { position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'auto', zIndex: 60 }

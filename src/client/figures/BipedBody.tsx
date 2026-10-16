@@ -12,6 +12,7 @@ import { ADM_HEADS, AdmDressing, AdmHead, type AdmHeadShape } from './admParts'
 import { DG_HEADS, DgDressing, DgHead, type DgHeadShape } from './dgParts'
 import { HornPair, Juggernaut } from './weParts'
 import { THS_HEADS, ThsHead, type ThsHeadShape } from './thsParts'
+import { DAEMON_HEADS, DaemonDressing, DaemonHead, type DaemonHeadShape } from './daemonParts'
 import type { BipedConfig, BodyProps } from './types'
 
 const ORK_SKIN = '#6f8f3f'
@@ -210,6 +211,7 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
         )}
         <DgDressing config={config} colors={colors} torsoWidth={torsoWidth} torsoDepth={torsoDepth} torsoHeight={TORSO_H} hipY={HIP_Y} />
         <AdmDressing config={config} colors={colors} torsoWidth={torsoWidth} torsoDepth={torsoDepth} torsoHeight={TORSO_H} hipY={HIP_Y} />
+        <DaemonDressing config={config} colors={colors} torsoWidth={torsoWidth} torsoDepth={torsoDepth} torsoHeight={TORSO_H} />
         <TyranidExtras config={config} colors={colors} torsoWidth={torsoWidth} torsoDepth={torsoDepth} torsoHeight={TORSO_H} />
         {config.tabard && (
           <>
@@ -307,6 +309,7 @@ function HeadBody({
   if (ADM_HEADS.has(shape)) return <AdmHead shape={shape as AdmHeadShape} colors={colors} radius={radius} />
   if (DG_HEADS.has(shape)) return <DgHead shape={shape as DgHeadShape} colors={colors} radius={radius} />
   if (THS_HEADS.has(shape)) return <ThsHead shape={shape as ThsHeadShape} colors={colors} radius={radius} />
+  if (DAEMON_HEADS.has(shape)) return <DaemonHead shape={shape as DaemonHeadShape} colors={colors} radius={radius} />
   switch (shape) {
     case 'marine-helmet':
       return (

@@ -21,6 +21,7 @@ import { adeptaSororitasHooks } from './factions/adepta-sororitas'
 import { shotThisTurn } from './attack'
 import type { AttackContext, CodeHook, HookName, HookResult } from './hooks'
 import { chaosSpaceMarinesHooks } from './factions/chaos-space-marines'
+import { chaosDaemonsHooks } from './factions/chaos-daemons'
 import { drukhariHooks } from './factions/drukhari'
 import { greyKnightsHooks } from './factions/grey-knights'
 import { leaguesOfVotannHooks } from './factions/leagues-of-votann'
@@ -373,6 +374,7 @@ const fireOverwatch: EngineCodeHook = {
     const notAgainst = (env.stratagem.params?.notAgainstKeyword as string | undefined) ?? 'TITANIC'
     if (unitHasAny(state, enemyId, notAgainst)) return false
     if (hookService.overwatchForbiddenAgainst?.(state, enemyId)) return false // E4: Electro-static Flares
+    if (hookService.overwatchForbidden?.(state, friendlyId)) return false // chaos-daemons E3: Empyric Predators
     if (!eligibleToShootNow(state, friendlyId)) return false
     if (shotThisTurn(state, friendlyId)) return false // C3: once per unit per turn (Laser-Marked Targets counts too)
     // R-6.7 Pistol exception: an engaged non-MONSTER/VEHICLE unit may only fire at a unit it is engaged with, not any
@@ -877,6 +879,8 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   // thousand-sons (docs/spec/factions/thousand-sons.md §7): cabalOfSorcerers, cabalRituals, weaverOfFates, temporalSorceries, archDiabolist,
   // relicHunters, glimpseOfEternity, malignEntanglement, sorcerousRitual, bringerOfChange
   ...thousandSonsHooks(),
+  // chaos-daemons (docs/spec/factions/chaos-daemons.md §7): shadowOfChaos, warpLocus, empyricPredators, worthyOfferings, darkConjunction
+  ...chaosDaemonsHooks(),
 }
 
 export type { ChooseOptionDecision }

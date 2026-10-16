@@ -1,0 +1,23 @@
+{
+  "id": "chaos-daemons",
+  "name": "Chaos Daemons",
+  "factionKeyword": "LEGIONES DAEMONICA",
+  "armyRule": "cdm.a.shadow-of-chaos",
+  "detachments": [
+    {
+      "id": "cdm.d.butchers-of-hyporia",
+      "name": "Butchers of Hyporia",
+      "rule": "cdm.a.shadow-of-chaos",
+      "stratagems": ["cdm.s.blood-maddened-banishment", "cdm.s.empyric-predators", "cdm.s.manifest-hate"],
+      "enhancements": ["cdm.e.incarnated-rage", "cdm.e.warp-locus"]
+    }
+  ],
+  "paintScheme": {
+    "primary": "#8e1a14",
+    "secondary": "#2b1d18",
+    "trim": "#b8862b",
+    "metal": "#7d7f84",
+    "decal": "#e9dcb6"
+  },
+  "combatPatrols": ["cdm.cp.butchers-of-hyporia"]
+}

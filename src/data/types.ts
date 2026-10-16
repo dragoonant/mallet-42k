@@ -107,7 +107,7 @@ export interface Effect {
   // C6 (Astra Militarum Artillery Strike): halve a stat (rounded up, before additive modifiers), halve an Advance roll, forbid a charge
   halveStat?: StatName
   halveRoll?: 'advance'
-  forbid?: 'charge'
+  forbid?: 'charge' | 'overwatch'
   setStat?: { stat: StatName; value: DiceExpr }
   invuln?: RollTarget
   feelNoPain?: RollTarget

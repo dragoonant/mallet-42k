@@ -9,6 +9,7 @@
 // Oath of Moment / Waaagh!. Per-rule "done" marks (`phaseState.marks`) make every step idempotent across that resume.
 import { championOfTheDarkGodsAmount } from './factions/chaos-space-marines'
 import { murderousMonsterAmount } from './factions/drukhari'
+import { darkConjunctionAmount, worthyOfferingsAmount } from './factions/chaos-daemons'
 import { alphaPredationAmount, alphaXenoformAmount, chitinousTideAmount, leftToLastAmount } from './factions/tyranids'
 import type { AttackKind } from './types'
 import type { MissionRule, ScoringRule, TimingWindowId } from '../data/types'
@@ -566,6 +567,8 @@ function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): num
     case 'alphaXenoform': return alphaXenoformAmount(s, rule, pid)
     case 'championOfTheDarkGods': return championOfTheDarkGodsAmount(s, rule, pid)
     case 'murderousMonster': return murderousMonsterAmount(s, rule, pid)
+    case 'worthyOfferings': return worthyOfferingsAmount(s, rule, pid)
+    case 'darkConjunction': return darkConjunctionAmount(s, rule, pid)
     case 'chitinousTide': return chitinousTideAmount(s, rule, pid, (id) => holds(ctx, id, pid))
     case 'shockTactics': return shockTacticsAmount(ctx, rule, pid)
     case 'sweepingRaidEndgameBonus': return sweepingRaidBonusAmount(ctx, rule, pid)

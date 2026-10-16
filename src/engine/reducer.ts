@@ -13,6 +13,7 @@ import {
 import { flushDeferredRemovals } from './deferred'
 import { onCultAmbushUnitDestroyed, raisePendingCultAmbushMarker } from './cult-ambush'
 import { onPainEvent, startBattlePain } from './pain'
+import { hasShadowOfChaos, onShadowBattleShock, refreshShadow } from './shadow'
 import { clearActsOfFaithPhase, miracleGate, offerMiracleRerolls, onOwnUnitDestroyed, runActsOfFaithTurnStart, STRANDS_OF_FATE_CODE, unitHasStrandsOfFate } from './miracle'
 import { restoreRng, type Rng } from './rng'
 import { cloneForStep, createGameState, emptyPhaseState, emptyTurnState, hashState, removeModel, unitModelsForCoherency } from './state'
@@ -82,6 +83,8 @@ function makeContext(draft: GameState, rng: Rng, modules: ModuleTable, rt: StepR
       if (e.type === 'UnitDestroyed') { onOwnUnitDestroyed(ctx, e.unitId); onCultAmbushUnitDestroyed(ctx, e.unitId) } // GSC: Cult Ambush roll
       // Drukhari Power from Pain: the opponent of a destroyed unit / a unit failing a Battle-shock test gains a Pain token
       if (e.type === 'UnitDestroyed' || (e.type === 'BattleShockTested' && !e.passed)) onPainEvent(ctx, e)
+      // Chaos Daemons Shadow of Chaos: Daemonic Manifestation (own test passed) / Daemonic Terror (enemy test failed)
+      if (e.type === 'BattleShockTested') onShadowBattleShock(ctx, e)
     },
     roll(spec) {
       const id = `r:${++s.rollCounter}`
@@ -514,6 +517,9 @@ export function advanceGame(ctx: EngineContext, modules: ModuleTable): void {
     if (raisePendingCultAmbushMarker(ctx)) return
     if (s.step === 'none') { transition(ctx, modules); continue }
     const mod = modules.phases[s.phase as BattlePhase]
+    // Chaos Daemons Shadow of Chaos: record the areas at the start of every battle phase, before its start window
+    // (only when some player has the ability, so other games write nothing and replay hashes stay unchanged)
+    if (isBattlePhase(s.phase) && (hasShadowOfChaos(s, 'A') || hasShadowOfChaos(s, 'B')) && ctx.once(`shadow:${s.round}:${s.activePlayer}:${s.phase}`)) refreshShadow(ctx)
     if (isBattlePhase(s.phase) && ctx.window(`${s.phase}.start` as TimingWindowId, 'start', ctx.order.active())) continue
     const r = mod.advance(ctx)
     if (r === 'done') { finishPhaseBody(ctx, modules, mod); continue }

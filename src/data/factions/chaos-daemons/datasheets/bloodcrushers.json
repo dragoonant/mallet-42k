@@ -1,0 +1,41 @@
+[
+  {
+    "id": "cdm.bloodcrushers",
+    "faction": "chaos-daemons",
+    "name": "Bloodcrushers",
+    "keywords": ["MOUNTED", "CHAOS", "DAEMON", "KHORNE", "BLOODCRUSHERS"],
+    "factionKeywords": ["LEGIONES DAEMONICA"],
+    "stats": { "M": 10, "T": 7, "Sv": 4, "W": 4, "Ld": 7, "OC": 2 },
+    "invuln": 4,
+    "composition": [
+      {
+        "modelId": "bloodcrusher",
+        "name": "Bloodcrusher",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "oval", "mm": 90, "mm2": 52 },
+        "weapons": { "default": ["cdm.w.hellblade", "cdm.w.juggernauts-bladed-horn"] },
+        "figure": { "archetype": "monster", "kit": "generic-monster" }
+      },
+      {
+        "modelId": "bloodcrusher-icon",
+        "name": "Bloodcrusher (daemonic icon)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "oval", "mm": 90, "mm2": 52 },
+        "weapons": { "default": ["cdm.w.hellblade", "cdm.w.juggernauts-bladed-horn"] },
+        "figure": { "archetype": "monster", "kit": "generic-monster" }
+      },
+      {
+        "modelId": "bloodcrusher-musician",
+        "name": "Bloodcrusher (instrument of Chaos)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "oval", "mm": 90, "mm2": 52 },
+        "weapons": { "default": ["cdm.w.hellblade", "cdm.w.juggernauts-bladed-horn"] },
+        "figure": { "archetype": "monster", "kit": "generic-monster" }
+      }
+    ],
+    "abilities": ["cdm.a.shadow-of-chaos"],
+    "coreAbilities": [],
+    "points": [ { "models": 3, "points": 0 } ],
+    "figure": { "archetype": "monster", "kit": "generic-monster" }
+  }
+]

@@ -1081,6 +1081,8 @@ const bannerWrap: CSSProperties = {
  *  text for each usable stratagem, plus the trigger and the player's current CP (M6 gap: these
  *  prompts showed raw ids with no effect or CP context). */
 function StratagemOffers({ state, player, stratagemIds, triggerLine }: { state: GameState; player: PlayerId; stratagemIds: StratagemId[]; triggerLine: string }) {
+  // The same stratagem is offered once per eligible unit (e.g. Fire Overwatch for two Flesh Hounds units): list it once.
+  stratagemIds = [...new Set(stratagemIds)]
   if (stratagemIds.length === 0) return null
   return (
     <div style={infoBlock}>

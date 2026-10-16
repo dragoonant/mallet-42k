@@ -1,0 +1,39 @@
+{
+  "id": "cdm.cp.butchers-of-hyporia",
+  "faction": "chaos-daemons",
+  "name": "Butchers of Hyporia",
+  "units": [
+    { "ref": "khharret", "datasheet": "cdm.khharret-the-butcher", "size": 1, "enhancement": "cdm.e.incarnated-rage", "attachTo": "bloodletters-1" },
+    { "ref": "bloodletters-1", "datasheet": "cdm.bloodletters", "size": 10 },
+    { "ref": "bloodletters-2", "datasheet": "cdm.bloodletters", "size": 10 },
+    { "ref": "flesh-hounds-1", "datasheet": "cdm.flesh-hounds", "size": 5 },
+    { "ref": "flesh-hounds-2", "datasheet": "cdm.flesh-hounds", "size": 5 },
+    { "ref": "bloodcrushers", "datasheet": "cdm.bloodcrushers", "size": 3 }
+  ],
+  "stratagems": ["cdm.s.blood-maddened-banishment", "cdm.s.empyric-predators", "cdm.s.manifest-hate"],
+  "enhancements": [
+    { "id": "cdm.e.incarnated-rage", "default": true },
+    { "id": "cdm.e.warp-locus", "default": false }
+  ],
+  "secondaries": [
+    {
+      "id": "cdm.sec.worthy-offerings",
+      "name": "Worthy Offerings",
+      "text": "At the end of the battle, score 6 victory points if the opposing Warlord's unit has been destroyed, or 10 victory points instead if your own Warlord model destroyed it with an attack.",
+      "default": true,
+      "scoring": [
+        { "id": "worthy-offerings", "when": "battle.end", "rounds": { "from": 5, "to": 5 }, "rule": "custom", "pointsPer": 6, "cap": 10, "code": "worthyOfferings", "params": { "unitPoints": 6, "warlordPoints": 10 } }
+      ]
+    },
+    {
+      "id": "cdm.sec.dark-conjunction",
+      "name": "Dark Conjunction",
+      "text": "From battle round 2, at the end of each of your turns, score 1 victory point for every objective marker that lies inside your Shadow of Chaos and outside your own deployment zone.",
+      "default": false,
+      "scoring": [
+        { "id": "dark-conjunction", "when": "turn.end", "rounds": { "from": 2, "to": 5 }, "who": "active", "rule": "custom", "pointsPer": 1, "cap": 999, "code": "darkConjunction" }
+      ]
+    }
+  ],
+  "warlord": "khharret"
+}

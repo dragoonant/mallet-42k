@@ -6,11 +6,23 @@
 // module only opens `command.battleShock` before each test and calls that service. R-4.3 recovery ("until the start
 // of that player's next Command phase") runs before any new test this phase, using Unit.battleShockExpiresRound
 // (set by hookService.battleShockTest, R-4.8 "remains shocked" already handled there — a single boolean flag).
+import { attackService } from '../attack'
 import { runReanimation } from '../factions/necrons'
 import { hookService } from '../hooks-impl'
 import { leaderService } from '../leaders'
 import { notImplementedHandle, type AdvanceResult, type EngineContext, type PhaseModule } from '../modules'
 import type { PlayerId, Rejection, UnitId } from '../types'
+
+// Shadow of Chaos Daemonic Terror (chaos-daemons E2): mortal wounds from a failed test are queued as a throwaway attack
+// sequence; it must finish (including any allocation decision) before the next unit is tested.
+const ATTACK_CHOOSE_TOPICS = new Set(['saveType', 'hazardousCasualty', 'rerollOffer'])
+function drainAttack(ctx: EngineContext): AdvanceResult {
+  while (ctx.state.phaseState.attack) {
+    if (ctx.state.pending) return 'pending'
+    if (attackService.advance(ctx) === 'pending') return 'pending'
+  }
+  return 'done'
+}
 
 const SEL_PREFIX = 'cmd:bsSelected='
 const TESTED_PREFIX = 'cmd:bsTested:'
@@ -55,6 +67,7 @@ function recoverExpiredShock(ctx: EngineContext): void {
 function runBattleShockTests(ctx: EngineContext): AdvanceResult {
   const s = ctx.state
   for (;;) {
+    if (drainAttack(ctx) === 'pending') return 'pending'
     let unitId = selectedUnit(ctx)
     if (unitId === null) {
       const remaining = eligibleForTest(ctx)
@@ -82,6 +95,7 @@ function runBattleShockTests(ctx: EngineContext): AdvanceResult {
     if (hookService.battleShockTest(ctx, unitId, 'command') === 'pending') return 'pending'
     s.phaseState.marks.push(TESTED_PREFIX + unitId)
     setSelected(ctx, null)
+    if (drainAttack(ctx) === 'pending') return 'pending'
   }
 }
 
@@ -117,6 +131,10 @@ export const commandModule: PhaseModule = {
     return 'done'
   },
   handle(ctx, action, pending): Rejection | void {
+    const st = ctx.state
+    if (st.phaseState.attack && (pending.kind === 'allocateAttack' || (pending.kind === 'chooseOption' && ATTACK_CHOOSE_TOPICS.has(pending.context.topic)))) {
+      return attackService.handler.handle(ctx, action, pending)
+    }
     if (pending.kind !== 'chooseOption' || pending.context.topic !== 'battleShockOrder') {
       return notImplementedHandle('command')(ctx, action, pending)
     }

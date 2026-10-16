@@ -448,3 +448,12 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Verification | typecheck, validate:data (233 files), build green; `npm test` 3106 passing (136 files); e2e `thousand-sons.spec.ts` starts as Thousand Sons vs the bot, deploys every unit by board click, reaches round 1 Shooting with the target prompt (`e2e-out/m10-thousand-sons-0*.png`) |
 | Sim | `SIM_FACTION=thousand-sons npm run sim -- --games 6 --seed 5`: 0 violations, all 6 finished (round 5); thousand-sons 3 wins, 2 losses, 1 draw (default rotation excludes it) |
 | Known gaps | Procedural figures (no GLBs); borrowed SFX; no leader portrait; AI has no Ritual-specific policy beyond option scoring; rulings THS-R01 to THS-R26 in `docs/needs-rules-check.md` under "thousand-sons build" |
+
+### M10 chaos-daemons - Butchers of Hyporia (new faction, playable)
+| Item | State |
+|---|---|
+| Patrol | Butchers of Hyporia: Kh'har'ret the Butcher (leads Bloodletters), Bloodletters, Flesh Hounds, Bloodcrushers; secondaries Worthy Offerings / Dark Conjunction. Data `src/data/factions/chaos-daemons/`; spec `docs/spec/factions/chaos-daemons.md` |
+| Engine hooks | New `src/engine/factions/chaos-daemons.ts` + `src/engine/shadow.ts`, registered in `code-hooks.ts`: shadowOfChaos, warpLocus, empyricPredators, worthyOfferings, darkConjunction (reuses CSM daemonicFervour, GSC returnToTheShadows check, Necrons returnModel). Generic: forbid:'overwatch' effect checked via hookService.overwatchForbidden in fireOverwatch |
+| Verification | typecheck, validate:data (215 files), build green; `npm test` 2933 passing (128 files, incl. `tests/engine/chaos-daemons*.test.ts` CHA-101..130, `tests/data/chaos-daemons.test.ts`); e2e `chaos-daemons-butchers-of-hyporia.spec.ts` starts as Chaos Daemons vs bot on mission cp-02, deploys by board click, Fires Overwatch into round 1 Shooting; `e2e-out/m10-chaos-daemons-0*.png` |
+| Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all 6 finished (round 5); chaos-daemons 1 win, 2 draws |
+| Known gaps | Procedural figures (Bloodcrushers on hound rig, no GLBs); borrowed SFX; default mission cp-01 strip too narrow to deploy the whole army through the e2e harness (use cp-02); rulings DMN-R01 to DMN-R17 in `docs/needs-rules-check.md` under "chaos-daemons build" |

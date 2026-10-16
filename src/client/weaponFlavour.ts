@@ -48,7 +48,7 @@ export function weaponFlavour(weaponId: string, weapon: WeaponData | undefined, 
     // Tyranid claws, talons and teeth rend and slash, so they voice as the cutting sound; only a klaw/fist
     // (or a plain crushing profile) is the heavy crunch.
     if (/fist|klaw|hammer|maul(?!er)|smasher|mace|crush|limbs|mutation|sentinel(?![- ]blade)|mining|improvised|gauntlet|dozer|armoured hull|armoured-hull|armoured tracks|tracks/.test(text)) return 'crush'
-    if (/choppa|chain|sword|blade|axe|eviscerator|knife|knives|reaper|claw|talon|teeth|jaws|snappa|stikka|maw|hyperphase|mandible|flail|whip|glaive|spear|lance|khopesh/.test(text)) return 'chain'
+    if (/choppa|chain|sword|blade|axe|eviscerator|knife|knives|reaper|claw|talon|teeth|jaws|snappa|stikka|maw|hyperphase|mandible|flail|whip|glaive|spear|lance|khopesh|fang/.test(text)) return 'chain'
     return strength >= 8 ? 'crush' : 'chain'
   }
 
@@ -133,6 +133,7 @@ export function classifyVfxFamily(weaponId: string, weapon: WeaponData | undefin
     case 'drukhari': return { family: 'dakka', via: 'faction' }
     case 'aeldari': return { family: 'pulse', via: 'faction' }
     case 'adeptus-mechanicus': return { family: 'las', via: 'faction' }
+    case 'chaos-daemons': return { family: 'psychic', via: 'faction' }
     default: return { family: 'bolt', via: 'default' }
   }
 }

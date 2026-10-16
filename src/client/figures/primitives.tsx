@@ -6,6 +6,7 @@ import { GBox, GCapsule, GCone, GCylinder, GSphere, StdMat } from './shared'
 import { ADM_WEAPONS, AdmWeapon } from './admParts'
 import { DG_WEAPONS, DgWeapon } from './dgParts'
 import { THS_WEAPONS, ThsWeapon } from './thsParts'
+import { DAEMON_WEAPONS, DaemonWeapon } from './daemonParts'
 import type { PaintColors, WeaponShape } from './types'
 
 /** A big, slightly-flattened sphere — the chibi head blob every kit head shape starts from. */
@@ -79,6 +80,7 @@ export function WeaponMesh({ shape, colors, hand }: { shape: WeaponShape; colors
   if (ADM_WEAPONS.has(shape)) return <AdmWeapon shape={shape} colors={colors} />
   if (DG_WEAPONS.has(shape)) return <DgWeapon shape={shape} colors={colors} />
   if (THS_WEAPONS.has(shape)) return <ThsWeapon shape={shape} colors={colors} />
+  if (DAEMON_WEAPONS.has(shape)) return <DaemonWeapon shape={shape} colors={colors} />
   switch (shape) {
     case 'bolt-rifle':
       return (

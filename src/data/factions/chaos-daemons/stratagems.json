@@ -1,0 +1,61 @@
+[
+  {
+    "id": "cdm.s.blood-maddened-banishment",
+    "faction": "chaos-daemons",
+    "name": "Blood-Maddened Banishment",
+    "text": "Use in a Fight phase, just after an enemy unit selects its targets, when one of your BLOODLETTERS units is a target. Until the end of the phase, each time a model in that unit is destroyed before the unit has fought, roll a D6: on a 4+ it is not removed yet, and once the enemy unit finishes its attacks it fights, then is removed.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["fight"],
+    "window": "fight.targetsDeclared",
+    "who": "either",
+    "condition": { "phase": "fight" },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "BLOODLETTERS" }, "state": "targetedByAttack", "count": 1 }
+    ],
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase",
+    "code": "daemonicFervour",
+    "params": { "threshold": 4 }
+  },
+  {
+    "id": "cdm.s.empyric-predators",
+    "faction": "chaos-daemons",
+    "name": "Empyric Predators",
+    "text": "Use in your opponent's Movement phase, just after an enemy unit ends a Normal, Advance or Fall Back move, picking one of your FLESH HOUNDS units within 6 inches of it that has not fired Overwatch this phase. Your unit makes a Normal move of up to 6 inches. Until the end of the phase it cannot be picked to Fire Overwatch.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["movement"],
+    "window": "movement.unitMoved",
+    "who": "reactive",
+    "condition": { "phase": "movement", "ownTurn": false },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "FLESH HOUNDS" }, "count": 1 }
+    ],
+    "scope": { "who": "self" },
+    "duration": "instant",
+    "limit": "oncePerPhase",
+    "code": "empyricPredators",
+    "params": { "range": 6, "distance": 6 }
+  },
+  {
+    "id": "cdm.s.manifest-hate",
+    "faction": "chaos-daemons",
+    "name": "Manifest Hate",
+    "text": "Use in your opponent's Shooting phase, just after an enemy unit selects its targets, when one of your LEGIONES DAEMONICA units is a target. Until the end of the phase, models in that unit have a 4+ invulnerable save.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["shooting"],
+    "window": "shooting.targetsDeclared",
+    "who": "reactive",
+    "condition": { "phase": "shooting", "ownTurn": false },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "LEGIONES DAEMONICA" }, "state": "targetedByAttack", "count": 1 }
+    ],
+    "effect": { "invuln": 4 },
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  }
+]

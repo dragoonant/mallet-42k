@@ -1,0 +1,9 @@
+[
+  { "id": "cdm.w.blade-of-blood", "name": "Blade of blood", "type": "melee", "range": 0, "A": 5, "skill": 2, "S": 6, "AP": -2, "D": 3, "abilities": [] },
+  { "id": "cdm.w.hellblade", "name": "Hellblade", "type": "melee", "range": 0, "A": 2, "skill": 3, "S": 5, "AP": -2, "D": 2, "abilities": [] },
+  { "id": "cdm.w.juggernauts-bladed-horn", "name": "Juggernaut's bladed horn", "type": "melee", "range": 0, "A": 4, "skill": 4, "S": 6, "AP": -1, "D": 1,
+    "abilities": [ { "ability": "EXTRA_ATTACKS" }, { "ability": "LANCE" } ] },
+  { "id": "cdm.w.burning-roar", "name": "Burning roar", "type": "ranged", "range": 12, "A": "D6", "skill": null, "S": 4, "AP": 0, "D": 1,
+    "abilities": [ { "ability": "IGNORES_COVER" }, { "ability": "TORRENT" } ] },
+  { "id": "cdm.w.gore-drenched-fangs", "name": "Gore-drenched fangs", "type": "melee", "range": 0, "A": 3, "skill": 3, "S": 5, "AP": -1, "D": 1, "abilities": [] }
+]

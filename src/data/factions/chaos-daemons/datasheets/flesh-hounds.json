@@ -1,0 +1,33 @@
+[
+  {
+    "id": "cdm.flesh-hounds",
+    "faction": "chaos-daemons",
+    "name": "Flesh Hounds",
+    "keywords": ["BEAST", "CHAOS", "DAEMON", "KHORNE", "FLESH HOUNDS"],
+    "factionKeywords": ["LEGIONES DAEMONICA"],
+    "stats": { "M": 12, "T": 4, "Sv": 7, "W": 2, "Ld": 7, "OC": 1 },
+    "invuln": 5,
+    "composition": [
+      {
+        "modelId": "gore-hound",
+        "name": "Gore Hound",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "oval", "mm": 60, "mm2": 35 },
+        "weapons": { "default": ["cdm.w.burning-roar", "cdm.w.gore-drenched-fangs"] },
+        "figure": { "archetype": "monster", "kit": "generic-monster" }
+      },
+      {
+        "modelId": "flesh-hound",
+        "name": "Flesh Hound",
+        "min": 4, "max": 4, "default": 4,
+        "base": { "shape": "oval", "mm": 60, "mm2": 35 },
+        "weapons": { "default": ["cdm.w.gore-drenched-fangs"] },
+        "figure": { "archetype": "monster", "kit": "generic-monster" }
+      }
+    ],
+    "abilities": ["cdm.a.shadow-of-chaos", "cdm.a.collar-of-khorne"],
+    "coreAbilities": [],
+    "points": [ { "models": 5, "points": 0 } ],
+    "figure": { "archetype": "monster", "kit": "generic-monster" }
+  }
+]

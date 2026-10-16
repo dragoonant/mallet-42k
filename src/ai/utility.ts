@@ -830,10 +830,11 @@ function chooseFormationDeployment(state: GameState, player: PlayerId, pending: 
   }
   if (groups.length === 0) return null
   // a shallow zone (Combat Patrol: ~5" deep) runs out of room for big bases if small units go down first and sprawl:
-  // while any big-based unit (> 3" across) is still undeployed, deploy only those
+  // while any big-based unit (> 2.2" across) is still undeployed, deploy only those
   if (!arrival && groups.length > 1 && Math.min(maxX - minX, maxZ - minZ) < 8) {
     const rad = (g: { models: FormationModel[] }): number => Math.max(...g.models.map((m) => Math.max(m.base.radius, m.base.radius2 ?? 0)))
-    if (groups.some((g) => rad(g) >= 1.5)) for (let i = groups.length - 1; i >= 0; i--) if (rad(groups[i]) < 1.5) groups.splice(i, 1)
+    const BIG = 1.1 // 56 mm and up: Flesh Hounds (60x35 ovals) fragment just like a Rockgrinder when left to last
+    if (groups.some((g) => rad(g) >= BIG)) for (let i = groups.length - 1; i >= 0; i--) if (rad(groups[i]) < BIG) groups.splice(i, 1)
   }
   const myReserves = Object.values(state.units).filter((u) => u.player === player && u.location === 'reserves').length
   const xStep = 2.5, zStep = 1 // a Combat Patrol zone is only ~5" deep: fine in z so a 2-3 rank block can sit anywhere in it
