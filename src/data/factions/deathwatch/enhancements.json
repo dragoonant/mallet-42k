@@ -1,0 +1,48 @@
+[
+  {
+    "id": "dw.e.aegis-vigilate",
+    "faction": "deathwatch",
+    "name": "Aegis Vigilate",
+    "text": "Every model in the bearer's unit (an attached bodyguard included) gets +1 Toughness and a 4+ invulnerable save.",
+    "cost": 0,
+    "restriction": { "keyword": ["LIEUTENANT"] },
+    "effect": {
+      "id": "dw.e.aegis-vigilate.effect",
+      "name": "Aegis Vigilate",
+      "text": "The bearer's unit has +1 Toughness and a 4+ invulnerable save.",
+      "trigger": "always",
+      "effect": [
+        { "modifyStat": { "stat": "T", "value": 1 } },
+        { "invuln": 4 }
+      ],
+      "scope": { "who": "self" }
+    }
+  },
+  {
+    "id": "dw.e.aliens-bane",
+    "faction": "deathwatch",
+    "name": "Aliens' Bane",
+    "text": "The bearer's melee weapons gain [PRECISION], and each melee attack the bearer makes adds 1 to its wound roll. Bodyguard models are unaffected.",
+    "cost": 0,
+    "restriction": { "keyword": ["LIEUTENANT"] },
+    "effect": [
+      {
+        "id": "dw.e.aliens-bane.precision",
+        "name": "Aliens' Bane (Precision)",
+        "text": "The bearer's melee weapons have Precision.",
+        "trigger": "always",
+        "effect": { "when": { "weaponType": "melee" }, "grantWeaponAbility": { "ability": "PRECISION" } },
+        "scope": { "who": "bearer" }
+      },
+      {
+        "id": "dw.e.aliens-bane.wound",
+        "name": "Aliens' Bane (wound roll)",
+        "text": "Melee attacks by the bearer add 1 to the wound roll.",
+        "trigger": "woundRoll",
+        "when": { "weaponType": "melee" },
+        "effect": { "modifyRoll": { "roll": "wound", "value": 1 } },
+        "scope": { "who": "bearer" }
+      }
+    ]
+  }
+]

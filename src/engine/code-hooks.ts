@@ -29,6 +29,7 @@ import { spaceMarinesHooks, smRapidRepositioningCheck, smRapidRepositioningApply
 import { adeptusCustodesHooks } from './factions/adeptus-custodes'
 import { spaceWolvesHooks } from './factions/space-wolves'
 import { bloodAngelsHooks } from './factions/blood-angels'
+import { deathwatchHooks } from './factions/deathwatch'
 import { deathGuardHooks } from './factions/death-guard'
 import { darkAngelsHooks } from './factions/dark-angels'
 import { hookService, type HookSourceEntry } from './hooks-impl'
@@ -891,6 +892,9 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   // dark-angels (docs/spec/factions/dark-angels.md §7): stoicExemplar, marchOfVengeance, relicMunitions, endlessHunt,
   // archeotechReliquaryPick/Score
   ...darkAngelsHooks(),
+  // deathwatch (docs/spec/factions/deathwatch.md section 7): specialIssueAmmunition, deathwatchTeleportarium, narthecium,
+  // huntersInsightPick/Score, headTakerDoctrine, headTakerSweep
+  ...deathwatchHooks,
 }
 
 export type { ChooseOptionDecision }

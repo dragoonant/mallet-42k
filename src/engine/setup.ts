@@ -8,7 +8,7 @@ import { transportService } from './transports'
 import { assignSides, boardModelsOf, deploymentZone, hasCoreAbility, hasDeepStrike, unitModels, setModelPos } from './state'
 import type { Action, DeployUnitAction, ModelPlacement } from './actions'
 import type {
-  DeployUnitDecision, GameState, Model, MoveConstraints, PendingDecision, PlayerId, Polygon, Rejection, Unit, UnitId, Vec3,
+  DeployUnitDecision, GameState, Model, ModelId, MoveConstraints, PendingDecision, PlayerId, Polygon, Rejection, Unit, UnitId, Vec3,
 } from './types'
 
 // R-1.4: each player rolls 1D6, higher wins, ties re-roll; never modified or re-rolled
@@ -58,6 +58,40 @@ function infiltratorConstraints(state: GameState, player: PlayerId): MoveConstra
 }
 
 // ---------- Patrol Squads (Tyranid Termagants) ----------
+// Deals a unit's models into parts of the given sizes. Models with the same loadout (datasheet model + weapon list) form a
+// group; each group is shared across the parts in proportion to the room they have left, in model order, so a unit with
+// mixed wargear (Deathwatch Intercessors: 2 grenadiers + a sergeant) gets one of each special model per half instead of
+// the second half taking both. A unit whose models are all alike is cut in plain model order.
+function dealSquadModels(state: GameState, modelIds: ModelId[], sizes: number[]): ModelId[][] {
+  const sig = (id: ModelId): string => `${state.models[id].datasheetModelId}|${state.models[id].weapons.join(',')}`
+  const groups: ModelId[][] = []
+  const bySig = new Map<string, ModelId[]>()
+  for (const id of modelIds) {
+    const k = sig(id)
+    let g = bySig.get(k)
+    if (!g) { g = []; bySig.set(k, g); groups.push(g) }
+    g.push(id)
+  }
+  const room = [...sizes]
+  const dealt: ModelId[][] = sizes.map(() => [])
+  for (const g of groups) {
+    const totalRoom = room.reduce((a, b) => a + b, 0)
+    const quota = room.map((r) => (g.length * r) / totalRoom)
+    const take = quota.map((q, i) => Math.min(room[i], Math.floor(q)))
+    let left = g.length - take.reduce((a, b) => a + b, 0)
+    const order = quota.map((q, i) => i).sort((a, b) => (quota[b] - Math.floor(quota[b])) - (quota[a] - Math.floor(quota[a])) || a - b)
+    for (let pass = 0; left > 0 && pass < g.length * sizes.length; pass++) {
+      const i = order[pass % order.length]
+      if (take[i] < room[i]) { take[i]++; left-- }
+    }
+    let at = 0
+    take.forEach((n, i) => { dealt[i].push(...g.slice(at, at + n)); at += n; room[i] -= n })
+  }
+  // keep each part in the unit's own model order
+  const rank = new Map(modelIds.map((id, i) => [id, i]))
+  return dealt.map((d) => d.sort((a, b) => rank.get(a)! - rank.get(b)!))
+}
+
 // keeps `unitId` for the first sizes[0] models and moves the rest into new units `${unitId}~a`, `~b`, … (sizes[i] models each);
 // every unit gets startingStrength = its size. Only legal while the unit is still in Reserves-to-be-deployed (before setup).
 // Returns the ids in order. A size list that does not add up to the unit's model count leaves the unit untouched ([unitId]).
@@ -65,14 +99,12 @@ export function splitPatrolSquad(state: GameState, unitId: UnitId, sizes: number
   const unit = state.units[unitId]
   if (!unit || sizes.length < 2 || sizes.some((n) => n < 1) || sizes.reduce((a, b) => a + b, 0) !== unit.models.length) return [unitId]
   const ids: UnitId[] = [unitId]
-  const all = [...unit.models]
-  unit.models = all.slice(0, sizes[0])
+  const parts = dealSquadModels(state, unit.models, sizes)
+  unit.models = parts[0]
   unit.startingStrength = sizes[0]
-  let at = sizes[0]
   for (let i = 1; i < sizes.length; i++) {
     const id: UnitId = `${unitId}~${String.fromCharCode(96 + i)}`
-    const mine = all.slice(at, at + sizes[i])
-    at += sizes[i]
+    const mine = parts[i]
     const copy: Unit = structuredClone(unit)
     copy.id = id
     copy.ref = `${unit.ref}~${String.fromCharCode(96 + i)}`

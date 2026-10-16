@@ -1,0 +1,33 @@
+[
+  {
+    "id": "dw.a.target-priority",
+    "name": "Target Priority",
+    "text": "While this model is part of a unit, that unit (an attached bodyguard included) may shoot and may declare a charge in a turn in which it Fell Back.",
+    "trigger": "always",
+    "effect": [
+      { "shootAfterFallBack": true },
+      { "chargeAfterFallBack": true }
+    ],
+    "scope": { "who": "self" }
+  },
+  {
+    "id": "dw.a.narthecium",
+    "name": "Narthecium",
+    "text": "While this model is leading a unit, once in each of your Command phases you may return one destroyed non-CHARACTER model to that unit, set up in coherency and clear of enemies. If there is no legal spot, nothing returns.",
+    "trigger": "commandPhase",
+    "code": "narthecium",
+    "params": {
+      "pickWindow": "command.start",
+      "pickTopic": "abilityChoice"
+    }
+  },
+  {
+    "id": "dw.a.close-quarters-firepower",
+    "name": "Close-quarters Firepower",
+    "text": "Each ranged attack a model in this unit makes against the closest eligible target has its AP improved by 1.",
+    "trigger": "always",
+    "when": { "weaponType": "ranged", "targetIsClosestEligible": true },
+    "effect": { "modifyStat": { "stat": "AP", "value": -1 } },
+    "scope": { "who": "self" }
+  }
+]

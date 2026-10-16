@@ -193,6 +193,27 @@ function defaultAttachments(bundle: DataBundle, patrol: CombatPatrolData): Playe
   return attachments
 }
 
+/** After a setup-time split the parent ref no longer exists, so its leaders move onto the halves (one leader per half, R-10.1):
+ *  leaders already attached to the parent first, then any unattached leader whose datasheet may join the squad's datasheet. */
+function remapSplitAttachments(bundle: DataBundle, patrol: CombatPatrolData, attachments: PlayerSetup['attachments'], splitRefs: string[]): PlayerSetup['attachments'] {
+  let out = [...attachments]
+  for (const parentRef of splitRefs) {
+    const parent = patrol.units.find((u) => u.ref === parentRef)
+    const parts = parent?.patrolSquads
+    if (!parent || !parts?.length) continue
+    const queue = out.filter((a) => a.bodyguardRef === parentRef).map((a) => a.leaderRef)
+    out = out.filter((a) => a.bodyguardRef !== parentRef)
+    const attached = new Set(out.map((a) => a.leaderRef))
+    for (const u of patrol.units) {
+      if (u.ref === parentRef || attached.has(u.ref) || queue.includes(u.ref)) continue
+      const ls = bundle.datasheets[u.datasheet]?.leader
+      if (ls && ls.attachTo.includes(parent.datasheet)) queue.push(u.ref)
+    }
+    parts.forEach((part, i) => { if (queue[i]) out.push({ leaderRef: queue[i], bodyguardRef: part.ref }) })
+  }
+  return out
+}
+
 /** Patrol unit refs that carry setup-time Patrol Squads parts (e.g. Sororitas Battle Sisters); AM/Tyranids use the in-engine deployment prompt instead. */
 export function splittablePatrolRefs(bundle: DataBundle, factionKey: FactionKey, patrolId?: string): string[] {
   const patrol = resolvePatrol(bundle, factionKey, patrolId)
@@ -248,6 +269,7 @@ export function buildPlayerSetup(bundle: DataBundle, factionKey: FactionKey, sec
   const chosen = secondaryId ? patrol.secondaries.find((s) => s.id === secondaryId) : undefined
   const secondary = chosen ?? patrol.secondaries.find((s) => s.default) ?? patrol.secondaries[0]
   const enhancementData = enhancement ? bundle.enhancements[enhancement.id] : undefined
+  const splitRefs = split ? splittablePatrolRefs(bundle, factionKey, patrol.id) : []
   return {
     name: factionLabel(bundle, factionKey),
     faction: factionId,
@@ -255,12 +277,12 @@ export function buildPlayerSetup(bundle: DataBundle, factionKey: FactionKey, sec
     enhancementId: enhancement?.id ?? '',
     enhancementChoice: enhancementChoiceFor(bundle, patrol, enhancementData),
     secondaryId: secondary?.id ?? '',
-    attachments: defaultAttachments(bundle, patrol),
+    attachments: splitRefs.length ? remapSplitAttachments(bundle, patrol, defaultAttachments(bundle, patrol), splitRefs) : defaultAttachments(bundle, patrol),
     reserves: [], // no reserves unless a unit requires them (handled by the deployment decision itself)
     battleReadyVp: 0,
     ...(unitChoices && Object.keys(unitChoices).length ? { unitChoices } : {}),
     ...(embarked && embarked.length ? { embarked } : {}),
-    ...(split && splittablePatrolRefs(bundle, factionKey, patrol.id).length ? { splitUnits: splittablePatrolRefs(bundle, factionKey, patrol.id) } : {}),
+    ...(splitRefs.length ? { splitUnits: splitRefs } : {}),
   }
 }
 

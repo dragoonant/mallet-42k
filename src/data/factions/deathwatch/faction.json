@@ -1,0 +1,30 @@
+{
+  "id": "deathwatch",
+  "name": "Deathwatch",
+  "factionKeyword": "DEATHWATCH",
+  "armyRule": "sm.a.oath-of-moment",
+  "detachments": [
+    {
+      "id": "dw.d.vigil-force-alphion",
+      "name": "Vigil Force Alphion",
+      "rule": "sm.a.oath-of-moment",
+      "stratagems": [
+        "dw.s.veteran-instincts",
+        "dw.s.special-issue-ammunition",
+        "dw.s.deathwatch-teleportarium"
+      ],
+      "enhancements": [
+        "dw.e.aegis-vigilate",
+        "dw.e.aliens-bane"
+      ]
+    }
+  ],
+  "paintScheme": {
+    "primary": "#17181b",
+    "secondary": "#b9bec4",
+    "trim": "#d9d9d9",
+    "metal": "#8a8f98",
+    "decal": "#ffffff"
+  },
+  "combatPatrols": ["dw.cp.vigil-force-alphion"]
+}

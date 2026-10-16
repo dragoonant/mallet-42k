@@ -153,6 +153,12 @@ export const BODY_KIND: Record<KitId, 'biped' | 'vehicle' | 'swarm' | 'artillery
   'ba-aggressor': 'biped',
   'ba-librarian': 'biped',
   'ba-impulsor': 'vehicle',
+  'dw-intercessor': 'biped',
+  'dw-sergeant': 'biped',
+  'dw-grenadier': 'biped',
+  'dw-alphion': 'biped',
+  'dw-krenn': 'biped',
+  'dw-aggressor': 'biped',
   'generic-infantry': 'biped',
   'generic-heavy': 'biped',
   'generic-monster': 'biped',
@@ -1674,7 +1680,7 @@ BIPED_CONFIG['sw-sergeant'] = {
 }
 BIPED_CONFIG['sw-thoryk'] = {
   headShape: 'marine-helmet', rightWeapon: 'bolt-rifle', leftWeapon: 'power-sword', bulk: 1.3, hasBackpack: true,
-  shoulderPads: 'large', hasCape: true, capeColor: 'secondary', skin: 'none', chestPlate: true,
+  shoulderPads: 'large', hasCape: true, capeColor: 'secondary', skin: 'none',
 }
 BIPED_CONFIG['sw-reiver'] = {
   headShape: 'marine-helmet', rightWeapon: 'rusty-blade', leftWeapon: 'slugga', bulk: 0.95, hasBackpack: false,
@@ -1683,4 +1689,33 @@ BIPED_CONFIG['sw-reiver'] = {
 BIPED_CONFIG['sw-invictor'] = {
   headShape: 'sentinel-cab', rightWeapon: 'burst-cannon', leftWeapon: 'power-fist', bulk: 2.0, hasBackpack: true,
   shoulderPads: 'large', hasCape: false, skin: 'none', limbColor: 'metal',
+}
+
+// Deathwatch (Vigil Force Alphion). The black-with-silver-limbs look comes entirely from the faction paintScheme (black plate, silver
+// arms, helm and shoulder pads); the kits differ by silhouette. Intercessors carry the bolt rifle, the grenadier adds a drum
+// launcher in the off hand, the Sergeant wears larger pauldrons, the Lieutenant carries a power sword and cloak, the Apothecary a
+// white-decal cross patch and a pistol, and Aggressors are Gravis plate with a flamestorm gauntlet and a power fist.
+BIPED_CONFIG['dw-intercessor'] = {
+  headShape: 'marine-helmet', rightWeapon: 'bolt-rifle', leftWeapon: 'none', bulk: 1.05, hasBackpack: true,
+  shoulderPads: 'small', hasCape: false, skin: 'none',
+}
+BIPED_CONFIG['dw-sergeant'] = {
+  headShape: 'marine-helmet', rightWeapon: 'bolt-rifle', leftWeapon: 'none', bulk: 1.1, hasBackpack: true,
+  shoulderPads: 'large', hasCape: false, skin: 'none',
+}
+BIPED_CONFIG['dw-grenadier'] = {
+  headShape: 'marine-helmet', rightWeapon: 'bolt-rifle', leftWeapon: 'grenade-launcher', bulk: 1.05, hasBackpack: true,
+  shoulderPads: 'small', hasCape: false, skin: 'none',
+}
+BIPED_CONFIG['dw-alphion'] = {
+  headShape: 'marine-helmet', rightWeapon: 'power-sword', leftWeapon: 'plasma-pistol', bulk: 1.15, hasBackpack: true,
+  shoulderPads: 'large', hasCape: true, capeColor: 'secondary', skin: 'none',
+}
+BIPED_CONFIG['dw-krenn'] = {
+  headShape: 'marine-helmet', rightWeapon: 'plasma-pistol', leftWeapon: 'none', bulk: 1.08, hasBackpack: true,
+  shoulderPads: 'small', hasCape: false, skin: 'none', chestCross: true,
+}
+BIPED_CONFIG['dw-aggressor'] = {
+  headShape: 'marine-helmet', rightWeapon: 'heavy-flamer', leftWeapon: 'power-fist', bulk: 1.65, hasBackpack: true,
+  shoulderPads: 'large', hasCape: false, skin: 'none',
 }

@@ -59,6 +59,7 @@ const FACTION_COLOR: Record<string, string> = {
   'adeptus-mechanicus': '#2fb5ad',
   'death-guard': '#b9d44a',
   'space-wolves': '#8fb3d9',
+  deathwatch: '#c8ccd2',
   'thousand-sons': '#5ad1e6',
   'chaos-daemons': '#e0362a',
   'dark-angels': '#4fdc8a',

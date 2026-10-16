@@ -223,6 +223,56 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
     if (!enemy) return -Infinity
     return unitRangedDamage(state, unitId, enemy.unitId, {}) * 0.15 * unitValue(state, enemy.unitId) * 0.03
   }
+  // Deathwatch Veteran Instincts: Feel No Pain 5+ (4+ for GRAVIS) on a targeted ADEPTUS ASTARTES unit until the end of the phase.
+  // It must come before the generic `veteran-instincts` branch below, which models the Space Marines melee re-roll stratagem.
+  if (id === 'dw.s.veteran-instincts') {
+    const unitId = mineOf(state, player, targets.unitIds) ?? targetTrigger
+    if (!unitId || state.units[unitId]?.player !== player || pending.kind !== 'stratagemWindow') return -Infinity
+    const attackerId = pending.context.trigger.unitId
+    if (!attackerId || state.units[attackerId]?.player === player) return -Infinity
+    const melee = state.phase === 'fight'
+    const base: AttackOptions = !melee && alreadyInCover(state, unitId, attackerId) ? { cover: true } : {}
+    const without = incomingDamage(state, attackerId, unitId, melee, base)
+    if (without <= 0) return -Infinity
+    const g = savedValue(state, unitId, without, incomingDamage(state, attackerId, unitId, melee, { ...base, fnp: hasKeyword(state, unitId, 'GRAVIS') ? 4 : 5 }))
+    return g > 0 ? g : -Infinity
+  }
+  // Deathwatch Special-Issue Ammunition: set A (Anti-Monster/Vehicle 5+, Melta 2) against big targets, set B (Assault, Ignores Cover,
+  // Sustained Hits 2) otherwise; worth a fifth (a third against MONSTER / VEHICLE) of the unit's best volley that it can reach.
+  if (id === 'dw.s.special-issue-ammunition') {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId || state.phase !== 'shooting' || !hasAnyRangedWeapon(state, unitId)) return -Infinity
+    const range = bestRangedRangeOfUnit(state, unitId) ?? 0
+    let best = 0
+    for (const e of boardUnitsOf(state, other(player))) {
+      if (minGapBetweenUnits(state, unitId, e.id) > range) continue
+      const big = hasKeyword(state, e.id, 'MONSTER') || hasKeyword(state, e.id, 'VEHICLE')
+      best = Math.max(best, unitRangedDamage(state, unitId, e.id, {}) * (big ? 0.33 : 0.2) * unitValue(state, e.id) * 0.03)
+    }
+    return best > 0.25 ? best : -Infinity
+  }
+  // Deathwatch Teleportarium (end of the opponent's Fight phase, once per battle): the unit leaves and must come back in the next own
+  // Movement phase anywhere 3"+ from the enemy. Worth it for a unit that is not holding a marker while a scoring marker we do not hold
+  // lies beyond a normal move; never when the battle ends before the next Movement phase (round 5, we move first).
+  if (id === 'dw.s.deathwatch-teleportarium') {
+    const unitId = targets.unitIds?.[0]
+    const models = unitId ? unitModels(state, unitId) : []
+    if (!unitId || models.length === 0) return -Infinity
+    if (state.round >= BATTLE_ROUNDS && state.firstPlayer === player) return -Infinity
+    const here = centerOfUnit(state, unitId)
+    if (!here) return -Infinity
+    let best = 0
+    for (const o of Object.values(state.objectives)) {
+      if (o.removed) continue
+      const weight = objectiveScoreWeight(state, player, o.id)
+      if (weight <= 1) continue
+      const held = DEFAULT_SERVICES.objectives.controller(state, o.id) === player
+      if (held && models.some((m) => withinObjectiveRange(m, o))) return -Infinity // do not abandon a marker the unit is holding
+      if (held) continue
+      best = Math.max(best, Math.hypot(o.pos.x - here.x, o.pos.z - here.z) > 12 ? weight * 1.1 : weight * 0.15)
+    }
+    return best > 0.9 ? best : -Infinity
+  }
   if (DEFENSIVE.some((d) => id.endsWith(d))) {
     const unitId = mineOf(state, player, targets.unitIds) ?? targetTrigger
     if (!unitId || state.units[unitId]?.player !== player) return -Infinity

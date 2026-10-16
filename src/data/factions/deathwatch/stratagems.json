@@ -1,0 +1,77 @@
+[
+  {
+    "id": "dw.s.veteran-instincts",
+    "faction": "deathwatch",
+    "name": "Veteran Instincts",
+    "text": "Use just after an enemy unit selects its targets, in the opponent's Shooting phase or in either player's Fight phase, when one of your ADEPTUS ASTARTES units is a target. Until the end of the phase, models in that unit have a 5+ Feel No Pain save, or 4+ if the unit is GRAVIS.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["shooting", "fight"],
+    "window": ["shooting.targetsDeclared", "fight.targetsDeclared"],
+    "who": "either",
+    "condition": { "any": [ { "phase": "shooting", "ownTurn": false }, { "phase": "fight" } ] },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "ADEPTUS ASTARTES" }, "state": "targetedByAttack", "count": 1 }
+    ],
+    "effect": [
+      { "feelNoPain": 4, "when": { "targetKeyword": ["GRAVIS"] } },
+      { "feelNoPain": 5 }
+    ],
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "dw.s.special-issue-ammunition",
+    "faction": "deathwatch",
+    "name": "Special-Issue Ammunition",
+    "text": "Use in your Shooting phase for one of your ADEPTUS ASTARTES units that has not yet been selected to shoot. Pick one set; until the end of the phase the unit's ranged weapons gain it. Set A: [ANTI-MONSTER 5+], [ANTI-VEHICLE 5+] and [MELTA 2]. Set B: [ASSAULT], [IGNORES COVER] and [SUSTAINED HITS 2].",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["shooting"],
+    "window": ["shooting.start", "shooting.attacksResolved"],
+    "who": "active",
+    "condition": { "phase": "shooting", "ownTurn": true },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "ADEPTUS ASTARTES" }, "state": "notYetShot", "count": 1 }
+    ],
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase",
+    "code": "specialIssueAmmunition",
+    "params": {
+      "sets": {
+        "A": [
+          { "when": { "weaponType": "ranged" }, "grantWeaponAbility": { "ability": "ANTI", "keyword": "MONSTER", "value": 5 } },
+          { "when": { "weaponType": "ranged" }, "grantWeaponAbility": { "ability": "ANTI", "keyword": "VEHICLE", "value": 5 } },
+          { "when": { "weaponType": "ranged" }, "grantWeaponAbility": { "ability": "MELTA", "value": 2 } }
+        ],
+        "B": [
+          { "when": { "weaponType": "ranged" }, "grantWeaponAbility": { "ability": "ASSAULT" } },
+          { "when": { "weaponType": "ranged" }, "grantWeaponAbility": { "ability": "IGNORES_COVER" } },
+          { "when": { "weaponType": "ranged" }, "grantWeaponAbility": { "ability": "SUSTAINED_HITS", "value": 2 } }
+        ]
+      }
+    }
+  },
+  {
+    "id": "dw.s.deathwatch-teleportarium",
+    "faction": "deathwatch",
+    "name": "Deathwatch Teleportarium",
+    "text": "Use at the end of the opponent's Fight phase on one of your ADEPTUS ASTARTES units that is not within Engagement Range of any enemy unit. Remove it from the battlefield; in the Reinforcements step of your next Movement phase set it up anywhere more than 3 inches horizontally from every enemy model. It cannot declare a charge in the turn it arrives. Once per battle.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["fight"],
+    "window": "phase.end",
+    "who": "reactive",
+    "condition": { "phase": "fight", "ownTurn": false },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "ADEPTUS ASTARTES" }, "count": 1 }
+    ],
+    "scope": { "who": "self" },
+    "duration": "instant",
+    "limit": "oncePerBattle",
+    "code": "deathwatchTeleportarium",
+    "params": { "minEnemyGap": 3 }
+  }
+]

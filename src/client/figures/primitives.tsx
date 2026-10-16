@@ -351,6 +351,24 @@ export function WeaponMesh({ shape, colors, hand }: { shape: WeaponShape; colors
           </mesh>
         </group>
       )
+    case 'grenade-launcher':
+      // An Astartes grenade launcher: a short fat barrel over a chunky receiver, with a round drum slung beneath.
+      return (
+        <group scale={1.4}>
+          <mesh position={[0, 0.01, 0.16]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.04, 0.045, 0.2, 8]} />
+            <StdMat color={colors.metal} metalness={0.6} roughness={0.4} />
+          </mesh>
+          <mesh position={[0, 0.01, 0.02]}>
+            <GBox args={[0.07, 0.09, 0.14]} />
+            <StdMat color={colors.primary} roughness={0.5} metalness={0.3} />
+          </mesh>
+          <mesh position={[0, -0.05, 0.07]} rotation={[0, 0, Math.PI / 2]}>
+            <GCylinder args={[0.04, 0.04, 0.07, 10]} />
+            <StdMat color={colors.trim} roughness={0.5} metalness={0.3} />
+          </mesh>
+        </group>
+      )
     case 'plasma-pistol':
       return (
         <group scale={1.5}>

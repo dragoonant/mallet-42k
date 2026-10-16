@@ -683,6 +683,18 @@ function scoreChooseOption(state: GameState, pending: PendingDecision, action: A
     for (const m of unitModels(state, hintUnitId)) { const st = modelStats(state, m); hardness += st.W * st.T }
     score = hardness * 0.01
   }
+  // Deathwatch Hunters' Insight (4 VP at the end of the opponent's next turn): name a marker outside our zone that we hold now with a
+  // unit standing on it (the likeliest to still be ours then), else the nearest to our units.
+  if (code === 'huntersInsightPick') {
+    const obj = state.objectives[action.optionId]
+    if (obj) {
+      const held = DEFAULT_SERVICES.objectives.controller(state, obj.id) === pending.player
+      const mine = boardUnitsOf(state, pending.player)
+      const onIt = mine.some((u) => unitModels(state, u.id).some((m) => withinObjectiveRange(m, obj, 0, 3)))
+      const nearest = Math.min(99, ...mine.map((u) => nearestOwnGap(state, u.id, obj.pos)))
+      score = (held ? 3 : 0) + (onIt ? 3 : 0) + objectiveScoreWeight(state, pending.player, obj.id) * 0.5 - nearest * 0.05
+    }
+  }
   // Adeptus Mechanicus Doctrina Imperatives: Conqueror (AP bonus into targets in the enemy deployment zone, Assault) while an enemy sits in
   // its own deployment zone within 18" of one of our Doctrina units; otherwise Protector (Heavy, AP penalty against us while we hold our zone).
   if (code === 'doctrinaImperatives') {
@@ -714,6 +726,11 @@ function scoreChooseOption(state: GameState, pending: PendingDecision, action: A
     score = wounds + sv * 0.01
   }
   return score
+}
+
+function nearestOwnGap(state: GameState, unitId: UnitId, pos: { x: number; z: number }): number {
+  const ms = unitModels(state, unitId)
+  return ms.length === 0 ? 99 : Math.min(...ms.map((m) => Math.hypot(m.pos.x - pos.x, m.pos.z - pos.z)))
 }
 
 // Surge-wafer: some enemy attached unit with a CHARACTER half stands within the longest ranged weapon range of the bearer's unit

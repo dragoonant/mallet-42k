@@ -44,6 +44,20 @@ function attachmentsOf(patrol: { units: { ref: string; attachTo?: string }[] }) 
   return patrol.units.filter((u) => u.attachTo).map((u) => ({ leaderRef: u.ref, bodyguardRef: u.attachTo as string }))
 }
 
+// SIM_VARIANTS: Deathwatch's second Leader (Apothecary Krenn, Narthecium) normally stays unattached because a bodyguard takes one Leader;
+// on variant games he leads the Intercessors in place of the default Leader so the Narthecium pick is exercised
+function variantAttachments(bundle: DataBundle, patrol: { faction: string; units: { ref: string; datasheet: string; attachTo?: string }[] }, base: { leaderRef: string; bodyguardRef: string }[]) {
+  if (patrol.faction !== 'deathwatch') return base
+  const out = [...base]
+  for (const u of patrol.units) {
+    if (u.attachTo || out.some((a) => a.leaderRef === u.ref)) continue
+    const attachTo = bundle.datasheets[u.datasheet]?.leader?.attachTo ?? []
+    const i = out.findIndex((a) => attachTo.includes(patrol.units.find((x) => x.ref === a.bodyguardRef)?.datasheet ?? ''))
+    if (i >= 0) out[i] = { leaderRef: u.ref, bodyguardRef: out[i].bodyguardRef }
+  }
+  return out
+}
+
 // Transport rosters (SDC E1): when `embark` is set, the first eligible non-Leader unit starts embarked in the patrol's
 // Transport, so the sim/bench exercise setup embarkation and disembark (otherwise nothing ever sets PlayerSetup.embarked).
 function embarkedOf(bundle: DataBundle, patrol: { units: { ref: string; datasheet: string; size?: number; attachTo?: string }[] }) {
@@ -65,7 +79,7 @@ function playerSetup(bundle: DataBundle, patrolId: string, name: string, embark 
   // SIM_VARIANTS=1: on variant games take the last enhancement and the last secondary instead of the defaults
   const enhancementId = (variant ? patrol.enhancements[patrol.enhancements.length - 1] : (patrol.enhancements.find((e) => e.default) ?? patrol.enhancements[0])).id
   const secondaryId = (variant ? patrol.secondaries[patrol.secondaries.length - 1] : (patrol.secondaries.find((s) => s.default) ?? patrol.secondaries[0])).id
-  return { name, faction: patrol.faction, patrolId, enhancementId, secondaryId, attachments: attachmentsOf(patrol), reserves: [], battleReadyVp: 0, ...(embark ? { embarked: embarkedOf(bundle, patrol) } : {}) }
+  return { name, faction: patrol.faction, patrolId, enhancementId, secondaryId, attachments: variant ? variantAttachments(bundle, patrol, attachmentsOf(patrol)) : attachmentsOf(patrol), reserves: [], battleReadyVp: 0, ...(embark ? { embarked: embarkedOf(bundle, patrol) } : {}) }
 }
 
 export function makeSimSetup(bundle: DataBundle, gameIndex: number, dataVersion: string): GameSetup {

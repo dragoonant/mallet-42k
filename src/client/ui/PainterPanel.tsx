@@ -35,6 +35,7 @@ const PREVIEW: Record<string, { datasheetId: string; modelId?: string }> = {
   'thousand-sons': { datasheetId: 'ths.scarab-occult-terminators', modelId: 'combi' },
   'blood-angels': { datasheetId: 'ba.intercessor-squad', modelId: 'sergeant' },
   'chaos-daemons': { datasheetId: 'cdm.bloodletters', modelId: 'bloodletter' },
+  deathwatch: { datasheetId: 'dw.intercessor-squad', modelId: 'sergeant' },
   'space-wolves': { datasheetId: 'sw.intercessor-squad', modelId: 'sergeant' },
   'dark-angels': { datasheetId: 'da.intercessor-squad', modelId: 'intercessor' },
 }

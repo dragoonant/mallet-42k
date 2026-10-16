@@ -133,7 +133,8 @@ export function expectedAttack(
   let perHitDamage = diceExprMean(weapon.D)
   if (weaponService.hasAbility(weapon, 'MELTA') && opts.inHalfRange) perHitDamage += abilityValueMean(weapon, 'MELTA')
 
-  const fnp = feelNoPain(state, targetUnitId)
+  const dsFnp = feelNoPain(state, targetUnitId)
+  const fnp = dsFnp !== null && opts.fnp !== undefined ? Math.min(dsFnp, opts.fnp) : (dsFnp ?? opts.fnp ?? null)
   const fnpMult = fnp !== null ? 1 - rollP(fnp, 0) * (7 - fnp <= 5 ? 1 : 1) : 1 // simple flat multiplier
 
   const damage = unsaved * perHitDamage * fnpMult

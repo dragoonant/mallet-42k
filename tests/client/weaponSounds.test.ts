@@ -33,7 +33,7 @@ const WE = 'world-eaters'
 const CDM = 'chaos-daemons'
 
 /** The engine faction id a weapon's own id prefix belongs to. */
-const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : id.startsWith('lov.') ? LOV : id.startsWith('drk.') ? DRK : id.startsWith('ael.') ? 'aeldari' : id.startsWith('adm.') ? ADM : id.startsWith('dg.') ? 'death-guard' : id.startsWith('we.') ? WE : id.startsWith('ths.') ? 'thousand-sons' : id.startsWith('cdm.') ? CDM : id.startsWith('sw.') ? 'space-wolves' : id.startsWith('da.') ? 'dark-angels' : id.startsWith('ba.') ? 'blood-angels' : SM)
+const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : id.startsWith('lov.') ? LOV : id.startsWith('drk.') ? DRK : id.startsWith('ael.') ? 'aeldari' : id.startsWith('adm.') ? ADM : id.startsWith('dg.') ? 'death-guard' : id.startsWith('we.') ? WE : id.startsWith('ths.') ? 'thousand-sons' : id.startsWith('cdm.') ? CDM : id.startsWith('sw.') ? 'space-wolves' : id.startsWith('da.') ? 'dark-angels' : id.startsWith('ba.') ? 'blood-angels' : id.startsWith('dw.') ? 'deathwatch' : SM)
 function lookupFor(faction: string): SoundLookup {
   return { weapon: (id) => bundle.weapons[id], factionOfUnit: () => faction }
 }
@@ -476,9 +476,25 @@ const BA_FLAVOUR: Record<string, WeaponFlavour> = {
 }
 const baWeapons = Object.entries(bundle.weapons).filter(([id]) => id.startsWith('ba.'))
 
+// Deathwatch (Vigil Force Alphion) weapons, classified by weapon id.
+const DW = 'deathwatch'
+const DW_FLAVOUR: Record<string, WeaponFlavour> = {
+  'dw.w.bolt-pistol-alphion': 'bolter',
+  'dw.w.master-crafted-power-weapon': 'chain',
+  'dw.w.absolvor-bolt-pistol': 'bolter',
+  'dw.w.reductor-pistol': 'bolter',
+  'dw.w.close-combat-weapon-krenn': 'chain',
+  'dw.w.bolt-rifle': 'bolter',
+  'dw.w.grenade-launcher-frag': 'heavy',
+  'dw.w.grenade-launcher-krak': 'heavy',
+  'dw.w.flamestorm-gauntlets': 'flame',
+  'dw.w.twin-power-fists': 'crush',
+}
+const dwWeapons = Object.entries(bundle.weapons).filter(([id]) => id.startsWith('dw.'))
+
 describe('weapon flavour', () => {
   it('covers every weapon in the data bundle (a new weapon has to be classified here)', () => {
-    const known = Object.keys(EXPECTED).concat(adeWeapons.map(([id]) => id), drkWeapons.map(([id]) => id), weWeapons.map(([id]) => id), swWeapons.map(([id]) => id), baWeapons.map(([id]) => id))
+    const known = Object.keys(EXPECTED).concat(adeWeapons.map(([id]) => id), drkWeapons.map(([id]) => id), weWeapons.map(([id]) => id), swWeapons.map(([id]) => id), baWeapons.map(([id]) => id), dwWeapons.map(([id]) => id))
     expect(known.sort()).toEqual(Object.keys(bundle.weapons).sort())
   })
 
@@ -529,6 +545,18 @@ describe('weapon flavour', () => {
     expect(soundIds(declared(['sw.w.heavy-bolter']), SW)).toEqual(['wpn-heavy-bolter'])
     expect(soundIds(declared(['sw.w.astartes-chainsword'], 'fight'), SW)).toEqual(['melee-chainsword'])
     expect(soundIds(declared(['sw.w.invictor-fist'], 'fight'), SW)).toEqual(['wpn-power-fist'])
+  })
+
+  it('every deathwatch weapon is classified, by id, and voiced by the matching sound', () => {
+    expect(dwWeapons.length).toBeGreaterThan(0)
+    for (const [id, weapon] of dwWeapons) {
+      expect(DW_FLAVOUR[id], `${id} (${weapon.name}) needs an entry in DW_FLAVOUR`).toBeDefined()
+      expect(weaponFlavour(id, weapon, DW), id).toBe(DW_FLAVOUR[id])
+    }
+    expect(soundIds(declared(['dw.w.bolt-rifle']), DW)).toEqual(['wpn-boltgun'])
+    expect(soundIds(declared(['dw.w.reductor-pistol']), DW)).toEqual(['wpn-bolt-pistol'])
+    expect(soundIds(declared(['dw.w.flamestorm-gauntlets']), DW)).toEqual(['wpn-flamer'])
+    expect(soundIds(declared(['dw.w.twin-power-fists'], 'fight'), DW)).toEqual(['wpn-power-fist'])
   })
 
   it('world-eaters melee weapons sound as chain blades, bludgeons and a relic blade', () => {

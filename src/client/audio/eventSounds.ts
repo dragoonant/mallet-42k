@@ -71,6 +71,10 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   // Thoryk's Void Hunters: bolt rifles and master-crafted bolters crack like boltguns, the combat knife is a plain close-combat strike,
   // the power weapon rings, the Invictor's fist crunches, its autocannon borrows the assault cannon and its stubber the heavy bolter.
   ['bolt-rifle', 'wpn-boltgun'] as const,
+  // Deathwatch: the reductor pistol cracks like a bolt pistol, flamestorm gauntlets roar like a flamer, twin power fists crunch like a power fist.
+  ['reductor-pistol', 'wpn-bolt-pistol'] as const,
+  ['flamestorm-gauntlets', 'wpn-flamer'] as const,
+  ['twin-power-fists', 'wpn-power-fist'] as const,
   ['master-crafted-bolter', 'wpn-boltgun'] as const,
   ['combat-knife', 'wpn-close-combat-weapon'] as const,
   ['invictor-fist', 'wpn-power-fist'] as const,
@@ -399,6 +403,8 @@ const DEATH_SOUND: Record<string, SfxId> = {
   'dark-angels': 'death-space-marines',
   // Sons of Sanguinius fall with the same armoured-warrior cry as other Space Marines.
   'blood-angels': 'death-space-marines',
+  // Deathwatch Kill-team veterans fall with the same armoured-warrior cry as the other Space Marines.
+  deathwatch: 'death-space-marines',
 }
 
 /** Measured decoded RMS runs 0.05-0.40 across these; the loud three are pulled back toward ~0.15. */

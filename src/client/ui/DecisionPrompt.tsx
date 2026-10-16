@@ -235,6 +235,34 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
     },
   },
   {
+    match: /narthecium/i,
+    info: {
+      title: 'Narthecium: tend the fallen',
+      hint: 'Your Apothecary patches up the squad he leads. Pick one fallen soldier (never a character) to stand back up at full wounds, placed in coherency and clear of the enemy. If there is no room, nobody returns. Once per Command phase; decline to skip it.',
+    },
+  },
+  {
+    match: /special-?issue-?ammunition/i,
+    info: {
+      title: 'Special-Issue Ammunition: pick a load',
+      hint: 'Choose one set of rounds for every ranged weapon in this unit until the end of the phase. Set A hurts big targets: Anti-Monster 5+, Anti-Vehicle 5+ and Melta 2. Set B favours volume: Assault, Ignores Cover and Sustained Hits 2.',
+    },
+  },
+  {
+    match: /hunters?-?insight/i,
+    info: {
+      title: "Hunters' Insight: pick an objective",
+      hint: 'Name one objective marker that is not inside your own deployment zone. When the next enemy turn ends you score 4 VP if you control it and one of your Adeptus Astartes units that is not Battle-shocked has a model within range of it. The pick is used up either way.',
+    },
+  },
+  {
+    match: /deathwatch-?teleportarium/i,
+    info: {
+      title: 'Deathwatch Teleportarium',
+      hint: 'A unit that is not locked in combat vanishes into Reserves. It returns in the Reinforcements step of your next Movement phase, set up more than 3" from every enemy model, and cannot charge on the turn it arrives. A unit still off the board when the battle ends is lost. Once per battle.',
+    },
+  },
+  {
     match: /tireless-?hunter/i,
     info: {
       title: 'Tireless Hunter: name your quarry',
@@ -641,7 +669,7 @@ function chooseOptionInfoFor(
   }
   const choice = context.data && typeof context.data.choice === 'string' ? CHOICE_PROMPT_KEYS[context.data.choice] : undefined
   // Both Cult Ambush steps (marker, return) carry the code; the return step has no ability id.
-  const key = context.data?.code === 'toilEarnsPick' ? 'toil-earns-pick' : context.data?.code === 'vbTakeTheStrongholdPick' ? 'vb-stronghold-pick' : context.data?.code === 'vbBladeguardPick' ? 'vb-bladeguard-pick' : context.data?.code === 'archeotechReliquaryPick' ? 'archeotech-reliquary' : context.data?.code === 'holyApparatusPick' ? 'holy-apparatus-pick' : context.data?.code === 'cultAmbush' ? 'cult-ambush' : context.data?.code === 'etherealEdictPick' ? 'ethereal-edict' : context.data?.code === 'divineJudgementPick' ? 'divine-judgement' : context.data?.code === 'targetedPurgePick' ? 'targeted-purge' : context.data?.code === 'doctrinaImperatives' ? 'doctrina' : context.data?.code === 'blessingsOfKhorne' ? 'blessings-of-khorne' : context.data?.code === 'lineBreakers' ? 'line-breakers' : context.data?.code === 'tirelessHunter' ? 'tireless-hunter' : context.abilityId ?? choice ?? null
+  const key = context.data?.code === 'toilEarnsPick' ? 'toil-earns-pick' : context.data?.code === 'vbTakeTheStrongholdPick' ? 'vb-stronghold-pick' : context.data?.code === 'vbBladeguardPick' ? 'vb-bladeguard-pick' : context.data?.code === 'archeotechReliquaryPick' ? 'archeotech-reliquary' : context.data?.code === 'holyApparatusPick' ? 'holy-apparatus-pick' : context.data?.code === 'cultAmbush' ? 'cult-ambush' : context.data?.code === 'etherealEdictPick' ? 'ethereal-edict' : context.data?.code === 'divineJudgementPick' ? 'divine-judgement' : context.data?.code === 'targetedPurgePick' ? 'targeted-purge' : context.data?.code === 'doctrinaImperatives' ? 'doctrina' : context.data?.code === 'blessingsOfKhorne' ? 'blessings-of-khorne' : context.data?.code === 'lineBreakers' ? 'line-breakers' : context.data?.code === 'tirelessHunter' ? 'tireless-hunter' : context.data?.code === 'huntersInsightPick' ? 'hunters-insight' : context.data?.code === 'specialIssueAmmunition' ? 'special-issue-ammunition' : context.data?.code === 'narthecium' ? 'narthecium' : context.abilityId ?? choice ?? null
   if (choice === 'patrol-squads' && Array.isArray(context.data?.sizes)) {
     const sizes = (context.data.sizes as number[]).filter((n) => typeof n === 'number')
     if (sizes.length > 0) {
@@ -866,6 +894,22 @@ function labelForOption(pending: PendingDecision, state: GameState, events: read
       }
       if ((pending.context.data?.code === 'divineJudgementPick' || pending.context.data?.code === 'holyApparatusPick' || pending.context.data?.code === 'targetedPurgePick' || pending.context.data?.code === 'lineBreakers') && state.units[o.id]) return state.units[o.id].name
       if (pending.context.data?.code === 'toilEarnsPick' || pending.context.data?.code === 'archeotechReliquaryPick') return objectiveLabel(o.id)
+      if (pending.context.data?.code === 'huntersInsightPick' && o.id !== 'decline') return objectiveLabel(o.id)
+      if (pending.context.data?.code === 'specialIssueAmmunition' || (pending.context.abilityId && /special-?issue-?ammunition/i.test(pending.context.abilityId))) {
+        if (o.id === 'A') return 'Set A: Anti-Monster 5+, Anti-Vehicle 5+, Melta 2'
+        if (o.id === 'B') return 'Set B: Assault, Ignores Cover, Sustained Hits 2'
+      }
+      if (pending.context.data?.code === 'narthecium' || (pending.context.abilityId && /narthecium/i.test(pending.context.abilityId))) {
+        if (o.id === 'decline') return 'Return no one'
+        // The option id is a destroyed model id (gone from state.models), so name it from the unit's destroyed snapshot.
+        const bodyguardId = (pending.context.data?.bodyguardId as string | undefined) ?? pending.context.unitId ?? undefined
+        const snap = bodyguardId ? state.units[bodyguardId]?.destroyedModels?.find((m) => m.id === o.id) : undefined
+        if (snap) {
+          const guns = snap.weapons.map((w) => state.weapons[w]?.name ?? prettifyId(w)).join(' + ')
+          return `Return a fallen ${prettifyId(snap.datasheetModelId)}${guns ? ` (${guns})` : ''}`
+        }
+        return o.label
+      }
       if (pending.context.abilityId && /grim-efficiency|outflanking-mag-riders/i.test(pending.context.abilityId) && state.units[o.id]) return state.units[o.id].name
       const pairLabel = pairOptionLabel(state, pending.context.abilityId, o.id)
       if (pairLabel) return pairLabel

@@ -83,13 +83,17 @@ export function removeUnitToReserves(ctx: EngineContext, unitId: UnitId, source:
   ctx.emit({ type: 'UnitRemovedFromBattlefield', unitId: id, source, player: unit.player })
 }
 
+// the pending record for a teleporting unit (unitId or any half), or null (Deathwatch E1)
+export function teleportRecord(state: GameState, unitId: UnitId): TeleportRecord | null {
+  const u = state.units[unitId]
+  if (!u) return null
+  const ids = new Set<UnitId>([unitId, canonical(state, unitId)])
+  return teleportState(state, u.player).pending.find((r) => ids.has(r.unitId)) ?? null
+}
+
 // the arrival rules recorded for a teleporting unit (unitId or any half); the Grey Knights defaults when none was recorded
 export function teleportArrivalOpts(state: GameState, unitId: UnitId): TeleportArrivalOpts {
-  const u = state.units[unitId]
-  if (!u) return DEFAULT_TELEPORT_ARRIVAL
-  const ids = new Set<UnitId>([unitId, canonical(state, unitId)])
-  const rec = teleportState(state, u.player).pending.find((r) => ids.has(r.unitId))
-  return { ...DEFAULT_TELEPORT_ARRIVAL, ...(rec?.arrival ?? {}) }
+  return { ...DEFAULT_TELEPORT_ARRIVAL, ...(teleportRecord(state, unitId)?.arrival ?? {}) }
 }
 
 export function clearTeleport(state: GameState, unitId: UnitId): void {

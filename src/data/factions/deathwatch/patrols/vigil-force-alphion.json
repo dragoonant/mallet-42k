@@ -1,0 +1,179 @@
+{
+  "id": "dw.cp.vigil-force-alphion",
+  "faction": "deathwatch",
+  "name": "Vigil Force Alphion",
+  "detachment": "dw.d.vigil-force-alphion",
+  "units": [
+    {
+      "ref": "lieutenant-alphion",
+      "datasheet": "dw.lieutenant-alphion",
+      "size": 1,
+      "enhancement": "dw.e.aegis-vigilate",
+      "attachTo": "intercessor-squad"
+    },
+    {
+      "ref": "apothecary-krenn",
+      "datasheet": "dw.apothecary-krenn",
+      "size": 1
+    },
+    {
+      "ref": "intercessor-squad",
+      "datasheet": "dw.intercessor-squad",
+      "size": 10,
+      "patrolSquads": [
+        {
+          "ref": "intercessor-squad-a",
+          "size": 5,
+          "wargear": [
+            {
+              "modelId": "sergeant",
+              "count": 1,
+              "weapons": [
+                "sm.w.bolt-pistol",
+                "dw.w.bolt-rifle",
+                "sm.w.close-combat-weapon"
+              ]
+            },
+            {
+              "modelId": "intercessor",
+              "count": 3,
+              "weapons": [
+                "sm.w.bolt-pistol",
+                "dw.w.bolt-rifle",
+                "sm.w.close-combat-weapon"
+              ]
+            },
+            {
+              "modelId": "grenadier",
+              "count": 1,
+              "weapons": [
+                "sm.w.bolt-pistol",
+                "dw.w.bolt-rifle",
+                "dw.w.grenade-launcher-frag",
+                "dw.w.grenade-launcher-krak",
+                "sm.w.close-combat-weapon"
+              ]
+            }
+          ]
+        },
+        {
+          "ref": "intercessor-squad-b",
+          "size": 5,
+          "wargear": [
+            {
+              "modelId": "intercessor",
+              "count": 4,
+              "weapons": [
+                "sm.w.bolt-pistol",
+                "dw.w.bolt-rifle",
+                "sm.w.close-combat-weapon"
+              ]
+            },
+            {
+              "modelId": "grenadier",
+              "count": 1,
+              "weapons": [
+                "sm.w.bolt-pistol",
+                "dw.w.bolt-rifle",
+                "dw.w.grenade-launcher-frag",
+                "dw.w.grenade-launcher-krak",
+                "sm.w.close-combat-weapon"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ref": "aggressor-squad",
+      "datasheet": "dw.aggressor-squad",
+      "size": 3
+    }
+  ],
+  "stratagems": [
+    "dw.s.veteran-instincts",
+    "dw.s.special-issue-ammunition",
+    "dw.s.deathwatch-teleportarium"
+  ],
+  "enhancements": [
+    {
+      "id": "dw.e.aegis-vigilate",
+      "default": true
+    },
+    {
+      "id": "dw.e.aliens-bane",
+      "default": false
+    }
+  ],
+  "secondaries": [
+    {
+      "id": "dw.sec.hunters-insight",
+      "name": "Hunters' Insight",
+      "text": "At the start of each of your turns, pick one objective marker that is not inside your deployment zone. At the end of your opponent's next turn, score 4 victory points if you control that marker and at least one of your ADEPTUS ASTARTES units that is not Battle-shocked has a model within range of it. The pick is used up when that turn ends, whether or not it scored.",
+      "default": true,
+      "scoring": [
+        {
+          "id": "hunters-insight-pick",
+          "when": "command.start",
+          "rounds": {
+            "from": 1,
+            "to": 5
+          },
+          "who": "active",
+          "rule": "custom",
+          "pointsPer": 0,
+          "cap": 0,
+          "code": "huntersInsightPick"
+        },
+        {
+          "id": "hunters-insight",
+          "when": "turn.end",
+          "rounds": {
+            "from": 1,
+            "to": 5
+          },
+          "who": "opponent",
+          "rule": "custom",
+          "pointsPer": 4,
+          "cap": 4,
+          "code": "huntersInsightScore"
+        }
+      ]
+    },
+    {
+      "id": "dw.sec.head-taker-doctrine",
+      "name": "Head-taker Doctrine",
+      "text": "Each time one of your ADEPTUS ASTARTES units destroys an enemy CHARACTER model, score 5 victory points. At the end of the battle, score a further 5 victory points if every enemy CHARACTER model has been destroyed.",
+      "default": false,
+      "scoring": [
+        {
+          "id": "head-taker-doctrine",
+          "when": "any.unitDestroyed",
+          "rounds": {
+            "from": 1,
+            "to": 5
+          },
+          "who": "both",
+          "rule": "custom",
+          "pointsPer": 5,
+          "cap": 99,
+          "code": "headTakerDoctrine"
+        },
+        {
+          "id": "head-taker-sweep",
+          "when": "battle.end",
+          "rounds": {
+            "from": 1,
+            "to": 5
+          },
+          "who": "both",
+          "rule": "custom",
+          "pointsPer": 5,
+          "cap": 5,
+          "code": "headTakerSweep"
+        }
+      ]
+    }
+  ],
+  "warlord": "lieutenant-alphion"
+}

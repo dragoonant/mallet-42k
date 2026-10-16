@@ -1,0 +1,24 @@
+[
+  {
+    "id": "dw.aggressor-squad",
+    "faction": "deathwatch",
+    "factionKeywords": ["ADEPTUS ASTARTES", "DEATHWATCH"],
+    "name": "Aggressor Squad",
+    "keywords": ["INFANTRY", "IMPERIUM", "GRAVIS", "AGGRESSOR SQUAD"],
+    "stats": { "M": 5, "T": 6, "Sv": 3, "W": 3, "Ld": 6, "OC": 1 },
+    "composition": [
+      {
+        "modelId": "aggressor",
+        "name": "Aggressor",
+        "min": 3, "max": 3, "default": 3,
+        "base": { "shape": "round", "mm": 40 },
+        "weapons": { "default": ["dw.w.flamestorm-gauntlets", "dw.w.twin-power-fists"] },
+        "figure": { "archetype": "heavy", "kit": "sm-terminator" }
+      }
+    ],
+    "abilities": ["sm.a.oath-of-moment", "dw.a.close-quarters-firepower"],
+    "coreAbilities": [],
+    "points": [ { "models": 3, "points": 0 } ],
+    "figure": { "archetype": "heavy", "kit": "sm-terminator" }
+  }
+]

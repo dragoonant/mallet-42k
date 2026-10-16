@@ -197,6 +197,10 @@ const KNOWN_KIT: Record<string, KitId> = {
   'sw.battle-leader-thoryk': 'sw-thoryk',
   'sw.reiver-squad': 'sw-reiver',
   'sw.invictor-tactical-warsuit': 'sw-invictor',
+  'dw.intercessor-squad': 'dw-intercessor',
+  'dw.lieutenant-alphion': 'dw-alphion',
+  'dw.apothecary-krenn': 'dw-krenn',
+  'dw.aggressor-squad': 'dw-aggressor',
 }
 
 /** Models of a mixed unit that look different from the rest of it (a flamer sister is not a rifle sister), keyed
@@ -284,6 +288,9 @@ const KNOWN_KIT_BY_MODEL: Record<string, KitId> = {
   'adm.kataphron-destroyers/plasma': 'adm-kataphron-plasma',
   'sw.intercessor-squad/sergeant': 'sw-sergeant',
   'sw.intercessor-squad/intercessor': 'sw-intercessor',
+  'dw.intercessor-squad/sergeant': 'dw-sergeant',
+  'dw.intercessor-squad/intercessor': 'dw-intercessor',
+  'dw.intercessor-squad/grenadier': 'dw-grenadier',
   'tau.strike-team/shasui': 'tau-shasui',
   'tau.strike-team/fire-warrior-rifle': 'tau-fire-warrior',
   'tau.strike-team/fire-warrior-carbine': 'tau-fire-warrior',
@@ -532,6 +539,12 @@ const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
   'ba-aggressor': 'heavy',
   'ba-librarian': 'infantry',
   'ba-impulsor': 'vehicle',
+  'dw-intercessor': 'infantry',
+  'dw-sergeant': 'infantry',
+  'dw-grenadier': 'infantry',
+  'dw-alphion': 'infantry',
+  'dw-krenn': 'infantry',
+  'dw-aggressor': 'heavy',
   'generic-infantry': 'infantry',
   'generic-heavy': 'heavy',
   'generic-monster': 'monster',
@@ -604,6 +617,9 @@ const HEIGHT_BY_DATASHEET: Record<string, number> = {
   // Blood Angels: Gravis Aggressors are hulking (40mm bases); the Impulsor is a long hover transport on a 100mm base.
   'ba.aggressor-squad': 1.45,
   'ba.impulsor': 2.4,
+  // Deathwatch: Aggressors are Gravis plate, a head taller than a footsoldier.
+  'dw.aggressor-squad': 1.55,
+  'dw.lieutenant-alphion': 1.15,
   // Death Guard: bloated plate stands a touch taller than a regular footsoldier; Typhus is a Terminator-sized lord.
   'dg.plague-marines': 1.15,
   'dg.folgoth-grelch': 1.15,

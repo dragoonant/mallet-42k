@@ -1,5 +1,5 @@
 // Tier-1 AI benchmark (owner: src/ai).
-// `npm run bench:ai -- --games N --seed S [--difficulty easy|normal] [--faction space-marines|orks|necrons|chaos-space-marines|chaos-daemons|tyranids|adepta-sororitas|astra-militarum|grey-knights|tau-empire|drukhari|thousand-sons|blood-angels]`
+// `npm run bench:ai -- --games N --seed S [--difficulty easy|normal] [--faction space-marines|orks|necrons|chaos-space-marines|chaos-daemons|tyranids|adepta-sororitas|astra-militarum|grey-knights|tau-empire|drukhari|thousand-sons|blood-angels|deathwatch]`
 // Plays UtilityDecider vs RandomDecider on the real Combat Patrol rosters through the public engine API
 // (createGame/legalActions/step/view), alternating which faction and which seat the AI takes (or, with
 // --faction, always playing that one roster), cycling missions cp-01..cp-06. Prints games, AI wins, draws,
@@ -35,6 +35,7 @@ FACTION_ARG_TO_DATA_ID['thousand-sons'] = 'thousand-sons'
 FACTION_ARG_TO_DATA_ID['chaos-daemons'] = 'chaos-daemons'
 FACTION_ARG_TO_DATA_ID['space-wolves'] = 'space-wolves'
 FACTION_ARG_TO_DATA_ID['dark-angels'] = 'dark-angels'
+FACTION_ARG_TO_DATA_ID.deathwatch = 'deathwatch'
 
 // the patrol data's own `attachTo` hints (a Leader joining its bodyguard unit); other rosters attach in the client only
 function attachmentsOf(patrol: { units: { ref: string; attachTo?: string }[] }) {

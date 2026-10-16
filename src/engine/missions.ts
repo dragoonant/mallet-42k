@@ -36,6 +36,7 @@ import type { DecisionHandler, EngineContext, WindowTrigger } from './modules'
 import { otherPlayer } from './modules'
 import { isTeleporting } from './teleport'
 import { championOfTitanModelDestroyed, noEscapeAmount } from './factions/grey-knights'
+import { headTakerModelDestroyed, headTakerSweepAmount, huntersInsightAmount, huntersInsightOffer } from './factions/deathwatch'
 import { holyApparatusAmount, holyApparatusOffer, toilEarnsAmount, toilEarnsOffer } from './factions/leagues-of-votann'
 import {
   guardianOfTheRealmAmount, guardianOfTheRealmModelDestroyed, guardianOfTheRealmSnapshot,
@@ -212,7 +213,7 @@ function rulesFor(s: GameState, pid: PlayerId): ScoringRule[] {
 }
 
 // ScoringRule-shaped "pick" instances (pointsPer 0): raise a decision instead of computing an amount
-const PICK_CODES = new Set(['stompEmPick', 'bagPick', 'treasuresOfAeonsPick', 'methodicalDestructionPick', 'etherealEdictPick', 'targetedPurgePick', 'divineJudgementPick', 'toilEarnsPick', 'holyApparatusPick', 'archeotechReliquaryPick', 'vbTakeTheStrongholdPick'])
+const PICK_CODES = new Set(['stompEmPick', 'bagPick', 'treasuresOfAeonsPick', 'methodicalDestructionPick', 'etherealEdictPick', 'targetedPurgePick', 'divineJudgementPick', 'toilEarnsPick', 'holyApparatusPick', 'archeotechReliquaryPick', 'vbTakeTheStrongholdPick', 'huntersInsightPick'])
 
 // ---------- generic ScoringRule.rule amounts ----------
 function tierPoints(tiers: Record<string, number>, die: number): number {
@@ -633,6 +634,9 @@ function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): num
     case 'sorcerousRitual': return sorcerousRitualAmount(ctx, rule, pid, (id) => holds(ctx, id, pid))
     case 'bringerOfChange': return bringerOfChangeAmount(ctx, rule, pid)
     case 'tgbConsecratedGround': return 0 // event-driven, scored in the destroy fan-outs
+    case 'huntersInsightScore': return huntersInsightAmount(ctx, rule, pid, (id) => holds(ctx, id, pid))
+    case 'headTakerDoctrine': return 0 // event-driven, scored in the modelDestroyed fan-out
+    case 'headTakerSweep': return headTakerSweepAmount(s, rule, pid)
     case 'contaminateGround': return contaminateGroundAmount(s, rule, pid)
     case 'spreadTheBlight': return 0 // event-driven, scored in the destroy fan-out
     default: return 0
@@ -762,6 +766,7 @@ function runPick(ctx: EngineContext, rule: ScoringRule, pid: PlayerId, key: stri
   else if (rule.code === 'holyApparatusPick') holyApparatusOffer(ctx, pid, rule.when, key)
   else if (rule.code === 'archeotechReliquaryPick') archeotechReliquaryOffer(ctx, pid, rule.when, key)
   else if (rule.code === 'vbTakeTheStrongholdPick') vbTakeTheStrongholdOffer(ctx, pid, rule.when, key)
+  else if (rule.code === 'huntersInsightPick') huntersInsightOffer(ctx, pid, rule.when, key)
 }
 
 // ---------- MissionRule (non-scoring) codes ----------
@@ -974,6 +979,7 @@ export const missionService: MissionService = {
   modelDestroyed(ctx, info) {
     championOfTitanModelDestroyed(ctx, info)
     vbHuntersOfHereticsModelDestroyed(ctx, info)
+    headTakerModelDestroyed(ctx, info)
     guardianOfTheRealmModelDestroyed(ctx, info)
     tgbConsecratedGroundModelDestroyed(ctx, info)
     bagTheBigUnModelDestroyed(ctx, info)
