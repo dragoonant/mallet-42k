@@ -128,6 +128,16 @@ export const ENABLED_GLB_SLUGS: readonly string[] = [
   'atalan-jackal-power',
   'atalan-wolfquad',
   'achilles-ridgerunner',
+  // Wave 1 patrols (T'au Sudden Dawn Cadre, Tyranids Insidious Infiltrators).
+  'commander-cloudspear',
+  'pathfinder-shasui',
+  'pathfinder-carbine',
+  'pathfinder-rail',
+  'breacher-shasui',
+  'breacher',
+  'devilfish',
+  'deaths-shadow',
+  'lictor',
 ]
 
 export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
@@ -290,6 +300,15 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'gsc.atalan-jackals/power-rider': 'atalan-jackal-power',
   'gsc.atalan-jackals/wolfquad': 'atalan-wolfquad',
   'gsc.achilles-ridgerunner/ridgerunner': 'achilles-ridgerunner',
+
+  // Wave 1 patrols (MGSD GLBs): T'au Sudden Dawn Cadre. The Cloudspear's drones are part of the battlesuit model.
+  'tau.commander-cloudspear/cloudspear': 'commander-cloudspear',
+  'tau.pathfinder-team/shasui': 'pathfinder-shasui',
+  'tau.pathfinder-team/pathfinder-carbine': 'pathfinder-carbine',
+  'tau.pathfinder-team/pathfinder-rail': 'pathfinder-rail',
+  'tau.breacher-team/shasui': 'breacher-shasui',
+  'tau.breacher-team/breacher': 'breacher',
+  'tau.devilfish/devilfish': 'devilfish',
 
   // Drukhari: no GLBs yet (slugs unlisted in ENABLED_GLB_SLUGS), so the procedural kits draw them until a file lands.
   'drk.archon/archon': 'archon',

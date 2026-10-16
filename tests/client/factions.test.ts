@@ -97,7 +97,7 @@ describe('adepta sororitas figures', () => {
     }
 
     it(`${ds.id} uses its enabled SD figure GLB`, () => {
-      // Datasheets without GLB art yet (Ghallaron, Havocs, Helbrute, Lictor, Death's Shadow) use the procedural kits.
+      // Datasheets without GLB art yet (Ghallaron, Havocs, Helbrute) use the procedural kits.
       const withArt = ds.composition.some((m) => glbSlugFor(ds.id, m.modelId))
       if (!withArt) return
       for (const m of ds.composition) expect(glbSlugFor(ds.id, m.modelId), m.modelId).toBeDefined()
@@ -162,7 +162,7 @@ describe('chaos space marine figures', () => {
     })
 
     it(`${ds.id} uses its enabled SD figure GLB`, () => {
-      // Datasheets without GLB art yet (Ghallaron, Havocs, Helbrute, Lictor, Death's Shadow) use the procedural kits.
+      // Datasheets without GLB art yet (Ghallaron, Havocs, Helbrute) use the procedural kits.
       const withArt = ds.composition.some((m) => glbSlugFor(ds.id, m.modelId))
       if (!withArt) return
       for (const m of ds.composition) expect(glbSlugFor(ds.id, m.modelId), m.modelId).toBeDefined()
@@ -198,7 +198,7 @@ describe('tyranid figures', () => {
     })
 
     it(`${ds.id} uses its enabled SD figure GLB`, () => {
-      // Datasheets without GLB art yet (Ghallaron, Havocs, Helbrute, Lictor, Death's Shadow) use the procedural kits.
+      // Datasheets without GLB art yet (Ghallaron, Havocs, Helbrute) use the procedural kits.
       const withArt = ds.composition.some((m) => glbSlugFor(ds.id, m.modelId))
       if (!withArt) return
       for (const m of ds.composition) expect(glbSlugFor(ds.id, m.modelId), m.modelId).toBeDefined()
