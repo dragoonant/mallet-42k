@@ -1059,3 +1059,35 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | INF-031 | INF-5.3, 5.7 | Predators, Not Prey in the Charge phase before a charge is declared → the charge move may cross models; not offered for a unit that already moved / declared a charge, nor in the opponent's turn |
 | INF-032 | INF-6.4 | Pouncing Leap: Heroic Intervention on each Leaper unit costs 0 CP and is offered even after HI was used on another Leaper unit this phase; the Lictor pays 1 CP |
 | INF-033 | INF-1 | data: every new id exists and validates; the Vardenghast Swarm records (datasheets, weapons, abilities, stratagems, enhancements, patrol) are byte-for-byte unchanged |
+/^>>>>>>> bc61039/d
+## PEN — Adepta Sororitas: The Penitent Host (docs/spec/factions/adepta-sororitas--the-penitent-host.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| PEN-001 | PEN-1 | patrol `ade.cp.the-penitent-host` loads: 7 units, 26 models; Ellyrine is WARLORD with Armour of Faith, attached to the Battle Sisters; default secondary Divine Judgement; stratagems are the three `ade.s.pen.*` ids |
+| PEN-002 | PEN-1.3 | data: Sanctuary Guardians still loads unchanged; no existing `ade.*` datasheet / weapon / ability / stratagem value differs from before; every new id is unique |
+| PEN-003 | PEN-1.1 | Ellyrine may attach only to `ade.pen.battle-sisters-squad` (Seraphim / Repentia / Arcos refused) |
+| PEN-004 | PEN-1.2 | Patrol Squads split → `sisters-a` (Superior, flamer, 3 boltgun) and `sisters-b` (storm bolter, Simulacrum, 3 boltgun), each Starting Strength 5; default unsplit |
+| PEN-005 | PEN-2.1 | own Penitent Engine destroyed → +1 Miracle die; its hit roll is offered a Miracle substitution; Rhino's save is offered one |
+| PEN-006 | PEN-3 | Armour of Faith: Ellyrine FNP 4+; attached Battle Sisters FNP 5+; after Ellyrine dies the Sisters lose it |
+| PEN-007 | PEN-3.1 | Saintly Relic gain: end of own Command phase, bearer within range of a controlled marker → +1 die; two markers → still 1; bearer's unit Battle-shocked → 0; marker not controlled → 0; opponent's Command phase → 0 |
+| PEN-008 | PEN-3.2 | Saintly Relic re-roll: bearer on board → each gained die (turn start, unit destroyed, Relic gain) gets one keep/reroll offer; reroll replaces the value and is not offered again; bearer dead → no offer; Armour of Faith patrol → no offer |
+| PEN-009 | PEN-4.1 | Divine Judgement pick: at round 1 start the **opponent** gets the decision; candidates exclude MONSTER and VEHICLE units; choice stored for the Sororitas player; no pick in round 2 |
+| PEN-010 | PEN-4.2 | Divine Judgement score at battle end only: target destroyed by Repentia melee → 10; by shooting (or by an enemy's own Hazardous) → 6; survives → 0; Reserves cull → 6; nothing scored before battle end |
+| PEN-011 | PEN-4.3 | Rites of Reconsecration: round 1 → 0; round 2+, end of own turn, a unit wholly inside the enemy zone → 3; one model outside → 0; Battle-shocked → 0; two units inside → 3 |
+| PEN-012 | PEN-5.1 | Ascetic Discipline: opponent's Shooting, Repentia targeted → 5+ invuln (Sister Repentia saves on 5+ instead of 6+); Battle Sisters / Seraphim → 4+; not usable in own Shooting phase; expires at phase end |
+| PEN-013 | PEN-5.2 | A Martyr's Death: own Shooting, Battle Sisters not yet shot → boltgun unmodified 6 to hit auto-wounds; Penitent Engine / Rhino not eligible targets; not usable in the opponent's Shooting phase; usable in the opponent's Fight phase on a unit that has not fought yet |
+| PEN-014 | PEN-5.3 | Holy Radiance (2 CP): enemy fights Repentia, a not-yet-fought Repentia is destroyed → no D6, model stays, fights after the enemy unit's attacks, then removed; a model that already fought → removed at once; no Miracle discard prompt; not offered in Shooting |
+| PEN-015 | PEN-5.3 | Sanctuary Guardians `ade.s.a-martyrs-death` behaviour unchanged by the `aMartyrsDeath` param extension (D6 + discard still happen) |
+| PEN-016 | PEN-6.1 | Lead the Righteous: led Battle Sisters may re-roll hits; unled → no re-roll |
+| PEN-017 | PEN-6.3 | Angelic Ascent: Seraphim shoot, not in Engagement Range → offered a Normal move up to 6"; used → cannot declare a charge this turn; declined → can charge; within Engagement Range → no offer |
+| PEN-018 | PEN-6.3 | Seraphim Deep Strike: may start in Reserves, arrive from round 2 more than 9" from enemies |
+| PEN-019 | PEN-6.4 | Overseer of Redemption: Superior alive → melee hit re-roll; wound re-roll only after a Charge move this turn; Superior dead → neither; bolt pistol shots unaffected |
+| PEN-020 | PEN-6 | Repentia per-model stats: Superior Sv 3+ Ld 7+; Sister Repentia Sv 7+ (invuln 6+ used) Ld 8+; FNP 5+ per wound |
+| PEN-021 | PEN-6.6 | PEN Arco-flagellants: FNP 4+; arco-flails Twin-linked (wound re-roll) + Sustained Hits 1; no Extremis decision offered |
+| PEN-022 | PEN-6.5, 6.7 | Penitent Engine: declares a charge after Advancing; FNP 5+; Deadly Demise 1; penitent flamers 2D6 Torrent Twin-linked and fire after an Advance (Assault) |
+| PEN-023 | PEN-6.7 | Sororitas Rhino: T9 W10 Sv 3+ invuln 6+; storm bolter Rapid Fire 2 at half range → 4 shots; Deadly Demise D3 |
+| PEN-024 | PEN-6.8 | (E-PEN2) Battle Sisters end a move within 3" of the Rhino → embark offer; Seraphim (JUMP PACK) never offered; capacity counts models (12); disembark next Movement phase wholly within 3" |
+| PEN-025 | PEN-6.8 | (E-PEN2) Firing Deck 2: the Rhino shoots with up to 2 embarked models' ranged weapons; those passenger units cannot shoot afterwards |
+| PEN-026 | PEN-6 | weapons: plasma supercharge profile is Hazardous (Ellyrine BS 2+, Seraphim BS 3+); artificer storm bolter D2 Rapid Fire 2; neural whips Anti-Infantry 4+ (unmodified 4 vs INFANTRY is a critical wound); penitent eviscerator S6 AP−2 D2 |
+| PEN-027 | E-PEN3 | `unitHasModel` condition: true while a matching live model exists in the holder unit (attached halves included), false otherwise and for non-matching keys |
+>>>>>>> bc61039 (M10: adepta-sororitas The Penitent Host Combat Patrol spec)
