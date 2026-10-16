@@ -94,6 +94,13 @@ the player cannot work out from the visible state:
   with `optionId: 'reroll'` it must be a non-empty, duplicate-free subset of the offered `dieIndexes` (anything else is
   rejected `E_NOT_AN_OPTION`), and only those dice are re-rolled; absent = every offered die. There is one offer per
   batch, not one per die.
+- `fixRollOffer` (M10, thousand-sons Glimpse of Eternity; `ChooseOptionTopic` gains `'fixRollOffer'`, handler `fixRollHandler` in src/engine/fix-roll.ts registered in `DEFAULT_MODULES.topics`) —
+  `{ rollId, purpose, dieIndexes, value, key, offer }`, raised by `fixRollGate` after a hit / wound / save / damage roll (and its
+  Command Re-roll window) is final, for the roller of a source whose code hook has `fixRoll`. Options are `fix:<i>` (set die `i`
+  to `value`, 3 on a D3; the die is then marked re-rolled and the use is stamped in `secondaryState[usedKey]`) and `keep`.
+  `AttackSequenceState.mortalQueue[].by` and `DestroyedBy` gain an optional `psychic` flag (kill attribution for
+  `psychicKillThisPhase`, src/engine/attack.ts). A `rerollOffer` may also carry `source` (the `DiceRerolled` source id) and, for a
+  defender-side one-die re-roll of a failed save (Weaver of Fates), `purpose: 'save'`.
 - `miracleDie` (M10, adepta-sororitas Acts of Faith) — `{ purpose, unitId, count, maxSubstitutions, pool, key }`, raised by
   `miracleGate` (src/engine/miracle.ts) right before a D6 hit / wound / save / damage / charge / advance roll of an
   ADEPTA SORORITAS unit when the owner's pool is non-empty (`key` is the roll's `rollOnce` key; battle-shock tests are not

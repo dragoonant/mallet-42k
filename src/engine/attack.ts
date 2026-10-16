@@ -38,6 +38,7 @@
 import type { DiceExpr, WeaponAbilityName } from '../data/types'
 import { deferModelRemoval } from './deferred'
 import { miracleGate } from './miracle'
+import { fixRollGate } from './fix-roll'
 import { canReroll, clampHitWoundModifier, clampStat, dieSucceeds, netModifier, parseDiceExpr, rollSum, woundRollNeeded } from './dice'
 import type { RollSpec } from './dice'
 import { distance } from './geometry'
@@ -79,14 +80,14 @@ function recordShot(state: GameState, unitId: UnitId): void {
   else if (!rec.unitIds.includes(canon)) rec.unitIds = [...rec.unitIds, canon]
 }
 
-export interface DestroyedBy { player: PlayerId | null; unitId: UnitId | null; modelId: ModelId | null; kind: AttackKind | 'mortal' | 'other' }
+export interface DestroyedBy { player: PlayerId | null; unitId: UnitId | null; modelId: ModelId | null; kind: AttackKind | 'mortal' | 'other'; psychic?: boolean }
 
 export interface AttackService {
   begin(ctx: EngineContext, spec: AttackBegin): void
   advance(ctx: EngineContext): AdvanceResult
   readonly handler: DecisionHandler
   // `by` (RC-072): who the mortal wounds come from, so kills they cause count as destroyed by that player/unit/model (Deadly Demise)
-  queueMortalWounds(ctx: EngineContext, targetUnitId: UnitId, count: number, source: string, lostOnDeath: boolean, by?: { player: PlayerId; unitId: UnitId; modelId: ModelId }): void
+  queueMortalWounds(ctx: EngineContext, targetUnitId: UnitId, count: number, source: string, lostOnDeath: boolean, by?: { player: PlayerId; unitId: UnitId; modelId: ModelId; psychic?: boolean }): void
   destroyModel(ctx: EngineContext, modelId: ModelId, by: DestroyedBy): void
   // C5: the tail of destroyModel (Deadly Demise, removal, ModelDestroyed, kill credit, UnitDestroyed, missions, detach) — also the point at
   // which a fight-on-death model, deferred until it had fought, is finally removed
@@ -434,7 +435,10 @@ function rollBatchD6(ctx: EngineContext, key: string, hook: 'onHitRoll' | 'onWou
   }
   const roll = ctx.rollOnce(key, spec)
   if (!roll) return 'pending'
-  return { evals: roll.dice.map((_, i) => evalD6Die(ctx, hook, dies[i], roll, i)), rollId: roll.id }
+  // C4 (Glimpse of Eternity): a die of the final hit / wound roll may be set to 6
+  const fixed = fixRollGate(ctx, key, roll, roll.dice.map((_, i) => i))
+  if (fixed === 'pending') return 'pending'
+  return { evals: fixed.dice.map((_, i) => evalD6Die(ctx, hook, dies[i], fixed, i)), rollId: fixed.id }
 }
 
 function newBatch(stage: GroupBatch['stage']): GroupBatch { return { stage, hits: [], queue: [], saveRoll: null, nextSlot: 0 } }
@@ -833,6 +837,45 @@ function evaluateSave(ctx: EngineContext, setup: SaveSetup, roll: DiceRoll, dieI
   return { unmodified, final, saved: unmodified !== 1 && final >= setup.needed }
 }
 
+// ids of the sources (defender-side, e.g. Weaver of Fates) that let the defender re-roll one die of this save roll
+function saveOneDieSources(ctx: EngineContext, actx: AttackContext, roll: DiceRoll, dieIndex: number): string[] {
+  return ctx.services.hooks.collect(ctx, 'onSaveRoll', { attack: actx, roll: { purpose: 'save', roll, dieIndex, unmodified: roll.dice[dieIndex], rerolled: (roll.rerolled ?? []).includes(dieIndex) } })
+    .filter((r) => isRoll(r.result) && (r.result as { reroll?: string }).reroll === 'oneDie').map((r) => r.source.id)
+}
+
+// C2 + C4: once a save roll (and its Command Re-roll window) is final — first the defender's one-die re-roll of a failed save
+// (once per source per phase per player: phase mark `oneDie:<src>:save:<defender>`), then the roller's fix-a-die offer.
+// Re-entrant like rollBatchD6: 'pending' = a decision is open; otherwise the (possibly changed) roll.
+function saveRollOffers(ctx: EngineContext, key: string, roll: DiceRoll, defender: PlayerId, unitId: UnitId, actx: AttackContext, failed: (r: DiceRoll, i: number) => boolean, needed: number): DiceRoll | 'pending' {
+  const s = ctx.state
+  if (!ctx.marked(`oneDieSaveDone:${key}`)) {
+    ctx.once(`oneDieSaveDone:${key}`)
+    const offer: number[] = []
+    let markSource: string | null = null
+    for (let i = 0; i < roll.dice.length; i++) {
+      if (!canReroll(roll, i) || !failed(roll, i)) continue
+      const src = saveOneDieSources(ctx, actx, roll, i).find((id) => !s.phaseState.marks.includes(`oneDie:${id}:save:${defender}`))
+      if (src === undefined) continue
+      offer.push(i)
+      if (markSource === null) markSource = src
+    }
+    if (offer.length > 0 && markSource !== null) {
+      ctx.decide({
+        kind: 'chooseOption', player: defender, window: 'any.rollMade', canPass: false,
+        context: { topic: 'rerollOffer', unitId, abilityId: markSource, data: { rollId: roll.id, dieIndexes: offer, maxDice: 1, needed, purpose: 'save', key, source: markSource, oneDieMark: `oneDie:${markSource}:save:${defender}` } },
+        options: [
+          { id: 'reroll', label: 'Re-roll one die', action: { type: 'chooseOption', player: defender, decisionId: '', optionId: 'reroll', dieIndexes: [offer[0]] } },
+          { id: 'keep', label: 'Keep', action: { type: 'chooseOption', player: defender, decisionId: '', optionId: 'keep' } },
+        ],
+      })
+      return 'pending'
+    }
+  }
+  const cur = s.phaseState.lastRoll?.id === roll.id ? s.phaseState.lastRoll : roll
+  const failing = cur.dice.map((_, i) => i).filter((i) => failed(cur, i))
+  return fixRollGate(ctx, key, cur, failing)
+}
+
 function doSaveStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pending' | 'progress' {
   const a = attackSeq(ctx)
   const cur = a.current as CurrentAttack
@@ -867,7 +910,9 @@ function doSaveStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pendi
     // WEAP-008-dice/WEAP-011: per-slot key so a Sustained Hits extra hit's save never reuses the primary attack's roll
     const r = ctx.rollOnce(`save:${gi}:${cur.slot ?? 0}`, { purpose: 'save', player: s.units[model.unitId].player, sides: 6, count: 1, mode: 'perDie', unitId: model.unitId, modelId, weaponId: weapon.id, targetUnitId: group.targetUnitId, commandRerollable: !(kind === 'invuln' && hasFragileInvuln(s, modelId)), needed: setup.targetRoll })
     if (!r) return 'pending'
-    roll = r
+    const offered = saveRollOffers(ctx, `save:${gi}:${cur.slot ?? 0}`, r, s.units[model.unitId].player, model.unitId, actx, (rl, i) => !evaluateSave(ctx, setup, rl, i).saved, setup.targetRoll)
+    if (offered === 'pending') return 'pending'
+    roll = offered
   }
   const ev = evaluateSave(ctx, setup, roll, dieIndex)
   ctx.emit({ type: 'SaveRolled', attack: rollAttackCtx(actx), modelId, kind, die: ev.unmodified, final: ev.final, needed, saved: ev.saved, ...(cur.saveDie !== undefined && batchRoll ? { rollId: roll.id, dieIndex } : {}) })
@@ -933,8 +978,13 @@ function doSaveBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
     const fresh = ctx.roll(gate ? { ...spec, substitute: gate } : spec)
     s.phaseState.marks.push(prefix + fresh.id)
   }
-  const roll = ctx.rollOnce(saveKey, spec)
-  if (!roll) return 'pending'
+  const rolled = ctx.rollOnce(saveKey, spec)
+  if (!rolled) return 'pending'
+  const attackers = [...new Set(b.queue.map((w) => w.attackerModelId))]
+  const batchActx = buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, attackers[0], targetedWeapon(ctx, a, attackers[0], group), group.targetUnitId, null, false)
+  // a fast-rolled batch has one shared target number: a die fails when it is a 1 or below it
+  const roll = saveRollOffers(ctx, saveKey, rolled, player, group.targetUnitId, batchActx, (r, i) => r.dice[i] === 1 || r.dice[i] < target, target)
+  if (roll === 'pending') return 'pending'
   b.saveRoll = roll
   b.queue.forEach((slot, j) => { slot.saveDie = j })
   b.stage = 'apply'
@@ -1056,7 +1106,10 @@ function doDamageStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pen
       }
       const dmgRoll = ctx.rollOnce(key, spec)
       if (!dmgRoll) return 'pending'
-      dmg = rollSum(dmgRoll)
+      // C4 (Glimpse of Eternity): a die of the damage roll may be set to its maximum
+      const fixedDmg = fixRollGate(ctx, key, dmgRoll, dmgRoll.dice.map((_, i) => i))
+      if (fixedDmg === 'pending') return 'pending'
+      dmg = rollSum(fixedDmg)
     }
     if (!devastating) {
       const melta = weaponService.abilityValue(weapon, 'MELTA')
@@ -1080,7 +1133,7 @@ function doDamageStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pen
   const died = applyOnePoint(ctx, model, actx, rollAttackCtx(actx), devastating)
   cur.damage -= 1
   if (died) {
-    attackService.destroyModel(ctx, model.id, { player: s.units[a.attackerUnitId]?.player ?? null, unitId: a.attackerUnitId, modelId: cur.attackerModelId, kind: a.kind })
+    attackService.destroyModel(ctx, model.id, { player: s.units[a.attackerUnitId]?.player ?? null, unitId: a.attackerUnitId, modelId: cur.attackerModelId, kind: a.kind, psychic: hasAbility(weapon, 'PSYCHIC') })
     cur.damage = 0 // R-6.15/6.17: excess from a single attack (normal or devastating) is lost, never spills
     finishSlot(ctx, gi, group)
     return 'progress'
@@ -1136,7 +1189,7 @@ function drainOneMortalPoint(ctx: EngineContext): 'pending' | 'progress' {
   const died = applyOnePoint(ctx, model, actx, { abilityId: entry.source }, true)
   entry.count -= 1
   if (died) {
-    attackService.destroyModel(ctx, model.id, entry.by ? { ...entry.by, kind: 'mortal' } : { player: null, unitId: null, modelId: null, kind: 'mortal' })
+    attackService.destroyModel(ctx, model.id, entry.by ? { ...entry.by, kind: 'mortal', psychic: entry.by.psychic ?? isPsychicAbilitySource(s, entry.source) } : { player: null, unitId: null, modelId: null, kind: 'mortal' })
     if (entry.lostOnDeath) entry.count = 0 // R-6.17: Hazardous/Devastating batches don't spill; generic ones do (next tick re-picks a model)
   }
   if (entry.count <= 0) a.mortalQueue = a.mortalQueue.slice(1)
@@ -1241,7 +1294,7 @@ function rollDeadlyDemise(ctx: EngineContext, model: Model, valueExpr: DiceExpr)
 
 // prefixes that only ever mean something WITHIN the one attack sequence that wrote them — stale entries left over
 // from an earlier, already-finished sequence in the same phase must never leak into a new one (SHOOT-046-dice)
-const SEQUENCE_SCOPED_MARK_PREFIXES = ['roll:', 'attackCountOffered:', 'miracle:', 'miracleAsk:', 'rerollOffered:', 'autoReroll:', 'oneDieDone:', 'precisionDeclined:','hazardous:', 'groupTouched:', 'mortalAlloc:', 'mortalBatchSeq:', 'blastCount:', 'pendingDetach:', 'bgntAttacker', 'bgntTarget:', 'indirectNoLos:', 'atk:owHitOn=']
+const SEQUENCE_SCOPED_MARK_PREFIXES = ['roll:', 'attackCountOffered:', 'miracle:', 'miracleAsk:', 'rerollOffered:', 'autoReroll:', 'oneDieDone:', 'oneDieSaveDone:', 'fixRoll:', 'precisionDeclined:','hazardous:', 'groupTouched:', 'mortalAlloc:', 'mortalBatchSeq:', 'blastCount:', 'pendingDetach:', 'bgntAttacker', 'bgntTarget:', 'indirectNoLos:', 'atk:owHitOn=']
 
 
 // SDC E6: after the shooting.targetsDeclared window drains and before the first hit roll, drop each declared
@@ -1657,7 +1710,18 @@ function announceDestroyed(ctx: EngineContext, model: Model, unit: Unit, by: Des
     killsThisPhase[by.modelId] = (killsThisPhase[by.modelId] ?? 0) + 1
     secondaryState.killsThisPhase = killsThisPhase
   }
+  // C5 (THO Bringer of Change): a Psychic attack by `by.player` destroyed an enemy model this phase (own losses never count)
+  if (by.player && by.psychic && unit.player !== by.player) {
+    s.players[by.player].secondaryState.psychicKillStamp = psychicStampNow(s)
+  }
   if (nowDestroyed) destroyUnitTail(ctx, unit, by)
+}
+
+function psychicStampNow(s: GameState): string { return `${s.round}:${s.activePlayer}:${s.phase}` }
+
+// true iff `player` destroyed >= 1 enemy model with a Psychic attack in the current round / turn / phase (stale stamps are ignored)
+export function psychicKillThisPhase(state: GameState, player: PlayerId): boolean {
+  return state.players[player]?.secondaryState.psychicKillStamp === psychicStampNow(state)
 }
 
 function destroyUnitTail(ctx: EngineContext, unit: Unit, by: DestroyedBy): void {

@@ -26,6 +26,7 @@ import { transportService } from './transports'
 import { objectiveService } from './objectives'
 import { missionService } from './missions'
 import { answerMiracleReroll, miracleHandler } from './miracle'
+import { fixRollHandler } from './fix-roll'
 
 export * from './types'
 export * from './actions'
@@ -103,6 +104,7 @@ export const DEFAULT_MODULES: ModuleTable = {
     bagTarget: missionService.handler,
     treasureObjective: missionService.handler,
     miracleDie: miracleHandler,
+    fixRollOffer: fixRollHandler,
   },
 }
 

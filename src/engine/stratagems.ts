@@ -93,11 +93,30 @@ function commandRerollStratagem(state: GameState): RuntimeStratagem | null {
 // Pouncing Leap (Tyranids): an ability with code stratagemCostOverride on a target unit changes the cost of one named
 // stratagem and may waive its per-phase / per-turn limits (docs/spec/factions/tyranids.md 7.1 item 9). Foresight
 // (Aeldari enhancement, docs/spec/factions/aeldari.md E3) is the same override sourced from an enhancement's bearer.
-function costOverridesFor(state: GameState, player: PlayerId, s: RuntimeStratagem, targetUnitIds: UnitId[]): { cost: number; ignoreLimit: boolean }[] {
+// C3 (THO Echoes from the Warp): a one-shot phase cost override granted by an ability, kept as a phase mark
+// `costOverride:<json PhaseCostOverride>` (unitId canonical) and cleared with phaseState.marks at phase end
+export interface PhaseCostOverride { player: PlayerId; unitId: UnitId; cost: number; ignoreLimit: boolean; source: string }
+const COST_OVERRIDE_PREFIX = 'costOverride:'
+export function grantPhaseCostOverride(state: GameState, o: PhaseCostOverride): void {
+  state.phaseState.marks.push(COST_OVERRIDE_PREFIX + JSON.stringify(o))
+}
+export function phaseCostOverrides(state: GameState, player: PlayerId, unitId: UnitId): PhaseCostOverride[] {
+  const canon = leaderService.canonicalUnitId(state, unitId)
+  const out: PhaseCostOverride[] = []
+  for (const m of state.phaseState.marks) {
+    if (!m.startsWith(COST_OVERRIDE_PREFIX)) continue
+    const o = JSON.parse(m.slice(COST_OVERRIDE_PREFIX.length)) as PhaseCostOverride
+    if (o.player === player && o.unitId === canon) out.push(o)
+  }
+  return out
+}
+
+function costOverridesFor(state: GameState, player: PlayerId, s: RuntimeStratagem, targetUnitIds: UnitId[], includePhase = true): { cost: number; ignoreLimit: boolean }[] {
   const out: { cost: number; ignoreLimit: boolean }[] = []
   for (const id of targetUnitIds) {
     const u = state.units[id]
     if (!u || u.player !== player) continue
+    if (includePhase) for (const o of phaseCostOverrides(state, player, id)) out.push({ cost: o.cost, ignoreLimit: o.ignoreLimit })
     for (const half of leaderService.halves(state, id)) {
       const ds = state.datasheets[state.units[half]?.datasheetId]
       if (!ds) continue
@@ -545,6 +564,16 @@ function pay(ctx: EngineContext, player: PlayerId, s: RuntimeStratagem, targets:
   const st = ctx.state
   const p = st.players[player]
   const cost = effectiveCost(st, player, s, targets.unitIds ?? [])
+  // C3: a phase override that made this use cheaper (or let it ignore the once-per-phase limit) is spent: one Stratagem per Ritual
+  const staticOverrides = costOverridesFor(st, player, s, targets.unitIds ?? [], false)
+  const staticCost = staticOverrides.length === 0 ? s.cost : Math.min(...staticOverrides.map((x) => x.cost))
+  const limitNeedsWaiver = limitUsed(st, player, s) && !staticOverrides.some((x) => x.ignoreLimit)
+  for (const id of targets.unitIds ?? []) {
+    const o = phaseCostOverrides(st, player, id).find((x) => x.cost === cost && (cost < staticCost || (limitNeedsWaiver && x.ignoreLimit)))
+    if (!o) continue
+    const i = st.phaseState.marks.indexOf(COST_OVERRIDE_PREFIX + JSON.stringify(o))
+    if (i >= 0) { st.phaseState.marks.splice(i, 1); break }
+  }
   if (cost !== 0) {
     p.cp -= cost
     ctx.emit({ type: 'CpChanged', delta: -cost, total: p.cp, source: s.id, player })

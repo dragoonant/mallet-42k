@@ -59,11 +59,12 @@ function embarkedOf(bundle: DataBundle, patrol: { units: { ref: string; datashee
   return pick ? [{ unitRef: pick.ref, transportRef: transport.ref }] : undefined
 }
 
-function playerSetup(bundle: DataBundle, patrolId: string, name: string, embark = false) {
+function playerSetup(bundle: DataBundle, patrolId: string, name: string, embark = false, variant = false) {
   const patrol = bundle.patrols[patrolId]
   if (!patrol) throw new Error(`sim: patrol ${patrolId} missing from data bundle`)
-  const enhancementId = (patrol.enhancements.find((e) => e.default) ?? patrol.enhancements[0]).id
-  const secondaryId = (patrol.secondaries.find((s) => s.default) ?? patrol.secondaries[0]).id
+  // SIM_VARIANTS=1: on variant games take the last enhancement and the last secondary instead of the defaults
+  const enhancementId = (variant ? patrol.enhancements[patrol.enhancements.length - 1] : (patrol.enhancements.find((e) => e.default) ?? patrol.enhancements[0])).id
+  const secondaryId = (variant ? patrol.secondaries[patrol.secondaries.length - 1] : (patrol.secondaries.find((s) => s.default) ?? patrol.secondaries[0])).id
   return { name, faction: patrol.faction, patrolId, enhancementId, secondaryId, attachments: attachmentsOf(patrol), reserves: [], battleReadyVp: 0, ...(embark ? { embarked: embarkedOf(bundle, patrol) } : {}) }
 }
 
@@ -76,6 +77,7 @@ export function makeSimSetup(bundle: DataBundle, gameIndex: number, dataVersion:
   for (const x of patrols) for (const y of patrols) if (x !== y) pairs.push([x, y])
   // SIM_FACTION=tyranids: only pairings that include that faction's roster (every game then exercises it)
   const only = process.env.SIM_FACTION
+  const variants = process.env.SIM_VARIANTS === '1'
   // SIM_PATROL=<patrol id>: only pairings that include that exact patrol (a faction may have several)
   const onlyPatrol = process.env.SIM_PATROL
   let wanted = only ? pairs.filter(([x, y]) => bundle.patrols[x].faction === only || bundle.patrols[y].faction === only) : pairs
@@ -83,6 +85,9 @@ export function makeSimSetup(bundle: DataBundle, gameIndex: number, dataVersion:
   // SIM_VS=orks (with SIM_FACTION): only pairings where the other roster belongs to that faction (a fixed matchup, both seats)
   const vs = process.env.SIM_VS
   if (only && vs) wanted = wanted.filter(([x, y]) => (bundle.patrols[x].faction === only && bundle.patrols[y].faction === vs) || (bundle.patrols[y].faction === only && bundle.patrols[x].faction === vs))
+  // SIM_OPPONENT=orks (with SIM_FACTION=thousand-sons): the other roster of every pairing must belong to that faction
+  const opponent = process.env.SIM_OPPONENT
+  if (opponent) wanted = wanted.filter(([x, y]) => bundle.patrols[x].faction === opponent || bundle.patrols[y].faction === opponent)
   if (wanted.length === 0) throw new Error(`sim: no roster pairing includes faction ${only ?? '*'} patrol ${onlyPatrol ?? '*'}`)
   // plain run with 3+ rosters: the first roster walks the sorted list from the front and the opponent from the back, so a
   // short run (e.g. 6 games) touches rosters at both ends instead of only the alphabetically first ones
@@ -97,7 +102,7 @@ export function makeSimSetup(bundle: DataBundle, gameIndex: number, dataVersion:
   return {
     missionId: MISSIONS[missionIndex % MISSIONS.length],
     terrainLayoutId: Object.keys(bundle.terrainLayouts ?? {}).sort()[0] ?? 'terrain.cp-01',
-    players: { A: playerSetup(bundle, p0, 'Bot A', gameIndex % 2 === 0), B: playerSetup(bundle, p1, 'Bot B', gameIndex % 3 !== 1) },
+    players: { A: playerSetup(bundle, p0, 'Bot A', gameIndex % 2 === 0, variants && gameIndex % 2 === 1), B: playerSetup(bundle, p1, 'Bot B', gameIndex % 3 !== 1, variants && gameIndex % 2 === 1) },
     sides: 'rollOff',
     firstTurn: 'rollOff',
     dataVersion,

@@ -225,7 +225,8 @@ export function hasDeepStrike(state: GameState, unitId: UnitId): boolean {
       for (const id of halves) if (state.datasheets[state.units[id]?.datasheetId]?.abilities.includes(a.id)) return true
     }
   }
-  return false
+  // C1 (THO): a code hook's grantsCoreAbility (enhancement-granted Deep Strike, e.g. Temporal Sorceries) also counts.
+  return hookService.hasCoreAbility?.(state, unitId, 'DEEP_STRIKE') ?? false
 }
 
 // ---------- mutation helpers (draft state only) ----------
@@ -597,14 +598,11 @@ export function createGameState(setup: GameSetup, bundle: DataBundle, seed: stri
       bodyguard.attachedLeaderId = leader.id
     }
 
-    // reserves (CP-1.9: Deep Strike is the only route, or a Tellyporta pairing)
+    // reserves (CP-1.9: Deep Strike is the only route, or a Tellyporta pairing): existence is checked here, the Deep Strike
+    // check runs once the state exists (C1: a hook-granted Deep Strike needs the enhancement abilities on state.abilities)
     for (const ref of ps.reserves) {
       if (skippedRefs.has(ref)) continue
-      const u = units[unitIdFor(pid, ref)]
-      if (!u) throw new EngineInvariantError(`reserves unit '${ref}' not found for player ${pid}`)
-      // createGame has no GameState yet: hasDeepStrike only reads these four maps
-      const canDeepStrike = hasDeepStrike({ datasheets, abilities, units, models } as unknown as GameState, u.id) || u.deepStrikeWith !== null
-      if (!canDeepStrike) throw new EngineInvariantError(`unit '${ref}' cannot start in Reserves (no Deep Strike)`)
+      if (!units[unitIdFor(pid, ref)]) throw new EngineInvariantError(`reserves unit '${ref}' not found for player ${pid}`)
     }
 
     players[pid] = {
@@ -653,6 +651,13 @@ export function createGameState(setup: GameSetup, bundle: DataBundle, seed: stri
     log: [],
     hash: '',
     result: null,
+  }
+  // reserves (CP-1.9 / C1): Deep Strike (datasheet, pairing, or hook-granted) is the only route
+  for (const pid of ['A', 'B'] as PlayerId[]) {
+    for (const ref of setup.players[pid].reserves) {
+      const u = state.units[unitIdFor(pid, ref)]
+      if (u && !(hasDeepStrike(state, u.id) || u.deepStrikeWith !== null)) throw new EngineInvariantError(`unit '${ref}' cannot start in Reserves (no Deep Strike)`)
+    }
   }
   // SDC E1: units that start embarked in a friendly Transport (Declare Battle Formations)
   for (const pid of ['A', 'B'] as PlayerId[]) {

@@ -101,7 +101,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
     withIt = incomingDamage(state, attackerId, mineId, false, { ...base, hitMod: -1, fnp: 5 })
   } else if (id.endsWith('hyper-reactive') || id.endsWith('lurking-killers') || id.endsWith('quicksilver-reactions') || id.endsWith('whip-fast-reactions')) {
     withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, hitMod: -1 })
-  } else if (id.endsWith('lives-before-territory')) {
+  } else if (id.endsWith('lives-before-territory') || id.endsWith('mutant-cunning')) {
     if (melee) return -Infinity
     withIt = incomingDamage(state, attackerId, mineId, false, { ...base, cover: true })
   } else if (id.endsWith('skeinwrought-physiology')) {
@@ -128,7 +128,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
 }
 
 const DEFENSIVE = ['skeinwrought-physiology', 'go-to-ground', 'smokescreen', 'gene-wrought-resilience', 'tough-as-squig-hide', 'holy-radiance', 'hyper-reactive',
-  'mercurial-resilience', 'a-martyrs-death', 'daemonic-fervour', 'lurking-killers', 'lives-before-territory', 'quicksilver-reactions', 'whip-fast-reactions', 'evaluation-of-mettle', 'disgustingly-resilient']
+  'mercurial-resilience', 'a-martyrs-death', 'daemonic-fervour', 'lurking-killers', 'lives-before-territory', 'quicksilver-reactions', 'whip-fast-reactions', 'evaluation-of-mettle', 'disgustingly-resilient', 'mutant-cunning']
 
 // Fire Overwatch: hits only on an unmodified 6, the bound unit only (picked within 24"), each weapon within its own range, with line of sight.
 function overwatchGain(state: GameState, player: PlayerId, action: UseStratagemAction, enemyId: UnitId): number {
@@ -717,6 +717,30 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
       best = Math.max(best, objectiveScoreWeight(state, player, o.id) * (controller === player ? 0.3 : 1.2))
     }
     return best > 0.4 ? best : -Infinity
+  }
+  // Thousand Sons Wreathed in Warpflame: Lethal Hits on a not-yet-fought unit's melee weapons (a critical hit on a 5+ against a MONSTER or
+  // VEHICLE); worth about a fifth (a third against the big targets) of the unit's melee damage against what it is fighting.
+  if (id.endsWith('wreathed-in-warpflame')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId || !hasAnyMeleeWeapon(state, unitId)) return -Infinity
+    let best = 0
+    for (const e of engagedEnemyUnits(state, player, unitId)) {
+      const big = hasKeyword(state, e, 'MONSTER') || hasKeyword(state, e, 'VEHICLE')
+      best = Math.max(best, unitMeleeDamage(state, unitId, e, {}) * (big ? 0.33 : 0.2) * unitValue(state, e) * 0.03)
+    }
+    return best > 0.2 ? best : -Infinity
+  }
+  // Thousand Sons Malign Entanglement: -2 to the charger's Charge roll; worth the drop in its chance to arrive times the melee it would do.
+  if (id.endsWith('malign-entanglement')) {
+    const mine = mineOf(state, player, targets.unitIds)
+    const chargerId = (targets.unitIds ?? []).find((u) => state.units[u]?.player !== player) ?? trigger
+    const charge = state.phaseState.charge
+    if (!mine || !chargerId || !charge) return -Infinity
+    const needed = neededChargeDistance(state, chargerId, charge.targetUnitIds)
+    if (needed > 12) return -Infinity
+    const drop = chargeProb(needed) - chargeProb(needed + 2)
+    if (drop <= 0) return -Infinity
+    return drop * unitMeleeDamage(state, chargerId, mine, {}) * unitValue(state, mine) * 0.03 * 2
   }
   // Custodes Overawing Magnificence: a free Normal move (up to M, ending outside Engagement Range) after the enemy falls back from
   // our unit; worth it when the freed unit can reach an objective we do not hold, or close on the retreating unit's lane.

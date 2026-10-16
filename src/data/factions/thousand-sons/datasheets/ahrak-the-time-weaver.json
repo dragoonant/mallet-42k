@@ -1,0 +1,26 @@
+[
+  {
+    "id": "ths.ahrak-the-time-weaver",
+    "faction": "thousand-sons",
+    "name": "Ahrak the Time Weaver",
+    "keywords": ["INFANTRY", "CHARACTER", "PSYKER", "CHAOS", "TZEENTCH", "INFERNAL MASTER", "AHRAK THE TIME WEAVER"],
+    "factionKeywords": ["THOUSAND SONS"],
+    "stats": { "M": 6, "T": 4, "Sv": 3, "W": 4, "Ld": 6, "OC": 1 },
+    "invuln": 5,
+    "composition": [
+      {
+        "modelId": "ahrak",
+        "name": "Ahrak the Time Weaver",
+        "min": 1, "max": 1, "default": 1,
+        "champion": true,
+        "base": { "shape": "round", "mm": 40 },
+        "weapons": { "default": ["ths.w.inferno-bolt-pistol", "ths.w.screamer-invocation-witchfire", "ths.w.screamer-invocation-focused", "ths.w.force-weapon"] },
+        "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+      }
+    ],
+    "abilities": ["ths.a.cabal-of-sorcerers-ahrak", "ths.a.glimpse-of-eternity", "ths.a.weaver-of-fates"],
+    "coreAbilities": [],
+    "points": [ { "models": 1, "points": 0 } ],
+    "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+  }
+]

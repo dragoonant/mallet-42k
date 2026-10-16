@@ -567,6 +567,35 @@ function PainTokens({ state, id }: { state: GameState; id: PlayerId }) {
   )
 }
 
+/** True when any of the player's units carries a Cabal of Sorcerers ability (matched by ability code, so it follows the data). */
+function hasCabal(state: GameState, id: PlayerId): boolean {
+  return Object.values(state.units).some((u) => {
+    if (u.player !== id) return false
+    const ds = state.datasheets[u.datasheetId]
+    return !!ds && ds.abilities.some((ab) => {
+      const code = (state.abilities[ab] as { code?: string } | undefined)?.code
+      return code === 'cabalOfSorcerers' || code === 'cabalRituals'
+    })
+  })
+}
+
+/** Thousand Sons Cabal pool: Psykers fill it at the end of your Command phase, Rituals spend it. Renders nothing for other armies. */
+function CabalPool({ state, id }: { state: GameState; id: PlayerId }) {
+  if (!hasCabal(state, id)) return null
+  const raw = state.players[id].secondaryState?.cabalPoints
+  const n = typeof raw === 'number' && raw > 0 ? raw : 0
+  return (
+    <Tooltip title="Cabal pool" body="Your Psykers add points at the end of your Command phase, and the pool empties at the start of your next one. At the start of any phase, spend points on a Ritual: Weaver of Fates (2) re-rolls a failed save near your Psyker, Echoes from the Warp (6) makes one Stratagem free for a unit." placement="bottom"><div style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 4 }} data-testid={`hud-cabal-${id}`}>
+      <span>Cabal</span>
+      {n === 0 && <span style={mutedText}>empty</span>}
+      {n > 0 && n <= 10 && Array.from({ length: n }, (_, i) => (
+        <span key={i} style={{ width: 10, height: 10, borderRadius: 2, transform: 'rotate(45deg)', background: '#5ad1e6', boxShadow: '0 0 4px #5ad1e6' }} />
+      ))}
+      {n > 10 && <span style={{ fontWeight: 700 }}>{n}</span>}
+    </div></Tooltip>
+  )
+}
+
 function PlayerBadge({ id, state }: { id: PlayerId; state: GameState }) {
   const bundle = useGameStore((s) => s.bundle)
   const [open, setOpen] = useState(false)
@@ -584,6 +613,7 @@ function PlayerBadge({ id, state }: { id: PlayerId; state: GameState }) {
       </div>
       <MiracleDice dice={(p as { miracle?: { dice?: number[] } }).miracle?.dice} id={id} enabled={hasActsOfFaith(state, id) || hasFatePool(state, id)} fate={hasFatePool(state, id) && !hasActsOfFaith(state, id)} />
       <PainTokens state={state} id={id} />
+      <CabalPool state={state} id={id} />
       <button style={vpButton} data-testid={`hud-vp-${id}`} onClick={() => setOpen((v) => !v)}>
         VP {p.vp} {scored.length > 0 ? (open ? '▲' : '▼') : ''}
       </button>

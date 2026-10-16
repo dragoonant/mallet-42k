@@ -121,6 +121,12 @@ export const BODY_KIND: Record<KitId, 'biped' | 'vehicle' | 'swarm' | 'artillery
   'dg-poxwalker': 'biped',
   'dg-grelch': 'biped',
   'dg-typhus': 'biped',
+  'ths-ahrak': 'biped',
+  'ths-scarab-sorcerer': 'biped',
+  'ths-scarab-combi': 'biped',
+  'ths-scarab-soulreaper': 'biped',
+  'ths-scarab-hellfyre': 'biped',
+  'ths-tzaangor': 'biped',
   'generic-infantry': 'biped',
   'generic-heavy': 'biped',
   'generic-monster': 'biped',
@@ -1458,6 +1464,35 @@ BIPED_CONFIG['drk-incubus'] = {
 BIPED_CONFIG['drk-klaivex'] = {
   headShape: 'incubus-helm', rightWeapon: 'klaive', leftWeapon: 'klaive', bulk: 1.15, hasBackpack: false,
   shoulderPads: 'large', hasCape: true, capeColor: 'trim', skin: 'none', limbColor: 'primary', torsoColor: 'secondary', spikedPauldrons: true,
+}
+
+// Thousand Sons (The Coven of Temporus): blue-and-gold Rubric armour with pointed gold helms and cyan eyes. Ahrak is a robed,
+// crowned Infernal Master with a staff and pistol; the Scarab Occult Terminators are bulky and share a silhouette, told apart
+// by what they carry (sorcerer: staff + combi-bolter, combi: khopesh, soulreaper: cannon, hellfyre: missile rack). Tzaangors are
+// hunched, bare-skinned beastmen with a hooked beak and horns, carrying a blade and an autopistol.
+BIPED_CONFIG['ths-ahrak'] = {
+  headShape: 'ths-sorcerer', rightWeapon: 'ritual-staff', leftWeapon: 'plasma-pistol', bulk: 1.3, hasBackpack: false,
+  shoulderPads: 'large', hasCape: true, capeColor: 'trim', skin: 'none', chestPlate: true, robe: true, limbColor: 'primary',
+}
+BIPED_CONFIG['ths-scarab-sorcerer'] = {
+  headShape: 'ths-sorcerer', rightWeapon: 'ritual-staff', leftWeapon: 'storm-bolter', bulk: 1.55, hasBackpack: true,
+  shoulderPads: 'large', hasCape: true, capeColor: 'trim', skin: 'none', chestPlate: true,
+}
+BIPED_CONFIG['ths-scarab-combi'] = {
+  headShape: 'rubric-helm', rightWeapon: 'storm-bolter', leftWeapon: 'khopesh', bulk: 1.5, hasBackpack: true,
+  shoulderPads: 'large', hasCape: false, skin: 'none', chestPlate: true,
+}
+BIPED_CONFIG['ths-scarab-soulreaper'] = {
+  headShape: 'rubric-helm', rightWeapon: 'burst-cannon', leftWeapon: 'khopesh', bulk: 1.55, hasBackpack: true,
+  shoulderPads: 'large', hasCape: false, skin: 'none', chestPlate: true,
+}
+BIPED_CONFIG['ths-scarab-hellfyre'] = {
+  headShape: 'rubric-helm', rightWeapon: 'missile-rack', leftWeapon: 'storm-bolter', bulk: 1.55, hasBackpack: true,
+  shoulderPads: 'large', hasCape: false, skin: 'none', chestPlate: true,
+}
+BIPED_CONFIG['ths-tzaangor'] = {
+  headShape: 'tzaangor-head', rightWeapon: 'rusty-blade', leftWeapon: 'slugga', bulk: 1.05, hasBackpack: false,
+  shoulderPads: 'small', hasCape: false, skin: 'daemon', bareTorso: true, limbColor: 'skin', hunch: 0.25,
 }
 
 export const ARTILLERY_CONFIG: Partial<Record<KitId, ArtilleryConfig>> = {

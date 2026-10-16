@@ -30,10 +30,11 @@ const FACTION_BLURBS: Record<string, string> = {
   drukhari: 'Cruel raiders on skimmers who feed on the pain they cause: the more your enemy suffers, the better your units fight.',
   'death-guard': 'Plodding, plague-ridden Space Marines and a shambling horde of the infected: hard to kill, and the closer you stand, the worse they make it for you.',
   'adeptus-mechanicus': 'Hooded cyborg skirmishers and sulphur-breathing hounds led by a tech-priest: each round you pick a stance that sharpens either their guns or their advance.',
+  'thousand-sons': 'Blue-and-gold sorcerers, armoured Rubric warriors and horned mutants: pool sorcerous power each round and spend it on rituals that bend the odds.',
 }
 
 // Button order for the factions the game ships; any other faction in the bundle follows alphabetically.
-const FACTION_ORDER = ['sm', 'ork', 'necrons', 'chaos-space-marines', 'world-eaters', 'tyranids', 'adepta-sororitas', 'astra-militarum', 'grey-knights', 'tau-empire', 'genestealer-cults', 'adeptus-custodes', 'leagues-of-votann', 'drukhari', 'aeldari', 'adeptus-mechanicus', 'death-guard']
+const FACTION_ORDER = ['sm', 'ork', 'necrons', 'chaos-space-marines', 'world-eaters', 'tyranids', 'adepta-sororitas', 'astra-militarum', 'grey-knights', 'tau-empire', 'genestealer-cults', 'adeptus-custodes', 'leagues-of-votann', 'drukhari', 'aeldari', 'adeptus-mechanicus', 'death-guard', 'thousand-sons']
 
 interface FactionChoice {
   id: string

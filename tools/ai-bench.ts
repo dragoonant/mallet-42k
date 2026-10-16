@@ -1,5 +1,5 @@
 // Tier-1 AI benchmark (owner: src/ai).
-// `npm run bench:ai -- --games N --seed S [--difficulty easy|normal] [--faction space-marines|orks|necrons|chaos-space-marines|tyranids|adepta-sororitas|astra-militarum|grey-knights|tau-empire|drukhari]`
+// `npm run bench:ai -- --games N --seed S [--difficulty easy|normal] [--faction space-marines|orks|necrons|chaos-space-marines|tyranids|adepta-sororitas|astra-militarum|grey-knights|tau-empire|drukhari|thousand-sons]`
 // Plays UtilityDecider vs RandomDecider on the real Combat Patrol rosters through the public engine API
 // (createGame/legalActions/step/view), alternating which faction and which seat the AI takes (or, with
 // --faction, always playing that one roster), cycling missions cp-01..cp-06. Prints games, AI wins, draws,
@@ -31,6 +31,7 @@ FACTION_ARG_TO_DATA_ID.drukhari = 'drukhari'
 FACTION_ARG_TO_DATA_ID['adeptus-mechanicus'] = 'adeptus-mechanicus'
 FACTION_ARG_TO_DATA_ID['death-guard'] = 'death-guard'
 FACTION_ARG_TO_DATA_ID['world-eaters'] = 'world-eaters'
+FACTION_ARG_TO_DATA_ID['thousand-sons'] = 'thousand-sons'
 
 // the patrol data's own `attachTo` hints (a Leader joining its bodyguard unit); other rosters attach in the client only
 function attachmentsOf(patrol: { units: { ref: string; attachTo?: string }[] }) {
@@ -122,6 +123,7 @@ async function playOne(
       action = await decider.decide(v, pending, legal)
     } catch (err) {
       rejections++
+      if (process.env.BENCH_DEBUG) console.log(`  [debug] decider threw on ${pending.kind} (${pending.player}, phase ${r.state.phase}): ${(err as Error).message}`)
       if (!legal || legal.length === 0) break
       action = legal[0]
     }
@@ -129,6 +131,7 @@ async function playOne(
     let next = step(r.state, action)
     if (next.rejection) {
       rejections++
+      if (process.env.BENCH_DEBUG) console.log(`  [debug] rejected ${JSON.stringify(action).slice(0, 200)} on ${pending.kind} (${pending.player}, phase ${r.state.phase}): ${next.rejection.code} ${next.rejection.reason}`)
       const fallback = legal && legal.length > 0 ? legal.find((a) => a !== action) ?? legal[0] : null
       if (!fallback) break
       next = step(r.state, fallback)

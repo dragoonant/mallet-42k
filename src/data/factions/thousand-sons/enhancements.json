@@ -1,0 +1,52 @@
+[
+  {
+    "id": "ths.e.temporal-sorceries",
+    "faction": "thousand-sons",
+    "name": "Temporal Sorceries",
+    "text": "The bearer has Deep Strike and Lone Operative. At the end of your Command phase, while the bearer is on the battlefield (Battle-shock does not matter), add D3 to your Cabal pool.",
+    "cost": 0,
+    "restriction": { "keyword": ["AHRAK THE TIME WEAVER"] },
+    "effect": {
+      "id": "ths.e.temporal-sorceries.effect",
+      "name": "Temporal Sorceries",
+      "text": "The bearer gains Deep Strike and Lone Operative and adds D3 to the Cabal pool at the end of your Command phase.",
+      "trigger": "always",
+      "code": "temporalSorceries",
+      "scope": { "who": "bearer" }
+    }
+  },
+  {
+    "id": "ths.e.arch-diabolist",
+    "faction": "thousand-sons",
+    "name": "Arch-Diabolist",
+    "text": "The bearer has Deep Strike and Lone Operative. Both Screamer Invocation profiles gain [PISTOL].",
+    "cost": 0,
+    "restriction": { "keyword": ["AHRAK THE TIME WEAVER"] },
+    "effect": [
+      {
+        "id": "ths.e.arch-diabolist.witchfire",
+        "name": "Arch-Diabolist",
+        "text": "The witchfire profile of Screamer Invocation gains [PISTOL].",
+        "trigger": "always",
+        "scope": { "who": "bearer" },
+        "effect": { "when": { "weaponId": "ths.w.screamer-invocation-witchfire" }, "grantWeaponAbility": { "ability": "PISTOL" } }
+      },
+      {
+        "id": "ths.e.arch-diabolist.focused",
+        "name": "Arch-Diabolist",
+        "text": "The focused witchfire profile of Screamer Invocation gains [PISTOL].",
+        "trigger": "always",
+        "scope": { "who": "bearer" },
+        "effect": { "when": { "weaponId": "ths.w.screamer-invocation-focused" }, "grantWeaponAbility": { "ability": "PISTOL" } }
+      },
+      {
+        "id": "ths.e.arch-diabolist.core",
+        "name": "Arch-Diabolist",
+        "text": "The bearer gains Deep Strike and Lone Operative.",
+        "trigger": "always",
+        "code": "archDiabolist",
+        "scope": { "who": "bearer" }
+      }
+    ]
+  }
+]

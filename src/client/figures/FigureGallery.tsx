@@ -196,6 +196,12 @@ const GALLERY_ENTRIES: GalleryEntry[] = [
   { datasheetId: 'adm.serberys-sulphurhounds', modelId: 'pistols', faction: 'adeptus-mechanicus', label: "Sulphurhound (paired pistols)" },
   { datasheetId: 'adm.pteraxii-sterylizors', modelId: 'alpha', faction: 'adeptus-mechanicus', label: "Sterylizor Alpha" },
   { datasheetId: 'adm.pteraxii-sterylizors', modelId: 'sterylizor', faction: 'adeptus-mechanicus', label: "Pteraxii Sterylizor" },
+  { datasheetId: 'ths.ahrak-the-time-weaver', modelId: 'ahrak', faction: 'thousand-sons', label: 'Ahrak the Time Weaver' },
+  { datasheetId: 'ths.scarab-occult-terminators', modelId: 'sorcerer', faction: 'thousand-sons', label: 'Scarab Sorcerer' },
+  { datasheetId: 'ths.scarab-occult-terminators', modelId: 'combi', faction: 'thousand-sons', label: 'Scarab Terminator (combi-bolter)' },
+  { datasheetId: 'ths.scarab-occult-terminators', modelId: 'soulreaper', faction: 'thousand-sons', label: 'Scarab Terminator (soulreaper cannon)' },
+  { datasheetId: 'ths.scarab-occult-terminators', modelId: 'hellfyre', faction: 'thousand-sons', label: 'Scarab Terminator (hellfyre rack)' },
+  { datasheetId: 'ths.tzaangors', modelId: 'tzaangor', faction: 'thousand-sons', label: 'Tzaangor' },
 ]
 
 // Figures are true tabletop-miniature scale (~1-2 world-inches tall — see resolveBase), so packing

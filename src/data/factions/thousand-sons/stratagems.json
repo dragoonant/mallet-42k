@@ -1,0 +1,64 @@
+[
+  {
+    "id": "ths.s.wreathed-in-warpflame",
+    "faction": "thousand-sons",
+    "name": "Wreathed in Warpflame",
+    "text": "Use in the Fight phase, before you pick the next unit to fight. Pick one THOUSAND SONS unit (not TZAANGORS) from your army that has not yet been selected to fight this phase. Until the phase ends, its melee weapons have [LETHAL HITS], and each attack its models make against a MONSTER or VEHICLE unit scores a Critical Hit on an unmodified Hit roll of 5+.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["fight"],
+    "window": ["fight.start", "fight.attacksResolved"],
+    "who": "either",
+    "condition": { "phase": "fight" },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "THOUSAND SONS", "notKeyword": "TZAANGORS" }, "state": "notYetFought", "count": 1 }
+    ],
+    "effect": [
+      { "when": { "weaponType": "melee" }, "grantWeaponAbility": { "ability": "LETHAL_HITS" } },
+      { "when": { "targetKeyword": ["MONSTER", "VEHICLE"] }, "lethalOn": 5 }
+    ],
+    "scope": { "who": "target" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "ths.s.mutant-cunning",
+    "faction": "thousand-sons",
+    "name": "Mutant Cunning",
+    "text": "Use in your opponent's Shooting phase, just after an enemy unit has chosen its targets. Pick one TZAANGORS unit from your army that is a target of those attacks. It makes a Normal move of up to D6 inches, and until the end of the phase every ranged attack that targets it has the Benefit of Cover.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["shooting"],
+    "window": "shooting.targetsDeclared",
+    "who": "reactive",
+    "condition": { "phase": "shooting", "ownTurn": false },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "TZAANGORS" }, "state": "targetedByAttack", "count": 1 }
+    ],
+    "scope": { "who": "target" },
+    "duration": "untilEndOfPhase",
+    "code": "livesBeforeTerritory",
+    "params": { "dice": "D6", "keywords": ["TZAANGORS"] },
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "ths.s.malign-entanglement",
+    "faction": "thousand-sons",
+    "name": "Malign Entanglement",
+    "text": "Use in your opponent's Charge phase, just after an enemy unit declares a charge. Pick one THOUSAND SONS unit from your army that is a target of that charge. Until the phase ends, the charging unit subtracts 2 from its Charge rolls.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["charge"],
+    "window": "charge.declared",
+    "who": "reactive",
+    "condition": { "phase": "charge", "ownTurn": false },
+    "targets": [
+      { "role": "unit", "owner": "enemy", "count": 1 },
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "THOUSAND SONS" }, "count": 1 }
+    ],
+    "scope": { "who": "target" },
+    "duration": "untilEndOfPhase",
+    "code": "malignEntanglement",
+    "limit": "oncePerPhase"
+  }
+]

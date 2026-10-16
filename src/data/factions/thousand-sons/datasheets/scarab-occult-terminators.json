@@ -1,0 +1,51 @@
+[
+  {
+    "id": "ths.scarab-occult-terminators",
+    "faction": "thousand-sons",
+    "name": "Scarab Occult Terminators",
+    "keywords": ["INFANTRY", "TERMINATOR", "CHAOS", "TZEENTCH", "SCARAB OCCULT TERMINATORS"],
+    "factionKeywords": ["THOUSAND SONS"],
+    "stats": { "M": 5, "T": 5, "Sv": 2, "W": 3, "Ld": 6, "OC": 1 },
+    "invuln": 4,
+    "composition": [
+      {
+        "modelId": "sorcerer",
+        "name": "Scarab Occult Sorcerer",
+        "min": 1, "max": 1, "default": 1,
+        "champion": true,
+        "keywords": ["PSYKER"],
+        "base": { "shape": "round", "mm": 40 },
+        "weapons": { "default": ["ths.w.warpsmite", "ths.w.force-weapon", "ths.w.prosperine-khopesh"] },
+        "figure": { "archetype": "heavy", "kit": "sm-terminator" }
+      },
+      {
+        "modelId": "combi",
+        "name": "Scarab Occult Terminator (combi-bolter)",
+        "min": 2, "max": 2, "default": 2,
+        "base": { "shape": "round", "mm": 40 },
+        "weapons": { "default": ["ths.w.inferno-combi-bolter", "ths.w.prosperine-khopesh"] },
+        "figure": { "archetype": "heavy", "kit": "sm-terminator" }
+      },
+      {
+        "modelId": "soulreaper",
+        "name": "Scarab Occult Terminator (soulreaper cannon)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 40 },
+        "weapons": { "default": ["ths.w.soulreaper-cannon", "ths.w.prosperine-khopesh"] },
+        "figure": { "archetype": "heavy", "kit": "sm-terminator" }
+      },
+      {
+        "modelId": "hellfyre",
+        "name": "Scarab Occult Terminator (hellfyre missile rack)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 40 },
+        "weapons": { "default": ["ths.w.hellfyre-missile-rack", "ths.w.inferno-combi-bolter", "ths.w.prosperine-khopesh"] },
+        "figure": { "archetype": "heavy", "kit": "sm-terminator" }
+      }
+    ],
+    "abilities": ["ths.a.cabal-of-sorcerers-sorcerer", "ths.a.implacable-guardians", "ths.a.weaver-of-fates"],
+    "coreAbilities": [ { "ability": "DEEP_STRIKE" } ],
+    "points": [ { "models": 5, "points": 0 } ],
+    "figure": { "archetype": "heavy", "kit": "sm-terminator" }
+  }
+]

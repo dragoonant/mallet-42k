@@ -120,6 +120,19 @@ const CHOOSE_OPTION_INFO: Partial<Record<ChooseOptionTopic, { title: string; hin
   chooseSide: { title: 'Choose your side', hint: 'Pick which deployment zone your army sets up in.' },
 }
 
+const GLIMPSE_INFO = {
+  title: 'Glimpse of Eternity: set a die to 6?',
+  hint: 'Once per turn, after a roll for Ahrak, you may change one of its dice to an unmodified 6 (a 3 on a D3 roll). That die cannot be re-rolled afterwards. Pick the die that matters most, or keep the roll as it fell.',
+}
+
+/** The number the engine will actually set the die to: 6 normally, capped at 3 on a D3 roll (fix-roll.ts). */
+function glimpseValue(data: unknown): number {
+  const v = (data as { value?: unknown } | undefined)?.value
+  return typeof v === 'number' ? v : 6
+}
+
+const FIX_ROLL_TOPIC = 'fixRollOffer'
+
 const METHODICAL_INFO = {
   title: 'Methodical Destruction target',
   hint: 'Name one enemy unit that is still alive. If it has been destroyed by the end of this battle round, by anyone or anything, you score 4 VP.',
@@ -477,6 +490,24 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
     },
   },
   {
+    match: /cabal-of-sorcerers/,
+    info: {
+      title: 'Cabal Rituals',
+      hint: 'Your Psykers have filled the Cabal pool. Spend it now on a Ritual, each usable once per phase. Weaver of Fates (2 points): until the end of the phase, one failed save by a Thousand Sons unit within 18 inches of the chosen Psyker may be re-rolled. Echoes from the Warp (6 points): the chosen Psyker’s unit can be the target of one Stratagem for 0 CP. Choose Done to keep your points for a later phase.',
+    },
+  },
+  {
+    match: /weaver-of-fates/,
+    info: {
+      title: 'Weaver of Fates: re-roll the save?',
+      hint: 'A Thousand Sons model failed a saving throw within reach of your chosen Psyker. Throw the failed die again and keep the new result, even if it is worse. This works once per phase, so use it on a save that matters.',
+    },
+  },
+  {
+    match: /glimpse-of-eternity/,
+    info: GLIMPSE_INFO,
+  },
+  {
     match: /reanimation/,
     info: {
       title: 'Reanimation Protocols',
@@ -525,6 +556,15 @@ function chooseOptionInfoFor(
     return {
       title: `Act of Faith: ${purpose} roll`,
       hint: `Spend one of your Miracle dice (${pool.length > 0 ? pool.join(', ') : 'none left'}) and its number counts as the roll instead of a fresh die. Modifiers still apply after, and a spent die is gone. Or roll as normal and keep them.`,
+    }
+  }
+  if ((context.topic as string) === FIX_ROLL_TOPIC) {
+    const purpose = typeof context.data?.purpose === 'string' ? ROLL_PURPOSE_LABEL[context.data.purpose] ?? context.data.purpose : undefined
+    const value = glimpseValue(context.data)
+    const hint = value === 6 ? GLIMPSE_INFO.hint : GLIMPSE_INFO.hint.replace('unmodified 6 (a 3 on a D3 roll)', `unmodified ${value} (the highest a D3 can show)`)
+    return {
+      title: purpose ? `Glimpse of Eternity: ${purpose} roll, set a die to ${value}?` : `Glimpse of Eternity: set a die to ${value}?`,
+      hint,
     }
   }
   if (context.topic === 'other' && context.data?.kind === 'embark') {
@@ -695,6 +735,18 @@ function describeAction(a: Action, state: GameState): string {
 /** chooseOption topics whose option ids are model ids (which figure is removed). */
 const MODEL_PICK_TOPICS: ReadonlySet<ChooseOptionTopic> = new Set<ChooseOptionTopic>(['hazardousCasualty', 'desperateEscapeCasualty', 'coherencyCull'])
 
+/** Cabal Rituals (Thousand Sons): options are `weaver:<psyker model id>`, `echoes:<psyker model id>` and `done`. */
+function cabalRitualLabel(state: GameState, optionId: string): string | null {
+  const m = /^(weaver|echoes):(.+)$/.exec(optionId)
+  if (!m) return null
+  const model = state.models[m[2]]
+  const unit = model ? state.units[model.unitId] : undefined
+  const who = unit ? `${prettifyId(model!.datasheetModelId)} (${unit.name})` : m[2]
+  return m[1] === 'weaver'
+    ? `Weaver of Fates (2 points): saves re-rolled around ${who}`
+    : `Echoes from the Warp (6 points): ${who}'s unit takes one Stratagem free`
+}
+
 /** Label a single option button for the kinds whose engine-provided DecisionOption.label is either
  *  a raw id ("A:terminator-squad", a bare objective id) or too terse to explain the choice — everyone
  *  else keeps the engine's own label untouched. */
@@ -728,6 +780,17 @@ function labelForOption(pending: PendingDecision, state: GameState, events: read
         const poolName = diePoolName(state, pending.player)
         return picked && picked.length > 0 ? `Spend ${picked.length > 1 ? `${picked.length} ${poolName} dice` : `a ${poolName} die`} (${picked.join(', ')})` : `Spend a ${poolName} die`
       }
+      if ((pending.context.topic as string) === FIX_ROLL_TOPIC) {
+        if (o.id === 'keep') return 'Keep the roll as it fell'
+        const die = /^fix:(\d+)$/.exec(o.id)
+        if (die) {
+          const i = Number(die[1])
+          const cur = /\((\d+)\)/.exec(o.label)?.[1] // the engine's own label carries the current face
+          return `Change die ${i + 1}${cur !== undefined ? ` (${cur})` : ''} to a ${glimpseValue(pending.context.data)}`
+        }
+      }
+      const ritual = cabalRitualLabel(state, o.id)
+      if (ritual) return ritual
       if (pending.context.topic === 'other' && pending.context.data?.kind === 'embark') {
         if (o.id === 'stay') return 'Stay on the battlefield'
         const tr = state.units[o.id.replace(/^embark:/, '')]

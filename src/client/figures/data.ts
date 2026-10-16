@@ -169,6 +169,9 @@ const KNOWN_KIT: Record<string, KitId> = {
   'dg.folgoth-grelch': 'dg-grelch',
   'dg.typhus': 'dg-typhus',
   'dg.poxwalkers': 'dg-poxwalker',
+  'ths.ahrak-the-time-weaver': 'ths-ahrak',
+  'ths.scarab-occult-terminators': 'ths-scarab-combi',
+  'ths.tzaangors': 'ths-tzaangor',
 }
 
 /** Models of a mixed unit that look different from the rest of it (a flamer sister is not a rifle sister), keyed
@@ -284,6 +287,10 @@ const KNOWN_KIT_BY_MODEL: Record<string, KitId> = {
   'ael.guardian-defenders/heavy-weapon-platform': 'ael-platform',
   'ael.windriders/windrider-catapult': 'ael-windrider-catapult',
   'ael.windriders/windrider-scatter': 'ael-windrider-scatter',
+  'ths.scarab-occult-terminators/sorcerer': 'ths-scarab-sorcerer',
+  'ths.scarab-occult-terminators/combi': 'ths-scarab-combi',
+  'ths.scarab-occult-terminators/soulreaper': 'ths-scarab-soulreaper',
+  'ths.scarab-occult-terminators/hellfyre': 'ths-scarab-hellfyre',
 }
 
 const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
@@ -428,6 +435,12 @@ const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
   'drk-klaivex': 'infantry',
   'drk-raider': 'vehicle',
   'drk-ravager': 'vehicle',
+  'ths-ahrak': 'heavy',
+  'ths-scarab-sorcerer': 'heavy',
+  'ths-scarab-combi': 'heavy',
+  'ths-scarab-soulreaper': 'heavy',
+  'ths-scarab-hellfyre': 'heavy',
+  'ths-tzaangor': 'infantry',
   'generic-infantry': 'infantry',
   'generic-heavy': 'heavy',
   'generic-monster': 'monster',

@@ -392,3 +392,50 @@ describe('adeptus mechanicus figures', () => {
     expect(bundle.factions['adeptus-mechanicus'].paintScheme.primary).toBe('#8a2f1f')
   })
 })
+
+describe('thousand sons figures and setup', () => {
+  const sheets = Object.values(bundle.datasheets).filter((d) => d.id.startsWith('ths.'))
+
+  it('the bundle carries the thousand sons datasheets and a launchable patrol', () => {
+    expect(sheets.length).toBe(3)
+    expect(Object.values(bundle.patrols).some((p) => p.faction === 'thousand-sons')).toBe(true)
+    expect(resolveFactionId('thousand-sons')).toBe('thousand-sons')
+  })
+
+  for (const ds of sheets) {
+    for (const m of ds.composition) {
+      it(`${ds.id}/${m.modelId} resolves to a thousand sons kit with a body config`, () => {
+        const { kit } = resolveFigureKit(ds.id, ds, m.modelId)
+        expect(kit.startsWith('ths-'), kit).toBe(true)
+        expect(BODY_KIND[kit]).toBe('biped')
+        expect(BIPED_CONFIG[kit], kit).toBeDefined()
+      })
+    }
+
+    it(`${ds.id} has no GLB yet and falls back to the procedural kit`, () => {
+      for (const m of ds.composition) expect(glbSlugFor(ds.id, m.modelId), m.modelId).toBeUndefined()
+    })
+  }
+
+  it('the Scarab squad reads as four different loadouts, and Tzaangors are beast-headed', () => {
+    const kits = ['sorcerer', 'combi', 'soulreaper', 'hellfyre'].map((m) => resolveFigureKit('ths.scarab-occult-terminators', undefined, m).kit)
+    expect(new Set(kits).size).toBe(4)
+    const shapes = kits.map((k) => `${BIPED_CONFIG[k]!.headShape}/${BIPED_CONFIG[k]!.rightWeapon}/${BIPED_CONFIG[k]!.leftWeapon}`)
+    expect(new Set(shapes).size).toBe(4)
+    const head = (ds: string, m: string) => BIPED_CONFIG[resolveFigureKit(ds, undefined, m).kit]!.headShape
+    expect(head('ths.tzaangors', 'tzaangor')).toBe('tzaangor-head')
+    expect(head('ths.scarab-occult-terminators', 'combi')).toBe('rubric-helm')
+  })
+
+  it('an unknown thousand sons model still gets its datasheet kit', () => {
+    expect(resolveFigureKit('ths.tzaangors', undefined, 'mystery').kit).toBe('ths-tzaangor')
+  })
+
+  it('newGame seats Thousand Sons against other factions and in a mirror', async () => {
+    for (const opp of ['space-marines', 'thousand-sons']) {
+      await useGameStore.getState().newGame({ playerFaction: 'thousand-sons', opponentFaction: opp, opponent: 'hotseat', seed: `ths-vs-${opp}` })
+      const s = useGameStore.getState().state!
+      expect([s.players.A.faction, s.players.B.faction], opp).toEqual(['thousand-sons', resolveFactionId(opp)])
+    }
+  }, 60000)
+})

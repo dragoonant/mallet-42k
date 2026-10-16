@@ -707,11 +707,30 @@ function scoreAction(state: GameState, player: PlayerId, pending: PendingDecisio
   }
 }
 
+// Thousand Sons Glimpse of Eternity (fix-roll.ts `fixRollOffer`): set one die to 6. Policy: fix the first die that fails (the roll's
+// `needed` when it records one, else a 1-3), on a damage roll only while the result is below the maximum; otherwise keep.
+function fixRollAnswer(state: GameState, pending: PendingDecision, options: Action[]): Action | null {
+  if (pending.kind !== 'chooseOption' || pending.context.topic !== 'fixRollOffer') return null
+  const data = pending.context.data as { rollId?: string; purpose?: string; dieIndexes?: number[]; value?: number }
+  const keep = options.find((o) => o.type === 'chooseOption' && o.optionId === 'keep') ?? null
+  const roll = state.phaseState.lastRoll
+  if (!keep || !roll || roll.id !== data.rollId || !Array.isArray(data.dieIndexes)) return keep
+  const fixTo = (i: number): Action | null => options.find((o) => o.type === 'chooseOption' && o.optionId === `fix:${i}`) ?? null
+  if (data.purpose === 'damage') {
+    const max = roll.sides === 3 ? 3 : 6
+    const i = data.dieIndexes.find((idx) => roll.dice[idx] < max)
+    return i !== undefined ? (fixTo(i) ?? keep) : keep
+  }
+  const needed = roll.needed ?? 4
+  const failing = data.dieIndexes.find((i) => roll.dice[i] === 1 || roll.dice[i] < needed)
+  return failing !== undefined ? (fixTo(failing) ?? keep) : keep
+}
+
 // M9: an attack-roll `rerollOffer` (data.needed present) names the offered dice; the bot re-rolls only the ones that fail
 // (none in practice — failures are re-rolled automatically — so it keeps), never a die that already succeeded.
 function rerollOfferAnswer(state: GameState, pending: PendingDecision, options: Action[]): Action | null {
   if (pending.kind !== 'chooseOption' || pending.context.topic !== 'rerollOffer') return null
-  const data = pending.context.data as { rollId?: string; dieIndexes?: number[]; needed?: number; purpose?: string }
+  const data = pending.context.data as { rollId?: string; dieIndexes?: number[]; needed?: number; purpose?: string; maxDice?: number }
   // Gunnery Officer (attack counts) and Auramite Thunderbolt (Advance roll): re-roll when the die came up low (3 or less, below the 3.5 average)
   if ((data.purpose === 'attacks' || data.purpose === 'advance') && Array.isArray(data.dieIndexes)) {
     const roll = state.phaseState.lastRoll
@@ -728,7 +747,9 @@ function rerollOfferAnswer(state: GameState, pending: PendingDecision, options: 
   const keep = options.find((o) => o.type === 'chooseOption' && o.optionId === 'keep')
   if (!roll || roll.id !== data.rollId || !reroll || reroll.type !== 'chooseOption' || !keep) return null
   const failed = data.dieIndexes.filter((i) => roll.dice[i] === 1 || roll.dice[i] < (data.needed as number))
-  return failed.length > 0 ? { ...reroll, dieIndexes: failed } : keep
+  // a one-die offer (Weaver of Fates, Strands of Fate style) takes a single die: the first failure
+  const chosen = typeof data.maxDice === 'number' ? failed.slice(0, data.maxDice) : failed
+  return chosen.length > 0 ? { ...reroll, dieIndexes: chosen } : keep
 }
 
 // Adepta Sororitas Acts of Faith: spend a pool die in place of one die of a D6 roll only when it changes the outcome.
@@ -910,6 +931,8 @@ export class UtilityDecider implements Decider {
     if (miracle) return miracle
     const offer = rerollOfferAnswer(state, pending, options)
     if (offer) return offer
+    const fixed = fixRollAnswer(state, pending, options)
+    if (fixed) return fixed
     const scored = options.map((a) => ({ a, s: scoreAction(state, view.player, pending, a) }))
     scored.sort((x, y) => y.s - x.s)
     // CP spends are never a random pick from the top 3: a bad random stratagem wastes scarce CP

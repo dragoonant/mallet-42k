@@ -312,7 +312,7 @@ export interface AttackSequenceState {
   targets: DeclaredTarget[]
   groups: AttackGroup[]
   current: CurrentAttack | null
-  mortalQueue: { targetUnitId: UnitId; count: number; source: string; lostOnDeath: boolean; by?: { player: PlayerId; unitId: UnitId; modelId: ModelId } }[]
+  mortalQueue: { targetUnitId: UnitId; count: number; source: string; lostOnDeath: boolean; by?: { player: PlayerId; unitId: UnitId; modelId: ModelId; psychic?: boolean } }[]
   hazardousPending: WeaponId[]
   targetUnitIds: UnitId[]
 }
@@ -485,7 +485,7 @@ export interface ReactionWindowDecision extends DecisionBase {
 export type ChooseOptionTopic =
   | 'chooseSide' | 'battleShockOrder' | 'desperateEscapeCasualty' | 'coherencyCull' | 'saveType'
   | 'meleeWeapon' | 'weaponProfile' | 'oathTarget' | 'waaagh' | 'razeObjective' | 'recoverObjective'
-  | 'reserveArrival' | 'leaderAttach' | 'hazardousCasualty' | 'rerollOffer' | 'miracleDie' | 'abilityChoice' | 'stompTarget' | 'bagTarget' | 'treasureObjective' | 'other'
+  | 'reserveArrival' | 'leaderAttach' | 'hazardousCasualty' | 'rerollOffer' | 'fixRollOffer' | 'miracleDie' | 'abilityChoice' | 'stompTarget' | 'bagTarget' | 'treasureObjective' | 'other'
 export interface ChooseOptionDecision extends DecisionBase {
   kind: 'chooseOption'
   // rerollOffer: data = { rollId, dieIndexes: number[], needed?, purpose?, key? } (R-6.24); options = reroll / keep; the

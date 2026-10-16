@@ -32,7 +32,7 @@ const ADM = 'adeptus-mechanicus'
 const WE = 'world-eaters'
 
 /** The engine faction id a weapon's own id prefix belongs to. */
-const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : id.startsWith('lov.') ? LOV : id.startsWith('drk.') ? DRK : id.startsWith('ael.') ? 'aeldari' : id.startsWith('adm.') ? ADM : id.startsWith('dg.') ? 'death-guard' : id.startsWith('we.') ? WE : SM)
+const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : id.startsWith('lov.') ? LOV : id.startsWith('drk.') ? DRK : id.startsWith('ael.') ? 'aeldari' : id.startsWith('adm.') ? ADM : id.startsWith('dg.') ? 'death-guard' : id.startsWith('we.') ? WE : id.startsWith('ths.') ? 'thousand-sons' : SM)
 
 function lookupFor(faction: string): SoundLookup {
   return { weapon: (id) => bundle.weapons[id], factionOfUnit: () => faction }
@@ -322,6 +322,18 @@ const EXPECTED: Record<string, WeaponFlavour> = {
   'dg.w.plague-spewer': 'flame',
   'dg.w.heavy-plague-weapon': 'crush',
   'dg.w.improvised-weapon': 'crush',
+  // Thousand Sons (The Coven of Temporus)
+  'ths.w.inferno-bolt-pistol': 'bolter',
+  'ths.w.inferno-combi-bolter': 'bolter',
+  'ths.w.soulreaper-cannon': 'heavy',
+  'ths.w.hellfyre-missile-rack': 'heavy',
+  'ths.w.screamer-invocation-witchfire': 'psychic',
+  'ths.w.screamer-invocation-focused': 'psychic',
+  'ths.w.warpsmite': 'psychic',
+  'ths.w.autopistol': 'shoota',
+  'ths.w.force-weapon': 'force',
+  'ths.w.prosperine-khopesh': 'chain',
+  'ths.w.chainsword': 'chain',
 }
 
 // Adepta Sororitas weapons, by datasheet NAME (lower-cased) so the check holds whatever id spelling the data uses.
@@ -551,6 +563,16 @@ describe('death sounds', () => {
     expect(soundsForEvent(died('u'), 'A', lookup(ORK))[0].id).toBe('death-orks')
     expect(soundsForEvent(died('u'), 'A', lookup(SM))[0].id).toBe('death-space-marines')
     expect(soundsForEvent(died('u'), 'A', lookup(NEC))[0].id).toBe('death-necrons')
+  })
+  it('thousand sons die with the chaos cry', () => {
+    expect(soundsForEvent(died('u'), 'A', lookup('thousand-sons'))[0].id).toBe('death-chaos-space-marines')
+  })
+  it('thousand sons weapons: sorcery crackles like Smite, inferno bolters bark, the khopesh rings', () => {
+    const THS = 'thousand-sons'
+    expect(soundIds(declared(['ths.w.screamer-invocation-witchfire']), THS)).toEqual(['wpn-smite'])
+    expect(soundIds(declared(['ths.w.warpsmite']), THS)).toEqual(['wpn-smite'])
+    expect(soundIds(declared(['ths.w.hellfyre-missile-rack']), THS)).toEqual(['wpn-hunter-killer-missile'])
+    expect(soundIds(declared(['ths.w.prosperine-khopesh'], 'fight'), THS)).toEqual(['wpn-power-weapon'])
   })
   it('an unknown faction falls back to the generic death', () => {
     expect(soundsForEvent(died('u'), 'A')[0].id).toBe('model-death')

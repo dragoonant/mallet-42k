@@ -25,9 +25,9 @@ function sidesChosen(state: GameState): boolean { return state.players.A.side !=
 
 // CP-1.9 / R-5.14: a unit set aside for Reserves at Declare Battle Formations never gets a deployUnit decision here —
 // it stays `location: 'reserves'` and arrives later via the Movement phase's `reinforcements` window (movement.ts).
-function canDeepStrike(state: GameState, unit: Unit): boolean {
-  return hasDeepStrike(state, unit.id) || unit.deepStrikeWith !== null
-}
+// datasheet DEEP_STRIKE, a Tellyporta pairing, or a hook-granted Deep Strike (enhancement, e.g. Temporal Sorceries): one helper, hasDeepStrike
+export function unitCanDeepStrike(state: GameState, unit: Unit): boolean { return hasDeepStrike(state, unit.id) || unit.deepStrikeWith !== null }
+function canDeepStrike(state: GameState, unit: Unit): boolean { return unitCanDeepStrike(state, unit) }
 
 // MISSION-027-attached (R-10.1): an attached Leader has no drop of its own — it deploys as part of its bodyguard's
 // single deployUnit answer. `combo*` below treats the bodyguard's decision as covering both units' models.

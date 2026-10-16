@@ -235,6 +235,13 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ['heavy-plague-weapon', 'wpn-power-fist'] as const,
   ['plague-knives', 'wpn-close-combat-weapon'] as const,
   ['improvised-weapon', 'wpn-close-combat-weapon'] as const,
+  // Thousand Sons (The Coven of Temporus): inferno bolters bark like the Marine equivalents, the Screamer Invocation crackles like Smite,
+  // the missile rack borrows the hunter-killer, the soulreaper cannon rattles like an assault cannon, the khopesh rings like a power blade.
+  ['combi-bolter', 'wpn-combi-weapon'] as const,
+  ['screamer-invocation', 'wpn-smite'] as const,
+  ['hellfyre-missile-rack', 'wpn-hunter-killer-missile'] as const,
+  ['soulreaper-cannon', 'wpn-assault-cannon'] as const,
+  ['prosperine-khopesh', 'wpn-power-weapon'] as const,
 ].sort((a, b) => b[0].length - a[0].length)
 
 const WEAPON_TRIM: Partial<Record<SfxId, number>> = {
@@ -330,6 +337,8 @@ const DEATH_SOUND: Record<string, SfxId> = {
   'adeptus-mechanicus': 'death-necrons',
   // Plague-ridden Chaos Marines die with the Chaos groan.
   'death-guard': 'death-chaos-space-marines',
+  // Rubric dust and mutant beastmen both fall with the Chaos Marine death cry.
+  'thousand-sons': 'death-chaos-space-marines',
 }
 
 /** Measured decoded RMS runs 0.05-0.40 across these; the loud three are pulled back toward ~0.15. */

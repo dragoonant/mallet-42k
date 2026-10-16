@@ -47,7 +47,7 @@ import { markNoCharge, passengerHalves, transportService } from '../transports'
 import { clearTeleport, destroyTeleportingUnit, isTeleporting, teleportArrivalOpts } from '../teleport'
 import { notImplementedHandle, otherPlayer, type AdvanceResult, type EngineContext, type PhaseModule } from '../modules'
 import {
-  boardModelsOf, boardUnitsOf, deploymentZone, enemyModelsOnBoard, hasDeepStrike, hasKeyword, keywordsOf, modelStats, removeModel,
+  boardModelsOf, boardUnitsOf, datasheetOf, deploymentZone, enemyModelsOnBoard, hasDeepStrike, hasKeyword, keywordsOf, modelStats, removeModel,
   setModelPos, unitModels, unitModelsForCoherency,
 } from '../state'
 import { autoDeployPlacements } from '../setup'

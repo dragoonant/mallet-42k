@@ -301,6 +301,14 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'drk.incubi/incubus': 'incubus',
   'drk.raider/raider': 'raider',
   'drk.ravager/ravager': 'ravager',
+
+  // Thousand Sons: no GLBs yet (slugs unlisted in ENABLED_GLB_SLUGS), so the procedural kits draw them until a file lands.
+  'ths.ahrak-the-time-weaver/ahrak': 'ahrak-the-time-weaver',
+  'ths.scarab-occult-terminators/sorcerer': 'scarab-sorcerer',
+  'ths.scarab-occult-terminators/combi': 'scarab-terminator-combi',
+  'ths.scarab-occult-terminators/soulreaper': 'scarab-terminator-soulreaper',
+  'ths.scarab-occult-terminators/hellfyre': 'scarab-terminator-hellfyre',
+  'ths.tzaangors/tzaangor': 'tzaangor',
 }
 
 /** The enabled GLB slug for a model type, or undefined (use the procedural figure). */

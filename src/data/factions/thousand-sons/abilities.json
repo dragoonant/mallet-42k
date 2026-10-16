@@ -1,0 +1,56 @@
+[
+  {
+    "id": "ths.a.cabal-of-sorcerers",
+    "name": "Cabal of Sorcerers",
+    "text": "Psykers fill a Cabal pool at the end of your Command phase; it empties at the start of your next one. At any phase start, spend points on Rituals (each once per phase): Weaver of Fates (2) re-rolls one failed save of a THOUSAND SONS unit within 18\" of the chosen Psyker; Echoes from the Warp (6) lets that Psyker's unit be targeted by one Stratagem for 0 CP.",
+    "trigger": "always",
+    "code": "cabalRituals"
+  },
+  {
+    "id": "ths.a.cabal-of-sorcerers-ahrak",
+    "name": "Cabal of Sorcerers (Ahrak)",
+    "text": "At the end of your Command phase, while this model is on the battlefield and not Battle-shocked, add 2 to your Cabal pool.",
+    "trigger": "commandPhase",
+    "code": "cabalOfSorcerers",
+    "params": { "value": 2 }
+  },
+  {
+    "id": "ths.a.cabal-of-sorcerers-sorcerer",
+    "name": "Cabal of Sorcerers (Sorcerer)",
+    "text": "At the end of your Command phase, while the Scarab Occult Sorcerer is on the battlefield and its unit is not Battle-shocked, add 1 to your Cabal pool.",
+    "trigger": "commandPhase",
+    "code": "cabalOfSorcerers",
+    "params": { "value": 1, "modelId": "sorcerer" }
+  },
+  {
+    "id": "ths.a.weaver-of-fates",
+    "name": "Weaver of Fates",
+    "text": "Ritual effect (2 Cabal points): until the end of the phase, once, when a saving throw fails for a model of a friendly THOUSAND SONS unit within 18\" of the chosen Psyker, you may re-roll that save.",
+    "trigger": "saveRoll",
+    "code": "weaverOfFates",
+    "effect": { "reroll": "oneDie" }
+  },
+  {
+    "id": "ths.a.glimpse-of-eternity",
+    "name": "Glimpse of Eternity",
+    "text": "Psychic. Once per turn, after a Hit roll, Wound roll, Damage roll or saving throw is made for this model, you may change that one die to an unmodified 6. The changed die cannot be re-rolled.",
+    "trigger": "always",
+    "code": "glimpseOfEternity"
+  },
+  {
+    "id": "ths.a.implacable-guardians",
+    "name": "Implacable Guardians",
+    "text": "While this unit still contains its Sorcerer, each attack made against it whose Strength is greater than its Toughness subtracts 1 from the Wound roll.",
+    "trigger": "woundRoll",
+    "scope": { "who": "attacker" },
+    "when": { "strengthVsToughness": "gt", "unitHasModel": "sorcerer" },
+    "effect": { "modifyRoll": { "roll": "wound", "value": -1 } }
+  },
+  {
+    "id": "ths.a.relic-hunters",
+    "name": "Relic Hunters",
+    "text": "At the end of your Command phase, for each objective marker you control that has at least one unit with this ability within range, roll one D6: on a 4+, add 1 to your Cabal pool. One die per marker, however many such units are on it.",
+    "trigger": "commandPhase",
+    "code": "relicHunters"
+  }
+]

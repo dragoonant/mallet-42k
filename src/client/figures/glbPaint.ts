@@ -21,6 +21,7 @@ const SOURCE_HUES: Record<string, { major: string | null; minor: string | null }
   'genestealer-cults': { major: '#c79a2e', minor: '#5d3a8c' },
   drukhari: { major: null, minor: '#3fae9a' },
   aeldari: { major: '#ece4cf', minor: '#1f6f78' },
+  'thousand-sons': { major: '#1f4fa3', minor: '#d4a73a' },
 }
 
 function hsv(hex: string): [number, number, number] {

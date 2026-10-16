@@ -1,0 +1,23 @@
+{
+  "id": "thousand-sons",
+  "name": "Thousand Sons",
+  "factionKeyword": "THOUSAND SONS",
+  "armyRule": "ths.a.cabal-of-sorcerers",
+  "detachments": [
+    {
+      "id": "ths.d.combat-patrol",
+      "name": "Combat Patrol",
+      "rule": "ths.a.cabal-of-sorcerers",
+      "stratagems": ["ths.s.wreathed-in-warpflame", "ths.s.mutant-cunning", "ths.s.malign-entanglement"],
+      "enhancements": ["ths.e.temporal-sorceries", "ths.e.arch-diabolist"]
+    }
+  ],
+  "paintScheme": {
+    "primary": "#1f4fa3",
+    "secondary": "#d4a73a",
+    "trim": "#e8dcc0",
+    "metal": "#b8a26a",
+    "decal": "#5ad1e6"
+  },
+  "combatPatrols": ["ths.cp.the-coven-temporus"]
+}

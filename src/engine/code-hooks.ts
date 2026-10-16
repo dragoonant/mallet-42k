@@ -11,6 +11,7 @@ import type { CoreAbility, Effect, Scope, TimingWindowId } from '../data/types'
 import type { Action } from './actions'
 import { astraMilitarumHooks } from './factions/astra-militarum'
 import { tauEmpireHooks } from './factions/tau-empire'
+import { thousandSonsHooks } from './factions/thousand-sons'
 import { genestealerCultsHooks } from './factions/genestealer-cults'
 import { aeldariHooks } from './factions/aeldari'
 import { adeptusMechanicusHooks } from './factions/adeptus-mechanicus'
@@ -35,7 +36,7 @@ import { answerReanimation } from './factions/necrons'
 import { hasDeepStrike, keywordsOf, modelStats, mortalCredit, unitModels, type MortalCreditBy } from './state'
 import { isTeleporting } from './teleport'
 import type {
-  ChooseOptionDecision, ChooseOptionTopic, GameState, ModelId, Objective, PendingDecision, PlayerId, ReactionWindowDecision, Rejection,
+  ChooseOptionDecision, ChooseOptionTopic, DiceRoll, GameState, ModelId, Objective, PendingDecision, PlayerId, ReactionWindowDecision, Rejection,
   RuntimeStratagem, RuntimeWeapon, Unit, UnitId, WeaponId,
 } from './types'
 
@@ -73,6 +74,9 @@ export interface EngineCodeHook extends CodeHook {
   gateEffect?(state: GameState, holder: Unit, entry: HookSourceEntry, data?: Record<string, unknown>): boolean
   // C4: true when this source lets its player re-roll the Attacks (A) roll of `weapon` fired by `attackerModelId`
   rerollsAttackCount?(state: GameState, entry: HookSourceEntry, attackerModelId: ModelId, weapon: RuntimeWeapon): boolean
+  // C4 (THO Glimpse of Eternity): this source may set one die of `roll` to `value` once per `usedKey` (stored in the roller's
+  // secondaryState); null = no opinion. Offered by fix-roll.ts
+  fixRoll?(state: GameState, entry: HookSourceEntry, roll: DiceRoll): { value: number; usedKey: string } | null
   // C5: core abilities this source currently grants to `unitId` (Gunnery Officer: LONE_OPERATIVE)
   grantsCoreAbility?(state: GameState, entry: HookSourceEntry, unitId: UnitId): CoreAbility['ability'][]
   // E2 (SM Omni-scramblers): enemy units arriving from Reserves for `arrivingPlayer` may not be set up within `distance"
@@ -870,6 +874,9 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   // world-eaters (docs/spec/factions/world-eaters.md §7): blessingsOfKhorne, wrathfulDevotion, totalCarnage, skullsForKhorne, ravageAndRansack,
   // bloodOffering, rageUnchecked, unstoppableFury, overwhelmingOnslaught
   ...worldEatersHooks(),
+  // thousand-sons (docs/spec/factions/thousand-sons.md §7): cabalOfSorcerers, cabalRituals, weaverOfFates, temporalSorceries, archDiabolist,
+  // relicHunters, glimpseOfEternity, malignEntanglement, sorcerousRitual, bringerOfChange
+  ...thousandSonsHooks(),
 }
 
 export type { ChooseOptionDecision }

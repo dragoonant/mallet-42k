@@ -22,6 +22,7 @@ import { pinpointPurgeAmount, reconnaissanceInForceAmount } from './factions/spa
 import { ineffableAgendaAmount } from './factions/aeldari'
 import { contaminateGroundAmount, spreadTheBlightGain, spreadTheBlightSnapshot } from './factions/death-guard'
 import { bloodOfferingAward, bloodOfferingSnapshot, ravageAndRansackAmount } from './factions/world-eaters'
+import { bringerOfChangeAmount, sorcerousRitualAmount } from './factions/thousand-sons'
 import { hookService } from './hooks-impl'
 import { leaderService } from './leaders'
 import { transportService } from './transports'
@@ -77,7 +78,7 @@ function rangeParams(state: GameState): { range: number; radius: number } {
 // field is trusted UNLESS a unit has actually been destroyed this battle: once that's happened, "0 vs 0" can mean a
 // marker's last in-range model died since the previous evaluation (R-2.6 cull, MISSION-011-stale), which is
 // contested, not the possibly-stale stored value.
-function liveController(ctx: EngineContext, id: ObjectiveId): PlayerId | null {
+export function liveController(ctx: EngineContext, id: ObjectiveId): PlayerId | null {
   const s = ctx.state
   const obj = s.objectives[id]
   if (!obj || obj.removed) return null
@@ -595,6 +596,8 @@ function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): num
       return v.own.some((id) => holds(ctx, id, pid)) && v.enemy.some((id) => holds(ctx, id, pid)) ? rule.pointsPer : 0
     }
     case 'ineffableAgenda': return ineffableAgendaAmount(ctx, rule, pid, (id) => holds(ctx, id, pid))
+    case 'sorcerousRitual': return sorcerousRitualAmount(ctx, rule, pid, (id) => holds(ctx, id, pid))
+    case 'bringerOfChange': return bringerOfChangeAmount(ctx, rule, pid)
     case 'tgbConsecratedGround': return 0 // event-driven, scored in the destroy fan-outs
     case 'contaminateGround': return contaminateGroundAmount(s, rule, pid)
     case 'spreadTheBlight': return 0 // event-driven, scored in the destroy fan-out

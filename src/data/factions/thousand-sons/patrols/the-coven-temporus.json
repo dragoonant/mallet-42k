@@ -1,0 +1,54 @@
+{
+  "id": "ths.cp.the-coven-temporus",
+  "faction": "thousand-sons",
+  "name": "The Coven Temporus",
+  "units": [
+    {
+      "ref": "ahrak",
+      "datasheet": "ths.ahrak-the-time-weaver",
+      "size": 1,
+      "enhancement": "ths.e.temporal-sorceries"
+    },
+    {
+      "ref": "scarabs",
+      "datasheet": "ths.scarab-occult-terminators",
+      "size": 5
+    },
+    {
+      "ref": "tzaangors-1",
+      "datasheet": "ths.tzaangors",
+      "size": 10
+    },
+    {
+      "ref": "tzaangors-2",
+      "datasheet": "ths.tzaangors",
+      "size": 10
+    }
+  ],
+  "stratagems": ["ths.s.wreathed-in-warpflame", "ths.s.mutant-cunning", "ths.s.malign-entanglement"],
+  "enhancements": [
+    { "id": "ths.e.temporal-sorceries", "default": true },
+    { "id": "ths.e.arch-diabolist", "default": false }
+  ],
+  "secondaries": [
+    {
+      "id": "ths.sec.sorcerous-ritual",
+      "name": "Sorcerous Ritual",
+      "text": "From round 2, at the end of your opponent's Fight phase, if one of your Psykers (Ahrak or the Scarab Occult Sorcerer) is within range of an objective marker you control that lies outside your deployment zone, roll one D6 and add your remaining Cabal points (up to +3). On a total of 5 or more, score 3 victory points. Once per such phase.",
+      "default": true,
+      "scoring": [
+        { "id": "sorcerous-ritual", "when": "phase.end", "rounds": { "from": 2, "to": 5 }, "who": "opponent", "rule": "custom", "pointsPer": 3, "cap": 999, "code": "sorcerousRitual", "params": { "needed": 5, "maxBonus": 3 } }
+      ]
+    },
+    {
+      "id": "ths.sec.bringer-of-change",
+      "name": "Bringer of Change",
+      "text": "At the end of every phase, in either player's turn, if at least one enemy model was destroyed this phase by a Psychic attack made by a model from your army, score D3 victory points. No more than 12 victory points in total from this objective.",
+      "default": false,
+      "scoring": [
+        { "id": "bringer-of-change", "when": "phase.end", "rounds": { "from": 1, "to": 5 }, "who": "both", "rule": "custom", "pointsPer": 3, "cap": 12, "code": "bringerOfChange" }
+      ]
+    }
+  ],
+  "warlord": "ahrak"
+}
