@@ -6,6 +6,7 @@
 // Scene.tsx's own onBoardPointer does the same getState() dance for the same reason (see its comment
 // on stale closures from react-three-fiber's captured-pointer events).
 import type { GameState, Model, PendingDecision, Polygon, UnitId } from '@/engine'
+import { transportService } from '@/engine/transports'
 import { legalActions, whollyOnBoard, whollyWithinPolygon } from '@/engine'
 import { useUiStore, type PlacementDraft } from '../ui/uiStore'
 import { combinedUnitIds, combinedUnitModels, modelsAnchor, type Anchor2D } from './geometry'
@@ -179,6 +180,70 @@ function findOpenDeploySpot(
   return null
 }
 
+/** Disembark: seat the models one by one in concentric rings hugging the transport, taking the free slots nearest the
+ *  click, so the unit lands on the side that was clicked (a big squad cannot fit a straight formation in the 3" band). */
+function ringAroundTransport(state: GameState, unitId: UnitId, models: Model[], point: Anchor2D, exclude: ReadonlySet<UnitId>): { anchor: Anchor2D; placements: FormationPlacement[] } | null {
+  const tid = transportService.transportOf(state, unitId)
+  const hull = tid ? state.units[tid]?.models.map((id) => state.models[id]).filter(Boolean) ?? [] : []
+  if (hull.length === 0 || models.length === 0) return null
+  const c = hull[0].pos
+  const hullR = Math.max(...hull.map((h) => Math.max(h.base.radius, h.base.radius2 ?? h.base.radius)))
+  const slots: { x: number; z: number }[] = []
+  for (const m of models.slice(0, 1)) {
+    const b = Math.max(m.base.radius, m.base.radius2 ?? m.base.radius)
+    for (let k = 0; k < 3; k++) {
+      const r = hullR + b + 0.1 + k * (2 * b + 0.05)
+      const n = Math.max(6, Math.floor((2 * Math.PI * r) / (2 * b + 0.05)))
+      for (let i = 0; i < n; i++) slots.push({ x: c.x + r * Math.cos((i / n) * Math.PI * 2), z: c.z + r * Math.sin((i / n) * Math.PI * 2) })
+    }
+  }
+  slots.sort((p, q) => Math.hypot(p.x - point.x, p.z - point.z) - Math.hypot(q.x - point.x, q.z - point.z))
+  const chosen: { x: number; z: number }[] = []
+  const b0 = Math.max(models[0].base.radius, models[0].base.radius2 ?? models[0].base.radius)
+  for (const sl of slots) {
+    if (chosen.some((o) => Math.hypot(o.x - sl.x, o.z - sl.z) < 2 * b0 + 0.02)) continue
+    const fp = { pos: { x: sl.x, y: 0, z: sl.z }, facing: 0, base: models[0].base }
+    if (!transportService.canDisembarkAt(state, unitId, [fp])) continue
+    // per-slot terrain / overlap check, so a blocked patch of the band is skipped rather than failing the whole drop
+    if (!validateDraft(state, [models[0]], [{ modelId: models[0].id, pos: fp.pos, facing: 0 }], null, exclude, true).ok) continue
+    chosen.push(sl)
+    if (chosen.length === models.length) break
+  }
+  if (chosen.length < models.length) return null
+  const placements: FormationPlacement[] = models.map((m, i) => ({ modelId: m.id, pos: { x: chosen[i].x, y: 0, z: chosen[i].z }, facing: 0 }))
+  const fps = placements.map((pl, i) => ({ pos: pl.pos, facing: pl.facing, base: models[i].base }))
+  if (!transportService.canDisembarkAt(state, unitId, fps) || !validateDraft(state, models, placements, null, exclude, true).ok) return null
+  const ax = chosen.reduce((a, q) => a + q.x, 0) / chosen.length
+  const az = chosen.reduce((a, q) => a + q.z, 0) / chosen.length
+  return { anchor: { x: ax, z: az }, placements }
+}
+
+/** Disembark: the nearest-to-the-click drop (0.5" grid, up to 10" out) that is wholly within 3" of the transport, clear
+ *  of enemies' Engagement Range (transportService.canDisembarkAt) and a valid placement on the board. */
+export function findDisembarkSpot(
+  state: GameState, unitId: UnitId, models: Model[], point: Anchor2D, facing: number, kind: FormationKind,
+): { anchor: Anchor2D; placements: FormationPlacement[] } | null {
+  const exclude = combinedUnitIds(state, unitId)
+  const byId = new Map(models.map((m) => [m.id, m]))
+  const ringed = ringAroundTransport(state, unitId, models, point, exclude)
+  if (ringed) return ringed
+  const anchors: Anchor2D[] = []
+  for (let dx = -10; dx <= 10; dx += 0.5) for (let dz = -10; dz <= 10; dz += 0.5) if (Math.hypot(dx, dz) <= 10) anchors.push({ x: point.x + dx, z: point.z + dz })
+  anchors.sort((p, q) => Math.hypot(p.x - point.x, p.z - point.z) - Math.hypot(q.x - point.x, q.z - point.z))
+  const combos: { kind: FormationKind; facing: number }[] = []
+  for (const k of [kind, ...ZONE_FIT_FALLBACK_KINDS.filter((x) => x !== kind)]) for (const f of [facing, facing + Math.PI / 2, facing + Math.PI, facing - Math.PI / 2]) combos.push({ kind: k, facing: f })
+  for (const a of anchors) {
+    for (const c of combos) {
+      const placements = formationPlacementsForUnit(state, unitId, a, c.facing, c.kind)
+      if (placements.length === 0) continue
+      const fps = placements.flatMap((pl) => { const m = byId.get(pl.modelId); return m ? [{ pos: pl.pos, facing: pl.facing, base: m.base }] : [] })
+      if (fps.length !== placements.length || !transportService.canDisembarkAt(state, unitId, fps)) continue
+      if (validateDraft(state, models, placements, null, exclude, true).ok) return { anchor: a, placements }
+    }
+  }
+  return null
+}
+
 export function computeBoardClickDraft(
   state: GameState,
   pending: PendingDecision,
@@ -241,8 +306,10 @@ export function computeBoardClickDraft(
       if (open) clamped = open
       else if (state.phase === 'movement') {
         // Mid-game disembark: the zone is the transport hull grown by 3", so most clicks next to the hull cannot be
-        // fitted by the formation search. Fall back to the engine's own legal arrangement (within 3", clear of the hull
-        // and of enemies), nearest to the click.
+        // fitted by the zone search above. Search outward from the click for a drop the engine accepts; failing that,
+        // use the engine's own legal arrangement.
+        const near = findDisembarkSpot(state, deployTargetUnitId, models, point, facing, kind)
+        if (near) return { decisionId: pending.id, unitId: deployTargetUnitId, anchor: near.anchor, placements: near.placements }
         const arrival = (legalActions(state, pending) ?? []).find((a) => a.type === 'deployUnit' && !a.toReserves && a.placements.length > 0)
         if (arrival && arrival.type === 'deployUnit') {
           const first = arrival.placements[0]
