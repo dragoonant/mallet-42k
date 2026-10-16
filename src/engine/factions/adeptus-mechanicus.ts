@@ -13,13 +13,14 @@
 // move began), its once-per-charge guard `lb:done:<unitId>`. The "started within 6\" of BATTLELINE" test (ADM-6.5) is evaluated
 // at charge.moveEnded from the models that SURVIVED Fire Overwatch, placed back on their start positions.
 import type { Action } from '../actions'
-import type { ScoringRule } from '../../data/types'
+import type { Effect, ScoringRule } from '../../data/types'
+import { consumeDeathReaction, pendingDeathReaction } from '../attack'
 import type { EngineCodeHook, StratagemEnv, StratagemTuple } from '../code-hooks'
 import { distance, growConvexPolygon, partlyWithinPolygon, withinEngagementRange } from '../geometry'
-import { friendlyKeywordWithin, type HookSourceEntry } from '../hooks-impl'
+import { friendlyKeywordWithin, hookService, type HookSourceEntry } from '../hooks-impl'
 import { leaderService } from '../leaders'
 import type { EngineContext } from '../modules'
-import { deploymentZone, keywordsOf, mortalCredit, unitModels } from '../state'
+import { deploymentZone, keywordsOf, modelStats, mortalCredit, unitModels } from '../state'
 import type { GameState, Model, PendingDecision, PlayerId, Rejection, RuntimeAbility, TimingWindowId, Unit, UnitId } from '../types'
 import { answerEdict } from './tau-empire'
 
@@ -248,6 +249,199 @@ export function prescribedExcoriationAmount(state: GameState, rule: ScoringRule,
   return near ? rule.pointsPer : nearPoints
 }
 
+// ---------- Maniple Verask-Alpha (docs/spec/factions/adeptus-mechanicus--maniple-verask-alpha.md §7) ----------
+const optionAction = (player: PlayerId, optionId: string): Action => ({ type: 'chooseOption', player, decisionId: '', optionId })
+const notAnOption = (reason: string): Rejection => ({ code: 'E_NOT_AN_OPTION', reason })
+
+// "not destroyed" = on the battlefield (embarked units stay 'board') with a live model; Reserves count as destroyed at the end
+function standing(state: GameState, unitId: UnitId | undefined): boolean {
+  const u = unitId ? state.units[unitId] : undefined
+  return !!u && u.location === 'board' && u.models.length > 0
+}
+
+// ---- Explorator Acquisition (MVA-4.1): from round 2, end of own Command phase, D6 + controlled markers >= 7 scores 4 VP (cap 12) ----
+export function exploratorAcquisitionAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId, holds: (id: string) => boolean): number {
+  const s = ctx.state
+  if ((s.players[pid].vpBySource[rule.id] ?? 0) >= rule.cap) return 0 // no meaningless dice once the secondary is maxed
+  const n = Object.values(s.objectives).filter((o) => !o.removed && holds(o.id)).length
+  const roll = ctx.roll({ purpose: 'mission', player: pid, sides: 6, count: 1, mode: 'sum', commandRerollable: false })
+  const total = roll.final.reduce((a, b) => a + b, 0) + n
+  return total >= ((rule.params?.threshold as number | undefined) ?? 7) ? rule.pointsPer : 0
+}
+
+// ---- Holy Apparatus (MVA-4.2): at battle end 4 VP for a live WARLORD, 4 / 2 VP for a live (Below Half-strength) Dunecrawler ----
+export function mvaHolyApparatusAmount(state: GameState, rule: ScoringRule, pid: PlayerId): number {
+  const params = rule.params ?? {}
+  let total = 0
+  if (standing(state, state.players[pid].warlordUnitId)) total += (params.warlordPoints as number | undefined) ?? 4
+  const keyword = (params.keyword as string | undefined) ?? 'ONAGER DUNECRAWLER'
+  const crawler = Object.values(state.units).find((u) => u.player === pid && keywordsOf(state, u.id).includes(keyword))
+  if (crawler && standing(state, crawler.id)) {
+    total += leaderService.isBelowHalfStrength(state, crawler.id) ? ((params.belowHalfPoints as number | undefined) ?? 2) : ((params.fullPoints as number | undefined) ?? 4)
+  }
+  return total
+}
+
+// ---- Imperative Surge-wafer (MVA-3.2): once per battle, when the bearer's unit is selected to shoot (or to fire Overwatch) ----
+const SURGE_CODE = 'imperativeSurgeWafer'
+
+function surgeAbility(state: GameState, canonicalId: UnitId): RuntimeAbility | undefined {
+  const halves = leaderService.halves(state, canonicalId)
+  return Object.values(state.abilities).find((a) => a.source === 'enhancement' && a.code === SURGE_CODE && !!a.bearerModelId
+    && halves.some((h) => state.units[h]?.models.includes(a.bearerModelId as string)))
+}
+
+export function imperativeSurgeOffer(ctx: EngineContext, window: TimingWindowId, key: string, overwatch = false): boolean {
+  const s = ctx.state
+  const canonicalId = canon(s, key)
+  const unit = s.units[canonicalId]
+  if (!unit || unit.location !== 'board') return false
+  if (overwatch) {
+    if (unit.player === s.activePlayer) return false
+  } else if (window !== 'shooting.unitSelected' || s.phase !== 'shooting' || unit.player !== s.activePlayer) return false
+  const ability = surgeAbility(s, canonicalId)
+  if (!ability) return false
+  const player = unit.player
+  if (s.players[player].oncePerBattleUsed.includes(ability.id)) return false
+  const mark = `pick:surge:${canonicalId}`
+  if (s.phaseState.marks.includes(mark)) return false
+  s.phaseState.marks.push(mark)
+  ctx.decide({
+    kind: 'chooseOption', player, window, canPass: false,
+    // an Overwatch offer carries no window/key: answering it must not re-run the Shooting-phase pick offers
+    context: { topic: 'abilityChoice', unitId: canonicalId, abilityId: ability.id, data: overwatch ? { code: SURGE_CODE, overwatch: true } : { window, key, code: SURGE_CODE } },
+    options: [
+      { id: 'use', label: 'Activate the Imperative Surge-wafer (Precision this phase)', action: optionAction(player, 'use'), hint: { unitId: canonicalId, priority: 1 } },
+      { id: 'decline', label: 'Keep it for later', action: optionAction(player, 'decline') },
+    ],
+  })
+  return true
+}
+
+function imperativeSurgeHandle(ctx: EngineContext, action: Action, pending: PendingDecision): Rejection | void {
+  if (action.type !== 'chooseOption' || pending.kind !== 'chooseOption') return notAnOption('Imperative Surge-wafer expects chooseOption')
+  if (action.optionId === 'decline') return
+  if (action.optionId !== 'use') return notAnOption('Imperative Surge-wafer: use or decline')
+  const s = ctx.state
+  const unitId = pending.context.unitId
+  const abilityId = pending.context.abilityId
+  const unit = unitId ? s.units[unitId] : undefined
+  const ability = abilityId ? s.abilities[abilityId] : undefined
+  if (!unit || !abilityId || !ability) return notAnOption('Imperative Surge-wafer: the bearer or the enhancement is missing')
+  const used = s.players[unit.player].oncePerBattleUsed
+  if (used.includes(abilityId)) return { code: 'E_STRATAGEM_USED', reason: 'the Imperative Surge-wafer was already used this battle' }
+  used.push(abilityId)
+  const grant = (ability.params?.grant ?? { when: { weaponType: 'ranged' }, grantWeaponAbility: { ability: 'PRECISION' } }) as Effect
+  ctx.services.effects.grant(ctx, unit.id, [grant], { sourceAbilityId: abilityId, sourceUnitId: unit.id, scope: { who: 'self' }, duration: 'untilEndOfPhase', when: null })
+  ctx.emit({ type: 'AbilityTriggered', abilityId, sourceUnitId: unit.id, targetUnitId: null, summary: 'Imperative Surge-wafer: ranged weapons gain Precision this phase', player: unit.player })
+}
+
+// Called by the Movement / Charge Overwatch drains while an Overwatch sequence is running, before its attacks are resolved (the
+// Psionic Phantoms step pattern). 'pending' while the use / decline decision is open. The per-phase `pick:surge:` mark keeps it to one offer.
+export function surgeOverwatchStep(ctx: EngineContext): 'pending' | 'done' {
+  const s = ctx.state
+  const attack = s.phaseState.attack
+  if (s.pending || !attack || !attack.overwatch) return 'done'
+  return imperativeSurgeOffer(ctx, 'shooting.unitSelected', attack.attackerUnitId, true) ? 'pending' : 'done'
+}
+
+// ---- Omnissiah's Blessing (MVA-6.2): own Command phase, heal D3 on a wounded friendly ADEPTUS MECHANICUS model within 3" ----
+const BLESSING_CODE = 'omnissiahsBlessing'
+
+function blessingCandidates(state: GameState, holder: Unit, factionKeyword: string, within: number): Model[] {
+  const bearer = unitModels(state, holder.id)[0]
+  if (!bearer) return []
+  const out: Model[] = []
+  for (const u of canonicalBoardUnits(state, holder.player)) {
+    for (const h of boardHalves(state, u.id)) {
+      if (!state.datasheets[state.units[h].datasheetId]?.factionKeywords.includes(factionKeyword)) continue
+      for (const m of unitModels(state, h)) {
+        if (m.woundsRemaining >= modelStats(state, m).W) continue
+        if (m.id === bearer.id || distance(bearer, m) <= within + 1e-6) out.push(m)
+      }
+    }
+  }
+  return out.sort((a, b) => (modelStats(state, b).W - b.woundsRemaining) - (modelStats(state, a).W - a.woundsRemaining)
+    || modelStats(state, b).W - modelStats(state, a).W || (a.id < b.id ? -1 : 1))
+}
+
+function blessingOffer(ctx: EngineContext, window: TimingWindowId, key: string): boolean {
+  const s = ctx.state
+  const player = s.activePlayer
+  for (const holder of Object.values(s.units).sort((a, b) => (a.id < b.id ? -1 : 1))) {
+    if (holder.player !== player || holder.location !== 'board' || holder.models.length === 0) continue
+    const ability = (s.datasheets[holder.datasheetId]?.abilities ?? []).map((id) => s.abilities[id]).find((a) => a?.code === BLESSING_CODE)
+    if (!ability) continue
+    const mark = `pick:blessing:${holder.id}`
+    if (s.phaseState.marks.includes(mark)) continue
+    const params = ability.params ?? {}
+    const candidates = blessingCandidates(s, holder, (params.factionKeyword as string | undefined) ?? 'ADEPTUS MECHANICUS', (params.within as number | undefined) ?? 3)
+    if (candidates.length === 0) continue
+    s.phaseState.marks.push(mark)
+    ctx.decide({
+      kind: 'chooseOption', player, window, canPass: true,
+      context: { topic: 'abilityChoice', unitId: holder.id, abilityId: ability.id, data: { window, key, code: BLESSING_CODE } },
+      options: [
+        ...candidates.map((m) => ({
+          id: m.id, label: `${s.units[m.unitId].name} - ${m.datasheetModelId} (${m.woundsRemaining}/${modelStats(s, m).W})`,
+          action: optionAction(player, m.id), hint: { unitId: m.unitId },
+        })),
+        { id: 'decline', label: 'Decline the blessing', action: optionAction(player, 'decline') },
+      ],
+    })
+    return true
+  }
+  return false
+}
+
+function blessingHandle(ctx: EngineContext, action: Action, pending: PendingDecision): Rejection | void {
+  if (action.type === 'pass') return // canPass offers 'pass' as a legal action: it is the same as declining (tyranids.ts does likewise)
+  if (action.type !== 'chooseOption' || pending.kind !== 'chooseOption') return notAnOption("Omnissiah's Blessing expects chooseOption")
+  if (action.optionId === 'decline') return
+  const s = ctx.state
+  const holder = s.units[pending.context.unitId ?? '']
+  const abilityId = pending.context.abilityId
+  const ability = abilityId ? s.abilities[abilityId] : undefined
+  if (!holder || holder.location !== 'board' || !abilityId || !ability) return notAnOption("Omnissiah's Blessing: the Enginseer is no longer on the battlefield")
+  const params = ability.params ?? {}
+  const candidates = blessingCandidates(s, holder, (params.factionKeyword as string | undefined) ?? 'ADEPTUS MECHANICUS', (params.within as number | undefined) ?? 3)
+  const model = candidates.find((m) => m.id === action.optionId)
+  if (!model) return { code: 'E_INVALID_TARGET', reason: 'pick a wounded friendly ADEPTUS MECHANICUS model within 3" of the Enginseer' }
+  const blessedMark = `blessed:${model.id}`
+  if (s.phaseState.marks.includes(blessedMark)) return { code: 'E_STRATAGEM_USED', reason: 'that model was already blessed this Command phase' }
+  const rolled = ctx.rollExpr('D3', { purpose: 'ability', player: holder.player, unitId: holder.id }).total
+  const gain = Math.max(0, Math.min(rolled, modelStats(s, model).W - model.woundsRemaining))
+  model.woundsRemaining += gain
+  s.phaseState.marks.push(blessedMark)
+  ctx.emit({ type: 'WoundsRegained', unitId: model.unitId, modelId: model.id, amount: gain, source: abilityId, player: holder.player })
+  ctx.emit({ type: 'AbilityTriggered', abilityId, sourceUnitId: holder.id, targetUnitId: model.unitId, summary: `Omnissiah's Blessing: ${s.units[model.unitId].name} regains ${gain} wound${gain === 1 ? '' : 's'}`, player: holder.player })
+}
+
+// ---- Retribution Codes (MVA-5.1): Payment in Kind's death-reaction shape, keyword ADEPTUS MECHANICUS ----
+export function retributionCodesCheck(env: StratagemEnv, t: StratagemTuple): boolean {
+  const req = pendingDeathReaction(env.state)
+  if (!req || req.unitId !== t.ids[0] || req.player !== env.player) return false
+  // The target filter keeps every destroyed half of an attached pair, so a dead Verask would let a dying Ranger through. Check the dead
+  // model's own unit (that half only, never the attached pair) for the stratagem's filter keyword.
+  const kw = (env.stratagem.targets?.[0]?.filter as { keyword?: string } | undefined)?.keyword ?? 'TECH-PRIEST'
+  return !!env.state.units[req.unitId] && keywordsOf(env.state, req.unitId).includes(kw)
+}
+
+export function retributionCodesApply(ctx: EngineContext, env: StratagemEnv, t: StratagemTuple): void {
+  const s = ctx.state
+  const req = pendingDeathReaction(s)
+  if (!req || req.unitId !== t.ids[0]) return
+  const attacker = leaderService.canonicalUnitId(s, req.attackerUnitId)
+  for (const h of leaderService.halves(s, attacker)) {
+    if (!s.units[h] || s.units[h].location === 'destroyed') continue
+    ctx.services.effects.grant(ctx, h, [{ reroll: 'ones' }], {
+      sourceAbilityId: env.stratagem.id, sourceUnitId: null, scope: { who: 'attacker' }, duration: 'battle', when: { attackerKeyword: 'ADEPTUS MECHANICUS' },
+    })
+  }
+  ctx.emit({ type: 'AbilityTriggered', abilityId: env.stratagem.id, sourceUnitId: req.unitId, targetUnitId: attacker, summary: 'Retribution Codes: the killer is marked, ADEPTUS MECHANICUS hit rolls of 1 against it are re-rolled', player: env.player })
+  consumeDeathReaction(s, req.modelId)
+}
+
 // ---------- registry ----------
 export function adeptusMechanicusHooks(): Record<string, EngineCodeHook> {
   const doctrinaImperatives: EngineCodeHook = {
@@ -290,5 +484,42 @@ export function adeptusMechanicusHooks(): Record<string, EngineCodeHook> {
   const targetedPurgeScore: EngineCodeHook = { name: 'targetedPurgeScore', kind: 'mission', hook: 'onPhaseEnd', run: noop }
   const prescribedExcoriation: EngineCodeHook = { name: 'prescribedExcoriation', kind: 'mission', hook: 'onTurnEnd', run: noop }
 
-  return { doctrinaImperatives, radSaturation, lineBreakers, justFellBack, targetedPurgePick, targetedPurgeScore, prescribedExcoriation }
+  // ---- Maniple Verask-Alpha ----
+  const imperativeSurgeWafer: EngineCodeHook = {
+    name: 'imperativeSurgeWafer', kind: 'ability', hook: 'onUnitSelectedToShoot', run: noop,
+    pick: { window: 'shooting.unitSelected', topic: 'abilityChoice', offer: (ctx, w, k) => imperativeSurgeOffer(ctx, w, k, false), handle: imperativeSurgeHandle },
+  }
+  const exploratorAcquisition: EngineCodeHook = { name: 'exploratorAcquisition', kind: 'mission', hook: 'onPhaseEnd', run: noop }
+  const mvaHolyApparatus: EngineCodeHook = { name: 'mvaHolyApparatus', kind: 'mission', hook: 'onPhaseEnd', run: noop }
+  const retributionCodes: EngineCodeHook = {
+    name: 'retributionCodes', kind: 'stratagem', hook: 'onModelDestroyed', hooks: ['onHitRoll'], run: noop,
+    // the re-roll is granted to the killer's unit by `apply`, not to the destroyed target
+    grantsItself: true, check: retributionCodesCheck, apply: retributionCodesApply,
+  }
+  // generic "X or Y unit" target gate: the TargetSpec filter takes one keyword, params.keywords lists the accepted ones
+  const keywordAnyOf: EngineCodeHook = {
+    name: 'keywordAnyOf', kind: 'stratagem', hook: 'onTargetsDeclared', run: noop,
+    check(env, t) {
+      const kws = (env.stratagem.params?.keywords as string[] | undefined) ?? []
+      return leaderService.halves(env.state, t.ids[0]).some((h) => !!env.state.units[h] && hookService.keywordsFor(env.state, h).some((k) => kws.includes(k)))
+    },
+  }
+  // Enginseer: Lone Operative while not leading a unit and within 3" of a friendly ADEPTUS MECHANICUS VEHICLE (checked live)
+  const enginseerLoneOperative: EngineCodeHook = {
+    name: 'enginseerLoneOperative', kind: 'ability', hook: 'onStatQuery', run: noop,
+    grantsCoreAbility(state, entry, unitId) {
+      if (unitId !== entry.holderUnitId || state.units[unitId]?.location !== 'board' || leaderService.isAttached(state, unitId)) return []
+      const p = entry.params
+      return friendlyKeywordWithin(state, unitId, (p.keyword as string | undefined) ?? 'VEHICLE', (p.within as number | undefined) ?? 3, p.factionKeyword as string | undefined) ? ['LONE_OPERATIVE'] : []
+    },
+  }
+  const omnissiahsBlessing: EngineCodeHook = {
+    name: 'omnissiahsBlessing', kind: 'ability', hook: 'onCommandPhase', run: noop,
+    pick: { window: 'command.start', topic: 'abilityChoice', offer: blessingOffer, handle: blessingHandle },
+  }
+
+  return {
+    doctrinaImperatives, radSaturation, lineBreakers, justFellBack, targetedPurgePick, targetedPurgeScore, prescribedExcoriation,
+    imperativeSurgeWafer, exploratorAcquisition, mvaHolyApparatus, retributionCodes, keywordAnyOf, enginseerLoneOperative, omnissiahsBlessing,
+  }
 }

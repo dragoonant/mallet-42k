@@ -1,0 +1,26 @@
+[
+  {
+    "id": "adm.enginseer-verask",
+    "faction": "adeptus-mechanicus",
+    "name": "Enginseer Verask",
+    "keywords": ["INFANTRY", "CHARACTER", "TECH-PRIEST", "IMPERIUM", "ENGINSEER", "VERASK"],
+    "factionKeywords": ["ADEPTUS MECHANICUS"],
+    "stats": { "M": 6, "T": 4, "Sv": 3, "W": 3, "Ld": 7, "OC": 1 },
+    "invuln": 5,
+    "composition": [
+      {
+        "modelId": "verask",
+        "name": "Enginseer Verask",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["adm.w.mechanicus-pistol-verask", "adm.w.omnissian-axe", "adm.w.servo-arm"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      }
+    ],
+    "abilities": ["adm.a.enginseer", "adm.a.omnissiahs-blessing"],
+    "coreAbilities": [ { "ability": "LEADER" } ],
+    "leader": { "attachTo": ["adm.skitarii-rangers"], "effects": [] },
+    "points": [ { "models": 1, "points": 0 } ],
+    "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+  }
+]

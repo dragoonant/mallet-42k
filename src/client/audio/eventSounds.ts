@@ -225,6 +225,22 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ['clawed-limbs', 'wpn-talons'] as const,
   ['flechette-blaster', 'wpn-autopistol'] as const,
   ['taser-goad', 'wpn-force-weapon'] as const,
+  // Maniple Verask-Alpha: the Enginseer's axe rings and his servo-arm crunches, galvanic rifles chatter like autoguns, the arquebus cracks like a
+  // tachyon arrow, flamers and phosphor guns reuse the flame sounds, grav and plasma culverins thump like a plasma cannon, the Dunecrawler's
+  // stubber and Icarus array rattle like the heavy bolter and assault cannon, its Daedalus launcher borrows the hunter-killer, its legs stomp.
+  ['omnissian-axe', 'wpn-power-weapon'] as const,
+  ['servo-arm', 'wpn-power-fist'] as const,
+  ['galvanic-rifle', 'wpn-autogun'] as const,
+  ['transuranic-arquebus', 'wpn-tachyon-arrow'] as const,
+  ['cognis-flamer', 'wpn-flamer'] as const,
+  ['heavy-grav-cannon', 'wpn-plasma-cannon'] as const,
+  ['kataphron-plasma-culverin', 'wpn-plasma-cannon'] as const,
+  ['phosphor-blaster', 'wpn-pyreblaster'] as const,
+  ['kataphron-close-combat-weapon', 'wpn-close-combat-weapon'] as const,
+  ['cognis-heavy-stubber', 'wpn-heavy-bolter'] as const,
+  ['daedalus-missile-launcher', 'wpn-hunter-killer-missile'] as const,
+  ['icarus-array', 'wpn-assault-cannon'] as const,
+  ['dunecrawler-legs', 'wpn-brutal-assault-weapon'] as const,
   // Death Guard: the spewer coughs flame, launchers and grenades thump like the Guard's, the manreaper rings like a power weapon,
   // the heavy plague weapon crunches, knives and the injector pistol borrow the plain close-combat and autopistol sounds.
   ['plague-spewer', 'wpn-flamer'] as const,

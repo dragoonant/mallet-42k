@@ -108,6 +108,8 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
     withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, svMod: -1 })
   } else if (id.endsWith('evaluation-of-mettle')) {
     withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, fnp: 5 })
+  } else if (id.endsWith('reactive-field-shroud')) {
+    withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, invuln: 4 })
   } else if (id.endsWith('mercurial-resilience')) {
     withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, invuln: 5 })
   } else if (id.endsWith('disgustingly-resilient')) {
@@ -130,7 +132,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
 }
 
 const DEFENSIVE = ['skeinwrought-physiology', 'go-to-ground', 'smokescreen', 'gene-wrought-resilience', 'tough-as-squig-hide', 'holy-radiance', 'hyper-reactive',
-  'mercurial-resilience', 'a-martyrs-death', 'daemonic-fervour', 'blood-maddened-banishment', 'manifest-hate', 'lurking-killers', 'lives-before-territory', 'quicksilver-reactions', 'whip-fast-reactions', 'evaluation-of-mettle', 'disgustingly-resilient', 'mutant-cunning']
+  'mercurial-resilience', 'reactive-field-shroud', 'a-martyrs-death', 'daemonic-fervour', 'blood-maddened-banishment', 'manifest-hate', 'lurking-killers', 'lives-before-territory', 'quicksilver-reactions', 'whip-fast-reactions', 'evaluation-of-mettle', 'disgustingly-resilient', 'mutant-cunning']
 
 // Fire Overwatch: hits only on an unmodified 6, the bound unit only (picked within 24"), each weapon within its own range, with line of sight.
 function overwatchGain(state: GameState, player: PlayerId, action: UseStratagemAction, enemyId: UnitId): number {
@@ -312,7 +314,7 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
     return best > 0.3 ? best : -Infinity
   }
   // T'au Fight by the Code / Adeptus Mechanicus Optimised Efficiency: a unit that Fell Back may still shoot (and charge); worth its best volley at any enemy it can reach.
-  if (id.endsWith('fight-by-the-code') || id.endsWith('optimised-efficiency')) {
+  if (id.endsWith('fight-by-the-code') || id.endsWith('optimised-efficiency') || id.endsWith('retrogradial-targeting')) {
     const unitId = targets.unitIds?.[0]
     if (!unitId || state.units[unitId]?.turn.moveType !== 'fallBack' || !hasAnyRangedWeapon(state, unitId)) return -Infinity
     let best = 0
@@ -658,7 +660,7 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
   }
   // Leagues of Votann Payment in Kind: after the last Hearthkyn (etc.) falls to an enemy attack, our hit rolls of 1 against that unit are
   // re-rolled for the rest of the battle (about +1/6 hits on a 3+/4+ hit roll); worth the 1 CP while our shooters or fighters can reach it.
-  if (id.endsWith('payment-in-kind')) {
+  if (id.endsWith('payment-in-kind') || id.endsWith('mva-retribution-codes')) {
     const mark = state.phaseState.marks.find((m) => m.startsWith('deathReaction:'))
     let killer: UnitId | null = null
     if (mark) { try { killer = (JSON.parse(mark.slice('deathReaction:'.length)) as { attackerUnitId?: UnitId }).attackerUnitId ?? null } catch { killer = null } }

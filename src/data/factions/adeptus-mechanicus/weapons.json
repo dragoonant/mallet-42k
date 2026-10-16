@@ -31,5 +31,20 @@
     "abilities": [ { "ability": "TORRENT" }, { "ability": "IGNORES_COVER" } ] },
   { "id": "adm.w.pteraxii-talons", "name": "Pteraxii talons", "type": "melee", "range": 0, "A": 2, "skill": 4, "S": 4, "AP": 0, "D": 1, "abilities": [] },
   { "id": "adm.w.taser-goad", "name": "Taser goad", "type": "melee", "range": 0, "A": 3, "skill": 4, "S": 6, "AP": 0, "D": 1,
-    "abilities": [ { "ability": "SUSTAINED_HITS", "value": 2 } ] }
+    "abilities": [ { "ability": "SUSTAINED_HITS", "value": 2 } ] },
+  {"id":"adm.w.mechanicus-pistol-verask","name":"Mechanicus pistol (Verask)","type":"ranged","range":12,"A":1,"skill":3,"S":6,"AP":-1,"D":1,"abilities":[{"ability":"PISTOL"},{"ability":"DEVASTATING_WOUNDS"}]},
+  {"id":"adm.w.omnissian-axe","name":"Omnissian axe","type":"melee","range":0,"A":3,"skill":4,"S":6,"AP":-2,"D":2,"abilities":[]},
+  {"id":"adm.w.servo-arm","name":"Servo-arm","type":"melee","range":0,"A":1,"skill":4,"S":6,"AP":-2,"D":2,"abilities":[{"ability":"EXTRA_ATTACKS"}]},
+  {"id":"adm.w.galvanic-rifle","name":"Galvanic rifle","type":"ranged","range":30,"A":2,"skill":4,"S":4,"AP":0,"D":1,"abilities":[]},
+  {"id":"adm.w.transuranic-arquebus","name":"Transuranic arquebus","type":"ranged","range":36,"A":1,"skill":4,"S":7,"AP":-2,"D":"D3","abilities":[{"ability":"HEAVY"},{"ability":"PRECISION"}]},
+  {"id":"adm.w.cognis-flamer","name":"Cognis flamer","type":"ranged","range":12,"A":"D6","skill":null,"S":4,"AP":0,"D":1,"abilities":[{"ability":"IGNORES_COVER"},{"ability":"TORRENT"}]},
+  {"id":"adm.w.heavy-grav-cannon","name":"Heavy grav-cannon","type":"ranged","range":30,"A":4,"skill":4,"S":6,"AP":-1,"D":2,"abilities":[{"ability":"ANTI","keyword":"VEHICLE","value":2}]},
+  {"id":"adm.w.kataphron-plasma-culverin-standard","name":"Kataphron plasma culverin (standard)","type":"ranged","range":36,"A":4,"skill":4,"S":7,"AP":-2,"D":1,"abilities":[],"profileGroup":"adm.w.kataphron-plasma-culverin"},
+  {"id":"adm.w.kataphron-plasma-culverin-supercharge","name":"Kataphron plasma culverin (supercharge)","type":"ranged","range":36,"A":4,"skill":4,"S":8,"AP":-3,"D":2,"abilities":[{"ability":"HAZARDOUS"}],"profileGroup":"adm.w.kataphron-plasma-culverin"},
+  {"id":"adm.w.phosphor-blaster","name":"Phosphor blaster","type":"ranged","range":24,"A":1,"skill":4,"S":5,"AP":0,"D":1,"abilities":[{"ability":"IGNORES_COVER"},{"ability":"RAPID_FIRE","value":1}]},
+  {"id":"adm.w.kataphron-close-combat-weapon","name":"Close combat weapon (Kataphron)","type":"melee","range":0,"A":2,"skill":4,"S":5,"AP":0,"D":1,"abilities":[]},
+  {"id":"adm.w.cognis-heavy-stubber","name":"Cognis heavy stubber","type":"ranged","range":36,"A":3,"skill":4,"S":4,"AP":0,"D":1,"abilities":[{"ability":"RAPID_FIRE","value":3},{"ability":"SUSTAINED_HITS","value":1}]},
+  {"id":"adm.w.daedalus-missile-launcher","name":"Daedalus missile launcher","type":"ranged","range":48,"A":1,"skill":4,"S":10,"AP":-2,"D":"D6+1","abilities":[{"ability":"ANTI","keyword":"FLY","value":2}]},
+  {"id":"adm.w.icarus-array","name":"Icarus array","type":"ranged","range":48,"A":6,"skill":4,"S":8,"AP":-1,"D":2,"abilities":[{"ability":"ANTI","keyword":"FLY","value":4},{"ability":"TWIN_LINKED"}]},
+  {"id":"adm.w.dunecrawler-legs","name":"Dunecrawler legs","type":"melee","range":0,"A":3,"skill":4,"S":6,"AP":0,"D":1,"abilities":[]}
 ]

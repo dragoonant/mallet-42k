@@ -33,5 +33,85 @@
       ],
       "scope": { "who": "self" }
     }
+  },
+  {
+    "id": "adm.e.omniballistic-data-tether",
+    "faction": "adeptus-mechanicus",
+    "name": "Omniballistic Data-Tether",
+    "text": "Each time the bearer's unit is selected to shoot, while resolving those attacks you can re-roll one Hit roll and re-roll one Wound roll.",
+    "cost": 0,
+    "restriction": {
+      "keyword": [
+        "ENGINSEER"
+      ]
+    },
+    "effect": [
+      {
+        "id": "adm.e.omniballistic-data-tether.hit",
+        "name": "Omniballistic Data-Tether (hit)",
+        "text": "Once per activation, re-roll one Hit roll made for the bearer's unit.",
+        "trigger": "hitRoll",
+        "effect": {
+          "when": {
+            "weaponType": "ranged"
+          },
+          "reroll": "oneDie"
+        },
+        "scope": {
+          "who": "self"
+        }
+      },
+      {
+        "id": "adm.e.omniballistic-data-tether.wound",
+        "name": "Omniballistic Data-Tether (wound)",
+        "text": "Once per activation, re-roll one Wound roll made for the bearer's unit.",
+        "trigger": "woundRoll",
+        "effect": {
+          "when": {
+            "weaponType": "ranged"
+          },
+          "reroll": "oneDie"
+        },
+        "scope": {
+          "who": "self"
+        }
+      }
+    ]
+  },
+  {
+    "id": "adm.e.imperative-surge-wafer",
+    "faction": "adeptus-mechanicus",
+    "name": "Imperative Surge-wafer",
+    "text": "Once per battle, when the bearer's unit is selected to shoot, you can activate this. Until the end of the phase, ranged weapons carried by models in the bearer's unit have [PRECISION].",
+    "cost": 0,
+    "restriction": {
+      "keyword": [
+        "ENGINSEER"
+      ]
+    },
+    "effect": [
+      {
+        "id": "adm.e.imperative-surge-wafer.effect",
+        "name": "Imperative Surge-wafer",
+        "text": "Once per battle, when the bearer's unit is selected to shoot, its ranged weapons gain [PRECISION] until the end of the phase.",
+        "trigger": "unitSelectedToShoot",
+        "code": "imperativeSurgeWafer",
+        "limit": "oncePerBattle",
+        "scope": {
+          "who": "self"
+        },
+        "duration": "untilEndOfPhase",
+        "params": {
+          "grant": {
+            "when": {
+              "weaponType": "ranged"
+            },
+            "grantWeaponAbility": {
+              "ability": "PRECISION"
+            }
+          }
+        }
+      }
+    ]
   }
 ]

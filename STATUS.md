@@ -424,6 +424,15 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all 6 finished (round 5); adeptus-mechanicus 1 win (default rotation), 2 draws |
 | Known gaps | Procedural figures (Sulphurhounds as hound plus rider; no GLBs yet); borrowed SFX; no dedicated AI policy for the Doctrina / Targeted Purge picks beyond defaults; rulings ADM-R01 to ADM-R19 in `docs/needs-rules-check.md` under "adeptus-mechanicus build" |
 
+### M10 adeptus-mechanicus - Maniple Verask-Alpha (second patrol, playable)
+| Item | State |
+|---|---|
+| Patrol | Maniple Verask-Alpha: Enginseer Verask (leads Skitarii Rangers), Skitarii Rangers, Kataphron Destroyers, Onager Dunecrawler; secondaries Explorator Acquisition / Holy Apparatus. Picked via the start-screen patrol picker. Spec `docs/spec/factions/adeptus-mechanicus--maniple-verask-alpha.md`; data `patrols/maniple-verask-alpha.json` plus new datasheets/weapons/abilities/stratagems/enhancements (Deltic-9 values untouched) |
+| Engine hooks | `src/engine/factions/adeptus-mechanicus.ts`: Omniballistic Data-Tether, Imperative Surge-wafer (Shooting pick plus Overwatch via surgeOverwatchStep in movement.ts/charge.ts), Omnissiah's Blessing, Retribution Codes, Retrogradial Targeting (shootAfterFallBack), Explorator Acquisition, Holy Apparatus scoring, Enginseer Lone Operative. New `src/data/rosterFit.ts`: start screen and sim skip missions whose zones are too shallow for a roster base |
+| Verification | typecheck, validate:data (238 files), build green; `npm test` 3208 passing (138 files, incl. 97 MVA- engine tests and 7 data tests); e2e `adeptus-mechanicus-maniple-verask-alpha.spec.ts` starts the patrol vs the bot via the picker, deploys, fires Overwatch; screenshots `e2e-out/m10-adeptus-mechanicus-maniple-verask-alpha-0*.png` |
+| Sim | `--games 6 --seed 5`: 0 violations, no Mechanicus game in that sample; `--games 30 --seed 5`: 0 violations, adeptus-mechanicus 5 games (either patrol), 2 wins, 1 draw, all finished (round 5) |
+| Known gaps | Procedural figures only (Dunecrawler, Kataphron); borrowed SFX and weapon shapes; the Dunecrawler's 130 mm base cannot deploy in cp-01 (pairing not offered, owner decision open); cosmetic data-tethers; rulings MVA-R01 to MVA-R14 in `docs/needs-rules-check.md` under "adeptus-mechanicus build" |
+
 ### M10 death-guard - The Shambling Horde (new faction, playable)
 | Item | State |
 |---|---|

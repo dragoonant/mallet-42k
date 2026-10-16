@@ -12,6 +12,7 @@ import {
 } from '../src/engine'
 import { RandomDecider } from '../src/ai/random'
 import { UtilityDecider, type Difficulty } from '../src/ai/utility'
+import { rosterFitsMission } from './sim-core'
 
 const MISSIONS = ['mission.cp-01', 'mission.cp-02', 'mission.cp-03', 'mission.cp-04', 'mission.cp-05', 'mission.cp-06']
 const STALL_DECISIONS = 2_000 // a normal game is ~500 decisions; past this a game is reported as stalled (see tests/ai/stall.test.ts)
@@ -85,8 +86,14 @@ function makeSetup(bundle: DataBundle, gameIndex: number, aiSeat: PlayerId, data
   const ai = playerSetup(bundle, aiPatrol, 'UtilityAI', gameIndex % 2 === 0)
   const opp = playerSetup(bundle, oppPatrol, 'Random', gameIndex % 3 !== 1)
   const players = aiSeat === 'A' ? { A: ai, B: opp } : { A: opp, B: ai }
+  // skip a mission whose deployment strips are too shallow for some base in either roster (Onager Dunecrawler, 130 mm, vs cp-01's 5" strips)
+  let missionId = MISSIONS[gameIndex % MISSIONS.length]
+  for (let k = 0; k < MISSIONS.length; k++) {
+    const candidate = MISSIONS[(gameIndex + k) % MISSIONS.length]
+    if (rosterFitsMission(bundle, aiPatrol, candidate) && rosterFitsMission(bundle, oppPatrol, candidate)) { missionId = candidate; break }
+  }
   return {
-    missionId: MISSIONS[gameIndex % MISSIONS.length],
+    missionId,
     terrainLayoutId: Object.keys(bundle.terrainLayouts ?? {}).sort()[0] ?? 'terrain.cp-01',
     players, sides: 'rollOff', firstTurn: 'rollOff', dataVersion,
   }

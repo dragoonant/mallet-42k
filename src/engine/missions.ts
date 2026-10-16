@@ -13,7 +13,7 @@ import { darkConjunctionAmount, worthyOfferingsAmount } from './factions/chaos-d
 import { alphaPredationAmount, alphaXenoformAmount, chitinousTideAmount, leftToLastAmount } from './factions/tyranids'
 import type { AttackKind } from './types'
 import type { MissionRule, ScoringRule, TimingWindowId } from '../data/types'
-import { prescribedExcoriationAmount } from './factions/adeptus-mechanicus'
+import { exploratorAcquisitionAmount, mvaHolyApparatusAmount, prescribedExcoriationAmount } from './factions/adeptus-mechanicus'
 import { etherealEdictAmount, etherealEdictOffer, kauyonLureAmount, leadershipCasteAmount, surpriseAttackAmount } from './factions/tau-empire'
 import { riseUpAmount, willOfThePatriarchAmount, infiltrationAgendaAmount, safeguardTheSanctuaryAmount } from './factions/genestealer-cults'
 import { holdTheLineAmount, methodicalDestructionAmount, methodicalDestructionOffer } from './factions/astra-militarum'
@@ -585,6 +585,8 @@ function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): num
     case 'etherealEdictScore': return etherealEdictAmount(s, rule, pid)
     case 'targetedPurgeScore': return etherealEdictAmount(s, rule, pid) // same secondaryState['tau:edict'] storage (a player has one secondary)
     case 'prescribedExcoriation': return prescribedExcoriationAmount(s, rule, pid)
+    case 'exploratorAcquisition': return exploratorAcquisitionAmount(ctx, rule, pid, (id) => holds(ctx, id, pid))
+    case 'mvaHolyApparatus': return mvaHolyApparatusAmount(s, rule, pid)
     case 'divineJudgementScore': return divineJudgementAmount(s, rule, pid)
     case 'riseUp': return riseUpAmount(ctx, rule, pid, (id) => holds(ctx, id, pid))
     case 'willOfThePatriarch': return willOfThePatriarchAmount(s, rule, pid)

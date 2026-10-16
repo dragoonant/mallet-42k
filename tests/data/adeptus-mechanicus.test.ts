@@ -29,7 +29,7 @@ describe('adeptus-mechanicus data', () => {
   it('ADM-001 patrol loads: 4 units, 19 models; Skand WARLORD with Aspergilla of Tarentum attached to the Vanguard; Targeted Purge default', () => {
     const faction = bundle.factions[FACTION]
     expect(faction.factionKeyword).toBe('ADEPTUS MECHANICUS')
-    expect(faction.combatPatrols).toEqual([PATROL])
+    expect(faction.combatPatrols[0]).toBe(PATROL)
     expect(bundle.abilities[faction.armyRule]).toBeDefined()
     expect(patrol.faction).toBe(FACTION)
     expect(patrol.units.map((u) => u.ref)).toEqual(['skand', 'vanguard', 'sulphurhounds', 'pteraxii'])

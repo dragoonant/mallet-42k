@@ -1,0 +1,97 @@
+{
+  "id": "adm.cp.maniple-verask-alpha",
+  "faction": "adeptus-mechanicus",
+  "name": "Maniple Verask-Alpha",
+  "units": [
+    {
+      "ref": "verask",
+      "datasheet": "adm.enginseer-verask",
+      "size": 1,
+      "enhancement": "adm.e.omniballistic-data-tether",
+      "attachTo": "rangers"
+    },
+    {
+      "ref": "rangers",
+      "datasheet": "adm.skitarii-rangers",
+      "size": 10
+    },
+    {
+      "ref": "kataphrons",
+      "datasheet": "adm.kataphron-destroyers",
+      "size": 3
+    },
+    {
+      "ref": "dunecrawler",
+      "datasheet": "adm.onager-dunecrawler",
+      "size": 1
+    }
+  ],
+  "stratagems": [
+    "adm.s.mva-retribution-codes",
+    "adm.s.mva-reactive-field-shroud",
+    "adm.s.mva-retrogradial-targeting"
+  ],
+  "enhancements": [
+    {
+      "id": "adm.e.omniballistic-data-tether",
+      "default": true
+    },
+    {
+      "id": "adm.e.imperative-surge-wafer",
+      "default": false
+    }
+  ],
+  "secondaries": [
+    {
+      "id": "adm.sec.explorator-acquisition",
+      "name": "Explorator Acquisition",
+      "text": "From battle round 2, at the end of your Command phase, roll one D6 and add 1 for each objective marker you control. On a 7 or more, score 4 victory points (up to 12 victory points from this secondary).",
+      "default": true,
+      "scoring": [
+        {
+          "id": "explorator-acquisition",
+          "when": "command.end",
+          "rounds": {
+            "from": 2,
+            "to": 5
+          },
+          "who": "active",
+          "rule": "custom",
+          "pointsPer": 4,
+          "cap": 12,
+          "code": "exploratorAcquisition",
+          "params": {
+            "threshold": 7
+          }
+        }
+      ]
+    },
+    {
+      "id": "adm.sec.holy-apparatus",
+      "name": "Holy Apparatus",
+      "text": "At the end of the battle, score 4 victory points if your WARLORD is not destroyed. Also score 4 victory points if your ONAGER DUNECRAWLER is not destroyed and not Below Half-strength, or 2 victory points if it is not destroyed but is Below Half-strength.",
+      "default": false,
+      "scoring": [
+        {
+          "id": "holy-apparatus",
+          "when": "battle.end",
+          "rounds": {
+            "from": 5,
+            "to": 5
+          },
+          "rule": "custom",
+          "pointsPer": 4,
+          "cap": 8,
+          "code": "mvaHolyApparatus",
+          "params": {
+            "warlordPoints": 4,
+            "fullPoints": 4,
+            "belowHalfPoints": 2,
+            "keyword": "ONAGER DUNECRAWLER"
+          }
+        }
+      ]
+    }
+  ],
+  "warlord": "verask"
+}

@@ -2,6 +2,7 @@
 // the public engine API (createGame / legalActions / step) on the real data bundle, checking invariants after every
 // step. Shared by the CLI (tools/sim.ts) and tests/engine/fullgame.test.ts.
 import type { DataBundle } from '../src/data/types'
+import { rosterFitsMission } from '../src/data/rosterFit'
 import {
   createGame, legalActions, modelStats, step, EngineInvariantError,
   type Action, type GameSetup, type GameState, type PendingDecision, type PlayerId, type StepResult,
@@ -68,6 +69,8 @@ function playerSetup(bundle: DataBundle, patrolId: string, name: string, embark 
   return { name, faction: patrol.faction, patrolId, enhancementId, secondaryId, attachments: attachmentsOf(patrol), reserves: [], battleReadyVp: 0, ...(embark ? { embarked: embarkedOf(bundle, patrol) } : {}) }
 }
 
+export { rosterFitsMission }
+
 export function makeSimSetup(bundle: DataBundle, gameIndex: number, dataVersion: string): GameSetup {
   const patrols = Object.keys(bundle.patrols).sort()
   if (patrols.length < 2) throw new Error('sim: need two Combat Patrol rosters in the data bundle')
@@ -99,8 +102,15 @@ export function makeSimSetup(bundle: DataBundle, gameIndex: number, dataVersion:
   if (rb === ra) rb = (rb + 1) % n
   const [p0, p1] = rotate ? [patrols[ra], patrols[rb]] : patrols.length === 2 && !onlyPatrol ? (gameIndex % 2 === 0 ? [patrols[0], patrols[1]] : [patrols[1], patrols[0]]) : wanted[gameIndex % wanted.length]
   const missionIndex = patrols.length === 2 && !onlyPatrol ? gameIndex : gameIndex + Math.floor(gameIndex / wanted.length)
+  // a roster whose widest-needed base (smallest base dimension) is deeper than a mission's deployment strip cannot be set up wholly in
+  // its zone (Onager Dunecrawler, 130 mm = 5.1", versus cp-01's 5" strips): step to the next mission that fits both rosters
+  let missionId = MISSIONS[missionIndex % MISSIONS.length]
+  for (let k = 0; k < MISSIONS.length; k++) {
+    const candidate = MISSIONS[(missionIndex + k) % MISSIONS.length]
+    if (rosterFitsMission(bundle, p0, candidate) && rosterFitsMission(bundle, p1, candidate)) { missionId = candidate; break }
+  }
   return {
-    missionId: MISSIONS[missionIndex % MISSIONS.length],
+    missionId,
     terrainLayoutId: Object.keys(bundle.terrainLayouts ?? {}).sort()[0] ?? 'terrain.cp-01',
     players: { A: playerSetup(bundle, p0, 'Bot A', gameIndex % 2 === 0, variants && gameIndex % 2 === 1), B: playerSetup(bundle, p1, 'Bot B', gameIndex % 3 !== 1, variants && gameIndex % 2 === 1) },
     sides: 'rollOff',

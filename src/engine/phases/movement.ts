@@ -40,6 +40,7 @@ import {
 } from '../cult-ambush'
 import { attackService, REACTIVE_MOVED_PREFIX } from '../attack'
 import { phantomsOverwatchArm, phantomsOverwatchStep } from '../factions/tyranids'
+import { surgeOverwatchStep } from '../factions/adeptus-mechanicus'
 import { isBigGunsUnit, targetLegality } from './shooting'
 import { weaponService } from '../weapons'
 import { terrainService } from '../terrain'
@@ -450,7 +451,7 @@ export function overwatchTargets(state: GameState, shooterUnitId: UnitId, target
 function drainOverwatch(ctx: EngineContext, moverUnitId: UnitId): AdvanceResult {
   for (;;) {
     if (ctx.state.phaseState.attack) {
-      if (phantomsOverwatchStep(ctx) === 'pending') return 'pending'
+      if (phantomsOverwatchStep(ctx) === 'pending') return 'pending'; if (surgeOverwatchStep(ctx) === 'pending') return 'pending'
       if (attackService.advance(ctx) === 'pending') return 'pending'
       continue
     }

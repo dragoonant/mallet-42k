@@ -656,6 +656,18 @@ function scoreChooseOption(state: GameState, pending: PendingDecision, action: A
     const conqueror = doctrinaPrefersConqueror(state, pending.player)
     score += (action.optionId === 'conqueror') === conqueror ? 2 : 0
   }
+  // Adeptus Mechanicus Omnissiah's Blessing (Maniple Verask-Alpha): heal D3 on the model that has lost the most wounds; declining is the last resort.
+  if (code === 'omnissiahsBlessing' && action.optionId !== 'decline') {
+    const m = state.models[action.optionId]
+    if (m) score = 10 + (modelStats(state, m).W - m.woundsRemaining)
+  }
+  // Adeptus Mechanicus Imperative Surge-wafer: once per battle, so spend it only when Precision can reach a CHARACTER hiding in an enemy
+  // attached unit within range of the bearer's unit, or in the last battle round when it would otherwise go unused.
+  if (code === 'imperativeSurgeWafer') {
+    const unitId = pending.context.unitId as UnitId | null
+    const want = !!unitId && (state.round >= 5 || surgeHasPrecisionTarget(state, pending.player, unitId))
+    score = (action.optionId === 'use') === want ? 5 : 0
+  }
   // Adeptus Mechanicus Line-breakers: put the mortal wounds on the enemy unit with the fewest wounds left (most likely to die)
   if (code === 'lineBreakers' && hintUnitId) {
     let wounds = 0
@@ -669,6 +681,20 @@ function scoreChooseOption(state: GameState, pending: PendingDecision, action: A
     score = wounds + sv * 0.01
   }
   return score
+}
+
+// Surge-wafer: some enemy attached unit with a CHARACTER half stands within the longest ranged weapon range of the bearer's unit
+function surgeHasPrecisionTarget(state: GameState, player: PlayerId, unitId: UnitId): boolean {
+  const range = bestRangedRangeOfUnit(state, unitId) ?? 0
+  for (const e of boardUnitsOf(state, other(player))) {
+    if (!e.attachedLeaderId && !e.bodyguardUnitId) continue
+    const halves = [e.id, e.attachedLeaderId, e.bodyguardUnitId].filter((h): h is UnitId => !!h)
+    if (!halves.some((h) => hasKeyword(state, h, 'CHARACTER'))) continue
+    if (minGapBetweenUnits(state, unitId, e.id) > range) continue
+    // Spec 7.1: the enemy must also be visible (to at least one model of the bearer's unit), or the Precision would be wasted
+    if (unitModels(state, unitId).some((m) => halves.some((h) => DEFAULT_SERVICES.los.unitVisible(state, m.id, h)))) return true
+  }
+  return false
 }
 
 // ADM-2.1 / ADM-026: Conqueror only when an enemy unit stands (at least partly) in its own deployment zone within 18" of a Doctrina unit

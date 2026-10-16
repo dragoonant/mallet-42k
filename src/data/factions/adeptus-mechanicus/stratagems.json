@@ -59,5 +59,132 @@
     "scope": { "who": "self" },
     "duration": "untilEndOfPhase",
     "limit": "oncePerPhase"
+  },
+  {
+    "id": "adm.s.mva-retribution-codes",
+    "faction": "adeptus-mechanicus",
+    "name": "Retribution Codes",
+    "text": "Use just after an enemy model's attack destroys one of your TECH-PRIEST models. For the rest of the battle, each attack made by one of your ADEPTUS MECHANICUS models that targets the enemy unit that made that attack re-rolls a Hit roll of 1.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": [
+      "command",
+      "movement",
+      "shooting",
+      "charge",
+      "fight"
+    ],
+    "window": "attack.modelDestroyed",
+    "who": "either",
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "TECH-PRIEST"
+        },
+        "state": "justDestroyed",
+        "count": 1
+      }
+    ],
+    "effect": {
+      "reroll": "ones"
+    },
+    "scope": {
+      "who": "attacker"
+    },
+    "duration": "battle",
+    "code": "retributionCodes",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "adm.s.mva-reactive-field-shroud",
+    "faction": "adeptus-mechanicus",
+    "name": "Reactive Field-Shroud",
+    "text": "Use just after an enemy unit has picked its targets, in the opponent's Shooting phase or in the Fight phase, when one of your TECH-PRIEST or SKITARII units is a target. Until the end of the phase, models in that unit have a 4+ invulnerable save.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": [
+      "shooting",
+      "fight"
+    ],
+    "window": [
+      "shooting.targetsDeclared",
+      "fight.targetsDeclared"
+    ],
+    "who": "either",
+    "condition": {
+      "any": [
+        {
+          "phase": "shooting",
+          "ownTurn": false
+        },
+        {
+          "phase": "fight"
+        }
+      ]
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "ADEPTUS MECHANICUS"
+        },
+        "state": "targetedByAttack",
+        "count": 1
+      }
+    ],
+    "effect": {
+      "invuln": 4
+    },
+    "scope": {
+      "who": "self"
+    },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase",
+    "code": "keywordAnyOf",
+    "params": {
+      "keywords": [
+        "TECH-PRIEST",
+        "SKITARII"
+      ]
+    }
+  },
+  {
+    "id": "adm.s.mva-retrogradial-targeting",
+    "faction": "adeptus-mechanicus",
+    "name": "Retrogradial Targeting",
+    "text": "Use in your Movement phase, just after one of your TECH-PRIEST units ends a Fall Back move. Until the end of the turn, that unit is eligible to shoot even though it Fell Back.",
+    "cost": 2,
+    "category": "strategicPloy",
+    "phases": [
+      "movement"
+    ],
+    "window": "movement.unitMoved",
+    "who": "active",
+    "condition": {
+      "phase": "movement",
+      "ownTurn": true
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "TECH-PRIEST"
+        },
+        "count": 1
+      }
+    ],
+    "effect": {
+      "shootAfterFallBack": true
+    },
+    "scope": {
+      "who": "self"
+    },
+    "duration": "untilEndOfTurn",
+    "limit": "oncePerPhase",
+    "code": "justFellBack"
   }
 ]

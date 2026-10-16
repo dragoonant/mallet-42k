@@ -85,5 +85,32 @@
       { "reroll": "ones" }
     ],
     "scope": { "who": "self" }
+  },
+  {
+    "id": "adm.a.enginseer",
+    "name": "Enginseer",
+    "text": "While this model is not leading a unit and is within 3 inches of at least one friendly ADEPTUS MECHANICUS VEHICLE unit, it has the Lone Operative ability.",
+    "trigger": "always",
+    "code": "enginseerLoneOperative",
+    "params": {
+      "keyword": "VEHICLE",
+      "within": 3,
+      "factionKeyword": "ADEPTUS MECHANICUS"
+    },
+    "scope": {
+      "who": "self"
+    }
+  },
+  {
+    "id": "adm.a.omnissiahs-blessing",
+    "name": "Omnissiah's Blessing",
+    "text": "In your Command phase, pick one friendly ADEPTUS MECHANICUS model within 3 inches of this model. That model regains up to D3 lost wounds. A model can be picked this way only once per Command phase.",
+    "trigger": "commandPhase",
+    "code": "omnissiahsBlessing",
+    "params": {
+      "within": 3,
+      "heal": "D3",
+      "factionKeyword": "ADEPTUS MECHANICUS"
+    }
   }
 ]

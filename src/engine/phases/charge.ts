@@ -38,6 +38,7 @@ import { leaderService } from '../leaders'
 import { attackService } from '../attack'
 import { handleReactiveMove, reactiveMoveLegalActions, validateReactiveMove } from './movement'
 import { phantomsOverwatchArm, phantomsOverwatchStep } from '../factions/tyranids'
+import { surgeOverwatchStep } from '../factions/adeptus-mechanicus'
 import { weaponService } from '../weapons'
 import { defaultOverwatchSelection } from './movement'
 import { targetLegality } from './shooting'
@@ -489,7 +490,7 @@ export function overwatchTargetsFor(state: GameState, shooterUnitId: UnitId, cha
 
 function drainChargeOverwatch(ctx: EngineContext, chargerUnitId: UnitId): AdvanceResult {
   for (;;) {
-    if (ctx.state.phaseState.attack) { if (phantomsOverwatchStep(ctx) === 'pending') return 'pending'; if (attackService.advance(ctx) === 'pending') return 'pending'; continue }
+    if (ctx.state.phaseState.attack) { if (phantomsOverwatchStep(ctx) === 'pending') return 'pending'; if (surgeOverwatchStep(ctx) === 'pending') return 'pending'; if (attackService.advance(ctx) === 'pending') return 'pending'; continue }
     const req = pendingReactions(ctx.state, 'overwatch').find((r) => r.enemyUnitId === chargerUnitId)
     if (!req) return 'done'
     consumeReaction(ctx.state, 'overwatch', req.unitId)

@@ -220,6 +220,20 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
     },
   },
   {
+    match: /omnissiahs?-?blessing/i,
+    info: {
+      title: "Omnissiah's Blessing: mend a model?",
+      hint: 'The Enginseer can patch up one friendly Adeptus Mechanicus model within 3 inches (a Dunecrawler or a Kataphron counts, and so does the Enginseer himself). It regains up to D3 lost wounds. Each model can be mended only once per Command phase, so pick the most damaged one, or decline.',
+    },
+  },
+  {
+    match: /imperative-?surge-?wafer/i,
+    info: {
+      title: 'Imperative Surge-wafer: activate it?',
+      hint: "One use for the whole battle. Until the end of this phase, every ranged weapon in the bearer's unit gains Precision, so its hits can be aimed at a Character leading an enemy unit. It can be fired when the unit shoots or when it makes an Overwatch attack. Save it for a target that matters, or decline.",
+    },
+  },
+  {
     match: /doctrina|doctrinaimperatives/i,
     info: {
       title: 'Choose a Doctrina Imperative',
