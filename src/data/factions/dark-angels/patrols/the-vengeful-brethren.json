@@ -1,0 +1,153 @@
+{
+  "id": "da.cp.the-vengeful-brethren",
+  "faction": "dark-angels",
+  "name": "The Vengeful Brethren",
+  "units": [
+    {
+      "ref": "zacharial",
+      "datasheet": "da.master-zacharial",
+      "size": 1,
+      "enhancement": "da.e.determined-combatant"
+    },
+    {
+      "ref": "intercessors",
+      "datasheet": "da.vb.intercessor-squad",
+      "size": 10,
+      "patrolSquads": [
+        {
+          "ref": "intercessors-a",
+          "size": 5,
+          "wargear": [
+            {
+              "modelId": "intercessor",
+              "count": 5,
+              "weapons": [
+                "sm.w.bolt-pistol",
+                "da.w.bolt-rifle",
+                "sm.w.close-combat-weapon"
+              ]
+            }
+          ]
+        },
+        {
+          "ref": "intercessors-b",
+          "size": 5,
+          "wargear": [
+            {
+              "modelId": "intercessor",
+              "count": 5,
+              "weapons": [
+                "sm.w.bolt-pistol",
+                "da.w.bolt-rifle",
+                "sm.w.close-combat-weapon"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ref": "hellblasters",
+      "datasheet": "da.hellblaster-squad",
+      "size": 5
+    },
+    {
+      "ref": "bladeguard",
+      "datasheet": "da.bladeguard-veteran-squad",
+      "size": 3
+    }
+  ],
+  "stratagems": [
+    "da.s.vb-unyielding",
+    "da.s.vb-march-of-vengeance",
+    "da.s.vb-relic-munitions"
+  ],
+  "enhancements": [
+    {
+      "id": "da.e.determined-combatant",
+      "default": true
+    },
+    {
+      "id": "da.e.wages-of-retribution",
+      "default": false
+    }
+  ],
+  "secondaries": [
+    {
+      "id": "da.sec.hunters-of-heretics",
+      "name": "Hunters of Heretics",
+      "text": "Each time an ADEPTUS ASTARTES unit from your army destroys an enemy CHARACTER model, in any phase of either turn, score 5 victory points. At the end of the battle, score a further 5 victory points if every enemy CHARACTER model has been destroyed.",
+      "default": true,
+      "scoring": [
+        {
+          "id": "hunters-of-heretics",
+          "when": "any.unitDestroyed",
+          "rounds": {
+            "from": 1,
+            "to": 5
+          },
+          "who": "both",
+          "rule": "custom",
+          "pointsPer": 5,
+          "cap": 999,
+          "code": "vbHuntersOfHeretics",
+          "params": {
+            "keyword": "CHARACTER",
+            "killerFactionKeyword": "ADEPTUS ASTARTES"
+          }
+        },
+        {
+          "id": "hunters-of-heretics-end",
+          "when": "battle.end",
+          "rounds": {
+            "from": 5,
+            "to": 5
+          },
+          "who": "both",
+          "rule": "custom",
+          "pointsPer": 5,
+          "cap": 5,
+          "code": "vbHuntersOfHereticsEnd",
+          "params": {
+            "keyword": "CHARACTER"
+          }
+        }
+      ]
+    },
+    {
+      "id": "da.sec.take-the-stronghold",
+      "name": "Take the Stronghold",
+      "text": "At the start of the Deploy Armies step your opponent picks one objective marker that is not in their own deployment zone. At the end of each of your turns, score 5 victory points if you control that marker.",
+      "default": false,
+      "scoring": [
+        {
+          "id": "take-the-stronghold-pick",
+          "when": "deployment.unit",
+          "rounds": {
+            "from": 0,
+            "to": 0
+          },
+          "who": "both",
+          "rule": "custom",
+          "pointsPer": 0,
+          "cap": 0,
+          "code": "vbTakeTheStrongholdPick"
+        },
+        {
+          "id": "take-the-stronghold",
+          "when": "turn.end",
+          "rounds": {
+            "from": 1,
+            "to": 5
+          },
+          "who": "active",
+          "rule": "custom",
+          "pointsPer": 5,
+          "cap": 25,
+          "code": "vbTakeTheStrongholdScore"
+        }
+      ]
+    }
+  ],
+  "warlord": "zacharial"
+}

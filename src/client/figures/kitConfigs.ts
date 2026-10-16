@@ -10,6 +10,9 @@ export const BODY_KIND: Record<KitId, 'biped' | 'vehicle' | 'swarm' | 'artillery
   'da-chaplain': 'biped',
   'da-inceptor': 'biped',
   'da-redemptor': 'biped',
+  'da-hellblaster': 'biped',
+  'da-bladeguard': 'biped',
+  'da-zacharial': 'biped',
   'ork-boy': 'biped',
   'ork-warboss': 'biped',
   'ork-deff-dread': 'biped',
@@ -225,6 +228,11 @@ export const BIPED_CONFIG: Partial<Record<KitId, BipedConfig>> = {
   'da-chaplain': { headShape: 'marine-helmet', rightWeapon: 'mace', leftWeapon: 'plasma-pistol', bulk: 1.1, hasBackpack: true, shoulderPads: 'large', hasCape: true, capeColor: 'secondary', tabard: true, skin: 'none' },
   'da-inceptor': { headShape: 'marine-helmet', rightWeapon: 'storm-bolter', leftWeapon: 'storm-bolter', bulk: 1.35, hasBackpack: false, jumpPack: true, shoulderPads: 'large', hasCape: false, skin: 'none' },
   'da-redemptor': { headShape: 'sentinel-cab', rightWeapon: 'power-fist', leftWeapon: 'plasma-cannon', bulk: 2.4, hasBackpack: true, shoulderPads: 'large', hasCape: false, skin: 'none', limbColor: 'primary', chestCore: true },
+  // The Vengeful Brethren: Hellblasters are broad-backed marines hauling a glowing plasma incinerator, Bladeguard Veterans tabarded
+  // power-sword duellists with a heavy pistol, and Master Zacharial a caped Gravis captain with a power fist and boltstorm gauntlet.
+  'da-hellblaster': { headShape: 'marine-helmet', rightWeapon: 'plasma-cannon', leftWeapon: 'none', bulk: 1.2, hasBackpack: true, shoulderPads: 'large', hasCape: false, skin: 'none' },
+  'da-bladeguard': { headShape: 'marine-helmet', rightWeapon: 'power-sword', leftWeapon: 'plasma-pistol', bulk: 1.2, hasBackpack: true, shoulderPads: 'large', hasCape: false, tabard: true, skin: 'none', limbColor: 'primary' },
+  'da-zacharial': { headShape: 'terminator-helmet', rightWeapon: 'power-fist', leftWeapon: 'storm-bolter', bulk: 1.6, hasBackpack: true, shoulderPads: 'large', hasCape: true, capeColor: 'secondary', tabard: true, skin: 'none' },
   'ork-boy': {
     headShape: 'ork-head',
     rightWeapon: 'choppa',

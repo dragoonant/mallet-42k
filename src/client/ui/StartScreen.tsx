@@ -32,7 +32,7 @@ const FACTION_BLURBS: Record<string, string> = {
   'adeptus-mechanicus': 'Hooded cyborg skirmishers and sulphur-breathing hounds led by a tech-priest: each round you pick a stance that sharpens either their guns or their advance.',
   'thousand-sons': 'Blue-and-gold sorcerers, armoured Rubric warriors and horned mutants: pool sorcerous power each round and spend it on rituals that bend the odds.',
   'space-wolves': 'Grey-armoured Astartes hunters led by a fierce battle leader: a strong core of rifles and a hard-hitting walker, backed by ambush tactics and sharp senses.',
-  'dark-angels': 'Green-armoured Space Marines led by a grim Chaplain: Oath of Moment on a chosen target, jump-pack Inceptors, and a Redemptor Dreadnought to anchor the line.',
+  'dark-angels': 'Green-armoured Space Marines led by a grim Chaplain: Oath of Moment on a chosen target, jump-pack Inceptors, and a Redemptor Dreadnought to anchor the line. Or take The Vengeful Brethren: Master Zacharial, plasma Hellblasters and stance-switching Bladeguard Veterans.',
   'blood-angels': 'Crimson-armoured sons of Sanguinius: a steady Intercessor line backed by stealthy Incursors, hulking Aggressors and a psychic Librarian, who strike hard whenever a fight turns bloody.',
   'chaos-daemons': 'Red-skinned Khorne daemons who bring a creeping Shadow of Chaos with them: your units in its shade steady and heal, while enemies caught inside it falter and bleed.',
 }

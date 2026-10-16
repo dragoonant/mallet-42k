@@ -7,5 +7,69 @@
     "when": { "weaponType": "melee" },
     "effect": { "modifyRoll": { "roll": "wound", "value": 1 } },
     "scope": { "who": "self" }
+  },
+  {
+    "id": "da.a.refuse-to-yield",
+    "name": "Refuse to Yield",
+    "text": "Each time an attack is allocated to this model, halve the Damage of that attack, rounding up. Ranged and melee attacks alike.",
+    "trigger": "damageApplied",
+    "effect": {
+      "halveDamage": true
+    },
+    "scope": {
+      "who": "self"
+    }
+  },
+  {
+    "id": "da.a.vb-bladeguard",
+    "name": "Bladeguard",
+    "text": "At the start of each Fight phase, in either player's turn, you may pick one stance for this unit that lasts until the phase ends: Swords of the Chapter or Shields of the Chapter.",
+    "trigger": "phaseStart",
+    "when": {
+      "phase": "fight"
+    },
+    "code": "vbBladeguardPick",
+    "scope": {
+      "who": "self"
+    },
+    "params": {
+      "pickWindow": "fight.start"
+    }
+  },
+  {
+    "id": "da.a.vb-swords-of-the-chapter",
+    "name": "Swords of the Chapter",
+    "text": "While this stance is chosen, melee attacks made by models in this unit may re-roll a Hit roll of 1.",
+    "trigger": "hitRoll",
+    "when": {
+      "weaponType": "melee"
+    },
+    "effect": {
+      "reroll": "ones"
+    },
+    "scope": {
+      "who": "self"
+    },
+    "code": "vbBladeguardStance",
+    "params": {
+      "stance": "swords"
+    }
+  },
+  {
+    "id": "da.a.vb-shields-of-the-chapter",
+    "name": "Shields of the Chapter",
+    "text": "While this stance is chosen, each invulnerable saving throw made for a model in this unit may be re-rolled if the roll is a 1. Armour saves are never re-rolled by this.",
+    "trigger": "saveRoll",
+    "effect": {
+      "reroll": "ones"
+    },
+    "scope": {
+      "who": "self"
+    },
+    "code": "vbBladeguardStance",
+    "params": {
+      "stance": "shields",
+      "invulnOnly": true
+    }
   }
 ]

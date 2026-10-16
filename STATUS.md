@@ -485,6 +485,16 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Sim | `npm run sim -- --games 6 --seed 5`: 0 violations; default rotation does not field dark-angels on that seed. `SIM_FACTION=dark-angels`: 6 games all finished (round 5), dark-angels 2 wins, 3 losses, 1 draw, 0 violations |
 | Known gaps | Procedural figures only (GLBs to be generated later on the Alteisen box); borrowed SFX; bot ignores the DA stratagems; rulings DAR-R01 to DAR-R13 in `docs/needs-rules-check.md` under "dark-angels build" |
 
+### M10 dark-angels - The Vengeful Brethren (second patrol, playable)
+
+| Item | State |
+|---|---|
+| Patrol | The Vengeful Brethren: Master Zacharial (no Leader ability, source quirk), 10-model Intercessor Squad, Hellblaster Squad, Bladeguard Veteran Squad; secondaries Hunters of Heretics / Take the Stronghold. Data `src/data/factions/dark-angels/patrols/the-vengeful-brethren.json` plus new datasheets (da.vb.* where the CP profile differs); spec `docs/spec/factions/dark-angels--the-vengeful-brethren.md` |
+| Engine hooks | Extended `src/engine/factions/dark-angels.ts`: Unyielding (Bladeguard threshold 3), Shields of the Chapter / Swords of the Chapter stance pick, Wages of Retribution, Hunters of Heretics kill credit and round-5 bonus, Take the Stronghold pick; attack.ts save-batch falls back to per-attack when save kinds differ; missions.ts scoring support |
+| Verification | typecheck, validate:data (284 files), build green; `npm test` 3570 passing (156 files, incl. DAV- tests in `tests/engine/dark-angels-the-vengeful-brethren*.test.ts`, `tests/data/dark-angels-the-vengeful-brethren.test.ts`); e2e `tests/e2e/dark-angels-the-vengeful-brethren.spec.ts` picks the patrol in the start-screen picker, deploys, Fires Overwatch into round 1; `e2e-out/m10-dark-angels-the-vengeful-brethren-0*.png` |
+| Sim | `npm run sim -- --games 6 --seed 5`: 0 violations; default rotation does not field this patrol on that seed. `SIM_PATROL=da.cp.the-vengeful-brethren`, 6 games, seed 5: all finished (round 5), dark-angels 2 wins, 2 losses, 2 draws, 0 violations |
+| Known gaps | Procedural figures and borrowed weapon parts only (no GLBs yet); plasma incinerator and boltstorm gauntlet reuse existing sounds; AI stratagem scoring for the new stratagems is modelled on existing ones; rulings DAV-R01 to DAV-R16 in `docs/needs-rules-check.md` under "dark-angels build" |
+
 ### M10 blood-angels - Strike Force Marcellos (new faction, playable)
 | Item | State |
 |---|---|

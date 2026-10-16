@@ -43,6 +43,7 @@ import { canReroll, clampHitWoundModifier, clampStat, dieSucceeds, netModifier, 
 import type { RollSpec } from './dice'
 import { distance } from './geometry'
 import type { AttackContext, EffectRequest, RollModifierResult } from './hooks'
+import type { HookData } from './hooks-impl'
 import { leaderService } from './leaders'
 import { judgementOnUnitDestroyed } from './judgement'
 import type { AdvanceResult, DecisionHandler, EngineContext } from './modules'
@@ -752,8 +753,18 @@ function saveTarget(needed: number, ap: number, positive: number, negative: numb
   return Math.max(2, needed - ap - Math.min(1, positive) - negative)
 }
 
-function collectSaveMods(ctx: EngineContext, actx: AttackContext, roll: DiceRoll, dieIndex = 0) {
-  return ctx.services.hooks.collect(ctx, 'onSaveRoll', { attack: actx, roll: { purpose: 'save', roll, dieIndex, unmodified: roll.dice[dieIndex], rerolled: (roll.rerolled ?? []).includes(dieIndex) } })
+// E1 (Dark Angels, Bladeguard Shields): every onSaveRoll payload carries the kind of save being rolled (`data.saveKind`), so a gate
+// can restrict an effect to invulnerable saves. The pre-pass in saveSetup runs before the kind is chosen and passes none.
+export type SaveKind = 'armour' | 'invuln'
+
+// E1: the onSaveRoll payload. `saveKind` travels only in the untyped hook `data` record (read by code-hook gateEffect as
+// `data.saveKind`); AttackRollHookContext in the frozen hooks.ts contract is not edited. Absent in the saveSetup pre-pass.
+function saveRollPayload(actx: AttackContext, roll: DiceRoll, dieIndex: number, saveKind?: SaveKind): HookData<'onSaveRoll'> {
+  return { attack: actx, roll: { purpose: 'save', roll, dieIndex, unmodified: roll.dice[dieIndex], rerolled: (roll.rerolled ?? []).includes(dieIndex) }, saveKind } as HookData<'onSaveRoll'>
+}
+
+function collectSaveMods(ctx: EngineContext, actx: AttackContext, roll: DiceRoll, dieIndex = 0, saveKind?: SaveKind) {
+  return ctx.services.hooks.collect(ctx, 'onSaveRoll', saveRollPayload(actx, roll, dieIndex, saveKind))
     .map((r) => r.result).filter(isRoll)
 }
 
@@ -824,7 +835,7 @@ function saveSetup(ctx: EngineContext, group: AttackGroup, attackerModelId: Mode
 
 function evaluateSave(ctx: EngineContext, setup: SaveSetup, roll: DiceRoll, dieIndex: number): { unmodified: number; final: number; saved: boolean } {
   const unmodified = roll.dice[dieIndex]
-  const results = collectSaveMods(ctx, setup.actx, roll, dieIndex)
+  const results = collectSaveMods(ctx, setup.actx, roll, dieIndex, setup.kind)
   let positive = setup.kind === 'armour' && setup.cover ? 1 : 0
   let negative = 0
   for (const r of results) {
@@ -838,15 +849,57 @@ function evaluateSave(ctx: EngineContext, setup: SaveSetup, roll: DiceRoll, dieI
 }
 
 // ids of the sources (defender-side, e.g. Weaver of Fates) that let the defender re-roll one die of this save roll
-function saveOneDieSources(ctx: EngineContext, actx: AttackContext, roll: DiceRoll, dieIndex: number): string[] {
-  return ctx.services.hooks.collect(ctx, 'onSaveRoll', { attack: actx, roll: { purpose: 'save', roll, dieIndex, unmodified: roll.dice[dieIndex], rerolled: (roll.rerolled ?? []).includes(dieIndex) } })
-    .filter((r) => isRoll(r.result) && (r.result as { reroll?: string }).reroll === 'oneDie').map((r) => r.source.id)
+function saveRerollSources(ctx: EngineContext, actx: AttackContext, roll: DiceRoll, dieIndex: number, kind: 'oneDie' | 'ones', saveKind?: SaveKind): string[] {
+  return ctx.services.hooks.collect(ctx, 'onSaveRoll', saveRollPayload(actx, roll, dieIndex, saveKind))
+    .filter((r) => isRoll(r.result) && (r.result as { reroll?: string }).reroll === kind).map((r) => r.source.id)
+}
+
+function saveOneDieSources(ctx: EngineContext, actx: AttackContext, roll: DiceRoll, dieIndex: number, saveKind?: SaveKind): string[] {
+  return saveRerollSources(ctx, actx, roll, dieIndex, 'oneDie', saveKind)
+}
+
+// E1: ids of the defender-side sources whose onSaveRoll result re-rolls a save of 1 for this die (Bladeguard Shields of the Chapter)
+function saveOnesRerollSources(ctx: EngineContext, actx: AttackContext, roll: DiceRoll, dieIndex: number, saveKind: SaveKind): string[] {
+  return saveRerollSources(ctx, actx, roll, dieIndex, 'ones', saveKind)
+}
+
+// E1 (Bladeguard Shields of the Chapter): an automatic re-roll of every save of 1, applied BEFORE rollOnce opens the 'any.rollMade'
+// Command Re-roll window (as rollBatchD6 does for hit/wound and the damage roll does for Eldritch Might) — otherwise Command Re-roll
+// is offered for a die the free re-roll would replace anyway, and accepting it forfeits the free one (a die is re-rolled once).
+// Rolls the save under the `roll:<key>=` mark (behind miracleGate), re-rolls the 1s once per key, and leaves the roll in
+// phaseState.lastRoll for the caller's rollOnce. Returns 'pending' while a Miracle decision is open.
+function rollSaveWithOnesReroll(ctx: EngineContext, key: string, spec: RollSpec, defender: PlayerId, unitId: UnitId, actx: AttackContext, saveKind: SaveKind, batch: boolean): 'pending' | 'ok' {
+  const s = ctx.state
+  const prefix = `roll:${key}=`
+  if (!s.phaseState.marks.some((m) => m.startsWith(prefix))) {
+    const gate = miracleGate(ctx, key, spec, batch)
+    if (gate === 'pending') return 'pending'
+    const fresh = ctx.roll(gate ? { ...spec, substitute: gate } : spec)
+    s.phaseState.marks.push(prefix + fresh.id)
+  }
+  if (ctx.once(`onesSaveDone:${key}`)) {
+    const first = s.phaseState.lastRoll as DiceRoll
+    const ones: number[] = []
+    let src: string | null = null
+    for (let i = 0; i < first.dice.length; i++) {
+      if (!canReroll(first, i) || first.dice[i] !== 1) continue
+      const found = saveOnesRerollSources(ctx, actx, first, i, saveKind)
+      if (found.length === 0) continue
+      ones.push(i)
+      if (src === null) src = found[0]
+    }
+    if (ones.length > 0 && src !== null) {
+      ctx.emit({ type: 'AbilityTriggered', abilityId: src, sourceUnitId: unitId, targetUnitId: null, summary: `re-rolls ${ones.length} save${ones.length === 1 ? '' : 's'} of 1`, player: defender })
+      ctx.reroll(first, ones, 'save')
+    }
+  }
+  return 'ok'
 }
 
 // C2 + C4: once a save roll (and its Command Re-roll window) is final — first the defender's one-die re-roll of a failed save
 // (once per source per phase per player: phase mark `oneDie:<src>:save:<defender>`), then the roller's fix-a-die offer.
 // Re-entrant like rollBatchD6: 'pending' = a decision is open; otherwise the (possibly changed) roll.
-function saveRollOffers(ctx: EngineContext, key: string, roll: DiceRoll, defender: PlayerId, unitId: UnitId, actx: AttackContext, failed: (r: DiceRoll, i: number) => boolean, needed: number): DiceRoll | 'pending' {
+function saveRollOffers(ctx: EngineContext, key: string, roll: DiceRoll, defender: PlayerId, unitId: UnitId, actx: AttackContext, failed: (r: DiceRoll, i: number) => boolean, needed: number, saveKind: SaveKind): DiceRoll | 'pending' {
   const s = ctx.state
   if (!ctx.marked(`oneDieSaveDone:${key}`)) {
     ctx.once(`oneDieSaveDone:${key}`)
@@ -854,7 +907,7 @@ function saveRollOffers(ctx: EngineContext, key: string, roll: DiceRoll, defende
     let markSource: string | null = null
     for (let i = 0; i < roll.dice.length; i++) {
       if (!canReroll(roll, i) || !failed(roll, i)) continue
-      const src = saveOneDieSources(ctx, actx, roll, i).find((id) => !s.phaseState.marks.includes(`oneDie:${id}:save:${defender}`))
+      const src = saveOneDieSources(ctx, actx, roll, i, saveKind).find((id) => !s.phaseState.marks.includes(`oneDie:${id}:save:${defender}`))
       if (src === undefined) continue
       offer.push(i)
       if (markSource === null) markSource = src
@@ -908,9 +961,12 @@ function doSaveStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pendi
     dieIndex = cur.saveDie
   } else {
     // WEAP-008-dice/WEAP-011: per-slot key so a Sustained Hits extra hit's save never reuses the primary attack's roll
-    const r = ctx.rollOnce(`save:${gi}:${cur.slot ?? 0}`, { purpose: 'save', player: s.units[model.unitId].player, sides: 6, count: 1, mode: 'perDie', unitId: model.unitId, modelId, weaponId: weapon.id, targetUnitId: group.targetUnitId, commandRerollable: !(kind === 'invuln' && hasFragileInvuln(s, modelId)), needed: setup.targetRoll })
+    const saveKey = `save:${gi}:${cur.slot ?? 0}`
+    const saveSpec: RollSpec = { purpose: 'save', player: s.units[model.unitId].player, sides: 6, count: 1, mode: 'perDie', unitId: model.unitId, modelId, weaponId: weapon.id, targetUnitId: group.targetUnitId, commandRerollable: !(kind === 'invuln' && hasFragileInvuln(s, modelId)), needed: setup.targetRoll }
+    if (rollSaveWithOnesReroll(ctx, saveKey, saveSpec, s.units[model.unitId].player, model.unitId, actx, kind, false) === 'pending') return 'pending'
+    const r = ctx.rollOnce(saveKey, saveSpec)
     if (!r) return 'pending'
-    const offered = saveRollOffers(ctx, `save:${gi}:${cur.slot ?? 0}`, r, s.units[model.unitId].player, model.unitId, actx, (rl, i) => !evaluateSave(ctx, setup, rl, i).saved, setup.targetRoll)
+    const offered = saveRollOffers(ctx, saveKey, r, s.units[model.unitId].player, model.unitId, actx, (rl, i) => !evaluateSave(ctx, setup, rl, i).saved, setup.targetRoll, kind)
     if (offered === 'pending') return 'pending'
     roll = offered
   }
@@ -927,7 +983,7 @@ function doSaveStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pendi
 // defender cannot tell its candidate models apart — every (firing model, candidate model) pair needs the same d6 (after AP,
 // cover, invuln and modifiers) and the candidates share one Feel No Pain. Returns that shared target, or null = keep
 // per-attack rolls (Precision, impossible saves, or a mixed pool such as a Leader with a better save).
-function saveBatchTarget(ctx: EngineContext, lead: number): number | null {
+function saveBatchTarget(ctx: EngineContext, lead: number): { target: number; kind: SaveKind } | null {
   const s = ctx.state
   const a = attackSeq(ctx)
   const group = a.groups[lead]
@@ -941,6 +997,7 @@ function saveBatchTarget(ctx: EngineContext, lead: number): number | null {
   const attackers = [...new Set(b.queue.map((w) => w.attackerModelId))]
   let sig: string | null = null
   let target: number | null = null
+  let batchKind: SaveKind = 'armour'
   for (const id of eligible) {
     const model = s.models[id]
     if (!model) return null
@@ -949,11 +1006,11 @@ function saveBatchTarget(ctx: EngineContext, lead: number): number | null {
       const setup = saveSetup(ctx, group, attackerModelId, id, coverFor(ctx, group, attackerModelId, id))
       if (!setup || setup.impossible) return null
       const fnp = feelNoPainFor(ctx, model.id, setup.actx)
-      const key = `${setup.targetRoll}|${fnp ? `${fnp.threshold}/${fnp.modifier}` : 'none'}`
-      if (sig === null) { sig = key; target = setup.targetRoll } else if (sig !== key) return null
+      const key = `${setup.targetRoll}|${setup.kind}|${fnp ? `${fnp.threshold}/${fnp.modifier}` : 'none'}`
+      if (sig === null) { sig = key; target = setup.targetRoll; batchKind = setup.kind } else if (sig !== key) return null
     }
   }
-  return target
+  return target === null ? null : { target, kind: batchKind }
 }
 
 function doSaveBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
@@ -961,8 +1018,9 @@ function doSaveBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
   const a = attackSeq(ctx)
   const group = a.groups[lead]
   const b = group.batch as GroupBatch
-  const target = saveBatchTarget(ctx, lead)
-  if (target === null) { b.stage = 'apply'; return 'progress' }
+  const batch = saveBatchTarget(ctx, lead)
+  if (batch === null) { b.stage = 'apply'; return 'progress' }
+  const { target, kind: batchKind } = batch
   const player = s.units[group.targetUnitId].player
   const saveKey = `save:${lead}:b`
   const spec: RollSpec = {
@@ -971,19 +1029,14 @@ function doSaveBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
   }
   // AEL-2.3: a fast-rolled save batch is one Save roll per attack, so a Strands of Fate unit may spend up to N Fate dice on it
   // (miracleGate batch=true, as rollBatchD6 does); the gated roll is marked so rollOnce below does not gate again
-  const prefix = `roll:${saveKey}=`
-  if (!s.phaseState.marks.some((m) => m.startsWith(prefix))) {
-    const gate = miracleGate(ctx, saveKey, spec, true)
-    if (gate === 'pending') return 'pending'
-    const fresh = ctx.roll(gate ? { ...spec, substitute: gate } : spec)
-    s.phaseState.marks.push(prefix + fresh.id)
-  }
-  const rolled = ctx.rollOnce(saveKey, spec)
-  if (!rolled) return 'pending'
   const attackers = [...new Set(b.queue.map((w) => w.attackerModelId))]
   const batchActx = buildAttackContext(ctx, a.attackerUnitId, a.overwatch, a.kind, attackers[0], targetedWeapon(ctx, a, attackers[0], group), group.targetUnitId, null, false)
+  // E1 (Shields of the Chapter): the automatic re-roll of 1s happens before rollOnce opens the Command Re-roll window
+  if (rollSaveWithOnesReroll(ctx, saveKey, spec, player, group.targetUnitId, batchActx, batchKind, true) === 'pending') return 'pending'
+  const rolled = ctx.rollOnce(saveKey, spec)
+  if (!rolled) return 'pending'
   // a fast-rolled batch has one shared target number: a die fails when it is a 1 or below it
-  const roll = saveRollOffers(ctx, saveKey, rolled, player, group.targetUnitId, batchActx, (r, i) => r.dice[i] === 1 || r.dice[i] < target, target)
+  const roll = saveRollOffers(ctx, saveKey, rolled, player, group.targetUnitId, batchActx, (r, i) => r.dice[i] === 1 || r.dice[i] < target, target, batchKind)
   if (roll === 'pending') return 'pending'
   b.saveRoll = roll
   b.queue.forEach((slot, j) => { slot.saveDie = j })
@@ -1294,7 +1347,7 @@ function rollDeadlyDemise(ctx: EngineContext, model: Model, valueExpr: DiceExpr)
 
 // prefixes that only ever mean something WITHIN the one attack sequence that wrote them — stale entries left over
 // from an earlier, already-finished sequence in the same phase must never leak into a new one (SHOOT-046-dice)
-const SEQUENCE_SCOPED_MARK_PREFIXES = ['roll:', 'attackCountOffered:', 'miracle:', 'miracleAsk:', 'rerollOffered:', 'autoReroll:', 'oneDieDone:', 'oneDieSaveDone:', 'fixRoll:', 'precisionDeclined:','hazardous:', 'groupTouched:', 'mortalAlloc:', 'mortalBatchSeq:', 'blastCount:', 'pendingDetach:', 'bgntAttacker', 'bgntTarget:', 'indirectNoLos:', 'atk:owHitOn=']
+const SEQUENCE_SCOPED_MARK_PREFIXES = ['roll:', 'attackCountOffered:', 'miracle:', 'miracleAsk:', 'rerollOffered:', 'autoReroll:', 'oneDieDone:', 'oneDieSaveDone:', 'onesSaveDone:', 'fixRoll:', 'precisionDeclined:','hazardous:', 'groupTouched:', 'mortalAlloc:', 'mortalBatchSeq:', 'blastCount:', 'pendingDetach:', 'bgntAttacker', 'bgntTarget:', 'indirectNoLos:', 'atk:owHitOn=']
 
 
 // SDC E6: after the shooting.targetsDeclared window drains and before the first hit roll, drop each declared

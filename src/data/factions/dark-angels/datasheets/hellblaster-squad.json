@@ -1,0 +1,64 @@
+[
+  {
+    "id": "da.hellblaster-squad",
+    "faction": "dark-angels",
+    "name": "Hellblaster Squad",
+    "keywords": [
+      "INFANTRY",
+      "IMPERIUM",
+      "TACTICUS",
+      "HELLBLASTER SQUAD"
+    ],
+    "factionKeywords": [
+      "ADEPTUS ASTARTES",
+      "DARK ANGELS"
+    ],
+    "stats": {
+      "M": 6,
+      "T": 4,
+      "Sv": 3,
+      "W": 2,
+      "Ld": 6,
+      "OC": 1
+    },
+    "composition": [
+      {
+        "modelId": "hellblaster",
+        "name": "Hellblaster",
+        "min": 5,
+        "max": 5,
+        "default": 5,
+        "base": {
+          "shape": "round",
+          "mm": 32
+        },
+        "weapons": {
+          "default": [
+            "sm.w.bolt-pistol",
+            "da.w.plasma-incinerator",
+            "da.w.plasma-incinerator-supercharge",
+            "sm.w.close-combat-weapon"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "sm-tacticus"
+        }
+      }
+    ],
+    "abilities": [
+      "sm.a.oath-of-moment"
+    ],
+    "coreAbilities": [],
+    "points": [
+      {
+        "models": 5,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "infantry",
+      "kit": "sm-tacticus"
+    }
+  }
+]

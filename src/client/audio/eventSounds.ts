@@ -291,6 +291,9 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ['onslaught-gatling-cannon', 'wpn-assault-cannon'] as const,
   ['fragstorm-grenade-launcher', 'wpn-grenade-launcher'] as const,
   ['redemptor-fist', 'wpn-power-fist'] as const,
+  // Dark Angels (The Vengeful Brethren): Zacharial's boltstorm gauntlet chatters like a storm bolter; the Hellblasters' plasma incinerators thump like a plasma cannon.
+  ['boltstorm-gauntlet', 'wpn-storm-bolter'] as const,
+  ['plasma-incinerator', 'wpn-plasma-cannon'] as const,
 ].sort((a, b) => b[0].length - a[0].length)
 
 const WEAPON_TRIM: Partial<Record<SfxId, number>> = {

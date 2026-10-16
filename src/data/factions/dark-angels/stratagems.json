@@ -56,5 +56,136 @@
     "duration": "untilEndOfPhase",
     "limit": "oncePerPhase",
     "code": "relicMunitions"
+  },
+  {
+    "id": "da.s.vb-unyielding",
+    "faction": "dark-angels",
+    "name": "Unyielding",
+    "text": "Use in either Fight phase, just after an enemy unit selects its targets, when one of your ADEPTUS ASTARTES units is a target. Until the end of the phase, each time a model in that unit is destroyed before the unit has fought, roll a D6 (add 1 for a BLADEGUARD VETERAN SQUAD model): on a 4+ it stays, fights once the enemy unit finishes, then is removed.",
+    "cost": 1,
+    "category": "epicDeed",
+    "phases": [
+      "fight"
+    ],
+    "window": "fight.targetsDeclared",
+    "who": "either",
+    "condition": {
+      "phase": "fight"
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "ADEPTUS ASTARTES"
+        },
+        "state": "targetedByAttack",
+        "count": 1
+      }
+    ],
+    "scope": {
+      "who": "self"
+    },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase",
+    "code": "vbUnyielding",
+    "params": {
+      "threshold": 4,
+      "bonusKeyword": "BLADEGUARD VETERAN SQUAD"
+    }
+  },
+  {
+    "id": "da.s.vb-march-of-vengeance",
+    "faction": "dark-angels",
+    "name": "March of Vengeance",
+    "text": "Use in either player's Fight phase, at any time. Pick one ADEPTUS ASTARTES unit from your army. Until the end of the phase, its Consolidation moves may be up to 6 inches instead of up to 3 inches.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": [
+      "fight"
+    ],
+    "window": [
+      "fight.start",
+      "fight.attacksResolved",
+      "fight.beforeConsolidate"
+    ],
+    "who": "either",
+    "condition": {
+      "phase": "fight"
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "ADEPTUS ASTARTES"
+        },
+        "count": 1
+      }
+    ],
+    "scope": {
+      "who": "self"
+    },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase",
+    "code": "getStuckInDistance",
+    "params": {
+      "consolidate": 6,
+      "consolidateOnly": true
+    }
+  },
+  {
+    "id": "da.s.vb-relic-munitions",
+    "faction": "dark-angels",
+    "name": "Relic Munitions",
+    "text": "Use in your Shooting phase, between unit activations. Pick one ADEPTUS ASTARTES unit from your army that has not yet been selected to shoot. Until the end of the phase, ranged weapons carried by its models have [LETHAL HITS], except plasma incinerators.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": [
+      "shooting"
+    ],
+    "window": [
+      "shooting.start",
+      "shooting.attacksResolved"
+    ],
+    "who": "active",
+    "condition": {
+      "phase": "shooting",
+      "ownTurn": true
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "ADEPTUS ASTARTES"
+        },
+        "state": "notYetShot",
+        "count": 1
+      }
+    ],
+    "effect": {
+      "when": {
+        "weaponType": "ranged",
+        "not": {
+          "any": [
+            {
+              "weaponId": "da.w.plasma-incinerator"
+            },
+            {
+              "weaponId": "da.w.plasma-incinerator-supercharge"
+            }
+          ]
+        }
+      },
+      "grantWeaponAbility": {
+        "ability": "LETHAL_HITS"
+      }
+    },
+    "scope": {
+      "who": "self"
+    },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
   }
 ]

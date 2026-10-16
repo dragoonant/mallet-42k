@@ -19,7 +19,10 @@ import { riseUpAmount, willOfThePatriarchAmount, infiltrationAgendaAmount, safeg
 import { holdTheLineAmount, methodicalDestructionAmount, methodicalDestructionOffer } from './factions/astra-militarum'
 import { OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE, playerBattlefieldEdge, pointInPolygon, whollyWithinPolygon, withinObjectiveRange } from './geometry'
 import { consecratedGroundAmount, divineJudgementAmount, divineJudgementOffer, hallowedRetributionAmount } from './factions/adepta-sororitas'
-import { archeotechReliquaryAmount, archeotechReliquaryOffer, endlessHuntAmount } from './factions/dark-angels'
+import {
+  archeotechReliquaryAmount, archeotechReliquaryOffer, endlessHuntAmount, vbHuntersOfHereticsEndAmount, vbHuntersOfHereticsModelDestroyed,
+  vbTakeTheStrongholdAmount, vbTakeTheStrongholdOffer,
+} from './factions/dark-angels'
 import { pinpointPurgeAmount, reconnaissanceInForceAmount } from './factions/space-marines'
 import { ineffableAgendaAmount } from './factions/aeldari'
 import { contaminateGroundAmount, spreadTheBlightGain, spreadTheBlightSnapshot } from './factions/death-guard'
@@ -209,7 +212,7 @@ function rulesFor(s: GameState, pid: PlayerId): ScoringRule[] {
 }
 
 // ScoringRule-shaped "pick" instances (pointsPer 0): raise a decision instead of computing an amount
-const PICK_CODES = new Set(['stompEmPick', 'bagPick', 'treasuresOfAeonsPick', 'methodicalDestructionPick', 'etherealEdictPick', 'targetedPurgePick', 'divineJudgementPick', 'toilEarnsPick', 'holyApparatusPick', 'archeotechReliquaryPick'])
+const PICK_CODES = new Set(['stompEmPick', 'bagPick', 'treasuresOfAeonsPick', 'methodicalDestructionPick', 'etherealEdictPick', 'targetedPurgePick', 'divineJudgementPick', 'toilEarnsPick', 'holyApparatusPick', 'archeotechReliquaryPick', 'vbTakeTheStrongholdPick'])
 
 // ---------- generic ScoringRule.rule amounts ----------
 function tierPoints(tiers: Record<string, number>, die: number): number {
@@ -610,6 +613,9 @@ function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): num
     case 'mvaHolyApparatus': return mvaHolyApparatusAmount(s, rule, pid)
     case 'endlessHunt': return endlessHuntAmount(ctx, rule, pid, (id) => holds(ctx, id, pid))
     case 'archeotechReliquaryScore': return archeotechReliquaryAmount(s, rule, pid, (id) => holds(ctx, id, pid))
+    case 'vbHuntersOfHereticsEnd': return vbHuntersOfHereticsEndAmount(s, rule, pid)
+    case 'vbTakeTheStrongholdScore': return vbTakeTheStrongholdAmount(s, rule, pid, (id) => holds(ctx, id, pid))
+    case 'vbHuntersOfHeretics': return 0 // event-driven, scored in the model-destroyed fan-out
     case 'divineJudgementScore': return divineJudgementAmount(s, rule, pid)
     case 'riseUp': return riseUpAmount(ctx, rule, pid, (id) => holds(ctx, id, pid))
     case 'willOfThePatriarch': return willOfThePatriarchAmount(s, rule, pid)
@@ -755,6 +761,7 @@ function runPick(ctx: EngineContext, rule: ScoringRule, pid: PlayerId, key: stri
   else if (rule.code === 'toilEarnsPick') toilEarnsOffer(ctx, pid, rule.when, key)
   else if (rule.code === 'holyApparatusPick') holyApparatusOffer(ctx, pid, rule.when, key)
   else if (rule.code === 'archeotechReliquaryPick') archeotechReliquaryOffer(ctx, pid, rule.when, key)
+  else if (rule.code === 'vbTakeTheStrongholdPick') vbTakeTheStrongholdOffer(ctx, pid, rule.when, key)
 }
 
 // ---------- MissionRule (non-scoring) codes ----------
@@ -966,6 +973,7 @@ export const missionService: MissionService = {
   unitDestroyed: unitDestroyedHook,
   modelDestroyed(ctx, info) {
     championOfTitanModelDestroyed(ctx, info)
+    vbHuntersOfHereticsModelDestroyed(ctx, info)
     guardianOfTheRealmModelDestroyed(ctx, info)
     tgbConsecratedGroundModelDestroyed(ctx, info)
     bagTheBigUnModelDestroyed(ctx, info)

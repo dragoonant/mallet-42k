@@ -637,6 +637,26 @@ function scoreChooseOption(state: GameState, pending: PendingDecision, action: A
       score = 5 - Math.hypot(obj.pos.x - home.x, obj.pos.z - home.z) * 0.15
     }
   }
+  // Take the Stronghold (DAV-4.2): the opponent (us) names the marker the owner must hold; pick the one farthest from the owner's
+  // deployment zone, so it is the hardest for them to keep.
+  if (code === 'vbTakeTheStrongholdPick') {
+    const obj = state.objectives[action.optionId]
+    const owner = (pending.context.data as { owner?: PlayerId }).owner
+    if (obj && owner) {
+      const home = polyCentroid(deploymentZone(state, owner))
+      score = Math.hypot(obj.pos.x - home.x, obj.pos.z - home.z) * 0.1
+    }
+  }
+  // Bladeguard stance (DAV-6.3): Swords on our own turn (we are the one hitting), Shields on the opponent's turn; no stance only
+  // when no enemy is within 12" of the unit, since neither one then has anything to do this phase.
+  if (code === 'vbBladeguardPick') {
+    const unitId = pending.context.unitId
+    const near = unitId ? nearestEnemyUnit(state, pending.player, unitId) : null
+    const engaged = !!near && near.gap <= 12
+    const want = state.activePlayer === pending.player ? 'swords' : 'shields'
+    if (action.optionId === 'decline') score += engaged ? -3 : 3
+    else score += engaged ? (action.optionId === want ? 3 : 1) : -1
+  }
   // Holy Apparatus (LEA-4.2): 4 VP if the picked token-holder dies this round, so name the one we are most likely to kill (cheapest).
   if (code === 'holyApparatusPick' && hintUnitId) score = -unitValue(state, hintUnitId) * 0.03
   // Outflanking Mag-Riders: a free redeployment along a board edge. Take it when enemies are closing in and the unit is not holding a

@@ -42,5 +42,61 @@
         "scope": { "who": "self" }
       }
     ]
+  },
+  {
+    "id": "da.e.determined-combatant",
+    "faction": "dark-angels",
+    "name": "Determined Combatant",
+    "text": "While the bearer is within range of an objective marker, every weapon the bearer carries, ranged and melee, has [SUSTAINED HITS 1].",
+    "cost": 0,
+    "restriction": {
+      "keyword": [
+        "CAPTAIN"
+      ]
+    },
+    "effect": {
+      "id": "da.e.determined-combatant.effect",
+      "name": "Determined Combatant",
+      "text": "While the bearer is within range of an objective marker, its weapons have [SUSTAINED HITS 1].",
+      "trigger": "always",
+      "when": {
+        "unitOnObjective": true
+      },
+      "effect": {
+        "grantWeaponAbility": {
+          "ability": "SUSTAINED_HITS",
+          "value": 1
+        }
+      },
+      "scope": {
+        "who": "bearer"
+      }
+    }
+  },
+  {
+    "id": "da.e.wages-of-retribution",
+    "faction": "dark-angels",
+    "name": "Wages of Retribution",
+    "text": "Each time an ADEPTUS ASTARTES model from your army destroys your Oath of Moment target while the bearer is on the battlefield, roll one D6: on a 4+ you gain 1 CP.",
+    "cost": 0,
+    "restriction": {
+      "keyword": [
+        "CAPTAIN"
+      ]
+    },
+    "effect": {
+      "id": "da.e.wages-of-retribution.effect",
+      "name": "Wages of Retribution",
+      "text": "When your army destroys your Oath of Moment target and the bearer is on the battlefield, roll a D6: on a 4+ gain 1 CP.",
+      "trigger": "unitDestroyed",
+      "code": "vbWagesOfRetribution",
+      "scope": {
+        "who": "bearer"
+      },
+      "params": {
+        "threshold": 4,
+        "cp": 1
+      }
+    }
   }
 ]

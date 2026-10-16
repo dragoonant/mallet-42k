@@ -18,7 +18,7 @@ describe('dark-angels data', () => {
     expect(p.secondaries.find((s) => s.default)!.id).toBe('da.sec.endless-hunt')
     expect(p.stratagems).toEqual(['da.s.mj-unyielding', 'da.s.mj-march-of-vengeance', 'da.s.mj-relic-munitions'])
     const f = b.factions['dark-angels']
-    expect(f.combatPatrols).toEqual([PATROL])
+    expect(f.combatPatrols).toEqual([PATROL, 'da.cp.the-vengeful-brethren'])
     expect(f.factionKeyword).toBe('ADEPTUS ASTARTES')
     expect(f.armyRule).toBe('sm.a.oath-of-moment')
   })

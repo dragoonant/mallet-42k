@@ -13,8 +13,8 @@ const daSheets = Object.values(bundle.datasheets).filter((d) => d.faction === 'd
 
 describe('dark-angels client plumbing', () => {
   it('has datasheets in the bundle and a patrol the start screen can launch', () => {
-    expect(daSheets.length).toBe(4)
-    expect(Object.values(bundle.patrols).some((p) => p.faction === 'dark-angels')).toBe(true)
+    expect(daSheets.length).toBe(8)
+    expect(Object.values(bundle.patrols).filter((p) => p.faction === 'dark-angels').length).toBe(2)
   })
 
   it('every model resolves to a da-* biped kit with a config, not a generic fallback', () => {
@@ -30,8 +30,13 @@ describe('dark-angels client plumbing', () => {
 
   it('the unit types read differently from each other', () => {
     const kits = new Set(daSheets.flatMap((s) => s.composition.map((m) => resolveFigureKit(s.id, s, m.modelId).kit)))
-    expect(kits.size).toBe(5)
+    expect(kits.size).toBe(8)
     expect(BIPED_CONFIG['da-inceptor']!.jumpPack).toBe(true)
+    // The Vengeful Brethren: Zacharial, Hellblasters and Bladeguard each have their own look.
+    expect(BIPED_CONFIG['da-hellblaster']!.rightWeapon).toBe('plasma-cannon')
+    expect(BIPED_CONFIG['da-bladeguard']!.rightWeapon).toBe('power-sword')
+    expect(BIPED_CONFIG['da-zacharial']!.hasCape).toBe(true)
+    expect(resolveFigureKit('da.vb.intercessor-squad', undefined, 'intercessor').kit).toBe('da-intercessor')
   })
 
   it('figures use the faction paint scheme and fall back to procedural until a GLB is enabled', () => {

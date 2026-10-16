@@ -126,13 +126,18 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
   } else if (id.endsWith('daemonic-fervour') || id.endsWith('blood-maddened-banishment')) {
     if (!melee) return -Infinity
     return dyingStrikeValue(state, mineId, attackerId, true, 0.5)
+  } else if (id.endsWith('vb-unyielding')) {
+    // Dark Angels (The Vengeful Brethren): the same last stand on a 4+, a 3+ for Bladeguard; a lone model gains little
+    const guard = hasKeyword(state, mineId, 'BLADEGUARD VETERAN SQUAD')
+    if (!melee || (unitModels(state, mineId).length < 2 && !guard)) return -Infinity
+    return dyingStrikeValue(state, mineId, attackerId, true, guard ? 0.67 : 0.5)
   } else return -Infinity
   const g = savedValue(state, mineId, without, withIt)
   return g > 0 ? g : -Infinity
 }
 
 const DEFENSIVE = ['skeinwrought-physiology', 'go-to-ground', 'smokescreen', 'gene-wrought-resilience', 'tough-as-squig-hide', 'holy-radiance', 'hyper-reactive',
-  'mercurial-resilience', 'reactive-field-shroud', 'a-martyrs-death', 'a-warriors-death', 'daemonic-fervour', 'blood-maddened-banishment', 'manifest-hate', 'lurking-killers', 'lives-before-territory', 'quicksilver-reactions', 'whip-fast-reactions', 'evaluation-of-mettle', 'disgustingly-resilient', 'mutant-cunning', 'mj-relic-munitions', 'controlled-ferocity']
+  'mercurial-resilience', 'reactive-field-shroud', 'a-martyrs-death', 'a-warriors-death', 'daemonic-fervour', 'blood-maddened-banishment', 'vb-unyielding', 'manifest-hate', 'lurking-killers', 'lives-before-territory', 'quicksilver-reactions', 'whip-fast-reactions', 'evaluation-of-mettle', 'disgustingly-resilient', 'mutant-cunning', 'mj-relic-munitions', 'controlled-ferocity']
 
 // Fire Overwatch: hits only on an unmodified 6, the bound unit only (picked within 24"), each weapon within its own range, with line of sight.
 function overwatchGain(state: GameState, player: PlayerId, action: UseStratagemAction, enemyId: UnitId): number {
@@ -587,7 +592,7 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
   }
   // Get Stuck In: extends this unit's pile-in/consolidate to 6" — worth it when that extra reach can drag it
   // into a second fight or onto a valuable objective it couldn't reach with the normal 3".
-  if (id.endsWith('get-stuck-in')) {
+  if (id.endsWith('get-stuck-in') || id.endsWith('vb-march-of-vengeance')) {
     const unitId = targets.unitIds?.[0]
     if (!unitId || !hasAnyMeleeWeapon(state, unitId)) return -Infinity
     const center = centerOfUnit(state, unitId)
@@ -717,7 +722,7 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
   }
   // Leagues of Votann Pan-Spectral Sweep: Lethal Hits on a not-yet-shot unit's ranged weapons (a hit of 6 auto-wounds, about +1/6 of the
   // wounds on tough targets); pick the shooter that has the most to gain, i.e. the biggest volley at an enemy it can reach.
-  if (id.endsWith('pan-spectral-sweep')) {
+  if (id.endsWith('pan-spectral-sweep') || id.endsWith('vb-relic-munitions')) {
     const unitId = targets.unitIds?.[0]
     if (!unitId || state.phase !== 'shooting' || !hasAnyRangedWeapon(state, unitId)) return -Infinity
     let best = 0

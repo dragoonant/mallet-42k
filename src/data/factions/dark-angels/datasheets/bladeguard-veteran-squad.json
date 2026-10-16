@@ -1,0 +1,66 @@
+[
+  {
+    "id": "da.bladeguard-veteran-squad",
+    "faction": "dark-angels",
+    "name": "Bladeguard Veteran Squad",
+    "keywords": [
+      "INFANTRY",
+      "IMPERIUM",
+      "TACTICUS",
+      "BLADEGUARD VETERAN SQUAD"
+    ],
+    "factionKeywords": [
+      "ADEPTUS ASTARTES",
+      "DARK ANGELS"
+    ],
+    "stats": {
+      "M": 6,
+      "T": 4,
+      "Sv": 3,
+      "W": 3,
+      "Ld": 6,
+      "OC": 1
+    },
+    "invuln": 4,
+    "composition": [
+      {
+        "modelId": "bladeguard",
+        "name": "Bladeguard Veteran",
+        "min": 3,
+        "max": 3,
+        "default": 3,
+        "base": {
+          "shape": "round",
+          "mm": 40
+        },
+        "weapons": {
+          "default": [
+            "da.w.heavy-bolt-pistol",
+            "da.w.master-crafted-power-weapon"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "sm-tacticus"
+        }
+      }
+    ],
+    "abilities": [
+      "sm.a.oath-of-moment",
+      "da.a.vb-bladeguard",
+      "da.a.vb-swords-of-the-chapter",
+      "da.a.vb-shields-of-the-chapter"
+    ],
+    "coreAbilities": [],
+    "points": [
+      {
+        "models": 3,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "infantry",
+      "kit": "sm-tacticus"
+    }
+  }
+]

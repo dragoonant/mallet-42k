@@ -18,5 +18,148 @@
   { "id": "da.w.twin-fragstorm-grenade-launcher", "name": "Twin fragstorm grenade launcher", "type": "ranged", "range": 18, "A": "D6", "skill": 3, "S": 4, "AP": 0, "D": 1,
     "abilities": [ { "ability": "BLAST" }, { "ability": "TWIN_LINKED" } ], "figure": { "part": "sm.weapon.heavy-bolter" } },
   { "id": "da.w.redemptor-fist", "name": "Redemptor fist", "type": "melee", "range": 0, "A": 5, "skill": 3, "S": 12, "AP": -2, "D": 3,
-    "abilities": [], "figure": { "part": "sm.weapon.power-fist" } }
+    "abilities": [], "figure": { "part": "sm.weapon.power-fist" } },
+  {
+    "id": "da.w.boltstorm-gauntlet",
+    "name": "Boltstorm gauntlet",
+    "type": "ranged",
+    "range": 12,
+    "A": 3,
+    "skill": 2,
+    "S": 4,
+    "AP": -1,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "PISTOL"
+      }
+    ],
+    "figure": {
+      "part": "sm.weapon.storm-bolter",
+      "hands": 1
+    }
+  },
+  {
+    "id": "da.w.power-fist-zacharial",
+    "name": "Power fist",
+    "type": "melee",
+    "range": 0,
+    "A": 5,
+    "skill": 2,
+    "S": 8,
+    "AP": -2,
+    "D": 2,
+    "abilities": [],
+    "figure": {
+      "part": "sm.weapon.power-fist",
+      "hands": 1
+    }
+  },
+  {
+    "id": "da.w.relic-chainsword",
+    "name": "Relic chainsword",
+    "type": "melee",
+    "range": 0,
+    "A": 3,
+    "skill": 2,
+    "S": 4,
+    "AP": -1,
+    "D": 2,
+    "abilities": [
+      {
+        "ability": "EXTRA_ATTACKS"
+      }
+    ],
+    "figure": {
+      "part": "sm.weapon.power-sword",
+      "hands": 1
+    }
+  },
+  {
+    "id": "da.w.plasma-incinerator",
+    "name": "Plasma incinerator (standard)",
+    "type": "ranged",
+    "range": 24,
+    "A": 2,
+    "skill": 3,
+    "S": 7,
+    "AP": -2,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "ASSAULT"
+      },
+      {
+        "ability": "HEAVY"
+      }
+    ],
+    "profileGroup": "da.w.plasma-incinerator",
+    "figure": {
+      "part": "sm.weapon.boltgun",
+      "hands": 2
+    }
+  },
+  {
+    "id": "da.w.plasma-incinerator-supercharge",
+    "name": "Plasma incinerator (supercharge)",
+    "type": "ranged",
+    "range": 24,
+    "A": 2,
+    "skill": 3,
+    "S": 8,
+    "AP": -3,
+    "D": 2,
+    "abilities": [
+      {
+        "ability": "ASSAULT"
+      },
+      {
+        "ability": "HAZARDOUS"
+      },
+      {
+        "ability": "HEAVY"
+      }
+    ],
+    "profileGroup": "da.w.plasma-incinerator",
+    "figure": {
+      "part": "sm.weapon.boltgun",
+      "hands": 2
+    }
+  },
+  {
+    "id": "da.w.heavy-bolt-pistol",
+    "name": "Heavy bolt pistol",
+    "type": "ranged",
+    "range": 18,
+    "A": 1,
+    "skill": 3,
+    "S": 4,
+    "AP": -1,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "PISTOL"
+      }
+    ],
+    "figure": {
+      "part": "sm.weapon.bolt-pistol",
+      "hands": 1
+    }
+  },
+  {
+    "id": "da.w.master-crafted-power-weapon",
+    "name": "Master-crafted power weapon",
+    "type": "melee",
+    "range": 0,
+    "A": 4,
+    "skill": 3,
+    "S": 5,
+    "AP": -2,
+    "D": 2,
+    "abilities": [],
+    "figure": {
+      "part": "sm.weapon.power-sword",
+      "hands": 1
+    }
+  }
 ]

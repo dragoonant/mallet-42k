@@ -501,6 +501,20 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
     },
   },
   {
+    match: /vb-stronghold-pick/,
+    info: {
+      title: 'Take the Stronghold: name a marker for your foe',
+      hint: 'Your opponent is hunting an objective of your choosing. Pick one objective marker that is not in your own deployment zone. At the end of each of their turns they score 5 VP if they control it, so name the marker they will find hardest to hold.',
+    },
+  },
+  {
+    match: /vb-bladeguard/,
+    info: {
+      title: 'Bladeguard stance',
+      hint: 'Pick one stance for this Bladeguard Veteran Squad until the end of the Fight phase. Swords: its melee attacks re-roll Hit rolls of 1. Shields: each invulnerable save made for it re-rolls a 1 (armour saves are never re-rolled). Or stand with neither.',
+    },
+  },
+  {
     match: /toil-earns-pick/,
     info: {
       title: 'Toil Earns: choose your objective',
@@ -627,7 +641,7 @@ function chooseOptionInfoFor(
   }
   const choice = context.data && typeof context.data.choice === 'string' ? CHOICE_PROMPT_KEYS[context.data.choice] : undefined
   // Both Cult Ambush steps (marker, return) carry the code; the return step has no ability id.
-  const key = context.data?.code === 'toilEarnsPick' ? 'toil-earns-pick' : context.data?.code === 'archeotechReliquaryPick' ? 'archeotech-reliquary' : context.data?.code === 'holyApparatusPick' ? 'holy-apparatus-pick' : context.data?.code === 'cultAmbush' ? 'cult-ambush' : context.data?.code === 'etherealEdictPick' ? 'ethereal-edict' : context.data?.code === 'divineJudgementPick' ? 'divine-judgement' : context.data?.code === 'targetedPurgePick' ? 'targeted-purge' : context.data?.code === 'doctrinaImperatives' ? 'doctrina' : context.data?.code === 'blessingsOfKhorne' ? 'blessings-of-khorne' : context.data?.code === 'lineBreakers' ? 'line-breakers' : context.data?.code === 'tirelessHunter' ? 'tireless-hunter' : context.abilityId ?? choice ?? null
+  const key = context.data?.code === 'toilEarnsPick' ? 'toil-earns-pick' : context.data?.code === 'vbTakeTheStrongholdPick' ? 'vb-stronghold-pick' : context.data?.code === 'vbBladeguardPick' ? 'vb-bladeguard-pick' : context.data?.code === 'archeotechReliquaryPick' ? 'archeotech-reliquary' : context.data?.code === 'holyApparatusPick' ? 'holy-apparatus-pick' : context.data?.code === 'cultAmbush' ? 'cult-ambush' : context.data?.code === 'etherealEdictPick' ? 'ethereal-edict' : context.data?.code === 'divineJudgementPick' ? 'divine-judgement' : context.data?.code === 'targetedPurgePick' ? 'targeted-purge' : context.data?.code === 'doctrinaImperatives' ? 'doctrina' : context.data?.code === 'blessingsOfKhorne' ? 'blessings-of-khorne' : context.data?.code === 'lineBreakers' ? 'line-breakers' : context.data?.code === 'tirelessHunter' ? 'tireless-hunter' : context.abilityId ?? choice ?? null
   if (choice === 'patrol-squads' && Array.isArray(context.data?.sizes)) {
     const sizes = (context.data.sizes as number[]).filter((n) => typeof n === 'number')
     if (sizes.length > 0) {

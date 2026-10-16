@@ -197,12 +197,12 @@ function collectSaveMods(ctx: EngineContext, actx: AttackContext, roll: DiceRoll
 function saveOneDieSources(ctx: EngineContext, actx: AttackContext, roll: DiceRoll, dieIndex: number, saveKind?: SaveKind): string[]
 // NEW: ids of defender-side sources whose onSaveRoll result is { reroll: 'ones' } for this die (gates see data.saveKind)
 function saveOnesRerollSources(ctx: EngineContext, actx: AttackContext, roll: DiceRoll, dieIndex: number, saveKind: SaveKind): string[]
-// saveRollOffers gains the save kind; BEFORE the oneDie offer it auto re-rolls (ctx.reroll(roll, [i], 'save')) every die i
-// with canReroll(roll, i) && roll.dice[i] === 1 && saveOnesRerollSources(ctx, actx, roll, i, saveKind).length > 0,
-// once per key (mark `onesSaveDone:<key>`), emitting AbilityTriggered for the first source; the oneDie / Command
-// Re-roll offers then see the re-rolled die as already re-rolled (canReroll false).
-function saveRollOffers(ctx: EngineContext, key: string, roll: DiceRoll, defender: PlayerId, unitId: UnitId, actx: AttackContext,
-  failed: (r: DiceRoll, i: number) => boolean, needed: number, saveKind: SaveKind): DiceRoll | 'pending'
+// NEW (as built): rollSaveWithOnesReroll — rolls the save under the `roll:<key>=` mark (behind miracleGate), then auto re-rolls
+// (ctx.reroll(roll, ones, 'save')) every die i with canReroll && roll.dice[i] === 1 && saveOnesRerollSources(...).length > 0,
+// once per key (mark `onesSaveDone:<key>`), emitting AbilityTriggered for the first source. doSaveStage and doSaveBatch call it
+// BEFORE ctx.rollOnce, so the 'any.rollMade' Command Re-roll window only ever sees the final dice and a re-rolled die is
+// never offered a Command Re-roll (same pattern as rollBatchD6 / the damage roll). saveRollOffers keeps the oneDie / fix offers.
+// The saveKind travels ONLY in the untyped hook `data` record (saveRollPayload); hooks.ts is not edited.
 ```
 - `doSaveStage` passes `setup.kind`. `doSaveBatch` passes the kind `saveSetup` gives the first candidate model of the
   batch (a batch shares one target number, so all its saves are the same kind; if `saveBatchTarget` already refuses
