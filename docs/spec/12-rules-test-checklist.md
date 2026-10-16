@@ -983,3 +983,42 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | DZE-025 | C2 | patrol `armyRule` override: Dark Zealots registers and shows `csm.a.dark-pacts-dz`; patrols without the field keep the faction `armyRule` |
 | DZE-026 | data | data validates: every new datasheet/weapon/ability/stratagem/enhancement id resolves; no existing `csm.` record changed; `faction.json` lists both patrols |
 | DZE-027 | e2e | start screen: pick Chaos Space Marines → patrol picker → Dark Zealots → game starts with Ghallaron's unit attached to Legionaries and the Helbrute on the board |
+
+## CLA — Genestealer Cults: Claw of Ascension (docs/spec/factions/genestealer-cults--claw-of-ascension.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| CLA-001 | CLA-1 | patrol `gsc.cp.claw-of-ascension` loads: 5 units, 17 models; Shanus is WARLORD with Priority Kill Order, attached to `jackals`; default secondary Infiltration Agenda; `faction.json` lists both patrols; Hand of the Magus still loads unchanged |
+| CLA-002 | CLA-1 | wargear as built: Metamorph mutant has no ranged weapon; 3 flamers have hand flamer; Wolfquad has mining laser and 4 W, other Jackals 2 W |
+| CLA-003 | CLA-2.1 | Metamorphs destroyed in round 2 with D6 = 4 → total 5 → pool + marker decision; D6 = 3 → lost |
+| CLA-004 | CLA-2.1 | Metamorphs destroyed in round 3 with D6 = 4 → lost (no bonus); D6 = 5 → pool |
+| CLA-005 | CLA-2.1 | Atalan Jackals, Shanus and the Ridgerunner destroyed → no Cult Ambush roll |
+| CLA-006 | CLA-2.3 | return: a placement with a model 3.2" beyond the marker edge is rejected; all models wholly within 3", one touching, all >9" from enemies → accepted |
+| CLA-007 | CLA-2.3 | marker 1" from a board edge: offered placements stay on the board and inside the 3" region |
+| CLA-008 | CLA-2.4 | returned Metamorphs are a new unit at 5 models, full wounds; `oneShotUsed` empty on every model (resetOneShot) |
+| CLA-009 | CLA-2.5 | Metamorphs destroyed in round 1 during the GSC player's own first turn (going first) → pool + marker, but no return offered in the opponent's round-1 Movement phase; offered in round 2 |
+| CLA-010 | CLA-2.5 | Claw pool unit still waiting when the second player's round-3 reinforcements end → `UnitLostInReserves`, counted once more as destroyed, no Cult Ambush re-roll, pool empty |
+| CLA-011 | CLA-2.5 | Metamorphs destroyed in round 4 → roll made; on success no marker decision, never returns, never counted |
+| CLA-012 | CLA-2 | regression: Hand of the Magus Neophytes still +3 BATTLELINE / 4+, keep One Shot state, no round-1 restriction change (GEN-002, GEN-015 unchanged) |
+| CLA-013 | CLA-3.1 | Priority Kill Order: start of own Shooting phase → decision lists only enemies visible to Shanus; a missed Ridgerunner hit roll vs the picked unit is re-rolled; a successful one may be re-rolled by choice; vs another unit no re-roll; gone at phase end |
+| CLA-014 | CLA-3.1 | Priority Kill Order: not offered in the opponent's Shooting phase; no option for an enemy hidden from Shanus's model |
+| CLA-015 | CLA-3.2 | Master of Suppression: after Shanus's unit shoots, picks only among units it hit; that unit's attacks −1 to hit in its own next turn and in Overwatch during the GSC player's next Movement phase; gone at the start of the GSC player's next Shooting phase |
+| CLA-016 | CLA-3.2 | Master of Suppression stacked with Stealth on the target of the suppressed unit's attacks → still −1 (cap) |
+| CLA-017 | CLA-4.1 | Infiltration Agenda: end of own turn with a non-shocked Metamorph model's base overlapping the enemy zone → +4; two units in → still 4; Battle-shocked only → 0; end of opponent's turn → 0 |
+| CLA-018 | CLA-4.2 | Safeguard the Sanctuary: cp-01 GSC as player A controls `south` at battle end → +10; controls `north` only → 0 |
+| CLA-019 | CLA-4.2 | Safeguard the Sanctuary on cp-04 (triangle zone): closest marker to the west edge (`site-a`) is the one that scores |
+| CLA-020 | CLA-5.1 | Metamorphic Spasm: enemy picks Metamorphs in the Fight phase → offered; a model destroyed before the unit fought rolls 4+ → stays, fights after the enemy finishes, then removed; roll 3 → removed at once |
+| CLA-021 | CLA-5.1 | Metamorphic Spasm not offered for Jackals or the Ridgerunner |
+| CLA-022 | CLA-5.2 | Point-Blank Ambush: Jackals' small-arms critical hits vs a unit 10" away auto-wound; vs a unit 14" away they do not; usable in either player's Fight phase on a unit that has not fought |
+| CLA-023 | CLA-5.2 | Point-Blank Ambush not offered for a unit that already shot this phase, nor in the opponent's Shooting phase |
+| CLA-024 | CLA-5.3 | Swarm the Oppressors: start of own Charge phase, enemy X picked; a charge declaring X (alone or with others) gets +1 to the roll; a charge not including X gets none; gone after the phase |
+| CLA-025 | CLA-6.1 | Master Outrider: after Shanus+Jackals shoot, out of Engagement Range → may move up to 6" (Normal move, must end outside ER); afterwards no charge declaration offered that turn; declining keeps charging legal |
+| CLA-026 | CLA-6.1 | Master Outrider not offered when the unit is within Engagement Range after shooting, nor in the opponent's turn (Overwatch) |
+| CLA-027 | CLA-6.2 | Crossfire: after the Ridgerunner hits enemy X, X gets −1 AP improvement vs GSC attacks for the rest of the turn (Metamorph strike AP −1 resolves at −2 in the Fight phase); Shanus's ranged attacks vs X later that phase also improved; effect gone at end of turn |
+| CLA-028 | CLA-6.2 | Crossfire: no decision when the Ridgerunner hit nothing; a unit already Crossfire-marked this turn is not offered again |
+| CLA-029 | CLA-6.3 | Scouts: Shanus+Jackals and the Ridgerunner may Scout 9", Metamorphs 6"; Deep Strike offered to no unit |
+| CLA-030 | CLA-6.4 | Metamorphs FNP 5+: each lost wound rolls; Jackals have no FNP |
+| CLA-031 | CLA-6.5 | Stealth: ranged attacks vs Shanus+Jackals −1 to hit; melee unchanged |
+| CLA-032 | CLA-6.6 | Ridgerunner destroyed → Deadly Demise 1 on a 6 (1 mortal wound to each unit within 6") |
+| CLA-033 | CLA-6.7 | cult sniper rifle: Precision lets the hit go to an attached enemy CHARACTER; Heavy +1 to hit when stationary |
+| CLA-034 | CLA-6.8 | weapons: hand flamer D6 auto-hits ignoring cover and usable in Engagement Range; twin heavy stubber re-rolls failed wound rolls and fires 6 shots within 18"; mining laser D6+1 damage |
+| CLA-035 | CLA-6.9 | Metamorph mutations: each model fights with exactly one profile (strike 3 A or sweep 5 A), never both |
