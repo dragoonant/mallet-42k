@@ -180,7 +180,7 @@ const simulacrumImperialis: EngineCodeHook = {
       if (obj.removed || !controlsNow(ctx, obj.id, player)) continue
       if (!rangeModels.some((m) => withinObjectiveRange(m, obj, 0, range, radius))) continue
       const total = ctx.rollExpr('D6', { purpose: 'ability', player, unitId: holder.id, commandRerollable: false }).total
-      ctx.emit({ type: 'AbilityTriggered', abilityId: entry.source.id, sourceUnitId: holder.id, targetUnitId: holder.id, summary: `Simulacrum Imperialis: rolled ${total} at ${obj.id}`, player })
+      ctx.emit({ type: 'AbilityTriggered', abilityId: entry.source.id, sourceUnitId: holder.id, targetUnitId: holder.id, summary: `${(entry.params.label as string | undefined) ?? 'Simulacrum Imperialis'}: rolled ${total} at ${obj.id}`, player })
       if (total >= threshold) gainMiracleDie(ctx, player, entry.source.id, total)
     }
   },

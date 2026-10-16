@@ -152,6 +152,12 @@ const GALLERY_ENTRIES: GalleryEntry[] = [
   { datasheetId: 'csm.havocs', modelId: 'missile-launcher', faction: 'chaos-space-marines', label: "Havoc (missile launcher)" },
   { datasheetId: 'csm.havocs', modelId: 'reaper-chaincannon', faction: 'chaos-space-marines', label: "Havoc (reaper chaincannon)" },
   { datasheetId: 'csm.helbrute', modelId: 'helbrute', faction: 'chaos-space-marines', label: "Helbrute" },
+  { datasheetId: 'ael.farseer-iraneth', modelId: 'farseer', faction: 'aeldari', label: 'Farseer Iraneth' },
+  { datasheetId: 'ael.guardian-defenders', modelId: 'guardian-defender', faction: 'aeldari', label: 'Guardian Defender' },
+  { datasheetId: 'ael.guardian-defenders', modelId: 'heavy-weapon-platform', faction: 'aeldari', label: 'Heavy Weapon Platform' },
+  { datasheetId: 'ael.windriders', modelId: 'windrider-catapult', faction: 'aeldari', label: 'Windrider (catapults)' },
+  { datasheetId: 'ael.windriders', modelId: 'windrider-scatter', faction: 'aeldari', label: 'Windrider (scatter laser)' },
+  { datasheetId: 'ael.wraithlord', modelId: 'wraithlord', faction: 'aeldari', label: 'Wraithlord' },
 ]
 
 // Figures are true tabletop-miniature scale (~1-2 world-inches tall — see resolveBase), so packing

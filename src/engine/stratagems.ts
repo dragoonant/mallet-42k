@@ -91,7 +91,8 @@ function commandRerollStratagem(state: GameState): RuntimeStratagem | null {
 }
 
 // Pouncing Leap (Tyranids): an ability with code stratagemCostOverride on a target unit changes the cost of one named
-// stratagem and may waive its per-phase / per-turn limits (docs/spec/factions/tyranids.md 7.1 item 9)
+// stratagem and may waive its per-phase / per-turn limits (docs/spec/factions/tyranids.md 7.1 item 9). Foresight
+// (Aeldari enhancement, docs/spec/factions/aeldari.md E3) is the same override sourced from an enhancement's bearer.
 function costOverridesFor(state: GameState, player: PlayerId, s: RuntimeStratagem, targetUnitIds: UnitId[]): { cost: number; ignoreLimit: boolean }[] {
   const out: { cost: number; ignoreLimit: boolean }[] = []
   for (const id of targetUnitIds) {
@@ -103,6 +104,12 @@ function costOverridesFor(state: GameState, player: PlayerId, s: RuntimeStratage
       for (const aid of ds.abilities) {
         const a = state.abilities[aid]
         if (a?.code !== 'stratagemCostOverride' || a.params?.stratagemId !== s.id) continue
+        out.push({ cost: Number(a.params.cost ?? s.cost), ignoreLimit: a.params.ignoreLimit === true })
+      }
+      // enhancement-sourced override (Aeldari Foresight): applies while the live bearer model is in this unit or its attached half
+      for (const a of Object.values(state.abilities)) {
+        if (a.source !== 'enhancement' || a.code !== 'stratagemCostOverride' || a.params?.stratagemId !== s.id || !a.bearerModelId) continue
+        if (!state.units[half]?.models.includes(a.bearerModelId)) continue
         out.push({ cost: Number(a.params.cost ?? s.cost), ignoreLimit: a.params.ignoreLimit === true })
       }
     }

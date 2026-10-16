@@ -48,7 +48,7 @@ export function weaponFlavour(weaponId: string, weapon: WeaponData | undefined, 
     // Tyranid claws, talons and teeth rend and slash, so they voice as the cutting sound; only a klaw/fist
     // (or a plain crushing profile) is the heavy crunch.
     if (/fist|klaw|hammer|maul|mace|crush|limbs|mutation|sentinel(?![- ]blade)|mining|improvised|gauntlet|dozer|armoured hull|armoured-hull|armoured tracks|tracks/.test(text)) return 'crush'
-    if (/choppa|chain|sword|blade|axe|knife|claw|talon|teeth|jaws|snappa|stikka|maw|hyperphase|mandible|flail|whip/.test(text)) return 'chain'
+    if (/choppa|chain|sword|blade|axe|knife|claw|talon|teeth|jaws|snappa|stikka|maw|hyperphase|mandible|flail|whip|glaive|spear|lance/.test(text)) return 'chain'
     return strength >= 8 ? 'crush' : 'chain'
   }
 
@@ -61,12 +61,12 @@ export function weaponFlavour(weaponId: string, weapon: WeaponData | undefined, 
   if (/splinter/.test(text)) return 'shoota'
   // BLAST marks the explosive/ordnance profiles; the keywords catch the rest of the big guns, and
   // S7+ catches a heavy profile whose name says nothing (nothing in the current bundle needs it).
-  if (hasAbility(weapon, 'BLAST') || /cannon|kannon|rokkit|rocket|missile|thump|mega|lascannon|plasma|blasta|blaster|tachyon|heavy bolter|heavy-bolter|dark.lance|launcher|field-gun|field gun|howitzer|hunter-killer|bombast|malleus|raker|mining.laser/.test(text)) return 'heavy'
+  if (hasAbility(weapon, 'BLAST') || /cannon|kannon|rokkit|rocket|missile|thump|mega|lascannon|plasma|blasta|blaster|tachyon|heavy bolter|heavy-bolter|dark.lance|launcher|field-gun|field gun|howitzer|hunter-killer|bombast|malleus|raker|mining.laser|starcannon|bright lance|bright-lance/.test(text)) return 'heavy'
   // Guard small arms (lasgun, laspistol, autogun) fall through to 'bolter': a rifle crack with a warm orange tracer.
   if (/bolt/.test(text)) return 'bolter'
   // Cultist autoguns are cheap rattling cracks, not bolter thumps. Spat or flung biomass (fleshborers, spore-guns)
   // is a rapid wet spray too; the Tyranid faction fallback does the same for any other plain gun.
-  if (/shoota|slugga|dakka|stikk|autopistol|borer|spine|spore|burst cannon|burst-cannon/.test(text) || (/autogun/.test(text) && faction !== 'astra-militarum') || faction === 'orks' || faction === 'ork' || faction === 'tyranids' || faction === 'genestealer-cults') return 'shoota'
+  if (/shoota|slugga|dakka|stikk|autopistol|borer|spine|spore|burst cannon|burst-cannon|shuriken|scatter.laser/.test(text) || (/autogun/.test(text) && faction !== 'astra-militarum') || faction === 'orks' || faction === 'ork' || faction === 'tyranids' || faction === 'genestealer-cults') return 'shoota'
   if (faction === 'necrons' || faction === 'tau-empire') return 'psychic'
   return 'bolter'
 }
@@ -92,7 +92,7 @@ export interface VfxClassification {
 /** Engine faction ids by the prefix of a weapon id ('ork.w.shoota'), for weapons classified with no faction given. */
 const ID_PREFIX_FACTION: [string, string][] = [
   ['ork.', 'ork'], ['nec', 'necrons'], ['tyr', 'tyranids'], ['gsc.', 'genestealer-cults'], ['tau.', 'tau-empire'],
-  ['am.', 'astra-militarum'], ['lov.', 'leagues-of-votann'], ['gk.', 'grey-knights'], ['csm', 'chaos-space-marines'], ['ade', 'adepta-sororitas'], ['cus.', 'adeptus-custodes'], ['drk.', 'drukhari'],
+  ['am.', 'astra-militarum'], ['lov.', 'leagues-of-votann'], ['gk.', 'grey-knights'], ['csm', 'chaos-space-marines'], ['ade', 'adepta-sororitas'], ['cus.', 'adeptus-custodes'], ['drk.', 'drukhari'], ['ael.', 'aeldari'],
 ]
 
 export function classifyVfxFamily(weaponId: string, weapon: WeaponData | undefined, faction: string): VfxClassification {
@@ -110,11 +110,13 @@ export function classifyVfxFamily(weaponId: string, weapon: WeaponData | undefin
   if (/splinter/.test(text)) return kw('dakka')
   if (/dark.?lance/.test(text)) return kw('lascannon')
   if (/disintegrator/.test(text)) return kw('pulse')
-  if (/pulse|ion.?raker|railgun|rail.?rifle|burst.?cannon|markerlight|\bion.?blaster|magna.?rail|volkanite/.test(text)) return kw('pulse')
+  if (/pulse|ion.?raker|railgun|rail.?rifle|burst.?cannon|markerlight|\bion.?blaster|magna.?rail|volkanite|shuriken/.test(text)) return kw('pulse')
   if (/grenade|krak|frag|demolition|charge cache|satchel/.test(text)) return kw('grenade')
   if (/rokkit|rocket|missile|thump|hunter.?killer|bombast|field.?gun|howitzer|launcher|mortar|malleus|kannon/.test(text)) return kw('missile')
+  if (/bright.?lance/.test(text)) return kw('lascannon')
+  if (/scatter.?laser/.test(text)) return kw('las')
   if (/lascannon|las.?cannon|laser|beam/.test(text)) return kw('lascannon')
-  if (/plasma|blaster|blasta|supercharge/.test(text)) return kw(fac === 'ork' || fac === 'orks' ? 'dakka' : 'plasma')
+  if (/plasma|blaster|blasta|supercharge|starcannon/.test(text)) return kw(fac === 'ork' || fac === 'orks' ? 'dakka' : 'plasma')
   if (/shoota|slugga|dakka|stikk|big.?shoota|kopta|saddlegit/.test(text)) return kw('dakka')
   if (/autocannon|assault cannon|assault-cannon|hylas|auto.?rifle|heavy.?bolter|heavy.?stubber|stubber|seismic|cannon/.test(text)) return kw('autocannon')
   if (/lasgun|laspistol|lascarbine|las.?pistol/.test(text)) return kw('las')
@@ -127,6 +129,7 @@ export function classifyVfxFamily(weaponId: string, weapon: WeaponData | undefin
     case 'astra-militarum': return { family: 'las', via: 'faction' }
     case 'grey-knights': return { family: 'psychic', via: 'faction' }
     case 'drukhari': return { family: 'dakka', via: 'faction' }
+    case 'aeldari': return { family: 'pulse', via: 'faction' }
     default: return { family: 'bolt', via: 'default' }
   }
 }

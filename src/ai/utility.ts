@@ -592,6 +592,14 @@ function scoreChooseOption(state: GameState, pending: PendingDecision, action: A
       score += 3 - (Number.isFinite(best) ? best * 0.1 : 0)
     } else if (action.optionId === 'decline') score -= 2
   }
+  // Aeldari Strands of Fate: re-roll the whole opening set (one die fewer) only while the expected count of 5-6s in the smaller
+  // set ((n-1)/3) beats the count already showing; dice that are 5 or 6 are the useful ones for hit, wound and save substitutions.
+  if (code === 'strandsOfFate') {
+    const draft = ((pending.context.data as { draft?: number[] }).draft ?? [])
+    const high = draft.filter((d) => d >= 5).length
+    const rerollWins = draft.length > 1 && (draft.length - 1) / 3 > high
+    score += (action.optionId === 'reroll') === rerollWins ? 3 : 0
+  }
   // Transport embark offer (spec 7.1 E1): stay on the battlefield unless the unit is below half strength
   const embarkData = pending.context.data as { kind?: string } | undefined
   if (topic === 'other' && embarkData?.kind === 'embark') {

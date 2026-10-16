@@ -20,6 +20,7 @@ const SOURCE_HUES: Record<string, { major: string | null; minor: string | null }
   'adeptus-custodes': { major: '#d9a521', minor: '#a3171d' },
   'genestealer-cults': { major: '#c79a2e', minor: '#5d3a8c' },
   drukhari: { major: null, minor: '#3fae9a' },
+  aeldari: { major: '#ece4cf', minor: '#1f6f78' },
 }
 
 function hsv(hex: string): [number, number, number] {

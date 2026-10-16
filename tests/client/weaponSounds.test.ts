@@ -30,7 +30,7 @@ const LOV = 'leagues-of-votann'
 const DRK = 'drukhari'
 
 /** The engine faction id a weapon's own id prefix belongs to. */
-const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : id.startsWith('lov.') ? LOV : id.startsWith('drk.') ? DRK : SM)
+const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : id.startsWith('lov.') ? LOV : id.startsWith('drk.') ? DRK : id.startsWith('ael.') ? 'aeldari' : SM)
 
 function lookupFor(faction: string): SoundLookup {
   return { weapon: (id) => bundle.weapons[id], factionOfUnit: () => faction }
@@ -275,6 +275,21 @@ const EXPECTED: Record<string, WeaponFlavour> = {
   'lov.w.heavy-plasma-axe-strike-mole': 'chain',
   'lov.w.heavy-plasma-axe-sweep-mole': 'chain',
   'lov.w.twin-concussion-gauntlet': 'crush',
+  'ael.w.eldritch-storm': 'psychic',
+  'ael.w.shuriken-pistol': 'shoota',
+  'ael.w.singing-spear-ranged': 'psychic',
+  'ael.w.singing-spear': 'force',
+  'ael.w.shuriken-catapult': 'shoota',
+  'ael.w.starcannon': 'heavy',
+  'ael.w.close-combat-weapon-guardian': 'chain',
+  'ael.w.scatter-laser': 'shoota',
+  'ael.w.twin-shuriken-catapult': 'shoota',
+  'ael.w.close-combat-weapon-windrider': 'chain',
+  'ael.w.bright-lance': 'heavy',
+  'ael.w.shuriken-catapult-wraithlord-1': 'shoota',
+  'ael.w.shuriken-catapult-wraithlord-2': 'shoota',
+  'ael.w.ghostglaive-strike': 'chain',
+  'ael.w.ghostglaive-sweep': 'chain',
 }
 
 // Adepta Sororitas weapons, by datasheet NAME (lower-cased) so the check holds whatever id spelling the data uses.

@@ -130,6 +130,12 @@ export type KitId =
   | 'drk-klaivex'
   | 'drk-raider'
   | 'drk-ravager'
+  | 'ael-guardian'
+  | 'ael-farseer'
+  | 'ael-wraithlord'
+  | 'ael-windrider-catapult'
+  | 'ael-windrider-scatter'
+  | 'ael-platform'
   | 'generic-infantry'
   | 'generic-heavy'
   | 'generic-monster'
@@ -152,6 +158,7 @@ export type HeadShape = 'marine-helmet' | 'terminator-helmet' | 'ork-head' | 'or
   | 'kabal-helm' | 'archon-crown' | 'incubus-helm'
   | 'guard-helmet' | 'officer-cap' | 'sentinel-cab' | 'tau-helmet' | 'tau-ethereal' | 'custodes-helm'
   | 'kin-helm' | 'kin-helm-crest'
+  | 'aeldari-helm' | 'aeldari-farseer' | 'wraith-head'
 export type WeaponShape =
   | 'none'
   | 'bolt-rifle'
@@ -198,6 +205,9 @@ export type WeaponShape =
   | 'shredder'
   | 'huskblade'
   | 'klaive'
+  | 'shuriken-catapult'
+  | 'singing-spear'
+  | 'ghostglaive'
 export type ShoulderPad = 'none' | 'small' | 'large'
 
 export interface BipedConfig {
@@ -247,10 +257,10 @@ export interface ArtilleryConfig {
 }
 
 export interface VehicleConfig {
-  weapon: 'kustom-mega-blasta' | 'kopta-rokkits' | 'none'
+  weapon: 'kustom-mega-blasta' | 'kopta-rokkits' | 'twin-catapult' | 'scatter-laser' | 'starcannon' | 'none'
   hasRotor: boolean
   /** 'dozer' = a tracked mining crawler (Goliath Rockgrinder); 'hover' = a skimmer transport (Devilfish); default is the gyrocopter rig. */
-  style?: 'copter' | 'dozer' | 'hover' | 'gravbike' | 'skiff' | 'gunboat'
+  style?: 'copter' | 'dozer' | 'hover' | 'gravbike' | 'skiff' | 'gunboat' | 'jetbike' | 'platform'
   /** Grav-bike dressing (Hernkyn Pioneers): which kit the bike carries on top of its nose gun. */
   rig?: 'comms' | 'searchlight' | 'rotary'
 }

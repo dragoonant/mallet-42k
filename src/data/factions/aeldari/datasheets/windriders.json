@@ -1,0 +1,32 @@
+[
+  {
+    "id": "ael.windriders",
+    "faction": "aeldari",
+    "name": "Windriders",
+    "keywords": ["MOUNTED", "FLY", "WINDRIDERS"],
+    "factionKeywords": ["AELDARI"],
+    "stats": { "M": 14, "T": 4, "Sv": 3, "W": 2, "Ld": 6, "OC": 2 },
+    "composition": [
+      {
+        "modelId": "windrider-catapult",
+        "name": "Windrider (twin shuriken catapult)",
+        "min": 4, "max": 4, "default": 4,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["ael.w.twin-shuriken-catapult", "ael.w.close-combat-weapon-windrider"] },
+        "figure": { "archetype": "vehicle", "kit": "generic-vehicle" }
+      },
+      {
+        "modelId": "windrider-scatter",
+        "name": "Windrider (scatter laser)",
+        "min": 2, "max": 2, "default": 2,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["ael.w.scatter-laser", "ael.w.close-combat-weapon-windrider"] },
+        "figure": { "archetype": "vehicle", "kit": "generic-vehicle" }
+      }
+    ],
+    "abilities": ["ael.a.strands-of-fate", "ael.a.swift-demise", "ael.a.patrol-squads"],
+    "coreAbilities": [],
+    "points": [ { "models": 6, "points": 0 } ],
+    "figure": { "archetype": "vehicle", "kit": "generic-vehicle" }
+  }
+]

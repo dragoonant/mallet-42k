@@ -1,0 +1,55 @@
+[
+  {
+    "id": "ael.a.strands-of-fate",
+    "name": "Strands of Fate",
+    "text": "At the start of the battle, roll 12 dice; you may re-roll the whole set again and again, each time with one die fewer, then keep the result as your Fate dice. Just before a roll for a unit with this ability (Advance, Battle-shock, Charge, Damage, Hit, Save or Wound), spend a Fate die in place of one die of that roll; it counts as unmodified.",
+    "trigger": "always",
+    "code": "strandsOfFate"
+  },
+  {
+    "id": "ael.a.fortune",
+    "name": "Fortune",
+    "text": "Psychic. In your Command phase, roll one D6: on a 2 or more, pick a friendly AELDARI unit with a model within 12 inches of this model. Until the start of your next Command phase, each attack that targets that unit suffers -1 to its wound roll.",
+    "trigger": "commandPhase",
+    "code": "fortune",
+    "params": { "range": 12, "on": 2 }
+  },
+  {
+    "id": "ael.a.defenders-of-fate",
+    "name": "Defenders of Fate",
+    "text": "At the end of your Command phase, for each objective marker you control that has a model of this unit within range, roll one D6 and add a Fate die showing the value rolled.",
+    "trigger": "phaseEnd",
+    "when": { "phase": "command", "ownTurn": true },
+    "code": "simulacrumImperialis",
+    "params": { "modelId": "guardian-defender", "dieThreshold": 1, "label": "Defenders of Fate" }
+  },
+  {
+    "id": "ael.a.crewed-platform",
+    "name": "Crewed Platform",
+    "text": "When the last Guardian Defender model in this unit is destroyed, every Heavy Weapon Platform model remaining in the unit is destroyed too.",
+    "trigger": "modelDestroyed",
+    "scope": { "who": "self" },
+    "code": "crewedPlatform",
+    "params": { "crewModelId": "guardian-defender", "platformModelId": "heavy-weapon-platform" }
+  },
+  {
+    "id": "ael.a.swift-demise",
+    "name": "Swift Demise",
+    "text": "Each time a model in this unit makes a ranged attack that targets the closest eligible target, you may re-roll a Hit roll of 1; if that target is within range of an objective marker your opponent controls, you may re-roll the Hit roll instead.",
+    "trigger": "hitRoll",
+    "when": { "weaponType": "ranged", "targetIsClosestEligible": true },
+    "effect": [
+      { "when": { "targetOnObjectiveControlledBy": "opponent" }, "reroll": "all" },
+      { "reroll": "ones" }
+    ],
+    "scope": { "who": "self" }
+  },
+  {
+    "id": "ael.a.patrol-squads",
+    "name": "Patrol Squads",
+    "text": "When you declare battle formations, before any unit is set up, this unit may split into two units of 3 models, each containing one scatter laser Windrider. Each half keeps all of its abilities.",
+    "trigger": "always",
+    "code": "patrolSquads",
+    "params": { "sizes": [3, 3] }
+  }
+]

@@ -189,6 +189,16 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ['disintegrator-cannon', 'wpn-plasma-cannon'] as const,
   ['dark-lance', 'wpn-tachyon-arrow'] as const,
   ['bladevanes', 'wpn-spinnin-blades'] as const,
+  // The Fatebreakers (Aeldari): shuriken weapons spray like autoguns, psychic weapons crackle like Smite, the spear and glaive ring like power blades, the heavy guns borrow plasma and laser sounds.
+  ['eldritch-storm', 'wpn-smite'] as const,
+  ['singing-spear-ranged', 'wpn-smite'] as const,
+  ['singing-spear', 'wpn-power-weapon'] as const,
+  ['shuriken-pistol', 'wpn-autopistol'] as const,
+  ['shuriken-catapult', 'wpn-autogun'] as const,
+  ['starcannon', 'wpn-plasma-cannon'] as const,
+  ['scatter-laser', 'wpn-lasgun'] as const,
+  ['bright-lance', 'wpn-plasma-cannon'] as const,
+  ['ghostglaive', 'wpn-relic-weapon'] as const,
 ].sort((a, b) => b[0].length - a[0].length)
 
 const WEAPON_TRIM: Partial<Record<SfxId, number>> = {

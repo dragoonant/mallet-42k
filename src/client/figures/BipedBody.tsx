@@ -766,6 +766,74 @@ function HeadBody({
           </mesh>
         </group>
       )
+    case 'aeldari-helm':
+      // Smooth bone-cream helm with narrow dark eye slits and a swept-back teal crest.
+      return (
+        <group>
+          <HeadBlob radius={radius} color={colors.primary} />
+          <mesh position={[-radius * 0.3, radius * 0.05, radius * 0.88]} rotation={[0, 0, 0.35]}>
+            <GBox args={[radius * 0.4, radius * 0.12, radius * 0.16]} />
+            <StdMat color={VISOR} roughness={0.2} />
+          </mesh>
+          <mesh position={[radius * 0.3, radius * 0.05, radius * 0.88]} rotation={[0, 0, -0.35]}>
+            <GBox args={[radius * 0.4, radius * 0.12, radius * 0.16]} />
+            <StdMat color={VISOR} roughness={0.2} />
+          </mesh>
+          <mesh position={[0, radius * 0.9, -radius * 0.45]} rotation={[-0.7, 0, 0]}>
+            <GBox args={[radius * 0.16, radius * 0.9, radius * 0.5]} />
+            <StdMat color={colors.secondary} roughness={0.5} />
+          </mesh>
+        </group>
+      )
+    case 'aeldari-farseer':
+      // A taller helm crowned with a tall forward-leaning crest, a gold circlet and a glowing rune gem.
+      return (
+        <group>
+          <HeadBlob radius={radius} color={colors.primary} />
+          <mesh position={[-radius * 0.3, radius * 0.0, radius * 0.88]} rotation={[0, 0, 0.35]}>
+            <GBox args={[radius * 0.4, radius * 0.12, radius * 0.16]} />
+            <StdMat color={VISOR} roughness={0.2} />
+          </mesh>
+          <mesh position={[radius * 0.3, radius * 0.0, radius * 0.88]} rotation={[0, 0, -0.35]}>
+            <GBox args={[radius * 0.4, radius * 0.12, radius * 0.16]} />
+            <StdMat color={VISOR} roughness={0.2} />
+          </mesh>
+          <mesh position={[0, radius * 0.38, 0]}>
+            <GCylinder args={[radius * 1.03, radius * 1.03, radius * 0.1, 14]} />
+            <StdMat color={colors.trim} metalness={0.6} roughness={0.35} />
+          </mesh>
+          <mesh position={[0, radius * 0.38, radius * 1.0]}>
+            <GSphere args={[radius * 0.14, 8, 6]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.6} />
+          </mesh>
+          <mesh position={[0, radius * 1.25, -radius * 0.1]} rotation={[0.25, 0, 0]}>
+            <GBox args={[radius * 0.16, radius * 1.1, radius * 0.5]} />
+            <StdMat color={colors.secondary} roughness={0.5} />
+          </mesh>
+        </group>
+      )
+    case 'wraith-head':
+      // An elongated bone-cream skull-face with two glowing teal eyes and a short swept crest.
+      return (
+        <group>
+          <mesh scale={[0.85, 1.15, 1.0]}>
+            <GSphere args={[radius, 12, 9]} />
+            <StdMat color={colors.primary} roughness={0.55} />
+          </mesh>
+          <mesh position={[-radius * 0.32, radius * 0.1, radius * 0.82]}>
+            <GSphere args={[radius * 0.15, 8, 6]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.8} />
+          </mesh>
+          <mesh position={[radius * 0.32, radius * 0.1, radius * 0.82]}>
+            <GSphere args={[radius * 0.15, 8, 6]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.8} />
+          </mesh>
+          <mesh position={[0, radius * 1.0, -radius * 0.4]} rotation={[-0.8, 0, 0]}>
+            <GBox args={[radius * 0.2, radius * 0.8, radius * 0.4]} />
+            <StdMat color={colors.trim} metalness={0.5} roughness={0.4} />
+          </mesh>
+        </group>
+      )
     case 'generic-head':
     default:
       return <HeadBlob radius={radius} color={colors.secondary} />

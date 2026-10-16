@@ -1,0 +1,67 @@
+[
+  {
+    "id": "ael.e.foresight",
+    "faction": "aeldari",
+    "name": "Foresight",
+    "text": "Psychic. Once per turn, the bearer's unit can be the target of the Fire Overwatch stratagem for 0 CP. While that unit resolves Fire Overwatch, its attacks hit on an unmodified 4+ if it is within range of an objective marker you control, otherwise on an unmodified 5+.",
+    "cost": 0,
+    "restriction": { "keyword": ["FARSEER"] },
+    "effect": [
+      {
+        "id": "ael.e.foresight.cost",
+        "name": "Foresight",
+        "text": "Fire Overwatch costs 0 CP when used on the bearer's unit.",
+        "trigger": "always",
+        "scope": { "who": "bearer" },
+        "code": "stratagemCostOverride",
+        "params": { "stratagemId": "core.s.fire-overwatch", "cost": 0, "ignoreLimit": false }
+      },
+      {
+        "id": "ael.e.foresight.hits",
+        "name": "Foresight (hits)",
+        "text": "The bearer's unit hits on an unmodified 4+ (on an objective marker you control) or 5+ when resolving Fire Overwatch.",
+        "trigger": "always",
+        "scope": { "who": "bearer" },
+        "code": "foresight",
+        "params": { "onObjective": 4, "otherwise": 5, "stratagemId": "core.s.fire-overwatch" }
+      }
+    ]
+  },
+  {
+    "id": "ael.e.eldritch-might",
+    "faction": "aeldari",
+    "name": "Eldritch Might",
+    "text": "Psychic. Each time the bearer makes an attack with a Psychic weapon, you may re-roll a Hit roll of 1, a Wound roll of 1 and a Damage roll of 1.",
+    "cost": 0,
+    "restriction": { "keyword": ["FARSEER"] },
+    "effect": [
+      {
+        "id": "ael.e.eldritch-might.hit",
+        "name": "Eldritch Might (hit)",
+        "text": "The bearer's Psychic weapons re-roll Hit rolls of 1.",
+        "trigger": "hitRoll",
+        "when": { "weaponAbility": "PSYCHIC" },
+        "effect": { "reroll": "ones" },
+        "scope": { "who": "bearer" }
+      },
+      {
+        "id": "ael.e.eldritch-might.wound",
+        "name": "Eldritch Might (wound)",
+        "text": "The bearer's Psychic weapons re-roll Wound rolls of 1.",
+        "trigger": "woundRoll",
+        "when": { "weaponAbility": "PSYCHIC" },
+        "effect": { "reroll": "ones" },
+        "scope": { "who": "bearer" }
+      },
+      {
+        "id": "ael.e.eldritch-might.damage",
+        "name": "Eldritch Might (damage)",
+        "text": "The bearer's Psychic weapons re-roll Damage rolls of 1.",
+        "trigger": "damageRoll",
+        "when": { "weaponAbility": "PSYCHIC" },
+        "effect": { "reroll": "ones" },
+        "scope": { "who": "bearer" }
+      }
+    ]
+  }
+]

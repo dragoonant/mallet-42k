@@ -6,6 +6,7 @@
 import type { DiceRoll, GameEvent, GameState, PlayerId } from '@/engine'
 import type { DataBundle } from '@/data/types'
 import { ROLL_PURPOSE_LABEL, objectiveLabel, sourceName } from './labels'
+import { diePoolName } from './fate'
 
 export type LineKind = 'header' | 'attack' | 'event'
 
@@ -286,7 +287,7 @@ export function summariseEvents(events: readonly GameEvent[], state: GameState, 
         else push(e, `${e.summary || sourceName(state, bundle, e.abilityId)}`)
         break
       case 'MiracleDieSpent':
-        push(e, `${pname(e.player)} spends a Miracle die (${e.value}) — ${e.mode === 'substitute' ? 'substituted' : 'discarded'}`)
+        push(e, `${pname(e.player)} spends a ${diePoolName(state, e.player)} die (${e.value}) — ${e.mode === 'substitute' ? 'substituted' : 'discarded'}`)
         break
       case 'DiceRerolled': {
         const roll = rolls.get(e.rollId)

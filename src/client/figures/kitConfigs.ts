@@ -87,6 +87,12 @@ export const BODY_KIND: Record<KitId, 'biped' | 'vehicle' | 'swarm' | 'artillery
   'lov-pioneer-comms': 'vehicle',
   'lov-pioneer-searchlight': 'vehicle',
   'lov-pioneer-rotary': 'vehicle',
+  'ael-guardian': 'biped',
+  'ael-farseer': 'biped',
+  'ael-wraithlord': 'biped',
+  'ael-windrider-catapult': 'vehicle',
+  'ael-windrider-scatter': 'vehicle',
+  'ael-platform': 'vehicle',
   'generic-infantry': 'biped',
   'generic-heavy': 'biped',
   'generic-monster': 'biped',
@@ -1197,6 +1203,22 @@ export const BIPED_CONFIG: Partial<Record<KitId, BipedConfig>> = {
     headShape: 'arco-mask', rightWeapon: 'power-fist', leftWeapon: 'heavy-flamer', bulk: 2.2, hasBackpack: false,
     shoulderPads: 'large', hasCape: false, skin: 'none', chestPlate: true,
   },
+  // Aeldari (The Fatebreakers): cream plates over teal bodysuits (primary cream, secondary teal), gold trim.
+  // Guardians are slim with a swept crest helm; the Farseer wears a long robe and a tall rune-crowned helm;
+  // the Wraithlord is a towering bone-cream construct with a glowing spirit stone.
+  'ael-guardian': {
+    headShape: 'aeldari-helm', rightWeapon: 'shuriken-catapult', leftWeapon: 'none', bulk: 0.9, hasBackpack: false,
+    shoulderPads: 'small', hasCape: false, skin: 'none', torsoColor: 'secondary', limbColor: 'secondary',
+  },
+  'ael-farseer': {
+    headShape: 'aeldari-farseer', rightWeapon: 'singing-spear', leftWeapon: 'none', bulk: 0.95, hasBackpack: false,
+    shoulderPads: 'small', hasCape: true, skin: 'none', limbColor: 'secondary',
+    tabard: true, capeColor: 'trim',
+  },
+  'ael-wraithlord': {
+    headShape: 'wraith-head', rightWeapon: 'ghostglaive', leftWeapon: 'shuriken-catapult', bulk: 2.1, hasBackpack: false,
+    shoulderPads: 'small', hasCape: false, skin: 'none', torsoColor: 'primary', limbColor: 'primary', chestCore: true,
+  },
 }
 
 // Drukhari: dark spiked armour (primary), teal glow (secondary), crimson trim; the silhouette is lean and barbed
@@ -1246,4 +1268,7 @@ export const VEHICLE_CONFIG: Partial<Record<KitId, VehicleConfig>> = {
   'lov-pioneer-rotary': { weapon: 'none', hasRotor: false, style: 'gravbike', rig: 'rotary' },
   'drk-raider': { weapon: 'none', hasRotor: false, style: 'skiff' },
   'drk-ravager': { weapon: 'none', hasRotor: false, style: 'gunboat' },
+  'ael-windrider-catapult': { weapon: 'twin-catapult', hasRotor: false, style: 'jetbike' },
+  'ael-windrider-scatter': { weapon: 'scatter-laser', hasRotor: false, style: 'jetbike' },
+  'ael-platform': { weapon: 'starcannon', hasRotor: false, style: 'platform' },
 }

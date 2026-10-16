@@ -24,12 +24,13 @@ const FACTION_BLURBS: Record<string, string> = {
   'genestealer-cults': 'A secret brood of hooded workers and four-armed hybrids who spring from hiding, led by a psychic magus.',
   'adeptus-custodes': 'Towering golden bodyguards of the Emperor: few in number, nearly unbreakable, and each fight they choose a stance to strike harder.',
   'leagues-of-votann': 'Stocky Kin warriors who keep a grudge ledger: every Votann unit you cut down marks its killer, and marked enemies are easier to hit and wound.',
+  aeldari: 'Graceful, fragile seers and skimmers who read the threads of fate: save Fate dice in advance and spend them as the battle unfolds.',
   'grey-knights': 'A small band of silver-armoured psykers who blink across the board and punish anything that lingers.',
   drukhari: 'Cruel raiders on skimmers who feed on the pain they cause: the more your enemy suffers, the better your units fight.',
 }
 
 // Button order for the factions the game ships; any other faction in the bundle follows alphabetically.
-const FACTION_ORDER = ['sm', 'ork', 'necrons', 'chaos-space-marines', 'tyranids', 'adepta-sororitas', 'astra-militarum', 'grey-knights', 'tau-empire', 'genestealer-cults', 'adeptus-custodes', 'leagues-of-votann', 'drukhari']
+const FACTION_ORDER = ['sm', 'ork', 'necrons', 'chaos-space-marines', 'tyranids', 'adepta-sororitas', 'astra-militarum', 'grey-knights', 'tau-empire', 'genestealer-cults', 'adeptus-custodes', 'leagues-of-votann', 'drukhari', 'aeldari']
 
 interface FactionChoice {
   id: string
@@ -101,7 +102,8 @@ function FactionCard({ id, name, active, onPick }: { id: string; name: string; a
   return (
     <button type="button" style={{ ...(active ? buttonActive : buttonBase), ...factionCard }} aria-pressed={active} onClick={onPick}>
       {id === '' ? <span style={factionRandom} aria-hidden="true">?</span>
-        : LEADER_PORTRAITS[id] ? <img src={portraitUrl(id)} alt="" style={factionImg} draggable={false} /> : null}
+        : LEADER_PORTRAITS[id] ? <img src={portraitUrl(id)} alt="" style={factionImg} draggable={false} />
+          : <span style={{ ...factionRandom, fontSize: 30 }} aria-hidden="true">{name.charAt(0)}</span>}
       <span>{name}</span>
     </button>
   )
@@ -233,6 +235,12 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
   // Patrol Squads that are split at setup (Sororitas); AM/Tyranids get the engine's own prompt at deployment instead.
   const canSplitA = !!bundle && splittablePatrolRefs(bundle, faction, patrol?.id).length > 0
   const splitName = (fk: string, pid?: string): string => { const r = bundle ? splittablePatrolRefs(bundle, fk as FactionKey, pid)[0] : undefined; const u = r ? resolvePatrol(bundle!, fk as FactionKey, pid)?.units.find((x) => x.ref === r) : undefined; return (u && bundle?.datasheets[u.datasheet]?.name) || 'squad' }
+  // "two units of 5" / "two units of 3": read from the patrol's own Patrol Squads halves.
+  const splitSizes = (fk: string, pid?: string): string => {
+    const r = bundle ? splittablePatrolRefs(bundle, fk as FactionKey, pid)[0] : undefined
+    const sizes = (r ? resolvePatrol(bundle!, fk as FactionKey, pid)?.units.find((x) => x.ref === r)?.patrolSquads : undefined)?.map((h) => h.size) ?? []
+    return sizes.length === 2 && sizes[0] === sizes[1] ? `two units of ${sizes[0]}` : sizes.length ? `${sizes.length} units (${sizes.join(' + ')})` : 'two units'
+  }
   const canSplitB = !!bundle && opponent === 'hotseat' && !!opponentFaction && splittablePatrolRefs(bundle, opponentFaction, opponentPatrolId || undefined).length > 0
 
   const start = async () => {
@@ -317,7 +325,7 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
         {embarkRow(embarkOptsA, embarkA, setEmbarkA, 'A')}
         {canSplitA && (
           <label style={blurb} data-testid="setup-split-A">
-            <input type="checkbox" checked={splitA} onChange={(e) => setSplitA(e.target.checked)} /> Split your {splitName(faction, patrol?.id)} into two units of 5 (Patrol Squads)
+            <input type="checkbox" checked={splitA} onChange={(e) => setSplitA(e.target.checked)} /> Split your {splitName(faction, patrol?.id)} into {splitSizes(faction, patrol?.id)} (Patrol Squads)
           </label>
         )}
 
@@ -377,7 +385,7 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
         {embarkRow(embarkOptsB, embarkB, setEmbarkB, 'B')}
         {canSplitB && (
           <label style={blurb} data-testid="setup-split-B">
-            <input type="checkbox" checked={splitB} onChange={(e) => setSplitB(e.target.checked)} /> Split Player B's {splitName(opponentFaction, opponentPatrolId || undefined)} into two units of 5 (Patrol Squads)
+            <input type="checkbox" checked={splitB} onChange={(e) => setSplitB(e.target.checked)} /> Split Player B's {splitName(opponentFaction, opponentPatrolId || undefined)} into {splitSizes(opponentFaction, opponentPatrolId || undefined)} (Patrol Squads)
           </label>
         )}
 

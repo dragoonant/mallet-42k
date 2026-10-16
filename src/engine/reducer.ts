@@ -13,7 +13,7 @@ import {
 import { flushDeferredRemovals } from './deferred'
 import { onCultAmbushUnitDestroyed, raisePendingCultAmbushMarker } from './cult-ambush'
 import { onPainEvent, startBattlePain } from './pain'
-import { clearActsOfFaithPhase, miracleGate, offerMiracleRerolls, onOwnUnitDestroyed, runActsOfFaithTurnStart } from './miracle'
+import { clearActsOfFaithPhase, miracleGate, offerMiracleRerolls, onOwnUnitDestroyed, runActsOfFaithTurnStart, STRANDS_OF_FATE_CODE, unitHasStrandsOfFate } from './miracle'
 import { restoreRng, type Rng } from './rng'
 import { cloneForStep, createGameState, emptyPhaseState, emptyTurnState, hashState, removeModel, unitModelsForCoherency } from './state'
 import {
@@ -91,7 +91,7 @@ function makeContext(draft: GameState, rng: Rng, modules: ModuleTable, rt: StepR
       ctx.emit({ type: 'DiceRolled', roll, player: spec.player })
       // E1: a Miracle die replaced the first dice of this roll (the die itself left the pool when it was chosen)
       for (const v of (spec.substitute ?? []).slice(0, roll.dice.length)) {
-        ctx.emit({ type: 'MiracleDieSpent', player: spec.player, value: v, mode: 'substitute', unitId: spec.unitId ?? null, rollId: id, purpose: spec.purpose, source: 'actsOfFaith' })
+        ctx.emit({ type: 'MiracleDieSpent', player: spec.player, value: v, mode: 'substitute', unitId: spec.unitId ?? null, rollId: id, purpose: spec.purpose, source: spec.unitId && unitHasStrandsOfFate(s, spec.unitId) ? STRANDS_OF_FATE_CODE : 'actsOfFaith' })
       }
       return roll
     },

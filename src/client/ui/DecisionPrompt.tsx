@@ -34,6 +34,7 @@ import { overwatchReach } from './overwatchInfo'
 import { usePresentedStore } from '../presentation/presentedStore'
 import { buttonBase, buttonDanger, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 import { Tooltip } from './Tooltip'
+import { diePoolName, multiDiePick, toggleDie } from './fate'
 
 /** The nearest thing worth orienting a move/charge/pile-in/consolidate destination against — an
  *  objective it lands on, or the nearest enemy unit — so a suggested placement reads as "toward
@@ -353,6 +354,41 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
     },
   },
   {
+    match: /strands-of-fate/,
+    info: {
+      title: 'Strands of Fate',
+      hint: 'Your starting Fate dice. Keep the set you rolled, or throw the whole set again with one die fewer. Later, you can spend a Fate die in place of one die of a hit, wound, save, damage, charge, Advance or Battle-shock roll for a unit that has this rule.',
+    },
+  },
+  {
+    match: /(^|\.)fortune$|a\.fortune/,
+    info: {
+      title: 'Fortune',
+      hint: 'Your Farseer has read the threads: pick a friendly Aeldari unit within 12 inches of her. Until your next Command phase, every attack aimed at that unit takes -1 on its wound roll.',
+    },
+  },
+  {
+    match: /defenders-of-fate/,
+    info: {
+      title: 'Defenders of Fate',
+      hint: 'At the end of your Command phase, for each objective you hold that a Guardian Defender stands on, roll a die and add a Fate die showing that number.',
+    },
+  },
+  {
+    match: /storm-of-shots/,
+    info: {
+      title: 'Storm of Shots',
+      hint: 'A second Mounted unit that has not shot yet may join in: every attack its models make this phase adds 1 to the hit roll. Or keep the stratagem to the first unit only.',
+    },
+  },
+  {
+    match: /zephyr-swift/,
+    info: {
+      title: 'Zephyr-swift',
+      hint: 'A second Mounted unit, not engaged with the enemy, may make the same Normal move of up to 6 inches (it cannot charge afterwards). Or keep the stratagem to the first unit only.',
+    },
+  },
+  {
     match: /simulacrum/,
     info: {
       title: 'Simulacrum Imperialis',
@@ -437,6 +473,13 @@ function chooseOptionInfoFor(
   if ((context.topic as string) === MIRACLE_TOPIC) {
     const purpose = typeof context.data?.purpose === 'string' ? ROLL_PURPOSE_LABEL[context.data.purpose] ?? context.data.purpose : 'this'
     const pool = miraclePool(context.data)
+    if (diePoolName(state, player as PlayerId | undefined) === 'Fate') {
+      const max = typeof context.data?.maxSubstitutions === 'number' ? context.data.maxSubstitutions : 1
+      return {
+        title: `Fate dice: ${purpose} roll`,
+        hint: `Spend ${max > 1 ? `up to ${max} of` : 'one of'} your Fate dice (${pool.length > 0 ? pool.join(', ') : 'none left'}) in place of ${max > 1 ? 'that many dice' : 'a die'} of this roll. A Fate die counts as an unmodified roll, and a spent die is gone. Or roll as normal and keep them.`,
+      }
+    }
     return {
       title: `Act of Faith: ${purpose} roll`,
       hint: `Spend one of your Miracle dice (${pool.length > 0 ? pool.join(', ') : 'none left'}) and its number counts as the roll instead of a fresh die. Modifiers still apply after, and a spent die is gone. Or roll as normal and keep them.`,
@@ -640,7 +683,8 @@ function labelForOption(pending: PendingDecision, state: GameState, events: read
         const pool = miraclePool(pending.context.data)
         const idx = o.action.type === 'chooseOption' ? o.action.dieIndexes : undefined
         const picked = idx?.map((i) => pool[i]).filter((v): v is number => typeof v === 'number')
-        return picked && picked.length > 0 ? `Spend a Miracle die (${picked.join(', ')})` : 'Spend a Miracle die'
+        const poolName = diePoolName(state, pending.player)
+        return picked && picked.length > 0 ? `Spend ${picked.length > 1 ? `${picked.length} ${poolName} dice` : `a ${poolName} die`} (${picked.join(', ')})` : `Spend a ${poolName} die`
       }
       if (pending.context.topic === 'other' && pending.context.data?.kind === 'embark') {
         if (o.id === 'stay') return 'Stay on the battlefield'
@@ -844,6 +888,51 @@ const helpTitle: CSSProperties = { fontWeight: 700, marginBottom: 4 }
 
 /** Hover help for one option, shown above the row (the prompt itself is at the bottom of the
  *  screen, so a card below it would be off-screen). */
+/** Spend several pool dice on one fast-rolled batch (Fate dice, maxSubstitutions > 1): toggle up to `max` dice, then send
+ *  optionId 'use' with their pool indexes (in the order picked, which is the order they replace dice). */
+function MultiDicePick({ pending, poolName, dispatch }: {
+  pending: Extract<PendingDecision, { kind: 'chooseOption' }>
+  poolName: string
+  dispatch: (a: Action) => void
+}) {
+  const multi = multiDiePick(pending.context.data)
+  const [selected, setSelected] = useState<number[]>([])
+  if (!multi) return null
+  const template = pending.options.find((o) => o.id === 'skip')?.action
+  if (!template || template.type !== 'chooseOption') return null
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }} data-testid="miracle-multi">
+      <div style={hint}>Pick up to {multi.max} {poolName} dice to spend ({selected.length} picked):</div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {multi.pool.map((v, i) => {
+          const on = selected.includes(i)
+          return (
+            <button
+              key={i}
+              data-testid={`miracle-die-${i}`}
+              aria-pressed={on}
+              style={on ? buttonPrimary : buttonBase}
+              onClick={() => setSelected((cur) => toggleDie(cur, i, multi.max))}
+            >
+              {v}
+            </button>
+          )
+        })}
+      </div>
+      <div>
+        <button
+          style={selected.length > 0 ? buttonPrimary : buttonBase}
+          disabled={selected.length === 0}
+          data-testid="miracle-use"
+          onClick={() => dispatch({ ...template, optionId: 'use', dieIndexes: selected })}
+        >
+          {selected.length === 0 ? `Spend ${poolName} dice` : `Spend ${selected.length} ${poolName} ${selected.length === 1 ? 'die' : 'dice'} (${selected.map((i) => multi.pool[i]).join(', ')})`}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function OptionHelp({ help }: { help: PromptHelp }) {
   return (
     <div style={helpCard} data-testid="option-help" role="tooltip">
@@ -1084,6 +1173,7 @@ function DecisionPromptBody() {
   // own pre-validated candidates below — e.g. a coherency repair after a mid-move casualty can be
   // a placement our own delta-translate can't produce, so the fallback list must stay reachable.
   const showFallbackList = pending.kind !== 'deployUnit'
+  const multiMiracle = pending.kind === 'chooseOption' && (pending.context.topic as string) === MIRACLE_TOPIC && multiDiePick(pending.context.data) !== null
   const listItems: { id: string; label: string; action: Action }[] = (
     hasOptions(pending)
       ? pending.options.map((o) => ({ id: o.id, label: labelForOption(pending, state, events, o), action: o.action }))
@@ -1092,6 +1182,8 @@ function DecisionPromptBody() {
     // Decisions with no engine-provided options list every *legal action*, and passing is one of
     // them — which put a second "Pass" in the row next to the dedicated button below.
     .filter((it) => it.action.type !== 'pass' || !passAction)
+    // a multi-die offer is answered with the dice picker above: only "Roll normally" stays in the list
+    .filter((it) => !multiMiracle || it.id === 'skip')
 
   // Hover help for whichever option the pointer has rested on.
   const activeHelp = helpForAction(state, listItems.find((it) => it.id === helpFor)?.action)
@@ -1140,6 +1232,7 @@ function DecisionPromptBody() {
       {activeHelp && <OptionHelp help={activeHelp} />}
       <div style={heading}>{kindTitleShown}</div>
       {chooseOptionInfo && <div style={hint}>{chooseOptionInfo.hint}</div>}
+      {multiMiracle && pending.kind === 'chooseOption' && <MultiDicePick key={pending.id} pending={pending} poolName={diePoolName(state, pending.player)} dispatch={dispatch} />}
       {pending.kind === 'chooseOption' && (() => {
         const step = pending.context.data?.code === 'cultAmbush' ? pending.context.data.step : null
         if (step === 'marker') return <div style={hint} data-testid="cult-ambush-marker-hint">Blue discs on the board are the legal spots. Hover an option to light its spot, or click a disc.</div>

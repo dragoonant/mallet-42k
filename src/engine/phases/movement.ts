@@ -212,7 +212,9 @@ function moveRejection(state: GameState, unitId: UnitId, moveType: MoveType, pla
 
 // ---------- Reactive Normal move (Tyranid Skulking Horrors, docs/spec/factions/tyranids.md 7.1 item 4) ----------
 const REACTIVE_KEY = 'mv:reactive'
-interface ReactiveMove { unitId: UnitId; distance: number; source: string }
+// E5: `then` queues further reactive moves that start, one at a time, when this one finishes (moved or passed); `window` is the
+// timing window every move of the queue is raised under
+interface ReactiveMove { unitId: UnitId; distance: number; source: string; window?: TimingWindowId; then?: { unitId: UnitId; distance: number }[] }
 function readReactive(state: GameState): ReactiveMove | null {
   const raw = readMark(state, REACTIVE_KEY)
   return raw === null ? null : (JSON.parse(raw) as ReactiveMove)
@@ -222,17 +224,35 @@ function readReactive(state: GameState): ReactiveMove | null {
 // Normal-move constraints; the interrupted activation resumes afterwards (phase marks keep its place); never writes
 // unit.turn.moveType. The owner may also pass (stay put).
 // C6: `window` is the timing window the decision is raised under (default 'movement.unitMoved'; T'au Rapid Repositioning: 'phase.end').
-export function startReactiveMove(ctx: EngineContext, unitId: UnitId, distance: number, source: string, window: TimingWindowId = 'movement.unitMoved'): void {
+// E5 (Aeldari Zephyr-swift on two squads): `then` lists further units that make their own reactive move after this one finishes
+export function startReactiveMove(ctx: EngineContext, unitId: UnitId, distance: number, source: string, window: TimingWindowId = 'movement.unitMoved',
+  then: { unitId: UnitId; distance: number }[] = []): void {
   const s = ctx.state
   const unit = s.units[unitId]
-  if (!unit || unit.location !== 'board' || !(distance > 0)) return
-  writeMark(s, REACTIVE_KEY, JSON.stringify({ unitId, distance, source } satisfies ReactiveMove))
+  if (!unit || unit.location !== 'board' || !(distance > 0)) { startNextQueued(ctx, source, window, then); return }
+  writeMark(s, REACTIVE_KEY, JSON.stringify({ unitId, distance, source, window, ...(then.length > 0 ? { then } : {}) } satisfies ReactiveMove))
   const perModel: Record<ModelId, number> = Object.fromEntries(unitModelsForCoherency(s, unitId).map((m) => [m.id, distance]))
   ctx.decide({
     kind: 'moveUnit', player: unit.player, window, canPass: true,
     context: { unitId, moveType: 'normal', advanceRoll: null },
     constraints: emptyMoveConstraints(distance, { perModel, mustEndOutsideEngagement: true, coherency: true }),
   })
+}
+
+// E5: starts the first still-eligible queued reactive move (a unit gone from the board or now in Engagement Range is skipped)
+function startNextQueued(ctx: EngineContext, source: string, window: TimingWindowId, queue: { unitId: UnitId; distance: number }[]): void {
+  const s = ctx.state
+  for (let i = 0; i < queue.length; i++) {
+    const q = queue[i]
+    const u = s.units[q.unitId]
+    if (!u || u.location !== 'board' || !(q.distance > 0) || leaderService.inEngagementWithEnemy(s, q.unitId)) continue
+    startReactiveMove(ctx, q.unitId, q.distance, source, window, queue.slice(i + 1))
+    return
+  }
+}
+// called once a reactive move has finished (moved or passed): runs the next queued move, if any
+function finishReactive(ctx: EngineContext, rv: ReactiveMove): void {
+  if (rv.then && rv.then.length > 0) startNextQueued(ctx, rv.source, rv.window ?? 'movement.unitMoved', rv.then)
 }
 
 // CLA-6.1: an ability whose params carry forfeitCharge loses the unit's charge only when the reactive move is actually taken (passing keeps it)
@@ -268,7 +288,7 @@ export function handleReactiveMove(ctx: EngineContext, action: Action, pending: 
   const s = ctx.state
   const rv = readReactive(s)
   if (!rv || rv.unitId !== pending.context.unitId) return null
-  if (action.type === 'pass') { writeMark(s, REACTIVE_KEY, null); return }
+  if (action.type === 'pass') { writeMark(s, REACTIVE_KEY, null); finishReactive(ctx, rv); return }
   if (action.type !== 'moveUnit') return null
   const result = resolveMove(s, rv.unitId, 'normal', action.placements, { distance: rv.distance })
   if (result.rejection) return result.rejection
@@ -281,6 +301,7 @@ export function handleReactiveMove(ctx: EngineContext, action: Action, pending: 
   cultAmbushOnMoveEnded(ctx, rv.unitId)
   forfeitChargeAfterReactiveMove(ctx, rv)
   s.phaseState.marks.push(`${REACTIVE_MOVED_PREFIX}${rv.unitId}`) // E6: pruneUnreachableTargets re-validates declared attacks
+  finishReactive(ctx, rv)
 }
 
 function reactiveCandidates(state: GameState, pending: Extract<PendingDecision, { kind: 'moveUnit' }>, rv: ReactiveMove): Action[] {
@@ -1375,7 +1396,7 @@ export const movementModule: PhaseModule = {
   handle(ctx, action, pending): Rejection | void {
     const s = ctx.state
     if (action.type === 'pass') {
-      if (pending.kind === 'moveUnit' && readReactive(s)) { writeMark(s, REACTIVE_KEY, null); return }
+      if (pending.kind === 'moveUnit' && readReactive(s)) { const rv = readReactive(s) as ReactiveMove; writeMark(s, REACTIVE_KEY, null); finishReactive(ctx, rv); return }
       // a Precision allocation (canPass) is declined with a pass: the attack sequence answers it
       if (pending.kind === 'allocateAttack' && s.phaseState.attack) return attackService.handler.handle(ctx, action, pending)
       if (pending.kind === 'chooseUnitToActivate') { s.step = 'reinforcements'; return }
@@ -1429,6 +1450,7 @@ export const movementModule: PhaseModule = {
         cultAmbushOnMoveEnded(ctx, rv.unitId)
         forfeitChargeAfterReactiveMove(ctx, rv)
         s.phaseState.marks.push(`${REACTIVE_MOVED_PREFIX}${rv.unitId}`)
+        finishReactive(ctx, rv)
         return
       }
       writeMark(s, 'mv:placements', JSON.stringify(action.placements))

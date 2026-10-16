@@ -44,21 +44,21 @@ export const buttonActive: CSSProperties = {
   ...buttonBase,
   background: colors.accent,
   color: colors.accentText,
-  borderColor: colors.accent,
+  border: `1px solid ${colors.accent}`,
 }
 
 export const buttonPrimary: CSSProperties = {
   ...buttonBase,
   background: colors.accent,
   color: colors.accentText,
-  borderColor: colors.accent,
+  border: `1px solid ${colors.accent}`,
   fontSize: 14,
 }
 
 export const buttonDanger: CSSProperties = {
   ...buttonBase,
   color: colors.danger,
-  borderColor: 'rgba(255,106,95,0.5)',
+  border: '1px solid rgba(255,106,95,0.5)',
 }
 
 export const mutedText: CSSProperties = { color: colors.muted, fontSize: 12 }

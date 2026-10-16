@@ -1,0 +1,73 @@
+{
+  "id": "ael.cp.the-fatebreakers",
+  "faction": "aeldari",
+  "name": "The Fatebreakers",
+  "units": [
+    {
+      "ref": "farseer",
+      "datasheet": "ael.farseer-iraneth",
+      "size": 1,
+      "enhancement": "ael.e.foresight",
+      "attachTo": "guardians"
+    },
+    {
+      "ref": "guardians",
+      "datasheet": "ael.guardian-defenders",
+      "size": 11
+    },
+    {
+      "ref": "windriders",
+      "datasheet": "ael.windriders",
+      "size": 6,
+      "patrolSquads": [
+        {
+          "ref": "windriders-a",
+          "size": 3,
+          "wargear": [
+            { "modelId": "windrider-scatter", "count": 1, "weapons": ["ael.w.scatter-laser", "ael.w.close-combat-weapon-windrider"] },
+            { "modelId": "windrider-catapult", "count": 2, "weapons": ["ael.w.twin-shuriken-catapult", "ael.w.close-combat-weapon-windrider"] }
+          ]
+        },
+        {
+          "ref": "windriders-b",
+          "size": 3,
+          "wargear": [
+            { "modelId": "windrider-scatter", "count": 1, "weapons": ["ael.w.scatter-laser", "ael.w.close-combat-weapon-windrider"] },
+            { "modelId": "windrider-catapult", "count": 2, "weapons": ["ael.w.twin-shuriken-catapult", "ael.w.close-combat-weapon-windrider"] }
+          ]
+        }
+      ]
+    },
+    {
+      "ref": "wraithlord",
+      "datasheet": "ael.wraithlord",
+      "size": 1
+    }
+  ],
+  "stratagems": ["ael.s.whip-fast-reactions", "ael.s.storm-of-shots", "ael.s.zephyr-swift"],
+  "enhancements": [
+    { "id": "ael.e.foresight", "default": true },
+    { "id": "ael.e.eldritch-might", "default": false }
+  ],
+  "secondaries": [
+    {
+      "id": "ael.sec.ineffable-agenda",
+      "name": "Ineffable Agenda",
+      "text": "At the end of each of your turns, score 3 victory points if you control at least one objective marker outside your own deployment zone that you did not control when the turn began. The award is flat, once per turn.",
+      "default": true,
+      "scoring": [
+        { "id": "ineffable-agenda", "when": "turn.end", "rounds": { "from": 1, "to": 5 }, "who": "active", "rule": "custom", "pointsPer": 3, "cap": 15, "code": "ineffableAgenda" }
+      ]
+    },
+    {
+      "id": "ael.sec.a-greater-destiny",
+      "name": "A Greater Destiny",
+      "text": "At the end of the battle, score 10 victory points if at least one of your AELDARI units that is not Battle-shocked has every model wholly within your opponent's deployment zone.",
+      "default": false,
+      "scoring": [
+        { "id": "a-greater-destiny", "when": "battle.end", "rounds": { "from": 1, "to": 5 }, "who": "both", "rule": "custom", "pointsPer": 10, "cap": 10, "code": "reclaimAndDominate", "params": { "keyword": "AELDARI" } }
+      ]
+    }
+  ],
+  "warlord": "farseer"
+}

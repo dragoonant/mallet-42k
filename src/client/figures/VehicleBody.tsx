@@ -4,6 +4,7 @@
 import { GBox, GCapsule, GCone, GCylinder, GSphere, StdMat } from './shared'
 import { useRef } from 'react'
 import type { Group } from 'three'
+import type { RefObject } from 'react'
 import { usePoseFrame, clamp01, easeOut, useMaterialFader } from './anim'
 import type { BodyProps, VehicleConfig } from './types'
 
@@ -99,6 +100,15 @@ export function VehicleBody({ config, colors, pose, seed }: BodyProps & { config
         <SkiffParts colors={colors} gunboat={config.style === 'gunboat'} />
         <group ref={rotorRef} visible={false} />
         <group ref={gunRef} />
+      </group>
+    )
+  }
+
+  if (config.style === 'jetbike' || config.style === 'platform') {
+    return (
+      <group ref={bodyRef}>
+        {config.style === 'jetbike' ? <JetbikeParts colors={colors} weapon={config.weapon} gunRef={gunRef} /> : <PlatformParts colors={colors} gunRef={gunRef} />}
+        <group ref={rotorRef} visible={false} />
       </group>
     )
   }
@@ -470,6 +480,139 @@ function SkiffParts({ colors, gunboat }: { colors: BodyProps['colors']; gunboat:
           </mesh>
         </>
       )}
+    </group>
+  )
+}
+
+/** Windrider: a slim cream jetbike with a teal nose cone, swept stabiliser fins, a glowing engine strip and a crouched rider
+ *  in a crested helm. The weapon (twin shuriken catapults or a scatter laser) rides on the nose through `gunRef` for recoil. */
+function JetbikeParts({ colors, weapon, gunRef }: { colors: BodyProps['colors']; weapon: VehicleConfig['weapon']; gunRef: RefObject<Group> }) {
+  return (
+    <group>
+      <mesh position={[0, 0.2, -0.02]}>
+        <GBox args={[0.26, 0.03, 0.8]} />
+        <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.0} roughness={0.4} />
+      </mesh>
+      <mesh position={[0, 0.32, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <GCapsule args={[0.12, 0.6, 4, 10]} />
+        <StdMat color={colors.primary} roughness={0.5} />
+      </mesh>
+      <mesh position={[0, 0.3, 0.48]} rotation={[Math.PI / 2, 0, 0]}>
+        <GCone args={[0.11, 0.28, 8]} />
+        <StdMat color={colors.secondary} roughness={0.45} />
+      </mesh>
+      {[-1, 1].map((s) => (
+        <mesh key={s} position={[s * 0.2, 0.34, -0.34]} rotation={[0, s * 0.45, s * 0.25]}>
+          <GBox args={[0.3, 0.025, 0.22]} />
+          <StdMat color={colors.trim} metalness={0.4} roughness={0.5} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0.34, -0.5]} rotation={[Math.PI / 2, 0, 0]}>
+        <GCylinder args={[0.07, 0.09, 0.08, 10]} />
+        <StdMat color={colors.metal} metalness={0.6} roughness={0.4} />
+      </mesh>
+      <mesh position={[0, 0.34, -0.55]} rotation={[Math.PI / 2, 0, 0]}>
+        <GCylinder args={[0.055, 0.055, 0.03, 10]} />
+        <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.6} />
+      </mesh>
+      {/* rider: teal suit, crested cream helm, leaning into the wind */}
+      <group position={[0, 0.5, -0.05]} rotation={[0.35, 0, 0]}>
+        <mesh position={[0, 0.1, 0]}>
+          <GBox args={[0.18, 0.22, 0.12]} />
+          <StdMat color={colors.secondary} roughness={0.55} />
+        </mesh>
+        <mesh position={[0, 0.3, 0.02]}>
+          <GSphere args={[0.1, 10, 8]} />
+          <StdMat color={colors.primary} roughness={0.5} />
+        </mesh>
+        <mesh position={[0, 0.4, -0.05]} rotation={[-0.7, 0, 0]}>
+          <GBox args={[0.03, 0.16, 0.08]} />
+          <StdMat color={colors.secondary} roughness={0.5} />
+        </mesh>
+        <mesh position={[0, 0.3, 0.1]}>
+          <GBox args={[0.1, 0.025, 0.03]} />
+          <StdMat color="#15171c" roughness={0.2} />
+        </mesh>
+      </group>
+      {weapon !== 'none' && (
+        <group ref={gunRef} position={[0, 0.3, 0.5]}>
+          {weapon === 'scatter-laser' ? (
+            <>
+              <mesh position={[0, -0.06, 0.04]}>
+                <GBox args={[0.12, 0.1, 0.2]} />
+                <StdMat color={colors.metal} metalness={0.5} roughness={0.45} />
+              </mesh>
+              <mesh position={[0, -0.06, 0.26]} rotation={[Math.PI / 2, 0, 0]}>
+                <GCylinder args={[0.035, 0.035, 0.3, 8]} />
+                <StdMat color={colors.metal} metalness={0.7} roughness={0.3} />
+              </mesh>
+              <mesh position={[0, -0.06, 0.42]} rotation={[Math.PI / 2, 0, 0]}>
+                <GCylinder args={[0.045, 0.045, 0.03, 8]} />
+                <StdMat color="#ff5a46" emissive="#ff5a46" emissiveIntensity={1.4} />
+              </mesh>
+            </>
+          ) : (
+            [-0.1, 0.1].map((x) => (
+              <group key={x} position={[x, -0.02, 0]}>
+                <mesh position={[0, 0, 0.1]} rotation={[Math.PI / 2, 0, 0]}>
+                  <GCylinder args={[0.022, 0.022, 0.34, 8]} />
+                  <StdMat color={colors.metal} metalness={0.7} roughness={0.3} />
+                </mesh>
+                <mesh position={[0, 0, 0.28]} rotation={[Math.PI / 2, 0, 0]}>
+                  <GCylinder args={[0.03, 0.03, 0.02, 8]} />
+                  <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.3} />
+                </mesh>
+              </group>
+            ))
+          )}
+        </group>
+      )}
+    </group>
+  )
+}
+
+/** Heavy Weapon Platform: a floating cream grav-platform with a curved shield wall, a glowing underside and a thick starcannon on a pivot. */
+function PlatformParts({ colors, gunRef }: { colors: BodyProps['colors']; gunRef: RefObject<Group> }) {
+  return (
+    <group>
+      <mesh position={[0, 0.16, 0]}>
+        <GCylinder args={[0.42, 0.4, 0.04, 14]} />
+        <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.0} roughness={0.4} />
+      </mesh>
+      <mesh position={[0, 0.24, 0]}>
+        <GCylinder args={[0.4, 0.42, 0.12, 14]} />
+        <StdMat color={colors.primary} roughness={0.55} />
+      </mesh>
+      <mesh position={[0, 0.3, 0.0]}>
+        <GCylinder args={[0.4, 0.4, 0.02, 14]} />
+        <StdMat color={colors.trim} metalness={0.5} roughness={0.45} />
+      </mesh>
+      <mesh position={[0, 0.5, -0.3]} rotation={[-0.15, 0, 0]}>
+        <GBox args={[0.62, 0.38, 0.05]} />
+        <StdMat color={colors.primary} roughness={0.5} />
+      </mesh>
+      <mesh position={[0, 0.5, -0.33]} rotation={[-0.15, 0, 0]}>
+        <GBox args={[0.2, 0.2, 0.02]} />
+        <StdMat color={colors.secondary} roughness={0.45} />
+      </mesh>
+      <mesh position={[0, 0.4, 0.02]}>
+        <GCylinder args={[0.05, 0.07, 0.18, 8]} />
+        <StdMat color={colors.metal} metalness={0.6} roughness={0.4} />
+      </mesh>
+      <group ref={gunRef} position={[0, 0.52, 0.02]}>
+        <mesh position={[0, 0, -0.02]}>
+          <GBox args={[0.16, 0.14, 0.22]} />
+          <StdMat color={colors.secondary} roughness={0.45} />
+        </mesh>
+        <mesh position={[0, 0, 0.26]} rotation={[Math.PI / 2, 0, 0]}>
+          <GCylinder args={[0.05, 0.06, 0.4, 8]} />
+          <StdMat color={colors.metal} metalness={0.7} roughness={0.3} />
+        </mesh>
+        <mesh position={[0, 0, 0.47]} rotation={[Math.PI / 2, 0, 0]}>
+          <GCylinder args={[0.065, 0.065, 0.04, 8]} />
+          <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.4} />
+        </mesh>
+      </group>
     </group>
   )
 }

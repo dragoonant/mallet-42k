@@ -154,6 +154,10 @@ const KNOWN_KIT: Record<string, KitId> = {
   'drk.incubi': 'drk-incubus',
   'drk.raider': 'drk-raider',
   'drk.ravager': 'drk-ravager',
+  'ael.farseer-iraneth': 'ael-farseer',
+  'ael.guardian-defenders': 'ael-guardian',
+  'ael.windriders': 'ael-windrider-catapult',
+  'ael.wraithlord': 'ael-wraithlord',
 }
 
 /** Models of a mixed unit that look different from the rest of it (a flamer sister is not a rifle sister), keyed
@@ -242,6 +246,10 @@ const KNOWN_KIT_BY_MODEL: Record<string, KitId> = {
   'drk.kabalite-warriors/cannon-warrior': 'drk-kabalite-cannon',
   'drk.incubi/klaivex': 'drk-klaivex',
   'drk.incubi/incubus': 'drk-incubus',
+  'ael.guardian-defenders/guardian-defender': 'ael-guardian',
+  'ael.guardian-defenders/heavy-weapon-platform': 'ael-platform',
+  'ael.windriders/windrider-catapult': 'ael-windrider-catapult',
+  'ael.windriders/windrider-scatter': 'ael-windrider-scatter',
 }
 
 const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
@@ -252,6 +260,12 @@ const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
   'cus-prosecutor': 'infantry',
   'cus-vigilator': 'infantry',
   'cus-praetor': 'heavy',
+  'ael-guardian': 'infantry',
+  'ael-farseer': 'infantry',
+  'ael-wraithlord': 'monster',
+  'ael-windrider-catapult': 'vehicle',
+  'ael-windrider-scatter': 'vehicle',
+  'ael-platform': 'vehicle',
   'sm-tacticus': 'infantry',
   'sm-terminator': 'heavy',
   'ork-boy': 'infantry',
@@ -411,6 +425,9 @@ const HEIGHT_BY_DATASHEET: Record<string, number> = {
   'lov.hearthkyn-warriors': 0.95,
   'lov.cthonian-beserks': 1.0,
   'lov.hernkyn-pioneers': 1.3,
+  // Aeldari: a jetbike and a gun platform are low, long machines; the default vehicle height would dwarf their 32/40 mm bases.
+  'ael.windriders': 1.45,
+  'ael.guardian-defenders/heavy-weapon-platform': 1.15,
 }
 
 export function resolveBase(datasheet: DatasheetData | undefined, archetype: ArchetypeKind, modelId?: string): ResolvedBase {

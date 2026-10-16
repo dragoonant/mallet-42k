@@ -207,6 +207,14 @@ function unitOnObjective(state: GameState, unitId: UnitId): boolean {
   return Object.values(state.objectives).some((o) => !o.removed && models.some((m) => withinObjectiveRange(m, o, 0, range, radius)))
 }
 
+// E4: the target (either half) stands within range of a marker controlled by the holder's side or its opponent
+function targetOnControlledObjective(state: GameState, unitId: UnitId, controller: PlayerId): boolean {
+  const range = state.mission.data.objectiveRange ?? OBJECTIVE_RANGE
+  const radius = state.mission.data.objectiveMarkerRadius ?? OBJECTIVE_MARKER_RADIUS
+  const models = leaderService.halves(state, unitId).flatMap((id) => state.units[id].location === 'board' ? unitModels(state, id) : [])
+  return Object.values(state.objectives).some((o) => !o.removed && o.controller === controller && models.some((m) => withinObjectiveRange(m, o, 0, range, radius)))
+}
+
 function bound(v: number, b: { gte?: number; lte?: number }): boolean {
   return (b.gte === undefined || v >= b.gte) && (b.lte === undefined || v <= b.lte)
 }
@@ -245,6 +253,11 @@ export function evaluateCondition(env: ConditionEnv, c: Condition | null | undef
     if (closest.includes(leaderService.canonicalUnitId(state, attack.targetUnitId)) !== c.targetIsClosestEligible) return false
   }
   if (c.targetOnObjective !== undefined && !(attack && unitOnObjective(state, attack.targetUnitId) === c.targetOnObjective)) return false
+  if (c.targetOnObjectiveControlledBy !== undefined) {
+    if (!attack) return false
+    const wanted = c.targetOnObjectiveControlledBy === 'self' ? env.player : (env.player === 'A' ? 'B' : 'A')
+    if (!targetOnControlledObjective(state, attack.targetUnitId, wanted)) return false
+  }
   const h = holder
   if (c.unitOnObjective !== undefined && !(h && unitOnObjective(state, h.id) === c.unitOnObjective)) return false
   if (c.unitBelowHalf !== undefined && !(h && leaderService.isBelowHalfStrength(state, h.id) === c.unitBelowHalf)) return false

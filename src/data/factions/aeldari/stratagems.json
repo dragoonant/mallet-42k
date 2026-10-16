@@ -1,0 +1,60 @@
+[
+  {
+    "id": "ael.s.whip-fast-reactions",
+    "faction": "aeldari",
+    "name": "Whip-fast Reactions",
+    "text": "Use just after an enemy unit selects its targets, in the opponent's Shooting phase or either player's Fight phase, when one of your AELDARI INFANTRY or AELDARI MOUNTED units is a target. Until the end of the phase, each attack that targets your unit subtracts 1 from its Hit roll.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["shooting", "fight"],
+    "window": ["shooting.targetsDeclared", "fight.targetsDeclared"],
+    "who": "either",
+    "condition": { "any": [ { "phase": "shooting", "ownTurn": false }, { "phase": "fight" } ] },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "AELDARI" }, "state": "targetedByAttack", "count": 1 }
+    ],
+    "effect": { "modifyRoll": { "roll": "hit", "value": -1 } },
+    "scope": { "who": "attacker" },
+    "duration": "untilEndOfPhase",
+    "code": "infantryOrMounted"
+  },
+  {
+    "id": "ael.s.storm-of-shots",
+    "faction": "aeldari",
+    "name": "Storm of Shots",
+    "text": "Use in your Shooting phase, between unit activations, on one of your AELDARI INFANTRY units or up to two of your AELDARI MOUNTED units that have not shot yet. Until the end of the phase, each attack made by a model in the chosen unit or units adds 1 to its Hit roll.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["shooting"],
+    "window": ["shooting.start", "shooting.attacksResolved"],
+    "who": "active",
+    "condition": { "phase": "shooting", "ownTurn": true },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "AELDARI" }, "state": "notYetShot", "count": 1 }
+    ],
+    "effect": { "modifyRoll": { "roll": "hit", "value": 1 } },
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "code": "stormOfShots"
+  },
+  {
+    "id": "ael.s.zephyr-swift",
+    "faction": "aeldari",
+    "name": "Zephyr-swift",
+    "text": "Use in your Shooting phase, between unit activations, on one of your AELDARI INFANTRY units or up to two of your AELDARI MOUNTED units, each not within Engagement Range of any enemy unit. Each chosen unit makes a Normal move of up to 6 inches, then cannot declare a charge this turn.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["shooting"],
+    "window": ["shooting.start", "shooting.attacksResolved", "phase.end"],
+    "who": "active",
+    "condition": { "phase": "shooting", "ownTurn": true },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "AELDARI" }, "count": 1 }
+    ],
+    "effect": { "forbid": "charge" },
+    "scope": { "who": "self" },
+    "duration": "untilEndOfTurn",
+    "code": "zephyrSwift",
+    "params": { "distance": 6 }
+  }
+]

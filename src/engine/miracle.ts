@@ -11,6 +11,9 @@ import type { GameState, PendingDecision, PlayerId, Rejection, RollPurpose, Timi
 import { netModifier, parseDiceExpr, type RollSpec } from './dice'
 
 export const ACTS_OF_FAITH_CODE = 'actsOfFaith'
+// Aeldari Strands of Fate (docs/spec/factions/aeldari.md E1): the same pool, called the Fate pool, with no faction-keyword
+// test and no per-phase cap; a fast-rolled batch may take one die per attack
+export const STRANDS_OF_FATE_CODE = 'strandsOfFate'
 const FACTION_KEYWORD = 'ADEPTA SORORITAS'
 // ADE-2.2: the roll kinds an Act of Faith may replace (sides must also be 6)
 const SUBSTITUTABLE: ReadonlySet<RollPurpose> = new Set<RollPurpose>(['advance', 'battleShock', 'charge', 'damage', 'hit', 'wound', 'save'])
@@ -29,6 +32,39 @@ export function hasActsOfFaith(state: GameState, player: PlayerId): boolean {
     for (const id of state.datasheets[u.datasheetId]?.abilities ?? []) if (state.abilities[id]?.code === ACTS_OF_FAITH_CODE) return true
   }
   return false
+}
+
+// true iff any of the player's units (any location) has a datasheet ability with code strandsOfFate
+export function hasStrandsOfFate(state: GameState, player: PlayerId): boolean {
+  for (const u of Object.values(state.units)) {
+    if (u.player !== player) continue
+    for (const id of state.datasheets[u.datasheetId]?.abilities ?? []) if (state.abilities[id]?.code === STRANDS_OF_FATE_CODE) return true
+  }
+  return false
+}
+
+// true iff either half of the (canonical) unit carries an ability with code strandsOfFate
+export function unitHasStrandsOfFate(state: GameState, unitId: UnitId): boolean {
+  if (!state.units[unitId]) return false
+  for (const half of leaderService.halves(state, unitId)) {
+    const u = state.units[half]
+    if (!u) continue
+    for (const id of state.datasheets[u.datasheetId]?.abilities ?? []) if (state.abilities[id]?.code === STRANDS_OF_FATE_CODE) return true
+  }
+  return false
+}
+
+// 'Fate' for an Aeldari player, else 'Miracle' (option labels: "Use Fate die 4")
+export function diePoolName(state: GameState, player: PlayerId): 'Fate' | 'Miracle' {
+  return hasStrandsOfFate(state, player) ? 'Fate' : 'Miracle'
+}
+
+// replaces the player's pool with `values` (each 1..6); emits one MiracleDieGained per die. Never triggers the Saintly Relic re-roll.
+export function setFatePool(ctx: EngineContext, player: PlayerId, values: number[], source: string): void {
+  for (const v of values) if (!Number.isInteger(v) || v < 1 || v > 6) throw new EngineInvariantError('setFatePool: every value must be 1..6', { values })
+  const p = pool(ctx.state, player)
+  p.dice = [...values]
+  for (const value of values) ctx.emit({ type: 'MiracleDieGained', player, value, source })
 }
 
 // rolls a D6 (purpose 'ability', not command-rerollable) unless `value` is given; pushes it; emits MiracleDieGained
@@ -130,9 +166,11 @@ export function substitutionEligible(state: GameState, spec: { purpose: RollPurp
   if (spec.sides !== 6 || !SUBSTITUTABLE.has(spec.purpose) || !spec.unitId) return false
   const unit = state.units[spec.unitId]
   if (!unit || unit.player !== spec.player) return false
-  if (!hasActsOfFaith(state, spec.player)) return false
   const p = pool(state, spec.player)
   if (p.dice.length === 0) return false
+  // Strands of Fate (Aeldari): no keyword test, no per-phase cap
+  if (unitHasStrandsOfFate(state, unit.id)) return true
+  if (!hasActsOfFaith(state, spec.player)) return false
   if (!keywordsOf(state, unit.id).includes(FACTION_KEYWORD)) return false
   const halves = leaderService.halves(state, unit.id)
   return !p.spentThisPhase.some((id) => id === unit.id || halves.includes(id))
@@ -179,7 +217,7 @@ function weaponDamage(s: GameState, spec: RollSpec): number | null {
 
 // Called right BEFORE a D6 roll is made (re-entrant, keyed like rollOnce): 'pending' = a `miracleDie` decision is open and
 // the caller must return 'pending'; an array = Miracle die values to put in RollSpec.substitute; null = roll normally.
-export function miracleGate(ctx: EngineContext, key: string, spec: RollSpec): 'pending' | number[] | null {
+export function miracleGate(ctx: EngineContext, key: string, spec: RollSpec, batch = false): 'pending' | number[] | null {
   const s = ctx.state
   const doneMark = `miracle:${key}=`
   const done = s.phaseState.marks.find((m) => m.startsWith(doneMark))
@@ -191,6 +229,9 @@ export function miracleGate(ctx: EngineContext, key: string, spec: RollSpec): 'p
   if (!substitutionEligible(s, { purpose: spec.purpose, player: spec.player, unitId: spec.unitId ?? null, sides })) return null
   if (!ctx.once(`miracleAsk:${key}`)) return null
   const dice = pool(s, spec.player).dice
+  const poolName = diePoolName(s, spec.player)
+  // Strands of Fate: a fast-rolled batch of N attacks takes up to one die per attack; every other roll (2D6 included) takes 1
+  const maxSubstitutions = batch && spec.unitId && unitHasStrandsOfFate(s, spec.unitId) ? Math.max(1, Math.min(spec.count ?? 1, dice.length)) : 1
   const options: { id: string; label: string; action: Action }[] = [
     { id: 'skip', label: 'Roll normally', action: { type: 'chooseOption', player: spec.player, decisionId: '', optionId: 'skip' } },
   ]
@@ -198,14 +239,14 @@ export function miracleGate(ctx: EngineContext, key: string, spec: RollSpec): 'p
   dice.forEach((v, i) => {
     if (seen.has(v)) return
     seen.add(v)
-    options.push({ id: `use:${i}`, label: `Use Miracle die ${v}`, action: { type: 'chooseOption', player: spec.player, decisionId: '', optionId: `use:${i}`, dieIndexes: [i] } })
+    options.push({ id: `use:${i}`, label: `Use ${poolName} die ${v}`, action: { type: 'chooseOption', player: spec.player, decisionId: '', optionId: `use:${i}`, dieIndexes: [i] } })
   })
   ctx.decide({
     kind: 'chooseOption', player: spec.player, window: 'any.rollMade', canPass: false,
     context: {
       topic: 'miracleDie', unitId: spec.unitId ?? null, abilityId: null,
       data: {
-        purpose: spec.purpose, unitId: spec.unitId ?? null, count: spec.count ?? 1, maxSubstitutions: 1, pool: [...dice], key,
+        purpose: spec.purpose, unitId: spec.unitId ?? null, count: spec.count ?? 1, maxSubstitutions, pool: [...dice], key,
         // for the AI policy: the target the (modified) roll must reach, the net modifier on it, and the attack's Damage (saves)
         needed: spec.needed ?? chargeNeeded(s, spec), modifier: netModifier(spec.modifiers, spec.modifierCap), damage: weaponDamage(s, spec),
       },
@@ -215,19 +256,26 @@ export function miracleGate(ctx: EngineContext, key: string, spec: RollSpec): 'p
   return 'pending'
 }
 
-// the pool index an answer names: option `use:<i>` (unique per offered die), or the bare `use` with dieIndexes: [i]; null when invalid
-function usedIndex(action: Extract<Action, { type: 'chooseOption' }>, poolSize: number): number | null {
+// the pool indexes an answer names: option `use:<i>` (unique per offered die), or the bare `use` with dieIndexes; null when
+// invalid (1..maxSubstitutions distinct in-range indexes)
+function usedIndexes(action: Extract<Action, { type: 'chooseOption' }>, poolSize: number, maxSubstitutions: number): number[] | null {
   const m = /^use:(\d+)$/.exec(action.optionId)
   const idx = action.dieIndexes
-  let i: number
+  let list: number[]
   if (m) {
-    i = Number(m[1])
-    if (idx !== undefined && (idx.length !== 1 || idx[0] !== i)) return null
+    list = [Number(m[1])]
+    if (idx !== undefined && (idx.length !== 1 || idx[0] !== list[0])) return null
   } else if (action.optionId === 'use') {
-    if (!idx || idx.length !== 1) return null
-    i = idx[0]
+    if (!idx || idx.length < 1) return null
+    list = [...idx]
   } else return null
-  return Number.isInteger(i) && i >= 0 && i < poolSize ? i : null
+  if (list.length > maxSubstitutions || new Set(list).size !== list.length) return null
+  return list.every((i) => Number.isInteger(i) && i >= 0 && i < poolSize) ? list : null
+}
+
+function maxSubsOf(pending: PendingDecision): number {
+  const m = pending.kind === 'chooseOption' ? (pending.context.data as { maxSubstitutions?: number } | undefined)?.maxSubstitutions : undefined
+  return typeof m === 'number' && m >= 1 ? m : 1
 }
 
 function validateMiracle(state: GameState, action: Action, pending: PendingDecision): Rejection | null {
@@ -235,8 +283,9 @@ function validateMiracle(state: GameState, action: Action, pending: PendingDecis
   if (action.optionId === 'skip') return action.dieIndexes === undefined ? null : { code: 'E_NOT_AN_OPTION', reason: 'skip takes no dieIndexes' }
   if (action.optionId !== 'use' && !/^use:\d+$/.test(action.optionId)) return { code: 'E_NOT_AN_OPTION', reason: `option ${action.optionId} is not offered` }
   const dice = pool(state, pending.player).dice
-  if (usedIndex(action, dice.length) === null) {
-    return { code: 'E_NOT_AN_OPTION', reason: 'use needs exactly one in-range pool die (option use:<index>)', details: { pool: dice } }
+  const max = maxSubsOf(pending)
+  if (usedIndexes(action, dice.length, max) === null) {
+    return { code: 'E_NOT_AN_OPTION', reason: `use needs between 1 and ${max} distinct in-range pool dice (option use:<index>)`, details: { pool: dice, maxSubstitutions: max } }
   }
   return null
 }
@@ -253,9 +302,12 @@ export const miracleHandler: DecisionHandler = {
       marks.push(`miracle:${data.key}=skip`)
     } else {
       const p = pool(ctx.state, pending.player)
-      const [value] = p.dice.splice(usedIndex(action, p.dice.length) as number, 1)
+      const idxs = usedIndexes(action, p.dice.length, maxSubsOf(pending)) as number[]
+      const values = idxs.map((i) => p.dice[i])
+      // remove from the highest index down so the lower ones stay valid; substitution order follows the answer's order
+      for (const i of [...idxs].sort((a, b) => b - a)) p.dice.splice(i, 1)
       if (data.unitId && !p.spentThisPhase.includes(data.unitId)) p.spentThisPhase.push(data.unitId)
-      marks.push(`miracle:${data.key}=${value}`)
+      marks.push(`miracle:${data.key}=${values.join(',')}`)
     }
     // a Battle-shock test forced by an ability / stratagem is not re-entrant: it left a resume mark, so finish the test now
     const resumePrefix = `bsresume:${data.key}=`

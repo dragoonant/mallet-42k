@@ -99,7 +99,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
   } else if (id.endsWith('holy-radiance')) {
     if (melee) return -Infinity
     withIt = incomingDamage(state, attackerId, mineId, false, { ...base, hitMod: -1, fnp: 5 })
-  } else if (id.endsWith('hyper-reactive') || id.endsWith('lurking-killers') || id.endsWith('quicksilver-reactions')) {
+  } else if (id.endsWith('hyper-reactive') || id.endsWith('lurking-killers') || id.endsWith('quicksilver-reactions') || id.endsWith('whip-fast-reactions')) {
     withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, hitMod: -1 })
   } else if (id.endsWith('lives-before-territory')) {
     if (melee) return -Infinity
@@ -119,7 +119,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
 }
 
 const DEFENSIVE = ['skeinwrought-physiology', 'go-to-ground', 'smokescreen', 'gene-wrought-resilience', 'tough-as-squig-hide', 'holy-radiance', 'hyper-reactive',
-  'mercurial-resilience', 'a-martyrs-death', 'daemonic-fervour', 'lurking-killers', 'lives-before-territory', 'quicksilver-reactions']
+  'mercurial-resilience', 'a-martyrs-death', 'daemonic-fervour', 'lurking-killers', 'lives-before-territory', 'quicksilver-reactions', 'whip-fast-reactions']
 
 // Fire Overwatch: hits only on an unmodified 6, the bound unit only (picked within 24"), each weapon within its own range, with line of sight.
 function overwatchGain(state: GameState, player: PlayerId, action: UseStratagemAction, enemyId: UnitId): number {
@@ -633,6 +633,39 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
       best = Math.max(best, unitRangedDamage(state, unitId, e.id, {}) * unitValue(state, e.id) * 0.03 * 0.18)
     }
     return best > 0.25 ? best : -Infinity
+  }
+  // Aeldari Storm of Shots: +1 to hit for a not-yet-shot unit's attacks; compare the unit's best volley with and without it.
+  if (id.endsWith('storm-of-shots')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId || !hasAnyRangedWeapon(state, unitId)) return -Infinity
+    const range = bestRangedRangeOfUnit(state, unitId) ?? 0
+    let best = 0
+    for (const e of boardUnitsOf(state, other(player))) {
+      if (minGapBetweenUnits(state, unitId, e.id) > range) continue
+      const gain = unitRangedDamage(state, unitId, e.id, { hitMod: 1 }) - unitRangedDamage(state, unitId, e.id, {})
+      best = Math.max(best, gain * unitValue(state, e.id) * 0.03)
+    }
+    return best > 0.2 ? best : -Infinity
+  }
+  // Aeldari Zephyr-swift: a free 6" Normal move (no charge afterwards); worth it when the unit can reach an objective it does not
+  // hold (or must contest) with the move, and is not about to be wasted on a marker it already controls.
+  if (id.endsWith('zephyr-swift')) {
+    const unitId = targets.unitIds?.[0]
+    const models = unitId ? unitModels(state, unitId) : []
+    if (!unitId || models.length === 0) return -Infinity
+    const here = centerOfUnit(state, unitId)
+    if (!here) return -Infinity
+    let best = 0
+    for (const o of Object.values(state.objectives)) {
+      if (o.removed) continue
+      const onIt = models.some((m) => withinObjectiveRange(m, o))
+      const controller = DEFAULT_SERVICES.objectives.controller(state, o.id)
+      if (onIt && controller === player) continue
+      const reach = Math.hypot(o.pos.x - here.x, o.pos.z - here.z) - 3
+      if (reach > 6 || reach < 0) continue
+      best = Math.max(best, objectiveScoreWeight(state, player, o.id) * (controller === player ? 0.3 : 1.2))
+    }
+    return best > 0.4 ? best : -Infinity
   }
   // Custodes Overawing Magnificence: a free Normal move (up to M, ending outside Engagement Range) after the enemy falls back from
   // our unit; worth it when the freed unit can reach an objective we do not hold, or close on the retreating unit's lane.

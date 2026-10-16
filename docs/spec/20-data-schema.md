@@ -70,7 +70,7 @@ still gate it so bespoke hooks stay cheap. A descriptor with `code` may omit `ef
 
 Condition keys (all optional): `phase`, `ownTurn`, `attackerKeyword`, `attackerNotKeyword`, `targetKeyword` (Keyword or Keyword[] = any of),
 `targetNotKeyword`, `weaponType (ranged|melee)`, `weaponAbility`, `weaponId`, `range ({within:n} | "half")`,
-`targetInCover`, `targetOnObjective`, `unitOnObjective`, `unitBelowHalf`, `unitStationary`, `unitAdvanced`,
+`targetInCover`, `targetOnObjective`, `targetOnObjectiveControlledBy (self|opponent: target within range of a marker controlled by the holder / the holder's opponent; Aeldari Swift Demise)`, `unitOnObjective`, `unitBelowHalf`, `unitStationary`, `unitAdvanced`,
 `targetBelowStartingStrength`, `targetBelowHalf`, `targetIsClosestEligible` (Tyranids: Feeding Frenzy / Voracious Assault), `unitFellBack`, `unitCharged`, `unitHasModel` (holder unit has a live model with that modelId; Sororitas Repentia Overseer), `unitBattleShocked`, `leaderAttached`, `mortalWound` (onFeelNoPainRoll only: the point saved is a mortal wound), `sourcePsychic` (onFeelNoPainRoll only: the point comes from a [PSYCHIC] weapon or a Psychic-tagged ability's mortal wounds), `roll ({gte,lte, unmodified?})`,
 `round ({gte,lte})`, `oathTarget` (target is the marked unit), `strengthVsToughness (gt|gte|eq|lte|lt|double|half — attack S vs target T)`, `any`, `not`.
 

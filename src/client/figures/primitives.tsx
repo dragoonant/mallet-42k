@@ -706,6 +706,61 @@ export function WeaponMesh({ shape, colors, hand }: { shape: WeaponShape; colors
           </mesh>
         </group>
       )
+    case 'shuriken-catapult':
+      // Slim bone-cream rifle with a teal fin along the top and a softly glowing teal muzzle ring.
+      return (
+        <group scale={1.4}>
+          <Barrel length={0.3} radius={0.016} color={colors.metal} />
+          <mesh position={[0, 0.005, 0.04]}>
+            <GBox args={[0.04, 0.05, 0.18]} />
+            <StdMat color={colors.primary} roughness={0.5} />
+          </mesh>
+          <mesh position={[0, 0.04, 0.05]}>
+            <GBox args={[0.012, 0.03, 0.14]} />
+            <StdMat color={colors.secondary} roughness={0.5} />
+          </mesh>
+          <mesh position={[0, 0, 0.3]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.026, 0.026, 0.02, 8]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.2} />
+          </mesh>
+        </group>
+      )
+    case 'singing-spear':
+      // A long gold-banded haft with a broad leaf blade of pale light at the tip (the Farseer's witchblade spear).
+      return (
+        <group scale={1.5}>
+          <mesh position={[0, 0, 0.1]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.012, 0.012, 0.6, 6]} />
+            <StdMat color={colors.trim} metalness={0.6} roughness={0.4} />
+          </mesh>
+          <mesh position={[0, 0, 0.44]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCone args={[0.04, 0.2, 4]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.1} roughness={0.3} />
+          </mesh>
+          <mesh position={[0, 0, -0.14]}>
+            <GSphere args={[0.022, 8, 6]} />
+            <StdMat color={colors.trim} metalness={0.6} roughness={0.4} />
+          </mesh>
+        </group>
+      )
+    case 'ghostglaive':
+      // The Wraithlord's glaive: a long bone haft and a wide, flat, glowing-edged blade.
+      return (
+        <group scale={1.5}>
+          <mesh position={[0, 0, 0.15]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.018, 0.018, 0.7, 6]} />
+            <StdMat color={colors.primary} roughness={0.55} />
+          </mesh>
+          <mesh position={[0, 0, 0.58]}>
+            <GBox args={[0.012, 0.13, 0.26]} />
+            <StdMat color={colors.metal} metalness={0.6} roughness={0.35} />
+          </mesh>
+          <mesh position={[0, 0.07, 0.58]}>
+            <GBox args={[0.02, 0.012, 0.27]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.4} />
+          </mesh>
+        </group>
+      )
     case 'none':
     case 'splinter-rifle':
       // Long slim crystal rifle: a dark body, a crimson stock and a glowing teal shard at the muzzle.

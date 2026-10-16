@@ -18,6 +18,7 @@ import { holdTheLineAmount, methodicalDestructionAmount, methodicalDestructionOf
 import { OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE, playerBattlefieldEdge, pointInPolygon, whollyWithinPolygon, withinObjectiveRange } from './geometry'
 import { consecratedGroundAmount, divineJudgementAmount, divineJudgementOffer, hallowedRetributionAmount } from './factions/adepta-sororitas'
 import { pinpointPurgeAmount, reconnaissanceInForceAmount } from './factions/space-marines'
+import { ineffableAgendaAmount } from './factions/aeldari'
 import { hookService } from './hooks-impl'
 import { leaderService } from './leaders'
 import { transportService } from './transports'
@@ -562,6 +563,7 @@ function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): num
       const v = vexillaObjectiveIds(s, pid)
       return v.own.some((id) => holds(ctx, id, pid)) && v.enemy.some((id) => holds(ctx, id, pid)) ? rule.pointsPer : 0
     }
+    case 'ineffableAgenda': return ineffableAgendaAmount(ctx, rule, pid, (id) => holds(ctx, id, pid))
     case 'tgbConsecratedGround': return 0 // event-driven, scored in the destroy fan-outs
     default: return 0
   }

@@ -1,0 +1,26 @@
+[
+  {
+    "id": "ael.farseer-iraneth",
+    "faction": "aeldari",
+    "name": "Farseer Iraneth",
+    "keywords": ["INFANTRY", "CHARACTER", "PSYKER", "FARSEER", "IRANETH"],
+    "factionKeywords": ["AELDARI"],
+    "stats": { "M": 7, "T": 3, "Sv": 6, "W": 4, "Ld": 6, "OC": 1 },
+    "invuln": 4,
+    "composition": [
+      {
+        "modelId": "farseer",
+        "name": "Farseer Iraneth",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 25 },
+        "weapons": { "default": ["ael.w.eldritch-storm", "ael.w.shuriken-pistol", "ael.w.singing-spear-ranged", "ael.w.singing-spear"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      }
+    ],
+    "abilities": ["ael.a.strands-of-fate", "ael.a.fortune"],
+    "coreAbilities": [ { "ability": "LEADER" } ],
+    "leader": { "attachTo": ["ael.guardian-defenders"], "effects": [] },
+    "points": [ { "models": 1, "points": 0 } ],
+    "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+  }
+]

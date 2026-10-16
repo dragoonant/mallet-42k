@@ -405,3 +405,12 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Verification | typecheck, `validate:data`, `build` green; `npm test` 2473 passing (114 files); e2e `leagues-of-votann.spec.ts` (3 tests: start vs Orks bot, deploy, Overwatch/first shooting; Votann as opponent; gallery), screenshots `e2e-out/m10-leagues-of-votann-0*.png` |
 | Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all finished, but the default rotation never fields Votann on that seed. `--games 30 --seed 5`: 2 Votann games, both finished by VP (1 win vs genestealer-cults, 1 loss), 0 violations. No balance tuning |
 | Known gaps | Procedural placeholder figures (GLBs to come); weapons borrow existing SFX; no dedicated AI policy for Toil Earns / Holy Apparatus picks beyond defaults; rulings in `docs/needs-rules-check.md` under "leagues-of-votann build" (LOV-R01 to 16) |
+
+### M10 aeldari - The Fatebreakers (new faction, playable)
+| Item | State |
+|---|---|
+| Patrol | The Fatebreakers: Farseer, Guardian Defenders, Windriders (optional Patrol Squads split into two units of 3), Wraithlord, Heavy Weapon Platform crew; secondaries Ineffable Agenda / A Greater Destiny. Data `src/data/factions/aeldari/`; spec `docs/spec/factions/aeldari.md` |
+| Engine hooks | New `src/engine/factions/aeldari.ts`: strandsOfFate (Fate dice on the Sororitas Miracle pool in `miracle.ts`, batch substitution via optional `batch` arg), fortune, crewedPlatform, foresight, ineffableAgenda, infantryOrMounted, stormOfShots, zephyrSwift. Generic engine additions: enhancement-sourced stratagemCostOverride (E3), damage-roll re-rolls (E2), queued reactive moves (E5), targetOnObjectiveControlledBy |
+| Verification | typecheck, validate:data (174 files), build green; `npm test` 2455 passing (114 files, incl. `tests/engine/aeldari*.test.ts`, `tests/data/aeldari-the-fatebreakers.test.ts`, `tests/client/aeldari.test.ts`); e2e `aeldari.spec.ts` starts as Aeldari vs bot, deploys through board clicks, reaches round 1 Shooting with the Fate dice prompt (`e2e-out/m10-aeldari-0*.png`) |
+| Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all finished (round 5); aeldari 1 win (default rotation). `SIM_FACTION=aeldari`: aeldari 3 wins, adepta-sororitas 2, 1 draw |
+| Known gaps | Procedural figures (jetbike/platform vehicle style, no GLBs); borrowed SFX; Strands of Fate on batches fills the first N dice rather than player-chosen dice; rulings AEL-R01 to AEL-R28 in `docs/needs-rules-check.md` under "aeldari build" |

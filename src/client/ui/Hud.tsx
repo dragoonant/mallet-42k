@@ -11,6 +11,7 @@ import { modelsAnchor } from '../interaction/geometry'
 import { isPlacementDecision } from '../interaction/decisions'
 import { MissionPanel } from './MissionPanel'
 import { Tooltip } from './Tooltip'
+import { hasFatePool } from './fate'
 import { primaryScoringWindowHint, sourceName } from './labels'
 import { BATTLEFIELDS } from '../board/terrainAssets'
 import { buttonBase, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
@@ -73,7 +74,7 @@ const chip: CSSProperties = {
   whiteSpace: 'nowrap',
 }
 
-const chipActive: CSSProperties = { ...chip, color: colors.accentText, background: colors.accent, borderColor: colors.accent }
+const chipActive: CSSProperties = { ...chip, color: colors.accentText, background: colors.accent, border: `1px solid ${colors.accent}` }
 
 /** Player badge — no longer self-positioning: the left one sits in `hudLeftCell` below, the right
  *  one is a plain flex child of `rightGroup` alongside the tool icons. */
@@ -150,7 +151,7 @@ const toolBtn: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
 }
-const toolBtnActive: CSSProperties = { ...toolBtn, background: colors.accent, color: colors.accentText, borderColor: colors.accent }
+const toolBtnActive: CSSProperties = { ...toolBtn, background: colors.accent, color: colors.accentText, border: `1px solid ${colors.accent}` }
 
 /** Below this viewport width the right-side tool row no longer reliably fits beside the badges at
  *  1280px wide alongside a full-width centre strip, so the six icon buttons collapse into one "⋯"
@@ -521,12 +522,12 @@ function hasActsOfFaith(state: GameState, id: PlayerId): boolean {
 
 /** Adepta Sororitas' pool of Miracle dice (their Acts of Faith rule): a row of small pips showing each saved
  *  die's fixed value. Renders nothing for an army without the rule. */
-function MiracleDice({ dice: diceIn, id, enabled }: { dice: number[] | undefined; id: PlayerId; enabled: boolean }) {
+function MiracleDice({ dice: diceIn, id, enabled, fate }: { dice: number[] | undefined; id: PlayerId; enabled: boolean; fate?: boolean }) {
   if (!enabled) return null
   const dice = diceIn ?? []
   return (
-    <Tooltip title="Miracle dice" body="Spend one in place of a roll (Acts of Faith)." placement="bottom"><div style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 4 }} data-testid={`hud-miracle-${id}`}>
-      <span>Miracle</span>
+    <Tooltip title={fate ? 'Fate dice' : 'Miracle dice'} body={fate ? 'Spend one in place of a die of a roll (Strands of Fate).' : 'Spend one in place of a roll (Acts of Faith).'} placement="bottom"><div style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 4 }} data-testid={`hud-miracle-${id}`}>
+      <span>{fate ? 'Fate' : 'Miracle'}</span>
       {dice.length === 0 && <span style={mutedText}>none</span>}
       {dice.map((v, i) => (
         <span
@@ -581,7 +582,7 @@ function PlayerBadge({ id, state }: { id: PlayerId; state: GameState }) {
       <div style={{ fontSize: 13 }} data-testid={`hud-cp-${id}`}>
         CP {p.cp}
       </div>
-      <MiracleDice dice={(p as { miracle?: { dice?: number[] } }).miracle?.dice} id={id} enabled={hasActsOfFaith(state, id)} />
+      <MiracleDice dice={(p as { miracle?: { dice?: number[] } }).miracle?.dice} id={id} enabled={hasActsOfFaith(state, id) || hasFatePool(state, id)} fate={hasFatePool(state, id) && !hasActsOfFaith(state, id)} />
       <PainTokens state={state} id={id} />
       <button style={vpButton} data-testid={`hud-vp-${id}`} onClick={() => setOpen((v) => !v)}>
         VP {p.vp} {scored.length > 0 ? (open ? '▲' : '▼') : ''}

@@ -1,0 +1,24 @@
+[
+  {
+    "id": "ael.wraithlord",
+    "faction": "aeldari",
+    "name": "Wraithlord",
+    "keywords": ["MONSTER", "WALKER", "WRAITH CONSTRUCT", "WRAITHLORD"],
+    "factionKeywords": ["AELDARI"],
+    "stats": { "M": 8, "T": 11, "Sv": 2, "W": 10, "Ld": 6, "OC": 3 },
+    "composition": [
+      {
+        "modelId": "wraithlord",
+        "name": "Wraithlord",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 60 },
+        "weapons": { "default": ["ael.w.bright-lance", "ael.w.shuriken-catapult-wraithlord-1", "ael.w.shuriken-catapult-wraithlord-2", "ael.w.ghostglaive-strike", "ael.w.ghostglaive-sweep"] },
+        "figure": { "archetype": "monster", "kit": "generic-monster" }
+      }
+    ],
+    "abilities": [],
+    "coreAbilities": [ { "ability": "DEADLY_DEMISE", "value": 1 } ],
+    "points": [ { "models": 1, "points": 0 } ],
+    "figure": { "archetype": "monster", "kit": "generic-monster" }
+  }
+]

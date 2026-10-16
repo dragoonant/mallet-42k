@@ -12,6 +12,7 @@ import type { Action } from './actions'
 import { astraMilitarumHooks } from './factions/astra-militarum'
 import { tauEmpireHooks } from './factions/tau-empire'
 import { genestealerCultsHooks } from './factions/genestealer-cults'
+import { aeldariHooks } from './factions/aeldari'
 import { distance, withinEngagementRange, withinObjectiveRange, OBJECTIVE_MARKER_RADIUS } from './geometry'
 import { adeptaSororitasHooks } from './factions/adepta-sororitas'
 import { shotThisTurn } from './attack'
@@ -852,6 +853,8 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   ...genestealerCultsHooks(),
   // drukhari (docs/spec/factions/drukhari.md §7): powerFromPain, powerFromPainSpend, thereAndGone, murderousMonster
   ...drukhariHooks,
+  // aeldari (docs/spec/factions/aeldari.md section 7): strandsOfFate, fortune, crewedPlatform, foresight, ineffableAgenda, infantryOrMounted, stormOfShots, zephyrSwift
+  ...aeldariHooks(),
 }
 
 export type { ChooseOptionDecision }

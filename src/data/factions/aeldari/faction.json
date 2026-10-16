@@ -1,0 +1,23 @@
+{
+  "id": "aeldari",
+  "name": "Aeldari",
+  "factionKeyword": "AELDARI",
+  "armyRule": "ael.a.strands-of-fate",
+  "detachments": [
+    {
+      "id": "ael.d.the-fatebreakers",
+      "name": "The Fatebreakers",
+      "rule": "ael.a.strands-of-fate",
+      "stratagems": ["ael.s.whip-fast-reactions", "ael.s.storm-of-shots", "ael.s.zephyr-swift"],
+      "enhancements": ["ael.e.foresight", "ael.e.eldritch-might"]
+    }
+  ],
+  "paintScheme": {
+    "primary": "#ece4cf",
+    "secondary": "#1f6f78",
+    "trim": "#c9a54a",
+    "metal": "#8a8f98",
+    "decal": "#20313a"
+  },
+  "combatPatrols": ["ael.cp.the-fatebreakers"]
+}

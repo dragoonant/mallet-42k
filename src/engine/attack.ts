@@ -376,7 +376,7 @@ function rollBatchD6(ctx: EngineContext, key: string, hook: 'onHitRoll' | 'onWou
   const prefix = `roll:${key}=`
   if (!s.phaseState.marks.some((m) => m.startsWith(prefix))) {
     // E1: an Act of Faith may replace one die of this batch before it is rolled
-    const gate = miracleGate(ctx, key, spec)
+    const gate = miracleGate(ctx, key, spec, true)
     if (gate === 'pending') return 'pending'
     const fresh = ctx.roll(gate ? { ...spec, substitute: gate } : spec)
     s.phaseState.marks.push(prefix + fresh.id)
@@ -918,10 +918,21 @@ function doSaveBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
   const target = saveBatchTarget(ctx, lead)
   if (target === null) { b.stage = 'apply'; return 'progress' }
   const player = s.units[group.targetUnitId].player
-  const roll = ctx.rollOnce(`save:${lead}:b`, {
+  const saveKey = `save:${lead}:b`
+  const spec: RollSpec = {
     purpose: 'save', player, sides: 6, count: b.queue.length, mode: 'perDie', unitId: group.targetUnitId, weaponId: group.weaponId,
     targetUnitId: group.targetUnitId, commandRerollable: true, needed: target,
-  })
+  }
+  // AEL-2.3: a fast-rolled save batch is one Save roll per attack, so a Strands of Fate unit may spend up to N Fate dice on it
+  // (miracleGate batch=true, as rollBatchD6 does); the gated roll is marked so rollOnce below does not gate again
+  const prefix = `roll:${saveKey}=`
+  if (!s.phaseState.marks.some((m) => m.startsWith(prefix))) {
+    const gate = miracleGate(ctx, saveKey, spec, true)
+    if (gate === 'pending') return 'pending'
+    const fresh = ctx.roll(gate ? { ...spec, substitute: gate } : spec)
+    s.phaseState.marks.push(prefix + fresh.id)
+  }
+  const roll = ctx.rollOnce(saveKey, spec)
   if (!roll) return 'pending'
   b.saveRoll = roll
   b.queue.forEach((slot, j) => { slot.saveDie = j })
@@ -978,6 +989,17 @@ function applyOnePoint(ctx: EngineContext, model: Model, actx: AttackContext, so
 
 // ---------- damage stage (normal attack, R-6.15; devastating-wound mortal batch, R-7) ----------
 
+// E2: the re-roll kinds every source collected at 'onDamageRoll' grants for this attack's Damage roll ('fails' / 'all' have no
+// meaning for a Damage roll and are ignored by the caller)
+export function damageRerollKinds(ctx: EngineContext, actx: AttackContext, roll: DiceRoll): Set<'ones' | 'fails' | 'all'> {
+  const kinds = new Set<'ones' | 'fails' | 'all'>()
+  const results = ctx.services.hooks.collect(ctx, 'onDamageRoll', {
+    attack: actx, roll: { purpose: 'damage', roll, dieIndex: 0, unmodified: roll.dice[0], rerolled: (roll.rerolled ?? []).includes(0) },
+  }).map((r) => r.result).filter(isRoll)
+  for (const r of results) if (r.reroll === 'ones' || r.reroll === 'fails' || r.reroll === 'all') kinds.add(r.reroll)
+  return kinds
+}
+
 function doDamageStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pending' | 'progress' {
   const a = attackSeq(ctx)
   const cur = a.current as CurrentAttack
@@ -1000,9 +1022,27 @@ function doDamageStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pen
       // WEAP-008-dice/WEAP-011: normal attacks get the same per-slot suffix as wound/save, for the same reason.
       const key = devastating ? `devdmg:${gi}:${group.devastatingPending}` : `damage:${gi}:${cur.slot ?? 0}`
       const player = s.units[a.attackerUnitId].player
-      const roll = ctx.rollOnce(key, { purpose: 'damage', player, sides: parsed.sides ?? 6, count: parsed.count, mode: 'sum', modifiers, unitId: a.attackerUnitId, modelId: cur.attackerModelId, weaponId: weapon.id, targetUnitId: group.targetUnitId, commandRerollable: true })
-      if (!roll) return 'pending'
-      dmg = rollSum(roll)
+      const spec: RollSpec = { purpose: 'damage', player, sides: parsed.sides ?? 6, count: parsed.count, mode: 'sum', modifiers, unitId: a.attackerUnitId, modelId: cur.attackerModelId, weaponId: weapon.id, targetUnitId: group.targetUnitId, commandRerollable: true }
+      // E2 (Eldritch Might): an attacker-side 'onDamageRoll' re-roll of 1s is automatic, so it is applied BEFORE rollOnce opens the
+      // 'any.rollMade' window (as rollBatchD6 does for hit/wound) — otherwise Command Re-roll is offered for a die the free re-roll
+      // would replace, and accepting it forfeits the free one.
+      const prefix = `roll:${key}=`
+      if (!s.phaseState.marks.some((m) => m.startsWith(prefix))) {
+        const gate = miracleGate(ctx, key, spec)
+        if (gate === 'pending') return 'pending'
+        const fresh = ctx.roll(gate ? { ...spec, substitute: gate } : spec)
+        s.phaseState.marks.push(prefix + fresh.id)
+      }
+      if (ctx.once(`autoReroll:${key}`)) {
+        const first = s.phaseState.lastRoll as DiceRoll
+        if (damageRerollKinds(ctx, actx, first).has('ones')) {
+          const ones = first.dice.map((d, i) => (d === 1 && canReroll(first, i) ? i : -1)).filter((i) => i >= 0)
+          if (ones.length > 0) ctx.reroll(first, ones, 'damage')
+        }
+      }
+      const dmgRoll = ctx.rollOnce(key, spec)
+      if (!dmgRoll) return 'pending'
+      dmg = rollSum(dmgRoll)
     }
     if (!devastating) {
       const melta = weaponService.abilityValue(weapon, 'MELTA')

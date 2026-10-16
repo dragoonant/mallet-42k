@@ -1,0 +1,33 @@
+[
+  {
+    "id": "ael.guardian-defenders",
+    "faction": "aeldari",
+    "name": "Guardian Defenders",
+    "keywords": ["INFANTRY", "BATTLELINE", "GUARDIANS", "GUARDIAN DEFENDERS"],
+    "factionKeywords": ["AELDARI"],
+    "stats": { "M": 7, "T": 3, "Sv": 4, "W": 1, "Ld": 6, "OC": 2 },
+    "composition": [
+      {
+        "modelId": "guardian-defender",
+        "name": "Guardian Defender",
+        "min": 10, "max": 10, "default": 10,
+        "base": { "shape": "round", "mm": 28 },
+        "weapons": { "default": ["ael.w.shuriken-catapult", "ael.w.close-combat-weapon-guardian"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "heavy-weapon-platform",
+        "name": "Heavy Weapon Platform",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 40 },
+        "statsOverride": { "W": 2, "OC": 0 },
+        "weapons": { "default": ["ael.w.starcannon", "ael.w.close-combat-weapon-guardian"] },
+        "figure": { "archetype": "vehicle", "kit": "generic-vehicle" }
+      }
+    ],
+    "abilities": ["ael.a.strands-of-fate", "ael.a.defenders-of-fate", "ael.a.crewed-platform"],
+    "coreAbilities": [],
+    "points": [ { "models": 11, "points": 0 } ],
+    "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+  }
+]
