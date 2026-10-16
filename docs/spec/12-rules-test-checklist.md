@@ -830,3 +830,38 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | CUS-022 | CUS-6 | weapons: executioner greatblade Anti-PSYKER 4+ (wound roll 4 vs PSYKER is critical → Devastating Wounds); interceptor lance +1 to wound on the charge; hurricane bolter Rapid Fire 3 + Twin-linked at half range; sentinel blade Pistol usable in Engagement Range |
 | CUS-023 | CUS-6 | Deep Strike: Tyvan, Guard may start in Reserves; Praetors, Prosecutors, Vigilators may not |
 | CUS-024 | E2 | weapon-ability queries without an attack context are unchanged (Champion Duellist, Veil of Time, Epic Challenge regression) |
+
+## SOL — Space Marines: Strike Team Solarien (docs/spec/factions/space-marines--strike-team-solarien.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| SOL-001 | SOL-1 | patrol loads (default): 4 units, 15 models; Solarien is WARLORD with Auto-choral Resonators, attached to the Infiltrator Squad; default secondary Reconnaissance in Force; Strike Force Octavius still loads unchanged |
+| SOL-002 | SOL-1.2, 6.10 | Patrol Squads split → two 5-model Infiltrator units, each with Omni-scramblers; Solarien and Xarius can each attach to one half |
+| SOL-003 | SOL-6 | data: every profile/stat row of §6 matches (accelerator autocannon BS 4+, Solarien bolt pistol BS 2+); reused weapon ids are unchanged |
+| SOL-004 | SOL-2.1 | Oath of Moment: Infiltrator carbine attack vs the Oath target re-rolls the hit roll (shared `sm.a.oath-of-moment`) |
+| SOL-005 | SOL-6 | Infiltrators: attached Solarien + Infiltrators may deploy >9" from the enemy zone and models; Suppressors may not |
+| SOL-006 | SOL-6 | Scouts 6": unattached Solarien offered a Scouts move; attached Solarien + Infiltrators not offered |
+| SOL-007 | SOL-6 | Deep Strike: unattached Solarien may go to Reserves; Infiltrators, Xarius, Suppressors may not |
+| SOL-008 | SOL-3.1 | Auto-choral Resonators: end of own Command phase with Solarien's unit on a controlled marker → marker sticky (`ObjectiveSecured` sticky); unit leaves → still controlled; opponent gains higher OC at end of a turn → lost |
+| SOL-009 | SOL-3.1 | Auto-choral Resonators: not in range / marker not controlled / opponent's Command phase → no sticky |
+| SOL-010 | SOL-3.2 | Stealthy Hunter: unattached Solarien cannot be targeted from 13" by ranged attacks, can from 12"; ranged attacks against it −1 to hit |
+| SOL-011 | SOL-3.2 | Stealthy Hunter: attached to Infiltrators → no Lone Operative range limit and no Stealth −1 (Infiltrators lack Stealth) |
+| SOL-012 | SOL-3.2 | Stealthy Hunter carbine: unmodified wound 4 vs INFANTRY → critical wound → Devastating Wounds mortal wounds; may allocate to a visible CHARACTER (Precision); bolt pistol and blades unaffected |
+| SOL-013 | SOL-4.1 | Reconnaissance in Force: round 2, end of own turn, 1 v 1 No Man's Land markers → 2 VP; 2 v 1 → 4 VP; 0 v 0 → 0; home markers ignored |
+| SOL-014 | SOL-4.1 | Reconnaissance in Force: round 1 → 0; end of opponent's turn → 0 |
+| SOL-015 | SOL-4.2 | Pinpoint Purge: own ranged attack destroys an enemy unit → +2 VP; Oath target → +3 VP; melee kill → 0; opponent's own Hazardous kill → 0 |
+| SOL-016 | SOL-4.2 | Pinpoint Purge: kill by Overwatch in the opponent's turn scores; kill by Devastating Wounds mortal wounds of a ranged attack scores; attached unit scores once, when its last half is destroyed |
+| SOL-017 | SOL-5.1 | Vanguard Strike: own Command phase, Infiltrators OC 1 → 2 through the opponent's turn; back to 1 at the start of the next own Command phase |
+| SOL-018 | SOL-5.2 | Giantslayer Doctrine: Suppressor autocannon AP −1 → −2; unmodified wound 4 vs VEHICLE/MONSTER is a critical wound; not offered for a Suppressor unit that already shot; expires at phase end |
+| SOL-019 | SOL-5.3 | Rapid Repositioning: enemy ends a Normal/Advance/Fall Back move within 9" of Infiltrators → offered; unit moves up to 3" (Normal-move rules, ends outside Engagement Range) |
+| SOL-020 | SOL-5.3 | Rapid Repositioning not offered: target 9.5" away; target in Engagement Range; target is Suppressors (not PHOBOS); enemy unit arrived from Reserves |
+| SOL-021 | SOL-6.1 | Strategic Dispersal: after Solarien's unit shoots (not engaged) → use/decline; use → D6 roll, Normal move up to that many inches; not offered when engaged or after Overwatch |
+| SOL-022 | SOL-6.2 | Shrouding: Xarius leading Infiltrators → enemy ranged attack from 13" illegal (`E_NOT_IN_RANGE`), from 12" legal; ranged hits −1 (Stealth) |
+| SOL-023 | SOL-6.2 | Shrouding: Xarius unattached → no range cap, no Stealth; Infiltrators alone → none |
+| SOL-024 | SOL-6.3 | Omni-scramblers: enemy Deep Strike placement 11.9" from an Infiltrator model → rejected; 12.1" → accepted (all other arrival rules still apply) |
+| SOL-025 | SOL-6.3 | Omni-scramblers: applies to Strategic Reserves / Rapid Ingress arrivals too; does not restrict the owner's own arrivals; the arrival decision's `constraints.forbidden` includes the zone polygons |
+| SOL-026 | SOL-6.4 | Suppression Fire: autocannon hits enemy unit → it is suppressed: its attacks (ranged, melee, Overwatch) −1 to hit until the start of the SM player's next turn |
+| SOL-027 | SOL-6.4 | Suppression Fire: two units hit → `chooseOption`; a unit hit only by bolt pistols is not a candidate; Suppressors destroyed → penalty ends at once |
+| SOL-028 | SOL-6 | Accelerator autocannon Heavy: stationary Suppressors hit on 3+ (BS 4+ with +1) |
+| SOL-029 | SOL-6 | Smite focused witchfire on Xarius: Hazardous 1 → Xarius (CHARACTER) takes 3 mortal wounds |
+| SOL-030 | E1 | Stealth regression: datasheet Stealth units (other factions) unchanged; granted Stealth counted only when every half has it |
+| SOL-031 | E4 | Mission regression: Treasures of Aeons / Marked for Execution / Hallowed Retribution unchanged with the new `unitDestroyed` fields |
