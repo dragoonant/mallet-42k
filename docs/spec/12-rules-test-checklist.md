@@ -1269,3 +1269,44 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | DRU-025 | DRU-6 | Shredder Torrent auto-hits D6 attacks; Klaivex picks single or dual demiklaive profile per fight, dual is Twin-linked; dark lance damage D6+2 |
 | DRU-026 | DRU-6.5 | Raider / Ravager Deep Strike from round 2 only (>9" from enemies); Deadly Demise D3 on destruction |
 | DRU-027 | E1 | Regression: Pain pool and Empowered record in `secondaryState` keep replay hashes deterministic (same seed + actions → same hash); non-Drukhari games create no `painTokens` key |
+
+## LEA — Leagues of Votann: Warspeke's Prospect (docs/spec/factions/leagues-of-votann.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| LEA-001 | LEA-1 | patrol loads: 4 units, 19 models; Kâhl is WARLORD with Waste Feeds the Void, attached to Hearthkyn; default secondary Toil Earns |
+| LEA-002 | LEA-1.2 | Patrol Squads: split offered at Declare Battle Formations; split → two 5-model units with the LEA-1.2 parts, Kâhl attached to `hearthkyn-a` |
+| LEA-003 | LEA-2.1 | enemy shooting destroys the Beserks → that enemy unit gets 1 Judgement token (`AbilityTriggered`) |
+| LEA-004 | LEA-2.1 | a second LoV unit destroyed by the same enemy → 2 tokens; a third → still 2 |
+| LEA-005 | LEA-2.1 | a LoV unit dying to its own Hazardous / lost in Reserves → no token anywhere |
+| LEA-006 | LEA-2.1 | Deadly Demise of an enemy model destroys a LoV unit → token on the exploding model's unit (RC-072) |
+| LEA-007 | LEA-2.2 | Hearthkyn ion blaster vs a 1-token target: hit roll +1 (3 on the die hits), wound roll unmodified |
+| LEA-008 | LEA-2.2 | vs a 2-token target: +1 hit and +1 wound; vs a 0-token unit: no modifier; Heavy +1 plus token +1 still capped at +1 to hit |
+| LEA-009 | LEA-2.3 | attached enemy pair gains a token; its bodyguard is later wiped → the surviving leader still has the token |
+| LEA-010 | LEA-2.3 | an enemy unit with tokens goes to Reserves and returns → tokens kept |
+| LEA-011 | LEA-2.4 | mirror match: tokens are per player — player A's tokens on B's unit do not modify B's attacks |
+| LEA-012 | LEA-6.1 | Grim Efficiency: own Command phase, Kâhl on board → `chooseOption` over visible enemy units only; pick → +1 token; not offered in the opponent's Command phase or when the Kâhl is dead |
+| LEA-013 | LEA-6.1 | Grim Efficiency on a 2-token unit → stays 2 |
+| LEA-014 | LEA-3 | Waste Feeds the Void: Hearthkyn ranged hit roll of 1 re-rolled; melee 1s not re-rolled; Pioneers (not the bearer's unit) not re-rolled |
+| LEA-015 | LEA-3 | Waste Feeds the Void: led Hearthkyn Fall Back then shoot (legal); cannot declare a charge |
+| LEA-016 | LEA-3 | Prâgmaat Comms Uplink: Hearthkyn OC 2 → 3, Kâhl OC 1 → 2; failed Battle-shock test may be re-rolled |
+| LEA-017 | LEA-4.1 | Toil Earns: pick offered after Patrol Squads, before the first deployUnit; markers inside own DZ excluded |
+| LEA-018 | LEA-4.1 | Toil Earns: control the marker at end of own round-1 turn → 0 VP; at end of own round-2 turn → 4 VP; at end of opponent's turn → nothing |
+| LEA-019 | LEA-4.2 | Holy Apparatus: no pick in round 1; round-2 start pick lists only enemy units with ≥1 token; none → no decision, 0 VP |
+| LEA-020 | LEA-4.2 | Holy Apparatus: target destroyed during the round (any means) → 4 VP at round end; survives → 0; attached target with one half alive → 0 |
+| LEA-021 | LEA-5 | Payment in Kind: offered just after an enemy attack destroys the last Hearthkyn; used → for the rest of the battle LoV hit rolls of 1 vs the killer's unit are re-rolled; not vs other units |
+| LEA-022 | LEA-5 | Payment in Kind not offered when the LoV unit died to Hazardous or to a non-attack effect |
+| LEA-023 | LEA-5 | Pan-Spectral Sweep: own Shooting phase, unit not yet shot → ranged weapons gain Lethal Hits (critical hit auto-wounds) until phase end; not offered for a unit that already shot |
+| LEA-024 | LEA-5 | Skeinwrought Physiology: opponent's Shooting after targets declared → Hearthkyn save 4+ → 3+, Kâhl 3+ → 2+, invuln 4+ unchanged; expires at phase end |
+| LEA-025 | LEA-6.2 | Medipack: Hearthkyn and attached Kâhl get FNP 6+ while the medipack Warrior lives; gone once he dies; after a split only his half has it |
+| LEA-026 | LEA-6.2 | Pan-Spectral Scanner: Hearthkyn ranged attacks ignore the target's cover while the scanner Warrior lives |
+| LEA-027 | LEA-6.3 | Mag-Riders: end of opponent's round-2 turn, Pioneers within 6" of an edge and not engaged → offered; round 1 → not offered; engaged or > 6" from every edge → not offered |
+| LEA-028 | LEA-6.3 | Mag-Riders arrival: next own Reinforcements step, mandatory; legal spots wholly within 6" of a non-opponent edge and > 9" from enemies; a spot in the opponent's edge strip (away from the side edges) rejected |
+| LEA-029 | LEA-6.3 | Mag-Riders: arrival allowed in round 4; unit not culled at end of round 3; declining the set-up destroys it; removed at end of the battle's last turn → counts as destroyed |
+| LEA-030 | LEA-6.3 | Mag-Riders go into plain Reserves (not Strategic Reserves, so no CP-1.9 round window or cull); arrival emits `ReinforcementsArrived{via:'strategicReserves'}` (cosmetic label only); Rapid Ingress is not offered for it |
+| LEA-031 | LEA-6.4 | Cyberstimms: Beserk destroyed by a melee attack before its unit fought, D6 = 4 → stays, fights once after the attacker finishes, then removed; D6 = 3 → removed at once |
+| LEA-032 | LEA-6.4 | Cyberstimms: no roll once the Beserks have fought this phase; no roll for a model destroyed by a ranged attack; works in both players' Fight phases |
+| LEA-033 | LEA-6.5 | mole-launcher Beserk has W 3, axe strike A4 / sweep A7, launcher D6+1 (Blast, Indirect Fire); other Beserks W 2, A3 / A6 |
+| LEA-034 | LEA-6 | Beserks FNP 5+ against every wound; Pioneers Scouts 9" pre-battle move; Pioneers cannot be targeted by Go to Ground (MOUNTED) |
+| LEA-035 | LEA-6 | magna-rail rifle: Heavy (+1 hit when stationary), D3+3 damage, Devastating Wounds on a critical wound; volkanite disintegrator Devastating Wounds |
+| LEA-036 | LEA-6 | HYLas auto rifle Rapid Fire 3 at half range → A6, Assault (shoot after Advance); HYLas rotary cannon Sustained Hits 1; twin concussion gauntlet Twin-linked |
+| LEA-037 | E1 | Regression: storing tokens in `secondaryState['lov:judgement']` keeps replay hashes deterministic (same seed + actions → same hash) and does not alter non-LoV games |
