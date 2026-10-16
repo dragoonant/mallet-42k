@@ -3,7 +3,7 @@
 // into `HOLD_CP_SCORE + gain - cpThreshold(...)`, so a stratagem only beats passing when its modelled gain pays for the CP it
 // burns. Anything not modelled holds CP (-Infinity).
 import {
-  DEFAULT_SERVICES, boardUnitsOf, hasKeyword, modelStats, unitModels, withinObjectiveRange,
+  DEFAULT_SERVICES, boardUnitsOf, hasKeyword, modelKeywordsOf, modelStats, unitModels, withinObjectiveRange,
   type Action, type GameState, type PendingDecision, type PlayerId, type UnitId, type UseStratagemAction,
 } from '../engine'
 import { diceExprMean } from '../engine/dice'
@@ -108,6 +108,12 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
     withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, svMod: -1 })
   } else if (id.endsWith('evaluation-of-mettle')) {
     withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, fnp: 5 })
+  } else if (id.endsWith('shield-of-zeal')) {
+    // Black Templars: only attacking models within 6" are affected, so a shooter further away gains nothing
+    if (!melee && minGapBetweenUnits(state, attackerId, mineId) > 6) return -Infinity
+    const models = unitModels(state, mineId)
+    const neophytes = models.filter((m) => modelKeywordsOf(state, m.id).includes('PRIMARIS NEOPHYTE')).length
+    withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, invuln: neophytes * 2 > models.length ? 5 : 4 }) // 4+ invulnerable, 5+ for Neophytes
   } else if (id.endsWith('reactive-field-shroud')) {
     withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, invuln: 4 })
   } else if (id.endsWith('mercurial-resilience')) {
@@ -137,7 +143,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
 }
 
 const DEFENSIVE = ['skeinwrought-physiology', 'go-to-ground', 'smokescreen', 'gene-wrought-resilience', 'tough-as-squig-hide', 'holy-radiance', 'hyper-reactive',
-  'mercurial-resilience', 'reactive-field-shroud', 'a-martyrs-death', 'a-warriors-death', 'daemonic-fervour', 'blood-maddened-banishment', 'vb-unyielding', 'manifest-hate', 'lurking-killers', 'lives-before-territory', 'quicksilver-reactions', 'whip-fast-reactions', 'evaluation-of-mettle', 'disgustingly-resilient', 'mutant-cunning', 'mj-relic-munitions', 'controlled-ferocity']
+  'mercurial-resilience', 'reactive-field-shroud', 'a-martyrs-death', 'a-warriors-death', 'daemonic-fervour', 'blood-maddened-banishment', 'vb-unyielding', 'manifest-hate', 'lurking-killers', 'lives-before-territory', 'quicksilver-reactions', 'whip-fast-reactions', 'evaluation-of-mettle', 'disgustingly-resilient', 'mutant-cunning', 'mj-relic-munitions', 'shield-of-zeal', 'controlled-ferocity']
 
 // Fire Overwatch: hits only on an unmodified 6, the bound unit only (picked within 24"), each weapon within its own range, with line of sight.
 function overwatchGain(state: GameState, player: PlayerId, action: UseStratagemAction, enemyId: UnitId): number {
@@ -404,7 +410,7 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
     return pFail * val * (onValuableObjective ? 0.06 : 0.02) - 0.5 // once per battle: keep a premium on the single use
   }
   // Voracious Assault: re-roll hits against the closest eligible target for one of our not-yet-activated units.
-  if (id.endsWith('voracious-assault')) {
+  if (id.endsWith('voracious-assault') || id.endsWith('hate-fuelled-strength')) {
     const unitId = targets.unitIds?.[0]
     if (!unitId) return -Infinity
     const enemy = nearestEnemyUnit(state, player, unitId)
@@ -680,7 +686,7 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
   }
   // Krump da Gitz!: free D6" surge toward whoever just shot us — only worth triggering when it sets up a
   // realistic charge next turn (otherwise it just drags the unit further from where it wants to be).
-  if (id.endsWith('krump-da-gitz')) {
+  if (id.endsWith('krump-da-gitz') || id.endsWith('goaded-to-fury')) {
     const unitId = targets.unitIds?.[0] ?? targetTrigger
     if (!unitId || !hasAnyMeleeWeapon(state, unitId)) return -Infinity
     const enemy = nearestEnemyUnit(state, player, unitId)
@@ -688,9 +694,10 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
     const myModels = unitModels(state, unitId)
     if (myModels.length === 0) return -Infinity
     const stats = modelStats(state, myModels[0])
-    const afterGap = Math.max(0, enemy.gap - 3.5) // average D6
+    const surge = id.endsWith('goaded-to-fury') ? 6 : 3.5 // Goaded to Fury moves a fixed 6"; Krump da Gitz! rolls D6
+    const afterGap = Math.max(0, enemy.gap - surge)
     const needed = Math.max(0, Math.ceil(afterGap - ENGAGEMENT_H))
-    if (needed > stats.M + 3.5) return -Infinity // still not a plausible charge next turn
+    if (needed > stats.M + surge) return -Infinity // still not a plausible charge next turn
     return unitValue(state, enemy.unitId) * 0.015
   }
   // Bring It Down: re-roll hit rolls for every Astra Militarum unit against one enemy unit; worth it when our guns can hurt it.

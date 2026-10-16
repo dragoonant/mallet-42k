@@ -677,6 +677,8 @@ function scoreChooseOption(state: GameState, pending: PendingDecision, action: A
   }
   // Methodical Destruction: the VP only come if the pick dies this round, so mark the unit most likely to die (cheapest on the board).
   if (code === 'methodicalDestructionPick' && hintUnitId) score = -unitValue(state, hintUnitId) * 0.03
+  // Sacred Vow (Black Templars): 3-4 VP only if the picked enemy unit dies to our melee this round, so name the cheapest one (likeliest to die).
+  if (code === 'sacredVowPick' && hintUnitId) score = -unitValue(state, hintUnitId) * 0.03
   // Ethereal Edict: the VP go to the T'au if the picked unit (one of ours) dies, so condemn the hardest one to kill (sum of W x T).
   if ((code === 'etherealEdictPick' || code === 'targetedPurgePick') && hintUnitId) {
     let hardness = 0

@@ -1,0 +1,169 @@
+[
+  {
+    "id": "bt.s.shield-of-zeal",
+    "faction": "black-templars",
+    "name": "Shield of Zeal",
+    "text": "Use in your opponent's Shooting phase or in either Fight phase, just after an enemy unit picks its targets, on one of your ADEPTUS ASTARTES INFANTRY units it picked. Until the end of the phase, attacks against that unit by models within 6\" of it face a 4+ invulnerable save, or 5+ if the defending model is a PRIMARIS NEOPHYTE.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": [
+      "shooting",
+      "fight"
+    ],
+    "window": [
+      "shooting.targetsDeclared",
+      "fight.targetsDeclared"
+    ],
+    "who": "either",
+    "condition": {
+      "any": [
+        {
+          "phase": "shooting",
+          "ownTurn": false
+        },
+        {
+          "phase": "fight"
+        }
+      ]
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "INFANTRY"
+        },
+        "count": 1,
+        "state": "targetedByAttack"
+      }
+    ],
+    "effect": [
+      {
+        "when": {
+          "range": {
+            "within": 6
+          },
+          "targetModelKeyword": "PRIMARIS NEOPHYTE"
+        },
+        "invuln": 5
+      },
+      {
+        "when": {
+          "range": {
+            "within": 6
+          },
+          "not": {
+            "targetModelKeyword": "PRIMARIS NEOPHYTE"
+          }
+        },
+        "invuln": 4
+      }
+    ],
+    "scope": {
+      "who": "self"
+    },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "bt.s.hate-fuelled-strength",
+    "faction": "black-templars",
+    "name": "Hate-Fuelled Strength",
+    "text": "Use in your Shooting phase or in either Fight phase, on one of your ADEPTUS ASTARTES INFANTRY units that has not yet been picked to shoot (or to fight) this phase. Until the end of the phase, each attack its models make against the closest eligible target may re-roll the hit roll.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": [
+      "shooting",
+      "fight"
+    ],
+    "window": [
+      "shooting.start",
+      "shooting.attacksResolved",
+      "fight.start",
+      "fight.attacksResolved"
+    ],
+    "who": "either",
+    "condition": {
+      "any": [
+        {
+          "phase": "shooting",
+          "ownTurn": true
+        },
+        {
+          "phase": "fight"
+        }
+      ]
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "INFANTRY"
+        },
+        "count": 1,
+        "state": "notYetShot"
+      }
+    ],
+    "effect": {
+      "when": {
+        "targetIsClosestEligible": true
+      },
+      "reroll": "all"
+    },
+    "scope": {
+      "who": "self"
+    },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase",
+    "code": "voraciousAssaultHit",
+    "params": {
+      "stateByPhase": {
+        "shooting": "notYetShot",
+        "fight": "notYetFought"
+      }
+    }
+  },
+  {
+    "id": "bt.s.goaded-to-fury",
+    "faction": "black-templars",
+    "name": "Goaded to Fury",
+    "text": "Use in your opponent's Shooting phase, just after an enemy unit has finished shooting, on one of your ADEPTUS ASTARTES INFANTRY units that it targeted. That unit makes a Normal move of up to 6\" and must finish as close as it can get to the enemy unit that shot at it.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": [
+      "shooting"
+    ],
+    "window": "shooting.attacksResolved",
+    "who": "reactive",
+    "condition": {
+      "phase": "shooting",
+      "ownTurn": false
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "INFANTRY"
+        },
+        "count": 1,
+        "state": "targetedByAttack"
+      }
+    ],
+    "effect": {
+      "move": {
+        "distance": 6,
+        "kind": "surge"
+      }
+    },
+    "params": {
+      "asCloseAsPossibleTo": "target"
+    },
+    "scope": {
+      "who": "self"
+    },
+    "duration": "instant",
+    "limit": "oncePerPhase"
+  }
+]

@@ -194,6 +194,15 @@ export type KitId =
   | 'dw-alphion'
   | 'dw-krenn'
   | 'dw-aggressor'
+  | 'bt-intercessor'
+  | 'bt-initiate-rifle'
+  | 'bt-initiate-chainsword'
+  | 'bt-initiate-pyreblaster'
+  | 'bt-neophyte-firearm'
+  | 'bt-neophyte-chainsword'
+  | 'bt-sword-brother'
+  | 'bt-siguard'
+  | 'bt-impulsor'
   | 'cdm-bloodletter'
   | 'cdm-bloodletter-icon'
   | 'cdm-bloodletter-musician'
@@ -377,7 +386,7 @@ export interface VehicleConfig {
   weapon: 'kustom-mega-blasta' | 'kopta-rokkits' | 'twin-catapult' | 'scatter-laser' | 'starcannon' | 'none'
   hasRotor: boolean
   /** 'dozer' = a tracked mining crawler (Goliath Rockgrinder); 'hover' = a skimmer transport (Devilfish); default is the gyrocopter rig. */
-  style?: 'copter' | 'dozer' | 'hover' | 'gravbike' | 'skiff' | 'gunboat' | 'jetbike' | 'platform' | 'impulsor'
+  style?: 'copter' | 'dozer' | 'hover' | 'gravbike' | 'skiff' | 'gunboat' | 'jetbike' | 'platform' | 'impulsor' | 'templar-impulsor'
   /** Grav-bike dressing (Hernkyn Pioneers): which kit the bike carries on top of its nose gun. */
   rig?: 'comms' | 'searchlight' | 'rotary'
 }

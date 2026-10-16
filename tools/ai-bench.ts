@@ -36,6 +36,7 @@ FACTION_ARG_TO_DATA_ID['chaos-daemons'] = 'chaos-daemons'
 FACTION_ARG_TO_DATA_ID['space-wolves'] = 'space-wolves'
 FACTION_ARG_TO_DATA_ID['dark-angels'] = 'dark-angels'
 FACTION_ARG_TO_DATA_ID.deathwatch = 'deathwatch'
+FACTION_ARG_TO_DATA_ID['black-templars'] = 'black-templars'
 
 // the patrol data's own `attachTo` hints (a Leader joining its bodyguard unit); other rosters attach in the client only
 function attachmentsOf(patrol: { units: { ref: string; attachTo?: string }[] }) {

@@ -288,6 +288,10 @@
         "targetNotKeyword": {
           "$ref": "#/$defs/Keyword"
         },
+        "targetModelKeyword": {
+          "$ref": "#/$defs/Keyword",
+          "description": "the attacked / save-taking model has this keyword (modelKeywordsOf); false when no target model is known"
+        },
         "weaponType": {
           "enum": [
             "ranged",

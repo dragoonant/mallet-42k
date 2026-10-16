@@ -1,0 +1,84 @@
+[
+  {
+    "id": "bt.impulsor",
+    "faction": "black-templars",
+    "name": "Black Templars Impulsor",
+    "keywords": [
+      "VEHICLE",
+      "TRANSPORT",
+      "DEDICATED TRANSPORT",
+      "IMPERIUM",
+      "IMPULSOR"
+    ],
+    "factionKeywords": [
+      "ADEPTUS ASTARTES",
+      "BLACK TEMPLARS"
+    ],
+    "stats": {
+      "M": 12,
+      "T": 9,
+      "Sv": 3,
+      "W": 11,
+      "Ld": 6,
+      "OC": 2
+    },
+    "composition": [
+      {
+        "modelId": "impulsor",
+        "name": "Black Templars Impulsor",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 100
+        },
+        "weapons": {
+          "default": [
+            "bt.w.multi-melta",
+            "sm.w.storm-bolter",
+            "bt.w.storm-bolter-2",
+            "bt.w.armoured-hull"
+          ]
+        },
+        "figure": {
+          "archetype": "vehicle",
+          "kit": "generic-vehicle"
+        }
+      }
+    ],
+    "abilities": [
+      "sm.a.oath-of-moment",
+      "bt.a.assault-vehicle"
+    ],
+    "coreAbilities": [
+      {
+        "ability": "DEADLY_DEMISE",
+        "value": "D3"
+      },
+      {
+        "ability": "FIRING_DECK",
+        "value": 6
+      }
+    ],
+    "transport": {
+      "capacity": 6,
+      "keywords": [
+        "ADEPTUS ASTARTES",
+        "INFANTRY",
+        "TACTICUS"
+      ],
+      "firingDeck": 6
+    },
+    "points": [
+      {
+        "models": 1,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "vehicle",
+      "kit": "generic-vehicle"
+    }
+  }
+]

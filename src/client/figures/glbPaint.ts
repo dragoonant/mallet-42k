@@ -29,6 +29,8 @@ const SOURCE_HUES: Record<string, { major: string | null; minor: string | null }
   'blood-angels': { major: '#9e1b1b', minor: '#c9a227' },
   'chaos-daemons': { major: '#7b342d', minor: '#77603f' },
   'dark-angels': { major: '#1f3b2a', minor: '#d9cfb4' },
+  // Black plate has no hue to remap; the bone-coloured tabards/trim are the only repaintable colour.
+  'black-templars': { major: null, minor: '#e6dfc8' },
 }
 
 function hsv(hex: string): [number, number, number] {

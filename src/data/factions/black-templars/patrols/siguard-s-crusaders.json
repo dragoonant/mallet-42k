@@ -1,0 +1,174 @@
+{
+  "id": "bt.cp.siguard-s-crusaders",
+  "faction": "black-templars",
+  "name": "Siguard's Crusaders",
+  "detachment": "bt.d.siguards-crusaders",
+  "units": [
+    {
+      "ref": "marshal-siguard",
+      "datasheet": "bt.marshal-siguard",
+      "size": 1,
+      "enhancement": "bt.e.crusaders-fervour",
+      "attachTo": "primaris-crusader-squad"
+    },
+    {
+      "ref": "primaris-crusader-squad",
+      "datasheet": "bt.primaris-crusader-squad",
+      "size": 10,
+      "patrolSquads": [
+        {
+          "ref": "crusader-squad-initiates",
+          "size": 5,
+          "wargear": [
+            {
+              "modelId": "initiate-chainsword",
+              "count": 2,
+              "weapons": [
+                "bt.w.heavy-bolt-pistol",
+                "bt.w.astartes-chainsword"
+              ]
+            },
+            {
+              "modelId": "initiate-bolt-rifle",
+              "count": 2,
+              "weapons": [
+                "sm.w.bolt-pistol",
+                "bt.w.bolt-rifle",
+                "sm.w.close-combat-weapon"
+              ]
+            },
+            {
+              "modelId": "initiate-pyreblaster",
+              "count": 1,
+              "weapons": [
+                "sm.w.pyreblaster",
+                "sm.w.bolt-pistol",
+                "sm.w.close-combat-weapon"
+              ]
+            }
+          ]
+        },
+        {
+          "ref": "crusader-squad-brethren",
+          "size": 5,
+          "wargear": [
+            {
+              "modelId": "sword-brother",
+              "count": 1,
+              "weapons": [
+                "bt.w.heavy-bolt-pistol",
+                "bt.w.power-weapon"
+              ]
+            },
+            {
+              "modelId": "neophyte-chainsword",
+              "count": 2,
+              "weapons": [
+                "sm.w.bolt-pistol",
+                "bt.w.astartes-chainsword"
+              ]
+            },
+            {
+              "modelId": "neophyte-firearm",
+              "count": 2,
+              "weapons": [
+                "bt.w.neophyte-firearm",
+                "sm.w.close-combat-weapon"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ref": "intercessor-squad",
+      "datasheet": "bt.intercessor-squad",
+      "size": 5
+    },
+    {
+      "ref": "impulsor",
+      "datasheet": "bt.impulsor",
+      "size": 1
+    }
+  ],
+  "stratagems": [
+    "bt.s.shield-of-zeal",
+    "bt.s.hate-fuelled-strength",
+    "bt.s.goaded-to-fury"
+  ],
+  "enhancements": [
+    {
+      "id": "bt.e.crusaders-fervour",
+      "default": true
+    },
+    {
+      "id": "bt.e.righteous-defiance",
+      "default": false
+    }
+  ],
+  "secondaries": [
+    {
+      "id": "bt.sec.path-of-purgation",
+      "name": "Path of Purgation",
+      "text": "Scored at the battle's end only. 10 victory points if Marshal Siguard's unit is not Battle-shocked and his model is wholly inside your opponent's deployment zone. Otherwise 8 if a non-Battle-shocked ADEPTUS ASTARTES unit of yours on the battlefield has any model partly or wholly inside it. Embarked units do not count; the transport does.",
+      "default": true,
+      "scoring": [
+        {
+          "id": "path-of-purgation",
+          "when": "battle.end",
+          "rounds": {
+            "from": 1,
+            "to": 5
+          },
+          "who": "both",
+          "rule": "custom",
+          "pointsPer": 8,
+          "cap": 10,
+          "code": "pathOfPurgation",
+          "params": {
+            "warlordPoints": 10,
+            "keyword": "ADEPTUS ASTARTES"
+          }
+        }
+      ]
+    },
+    {
+      "id": "bt.sec.sacred-vow",
+      "name": "Sacred Vow",
+      "text": "From battle round 2, at the start of each round pick one enemy unit that is not destroyed as the vow target. At the end of that round score 3 victory points if it was destroyed this round by a melee attack from an ADEPTUS ASTARTES model of yours, or 4 if that model is a PRIMARIS CRUSADER SQUAD model. One pick and one award per round.",
+      "default": false,
+      "scoring": [
+        {
+          "id": "sacred-vow-pick",
+          "when": "round.start",
+          "rounds": {
+            "from": 2,
+            "to": 5
+          },
+          "who": "both",
+          "rule": "custom",
+          "pointsPer": 0,
+          "cap": 0,
+          "code": "sacredVowPick"
+        },
+        {
+          "id": "sacred-vow",
+          "when": "round.end",
+          "rounds": {
+            "from": 2,
+            "to": 5
+          },
+          "who": "both",
+          "rule": "custom",
+          "pointsPer": 3,
+          "cap": 4,
+          "code": "sacredVowScore",
+          "params": {
+            "crusaderPoints": 4
+          }
+        }
+      ]
+    }
+  ],
+  "warlord": "marshal-siguard"
+}

@@ -38,6 +38,7 @@ const PREVIEW: Record<string, { datasheetId: string; modelId?: string }> = {
   deathwatch: { datasheetId: 'dw.intercessor-squad', modelId: 'sergeant' },
   'space-wolves': { datasheetId: 'sw.intercessor-squad', modelId: 'sergeant' },
   'dark-angels': { datasheetId: 'da.intercessor-squad', modelId: 'intercessor' },
+  'black-templars': { datasheetId: 'bt.primaris-crusader-squad', modelId: 'sword-brother' },
 }
 
 const backdrop: CSSProperties = { position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'auto', zIndex: 60 }

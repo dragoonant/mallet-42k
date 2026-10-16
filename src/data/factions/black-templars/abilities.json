@@ -1,0 +1,40 @@
+[
+  {
+    "id": "bt.a.righteous-zeal",
+    "name": "Righteous Zeal",
+    "text": "Fervour drives this unit onward: it may roll its Charge dice again whenever the first result disappoints.",
+    "trigger": "chargeRoll",
+    "effect": {
+      "reroll": "all"
+    }
+  },
+  {
+    "id": "bt.a.righteous-zeal-advance",
+    "name": "Righteous Zeal",
+    "text": "Fervour drives this unit onward: it may roll its Advance dice again whenever the first result disappoints.",
+    "trigger": "advanceRoll",
+    "effect": {
+      "reroll": "all"
+    }
+  },
+  {
+    "id": "bt.a.patrol-squads",
+    "name": "Patrol Squads",
+    "text": "When battle formations are declared, before anything is set up, this squad may divide into two separate units of five models. Each half keeps every ability the squad had.",
+    "trigger": "always",
+    "code": "patrolSquads",
+    "params": {
+      "sizes": [
+        5,
+        5
+      ]
+    }
+  },
+  {
+    "id": "bt.a.assault-vehicle",
+    "name": "Assault Vehicle",
+    "text": "Passengers may leave this transport in a turn where it Advanced. A unit that does so counts as having made a Normal move and cannot declare a charge that turn. Disembarking after a Fall Back remains forbidden.",
+    "trigger": "always",
+    "code": "assaultVehicle"
+  }
+]

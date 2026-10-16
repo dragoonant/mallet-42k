@@ -33,7 +33,7 @@ const WE = 'world-eaters'
 const CDM = 'chaos-daemons'
 
 /** The engine faction id a weapon's own id prefix belongs to. */
-const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : id.startsWith('lov.') ? LOV : id.startsWith('drk.') ? DRK : id.startsWith('ael.') ? 'aeldari' : id.startsWith('adm.') ? ADM : id.startsWith('dg.') ? 'death-guard' : id.startsWith('we.') ? WE : id.startsWith('ths.') ? 'thousand-sons' : id.startsWith('cdm.') ? CDM : id.startsWith('sw.') ? 'space-wolves' : id.startsWith('da.') ? 'dark-angels' : id.startsWith('ba.') ? 'blood-angels' : id.startsWith('dw.') ? 'deathwatch' : SM)
+const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : id.startsWith('lov.') ? LOV : id.startsWith('drk.') ? DRK : id.startsWith('ael.') ? 'aeldari' : id.startsWith('adm.') ? ADM : id.startsWith('dg.') ? 'death-guard' : id.startsWith('we.') ? WE : id.startsWith('ths.') ? 'thousand-sons' : id.startsWith('cdm.') ? CDM : id.startsWith('sw.') ? 'space-wolves' : id.startsWith('da.') ? 'dark-angels' : id.startsWith('ba.') ? 'blood-angels' : id.startsWith('dw.') ? 'deathwatch' : id.startsWith('bt.') ? 'black-templars' : SM)
 function lookupFor(faction: string): SoundLookup {
   return { weapon: (id) => bundle.weapons[id], factionOfUnit: () => faction }
 }
@@ -89,6 +89,18 @@ const EXPECTED: Record<string, WeaponFlavour> = {
   'da.w.plasma-incinerator-supercharge': 'heavy',
   'da.w.heavy-bolt-pistol': 'bolter',
   'da.w.master-crafted-power-weapon': 'chain',
+  // Black Templars (bt.*): the Impulsor's multi-melta is a melta beam (flame palette, like every melta weapon); its hull rams.
+  'bt.w.plasma-pistol-standard': 'heavy',
+  'bt.w.plasma-pistol-supercharge': 'heavy',
+  'bt.w.master-crafted-power-weapon': 'chain',
+  'bt.w.power-weapon': 'chain',
+  'bt.w.bolt-rifle': 'bolter',
+  'bt.w.heavy-bolt-pistol': 'bolter',
+  'bt.w.neophyte-firearm': 'bolter',
+  'bt.w.astartes-chainsword': 'chain',
+  'bt.w.multi-melta': 'flame',
+  'bt.w.storm-bolter-2': 'bolter',
+  'bt.w.armoured-hull': 'crush',
   'ork.w.shoota': 'shoota',
   'ork.w.big-shoota': 'shoota',
   'ork.w.big-shoota-gordrang': 'shoota',

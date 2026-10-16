@@ -124,6 +124,16 @@ export function VehicleBody({ config, colors, pose, seed }: BodyProps & { config
     )
   }
 
+  if (config.style === 'templar-impulsor') {
+    return (
+      <group ref={bodyRef}>
+        <ImpulsorParts colors={colors} />
+        <group ref={rotorRef} visible={false} />
+        <group ref={gunRef} />
+      </group>
+    )
+  }
+
   if (config.style === 'hover') {
     return (
       <group ref={bodyRef}>
@@ -316,6 +326,76 @@ function ImpulsorRoof({ colors }: { colors: BodyProps['colors'] }) {
           <StdMat color={colors.decal} roughness={0.6} />
         </mesh>
       ))}
+    </group>
+  )
+}
+
+/** Impulsor: a long, flat-decked armoured skimmer in the faction's primary colour, with a forward multi-melta barrel and a pair of
+ *  storm-bolter pods on the prow, a bone-coloured troop-bay rim and a translucent shield dome over the deck, a cross painted on the
+ *  roof, and glowing grav pads under side sponsons. */
+function ImpulsorParts({ colors }: { colors: BodyProps['colors'] }) {
+  return (
+    <group>
+      {/* hull and sloped prow */}
+      <mesh position={[0, 0.34, -0.05]}>
+        <GBox args={[0.78, 0.26, 1.2]} />
+        <StdMat color={colors.primary} roughness={0.55} metalness={0.2} />
+      </mesh>
+      <mesh position={[0, 0.3, 0.68]} rotation={[0.45, 0, 0]}>
+        <GBox args={[0.74, 0.22, 0.36]} />
+        <StdMat color={colors.primary} roughness={0.55} metalness={0.2} />
+      </mesh>
+      {/* bone troop-bay rim around the open deck */}
+      <mesh position={[0, 0.49, -0.12]}>
+        <GBox args={[0.7, 0.05, 0.8]} />
+        <StdMat color={colors.secondary} roughness={0.6} />
+      </mesh>
+      {/* shield-generator dome */}
+      <mesh position={[0, 0.5, -0.12]}>
+        <GSphere args={[0.3, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <StdMat color={colors.metal} metalness={0.5} roughness={0.35} />
+      </mesh>
+      {/* roof cross */}
+      <mesh position={[0, 0.465, 0.38]}>
+        <GBox args={[0.34, 0.012, 0.09]} />
+        <StdMat color={colors.decal} roughness={0.6} />
+      </mesh>
+      <mesh position={[0, 0.467, 0.38]}>
+        <GBox args={[0.09, 0.012, 0.34]} />
+        <StdMat color={colors.decal} roughness={0.6} />
+      </mesh>
+      {/* side sponsons with grav pads underneath */}
+      {[-0.5, 0.5].map((x) => (
+        <group key={x}>
+          <mesh position={[x, 0.3, -0.05]}>
+            <GBox args={[0.2, 0.2, 0.95]} />
+            <StdMat color={colors.primary} roughness={0.55} metalness={0.2} />
+          </mesh>
+          <mesh position={[x, 0.18, -0.05]}>
+            <GBox args={[0.22, 0.03, 0.8]} />
+            <StdMat color={colors.trim} emissive={colors.trim} emissiveIntensity={1.1} roughness={0.4} />
+          </mesh>
+          <mesh position={[x * 0.55, 0.42, 0.62]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.025, 0.025, 0.3, 6]} />
+            <StdMat color={colors.metal} metalness={0.7} roughness={0.3} />
+          </mesh>
+        </group>
+      ))}
+      {/* multi-melta barrel on the nose */}
+      <mesh position={[0, 0.36, 0.95]} rotation={[Math.PI / 2, 0, 0]}>
+        <GCylinder args={[0.055, 0.045, 0.42, 8]} />
+        <StdMat color={colors.metal} metalness={0.7} roughness={0.3} />
+      </mesh>
+      {/* red trim stripe along the flanks */}
+      <mesh position={[0, 0.42, -0.05]}>
+        <GBox args={[0.8, 0.03, 1.0]} />
+        <StdMat color={colors.trim} roughness={0.5} />
+      </mesh>
+      {/* rear thruster */}
+      <mesh position={[0, 0.34, -0.7]} rotation={[Math.PI / 2, 0, 0]}>
+        <GCylinder args={[0.1, 0.1, 0.06, 10]} />
+        <StdMat color={colors.trim} emissive={colors.trim} emissiveIntensity={1.4} />
+      </mesh>
     </group>
   )
 }
