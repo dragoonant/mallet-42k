@@ -61,10 +61,13 @@ export function makeSimSetup(bundle: DataBundle, gameIndex: number, dataVersion:
   for (const x of patrols) for (const y of patrols) if (x !== y) pairs.push([x, y])
   // SIM_FACTION=tyranids: only pairings that include that faction's roster (every game then exercises it)
   const only = process.env.SIM_FACTION
-  const wanted = only ? pairs.filter(([x, y]) => bundle.patrols[x].faction === only || bundle.patrols[y].faction === only) : pairs
-  if (wanted.length === 0) throw new Error(`sim: no roster pairing includes faction ${only}`)
-  const [p0, p1] = patrols.length === 2 ? (gameIndex % 2 === 0 ? [patrols[0], patrols[1]] : [patrols[1], patrols[0]]) : wanted[gameIndex % wanted.length]
-  const missionIndex = patrols.length === 2 ? gameIndex : gameIndex + Math.floor(gameIndex / wanted.length)
+  // SIM_PATROL=<patrol id>: only pairings that include that exact patrol (a faction may have several)
+  const onlyPatrol = process.env.SIM_PATROL
+  let wanted = only ? pairs.filter(([x, y]) => bundle.patrols[x].faction === only || bundle.patrols[y].faction === only) : pairs
+  if (onlyPatrol) wanted = wanted.filter(([x, y]) => x === onlyPatrol || y === onlyPatrol)
+  if (wanted.length === 0) throw new Error(`sim: no roster pairing includes faction ${only ?? '*'} patrol ${onlyPatrol ?? '*'}`)
+  const [p0, p1] = patrols.length === 2 && !onlyPatrol ? (gameIndex % 2 === 0 ? [patrols[0], patrols[1]] : [patrols[1], patrols[0]]) : wanted[gameIndex % wanted.length]
+  const missionIndex = patrols.length === 2 && !onlyPatrol ? gameIndex : gameIndex + Math.floor(gameIndex / wanted.length)
   return {
     missionId: MISSIONS[missionIndex % MISSIONS.length],
     terrainLayoutId: Object.keys(bundle.terrainLayouts ?? {}).sort()[0] ?? 'terrain.cp-01',

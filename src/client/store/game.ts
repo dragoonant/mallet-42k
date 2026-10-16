@@ -68,6 +68,16 @@ export const FACTION_ID: Record<string, Id> = { 'space-marines': 'sm', orks: 'or
 export function resolveFactionId(key: FactionKey): Id {
   return FACTION_ID[key] ?? key
 }
+/** Every Combat Patrol a faction can field, sorted by id (the first is the default). */
+export function patrolsForFaction(bundle: DataBundle, factionKey: FactionKey): CombatPatrolData[] {
+  const factionId = resolveFactionId(factionKey)
+  return Object.values(bundle.patrols).filter((p) => p.faction === factionId).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+}
+/** The chosen patrol if it belongs to the faction, else the faction's default (first) patrol. */
+export function resolvePatrol(bundle: DataBundle, factionKey: FactionKey, patrolId?: string): CombatPatrolData | undefined {
+  const all = patrolsForFaction(bundle, factionKey)
+  return (patrolId && all.find((p) => p.id === patrolId)) || all[0]
+}
 function factionLabel(bundle: DataBundle, key: FactionKey): string {
   return bundle.factions[resolveFactionId(key)]?.name ?? key
 }
@@ -184,22 +194,20 @@ function defaultAttachments(bundle: DataBundle, patrol: CombatPatrolData): Playe
 }
 
 /** Patrol unit refs that carry setup-time Patrol Squads parts (e.g. Sororitas Battle Sisters); AM/Tyranids use the in-engine deployment prompt instead. */
-export function splittablePatrolRefs(bundle: DataBundle, factionKey: FactionKey): string[] {
-  const factionId = resolveFactionId(factionKey)
-  const patrol = Object.values(bundle.patrols).find((p) => p.faction === factionId)
+export function splittablePatrolRefs(bundle: DataBundle, factionKey: FactionKey, patrolId?: string): string[] {
+  const patrol = resolvePatrol(bundle, factionKey, patrolId)
   return patrol ? patrol.units.filter((u) => u.patrolSquads?.length).map((u) => u.ref) : []
 }
 
 /** The patrol's either/or unit slots (Grey Knights: Terminators or Dreadknight), each with its refs and default. */
-export function patrolUnitChoices(bundle: DataBundle, factionKey: FactionKey): { id: string; refs: string[]; default: string }[] {
-  const factionId = resolveFactionId(factionKey)
-  const patrol = Object.values(bundle.patrols).find((p) => p.faction === factionId)
+export function patrolUnitChoices(bundle: DataBundle, factionKey: FactionKey, patrolId?: string): { id: string; refs: string[]; default: string }[] {
+  const patrol = resolvePatrol(bundle, factionKey, patrolId)
   return patrol?.unitChoices ?? []
 }
 
-function buildPlayerSetup(bundle: DataBundle, factionKey: FactionKey, secondaryId?: string, split = false, unitChoices?: Record<string, string>): PlayerSetup {
+export function buildPlayerSetup(bundle: DataBundle, factionKey: FactionKey, secondaryId?: string, split = false, unitChoices?: Record<string, string>, patrolId?: string): PlayerSetup {
   const factionId = resolveFactionId(factionKey)
-  const patrol = Object.values(bundle.patrols).find((p) => p.faction === factionId)
+  const patrol = resolvePatrol(bundle, factionKey, patrolId)
   if (!patrol) throw new Error(`newGame: no Combat Patrol data for faction "${factionId}"`)
   const enhancement = patrol.enhancements.find((e) => e.default) ?? patrol.enhancements[0]
   const chosen = secondaryId ? patrol.secondaries.find((s) => s.id === secondaryId) : undefined
@@ -216,7 +224,7 @@ function buildPlayerSetup(bundle: DataBundle, factionKey: FactionKey, secondaryI
     reserves: [], // no reserves unless a unit requires them (handled by the deployment decision itself)
     battleReadyVp: 0,
     ...(unitChoices && Object.keys(unitChoices).length ? { unitChoices } : {}),
-    ...(split && splittablePatrolRefs(bundle, factionKey).length ? { splitUnits: splittablePatrolRefs(bundle, factionKey) } : {}),
+    ...(split && splittablePatrolRefs(bundle, factionKey, patrol.id).length ? { splitUnits: splittablePatrolRefs(bundle, factionKey, patrol.id) } : {}),
   }
 }
 
@@ -224,9 +232,9 @@ function buildPlayerSetup(bundle: DataBundle, factionKey: FactionKey, secondaryI
 export const RANDOM_UNIT_CHOICE = 'random'
 
 /** Resolves a seat's either/or picks. Random picks (and every unset group on a bot seat) roll from the game seed. */
-function resolveUnitChoices(bundle: DataBundle, factionKey: FactionKey, picks: Record<string, string> | undefined, randomUnset: boolean, seed: string): Record<string, string> | undefined {
+function resolveUnitChoices(bundle: DataBundle, factionKey: FactionKey, picks: Record<string, string> | undefined, randomUnset: boolean, seed: string, patrolId?: string): Record<string, string> | undefined {
   const out: Record<string, string> = {}
-  for (const g of patrolUnitChoices(bundle, factionKey)) {
+  for (const g of patrolUnitChoices(bundle, factionKey, patrolId)) {
     const pick = picks?.[g.id]
     if (pick && pick !== RANDOM_UNIT_CHOICE) out[g.id] = pick
     else if (pick === RANDOM_UNIT_CHOICE || randomUnset) {
@@ -248,9 +256,9 @@ function buildSetup(bundle: DataBundle, opts: NewGameOptions): GameSetup {
     missionId,
     terrainLayoutId,
     players: {
-      A: buildPlayerSetup(bundle, opts.playerFaction, opts.secondaryId, opts.splitSquads, resolveUnitChoices(bundle, opts.playerFaction, opts.unitChoices, false, opts.seed)),
+      A: buildPlayerSetup(bundle, opts.playerFaction, opts.secondaryId, opts.splitSquads, resolveUnitChoices(bundle, opts.playerFaction, opts.unitChoices, false, opts.seed, opts.patrolId), opts.patrolId),
       B: buildPlayerSetup(bundle, opponentFaction, undefined, opts.opponentSplitSquads,
-        resolveUnitChoices(bundle, opponentFaction, opts.opponentUnitChoices, opts.opponent === 'bot', opts.seed)),
+        resolveUnitChoices(bundle, opponentFaction, opts.opponentUnitChoices, opts.opponent === 'bot', opts.seed, opts.opponentPatrolId), opts.opponentPatrolId),
     },
     sides: 'rollOff',
     firstTurn: 'rollOff',
@@ -264,6 +272,10 @@ export interface NewGameOptions {
   playerFaction: FactionKey
   /** The other seat's faction; defaults per defaultOpponentFaction. May equal playerFaction (mirror match). */
   opponentFaction?: FactionKey
+  /** Player A's Combat Patrol (patrol id); defaults to the faction's first patrol by id. */
+  patrolId?: string
+  /** The other seat's Combat Patrol; defaults likewise. */
+  opponentPatrolId?: string
   opponent: OpponentKind
   seed: string
   /** Player A's chosen secondary (patrol.secondaries[].id); falls back to the patrol's default. */

@@ -48,13 +48,17 @@ function makeSetup(bundle: DataBundle, gameIndex: number, aiSeat: PlayerId, data
   if (patrols.length < 2) throw new Error('ai-bench: need two Combat Patrol rosters in the data bundle')
   // faction alternates on a different cadence than seat (see aiSeat below) so the four (faction × seat)
   // combinations all get covered across a run instead of faction and seat flipping together every game
-  const aiPatrolIdx = forcedAiFactionId
+  // SIM_PATROL=<patrol id> pins the AI's exact patrol (a faction may have several); --faction takes the faction's first
+  const pinnedPatrol = process.env.SIM_PATROL
+  const aiPatrolIdx = pinnedPatrol
+    ? patrols.indexOf(pinnedPatrol)
+    : forcedAiFactionId
     ? patrols.findIndex((p) => bundle.patrols[p].faction === forcedAiFactionId)
     : Math.floor(gameIndex / 2) % patrols.length
   if (aiPatrolIdx < 0) throw new Error(`ai-bench: no patrol with faction ${forcedAiFactionId} in the data bundle`)
   const aiPatrol = patrols[aiPatrolIdx]
   // the opponent cycles through the other rosters (one other roster: always that one, as with two factions)
-  const oppOffset = 1 + (Math.floor(gameIndex / (forcedAiFactionId ? 2 : 2 * patrols.length)) % (patrols.length - 1))
+  const oppOffset = 1 + (Math.floor(gameIndex / (forcedAiFactionId || pinnedPatrol ? 2 : 2 * patrols.length)) % (patrols.length - 1))
   const oppPatrol = patrols[(aiPatrolIdx + oppOffset) % patrols.length]
   const ai = playerSetup(bundle, aiPatrol, 'UtilityAI')
   const opp = playerSetup(bundle, oppPatrol, 'Random')

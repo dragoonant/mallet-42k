@@ -64,19 +64,23 @@ function playerSetup(bundle: DataBundle, patrolId: string, name: string) {
   return { name, faction: patrol.faction, patrolId, enhancementId, secondaryId, attachments: [], reserves: [] as string[], battleReadyVp: 0 }
 }
 
-function patrolIdFor(bundle: DataBundle, factionId: FactionId): string {
-  const id = Object.keys(bundle.patrols).find((p) => bundle.patrols[p].faction === factionId)
-  if (!id) throw new Error(`balance-report: no patrol for faction ${factionId}`)
-  return id
+// A faction may field several Combat Patrols: rotate through them by rep (stable id order) so every patrol gets games.
+// SIM_PATROL=<patrol id> pins that patrol for its faction.
+function patrolIdFor(bundle: DataBundle, factionId: FactionId, rep = 0): string {
+  const ids = Object.keys(bundle.patrols).filter((p) => bundle.patrols[p].faction === factionId).sort()
+  if (ids.length === 0) throw new Error(`balance-report: no patrol for faction ${factionId}`)
+  const pinned = process.env.SIM_PATROL
+  if (pinned && ids.includes(pinned)) return pinned
+  return ids[rep % ids.length]
 }
 
 function makeSetup(
-  bundle: DataBundle, missionId: string, dataVersion: string, smSeat: PlayerId,
+  bundle: DataBundle, missionId: string, dataVersion: string, smSeat: PlayerId, rep = 0,
 ): GameSetup {
   const orkSeat = otherPlayer(smSeat)
   const players = {} as GameSetup['players']
-  players[smSeat] = playerSetup(bundle, patrolIdFor(bundle, 'sm'), 'Space Marines')
-  players[orkSeat] = playerSetup(bundle, patrolIdFor(bundle, 'ork'), 'Orks')
+  players[smSeat] = playerSetup(bundle, patrolIdFor(bundle, 'sm', rep), 'Space Marines')
+  players[orkSeat] = playerSetup(bundle, patrolIdFor(bundle, 'ork', rep), 'Orks')
   return {
     missionId,
     terrainLayoutId: Object.keys(bundle.terrainLayouts ?? {}).sort()[0] ?? 'terrain.cp-01',
@@ -126,7 +130,7 @@ async function playOne(
   bundle: DataBundle, pairing: PairingSpec, missionId: string, smSeat: PlayerId, rep: number, baseSeed: string, dataVersion: string,
 ): Promise<GameRecord> {
   const seed = `balance-${pairing.id}-${missionId}-${smSeat}-${rep}-${baseSeed}`
-  const setup = makeSetup(bundle, missionId, dataVersion, smSeat)
+  const setup = makeSetup(bundle, missionId, dataVersion, smSeat, rep)
   const orkSeat = otherPlayer(smSeat)
   const seatFaction: Record<PlayerId, FactionId> = { [smSeat]: 'sm', [orkSeat]: 'ork' } as Record<PlayerId, FactionId>
 

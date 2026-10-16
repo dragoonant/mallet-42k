@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { loadBundle } from '../../data'
 import type { DataBundle } from '../../data/types'
-import { AI_DIFFICULTY_OPTIONS, DEFAULT_AI_DIFFICULTY, resolveFactionId, splittablePatrolRefs, patrolUnitChoices, RANDOM_UNIT_CHOICE, useGameStore, type AiDifficulty, type FactionKey, type OpponentKind } from '../store/game'
+import { AI_DIFFICULTY_OPTIONS, DEFAULT_AI_DIFFICULTY, resolveFactionId, patrolsForFaction, resolvePatrol, splittablePatrolRefs, patrolUnitChoices, RANDOM_UNIT_CHOICE, useGameStore, type AiDifficulty, type FactionKey, type OpponentKind } from '../store/game'
 import { primaryScoringSummary } from './labels'
 import { randomArmyPaint, usePaintStore } from '../figures/paint'
 import { PainterPanel } from './PainterPanel'
@@ -143,10 +143,14 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
   const factionId = resolveFactionId(faction)
   const activeFaction = factions.find((f) => f.id === factionId)
   const missionData = bundle?.missions[`mission.${mission}`]
-  const patrol = useMemo(() => {
-    if (!bundle) return undefined
-    return Object.values(bundle.patrols).find((p) => p.faction === factionId)
-  }, [bundle, factionId])
+  const [patrolId, setPatrolId] = useState('')
+  const [opponentPatrolId, setOpponentPatrolId] = useState('')
+  const patrolsA = useMemo(() => (bundle ? patrolsForFaction(bundle, faction) : []), [bundle, faction])
+  const patrol = useMemo(() => (bundle ? resolvePatrol(bundle, faction, patrolId) : undefined), [bundle, faction, patrolId])
+  const patrolsB = useMemo(() => (bundle && opponentFaction ? patrolsForFaction(bundle, opponentFaction) : []), [bundle, opponentFaction])
+  // Changing faction resets the patrol to that faction's default.
+  useEffect(() => { setPatrolId('') }, [faction])
+  useEffect(() => { setOpponentPatrolId('') }, [opponentFaction])
 
   // The secondary picker resets to the patrol's default whenever the faction changes (a previous
   // pick may not exist for the new patrol).
@@ -157,38 +161,44 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
   // Either/or unit slots in the patrol (Grey Knights: Terminators or Dreadknight). A pick is kept per group id; unset = patrol default.
   const [pickA, setPickA] = useState<Record<string, string>>({})
   const [pickB, setPickB] = useState<Record<string, string>>({})
-  const choicesA = bundle ? patrolUnitChoices(bundle, faction) : []
-  const choicesB = bundle && opponentFaction ? patrolUnitChoices(bundle, opponentFaction) : []
-  useEffect(() => { setPickA({}) }, [faction])
-  useEffect(() => { setPickB({}) }, [opponentFaction])
-  const refName = (factionKey: string, ref: string): string => {
-    const p = bundle && Object.values(bundle.patrols).find((x) => x.faction === resolveFactionId(factionKey))
+  const choicesA = bundle ? patrolUnitChoices(bundle, faction, patrol?.id) : []
+  const choicesB = bundle && opponentFaction ? patrolUnitChoices(bundle, opponentFaction, opponentPatrolId || undefined) : []
+  useEffect(() => { setPickA({}) }, [faction, patrolId])
+  useEffect(() => { setPickB({}) }, [opponentFaction, opponentPatrolId])
+  const refName = (factionKey: string, ref: string, pid?: string): string => {
+    const p = bundle ? resolvePatrol(bundle, factionKey, pid) : undefined
     const ds = p?.units.find((u) => u.ref === ref)?.datasheet
     return (ds && bundle?.datasheets[ds]?.name) || ref
   }
-  const unitChoiceRow = (factionKey: string, choices: { id: string; refs: string[]; default: string }[], pick: Record<string, string>, setPick: (v: Record<string, string>) => void, who: string) =>
+  const unitChoiceRow = (factionKey: string, pid: string | undefined, choices: { id: string; refs: string[]; default: string }[], pick: Record<string, string>, setPick: (v: Record<string, string>) => void, who: string) =>
     choices.map((g) => (
       <label key={g.id} style={blurb} data-testid={`setup-unit-choice-${who}-${g.id}`}>
         {who === 'A' ? 'Your' : opponent === 'bot' ? "The bot's" : "Player B's"} patrol fields:{' '}
         <select style={select} value={pick[g.id] ?? (who === 'B' && opponent === 'bot' ? RANDOM_UNIT_CHOICE : g.default)} onChange={(e) => setPick({ ...pick, [g.id]: e.target.value })}>
-          {g.refs.map((r) => <option key={r} value={r}>{refName(factionKey, r)}</option>)}
+          {g.refs.map((r) => <option key={r} value={r}>{refName(factionKey, r, pid)}</option>)}
           <option value={RANDOM_UNIT_CHOICE}>Random</option>
         </select>
       </label>
     ))
 
   // Patrol Squads that are split at setup (Sororitas); AM/Tyranids get the engine's own prompt at deployment instead.
-  const canSplitA = !!bundle && splittablePatrolRefs(bundle, faction).length > 0
-  const canSplitB = !!bundle && opponent === 'hotseat' && !!opponentFaction && splittablePatrolRefs(bundle, opponentFaction).length > 0
+  const canSplitA = !!bundle && splittablePatrolRefs(bundle, faction, patrol?.id).length > 0
+  const canSplitB = !!bundle && opponent === 'hotseat' && !!opponentFaction && splittablePatrolRefs(bundle, opponentFaction, opponentPatrolId || undefined).length > 0
 
   const start = async () => {
     const randomFaction = factions.length ? factions[Math.floor(Math.random() * factions.length)].id : undefined
+    const oppFactionId = opponentFaction || randomFaction
+    // Automatic opponent: a random patrol of the (chosen or random) faction.
+    const oppPatrols = bundle && oppFactionId ? patrolsForFaction(bundle, oppFactionId) : []
+    const oppPatrolId = opponentFaction ? opponentPatrolId || undefined : oppPatrols.length > 1 ? oppPatrols[Math.floor(Math.random() * oppPatrols.length)].id : undefined
     // The opponent gets a fresh random colour scheme every game (game-only; your saved paint is untouched).
     usePaintStore.getState().setSeatPaint('B', randomArmyPaint())
     try {
       await newGame({
         playerFaction: faction,
-        opponentFaction: opponentFaction || randomFaction,
+        opponentFaction: oppFactionId,
+        patrolId: patrol?.id,
+        opponentPatrolId: oppPatrolId,
         opponent,
         mission: `mission.${mission}`,
         seed,
@@ -224,6 +234,19 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
         </div>
         {activeFaction?.blurb && <p style={blurb}>{activeFaction.blurb}</p>}
 
+{patrolsA.length > 1 && (
+          <>
+            <div style={label}>Your Combat Patrol</div>
+            <div style={row} data-testid="setup-patrol-pick-A">
+              {patrolsA.map((p) => (
+                <button key={p.id} style={p.id === (patrolId || patrolsA[0].id) ? buttonActive : buttonBase} onClick={() => setPatrolId(p.id)}>
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
         {patrol && patrol.secondaries.length > 0 && (
           <>
             <div style={label}>Your Secondary</div>
@@ -240,7 +263,7 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
           </>
         )}
 
-        {unitChoiceRow(faction, choicesA, pickA, setPickA, 'A')}
+        {unitChoiceRow(faction, patrol?.id, choicesA, pickA, setPickA, 'A')}
         {canSplitA && (
           <label style={blurb} data-testid="setup-split-A">
             <input type="checkbox" checked={splitA} onChange={(e) => setSplitA(e.target.checked)} /> Split your Battle Sisters Squad into two units of 5 (Patrol Squads)
@@ -288,7 +311,20 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
           ))}
         </select>
 
-        {opponentFaction && unitChoiceRow(opponentFaction, choicesB, pickB, setPickB, 'B')}
+{patrolsB.length > 1 && (
+          <>
+            <div style={label}>Opponent's Combat Patrol</div>
+            <div style={row} data-testid="setup-patrol-pick-B">
+              {patrolsB.map((p) => (
+                <button key={p.id} style={p.id === (opponentPatrolId || patrolsB[0].id) ? buttonActive : buttonBase} onClick={() => setOpponentPatrolId(p.id)}>
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {opponentFaction && unitChoiceRow(opponentFaction, opponentPatrolId || undefined, choicesB, pickB, setPickB, 'B')}
         {canSplitB && (
           <label style={blurb} data-testid="setup-split-B">
             <input type="checkbox" checked={splitB} onChange={(e) => setSplitB(e.target.checked)} /> Split Player B's Battle Sisters Squad into two units of 5 (Patrol Squads)
