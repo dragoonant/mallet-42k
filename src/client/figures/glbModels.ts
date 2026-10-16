@@ -212,7 +212,7 @@ export const ENABLED_GLB_SLUGS: readonly string[] = [
   'kataphron-destroyer-grav',
   'kataphron-destroyer-plasma',
   'onager-dunecrawler',
-  // Blood Angels, Space Wolves and Deathwatch (Black Templars and Dark Angels have no GLBs yet).
+  // Blood Angels, Space Wolves and Deathwatch.
   'librarian-marcellos',
   'ba-intercessor-sergeant',
   'ba-intercessor',
@@ -231,6 +231,24 @@ export const ENABLED_GLB_SLUGS: readonly string[] = [
   'dw-intercessor',
   'dw-intercessor-grenadier',
   'dw-aggressor',
+  // Black Templars and Dark Angels.
+  'marshal-siguard',
+  'crusader-sword-brother',
+  'crusader-initiate-chainsword',
+  'crusader-initiate-bolt-rifle',
+  'crusader-initiate-pyreblaster',
+  'crusader-neophyte-chainsword',
+  'crusader-neophyte-firearm',
+  'bt-intercessor',
+  'bt-impulsor',
+  'chaplain-mordekai',
+  'da-intercessor-sergeant',
+  'da-intercessor',
+  'da-inceptor',
+  'da-redemptor-dreadnought',
+  'master-zacharial',
+  'da-hellblaster',
+  'da-bladeguard-veteran',
 ]
 
 export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
@@ -301,14 +319,18 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'am.field-ordnance-battery/gun-malleus': 'malleus-rocket-battery',
   'am.armoured-sentinels/sentinel': 'armoured-sentinel',
 
-  // Dark Angels: no GLBs yet (slugs unlisted in ENABLED_GLB_SLUGS = procedural figures, which read the faction's green/bone/red paint scheme).
+  // Dark Angels (MGSD GLBs). Inceptor sergeants share the Inceptor figure; the Vengeful Brethren Intercessors reuse the Intercessor figure.
   'da.chaplain-mordekai/mordekai': 'chaplain-mordekai',
-  'da.intercessor-squad/sergeant': 'intercessor-sergeant',
-  'da.intercessor-squad/intercessor': 'intercessor',
-  'da.inceptor-squad/inceptor': 'inceptor',
-  'da.redemptor-dreadnought/redemptor': 'redemptor-dreadnought',
+  'da.intercessor-squad/sergeant': 'da-intercessor-sergeant',
+  'da.intercessor-squad/intercessor': 'da-intercessor',
+  'da.inceptor-squad/inceptor': 'da-inceptor',
+  'da.redemptor-dreadnought/redemptor': 'da-redemptor-dreadnought',
+  'da.master-zacharial/zacharial': 'master-zacharial',
+  'da.vb.intercessor-squad/intercessor': 'da-intercessor',
+  'da.hellblaster-squad/hellblaster': 'da-hellblaster',
+  'da.bladeguard-veteran-squad/bladeguard': 'da-bladeguard-veteran',
 
-  // Black Templars: no GLBs yet (slugs unlisted in ENABLED_GLB_SLUGS = procedural figures in the faction's black/bone/red paint scheme).
+  // Black Templars (MGSD GLBs).
   'bt.intercessor-squad/intercessor': 'bt-intercessor',
   'bt.primaris-crusader-squad/sword-brother': 'crusader-sword-brother',
   'bt.primaris-crusader-squad/initiate-chainsword': 'crusader-initiate-chainsword',

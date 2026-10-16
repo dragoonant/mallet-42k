@@ -45,9 +45,9 @@ describe('black-templars client plumbing', () => {
     expect(resolveBase(impulsor, 'vehicle', 'impulsor').height).toBeGreaterThan(2)
   })
 
-  it('figures use the faction paint scheme and fall back to procedural until a GLB is enabled', () => {
+  it('figures use the faction paint scheme and every model resolves to an SD GLB', () => {
     expect(resolvePaintColors(bundle.factions['black-templars']).primary).toBe('#141414')
-    for (const sheet of btSheets) for (const m of sheet.composition) expect(glbSlugFor(sheet.id, m.modelId), `${sheet.id}/${m.modelId}`).toBeUndefined()
+    for (const sheet of btSheets) for (const m of sheet.composition) expect(glbSlugFor(sheet.id, m.modelId), `${sheet.id}/${m.modelId}`).toBeDefined()
   })
 
   it('every Black Templars weapon has its own firing sound', () => {
