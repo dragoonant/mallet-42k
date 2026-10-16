@@ -73,6 +73,11 @@ export type KitId =
   | 'tau-ethereal'
   | 'tau-stealth'
   | 'tau-ghostkeel'
+  | 'tau-pathfinder'
+  | 'tau-pathfinder-rail'
+  | 'tau-breacher'
+  | 'tau-cloudspear'
+  | 'tau-devilfish'
   | 'gsc-neophyte'
   | 'gsc-neophyte-leader'
   | 'gsc-neophyte-icon'
@@ -201,8 +206,8 @@ export interface ArtilleryConfig {
 export interface VehicleConfig {
   weapon: 'kustom-mega-blasta' | 'kopta-rokkits' | 'none'
   hasRotor: boolean
-  /** 'dozer' = a tracked mining crawler (Goliath Rockgrinder); default is the gyrocopter rig. */
-  style?: 'copter' | 'dozer'
+  /** 'dozer' = a tracked mining crawler (Goliath Rockgrinder); 'hover' = a skimmer transport (Devilfish); default is the gyrocopter rig. */
+  style?: 'copter' | 'dozer' | 'hover'
 }
 
 /** Props shared by every body renderer (BipedBody / VehicleBody). Authored at unit height

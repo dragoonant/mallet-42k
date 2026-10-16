@@ -4,6 +4,7 @@ import { basesOverlap, checkPlacements, emptyMoveConstraints, growConvexPolygon,
 import type { EngineContext, PhaseModule } from './modules'
 import { otherPlayer } from './modules'
 import { deployTerrainBlock } from './terrain'
+import { transportService } from './transports'
 import { assignSides, boardModelsOf, deploymentZone, hasCoreAbility, unitModels, setModelPos } from './state'
 import type { Action, DeployUnitAction, ModelPlacement } from './actions'
 import type {
@@ -129,7 +130,7 @@ function dropsCount(state: GameState, player: PlayerId): number {
 function remainingToDeploy(state: GameState, player: PlayerId): UnitId[] {
   const reservedRefs = new Set(state.setup.players[player].reserves)
   return Object.values(state.units)
-    .filter((u) => u.player === player && u.location === 'reserves' && !reservedRefs.has(u.ref) && !u.bodyguardUnitId && !hasDropped(state, u.id))
+    .filter((u) => u.player === player && u.location === 'reserves' && !reservedRefs.has(u.ref) && !u.bodyguardUnitId && !hasDropped(state, u.id) && transportService.transportOf(state, u.id) === null)
     .map((u) => u.id)
 }
 
@@ -418,9 +419,24 @@ export const setupModule: PhaseModule = {
           // unit at a time from the first-turn player (CP-1.10-style alternation, MISSION-028-scouts) — not just all
           // of the first player's Scouts units before any of the second's. Not present in current Combat Patrol
           // rosters, so this path is exercised only by synthetic tests, but is implemented fully for spec fidelity.
+          // E1 (f): a DEDICATED TRANSPORT whose embarked units all have SCOUTS may make the Scouts move in their stead,
+          // using the smallest Scouts value among them
+          const passengerScouts = (unit: Unit): Array<import('../data/types').CoreAbility["value"]> | null => {
+            if (!s.datasheets[unit.datasheetId].keywords.includes('DEDICATED TRANSPORT')) return null
+            const pax = transportService.embarkedIn(s, unit.id)
+            if (pax.length === 0) return null
+            const vals: Array<import('../data/types').CoreAbility["value"]> = []
+            for (const id of pax) {
+              const sc = s.datasheets[s.units[id].datasheetId].coreAbilities.find((c) => c.ability === 'SCOUTS')
+              if (!sc) return null
+              vals.push(sc.value)
+            }
+            return vals
+          }
           const scoutable = (pid: PlayerId): Unit[] => Object.values(s.units).filter((unit) => {
             if (unit.player !== pid || unit.location !== 'board') return false
             const ds = s.datasheets[unit.datasheetId]
+            if (passengerScouts(unit) !== null) return !s.phaseState.marks.includes(`scouted:${unit.id}`)
             if (!ds.coreAbilities.some((c) => c.ability === 'SCOUTS')) return false
             // an attached Leader and its bodyguard are one unit: it has Scouts only if every half does (R-10.8 / SOL-006)
             const halves = [unit.id, unit.attachedLeaderId, unit.bodyguardUnitId].filter((h): h is string => !!h)
@@ -436,9 +452,12 @@ export const setupModule: PhaseModule = {
           const pid = remFirst.length === 0 ? second : remSecond.length === 0 ? first : (doneCount(first) <= doneCount(second) ? first : second)
           const unit = (pid === first ? remFirst : remSecond)[0]
           const ds = s.datasheets[unit.datasheetId]
-          const scouts = ds.coreAbilities.find((c) => c.ability === 'SCOUTS')!
+          const scouts = ds.coreAbilities.find((c) => c.ability === 'SCOUTS')
           s.phaseState.marks.push(`scouted:${unit.id}`)
-          const dist = typeof scouts.value === 'number' ? scouts.value : 9
+          const paxVals = passengerScouts(unit)
+          const dist = paxVals !== null
+            ? Math.min(...paxVals.map((v) => (typeof v === 'number' ? v : 9)))
+            : typeof scouts?.value === 'number' ? scouts.value : 9
           ctx.decide({
             kind: 'moveUnit', player: pid, window: 'deployment.unit', canPass: true,
             context: { unitId: unit.id, moveType: 'normal', advanceRoll: null },

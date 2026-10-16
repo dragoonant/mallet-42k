@@ -205,7 +205,34 @@ export function patrolUnitChoices(bundle: DataBundle, factionKey: FactionKey, pa
   return patrol?.unitChoices ?? []
 }
 
-export function buildPlayerSetup(bundle: DataBundle, factionKey: FactionKey, secondaryId?: string, split = false, unitChoices?: Record<string, string>, patrolId?: string): PlayerSetup {
+export interface EmbarkOption { unitRef: string; transportRef: string; unitName: string; transportName: string; models: number }
+
+/** Units of the patrol that may start the battle embarked in one of its Transports (SDC E1). Mirrors the engine's canCarry
+ *  (keyword gates + spare capacity) from datasheet data; a Patrol Squads unit is offered only while it stays whole. */
+export function embarkOptions(bundle: DataBundle, factionKey: FactionKey, patrolId?: string, split = false): EmbarkOption[] {
+  const patrol = resolvePatrol(bundle, factionKey, patrolId)
+  if (!patrol) return []
+  const kwOf = (dsId: string): string[] => { const d = bundle.datasheets[dsId]; return d ? [...(d.keywords as string[]), ...(d.factionKeywords as string[])] : [] }
+  const out: EmbarkOption[] = []
+  for (const t of patrol.units) {
+    const spec = bundle.datasheets[t.datasheet]?.transport
+    if (!spec) continue
+    for (const parent of patrol.units) {
+      if (parent.ref === t.ref) continue
+      // Split Patrol Squads: offer each half (own ref + own size) in place of the parent unit.
+      const parts = split && parent.patrolSquads?.length ? parent.patrolSquads.map((h, i) => ({ ref: h.ref, size: h.size, name: `${bundle.datasheets[parent.datasheet]?.name ?? parent.ref} (half ${i + 1})` })) : [{ ref: parent.ref, size: parent.size, name: bundle.datasheets[parent.datasheet]?.name ?? parent.ref }]
+      const kw = kwOf(parent.datasheet)
+      if (!(spec.keywords ?? []).every((k) => kw.includes(k)) || (spec.excludeKeywords ?? []).some((k) => kw.includes(k))) continue
+      for (const u of parts) {
+        if (u.size > spec.capacity) continue
+        out.push({ unitRef: u.ref, transportRef: t.ref, unitName: u.name, transportName: bundle.datasheets[t.datasheet]?.name ?? t.ref, models: u.size })
+      }
+    }
+  }
+  return out
+}
+
+export function buildPlayerSetup(bundle: DataBundle, factionKey: FactionKey, secondaryId?: string, split = false, unitChoices?: Record<string, string>, patrolId?: string, embarked?: { unitRef: string; transportRef: string }[]): PlayerSetup {
   const factionId = resolveFactionId(factionKey)
   const patrol = resolvePatrol(bundle, factionKey, patrolId)
   if (!patrol) throw new Error(`newGame: no Combat Patrol data for faction "${factionId}"`)
@@ -224,6 +251,7 @@ export function buildPlayerSetup(bundle: DataBundle, factionKey: FactionKey, sec
     reserves: [], // no reserves unless a unit requires them (handled by the deployment decision itself)
     battleReadyVp: 0,
     ...(unitChoices && Object.keys(unitChoices).length ? { unitChoices } : {}),
+    ...(embarked && embarked.length ? { embarked } : {}),
     ...(split && splittablePatrolRefs(bundle, factionKey, patrol.id).length ? { splitUnits: splittablePatrolRefs(bundle, factionKey, patrol.id) } : {}),
   }
 }
@@ -256,9 +284,9 @@ function buildSetup(bundle: DataBundle, opts: NewGameOptions): GameSetup {
     missionId,
     terrainLayoutId,
     players: {
-      A: buildPlayerSetup(bundle, opts.playerFaction, opts.secondaryId, opts.splitSquads, resolveUnitChoices(bundle, opts.playerFaction, opts.unitChoices, false, opts.seed, opts.patrolId), opts.patrolId),
+      A: buildPlayerSetup(bundle, opts.playerFaction, opts.secondaryId, opts.splitSquads, resolveUnitChoices(bundle, opts.playerFaction, opts.unitChoices, false, opts.seed, opts.patrolId), opts.patrolId, opts.embark),
       B: buildPlayerSetup(bundle, opponentFaction, undefined, opts.opponentSplitSquads,
-        resolveUnitChoices(bundle, opponentFaction, opts.opponentUnitChoices, opts.opponent === 'bot', opts.seed, opts.opponentPatrolId), opts.opponentPatrolId),
+        resolveUnitChoices(bundle, opponentFaction, opts.opponentUnitChoices, opts.opponent === 'bot', opts.seed, opts.opponentPatrolId), opts.opponentPatrolId, opts.opponentEmbark),
     },
     sides: 'rollOff',
     firstTurn: 'rollOff',
@@ -289,6 +317,9 @@ export interface NewGameOptions {
    *  the patrol default, except on a bot seat, where it is picked at random from the seed. */
   unitChoices?: Record<string, string>
   opponentUnitChoices?: Record<string, string>
+  /** Units that start embarked in a friendly Transport (PlayerSetup.embarked), per seat. Offered by embarkOptions. */
+  embark?: { unitRef: string; transportRef: string }[]
+  opponentEmbark?: { unitRef: string; transportRef: string }[]
   /** Bot opponent strength; ignored for 'hotseat'. Defaults to DEFAULT_AI_DIFFICULTY ('normal'). */
   difficulty?: AiDifficulty
   /** Spike-only: rewrite the bundle + setup after buildSetup (see src/spike/incursion.ts). Unused by normal games. */

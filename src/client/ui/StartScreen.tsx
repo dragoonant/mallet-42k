@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { loadBundle } from '../../data'
 import type { DataBundle } from '../../data/types'
-import { AI_DIFFICULTY_OPTIONS, DEFAULT_AI_DIFFICULTY, resolveFactionId, patrolsForFaction, resolvePatrol, splittablePatrolRefs, patrolUnitChoices, RANDOM_UNIT_CHOICE, useGameStore, type AiDifficulty, type FactionKey, type OpponentKind } from '../store/game'
+import { AI_DIFFICULTY_OPTIONS, DEFAULT_AI_DIFFICULTY, resolveFactionId, patrolsForFaction, resolvePatrol, splittablePatrolRefs, patrolUnitChoices, embarkOptions, RANDOM_UNIT_CHOICE, useGameStore, type AiDifficulty, type FactionKey, type OpponentKind } from '../store/game'
 import { primaryScoringSummary } from './labels'
 import { randomArmyPaint, usePaintStore } from '../figures/paint'
 import { PainterPanel } from './PainterPanel'
@@ -186,6 +186,30 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
   const [pickB, setPickB] = useState<Record<string, string>>({})
   const choicesA = bundle ? patrolUnitChoices(bundle, faction, patrol?.id) : []
   const choicesB = bundle && opponentFaction ? patrolUnitChoices(bundle, opponentFaction, opponentPatrolId || undefined) : []
+  // Start-embarked picks (transport ref -> unit ref), per seat. Only hotseat Player B chooses; a bot seat deploys everything.
+  const [embarkA, setEmbarkA] = useState<Record<string, string>>({})
+  const [embarkB, setEmbarkB] = useState<Record<string, string>>({})
+  const embarkOptsA = bundle ? embarkOptions(bundle, faction, patrol?.id, (splitA && !!bundle && splittablePatrolRefs(bundle, faction, patrol?.id).length > 0)) : []
+  const embarkOptsB = bundle && opponent === 'hotseat' && opponentFaction ? embarkOptions(bundle, opponentFaction, opponentPatrolId || undefined, (splitB && splittablePatrolRefs(bundle, opponentFaction, opponentPatrolId || undefined).length > 0)) : []
+  useEffect(() => { setEmbarkA({}) }, [faction, patrolId, splitA])
+  useEffect(() => { setEmbarkB({}) }, [opponentFaction, opponentPatrolId, splitB])
+  const embarkRow = (opts: ReturnType<typeof embarkOptions>, pick: Record<string, string>, setPick: (v: Record<string, string>) => void, who: string) => {
+    const transports = [...new Set(opts.map((o) => o.transportRef))]
+    return transports.map((t) => {
+      const mine = opts.filter((o) => o.transportRef === t)
+      const taken = new Set(Object.entries(pick).filter(([k]) => k !== t).map(([, v]) => v))
+      return (
+        <label key={t} style={blurb} data-testid={`setup-embark-${who}-${t}`}>
+          Start the battle inside your {mine[0].transportName}:{' '}
+          <select style={select} value={pick[t] ?? ''} onChange={(e) => { const n = { ...pick }; if (e.target.value) n[t] = e.target.value; else delete n[t]; setPick(n) }}>
+            <option value="">Nobody (deploy normally)</option>
+            {mine.filter((o) => !taken.has(o.unitRef)).map((o) => <option key={o.unitRef} value={o.unitRef}>{o.unitName} ({o.models} models)</option>)}
+          </select>
+        </label>
+      )
+    })
+  }
+  const embarkList = (pick: Record<string, string>, opts: ReturnType<typeof embarkOptions>) => Object.entries(pick).filter(([t, u]) => opts.some((o) => o.transportRef === t && o.unitRef === u)).map(([transportRef, unitRef]) => ({ unitRef, transportRef }))
   useEffect(() => { setPickA({}) }, [faction, patrolId])
   useEffect(() => { setPickB({}) }, [opponentFaction, opponentPatrolId])
   const refName = (factionKey: string, ref: string, pid?: string): string => {
@@ -206,6 +230,7 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
 
   // Patrol Squads that are split at setup (Sororitas); AM/Tyranids get the engine's own prompt at deployment instead.
   const canSplitA = !!bundle && splittablePatrolRefs(bundle, faction, patrol?.id).length > 0
+  const splitName = (fk: string, pid?: string): string => { const r = bundle ? splittablePatrolRefs(bundle, fk as FactionKey, pid)[0] : undefined; const u = r ? resolvePatrol(bundle!, fk as FactionKey, pid)?.units.find((x) => x.ref === r) : undefined; return (u && bundle?.datasheets[u.datasheet]?.name) || 'squad' }
   const canSplitB = !!bundle && opponent === 'hotseat' && !!opponentFaction && splittablePatrolRefs(bundle, opponentFaction, opponentPatrolId || undefined).length > 0
 
   const start = async () => {
@@ -228,6 +253,8 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
         secondaryId: secondaryId || undefined,
         splitSquads: canSplitA && splitA,
         opponentSplitSquads: canSplitB && splitB,
+        embark: embarkList(embarkA, embarkOptsA),
+        opponentEmbark: opponent === 'hotseat' ? embarkList(embarkB, embarkOptsB) : undefined,
         unitChoices: Object.keys(pickA).length ? pickA : undefined,
         opponentUnitChoices: Object.keys(pickB).length ? pickB : undefined,
         difficulty: opponent === 'bot' ? difficulty : undefined,
@@ -285,9 +312,10 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
         )}
 
         {unitChoiceRow(faction, patrol?.id, choicesA, pickA, setPickA, 'A')}
+        {embarkRow(embarkOptsA, embarkA, setEmbarkA, 'A')}
         {canSplitA && (
           <label style={blurb} data-testid="setup-split-A">
-            <input type="checkbox" checked={splitA} onChange={(e) => setSplitA(e.target.checked)} /> Split your Battle Sisters Squad into two units of 5 (Patrol Squads)
+            <input type="checkbox" checked={splitA} onChange={(e) => setSplitA(e.target.checked)} /> Split your {splitName(faction, patrol?.id)} into two units of 5 (Patrol Squads)
           </label>
         )}
 
@@ -344,9 +372,10 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
         )}
 
         {opponentFaction && unitChoiceRow(opponentFaction, opponentPatrolId || undefined, choicesB, pickB, setPickB, 'B')}
+        {embarkRow(embarkOptsB, embarkB, setEmbarkB, 'B')}
         {canSplitB && (
           <label style={blurb} data-testid="setup-split-B">
-            <input type="checkbox" checked={splitB} onChange={(e) => setSplitB(e.target.checked)} /> Split Player B's Battle Sisters Squad into two units of 5 (Patrol Squads)
+            <input type="checkbox" checked={splitB} onChange={(e) => setSplitB(e.target.checked)} /> Split Player B's {splitName(opponentFaction, opponentPatrolId || undefined)} into two units of 5 (Patrol Squads)
           </label>
         )}
 

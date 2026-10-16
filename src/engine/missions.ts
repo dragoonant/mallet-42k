@@ -11,7 +11,7 @@ import { championOfTheDarkGodsAmount } from './factions/chaos-space-marines'
 import { alphaXenoformAmount, chitinousTideAmount } from './factions/tyranids'
 import type { AttackKind } from './types'
 import type { MissionRule, ScoringRule, TimingWindowId } from '../data/types'
-import { kauyonLureAmount, leadershipCasteAmount } from './factions/tau-empire'
+import { etherealEdictAmount, etherealEdictOffer, kauyonLureAmount, leadershipCasteAmount, surpriseAttackAmount } from './factions/tau-empire'
 import { riseUpAmount, willOfThePatriarchAmount, infiltrationAgendaAmount, safeguardTheSanctuaryAmount } from './factions/genestealer-cults'
 import { holdTheLineAmount, methodicalDestructionAmount, methodicalDestructionOffer } from './factions/astra-militarum'
 import { OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE, playerBattlefieldEdge, pointInPolygon, whollyWithinPolygon, withinObjectiveRange } from './geometry'
@@ -19,6 +19,7 @@ import { consecratedGroundAmount, hallowedRetributionAmount } from './factions/a
 import { pinpointPurgeAmount, reconnaissanceInForceAmount } from './factions/space-marines'
 import { hookService } from './hooks-impl'
 import { leaderService } from './leaders'
+import { transportService } from './transports'
 import { liveClaimers, pruneClaim, recordClaim } from './objectives'
 import type { DecisionHandler, EngineContext, WindowTrigger } from './modules'
 import { otherPlayer } from './modules'
@@ -199,7 +200,7 @@ function rulesFor(s: GameState, pid: PlayerId): ScoringRule[] {
 }
 
 // ScoringRule-shaped "pick" instances (pointsPer 0): raise a decision instead of computing an amount
-const PICK_CODES = new Set(['stompEmPick', 'bagPick', 'treasuresOfAeonsPick', 'methodicalDestructionPick'])
+const PICK_CODES = new Set(['stompEmPick', 'bagPick', 'treasuresOfAeonsPick', 'methodicalDestructionPick', 'etherealEdictPick'])
 
 // ---------- generic ScoringRule.rule amounts ----------
 function tierPoints(tiers: Record<string, number>, die: number): number {
@@ -294,7 +295,8 @@ function bagTheBigUnAmount(s: GameState, rule: ScoringRule, pid: PlayerId): numb
   // R-5.16 [interp]: a Reserves unit that never arrived counts as destroyed for this secondary; with no credited
   // killer it scores the lower "unit" tier rather than nothing — 11-combat-patrol §5.3 does not give an exact
   // number for this case and the alternate roster's data does not exist yet (see issues).
-  if (unit.location === 'reserves') return unitPoints
+  // an embarked unit is alive inside its transport (stored as 'reserves'); only never-arrived Reserves count as destroyed
+  if (unit.location === 'reserves' && transportService.transportOf(s, targetId) === null) return unitPoints
   if (unit.location === 'destroyed' && !unit.destroyedBy) return unitPoints // RC-050: stranded-Reserves cull credits no killer
   if (unit.location !== 'destroyed' || !unit.destroyedBy) return 0
   // 11-combat-patrol §6: 8 VP if the target is destroyed by ANY unit; 12 only for the Beastboss's own kill, keyed on
@@ -318,7 +320,7 @@ function bagByModelAmount(s: GameState, rule: ScoringRule, pid: PlayerId, modelI
   const unitId = (sec.bagTargetUnitId as UnitId | undefined) ?? s.models[modelId]?.unitId
   const unit = unitId ? s.units[unitId] : undefined
   if (!unit) return 0
-  if (unit.location === 'reserves') return unitPoints // R-5.16 [interp]: never-arrived Reserves count as destroyed
+  if (unit.location === 'reserves' && transportService.transportOf(s, unitId) === null) return unitPoints // R-5.16 [interp]: never-arrived Reserves count as destroyed
   if (unit.location === 'destroyed' && !unit.destroyedBy) return unitPoints // stranded-Reserves cull credits no killer
   return 0
 }
@@ -519,6 +521,8 @@ function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): num
     case 'holdTheLine': return holdTheLineAmount(s, rule, pid)
     case 'kauyonLure': return kauyonLureAmount(s, rule, pid)
     case 'leadershipCaste': return leadershipCasteAmount(s, rule, pid)
+    case 'surpriseAttack': return surpriseAttackAmount(s, rule, pid, (id) => holds(ctx, id, pid))
+    case 'etherealEdictScore': return etherealEdictAmount(s, rule, pid)
     case 'riseUp': return riseUpAmount(ctx, rule, pid, (id) => holds(ctx, id, pid))
     case 'willOfThePatriarch': return willOfThePatriarchAmount(s, rule, pid)
     case 'infiltrationAgenda': return infiltrationAgendaAmount(s, rule, pid)
@@ -637,6 +641,7 @@ function runPick(ctx: EngineContext, rule: ScoringRule, pid: PlayerId, key: stri
   else if (rule.code === 'treasuresOfAeonsPick') treasuresPickRule(ctx, rule, pid, key)
   else if (rule.code === 'bagPick') bagPickRule(ctx, rule, pid, key)
   else if (rule.code === 'methodicalDestructionPick') methodicalDestructionOffer(ctx, pid, rule.when, key)
+  else if (rule.code === 'etherealEdictPick') etherealEdictOffer(ctx, pid, rule.when, key)
 }
 
 // ---------- MissionRule (non-scoring) codes ----------

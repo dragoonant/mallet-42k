@@ -10,6 +10,13 @@
       "rule": "tau.a.for-the-greater-good",
       "stratagems": ["tau.s.defensive-fusillade", "tau.s.rapid-repositioning", "tau.s.laser-marked-targets"],
       "enhancements": ["tau.e.ds13-experimental-drone", "tau.e.ds15-experimental-drone"]
+    },
+    {
+      "id": "tau.d.sudden-dawn-cadre",
+      "name": "Sudden Dawn Cadre",
+      "rule": "tau.a.for-the-greater-good",
+      "stratagems": ["tau.s.fight-by-the-code", "tau.s.rampart-of-fire", "tau.s.lives-before-territory"],
+      "enhancements": ["tau.e.electrostatic-flares", "tau.e.prototype-systems"]
     }
   ],
   "paintScheme": {
@@ -19,5 +26,5 @@
     "metal": "#6f7884",
     "decal": "#1c2a33"
   },
-  "combatPatrols": ["tau.cp.protectors-of-aun-shar"]
+  "combatPatrols": ["tau.cp.protectors-of-aun-shar", "tau.cp.sudden-dawn-cadre"]
 }

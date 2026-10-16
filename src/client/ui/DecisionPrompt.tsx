@@ -169,6 +169,13 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
     },
   },
   {
+    match: /ethereal-?edict/i,
+    info: {
+      title: 'Name the unit to protect',
+      hint: "Your opponent's Ethereal Edict: pick one unit of YOUR army (any unit, even one still in reserve). If it has been destroyed when the battle ends, the T'au player scores 12 VP. Choose the unit you are most sure of keeping alive.",
+    },
+  },
+  {
     match: /plasmacyte/,
     info: {
       title: 'Release the plasmacyte?',
@@ -365,7 +372,7 @@ function chooseOptionInfoFor(
   }
   const choice = context.data && typeof context.data.choice === 'string' ? CHOICE_PROMPT_KEYS[context.data.choice] : undefined
   // Both Cult Ambush steps (marker, return) carry the code; the return step has no ability id.
-  const key = context.data?.code === 'cultAmbush' ? 'cult-ambush' : context.abilityId ?? choice ?? null
+  const key = context.data?.code === 'cultAmbush' ? 'cult-ambush' : context.data?.code === 'etherealEdictPick' ? 'ethereal-edict' : context.abilityId ?? choice ?? null
   if (choice === 'patrol-squads' && Array.isArray(context.data?.sizes)) {
     const sizes = (context.data.sizes as number[]).filter((n) => typeof n === 'number')
     if (sizes.length > 0) {

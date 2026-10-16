@@ -44,12 +44,27 @@ function attachmentsOf(patrol: { units: { ref: string; attachTo?: string }[] }) 
   return patrol.units.filter((u) => u.attachTo).map((u) => ({ leaderRef: u.ref, bodyguardRef: u.attachTo as string }))
 }
 
-function playerSetup(bundle: DataBundle, patrolId: string, name: string) {
+// Transport rosters (SDC E1): when `embark` is set, the first eligible non-Leader unit starts embarked in the patrol's
+// Transport, so the sim/bench exercise setup embarkation and disembark (otherwise nothing ever sets PlayerSetup.embarked).
+function embarkedOf(bundle: DataBundle, patrol: { units: { ref: string; datasheet: string; size?: number; attachTo?: string }[] }) {
+  const transport = patrol.units.find((u) => bundle.datasheets[u.datasheet]?.transport)
+  if (!transport) return undefined
+  const spec = bundle.datasheets[transport.datasheet].transport!
+  const pick = patrol.units.find((u) => {
+    if (u === transport || u.attachTo || patrol.units.some((o) => o.attachTo === u.ref)) return false
+    const ds = bundle.datasheets[u.datasheet]
+    const kw = [...ds.keywords, ...ds.factionKeywords]
+    return (u.size ?? 1) <= spec.capacity && (spec.keywords ?? []).every((k) => kw.includes(k)) && !(spec.excludeKeywords ?? []).some((k) => kw.includes(k))
+  })
+  return pick ? [{ unitRef: pick.ref, transportRef: transport.ref }] : undefined
+}
+
+function playerSetup(bundle: DataBundle, patrolId: string, name: string, embark = false) {
   const patrol = bundle.patrols[patrolId]
   if (!patrol) throw new Error(`sim: patrol ${patrolId} missing from data bundle`)
   const enhancementId = (patrol.enhancements.find((e) => e.default) ?? patrol.enhancements[0]).id
   const secondaryId = (patrol.secondaries.find((s) => s.default) ?? patrol.secondaries[0]).id
-  return { name, faction: patrol.faction, patrolId, enhancementId, secondaryId, attachments: attachmentsOf(patrol), reserves: [], battleReadyVp: 0 }
+  return { name, faction: patrol.faction, patrolId, enhancementId, secondaryId, attachments: attachmentsOf(patrol), reserves: [], battleReadyVp: 0, ...(embark ? { embarked: embarkedOf(bundle, patrol) } : {}) }
 }
 
 export function makeSimSetup(bundle: DataBundle, gameIndex: number, dataVersion: string): GameSetup {
@@ -79,7 +94,7 @@ export function makeSimSetup(bundle: DataBundle, gameIndex: number, dataVersion:
   return {
     missionId: MISSIONS[missionIndex % MISSIONS.length],
     terrainLayoutId: Object.keys(bundle.terrainLayouts ?? {}).sort()[0] ?? 'terrain.cp-01',
-    players: { A: playerSetup(bundle, p0, 'Bot A'), B: playerSetup(bundle, p1, 'Bot B') },
+    players: { A: playerSetup(bundle, p0, 'Bot A', gameIndex % 2 === 0), B: playerSetup(bundle, p1, 'Bot B', gameIndex % 3 !== 1) },
     sides: 'rollOff',
     firstTurn: 'rollOff',
     dataVersion,

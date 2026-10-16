@@ -37,7 +37,7 @@ import {
   CULT_AMBUSH_MARKER_RADIUS, CULT_AMBUSH_REACTION_KIND, cultAmbushArrivalPlacements, cultAmbushCullPool, cultAmbushParams, cultAmbushReturnRegion, cultAmbushOnMoveEnded, cultAmbushReactionMarker, cultAmbushReturnStep,
   pendingCultAmbushReactions,
 } from '../cult-ambush'
-import { attackService } from '../attack'
+import { attackService, REACTIVE_MOVED_PREFIX } from '../attack'
 import { isBigGunsUnit, targetLegality } from './shooting'
 import { weaponService } from '../weapons'
 import { terrainService } from '../terrain'
@@ -278,6 +278,7 @@ export function handleReactiveMove(ctx: EngineContext, action: Action, pending: 
   })
   cultAmbushOnMoveEnded(ctx, rv.unitId)
   forfeitChargeAfterReactiveMove(ctx, rv)
+  s.phaseState.marks.push(`${REACTIVE_MOVED_PREFIX}${rv.unitId}`) // E6: pruneUnreachableTargets re-validates declared attacks
 }
 
 function reactiveCandidates(state: GameState, pending: Extract<PendingDecision, { kind: 'moveUnit' }>, rv: ReactiveMove): Action[] {
@@ -620,6 +621,7 @@ function cullStrandedReserves(ctx: EngineContext, endOfRound3 = false): void {
     if (u.location !== 'reserves') continue
     const transportId = transportService.transportOf(s, u.id)
     if (transportId !== null && s.units[transportId]?.location === 'reserves') continue // culled below with its transport
+    if (transportId !== null && s.units[transportId]?.location === 'board') continue // E1: carried on the battlefield, not stranded
     if (isTeleporting(s, u.id)) continue // GRE-2.3: Teleport Assault units are never culled (destroyed at battle end instead)
     destroyStrandedUnit(u.id)
     // R-5.14/R-5.20: a transport destroyed here (or already dead, e.g. removed mid-game) never leaves its own
@@ -634,7 +636,7 @@ function nextWaveZone(state: GameState, player: PlayerId): Polygon {
   return battlefieldEdgeStrip(state.board, deploymentZone(state, player), 9)
 }
 
-type ArrivalVia = 'deepStrike' | 'rapidIngress' | 'strategicReserves' | 'nextWave' | 'teleportAssault' | 'cultAmbush'
+type ArrivalVia = 'deepStrike' | 'rapidIngress' | 'strategicReserves' | 'nextWave' | 'teleportAssault' | 'cultAmbush' | 'disembark'
 
 // Cult Ambush: the marker circle the returning unit must touch (written when its arrival decision is raised)
 function arrivalMarker(state: GameState): Vec3 | null {
@@ -675,6 +677,7 @@ function resolveArrival(state: GameState, groupIds: UnitId[], placements: ModelP
   const player = state.units[groupIds[0]].player
   const enemies = enemyModelsOnBoard(state, player)
   const otherFriendly = boardModelsOf(state, player)
+  if (via === 'disembark') return resolveDisembark(state, groupIds[0], placements)
   const constraints = via === 'strategicReserves'
     ? strategicReservesConstraints(state, player)
     : via === 'nextWave'
@@ -723,6 +726,27 @@ function resolveArrival(state: GameState, groupIds: UnitId[], placements: ModelP
       best = Math.min(best, horizontalGap({ pos: x.to, facing: x.facing, base: x.model.base }, { pos: y.to, facing: y.facing, base: y.model.base }))
     }
     if (best > 3 + EPS) return { rejection: { code: 'E_OUT_OF_RANGE', reason: 'paired units (Tellyporta) must arrive together within 3" of each other' } }
+  }
+  return result
+}
+
+// E1 / R-5.18: a disembarking unit is set up wholly within 3" of its transport, in coherency, outside Engagement Range
+function resolveDisembark(state: GameState, unitId: UnitId, placements: ModelPlacement[]):
+  { rejection: Rejection } | { rejection: null; resolved: ResolvedPlacement[] } {
+  const player = state.units[unitId].player
+  const result = checkPlacements({
+    unitModels: unitModels(state, unitId), placements,
+    constraints: emptyMoveConstraints(9999, { region: boardPolygon(state), mustEndOutsideEngagement: true, coherency: true }),
+    otherFriendly: boardModelsOf(state, player), enemies: enemyModelsOnBoard(state, player), board: state.board,
+  })
+  if (result.rejection) return result
+  for (const r of result.resolved) {
+    const end = terrainService.canEndAt(state, r.model, r.to)
+    if (!end.ok) return { rejection: { code: 'E_OVERLAP', reason: end.reason ?? `${r.model.id} cannot end there`, details: { modelId: r.model.id } } }
+  }
+  const fps = result.resolved.map((r) => ({ pos: r.to, facing: r.facing, base: r.model.base }))
+  if (!transportService.canDisembarkAt(state, unitId, fps)) {
+    return { rejection: { code: 'E_OUT_OF_RANGE', reason: `${unitId} must disembark wholly within 3" of its transport and outside Engagement Range` } }
   }
   return result
 }
@@ -862,9 +886,75 @@ function finishUnit(state: GameState, unitId: UnitId, extraIds: UnitId[] = []): 
   writeMark(state, 'mv:deResub', null)
 }
 
+// E1: the player's embarked units that may disembark now (their transport is on the battlefield and has not Advanced /
+// Fallen Back, and the unit did not embark this phase)
+export function disembarkCandidates(state: GameState, player: PlayerId): UnitId[] {
+  const activated = new Set(state.phaseState.activated)
+  const declined = new Set<string>(JSON.parse(readMark(state, 'mv:disembarkDeclined') ?? '[]'))
+  return Object.values(state.units)
+    .filter((u) => u.player === player && u.location === 'reserves' && !activated.has(u.id) && !declined.has(u.id)
+      && transportService.disembarkMode(state, u.id) !== null && disembarkPlacement(state, u.id) !== null)
+    .map((u) => u.id)
+    .sort()
+}
+
+// E1: an automatic legal disembark placement for an embarked unit, or null when the zone has no room (such a unit is
+// not offered, so a unit that cannot get out never traps the activation loop)
+function disembarkPlacement(state: GameState, unitId: UnitId): ModelPlacement[] | null {
+  const t = transportService.transportOf(state, unitId)
+  if (t === null || !state.units[t] || state.units[t].location !== 'board') return null
+  const player = state.units[unitId].player
+  const models = unitModels(state, unitId)
+  if (models.length === 0) return null
+  const enemies = enemyModelsOnBoard(state, player)
+  return autoDeployPlacements(models, transportService.disembarkZone(state, t), boardModelsOf(state, player), enemies, {
+    canPlace: (m, pos, facing) => { const fp = { pos, facing: facing ?? m.facing, base: m.base }; return !anyWithinEngagementRange(fp, enemies) && transportService.canDisembarkAt(state, unitId, [fp]) },
+  })
+}
+
+// E1 / R-5.17: after a unit's Normal / Advance / Fall Back move, offer it to embark in a friendly Transport it ended
+// within 3" of. Returns true when a decision was raised. The AI default is 'stay' unless the unit is below half strength.
+export function offerEmbark(ctx: EngineContext, unitId: UnitId): boolean {
+  const s = ctx.state
+  const unit = s.units[unitId]
+  if (!unit || unit.location !== 'board') return false
+  const mt = unit.turn.moveType
+  if (mt !== 'normal' && mt !== 'advance' && mt !== 'fallBack') return false
+  const transports = boardUnitsOf(s, unit.player).map((u) => u.id).filter((id) => transportService.canEmbark(s, unitId, id))
+  if (transports.length === 0 || !ctx.once(`mv:embarkAsked:${unitId}`)) return false
+  ctx.decide({
+    kind: 'chooseOption', player: unit.player, window: 'movement.unitMoved', canPass: false,
+    context: { topic: 'other', unitId, abilityId: null, data: { kind: 'embark', transportUnitIds: transports } },
+    options: [
+      ...transports.map((id) => ({ id: `embark:${id}`, label: `Embark in ${s.units[id].name}`, action: { type: 'chooseOption' as const, player: unit.player, decisionId: '', optionId: `embark:${id}` } })),
+      { id: 'stay', label: 'Stay on the battlefield', action: { type: 'chooseOption' as const, player: unit.player, decisionId: '', optionId: 'stay' } },
+    ],
+  })
+  return true
+}
+
+function raiseDisembark(ctx: EngineContext, unitId: UnitId): void {
+  const s = ctx.state
+  const unit = s.units[unitId]
+  const transportId = transportService.transportOf(s, unitId) as UnitId
+  const zone = transportService.disembarkZone(s, transportId)
+  writeMark(s, 'mv:arriveGroup', JSON.stringify([unitId]))
+  writeMark(s, 'mv:arriveVia', 'disembark')
+  ctx.decide({
+    kind: 'deployUnit', player: unit.player, window: 'movement.start', canPass: true,
+    context: { unitIds: [unitId], zone, infiltrators: [], reservesAllowed: [] },
+    constraints: emptyMoveConstraints(9999, { region: zone, mustEndOutsideEngagement: true, coherency: true }),
+  })
+}
+
 function doSelect(ctx: EngineContext): 'pending' | 'declare' | 'reinforcements' {
   const s = ctx.state
   if (readMark(s, 'mv:cur') !== null) return 'declare'
+  const pendingDisembark = readMark(s, 'mv:disembarkUnit')
+  if (pendingDisembark !== null) {
+    if (readMark(s, 'mv:arriveGroup') === null) raiseDisembark(ctx, pendingDisembark)
+    return 'pending'
+  }
   const active = s.activePlayer
   const activated = new Set(s.phaseState.activated)
   const eligible: UnitId[] = []
@@ -875,6 +965,7 @@ function doSelect(ctx: EngineContext): 'pending' | 'declare' | 'reinforcements' 
     if (transportService.disembarkModeThisPhase(s, u.id) === 'countsAsNormalMove') continue
     eligible.push(u.id)
   }
+  eligible.push(...disembarkCandidates(s, active))
   if (eligible.length === 0) return 'reinforcements'
   ctx.decide({
     kind: 'chooseUnitToActivate', player: active, window: 'movement.start', canPass: true,
@@ -953,6 +1044,7 @@ function doMove(ctx: EngineContext): 'pending' | 'select' {
   const windowUnit = readMark(s, 'mv:windowUnit')
   if (windowUnit !== null) {
     if (ctx.window('movement.unitMoved', windowUnit, ctx.order.active(), { unitId: windowUnit })) return 'pending'
+    if (offerEmbark(ctx, windowUnit)) return 'pending'
     writeMark(s, 'mv:windowUnit', null)
     return 'select'
   }
@@ -1068,6 +1160,7 @@ function doMove(ctx: EngineContext): 'pending' | 'select' {
   finishUnit(s, unitId, groupIds)
   writeMark(s, 'mv:windowUnit', unitId)
   if (ctx.window('movement.unitMoved', unitId, ctx.order.active(), { unitId })) return 'pending'
+  if (offerEmbark(ctx, unitId)) return 'pending'
   writeMark(s, 'mv:windowUnit', null)
   return 'select'
 }
@@ -1133,6 +1226,21 @@ function arrivalCandidates(state: GameState, pending: Extract<PendingDecision, {
   const spacing = 2 * rad + 0.2
   const cols = Math.ceil(Math.sqrt(models.length))
   const rows = Math.ceil(models.length / cols)
+  if (readMark(state, 'mv:arriveVia') === 'disembark') {
+    const t = transportService.transportOf(state, groupIds[0])
+    const others = boardModelsOf(state, pending.player)
+    const enemies = enemyModelsOnBoard(state, pending.player)
+    const auto = autoDeployPlacements(models, pending.context.zone, others, enemies, {
+      canPlace: (m, pos, facing) => { const fp = { pos, facing: facing ?? m.facing, base: m.base }; return !anyWithinEngagementRange(fp, enemies) && transportService.canDisembarkAt(state, groupIds[0], [fp]) },
+    })
+    const out2: Action[] = []
+    if (t !== null && auto) {
+      const action: Action = { type: 'deployUnit', player: pending.player, decisionId: pending.id, unitId: groupIds[0], placements: auto }
+      if (validateArrival(state, action, pending) === null) out2.push(action)
+    }
+    out2.push({ type: 'pass', player: pending.player, decisionId: pending.id })
+    return out2
+  }
   const nextWave = readMark(state, 'mv:arriveVia') === 'nextWave'
   const poly = nextWave ? pending.context.zone : boardPolygon(state)
   const minX = Math.min(...poly.map((p) => p.x)), maxX = Math.max(...poly.map((p) => p.x))
@@ -1228,11 +1336,34 @@ export const movementModule: PhaseModule = {
       // a Precision allocation (canPass) is declined with a pass: the attack sequence answers it
       if (pending.kind === 'allocateAttack' && s.phaseState.attack) return attackService.handler.handle(ctx, action, pending)
       if (pending.kind === 'chooseUnitToActivate') { s.step = 'reinforcements'; return }
+      if (pending.kind === 'deployUnit' && readMark(s, 'mv:arriveVia') === 'disembark') {
+        // declined: the unit stays embarked and is not offered again this phase (else the activation loop never ends)
+        const uid = readMark(s, 'mv:disembarkUnit')
+        s.phaseState.activated = s.phaseState.activated.filter((id) => id !== uid)
+        if (uid !== null) writeMark(s, 'mv:disembarkDeclined', JSON.stringify([...JSON.parse(readMark(s, 'mv:disembarkDeclined') ?? '[]'), uid]))
+        writeMark(s, 'mv:disembarkUnit', null); writeMark(s, 'mv:arriveVia', null); writeMark(s, 'mv:arriveGroup', null)
+        return
+      }
       return { code: 'E_NOT_AN_OPTION', reason: `movement: pass is not valid for ${pending.kind}` }
     }
     if (pending.kind === 'chooseUnitToActivate' && action.type === 'chooseUnitToActivate') {
       if (!s.phaseState.activated.includes(action.unitId)) s.phaseState.activated.push(action.unitId)
+      // E1: an embarked unit chosen here disembarks first (a deployUnit decision around its transport)
+      if (s.units[action.unitId]?.location === 'reserves' && transportService.transportOf(s, action.unitId) !== null) {
+        writeMark(s, 'mv:disembarkUnit', action.unitId)
+        return
+      }
       writeMark(s, 'mv:cur', action.unitId)
+      return
+    }
+    if (pending.kind === 'chooseOption' && pending.context.topic === 'other' && (pending.context.data as { kind?: string }).kind === 'embark' && action.type === 'chooseOption') {
+      const unitId = pending.context.unitId as UnitId
+      if (action.optionId.startsWith('embark:')) {
+        const transportId = action.optionId.slice('embark:'.length)
+        if (!transportService.canEmbark(s, unitId, transportId)) return { code: 'E_NOT_AN_OPTION', reason: `${unitId} cannot embark in ${transportId}` }
+        transportService.embark(s, unitId, transportId)
+        ctx.emit({ type: 'AbilityTriggered', abilityId: 'transport.embark', sourceUnitId: transportId, targetUnitId: unitId, summary: `${s.units[unitId].name} embark in ${s.units[transportId].name}`, player: action.player })
+      }
       return
     }
     if (pending.kind === 'declareMove' && action.type === 'declareMove') {
@@ -1254,6 +1385,7 @@ export const movementModule: PhaseModule = {
         })
         cultAmbushOnMoveEnded(ctx, rv.unitId)
         forfeitChargeAfterReactiveMove(ctx, rv)
+        s.phaseState.marks.push(`${REACTIVE_MOVED_PREFIX}${rv.unitId}`)
         return
       }
       writeMark(s, 'mv:placements', JSON.stringify(action.placements))
@@ -1276,6 +1408,22 @@ export const movementModule: PhaseModule = {
       writeMark(s, 'mv:arriveVia', null)
       writeMark(s, 'mv:arriveGroup', null)
       writeMark(s, 'mv:arriveMarker', null)
+      if (via === 'disembark') {
+        const uid = groupIds[0]
+        writeMark(s, 'mv:disembarkUnit', null)
+        const placed = resolveDisembark(s, uid, action.placements)
+        if (placed.rejection) throw new EngineInvariantError('movement: stored disembark placements failed re-validation', { rejection: placed.rejection })
+        const transportId = transportService.transportOf(s, uid) as UnitId
+        for (const r of placed.resolved) setModelPos(s.models[r.model.id], r.to, r.facing)
+        const u = s.units[uid]
+        u.location = 'board'
+        const mode = transportService.disembarkMode(s, uid)
+        transportService.disembark(s, uid)
+        ctx.emit({ type: 'AbilityTriggered', abilityId: 'transport.disembark', sourceUnitId: transportId, targetUnitId: uid, summary: `${u.name} disembark from ${s.units[transportId].name}`, player: u.player })
+        if (mode === 'actsNormally') writeMark(s, 'mv:cur', uid)
+        else finishUnit(s, uid)
+        return
+      }
       if (action.toReserves) {
         // GRE-2.6: declining the mandatory Teleport Assault arrival destroys the unit
         if (via === 'teleportAssault') destroyTeleportingUnit(ctx, groupIds[0])

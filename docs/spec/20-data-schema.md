@@ -138,6 +138,7 @@ One entry per profile. Multi-profile weapons share `profileGroup`; a model picks
 | `coreAbilities` | `{ability, value?}[]` | §3 |
 | `leader` | `{attachTo: Id[], effects: (Id\|AbilityDescriptor)[]}` | CHARACTER only |
 | `damaged` | `{threshold: int, effect: Effect}` | vehicles/monsters |
+| `transport` | `{capacity: int, keywords?: Keyword[], excludeKeywords?: Keyword[], firingDeck?: int}` | transports; capacity counts models; passengers need every `keywords` entry and none of `excludeKeywords` |
 | `points` | `{models, points}[]` | |
 | `figure` | `{archetype, kit, parts?: Record<Slot, Id>}` | see 30-figures; composition entries may override |
 

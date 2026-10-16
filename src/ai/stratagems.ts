@@ -101,6 +101,9 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
     withIt = incomingDamage(state, attackerId, mineId, false, { ...base, hitMod: -1, fnp: 5 })
   } else if (id.endsWith('hyper-reactive') || id.endsWith('lurking-killers')) {
     withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, hitMod: -1 })
+  } else if (id.endsWith('lives-before-territory')) {
+    if (melee) return -Infinity
+    withIt = incomingDamage(state, attackerId, mineId, false, { ...base, cover: true })
   } else if (id.endsWith('mercurial-resilience')) {
     withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, invuln: 5 })
   } else if (id.endsWith('a-martyrs-death')) {
@@ -114,7 +117,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
 }
 
 const DEFENSIVE = ['go-to-ground', 'smokescreen', 'gene-wrought-resilience', 'tough-as-squig-hide', 'holy-radiance', 'hyper-reactive',
-  'mercurial-resilience', 'a-martyrs-death', 'daemonic-fervour', 'lurking-killers']
+  'mercurial-resilience', 'a-martyrs-death', 'daemonic-fervour', 'lurking-killers', 'lives-before-territory']
 
 // Fire Overwatch: hits only on an unmodified 6, the bound unit only (picked within 24"), each weapon within its own range, with line of sight.
 function overwatchGain(state: GameState, player: PlayerId, action: UseStratagemAction, enemyId: UnitId): number {
@@ -263,6 +266,25 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
     if (!unit) return -Infinity
     if (roundsLeft < 1) return -Infinity
     return unit.startingStrength * ESTIMATED_MODEL_VALUE * 0.04 * Math.min(1, 0.4 + roundsLeft * 0.2)
+  }
+  // T'au Fight by the Code: a unit that Fell Back may still shoot; worth its best volley at any enemy it can reach.
+  if (id.endsWith('fight-by-the-code')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId || state.units[unitId]?.turn.moveType !== 'fallBack' || !hasAnyRangedWeapon(state, unitId)) return -Infinity
+    let best = 0
+    for (const e of boardUnitsOf(state, other(player))) best = Math.max(best, unitRangedDamage(state, unitId, e.id, {}) * unitValue(state, e.id) * 0.03)
+    return best > 0.2 ? best : -Infinity
+  }
+  // T'au Rampart of Fire: AP -1 on a not-yet-shot unit's attacks at enemies within 10"; compare the unit's output with one more AP step.
+  if (id.endsWith('rampart-of-fire')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId || !hasAnyRangedWeapon(state, unitId)) return -Infinity
+    let best = 0
+    for (const e of boardUnitsOf(state, other(player))) {
+      if (minGapBetweenUnits(state, unitId, e.id) > 10) continue
+      best = Math.max(best, unitRangedDamage(state, unitId, e.id, {}) * 0.25 * unitValue(state, e.id) * 0.03)
+    }
+    return best > 0.2 ? best : -Infinity
   }
   // Insane Bravery: oncePerBattle, so only worth burning on a battle-shock test that would actually hurt (the unit would
   // likely fail it) — a unit on a scoring objective, or a high-value unit we can't afford to see fall back/flee.

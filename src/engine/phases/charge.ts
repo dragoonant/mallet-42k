@@ -40,6 +40,7 @@ import { weaponService } from '../weapons'
 import { defaultOverwatchSelection } from './movement'
 import { targetLegality } from './shooting'
 import { terrainService } from '../terrain'
+import { transportService } from '../transports'
 import { crossesBigFriendly } from './movement'
 import { pendingReactions, consumeReaction } from '../code-hooks'
 import { cultAmbushOnMoveEnded } from '../cult-ambush'
@@ -104,6 +105,8 @@ function canDeclareCharge(state: GameState, unitId: UnitId): boolean {
   if (leaderService.inEngagementWithEnemy?.(state, unitId)) return false
   // C6: a forbid:'charge' effect (Artillery Strike) stops the unit declaring any charge
   if (leaderService.halves(state, unitId).some((id) => hookService.chargeForbidden(state, id))) return false
+  // R-5.18 / R-5.20: a unit that disembarked from a transport that had moved (or was destroyed) cannot charge this turn
+  if (leaderService.halves(state, unitId).some((id) => transportService.cannotChargeThisTurn(state, id))) return false
   const moveType = state.units[unitId].turn.moveType
   if ((moveType === 'advance' || moveType === 'fallBack') && !(hookService.eligibilityFor?.(state, unitId, 'charge') ?? false)) return false
   return candidateTargets(state, unitId).length > 0
@@ -530,14 +533,22 @@ function collectChargeRerollKinds(ctx: EngineContext, charge: ChargeState, roll:
 }
 
 // modifyRoll effects on the Charge roll (Laser-Marked Targets: -2) adjust the 2D6 total, never the dice themselves
-function chargeRollModifier(ctx: EngineContext, charge: ChargeState, roll: import('../types').DiceRoll): number {
+export function chargeRollModifier(ctx: EngineContext, charge: ChargeState, roll: import('../types').DiceRoll): number {
   const results = ctx.services.hooks.collect(ctx, 'onChargeRoll', {
     chargingUnitId: charge.unitId, targetUnitIds: charge.targetUnitIds,
     roll: { purpose: 'charge', roll, dieIndex: 0, unmodified: rollSum(roll), rerolled: (roll.rerolled ?? []).length > 0 },
   })
-  let mod = 0
-  for (const r of results) if (r.result.kind === 'roll' && typeof r.result.modifier === 'number') mod += r.result.modifier
-  return mod
+  // SDC E3: a negative modifier from a source flagged params.nonCumulativeNegative (Grav-inhibitor Drone) does not stack
+  // with other negatives: the worst of the flagged and the unflagged total applies; positives always add
+  let pos = 0, negOther = 0, negFlag = 0
+  for (const r of results) {
+    if (r.result.kind !== 'roll' || typeof r.result.modifier !== 'number') continue
+    const m = r.result.modifier
+    if (m >= 0) { pos += m; continue }
+    if (ctx.state.abilities[r.source.id]?.params?.nonCumulativeNegative === true) negFlag = Math.min(negFlag, m)
+    else negOther += m
+  }
+  return pos + (negFlag < 0 ? Math.min(negFlag, negOther) : negOther)
 }
 
 function doChargeRoll(ctx: EngineContext, charge: ChargeState): 'pending' | 'ok' | 'failed' {

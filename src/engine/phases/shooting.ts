@@ -29,7 +29,7 @@ import { distance, EPS } from '../geometry'
 import { hookService } from '../hooks-impl'
 import { leaderService } from '../leaders'
 import { losService } from '../los'
-import { attackService } from '../attack'
+import { attackService, pruneUnreachableTargets } from '../attack'
 import { consumeReaction } from '../code-hooks'
 import { handleReactiveMove, resolveSurgeMove, reactiveMoveLegalActions, validateReactiveMove } from './movement'
 import { weaponService } from '../weapons'
@@ -288,6 +288,7 @@ function doResolve(ctx: EngineContext): 'pending' | 'selectUnit' {
   const opponent = otherPlayer(s.units[unitId].player)
   // R-11.5: `shooting.targetsDeclared` opens before any hit is rolled, defensive (targeted player) first
   if (ctx.window('shooting.targetsDeclared', unitId, ctx.order.defensive(opponent), { unitId })) return 'pending'
+  pruneUnreachableTargets(ctx, unitId) // E6: a reactive move in the window above may have taken targets out of reach
   if (s.phaseState.attack && attackService.advance(ctx) === 'pending') return 'pending'
   if (ctx.window('shooting.attacksResolved', unitId, ctx.order.active(), { unitId })) return 'pending'
   // mortal wounds queued by an attacksResolved window (late Dark Pact test) resolve before the next unit is chosen

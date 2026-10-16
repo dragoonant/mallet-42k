@@ -88,6 +88,8 @@ export interface RuntimeDatasheet {
   coreAbilities: CoreAbility[]
   leader: { attachTo: DatasheetId[]; effects: AbilityId[] } | null
   damaged: { threshold: number; effect: EffectList } | null
+  // SDC E1 (additive, optional): Transport data (DatasheetData.transport); absent = not a transport
+  transport?: { capacity: number; keywords?: Keyword[]; excludeKeywords?: Keyword[]; firingDeck?: number }
 }
 
 export type RuntimeStratagem = StratagemData
@@ -541,6 +543,11 @@ export interface PlayerSetup {
   battleReadyVp: number
   // E5 Patrol Squads: patrol unit refs to split into their `patrolSquads` parts at Declare Battle Formations
   splitUnits?: string[]
+  // SDC E1 Transports (additive, optional): units that start the battle embarked in a friendly Transport (Declare Battle
+  // Formations). Both refs name this player's fielded patrol units (a Patrol Squads part ref is allowed); createGame throws
+  // EngineInvariantError when a ref is unknown, the transport has no `transport` data, or canCarry fails. An embarked unit
+  // is never offered a deployment drop and is not culled while its transport is on the battlefield.
+  embarked?: { unitRef: string; transportRef: string }[]
   // E1 unit choice (Grey Knights Terminators / Dreadknight): group id -> chosen unit ref; an omitted group takes its default.
   // createGame throws EngineInvariantError for an unknown group id or a ref not in the group. Unchosen refs are never
   // created; attachments naming them are dropped.

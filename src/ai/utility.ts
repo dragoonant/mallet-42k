@@ -591,8 +591,22 @@ function scoreChooseOption(state: GameState, pending: PendingDecision, action: A
       score += 3 - (Number.isFinite(best) ? best * 0.1 : 0)
     } else if (action.optionId === 'decline') score -= 2
   }
+  // Transport embark offer (spec 7.1 E1): stay on the battlefield unless the unit is below half strength
+  const embarkData = pending.context.data as { kind?: string } | undefined
+  if (topic === 'other' && embarkData?.kind === 'embark') {
+    const unitId = pending.context.unitId as UnitId | undefined
+    const hurt = !!unitId && state.units[unitId] ? (DEFAULT_SERVICES.leaders?.isBelowHalfStrength?.(state, unitId) ?? false) : false
+    const embark = action.optionId.startsWith('embark:')
+    return embark === hurt ? 1 : 0
+  }
   // Methodical Destruction: the VP only come if the pick dies this round, so mark the unit most likely to die (cheapest on the board).
   if (code === 'methodicalDestructionPick' && hintUnitId) score = -unitValue(state, hintUnitId) * 0.03
+  // Ethereal Edict: the VP go to the T'au if the picked unit (one of ours) dies, so condemn the hardest one to kill (sum of W x T).
+  if (code === 'etherealEdictPick' && hintUnitId) {
+    let hardness = 0
+    for (const m of unitModels(state, hintUnitId)) { const st = modelStats(state, m); hardness += st.W * st.T }
+    score = hardness * 0.01
+  }
   return score
 }
 

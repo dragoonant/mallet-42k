@@ -956,7 +956,8 @@
             "inEngagement",
             "belowHalf",
             "battleShocked",
-            "justMoved"
+            "justMoved",
+            "fellBackNotYetShot"
           ]
         },
         "count": {

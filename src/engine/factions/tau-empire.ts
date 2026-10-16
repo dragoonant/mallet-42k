@@ -10,9 +10,10 @@
 import type { Action } from '../actions'
 import { shotThisTurn } from '../attack'
 import { pushReaction, eligibleToShootNow, type EngineCodeHook, type StratagemEnv, type StratagemTuple } from '../code-hooks'
-import { partlyWithinPolygon, withinObjectiveRange } from '../geometry'
-import { hookService, type HookSourceEntry } from '../hooks-impl'
+import { partlyWithinPolygon, pointInPolygon, withinObjectiveRange } from '../geometry'
+import { coverMarkKey, hookService, type HookSourceEntry } from '../hooks-impl'
 import { leaderService } from '../leaders'
+import { transportService } from '../transports'
 import type { EngineContext } from '../modules'
 import { startReactiveMove } from '../phases/movement'
 import { unitEligibleToShoot } from '../phases/shooting'
@@ -304,7 +305,77 @@ export function tauEmpireHooks(): Record<string, EngineCodeHook> {
     },
   }
 
-  return { forTheGreaterGood, forwardObservers, coordinatedLeadership, coverFire, ds8SupportTurret, kauyonLure, leadershipCaste, rapidRepositioning, laserMarkedTargets }
+  // ---------- Sudden Dawn Cadre (docs/spec/factions/tau-empire--sudden-dawn-cadre.md §7) ----------
+  // Electro-static Flares aura (SDC-3): enemies cannot Fire Overwatch at a friendly non-DEVILFISH T'AU EMPIRE unit within 6" of
+  // the bearer (the bearer's own unit always counts). The -1 to hit is the descriptor's own `stealth` effect.
+  const electrostaticFlares: EngineCodeHook = {
+    name: 'electrostaticFlares', kind: 'ability', hook: 'onStatQuery', run: noop, forceScope: { who: 'friendly', within: 6 },
+    forbidsOverwatchAgainst(state, entry, targetUnitId) {
+      const holder = state.units[entry.holderUnitId]
+      if (!holder || holder.location !== 'board') return false
+      const target = canon(state, targetUnitId)
+      const tu = state.units[target]
+      if (!tu || tu.location !== 'board' || tu.player !== holder.player) return false
+      if (anyHalfHasKeyword(state, target, 'DEVILFISH')) return false
+      return leaderService.sameUnit(state, target, holder.id) || leaderService.unitDistance(state, target, holder.id) <= 6 + 1e-6
+    },
+  }
+
+  // Prototype Systems (SDC-3): the bearer may re-roll the dice that set the Attacks of the named weapon
+  const prototypeSystems: EngineCodeHook = {
+    name: 'prototypeSystems', kind: 'ability', hook: 'onStatQuery', run: noop,
+    rerollsAttackCount(_state, entry, attackerModelId, weapon) {
+      return attackerModelId === entry.bearerModelId && weapon.id === (entry.params.weaponId as string | undefined)
+    },
+  }
+
+  // Grav-inhibitor Drone (SDC-6.3): only while the carrying model lives, and only for charges that target the holder's unit
+  const gravInhibitorDrone: EngineCodeHook = {
+    name: 'gravInhibitorDrone', kind: 'ability', hook: 'onChargeRoll', run: noop, hooks: ['onChargeRoll'], forceScope: { who: 'enemy' },
+    gate(state, holder, entry, data) {
+      const modelId = entry.params.modelId as string | undefined
+      if (!modelId || !holder.models.some((id) => state.models[id]?.datasheetModelId === modelId)) return false
+      if (!data) return true
+      const targets = (data.targetUnitIds as UnitId[] | undefined) ?? []
+      return targets.some((t) => leaderService.sameUnit(state, t, holder.id))
+    },
+  }
+
+  // Lives Before Territory (SDC-5): Benefit of Cover for the rest of the phase (phase mark read by hasBenefitOfCover), then a D6" move
+  const livesBeforeTerritory: EngineCodeHook = {
+    name: 'livesBeforeTerritory', kind: 'stratagem', hook: 'onTargetsDeclared', run: noop,
+    check(env: StratagemEnv, t: StratagemTuple) {
+      const { state } = env
+      if (state.phase !== 'shooting') return false
+      const id = t.ids[0]
+      const u = state.units[id]
+      if (!u || u.location !== 'board' || u.player !== env.player) return false
+      const kws = (env.stratagem.params?.keywords as string[] | undefined) ?? ['INFANTRY', 'BATTLESUIT']
+      if (!kws.some((k) => anyHalfHasKeyword(state, id, k))) return false
+      return !leaderService.inEngagementWithEnemy(state, id)
+    },
+    apply(ctx, env, t) {
+      const s = ctx.state
+      const id = canon(s, t.ids[0])
+      s.phaseState.marks.push(coverMarkKey(id))
+      const roll = ctx.roll({ purpose: 'stratagem', player: env.player, count: 1, sides: 6, mode: 'perDie', unitId: id })
+      const distance = roll.final[0] ?? 1
+      ctx.emit({
+        type: 'AbilityTriggered', abilityId: env.stratagem.id, sourceUnitId: id, targetUnitId: null, player: env.player,
+        summary: `Lives Before Territory: ${s.units[id].name} moves up to ${distance}" and gains the Benefit of Cover`,
+      })
+      startReactiveMove(ctx, id, distance, env.stratagem.id, 'shooting.targetsDeclared')
+    },
+  }
+
+  const surpriseAttack: EngineCodeHook = { name: 'surpriseAttack', kind: 'mission', hook: 'onTurnEnd', run: noop }
+  const etherealEdictPick: EngineCodeHook = { name: 'etherealEdictPick', kind: 'mission', hook: 'onPhaseStart', run: noop, answer: answerEdict }
+  const etherealEdictScore: EngineCodeHook = { name: 'etherealEdictScore', kind: 'mission', hook: 'onPhaseEnd', run: noop }
+
+  return {
+    forTheGreaterGood, forwardObservers, coordinatedLeadership, coverFire, ds8SupportTurret, kauyonLure, leadershipCaste, rapidRepositioning, laserMarkedTargets,
+    electrostaticFlares, prototypeSystems, gravInhibitorDrone, livesBeforeTerritory, surpriseAttack, etherealEdictPick, etherealEdictScore,
+  }
 }
 
 // ---------- mission amounts (called from missions.ts) ----------
@@ -322,6 +393,62 @@ export function kauyonLureAmount(state: GameState, rule: { pointsPer: number }, 
 // Leadership Caste: pointsPer when the owner still has a model of an ETHEREAL unit on the battlefield
 export function leadershipCasteAmount(state: GameState, rule: { pointsPer: number }, pid: PlayerId): number {
   return boardModelsOf(state, pid).some((m) => keywordsOf(state, m.unitId).includes('ETHEREAL')) ? rule.pointsPer : 0
+}
+
+// Surprise Attack (SDC-4): pointsPer for every live marker in No Man's Land (centre inside neither deployment zone) the player controls
+export function surpriseAttackAmount(state: GameState, rule: { pointsPer: number }, pid: PlayerId, holds: (objectiveId: string) => boolean): number {
+  const zones = state.mission.data.deploymentZones
+  let n = 0
+  for (const o of Object.values(state.objectives)) {
+    if (o.removed || pointInPolygon(o.pos, zones.A) || pointInPolygon(o.pos, zones.B)) continue
+    if (holds(o.id)) n += 1
+  }
+  return n * rule.pointsPer
+}
+
+// ---------- Ethereal Edict (SDC-4.3) ----------
+// The OPPONENT of the secondary's owner picks one canonical unit of their own army at the start of round 1.
+const EDICT = 'tau:edict'
+export function etherealEdictOffer(ctx: EngineContext, owner: PlayerId, window: TimingWindowId, key: string): void {
+  const s = ctx.state
+  const picker: PlayerId = owner === 'A' ? 'B' : 'A'
+  const seen = new Set<UnitId>()
+  const candidates: Unit[] = []
+  for (const u of Object.values(s.units)) {
+    if (u.player !== picker || u.location === 'destroyed') continue
+    const c = canon(s, u.id)
+    if (seen.has(c) || !s.units[c] || s.units[c].location === 'destroyed') continue
+    seen.add(c)
+    candidates.push(s.units[c])
+  }
+  if (candidates.length === 0) return
+  ctx.decide({
+    kind: 'chooseOption', player: picker, window, canPass: false,
+    context: { topic: 'abilityChoice', unitId: null, abilityId: null, data: { window, key, code: 'etherealEdictPick', owner } },
+    options: candidates.map((u) => ({
+      id: u.id, label: u.name, action: { type: 'chooseOption' as const, player: picker, decisionId: '', optionId: u.id }, hint: { unitId: u.id },
+    })),
+  })
+}
+
+function answerEdict(ctx: EngineContext, action: Action, pending: PendingDecision): Rejection | void {
+  if (action.type !== 'chooseOption' || pending.kind !== 'chooseOption') return { code: 'E_NOT_AN_OPTION', reason: 'Ethereal Edict expects chooseOption' }
+  const s = ctx.state
+  const unit = s.units[action.optionId]
+  if (!unit || unit.player !== pending.player || unit.location === 'destroyed') return { code: 'E_INVALID_TARGET', reason: 'pick one of your own units that is not destroyed' }
+  const owner = ((pending.context.data as { owner?: PlayerId }).owner ?? (pending.player === 'A' ? 'B' : 'A')) as PlayerId
+  s.players[owner].secondaryState[EDICT] = { halves: leaderService.halves(s, canon(s, unit.id)) }
+  ctx.emit({ type: 'AbilityTriggered', abilityId: 'tau.sec.ethereal-edict', sourceUnitId: null, targetUnitId: unit.id, summary: `Ethereal Edict: ${unit.name} is condemned`, player: owner })
+  const w = pending.context.data.window as TimingWindowId | undefined
+  const k = pending.context.data.key as string | undefined
+  if (w && k !== undefined && !s.pending) ctx.services.missions.onWindow(ctx, w, k)
+}
+
+// 12 VP iff the chosen unit is destroyed (a unit still in Reserves at the end of the battle counts as destroyed, R-5.16)
+export function etherealEdictAmount(state: GameState, rule: { pointsPer: number }, pid: PlayerId): number {
+  const stored = state.players[pid].secondaryState[EDICT] as { halves: UnitId[] } | undefined
+  if (!stored || stored.halves.length === 0) return 0
+  return stored.halves.every((id) => { const l = state.units[id]?.location; return l === 'destroyed' || (l === 'reserves' && transportService.transportOf(state, id) === null) }) ? rule.pointsPer : 0
 }
 
 function keywordsOfEither(state: GameState, unitId: UnitId, kw: string): boolean {

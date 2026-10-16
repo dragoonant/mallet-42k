@@ -94,10 +94,15 @@ export interface HookQueries {
   targetRangeCapFor(state: GameState, targetUnitId: UnitId, firingModelId: ModelId): number | null
   // C2: lowest overwatchHitOn answer, default 6
   overwatchHitOnFor(state: GameState, shooterUnitId: UnitId, stratagemId: string): number
+  // E4: some active source (Electro-static Flares) forbids enemies from using Fire Overwatch against this unit
+  overwatchForbiddenAgainst(state: GameState, targetUnitId: UnitId): boolean
 }
 export interface HookService extends Partial<HookQueries> {}
 
 // ---------- sources ----------
+// E5: phase mark granting the Benefit of Cover to a unit (canonical / bodyguard id) until the phase ends
+export const coverMarkKey = (unitId: UnitId): string => `cover:${unitId}`
+
 export interface HookSourceEntry {
   source: EffectSource
   holderUnitId: UnitId
@@ -794,7 +799,19 @@ export const hookService: HookService & HookQueries = {
     return g && g.consolidate !== null ? Math.max(base, g.consolidate) : base
   },
 
+  overwatchForbiddenAgainst(state, targetUnitId) {
+    for (const entry of sourcesFor(state)) {
+      const spec = codeHookFor(entry.code)
+      if (!spec?.forbidsOverwatchAgainst || entry.active) continue
+      if (!gateOpen(state, entry)) continue
+      if (spec.forbidsOverwatchAgainst(state, entry, targetUnitId)) return true
+    }
+    return false
+  },
+
   hasBenefitOfCover(state, unitId) {
+    // E5: Lives Before Territory records the Benefit of Cover as a phase mark on the canonical unit id
+    if (state.phaseState.marks.includes(coverMarkKey(leaderService.canonicalUnitId(state, unitId)))) return true
     return leaderService.halves(state, unitId).some((id) => state.units[id].effects.some((e) => stratCover(state, e)))
   },
 

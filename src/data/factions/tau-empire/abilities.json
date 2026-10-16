@@ -78,5 +78,39 @@
     "trigger": "always",
     "effect": { "shootAfterFallBack": true },
     "scope": { "who": "self" }
+  },
+  {
+    "id": "tau.a.shield-drone",
+    "name": "Shield Drone",
+    "text": "Two shield drones orbit the bearer, each adding 1 to its Wounds. The bonus is already counted in the model's starting Wounds.",
+    "trigger": "always",
+    "effect": { "modifyStat": { "stat": "W", "value": 0 } },
+    "scope": { "who": "self" }
+  },
+  {
+    "id": "tau.a.weapon-support-system",
+    "name": "Weapon Support System",
+    "text": "Each time the bearer makes a ranged attack, its hit roll ignores every modifier. Changes to Ballistic Skill still apply.",
+    "trigger": "hitRoll",
+    "effect": { "when": { "weaponType": "ranged" }, "ignoreModifiers": "hit" },
+    "scope": { "who": "self" }
+  },
+  {
+    "id": "tau.a.grav-inhibitor-drone",
+    "name": "Grav-inhibitor Drone",
+    "text": "While the Shas'ui carrying the drone lives, an enemy unit that declares a charge against this unit subtracts 2 from its Charge roll. This penalty does not stack with other negative modifiers to that roll: apply only the most severe of them.",
+    "trigger": "chargeRoll",
+    "effect": { "modifyRoll": { "roll": "charge", "value": -2 } },
+    "scope": { "who": "enemy" },
+    "code": "gravInhibitorDrone",
+    "params": { "modelId": "shasui", "nonCumulativeNegative": true }
+  },
+  {
+    "id": "tau.a.breach-and-clear",
+    "name": "Breach and Clear",
+    "text": "Each time a model in this unit makes a ranged attack against an enemy unit within range of an objective marker, you may re-roll the wound roll.",
+    "trigger": "woundRoll",
+    "effect": { "when": { "weaponType": "ranged", "targetOnObjective": true }, "reroll": "all" },
+    "scope": { "who": "self" }
   }
 ]

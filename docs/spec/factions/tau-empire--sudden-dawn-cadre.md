@@ -140,6 +140,7 @@ Weapon profiles (reused ids cited, new ids **bold**):
 | pulse blaster | **`tau.w.pulse-blaster`** | 10" | 2 | 3+ | 6 | −1 | 1 | Assault |
 | accelerator burst cannon | **`tau.w.accelerator-burst-cannon`** | 18" | 4 | 4+ | 6 | −1 | 1 | — |
 | twin pulse carbine | **`tau.w.twin-pulse-carbine`** | 20" | 2 | 4+ | 5 | 0 | 1 | Assault, Twin-linked |
+| twin pulse carbine (second) | **`tau.w.twin-pulse-carbine-2`** | 20" | 2 | 4+ | 5 | 0 | 1 | Assault, Twin-linked (second carbine on the Devilfish; same profile as above, separate id) |
 | armoured hull | **`tau.w.armoured-hull`** | melee | 3 | 5+ | 6 | 0 | 1 | — |
 
 Rail rifle BS 5+ and pulse blaster BS 3+ were re-read from the raw cells (they differ from matched play; the CP card wins).
@@ -174,7 +175,7 @@ patrol id appended to `combatPatrols` — existing entries untouched.
 | Scouts 7" / Deep Strike / Deadly Demise D3 | (a) | `coreAbilities` `SCOUTS` value 7, `DEEP_STRIKE`, `DEADLY_DEMISE` value `'D3'` |
 | Scouts via Dedicated Transport (SDC-6.5) | (c) | E1 part f: the pre-battle Scouts step also offers a DEDICATED TRANSPORT whose embarked units all have SCOUTS; the move uses the smallest Scouts value among them. |
 | Transport 12 (SDC-6.7) + start embarked (SDC-1.3) | (c) | E1 (transport data, setup embarkation, interactive embark/disembark, R-5.20 destroyed-transport disembark). |
-| Fight by the Code | (a) | stratagem `window:['shooting.start','shooting.attacksResolved']`, `who:'active'`, `condition:{unitFellBack:true}`, `targets:[{role:'unit', owner:'friendly', filter:{keyword:"T'AU EMPIRE"}, state:'notYetShot'}]`, `effect:{shootAfterFallBack:true}`, `duration:'untilEndOfPhase'` |
+| Fight by the Code | (a) | stratagem `window:['shooting.start','shooting.attacksResolved']`, `who:'active'`, `condition:{phase:'shooting'}`, `targets:[{role:'unit', owner:'friendly', filter:{keyword:"T'AU EMPIRE"}, state:'fellBackNotYetShot', count:1}]`, `effect:{shootAfterFallBack:true}`, `duration:'untilEndOfPhase'` |
 | Rampart of Fire | (a) | same window/who, `targets:[{…, state:'notYetShot'}]`, `effect:{when:{range:{within:10}}, modifyStat:{stat:'AP', value:-1}}`, `duration:'untilEndOfPhase'` |
 | Lives Before Territory | (a)+(b)+(c) | stratagem `window:'shooting.targetsDeclared'`, `who:'reactive'`, `condition:{phase:'shooting', ownTurn:false}`, `targets:[{role:'unit', owner:'friendly', filter:{keyword:"T'AU EMPIRE"}, state:'targetedByAttack', count:1}]`, `code:'livesBeforeTerritory'`, `params:{dice:'D6', keywords:['INFANTRY','BATTLESUIT']}`, `duration:'untilEndOfPhase'`, no `effect`. (b) hook `livesBeforeTerritory` (kind `stratagem`): `check` = target on board, some half has a keyword in `params.keywords`, `!leaderService.inEngagementWithEnemy(state, target)`; `apply` = push phase mark `cover:<canonical target id>` (read by `hasBenefitOfCover`, E5; phase marks expire at phase end = "until end of phase"), roll D6 (`purpose:'stratagem'`), emit `AbilityTriggered`, then `startReactiveMove(ctx, target, roll, stratagem.id, 'shooting.targetsDeclared')` (C6, shooting module already delegates reactive moves). E6 re-validates the attacker's declarations afterwards. |
 | Surprise Attack | (b) | secondary `scoring:[{id:'surprise-attack-early', when:'turn.end', who:'active', rounds:{from:1,to:2}, rule:'custom', code:'surpriseAttack', pointsPer:4, cap:15}, {id:'surprise-attack-mid', …rounds 3–4, pointsPer:2, cap:10}, {id:'surprise-attack-late', …rounds 5–5, pointsPer:2, cap:5}]`; `surpriseAttack` = `missionHook('surpriseAttack', 'onTurnEnd')` + `surpriseAttackAmount(state, rule, pid)` in `factions/tau-empire.ts`, wired in `missions.ts` beside `kauyonLure`: `rule.pointsPer ×` (number of non-removed markers controlled by `pid` whose centre is outside both `mission.deploymentZones` polygons); cap applied by the generic scorer. |
@@ -196,9 +197,9 @@ The (b) hooks code against these before they exist; the engine agent implements 
 ```ts
 // E1 Transports (Devilfish) — data, setup embarkation, interactive embark/disembark, destroyed-transport disembark
 // src/data/types.ts (not frozen) + datasheet schema + 20-data-schema §5 row
-export interface TransportData { capacity: number; keywords: Keyword[]; notKeywords: Keyword[] }  // models counted
+export interface TransportData { capacity: number; keywords?: Keyword[]; excludeKeywords?: Keyword[]; firingDeck?: number }  // capacity counted in models
 export interface DatasheetData { /* … */ transport?: TransportData }
-//   Devilfish: { capacity: 12, keywords: ["T'AU EMPIRE", 'INFANTRY'], notKeywords: ['BATTLESUIT', 'KROOT', 'VESPID STINGWINGS'] }
+//   Devilfish: { capacity: 12, keywords: ["T'AU EMPIRE", 'INFANTRY'], excludeKeywords: ['BATTLESUIT', 'KROOT', 'VESPID STINGWINGS'] }
 // src/engine/types.ts PlayerSetup — FROZEN, additive optional field (00-architecture §contracts note required)
 embarked?: { unitRef: string; transportRef: string }[]            // unitRef may be a Patrol Squads half ref
 // src/engine/transports.ts (not frozen) — capacity() reads datasheet.transport (TRANSPORT:<n> keyword stays a fallback)

@@ -208,6 +208,12 @@ function stateOk(env: StratagemEnv, u: Unit, spec: TargetSpec): boolean {
       const shooter = state.phaseState.attack?.attackerUnitId
       return halves.every((h) => !h.turn.shotThisPhase && !activated.has(h.id) && h.id !== shooter)
     }
+    // unit-scoped: some half Fell Back this turn and no half has shot / been selected (Fight by the Code)
+    case 'fellBackNotYetShot': {
+      const activated = new Set(state.phaseState.activated)
+      const shooter = state.phaseState.attack?.attackerUnitId
+      return halves.some((h) => h.turn.moveType === 'fallBack') && halves.every((h) => !h.turn.shotThisPhase && !activated.has(h.id) && h.id !== shooter)
+    }
     case 'notYetActivated': {
       // phase-agnostic: not yet selected to shoot or fight this phase (and not the unit currently activating)
       const fight = state.phaseState.fight

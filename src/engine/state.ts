@@ -9,6 +9,7 @@ import { mmToInch, transformPolygon } from './geometry'
 import { hookService } from './hooks-impl'
 import { otherPlayer, type EngineContext } from './modules'
 import { createRng } from './rng'
+import { transportService } from './transports'
 import {
   EngineInvariantError,
   type Board, type GameSetup, type GameState, type Model, type ModelId, type Objective, type PhaseState, type Player,
@@ -371,6 +372,7 @@ function toRuntimeDatasheet(ds: DatasheetData, abilityIds: string[], leaderEffec
     invuln: ds.invuln ?? null, models, abilities: abilityIds, coreAbilities: ds.coreAbilities,
     leader: ds.leader ? { attachTo: ds.leader.attachTo, effects: leaderEffectIds } : null,
     damaged: ds.damaged ?? null,
+    ...(ds.transport ? { transport: { ...ds.transport } } : {}),
   }
 }
 
@@ -629,6 +631,20 @@ export function createGameState(setup: GameSetup, bundle: DataBundle, seed: stri
     log: [],
     hash: '',
     result: null,
+  }
+  // SDC E1: units that start embarked in a friendly Transport (Declare Battle Formations)
+  for (const pid of ['A', 'B'] as PlayerId[]) {
+    for (const e of setup.players[pid].embarked ?? []) {
+      const passenger = state.units[unitIdFor(pid, e.unitRef)]
+      const transport = state.units[unitIdFor(pid, e.transportRef)]
+      if (!passenger) throw new EngineInvariantError(`embarked: unit '${e.unitRef}' not found for player ${pid}`)
+      if (!transport) throw new EngineInvariantError(`embarked: transport '${e.transportRef}' not found for player ${pid}`)
+      if (!datasheets[transport.datasheetId].transport) throw new EngineInvariantError(`embarked: '${e.transportRef}' is not a Transport`)
+      if (passenger.attachedLeaderId || passenger.bodyguardUnitId) throw new EngineInvariantError(`embarked: '${e.unitRef}' is an attached unit and cannot start embarked`)
+      if (setup.players[pid].reserves.includes(e.unitRef) || setup.players[pid].reserves.includes(e.transportRef)) throw new EngineInvariantError(`embarked: '${e.unitRef}' / '${e.transportRef}' cannot also start in Reserves`)
+      if (!transportService.canCarry(state, passenger.id, transport.id)) throw new EngineInvariantError(`embarked: '${e.unitRef}' cannot be carried by '${e.transportRef}' (keywords or capacity)`)
+      transportService.embark(state, passenger.id, transport.id)
+    }
   }
   if (setup.sides !== 'rollOff') assignSides(state, setup.sides.attacker)
   return state

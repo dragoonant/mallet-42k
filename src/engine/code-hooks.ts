@@ -79,6 +79,8 @@ export interface EngineCodeHook extends CodeHook {
     targetUnitId: UnitId, info: { kind: 'ranged' | 'melee'; overwatch: boolean }): number | null
   // C2 (T'au Cover Fire): Overwatch hit threshold for the shooter under this stratagem (null = no opinion)
   overwatchHitOn?(state: GameState, entry: HookSourceEntry, shooterUnitId: UnitId, stratagemId: string): number | null
+  // E4 (T'au Electro-static Flares): true when enemies may not use Fire Overwatch to shoot at `targetUnitId` (the moving / charging unit)
+  forbidsOverwatchAgainst?(state: GameState, entry: HookSourceEntry, targetUnitId: UnitId): boolean
   // C4 (T'au DS8 Support Turret): false makes the weapon unavailable to the model (null = no opinion)
   weaponAvailable?(state: GameState, entry: HookSourceEntry, modelId: ModelId, weaponId: WeaponId): boolean | null
   // answers a chooseOption whose context.data.code names this hook, when the hook has no `pick` of its own
@@ -356,6 +358,7 @@ const fireOverwatch: EngineCodeHook = {
     if (!boardUnit(state, enemyId) || !leaderService.sameUnit(state, enemyId, env.trigger.unitId)) return false
     const notAgainst = (env.stratagem.params?.notAgainstKeyword as string | undefined) ?? 'TITANIC'
     if (unitHasAny(state, enemyId, notAgainst)) return false
+    if (hookService.overwatchForbiddenAgainst?.(state, enemyId)) return false // E4: Electro-static Flares
     if (!eligibleToShootNow(state, friendlyId)) return false
     if (shotThisTurn(state, friendlyId)) return false // C3: once per unit per turn (Laser-Marked Targets counts too)
     // R-6.7 Pistol exception: an engaged non-MONSTER/VEHICLE unit may only fire at a unit it is engaged with, not any

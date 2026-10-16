@@ -50,5 +50,76 @@
         "scope": { "who": "friendly", "within": 6 }
       }
     ]
+  },
+  {
+    "id": "tau.e.electrostatic-flares",
+    "faction": "tau-empire",
+    "name": "Electro-static Flares",
+    "text": "The bearer has a 4+ invulnerable save. While a friendly T'AU EMPIRE unit that is not a DEVILFISH is within 6 inches of the bearer, enemy units cannot use the Fire Overwatch stratagem to shoot at it, and each ranged attack that targets it subtracts 1 from the hit roll.",
+    "cost": 0,
+    "restriction": { "keyword": ["COMMANDER CLOUDSPEAR"] },
+    "effect": [
+      {
+        "id": "tau.e.electrostatic-flares.effect",
+        "name": "Electro-static Flares",
+        "text": "The bearer has a 4+ invulnerable save.",
+        "trigger": "always",
+        "effect": { "invuln": 4 },
+        "scope": { "who": "bearer" }
+      },
+      {
+        "id": "tau.e.electrostatic-flares.aura",
+        "name": "Electro-static Flares (aura)",
+        "text": "Friendly T'AU EMPIRE units (not DEVILFISH) within 6 inches of the bearer cannot be shot at with Fire Overwatch, and ranged attacks against them subtract 1 from the hit roll.",
+        "trigger": "always",
+        "when": { "targetNotKeyword": "DEVILFISH" },
+        "effect": { "stealth": true },
+        "scope": { "who": "friendly", "within": 6 },
+        "code": "electrostaticFlares"
+      }
+    ]
+  },
+  {
+    "id": "tau.e.prototype-systems",
+    "faction": "tau-empire",
+    "name": "Prototype Systems",
+    "text": "The bearer has a 4+ invulnerable save. Each time the bearer is selected to shoot, you may re-roll one hit roll and one wound roll made for its attacks, and you may re-roll the dice that set the Attacks of its airbursting fragmentation projector.",
+    "cost": 0,
+    "restriction": { "keyword": ["COMMANDER CLOUDSPEAR"] },
+    "effect": [
+      {
+        "id": "tau.e.prototype-systems.effect",
+        "name": "Prototype Systems",
+        "text": "The bearer has a 4+ invulnerable save.",
+        "trigger": "always",
+        "effect": { "invuln": 4 },
+        "scope": { "who": "bearer" }
+      },
+      {
+        "id": "tau.e.prototype-systems.hit",
+        "name": "Prototype Systems (hit)",
+        "text": "Once per activation, re-roll one hit roll.",
+        "trigger": "hitRoll",
+        "effect": { "when": { "weaponType": "ranged" }, "reroll": "oneDie" },
+        "scope": { "who": "bearer" }
+      },
+      {
+        "id": "tau.e.prototype-systems.wound",
+        "name": "Prototype Systems (wound)",
+        "text": "Once per activation, re-roll one wound roll.",
+        "trigger": "woundRoll",
+        "effect": { "when": { "weaponType": "ranged" }, "reroll": "oneDie" },
+        "scope": { "who": "bearer" }
+      },
+      {
+        "id": "tau.e.prototype-systems.projector",
+        "name": "Prototype Systems (projector)",
+        "text": "Re-roll the dice that set the Attacks of the airbursting fragmentation projector.",
+        "trigger": "always",
+        "code": "prototypeSystems",
+        "params": { "weaponId": "tau.w.airbursting-fragmentation-projector" },
+        "scope": { "who": "bearer" }
+      }
+    ]
   }
 ]

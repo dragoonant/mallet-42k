@@ -1,0 +1,175 @@
+{
+  "id": "tau.cp.sudden-dawn-cadre",
+  "faction": "tau-empire",
+  "name": "Sudden Dawn Cadre",
+  "units": [
+    {
+      "ref": "cloudspear",
+      "datasheet": "tau.commander-cloudspear",
+      "size": 1,
+      "enhancement": "tau.e.electrostatic-flares"
+    },
+    {
+      "ref": "pathfinders",
+      "datasheet": "tau.pathfinder-team",
+      "size": 10,
+      "patrolSquads": [
+        {
+          "ref": "pathfinders-a",
+          "size": 5,
+          "wargear": [
+            {
+              "modelId": "shasui",
+              "count": 1,
+              "weapons": [
+                "tau.w.pulse-carbine",
+                "tau.w.pulse-pistol",
+                "tau.w.close-combat-weapon"
+              ]
+            },
+            {
+              "modelId": "pathfinder-carbine",
+              "count": 4,
+              "weapons": [
+                "tau.w.pulse-carbine",
+                "tau.w.pulse-pistol",
+                "tau.w.close-combat-weapon"
+              ]
+            }
+          ]
+        },
+        {
+          "ref": "pathfinders-b",
+          "size": 5,
+          "wargear": [
+            {
+              "modelId": "pathfinder-rail",
+              "count": 3,
+              "weapons": [
+                "tau.w.rail-rifle",
+                "tau.w.pulse-pistol",
+                "tau.w.close-combat-weapon"
+              ]
+            },
+            {
+              "modelId": "pathfinder-carbine",
+              "count": 2,
+              "weapons": [
+                "tau.w.pulse-carbine",
+                "tau.w.pulse-pistol",
+                "tau.w.close-combat-weapon"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ref": "breachers",
+      "datasheet": "tau.breacher-team",
+      "size": 10
+    },
+    {
+      "ref": "devilfish",
+      "datasheet": "tau.devilfish",
+      "size": 1
+    }
+  ],
+  "stratagems": [
+    "tau.s.fight-by-the-code",
+    "tau.s.rampart-of-fire",
+    "tau.s.lives-before-territory"
+  ],
+  "enhancements": [
+    {
+      "id": "tau.e.electrostatic-flares",
+      "default": true
+    },
+    {
+      "id": "tau.e.prototype-systems",
+      "default": false
+    }
+  ],
+  "secondaries": [
+    {
+      "id": "tau.sec.surprise-attack",
+      "name": "Surprise Attack",
+      "text": "At the end of each of your turns, score victory points for every objective marker in No Man's Land that you control: 4 per marker in battle rounds 1 and 2, 2 per marker in rounds 3 to 5. A single turn scores at most 15 points in rounds 1-2, 10 in rounds 3-4 and 5 in round 5.",
+      "default": true,
+      "scoring": [
+        {
+          "id": "surprise-attack-early",
+          "when": "turn.end",
+          "rounds": {
+            "from": 1,
+            "to": 2
+          },
+          "who": "active",
+          "rule": "custom",
+          "pointsPer": 4,
+          "cap": 15,
+          "code": "surpriseAttack"
+        },
+        {
+          "id": "surprise-attack-mid",
+          "when": "turn.end",
+          "rounds": {
+            "from": 3,
+            "to": 4
+          },
+          "who": "active",
+          "rule": "custom",
+          "pointsPer": 2,
+          "cap": 10,
+          "code": "surpriseAttack"
+        },
+        {
+          "id": "surprise-attack-late",
+          "when": "turn.end",
+          "rounds": {
+            "from": 5,
+            "to": 5
+          },
+          "who": "active",
+          "rule": "custom",
+          "pointsPer": 2,
+          "cap": 5,
+          "code": "surpriseAttack"
+        }
+      ]
+    },
+    {
+      "id": "tau.sec.ethereal-edict",
+      "name": "Ethereal Edict",
+      "text": "At the start of battle round 1 your opponent picks one unit from their own army. At the end of the battle, score 12 victory points if that unit has been destroyed.",
+      "default": false,
+      "scoring": [
+        {
+          "id": "ethereal-edict-pick",
+          "when": "round.start",
+          "rounds": {
+            "from": 1,
+            "to": 1
+          },
+          "rule": "custom",
+          "pointsPer": 0,
+          "cap": 0,
+          "code": "etherealEdictPick"
+        },
+        {
+          "id": "ethereal-edict",
+          "when": "battle.end",
+          "rounds": {
+            "from": 5,
+            "to": 5
+          },
+          "rule": "custom",
+          "pointsPer": 12,
+          "cap": 12,
+          "code": "etherealEdictScore"
+        }
+      ]
+    }
+  ],
+  "warlord": "cloudspear"
+}

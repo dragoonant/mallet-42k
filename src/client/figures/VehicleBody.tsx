@@ -84,6 +84,16 @@ export function VehicleBody({ config, colors, pose, seed }: BodyProps & { config
     )
   }
 
+  if (config.style === 'hover') {
+    return (
+      <group ref={bodyRef}>
+        <HoverParts colors={colors} />
+        <group ref={rotorRef} visible={false} />
+        <group ref={gunRef} />
+      </group>
+    )
+  }
+
   return (
     <group ref={bodyRef}>
       <mesh position={[0, 0.42, 0]} rotation={[Math.PI / 2, 0, 0]}>
@@ -176,6 +186,54 @@ function DozerParts({ colors }: { colors: BodyProps['colors'] }) {
       <mesh position={[0, 0.4, 0.6]} rotation={[Math.PI / 2, 0, 0]}>
         <GCylinder args={[0.05, 0.05, 0.3, 6]} />
         <StdMat color={colors.metal} metalness={0.6} />
+      </mesh>
+    </group>
+  )
+}
+
+/** Devilfish: a cream skimmer hull with a sloped nose, side intake pods, a blue canopy, a chin cannon and a glowing hover pad. */
+function HoverParts({ colors }: { colors: BodyProps['colors'] }) {
+  return (
+    <group>
+      <mesh position={[0, 0.2, 0]}>
+        <GBox args={[0.7, 0.04, 1.1]} />
+        <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={0.9} roughness={0.4} />
+      </mesh>
+      <mesh position={[0, 0.38, -0.02]}>
+        <GBox args={[0.62, 0.3, 1.1]} />
+        <StdMat color={colors.primary} roughness={0.55} />
+      </mesh>
+      <mesh position={[0, 0.34, 0.6]} rotation={[0.5, 0, 0]}>
+        <GBox args={[0.6, 0.26, 0.28]} />
+        <StdMat color={colors.primary} roughness={0.55} />
+      </mesh>
+      <mesh position={[0, 0.6, 0.12]}>
+        <GBox args={[0.4, 0.14, 0.4]} />
+        <StdMat color={colors.secondary} roughness={0.35} />
+      </mesh>
+      {[-0.42, 0.42].map((x) => (
+        <group key={x} position={[x, 0.36, -0.1]}>
+          <mesh rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.12, 0.12, 0.8, 10]} />
+            <StdMat color={colors.metal} metalness={0.5} roughness={0.5} />
+          </mesh>
+          <mesh position={[0, 0, -0.4]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.08, 0.08, 0.04, 10]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.2} />
+          </mesh>
+          <mesh position={[x > 0 ? 0.12 : -0.12, -0.02, 0.45]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.02, 0.02, 0.22, 6]} />
+            <StdMat color={colors.trim} roughness={0.5} />
+          </mesh>
+        </group>
+      ))}
+      <mesh position={[0, 0.3, 0.78]} rotation={[Math.PI / 2, 0, 0]}>
+        <GCylinder args={[0.04, 0.04, 0.3, 8]} />
+        <StdMat color={colors.metal} metalness={0.7} roughness={0.3} />
+      </mesh>
+      <mesh position={[0, 0.5, -0.5]}>
+        <GBox args={[0.5, 0.04, 0.1]} />
+        <StdMat color={colors.trim} roughness={0.5} />
       </mesh>
     </group>
   )

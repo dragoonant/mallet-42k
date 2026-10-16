@@ -1,0 +1,74 @@
+[
+  {
+    "id": "tau.commander-cloudspear",
+    "faction": "tau-empire",
+    "name": "Commander Cloudspear",
+    "keywords": [
+      "VEHICLE",
+      "WALKER",
+      "FLY",
+      "CHARACTER",
+      "BATTLESUIT",
+      "COMMANDER IN ENFORCER BATTLESUIT",
+      "COMMANDER CLOUDSPEAR"
+    ],
+    "factionKeywords": [
+      "T'AU EMPIRE"
+    ],
+    "stats": {
+      "M": 8,
+      "T": 5,
+      "Sv": 2,
+      "W": 6,
+      "Ld": 7,
+      "OC": 2
+    },
+    "composition": [
+      {
+        "modelId": "cloudspear",
+        "name": "Commander Cloudspear",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 60
+        },
+        "statsOverride": {
+          "W": 8
+        },
+        "weapons": {
+          "default": [
+            "tau.w.airbursting-fragmentation-projector",
+            "tau.w.plasma-rifle",
+            "tau.w.battlesuit-fists-commander"
+          ]
+        },
+        "figure": {
+          "archetype": "heavy",
+          "kit": "generic-heavy"
+        }
+      }
+    ],
+    "abilities": [
+      "tau.a.for-the-greater-good",
+      "tau.a.shield-drone",
+      "tau.a.weapon-support-system"
+    ],
+    "coreAbilities": [
+      {
+        "ability": "DEEP_STRIKE"
+      }
+    ],
+    "points": [
+      {
+        "models": 1,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "heavy",
+      "kit": "generic-heavy"
+    }
+  }
+]

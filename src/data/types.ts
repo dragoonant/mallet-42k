@@ -162,7 +162,7 @@ export interface TargetSpec {
   owner: 'friendly' | 'enemy'
   filter?: { keyword?: Keyword; notKeyword?: Keyword; within?: { of: 'previousTarget' | 'self' | 'objective' | 'controlledObjective'; inches: number } }
   state?: 'selectedToShoot' | 'selectedToFight' | 'notYetFought' | 'notYetShot' | 'notYetActivated' | 'targetedByAttack' | 'chargedThisTurn' | 'justDestroyed'
-    | 'inEngagement' | 'belowHalf' | 'battleShocked' | 'justMoved'
+    | 'inEngagement' | 'belowHalf' | 'battleShocked' | 'justMoved' | 'fellBackNotYetShot'
   count?: number
   // destroyed units are also legal targets (Tyranids Teeming Broods); every other stratagem leaves this off
   includeDestroyed?: boolean
@@ -226,6 +226,12 @@ export interface Composition {
   weapons: { default: Id[]; options?: WargearOption[] }
   figure?: FigureSpec
 }
+export interface TransportData {
+  capacity: number // models carried
+  keywords?: Keyword[] // a passenger must have every one of these (omitted = any)
+  excludeKeywords?: Keyword[] // a passenger may have none of these
+  firingDeck?: number // models that may shoot from inside (omitted = none)
+}
 export interface DatasheetData {
   id: Id
   faction: Id
@@ -239,6 +245,7 @@ export interface DatasheetData {
   coreAbilities: CoreAbility[]
   leader?: { attachTo: Id[]; effects: AbilityRef[] }
   damaged?: { threshold: number; effect: EffectList }
+  transport?: TransportData
   points: { models: number; points: number }[]
   figure: FigureSpec
 }

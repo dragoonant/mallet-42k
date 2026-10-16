@@ -59,5 +59,63 @@
     "duration": "untilEndOfPhase",
     "code": "laserMarkedTargets",
     "limit": "oncePerPhase"
+  },
+  {
+    "id": "tau.s.fight-by-the-code",
+    "faction": "tau-empire",
+    "name": "Fight by the Code",
+    "text": "Use in your Shooting phase before you pick the next unit to shoot. One T'AU EMPIRE unit that Fell Back this turn and has not yet shot may shoot this phase despite having Fallen Back.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["shooting"],
+    "window": ["shooting.start", "shooting.attacksResolved"],
+    "who": "active",
+    "condition": { "phase": "shooting" },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "T'AU EMPIRE" }, "state": "fellBackNotYetShot", "count": 1 }
+    ],
+    "effect": { "shootAfterFallBack": true },
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "tau.s.rampart-of-fire",
+    "faction": "tau-empire",
+    "name": "Rampart of Fire",
+    "text": "Use in your Shooting phase before you pick the next unit to shoot. Pick one T'AU EMPIRE unit that has not yet shot. Until the end of the phase, attacks its models make against an enemy unit within 10 inches improve their Armour Penetration by 1.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["shooting"],
+    "window": ["shooting.start", "shooting.attacksResolved"],
+    "who": "active",
+    "condition": { "phase": "shooting" },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "T'AU EMPIRE" }, "state": "notYetShot", "count": 1 }
+    ],
+    "effect": { "when": { "range": { "within": 10 } }, "modifyStat": { "stat": "AP", "value": -1 } },
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "tau.s.lives-before-territory",
+    "faction": "tau-empire",
+    "name": "Lives Before Territory",
+    "text": "Use in your opponent's Shooting phase just after an enemy unit has chosen its targets. Pick one of your T'AU EMPIRE INFANTRY or BATTLESUIT units that is a target of those attacks. It makes a Normal move of up to D6 inches, and until the end of the phase every attack that targets it has the Benefit of Cover.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["shooting"],
+    "window": "shooting.targetsDeclared",
+    "who": "reactive",
+    "condition": { "phase": "shooting", "ownTurn": false },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "T'AU EMPIRE" }, "state": "targetedByAttack", "count": 1 }
+    ],
+    "scope": { "who": "target" },
+    "duration": "untilEndOfPhase",
+    "code": "livesBeforeTerritory",
+    "params": { "dice": "D6", "keywords": ["INFANTRY", "BATTLESUIT"] },
+    "limit": "oncePerPhase"
   }
 ]

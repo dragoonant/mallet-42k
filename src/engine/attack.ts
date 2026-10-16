@@ -313,7 +313,7 @@ function leadBatch(a: AttackSequenceState, gi: number): GroupBatch | undefined {
 // Order inside a batch: roll → automatic ability re-rolls (one ctx.reroll) → at most one optional `rerollOffer` →
 // one Command Re-roll window (rollOnce) → per-die evaluation. A die is never re-rolled twice (R-1.6).
 
-interface D6Eval { unmodified: number; final: number; success: boolean; critical: boolean; kinds: Set<string> }
+interface D6Eval { unmodified: number; final: number; success: boolean; critical: boolean; kinds: Set<string>; oneDieSources: string[] }
 
 interface D6Opts { manualMods?: number[]; manualRerolls?: ('ones' | 'fails' | 'all')[]; overwatchAutoSix?: boolean; critBase?: number; source: 'hit' | 'wound'; autoFailAtOrBelow?: number; overwatchHitOn?: number }
 
@@ -330,6 +330,9 @@ function evalD6Die(ctx: EngineContext, hook: 'onHitRoll' | 'onWoundRoll', d: Die
   const { actx, needed, opts } = d
   const unmodified = roll.dice[i]
   const results = collectRollMods(ctx, hook, actx, roll, i)
+  const oneDieSources = ctx.services.hooks.collect(ctx, hook, {
+    attack: actx, roll: { purpose: hook === 'onHitRoll' ? 'hit' : 'wound', roll, dieIndex: i, unmodified: roll.dice[i], rerolled: (roll.rerolled ?? []).includes(i) },
+  }).filter((r) => isRoll(r.result) && (r.result as { reroll?: string }).reroll === 'oneDie').map((r) => r.source.id)
   const ignoreMods = results.some((r) => r.ignoreModifiers)
   const net = ignoreMods ? 0 : clampHitWoundModifier(netModifier([
     ...results.filter((r) => r.modifier !== undefined).map((r) => ({ source: 'hook', value: r.modifier as number })),
@@ -349,7 +352,7 @@ function evalD6Die(ctx: EngineContext, hook: 'onHitRoll' | 'onWoundRoll', d: Die
   else if (autoPass || critical) success = true
   else if (opts.overwatchAutoSix) success = unmodified >= (opts.overwatchHitOn ?? 6)
   else success = dieSucceeds(unmodified, final, needed, false)
-  return { unmodified, final, success, critical, kinds }
+  return { unmodified, final, success, critical, kinds, oneDieSources }
 }
 
 function rollBatchD6(ctx: EngineContext, key: string, hook: 'onHitRoll' | 'onWoundRoll', dies: DieCtx[]): { evals: D6Eval[]; rollId: string } | 'pending' {
@@ -389,6 +392,33 @@ function rollBatchD6(ctx: EngineContext, key: string, hook: 'onHitRoll' | 'onWou
         context: { topic: 'rerollOffer', unitId: first.attackerUnitId, abilityId: null, data: { rollId: roll.id, dieIndexes: offer, needed: dies[offer[0]].needed, purpose: source, key } },
         options: [
           { id: 'reroll', label: 'Re-roll', action: { type: 'chooseOption', player, decisionId: '', optionId: 'reroll' } },
+          { id: 'keep', label: 'Keep', action: { type: 'chooseOption', player, decisionId: '', optionId: 'keep' } },
+        ],
+      })
+      return 'pending'
+    }
+  }
+  // E2 (Prototype Systems): one failed die per activation may be re-rolled; raised after the automatic and `all` re-rolls
+  if (!ctx.marked(`oneDieDone:${key}`)) {
+    ctx.once(`oneDieDone:${key}`)
+    const cur = s.phaseState.lastRoll as DiceRoll
+    const evals = cur.dice.map((_, i) => evalD6Die(ctx, hook, dies[i], cur, i))
+    const used = (id: string): boolean => s.phaseState.marks.includes(`oneDie:${id}:${first.attackerUnitId}`)
+    const offer: number[] = []
+    let markSource: string | null = null
+    evals.forEach((e, i) => {
+      if (e.success || !canReroll(cur, i)) return
+      const src = e.oneDieSources.find((id) => !used(id))
+      if (src === undefined) return
+      offer.push(i)
+      markSource ??= src
+    })
+    if (offer.length > 0 && markSource !== null) {
+      ctx.decide({
+        kind: 'chooseOption', player, window: 'any.rollMade', canPass: false,
+        context: { topic: 'rerollOffer', unitId: first.attackerUnitId, abilityId: markSource, data: { rollId: cur.id, dieIndexes: offer, maxDice: 1, needed: dies[offer[0]].needed, purpose: source, key, oneDieMark: `oneDie:${markSource}:${first.attackerUnitId}` } },
+        options: [
+          { id: 'reroll', label: 'Re-roll one die', action: { type: 'chooseOption', player, decisionId: '', optionId: 'reroll', dieIndexes: [offer[0]] } },
           { id: 'keep', label: 'Keep', action: { type: 'chooseOption', player, decisionId: '', optionId: 'keep' } },
         ],
       })
@@ -1141,7 +1171,36 @@ function rollDeadlyDemise(ctx: EngineContext, model: Model, valueExpr: DiceExpr)
 
 // prefixes that only ever mean something WITHIN the one attack sequence that wrote them — stale entries left over
 // from an earlier, already-finished sequence in the same phase must never leak into a new one (SHOOT-046-dice)
-const SEQUENCE_SCOPED_MARK_PREFIXES = ['roll:', 'attackCountOffered:', 'miracle:', 'miracleAsk:', 'rerollOffered:', 'autoReroll:', 'precisionDeclined:','hazardous:', 'groupTouched:', 'mortalAlloc:', 'mortalBatchSeq:', 'blastCount:', 'pendingDetach:', 'bgntAttacker', 'bgntTarget:', 'indirectNoLos:', 'atk:owHitOn=']
+const SEQUENCE_SCOPED_MARK_PREFIXES = ['roll:', 'attackCountOffered:', 'miracle:', 'miracleAsk:', 'rerollOffered:', 'autoReroll:', 'oneDieDone:', 'precisionDeclined:','hazardous:', 'groupTouched:', 'mortalAlloc:', 'mortalBatchSeq:', 'blastCount:', 'pendingDetach:', 'bgntAttacker', 'bgntTarget:', 'indirectNoLos:', 'atk:owHitOn=']
+
+
+// SDC E6: after the shooting.targetsDeclared window drains and before the first hit roll, drop each declared
+// (model, weapon, target) whose target no longer has a model in the weapon's range of that model (or, unless
+// INDIRECT_FIRE, in sight) because a reactive move (Lives Before Territory) changed the board. The attacks are
+// simply not made. A no-op unless a reactive move was applied this phase (`reactiveMoved:<unit>` marks).
+export const REACTIVE_MOVED_PREFIX = 'reactiveMoved:'
+export function pruneUnreachableTargets(ctx: EngineContext, attackerUnitId: UnitId): void {
+  const s = ctx.state
+  const a = s.phaseState.attack
+  if (!s.phaseState.marks.some((m) => m.startsWith(REACTIVE_MOVED_PREFIX))) return
+  s.phaseState.marks = s.phaseState.marks.filter((m) => !m.startsWith(REACTIVE_MOVED_PREFIX))
+  if (!a || a.attackerUnitId !== attackerUnitId || a.kind !== 'ranged' || a.current) return
+  const reachable = (t: DeclaredTarget): boolean => {
+    const attacker = s.models[t.modelId]
+    const weapon = weaponService.effectiveWeapon(s, t.modelId, t.weaponId)
+    if (!attacker || !weapon) return false
+    const targets = leaderService.halves(s, t.targetUnitId).flatMap((id) => (s.units[id]?.location === 'board' ? unitModels(s, id) : []))
+    const indirect = hasAbility(weapon, 'INDIRECT_FIRE') && !hasAbility(weapon, 'TORRENT')
+    return targets.some((tm) => distance(attacker, tm) <= weapon.range + 1e-6 && (indirect || ctx.services.los.visible(s, t.modelId, tm.id)))
+  }
+  const dropped = a.targets.filter((t) => !reachable(t))
+  if (dropped.length === 0) return
+  const isDropped = (modelId: ModelId, weaponId: WeaponId, targetUnitId: UnitId): boolean =>
+    dropped.some((d) => d.modelId === modelId && d.weaponId === weaponId && d.targetUnitId === targetUnitId)
+  a.targets = a.targets.filter((t) => !isDropped(t.modelId, t.weaponId, t.targetUnitId))
+  a.groups = a.groups.filter((g) => !isDropped(g.attackerModelIds[0], g.weaponId, g.targetUnitId))
+  a.targetUnitIds = [...new Set(a.targets.map((t) => t.targetUnitId))]
+}
 
 export const attackService: AttackService = {
   begin(ctx, spec) {
@@ -1362,11 +1421,13 @@ export const attackService: AttackService = {
         }
         if (topic === 'rerollOffer') {
           if (action.optionId === 'reroll') {
-            const data = pending.context.data as { rollId: string; dieIndexes: number[] }
+            const data = pending.context.data as { rollId: string; dieIndexes: number[]; maxDice?: number; oneDieMark?: string }
             const roll = s.phaseState.lastRoll
             if (!roll || roll.id !== data.rollId) throw new EngineInvariantError('rerollOffer: roll is no longer current', { rollId: data.rollId })
             // M9: the player may pick a subset of the offered dice (validated in the reducer); absent = every offered die
-            ctx.reroll(roll, action.dieIndexes ?? data.dieIndexes, (data as { source?: string }).source ?? 'rerollOffer')
+            // (E2: capped by maxDice, and a one-die source is spent for this activation)
+            ctx.reroll(roll, (action.dieIndexes ?? data.dieIndexes).slice(0, data.maxDice ?? Infinity), (data as { source?: string }).source ?? 'rerollOffer')
+            if (data.oneDieMark && !s.phaseState.marks.includes(data.oneDieMark)) s.phaseState.marks.push(data.oneDieMark)
           }
           return
         }
@@ -1443,6 +1504,8 @@ export const attackService: AttackService = {
     }
     const nowDestroyed = removeModel(s, modelId)
     announceDestroyed(ctx, model, unit, by, nowDestroyed)
+    // SDC E1 / R-5.20: a destroyed Transport's passengers disembark once its Deadly Demise has been rolled
+    if (nowDestroyed && ctx.services.transports.embarkedIn(s, unit.id).length > 0) ctx.services.transports.emergencyDisembark(ctx, unit.id)
   },
 }
 

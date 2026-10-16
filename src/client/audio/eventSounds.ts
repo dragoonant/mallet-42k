@@ -107,6 +107,12 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ['honour-stave', 'wpn-force-weapon'] as const,
   ['battlesuit-fists', 'wpn-power-fist'] as const,
   ['ghostkeel-fists', 'wpn-power-fist'] as const,
+  // Sudden Dawn Cadre: frag projector pops like a launcher, plasma rifle thumps, rail rifle borrows the ion raker, blaster and hull borrow.
+  ['airbursting-fragmentation-projector', 'wpn-grenade-launcher'] as const,
+  ['plasma-rifle', 'wpn-plasma-gun'] as const,
+  ['rail-rifle', 'ion-raker'] as const,
+  ['pulse-blaster', 'pulse-carbine-burst'] as const,
+  ['armoured-hull', 'wpn-power-fist'] as const,
   // Genestealer Cults borrow too: mining gear and improvised bludgeons crunch like fists, cult claws rend like talons.
   ['hybrid-firearm', 'cult-autogun-burst'] as const,
   ['leader-pistol', 'wpn-laspistol'] as const,

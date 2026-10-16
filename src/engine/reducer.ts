@@ -295,6 +295,9 @@ function badDieIndexes(action: Extract<Action, { type: 'chooseOption' }>, pendin
   if (picked.length === 0 || new Set(picked).size !== picked.length || !picked.every((i) => offered.includes(i))) {
     return { code: 'E_NOT_AN_OPTION', reason: 'dieIndexes must be a non-empty subset of the offered dice', details: { offered } }
   }
+  // SDC E2: a one-die offer (Prototype Systems) takes at most maxDice dice
+  const maxDice = (pending.context.data as { maxDice?: number }).maxDice
+  if (maxDice !== undefined && picked.length > maxDice) return { code: 'E_NOT_AN_OPTION', reason: `at most ${maxDice} die may be re-rolled`, details: { offered, maxDice } }
   return null
 }
 
