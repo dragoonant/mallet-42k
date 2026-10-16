@@ -1150,3 +1150,33 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | SPA-024 | SPA-6 | bolt rifle: Intercessors Advance and still shoot (Assault); stationary → +1 to hit (Heavy) |
 | SPA-025 | SPA-6.5 | Invictor Deadly Demise D3: on death roll 6 → D3 mortal wounds to each unit within 6" |
 | SPA-026 | E1 | Pouncing Leap (Tyranids) cost override unchanged; an enhancement override applies only while its bearer is alive and in the target unit |
+
+## DEA — Deathwatch: Vigil Force Alphion (docs/spec/factions/deathwatch.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| DEA-001 | DEA-1 | patrol loads (default): faction `deathwatch`, 4 units, 15 models; Alphion is WARLORD with Aegis Vigilate, attached to the Intercessor Squad; default secondary Hunters' Insight; both SM patrols still load unchanged |
+| DEA-002 | DEA-1.2, 6.4 | Patrol Squads split → `intercessor-squad-a` (Sergeant + 3 rifles + 1 grenadier, all 5 with bolt rifles) and `-b` (4 rifles + 1 grenadier, all 5 with bolt rifles); Alphion and Krenn can each attach to one half |
+| DEA-003 | DEA-6 | data: every stat/profile row of §6 matches (Krenn ccw A4, absolvor 18" S5 AP−1 D2, reductor 3" AP−4, flamestorm D6+1 Torrent Twin-linked, Aggressor T6 W3 M5, Intercessor OC 2); reused `sm.` ids unchanged |
+| DEA-004 | DEA-2.1 | Oath of Moment: a Deathwatch bolt-rifle attack vs the Oath target may re-roll its hit roll; in a DW-vs-SM game each player keeps their own target |
+| DEA-005 | DEA-3.1 | Aegis Vigilate: attached Intercessors are T5 (S5 attack wounds on 4+, not 3+) with a 4+ invulnerable save (AP−3 attack saved on 4+); unattached Krenn's unit unaffected |
+| DEA-006 | DEA-3.2 | Aliens' Bane: Alphion's master-crafted power weapon wounds T4 on 2+ (S5 +1); may allocate to a CHARACTER in the target unit (Precision); his bolt pistol and the Intercessors' melee are unaffected |
+| DEA-007 | DEA-6.1 | Target Priority: Alphion's unit Falls Back, then is eligible to shoot and to declare a charge that turn; Aggressors that Fell Back are not |
+| DEA-008 | DEA-6.2 | Narthecium: Krenn leading a squad that lost a grenadier → at own `command.start` a choice among destroyed kinds + decline; pick grenadier → model returns in coherency with full 2 W and its grenade launcher (`ModelReturned`) |
+| DEA-009 | DEA-6.2 | Narthecium not offered: Krenn unattached; squad at Starting Strength; opponent's Command phase; already used this Command phase; no legal spot → nothing returns |
+| DEA-010 | DEA-6.3 | Close-quarters Firepower: Aggressor flamestorm vs the closest eligible enemy unit → AP −1; vs a farther unit → AP 0 |
+| DEA-011 | DEA-4.1 | Hunters' Insight: at own `command.start` pick a No Man's Land marker; end of the opponent's next turn, own non-shocked Intercessors on it and controlled → +4 VP |
+| DEA-012 | DEA-4.1, 4.4 | Hunters' Insight: markers in own deployment zone not offered; 0 VP when uncontrolled, when the only unit in range is Battle-shocked, or when the only unit in range is not ADEPTUS ASTARTES; pick cleared after scoring |
+| DEA-013 | DEA-4.1 | Hunters' Insight timing: DW moving second picks in round 1 and scores at the end of the opponent's round-2 turn; a round-5 pick by the second player never scores; no score at the end of own turn |
+| DEA-014 | DEA-4.2, 4.5 | Head-taker: Intercessors kill an attached enemy CHARACTER model → +5 VP; killing a non-CHARACTER model → 0; enemy CHARACTER dying to its own Hazardous → 0 |
+| DEA-015 | DEA-4.3 | Head-taker sweep: at battle end every enemy CHARACTER destroyed → +5 VP; one CHARACTER alive → 0 |
+| DEA-016 | DEA-5.1 | Veteran Instincts: after an enemy targets Intercessors in its Shooting phase → FNP 5+ until end of phase; on Aggressors (GRAVIS) → FNP 4+; offered in own Fight phase too; not offered in own Shooting phase |
+| DEA-017 | DEA-5.2 | Special-Issue Ammunition set A: bolt rifle wound roll of unmodified 5 vs a VEHICLE is a critical wound; grenade launcher krak within half range gets +2 D; ends at phase end |
+| DEA-018 | DEA-5.2 | Special-Issue Ammunition set B: bolt rifle after Advancing may shoot; target in cover gets no cover bonus; unmodified 6 to hit → 2 extra hits; not offered for a unit that already shot |
+| DEA-019 | DEA-5.3 | Teleportarium: end of the opponent's Fight phase, unengaged Intercessors (with attached Alphion) → removed (`UnitRemovedFromBattlefield`); next own Movement Reinforcements step set-up 3.1" from enemies accepted, 2.9" rejected |
+| DEA-020 | DEA-5.3 | Teleportarium: arrived unit cannot declare a charge that turn but can shoot; not offered for an engaged unit, in own turn, or a second time in the battle (once per battle) |
+| DEA-021 | DEA-5.5 | Teleportarium arrival is mandatory: declining destroys the unit (`UnitLostInReserves`); DW moving second may arrive in round 1; a unit still off-board at battle end is destroyed |
+| DEA-022 | DEA-6 | Astartes grenade launcher: frag profile Blast (D3 + 1 per 5 models vs a 10-model unit); krak S9 AP−2 DD3; the model picks one profile per shooting |
+| DEA-023 | DEA-6 | Bolt rifle Assault + Heavy: shoots after Advancing (Assault); +1 to hit when stationary (Heavy) |
+| DEA-024 | DEA-6 | Twin power fists Twin-linked: failed wound rolls may be re-rolled; flamestorm gauntlets auto-hit (Torrent), ignore cover, Twin-linked wound re-roll |
+| DEA-025 | DEA-6 | Reductor pistol: legal only at ≤ 3"; Pistol may be fired while in Engagement Range |
+| DEA-026 | E1 | Grey Knights regression: Teleport Assault records without `arrival` still use the 9" gap and allow a charge after arrival |
