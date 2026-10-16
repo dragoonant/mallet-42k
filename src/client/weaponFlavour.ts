@@ -48,7 +48,7 @@ export function weaponFlavour(weaponId: string, weapon: WeaponData | undefined, 
     // Tyranid claws, talons and teeth rend and slash, so they voice as the cutting sound; only a klaw/fist
     // (or a plain crushing profile) is the heavy crunch.
     if (/fist|klaw|hammer|maul|mace|crush|limbs|mutation|sentinel(?![- ]blade)|mining|improvised|gauntlet|dozer|armoured hull|armoured-hull|armoured tracks|tracks/.test(text)) return 'crush'
-    if (/choppa|chain|sword|blade|axe|knife|claw|talon|teeth|jaws|snappa|stikka|maw|hyperphase|mandible|flail|whip|glaive|spear|lance/.test(text)) return 'chain'
+    if (/choppa|chain|sword|blade|axe|knife|knives|reaper|claw|talon|teeth|jaws|snappa|stikka|maw|hyperphase|mandible|flail|whip|glaive|spear|lance/.test(text)) return 'chain'
     return strength >= 8 ? 'crush' : 'chain'
   }
 
@@ -93,7 +93,7 @@ export interface VfxClassification {
 /** Engine faction ids by the prefix of a weapon id ('ork.w.shoota'), for weapons classified with no faction given. */
 const ID_PREFIX_FACTION: [string, string][] = [
   ['ork.', 'ork'], ['nec', 'necrons'], ['tyr', 'tyranids'], ['gsc.', 'genestealer-cults'], ['tau.', 'tau-empire'],
-  ['am.', 'astra-militarum'], ['lov.', 'leagues-of-votann'], ['gk.', 'grey-knights'], ['csm', 'chaos-space-marines'], ['ade', 'adepta-sororitas'], ['cus.', 'adeptus-custodes'], ['drk.', 'drukhari'], ['ael.', 'aeldari'], ['adm.', 'adeptus-mechanicus'],
+  ['am.', 'astra-militarum'], ['lov.', 'leagues-of-votann'], ['gk.', 'grey-knights'], ['csm', 'chaos-space-marines'], ['ade', 'adepta-sororitas'], ['cus.', 'adeptus-custodes'], ['drk.', 'drukhari'], ['ael.', 'aeldari'], ['adm.', 'adeptus-mechanicus'], ['dg.', 'death-guard'],
 ]
 
 export function classifyVfxFamily(weaponId: string, weapon: WeaponData | undefined, faction: string): VfxClassification {

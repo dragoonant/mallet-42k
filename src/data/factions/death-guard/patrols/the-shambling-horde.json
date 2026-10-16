@@ -1,0 +1,39 @@
+{
+  "id": "dg.cp.the-shambling-horde",
+  "faction": "death-guard",
+  "name": "The Shambling Horde",
+  "units": [
+    { "ref": "typhus", "datasheet": "dg.typhus", "size": 1, "enhancement": "dg.e.walking-plague", "attachTo": "poxwalkers-a" },
+    { "ref": "grelch", "datasheet": "dg.folgoth-grelch", "size": 1, "attachTo": "plague-marines" },
+    { "ref": "plague-marines", "datasheet": "dg.plague-marines", "size": 7 },
+    { "ref": "poxwalkers-a", "datasheet": "dg.poxwalkers", "size": 10 },
+    { "ref": "poxwalkers-b", "datasheet": "dg.poxwalkers", "size": 10 },
+    { "ref": "poxwalkers-c", "datasheet": "dg.poxwalkers", "size": 10 }
+  ],
+  "stratagems": ["dg.s.corrosive-effluents", "dg.s.harbingers-of-despair", "dg.s.disgustingly-resilient"],
+  "enhancements": [
+    { "id": "dg.e.walking-plague", "default": true },
+    { "id": "dg.e.miasmic-arrival", "default": false }
+  ],
+  "secondaries": [
+    {
+      "id": "dg.sec.contaminate-ground",
+      "name": "Contaminate Ground",
+      "text": "From battle round 2, at the end of each of your turns, score 3 victory points if at least one of your DEATH GUARD units on the battlefield that is not Battle-shocked has a model within 3\" of the centre of the battlefield. At most 3 victory points per turn.",
+      "default": true,
+      "scoring": [
+        { "id": "contaminate-ground", "when": "turn.end", "rounds": { "from": 2, "to": 5 }, "who": "active", "rule": "custom", "pointsPer": 3, "cap": 3, "code": "contaminateGround", "params": { "within": 3, "keyword": "DEATH GUARD" } }
+      ]
+    },
+    {
+      "id": "dg.sec.spread-the-blight",
+      "name": "Spread the Blight",
+      "text": "Each time a DEATH GUARD unit from your army destroys an enemy unit, score 2 victory points if that enemy unit was within a friendly unit's Contagion Range at the start of the phase in which it was destroyed.",
+      "default": false,
+      "scoring": [
+        { "id": "spread-the-blight", "when": "any.unitDestroyed", "rounds": { "from": 1, "to": 5 }, "who": "both", "rule": "custom", "pointsPer": 2, "cap": 99, "code": "spreadTheBlight" }
+      ]
+    }
+  ],
+  "warlord": "typhus"
+}

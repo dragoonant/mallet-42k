@@ -1,0 +1,49 @@
+[
+  {
+    "id": "dg.plague-marines",
+    "faction": "death-guard",
+    "name": "Plague Marines",
+    "keywords": ["INFANTRY", "BATTLELINE", "CHAOS", "NURGLE", "PLAGUE MARINES"],
+    "factionKeywords": ["DEATH GUARD"],
+    "stats": { "M": 5, "T": 5, "Sv": 3, "W": 2, "Ld": 6, "OC": 2 },
+    "composition": [
+      {
+        "modelId": "champion",
+        "name": "Plague Champion",
+        "min": 1, "max": 1, "default": 1,
+        "champion": true,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["dg.w.plague-boltgun", "dg.w.heavy-plague-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "spewer",
+        "name": "Plague Marine (plague spewer)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["dg.w.plague-spewer", "dg.w.plague-knives"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "blight-launcher",
+        "name": "Plague Marine (blight launcher)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["dg.w.blight-launcher", "dg.w.plague-knives"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "boltgun",
+        "name": "Plague Marine (plague boltgun)",
+        "min": 4, "max": 4, "default": 4,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": { "default": ["dg.w.plague-boltgun", "dg.w.plague-knives"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      }
+    ],
+    "abilities": ["dg.a.nurgles-gift", "dg.a.remorseless"],
+    "coreAbilities": [],
+    "points": [ { "models": 7, "points": 0 } ],
+    "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+  }
+]

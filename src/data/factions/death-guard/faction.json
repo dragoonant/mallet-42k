@@ -1,0 +1,23 @@
+{
+  "id": "death-guard",
+  "name": "Death Guard",
+  "factionKeyword": "DEATH GUARD",
+  "armyRule": "dg.a.nurgles-gift",
+  "detachments": [
+    {
+      "id": "dg.d.combat-patrol",
+      "name": "Combat Patrol",
+      "rule": "dg.a.nurgles-gift",
+      "stratagems": ["dg.s.corrosive-effluents", "dg.s.harbingers-of-despair", "dg.s.disgustingly-resilient"],
+      "enhancements": ["dg.e.walking-plague", "dg.e.miasmic-arrival"]
+    }
+  ],
+  "paintScheme": {
+    "primary": "#8b9460",
+    "secondary": "#6e5434",
+    "trim": "#b39456",
+    "metal": "#7c7d77",
+    "decal": "#c6d45a"
+  },
+  "combatPatrols": ["dg.cp.the-shambling-horde"]
+}

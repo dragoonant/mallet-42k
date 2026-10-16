@@ -24,13 +24,14 @@ import { greyKnightsHooks } from './factions/grey-knights'
 import { leaguesOfVotannHooks } from './factions/leagues-of-votann'
 import { spaceMarinesHooks, smRapidRepositioningCheck, smRapidRepositioningApply } from './factions/space-marines'
 import { adeptusCustodesHooks } from './factions/adeptus-custodes'
+import { deathGuardHooks } from './factions/death-guard'
 import { hookService, type HookSourceEntry } from './hooks-impl'
 import { leaderService } from './leaders'
 import type { EngineContext, Services, WindowTrigger } from './modules'
 import * as tyr from './factions/tyranids'
 import * as ork from './factions/orks'
 import { answerReanimation } from './factions/necrons'
-import { keywordsOf, modelStats, mortalCredit, unitModels, type MortalCreditBy } from './state'
+import { hasDeepStrike, keywordsOf, modelStats, mortalCredit, unitModels, type MortalCreditBy } from './state'
 import { isTeleporting } from './teleport'
 import type {
   ChooseOptionDecision, ChooseOptionTopic, GameState, ModelId, Objective, PendingDecision, PlayerId, ReactionWindowDecision, Rejection,
@@ -403,8 +404,7 @@ const rapidIngressArrival: EngineCodeHook = {
     const u = state.units[t.ids[0]]
     if (!u || u.location !== 'reserves') return false
     if (isTeleporting(state, u.id)) return false // GRE E3: Teleport Assault arrivals are not stratagem Reinforcements
-    const ds = state.datasheets[u.datasheetId]
-    const deepStrike = ds.coreAbilities.some((c) => c.ability === 'DEEP_STRIKE') || u.deepStrikeWith !== null
+    const deepStrike = hasDeepStrike(state, u.id) || u.deepStrikeWith !== null
     if (!deepStrike) return false
     // R-5.14 / CP-1.9: Reserves never arrive in battle round 1; after round 3 they are already destroyed
     if (state.round < 2) return false
@@ -859,6 +859,9 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   // adeptus-mechanicus (docs/spec/factions/adeptus-mechanicus.md §7): doctrinaImperatives, radSaturation, lineBreakers, justFellBack,
   // targetedPurgePick/Score, prescribedExcoriation
   ...adeptusMechanicusHooks(),
+  // death-guard (docs/spec/factions/death-guard.md §7): nurglesGift, walkingPlague, grantDeepStrike, curseOfTheWalkingPox,
+  // harbingersOfDespair, contaminateGround, spreadTheBlight
+  ...deathGuardHooks(),
 }
 
 export type { ChooseOptionDecision }

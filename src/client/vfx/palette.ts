@@ -56,6 +56,7 @@ const FACTION_COLOR: Record<string, string> = {
   drukhari: '#3fe0c0',
   aeldari: '#3fd0c8',
   'adeptus-mechanicus': '#2fb5ad',
+  'death-guard': '#b9d44a',
 }
 
 const NEUTRAL_MELEE_COLOR = '#e8e8f0'

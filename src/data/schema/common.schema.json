@@ -328,6 +328,9 @@
         "targetOnObjectiveControlledBy": {
           "enum": ["self", "opponent"]
         },
+        "unitOnObjectiveControlledBy": {
+          "enum": ["self", "opponent"]
+        },
         "unitOnObjective": {
           "type": "boolean"
         },

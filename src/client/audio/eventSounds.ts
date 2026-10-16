@@ -216,6 +216,16 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ['clawed-limbs', 'wpn-talons'] as const,
   ['flechette-blaster', 'wpn-autopistol'] as const,
   ['taser-goad', 'wpn-force-weapon'] as const,
+  // Death Guard: the spewer coughs flame, launchers and grenades thump like the Guard's, the manreaper rings like a power weapon,
+  // the heavy plague weapon crunches, knives and the injector pistol borrow the plain close-combat and autopistol sounds.
+  ['plague-spewer', 'wpn-flamer'] as const,
+  ['blight-launcher', 'wpn-grenade-launcher'] as const,
+  ['hyper-blight-grenades', 'wpn-grenade-launcher'] as const,
+  ['injector-pistol', 'wpn-autopistol'] as const,
+  ['manreaper', 'wpn-power-weapon'] as const,
+  ['heavy-plague-weapon', 'wpn-power-fist'] as const,
+  ['plague-knives', 'wpn-close-combat-weapon'] as const,
+  ['improvised-weapon', 'wpn-close-combat-weapon'] as const,
 ].sort((a, b) => b[0].length - a[0].length)
 
 const WEAPON_TRIM: Partial<Record<SfxId, number>> = {
@@ -308,6 +318,8 @@ const DEATH_SOUND: Record<string, SfxId> = {
   'genestealer-cults': 'death-genestealer-cults',
   // Cyborg Skitarii go down with a metallic power-down, like the Necrons.
   'adeptus-mechanicus': 'death-necrons',
+  // Plague-ridden Chaos Marines die with the Chaos groan.
+  'death-guard': 'death-chaos-space-marines',
 }
 
 /** Measured decoded RMS runs 0.05-0.40 across these; the loud three are pulled back toward ~0.15. */

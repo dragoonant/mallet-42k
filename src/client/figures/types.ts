@@ -146,6 +146,13 @@ export type KitId =
   | 'ael-windrider-catapult'
   | 'ael-windrider-scatter'
   | 'ael-platform'
+  | 'dg-plague-champion'
+  | 'dg-plague-boltgun'
+  | 'dg-plague-spewer'
+  | 'dg-plague-launcher'
+  | 'dg-poxwalker'
+  | 'dg-grelch'
+  | 'dg-typhus'
   | 'generic-infantry'
   | 'generic-heavy'
   | 'generic-monster'
@@ -170,6 +177,7 @@ export type HeadShape = 'marine-helmet' | 'terminator-helmet' | 'ork-head' | 'or
   | 'kin-helm' | 'kin-helm-crest'
   | 'aeldari-helm' | 'aeldari-farseer' | 'wraith-head'
   | 'skitarii-hood' | 'skitarii-alpha' | 'tech-priest-hood' | 'pteraxii-helm'
+  | 'plague-helm' | 'plague-lord-helm' | 'poxwalker-head'
 export type WeaponShape =
   | 'none'
   | 'bolt-rifle'
@@ -220,6 +228,7 @@ export type WeaponShape =
   | 'singing-spear'
   | 'ghostglaive'
   | 'arc-rifle' | 'plasma-caliver' | 'radium-carbine' | 'omnissian-staff' | 'taser-goad' | 'arc-maul' | 'transonic-cannon' | 'phosphor-torch' | 'phosphor-carbine'
+  | 'blight-launcher' | 'plague-spewer' | 'manreaper'
 export type ShoulderPad = 'none' | 'small' | 'large'
 
 export interface BipedConfig {
@@ -230,7 +239,7 @@ export interface BipedConfig {
   hasBackpack: boolean
   shoulderPads: ShoulderPad
   hasCape: boolean
-  skin: 'marine' | 'ork' | 'daemon' | 'pale' | 'none' // 'none' = fully helmeted/armoured, no bare skin rendered
+  skin: 'marine' | 'ork' | 'daemon' | 'pale' | 'sickly' | 'none' // 'none' = fully helmeted/armoured, no bare skin rendered
   /** Which paint slot the arms use (default 'secondary'). Necron kits take 'metal' so the green stays a glow accent. */
   limbColor?: 'secondary' | 'metal' | 'primary' | 'skin'
   /** A small glowing core on the chest (paintScheme.secondary, emissive). */
@@ -266,6 +275,9 @@ export interface BipedConfig {
   jumpPack?: boolean
   robe?: boolean
   mechadendrites?: boolean
+  /** Death Guard dressing (dgParts.tsx): 'plate' = hoses + rag tabard + pustules, 'biologus' = plate plus a vial rack,
+   *  'lord' = plate with a heavier tabard and bell-weight, 'pox' = swollen belly, ragged loincloth and boils (Poxwalkers). */
+  nurgle?: 'plate' | 'biologus' | 'lord' | 'pox'
 }
 
 /** Towed/emplaced gun with its crew (Astra Militarum Field Ordnance Battery): a long barrel or a rocket rack. */

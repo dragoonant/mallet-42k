@@ -31,7 +31,7 @@ const DRK = 'drukhari'
 const ADM = 'adeptus-mechanicus'
 
 /** The engine faction id a weapon's own id prefix belongs to. */
-const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : id.startsWith('lov.') ? LOV : id.startsWith('drk.') ? DRK : id.startsWith('ael.') ? 'aeldari' : id.startsWith('adm.') ? ADM : SM)
+const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : id.startsWith('lov.') ? LOV : id.startsWith('drk.') ? DRK : id.startsWith('ael.') ? 'aeldari' : id.startsWith('adm.') ? ADM : id.startsWith('dg.') ? 'death-guard' : SM)
 
 function lookupFor(faction: string): SoundLookup {
   return { weapon: (id) => bundle.weapons[id], factionOfUnit: () => faction }
@@ -310,6 +310,17 @@ const EXPECTED: Record<string, WeaponFlavour> = {
   'adm.w.phosphor-torch': 'flame',
   'adm.w.pteraxii-talons': 'chain',
   'adm.w.taser-goad': 'force',
+  'dg.w.manreaper-strike': 'chain',
+  'dg.w.manreaper-sweep': 'chain',
+  'dg.w.hyper-blight-grenades': 'heavy',
+  'dg.w.injector-pistol': 'bolter',
+  'dg.w.plague-knives-grelch': 'chain',
+  'dg.w.plague-knives': 'chain',
+  'dg.w.plague-boltgun': 'bolter',
+  'dg.w.blight-launcher': 'heavy',
+  'dg.w.plague-spewer': 'flame',
+  'dg.w.heavy-plague-weapon': 'crush',
+  'dg.w.improvised-weapon': 'crush',
 }
 
 // Adepta Sororitas weapons, by datasheet NAME (lower-cased) so the check holds whatever id spelling the data uses.

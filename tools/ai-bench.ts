@@ -29,6 +29,7 @@ const FACTION_ARG_TO_DATA_ID: Record<string, string> = { 'space-marines': 'sm', 
 FACTION_ARG_TO_DATA_ID['leagues-of-votann'] = 'leagues-of-votann'
 FACTION_ARG_TO_DATA_ID.drukhari = 'drukhari'
 FACTION_ARG_TO_DATA_ID['adeptus-mechanicus'] = 'adeptus-mechanicus'
+FACTION_ARG_TO_DATA_ID['death-guard'] = 'death-guard'
 
 // the patrol data's own `attachTo` hints (a Leader joining its bodyguard unit); other rosters attach in the client only
 function attachmentsOf(patrol: { units: { ref: string; attachTo?: string }[] }) {

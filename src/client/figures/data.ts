@@ -162,6 +162,10 @@ const KNOWN_KIT: Record<string, KitId> = {
   'ael.guardian-defenders': 'ael-guardian',
   'ael.windriders': 'ael-windrider-catapult',
   'ael.wraithlord': 'ael-wraithlord',
+  'dg.plague-marines': 'dg-plague-boltgun',
+  'dg.folgoth-grelch': 'dg-grelch',
+  'dg.typhus': 'dg-typhus',
+  'dg.poxwalkers': 'dg-poxwalker',
 }
 
 /** Models of a mixed unit that look different from the rest of it (a flamer sister is not a rifle sister), keyed
@@ -178,6 +182,10 @@ const KNOWN_KIT_BY_MODEL: Record<string, KitId> = {
   'ade.battle-sisters-squad/sister': 'ade-sister',
   'ade.celestian-sacresants/sacresant': 'ade-sacresant',
   'ade.arco-flagellants/arco': 'ade-arco',
+  'dg.plague-marines/champion': 'dg-plague-champion',
+  'dg.plague-marines/spewer': 'dg-plague-spewer',
+  'dg.plague-marines/blight-launcher': 'dg-plague-launcher',
+  'dg.plague-marines/boltgun': 'dg-plague-boltgun',
   'ade.pen.battle-sisters-squad/superior': 'ade-sister-superior',
   'ade.pen.battle-sisters-squad/sister-storm-bolter': 'ade-sister',
   'ade.pen.battle-sisters-squad/sister-flamer': 'ade-sister-flamer',
@@ -276,6 +284,13 @@ const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
   'ael-guardian': 'infantry',
   'ael-farseer': 'infantry',
   'ael-wraithlord': 'monster',
+  'dg-plague-champion': 'infantry',
+  'dg-plague-boltgun': 'infantry',
+  'dg-plague-spewer': 'infantry',
+  'dg-plague-launcher': 'infantry',
+  'dg-poxwalker': 'infantry',
+  'dg-grelch': 'infantry',
+  'dg-typhus': 'heavy',
   'ael-windrider-catapult': 'vehicle',
   'ael-windrider-scatter': 'vehicle',
   'ael-platform': 'vehicle',
@@ -443,6 +458,10 @@ const HEIGHT_BY_DATASHEET: Record<string, number> = {
   // A cyber-mastiff and its rider on a 60x35mm oval: taller than a footsoldier so the hound fills the base.
   'adm.serberys-sulphurhounds': 1.7,
   'ork.squighog-boyz': 1.7,
+  // Death Guard: bloated plate stands a touch taller than a regular footsoldier; Typhus is a Terminator-sized lord.
+  'dg.plague-marines': 1.15,
+  'dg.folgoth-grelch': 1.15,
+  'dg.typhus': 1.4,
   'ork.squighog-boyz/squighog-boy': 1.7,
   'ork.squighog-boyz/nob-smasha-squig': 1.9,
   // Leagues of Votann are short and stocky (leagues-of-votann spec §9): Kin infantry ~0.95", Beserks 1.0", the Kahl 1.05", a Pioneer's bike 1.3".

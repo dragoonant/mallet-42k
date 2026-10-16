@@ -1,0 +1,35 @@
+[
+  {
+    "id": "dg.e.walking-plague",
+    "faction": "death-guard",
+    "name": "Walking Plague",
+    "text": "In each of your Command phases, before Battle-shock tests, pick a friendly POXWALKERS unit within the bearer's Contagion Range that has destroyed models. Roll a D6 and return that many destroyed models to it (up to Starting Strength) at full wounds, placed in coherency, wholly on the battlefield, not newly within Engagement Range of an enemy. A model with no legal spot, and any after it, are lost.",
+    "cost": 0,
+    "restriction": { "keyword": ["TYPHUS"] },
+    "effect": {
+      "id": "dg.e.walking-plague.effect",
+      "name": "Walking Plague",
+      "text": "Once per Command phase, roll a D6 and return that many destroyed Poxwalkers models to a friendly POXWALKERS unit within the bearer's Contagion Range.",
+      "trigger": "commandPhase",
+      "when": { "ownTurn": true },
+      "scope": { "who": "bearer" },
+      "code": "walkingPlague"
+    }
+  },
+  {
+    "id": "dg.e.miasmic-arrival",
+    "faction": "death-guard",
+    "name": "Miasmic Arrival",
+    "text": "Every model in the bearer's unit has the Deep Strike ability. If the bearer leads a Poxwalkers unit, the combined unit may be set up in Reserves and arrive by Deep Strike.",
+    "cost": 0,
+    "restriction": { "keyword": ["TYPHUS"] },
+    "effect": {
+      "id": "dg.e.miasmic-arrival.effect",
+      "name": "Miasmic Arrival",
+      "text": "Every model in the bearer's unit has Deep Strike.",
+      "trigger": "always",
+      "scope": { "who": "self" },
+      "code": "grantDeepStrike"
+    }
+  }
+]

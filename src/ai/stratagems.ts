@@ -110,6 +110,13 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
     withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, fnp: 5 })
   } else if (id.endsWith('mercurial-resilience')) {
     withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, invuln: 5 })
+  } else if (id.endsWith('disgustingly-resilient')) {
+    // Death Guard: every attack allocated to the unit loses 1 Damage (minimum 1); worth little against D1 weapons
+    if (melee) return -Infinity
+    const shooter = unitModels(state, attackerId).map((m) => bestRangedWeapon(state, m.id)).find((w) => !!w)
+    const avgD = shooter && state.weapons[shooter.weaponId] ? diceExprMean(state.weapons[shooter.weaponId].D) : 1
+    if (avgD <= 1) return -Infinity
+    withIt = without * ((avgD - 1) / avgD)
   } else if (id.endsWith('a-martyrs-death')) {
     return dyingStrikeValue(state, mineId, attackerId, melee, 0.5)
   } else if (id.endsWith('daemonic-fervour')) {
@@ -121,7 +128,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
 }
 
 const DEFENSIVE = ['skeinwrought-physiology', 'go-to-ground', 'smokescreen', 'gene-wrought-resilience', 'tough-as-squig-hide', 'holy-radiance', 'hyper-reactive',
-  'mercurial-resilience', 'a-martyrs-death', 'daemonic-fervour', 'lurking-killers', 'lives-before-territory', 'quicksilver-reactions', 'whip-fast-reactions', 'evaluation-of-mettle']
+  'mercurial-resilience', 'a-martyrs-death', 'daemonic-fervour', 'lurking-killers', 'lives-before-territory', 'quicksilver-reactions', 'whip-fast-reactions', 'evaluation-of-mettle', 'disgustingly-resilient']
 
 // Fire Overwatch: hits only on an unmodified 6, the bound unit only (picked within 24"), each weapon within its own range, with line of sight.
 function overwatchGain(state: GameState, player: PlayerId, action: UseStratagemAction, enemyId: UnitId): number {
@@ -698,6 +705,42 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
     }
     if (trigger && state.units[trigger]?.location === 'board' && minGapBetweenUnits(state, unitId, trigger) <= move + 2) best = Math.max(best, 0.8 + unitValue(state, trigger) * 0.005)
     return best > 0 ? best : -Infinity
+  }
+  // Death Guard Corrosive Effluents: AP improved by 1 for every attack of a unit that has not shot / fought yet (a worse save for the target)
+  if (id.endsWith('corrosive-effluents')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId) return -Infinity
+    const melee = state.phase === 'fight'
+    let best = 0
+    if (melee) {
+      for (const e of engagedEnemyUnits(state, player, unitId)) {
+        best = Math.max(best, (unitMeleeDamage(state, unitId, e, { svMod: 1 }) - unitMeleeDamage(state, unitId, e, {})) * unitValue(state, e) * 0.04)
+      }
+    } else if (hasAnyRangedWeapon(state, unitId)) {
+      const range = bestRangedRangeOfUnit(state, unitId) ?? 0
+      for (const e of boardUnitsOf(state, other(player))) {
+        if (minGapBetweenUnits(state, unitId, e.id) > range) continue
+        best = Math.max(best, (unitRangedDamage(state, unitId, e.id, { svMod: 1 }) - unitRangedDamage(state, unitId, e.id, {})) * unitValue(state, e.id) * 0.04)
+      }
+    }
+    return best > 0.2 ? best : -Infinity
+  }
+  // Death Guard Harbingers of Despair: Battle-shock tests on every enemy unit holding the target. Worth the CP when a test is likely to fail
+  // (low Leadership) on units that are not already shocked.
+  if (id.endsWith('harbingers-of-despair')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId) return -Infinity
+    let gain = 0
+    for (const e of engagedEnemyUnits(state, player, unitId)) {
+      if (state.units[e]?.battleShocked) continue
+      const ms = unitModels(state, e)
+      if (ms.length === 0) continue
+      const ld = Math.min(...ms.map((m) => modelStats(state, m).Ld))
+      const k = Math.min(12, Math.max(1, ld - 1)) // a test fails on a 2D6 total <= Ld - 1
+      const pFail = (k <= 7 ? (k * (k - 1)) / 2 : 36 - ((13 - k) * (12 - k)) / 2) / 36
+      gain += pFail * unitValue(state, e) * 0.04
+    }
+    return gain > 0.25 ? gain : -Infinity
   }
   return -Infinity // unmodelled stratagem: hold CP
 }

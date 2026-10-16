@@ -5,7 +5,7 @@ import type { EngineContext, PhaseModule } from './modules'
 import { otherPlayer } from './modules'
 import { deployTerrainBlock } from './terrain'
 import { transportService } from './transports'
-import { assignSides, boardModelsOf, deploymentZone, hasCoreAbility, unitModels, setModelPos } from './state'
+import { assignSides, boardModelsOf, deploymentZone, hasCoreAbility, hasDeepStrike, unitModels, setModelPos } from './state'
 import type { Action, DeployUnitAction, ModelPlacement } from './actions'
 import type {
   DeployUnitDecision, GameState, Model, MoveConstraints, PendingDecision, PlayerId, Polygon, Rejection, Unit, UnitId, Vec3,
@@ -26,8 +26,7 @@ function sidesChosen(state: GameState): boolean { return state.players.A.side !=
 // CP-1.9 / R-5.14: a unit set aside for Reserves at Declare Battle Formations never gets a deployUnit decision here —
 // it stays `location: 'reserves'` and arrives later via the Movement phase's `reinforcements` window (movement.ts).
 function canDeepStrike(state: GameState, unit: Unit): boolean {
-  const ds = state.datasheets[unit.datasheetId]
-  return ds.coreAbilities.some((c) => c.ability === 'DEEP_STRIKE') || unit.deepStrikeWith !== null
+  return hasDeepStrike(state, unit.id) || unit.deepStrikeWith !== null
 }
 
 // MISSION-027-attached (R-10.1): an attached Leader has no drop of its own — it deploys as part of its bodyguard's

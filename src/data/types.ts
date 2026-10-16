@@ -66,6 +66,7 @@ export interface Condition {
   targetOnObjective?: boolean
   // target within range of an objective marker controlled by the holder (self) or the holder's opponent (Aeldari Swift Demise)
   targetOnObjectiveControlledBy?: 'self' | 'opponent'
+  unitOnObjectiveControlledBy?: 'self' | 'opponent'
   unitOnObjective?: boolean
   unitBelowHalf?: boolean
   // target's combined current models (attached pair included) are below its combined Starting Strength (Tyranids Feeding Frenzy)

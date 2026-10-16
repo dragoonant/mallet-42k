@@ -423,3 +423,12 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Verification | typecheck, validate:data (205 files), build green; `npm test` 2829 passing (125 files, after rebase on Votann, Drukhari, Aeldari); e2e `adeptus-mechanicus-purge-corps-deltic-9.spec.ts` starts as Adeptus Mechanicus vs the bot, deploys every unit by board click, fires Overwatch into the first Shooting phase; screenshots `e2e-out/m10-adeptus-mechanicus-0*.png` |
 | Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all 6 finished (round 5); adeptus-mechanicus 1 win (default rotation), 2 draws |
 | Known gaps | Procedural figures (Sulphurhounds as hound plus rider; no GLBs yet); borrowed SFX; no dedicated AI policy for the Doctrina / Targeted Purge picks beyond defaults; rulings ADM-R01 to ADM-R19 in `docs/needs-rules-check.md` under "adeptus-mechanicus build" |
+
+### M10 death-guard - The Shambling Horde (new faction, playable)
+| Item | State |
+|---|---|
+| Patrol | The Shambling Horde: Typhus (leads Plague Marines), Folgoth Grelch, Plague Marines, three Poxwalkers units; secondaries Contaminate Ground / Spread the Blight. Data `src/data/factions/death-guard/`; spec `docs/spec/factions/death-guard.md` |
+| Engine hooks | New `src/engine/factions/death-guard.ts`, registered in `code-hooks.ts`: nurglesGift (enemy Toughness query within Contagion Range), walkingPlague (Command-phase return pick), grantDeepStrike, curseOfTheWalkingPox, Contaminate Ground and Spread the Blight scoring. Generic: `hasDeepStrike` in state.ts (all existing Deep Strike behaviour unchanged), setup Reserves validation uses it |
+| Verification | typecheck, validate:data (215 files), build green; `npm test` 2895 passing (129 files, DTG- IDs); e2e `death-guard.spec.ts` starts as Death Guard vs the bot, deploys by board click, fires Overwatch into the first Shooting phase; screenshots `e2e-out/m10-death-guard-0*.png` |
+| Sim | `SIM_FACTION=death-guard npm run sim -- --games 6 --seed 5`: 0 violations, all 6 finished (round 5); death-guard 0 wins, 5 losses, 1 draw (the default rotation does not include it) |
+| Known gaps | Procedural figures (no GLBs); borrowed SFX; Contagion Range values 3/6/9 unconfirmed; AI valuations are rough; rulings DTG-R01 to DTG-R19 in `docs/needs-rules-check.md` under "death-guard build" |

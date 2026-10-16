@@ -47,7 +47,7 @@ import { markNoCharge, passengerHalves, transportService } from '../transports'
 import { clearTeleport, destroyTeleportingUnit, isTeleporting, teleportArrivalOpts } from '../teleport'
 import { notImplementedHandle, otherPlayer, type AdvanceResult, type EngineContext, type PhaseModule } from '../modules'
 import {
-  boardModelsOf, boardUnitsOf, datasheetOf, deploymentZone, enemyModelsOnBoard, hasKeyword, keywordsOf, modelStats, removeModel,
+  boardModelsOf, boardUnitsOf, deploymentZone, enemyModelsOnBoard, hasDeepStrike, hasKeyword, keywordsOf, modelStats, removeModel,
   setModelPos, unitModels, unitModelsForCoherency,
 } from '../state'
 import { autoDeployPlacements } from '../setup'
@@ -577,10 +577,6 @@ export function resolveSurgeMove(ctx: EngineContext, unitId: UnitId, distance: n
 // the way it already did for a lone unit).
 function reservesHalves(state: GameState, unitId: UnitId): UnitId[] {
   return leaderService.halves(state, unitId).filter((id) => state.units[id] && state.units[id].location === 'reserves')
-}
-
-function hasDeepStrike(state: GameState, unitId: UnitId): boolean {
-  return datasheetOf(state, unitId).coreAbilities.some((c) => c.ability === 'DEEP_STRIKE')
 }
 
 // ---------- Reserves / reinforcements (R-5.11–R-5.14) ----------

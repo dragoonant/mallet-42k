@@ -20,6 +20,7 @@ import { OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE, playerBattlefieldEdge, pointI
 import { consecratedGroundAmount, divineJudgementAmount, divineJudgementOffer, hallowedRetributionAmount } from './factions/adepta-sororitas'
 import { pinpointPurgeAmount, reconnaissanceInForceAmount } from './factions/space-marines'
 import { ineffableAgendaAmount } from './factions/aeldari'
+import { contaminateGroundAmount, spreadTheBlightGain, spreadTheBlightSnapshot } from './factions/death-guard'
 import { hookService } from './hooks-impl'
 import { leaderService } from './leaders'
 import { transportService } from './transports'
@@ -519,6 +520,19 @@ function infiltratorsUnitDestroyed(ctx: EngineContext, info: { unitId: UnitId; b
   }
 }
 
+// Spread the Blight (DTG-4): kill-triggered for either player; the victim must have been within a Contagion Range at the start of the phase
+function spreadTheBlightDestroyed(ctx: EngineContext, info: { unitId: UnitId; byPlayer: PlayerId | null; byUnitId: UnitId | null }): void {
+  const s = ctx.state
+  const pid = info.byPlayer
+  if (!pid) return
+  const rule = rulesFor(s, pid).find((r) => r.rule === 'custom' && r.code === 'spreadTheBlight' && s.round >= r.rounds.from && s.round <= r.rounds.to)
+  if (!rule) return
+  const amount = Math.min(spreadTheBlightGain(s, info, pid, rule), rule.cap - (s.players[pid].vpBySource[rule.id] ?? 0))
+  if (amount <= 0) return
+  awardVp(ctx, pid, amount, rule.id)
+  s.mission.scored.push({ ruleId: rule.id, player: pid, round: s.round, turn: s.activePlayer, amount })
+}
+
 function unitDestroyedHook(ctx: EngineContext, info: { unitId: UnitId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: string | null; kind?: AttackKind | 'mortal' | 'other'; rangedAttack?: boolean }): void {
   treasuresUnitDestroyed(ctx, info)
   markedForExecutionDestroyed(ctx, info)
@@ -526,6 +540,7 @@ function unitDestroyedHook(ctx: EngineContext, info: { unitId: UnitId; byPlayer:
   tgbConsecratedGroundUnitDestroyed(ctx, info)
   pinpointPurgeDestroyed(ctx, info)
   infiltratorsUnitDestroyed(ctx, info)
+  spreadTheBlightDestroyed(ctx, info)
 }
 
 function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): number {
@@ -568,6 +583,8 @@ function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): num
     }
     case 'ineffableAgenda': return ineffableAgendaAmount(ctx, rule, pid, (id) => holds(ctx, id, pid))
     case 'tgbConsecratedGround': return 0 // event-driven, scored in the destroy fan-outs
+    case 'contaminateGround': return contaminateGroundAmount(s, rule, pid)
+    case 'spreadTheBlight': return 0 // event-driven, scored in the destroy fan-out
     default: return 0
   }
 }
@@ -805,6 +822,9 @@ function processWindow(ctx: EngineContext, window: TimingWindowId, key: string):
   // Treasures of Aeons reads which enemy units were near a marker at the START of the phase in which they die
   if (window.endsWith('.start') && once(s, `treasureSnapshot:${window}`)) snapshotTreasures(s)
   if (window.endsWith('.start') && once(s, `gotrSnapshot:${window}`)) guardianOfTheRealmSnapshot(s)
+  if (window.endsWith('.start') && once(s, `blightSnapshot:${window}`)) {
+    for (const pid of ['A', 'B'] as PlayerId[]) if (rulesFor(s, pid).some((r) => r.rule === 'custom' && r.code === 'spreadTheBlight')) spreadTheBlightSnapshot(s, pid)
+  }
   for (const rule of s.mission.rules) {
     if (rule.window !== window) continue
     if (!once(s, `missionRuleDone:${rule.id}:${key}`)) continue

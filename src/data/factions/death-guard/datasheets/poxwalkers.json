@@ -1,0 +1,24 @@
+[
+  {
+    "id": "dg.poxwalkers",
+    "faction": "death-guard",
+    "name": "Poxwalkers",
+    "keywords": ["INFANTRY", "CHAOS", "NURGLE", "POXWALKERS"],
+    "factionKeywords": ["DEATH GUARD"],
+    "stats": { "M": 4, "T": 4, "Sv": 7, "W": 1, "Ld": 8, "OC": 1 },
+    "composition": [
+      {
+        "modelId": "poxwalker",
+        "name": "Poxwalker",
+        "min": 10, "max": 10, "default": 10,
+        "base": { "shape": "round", "mm": 25 },
+        "weapons": { "default": ["dg.w.improvised-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      }
+    ],
+    "abilities": ["dg.a.nurgles-gift", "dg.a.curse-of-the-walking-pox"],
+    "coreAbilities": [ { "ability": "FEEL_NO_PAIN", "value": 5 } ],
+    "points": [ { "models": 10, "points": 0 } ],
+    "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+  }
+]

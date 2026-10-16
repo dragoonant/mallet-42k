@@ -274,6 +274,11 @@ export function evaluateCondition(env: ConditionEnv, c: Condition | null | undef
     if (!targetOnControlledObjective(state, attack.targetUnitId, wanted)) return false
   }
   const h = holder
+  // E2 (DTG-6.3 Remorseless): the holder (either half of an attached unit) stands within range of a marker controlled by `self` / the opponent
+  if (c.unitOnObjectiveControlledBy !== undefined) {
+    const wanted = c.unitOnObjectiveControlledBy === 'self' ? env.player : (env.player === 'A' ? 'B' : 'A')
+    if (!(h && targetOnControlledObjective(state, h.id, wanted))) return false
+  }
   if (c.unitOnObjective !== undefined && !(h && unitOnObjective(state, h.id) === c.unitOnObjective)) return false
   if (c.unitBelowHalf !== undefined && !(h && leaderService.isBelowHalfStrength(state, h.id) === c.unitBelowHalf)) return false
   if (c.unitStationary !== undefined && !(h && (h.turn.moveType === 'stationary') === c.unitStationary)) return false

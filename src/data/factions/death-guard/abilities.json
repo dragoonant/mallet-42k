@@ -1,0 +1,56 @@
+[
+  {
+    "id": "dg.a.nurgles-gift",
+    "name": "Nurgle's Gift",
+    "text": "Aura. Every unit in this patrol carries a spreading rot whose reach grows as the battle drags on: 3\" in battle round 1, 6\" in round 2, 9\" from round 3 onward. While an enemy unit is inside that reach of one or more friendly units with this ability, every model in it has its Toughness lowered by 1. The penalty never stacks.",
+    "trigger": "always",
+    "effect": { "modifyStat": { "stat": "T", "value": -1 } },
+    "scope": { "who": "enemy" },
+    "code": "nurglesGift",
+    "params": { "ranges": [3, 6, 9] }
+  },
+  {
+    "id": "dg.a.the-destroyer-hive",
+    "name": "The Destroyer Hive",
+    "text": "While this model leads a unit, every melee attack that targets that unit suffers -1 to its hit roll.",
+    "trigger": "hitRoll",
+    "when": { "leaderAttached": true, "weaponType": "melee" },
+    "effect": { "modifyRoll": { "roll": "hit", "value": -1 } },
+    "scope": { "who": "attacker" }
+  },
+  {
+    "id": "dg.a.foul-infusion",
+    "name": "Foul Infusion",
+    "text": "While this model leads a unit, every weapon carried by a model in that unit has the Lethal Hits ability.",
+    "trigger": "always",
+    "when": { "leaderAttached": true },
+    "effect": { "grantWeaponAbility": { "ability": "LETHAL_HITS" } },
+    "scope": { "who": "self" }
+  },
+  {
+    "id": "dg.a.foul-infusion-crit",
+    "name": "Foul Infusion (critical hits)",
+    "text": "While this model leads a unit, an unmodified hit roll of 5 or 6 made by a model in that unit is a Critical Hit.",
+    "trigger": "hitRoll",
+    "when": { "leaderAttached": true },
+    "effect": { "lethalOn": 5 },
+    "scope": { "who": "self" }
+  },
+  {
+    "id": "dg.a.remorseless",
+    "name": "Remorseless",
+    "text": "While this unit is within range of an objective marker its controller controls, add 1 to its Battle-shock tests.",
+    "trigger": "battleShockTest",
+    "when": { "unitOnObjectiveControlledBy": "self" },
+    "effect": { "modifyRoll": { "roll": "battleShock", "value": 1 } },
+    "scope": { "who": "self" }
+  },
+  {
+    "id": "dg.a.curse-of-the-walking-pox",
+    "name": "Curse of the Walking Pox",
+    "text": "Each time an attack by a model in this unit destroys an enemy model that is not a MONSTER or VEHICLE, one destroyed model returns to this unit at full wounds, if it is below Starting Strength. The model is placed in coherency, wholly on the battlefield, not newly within Engagement Range of an enemy unit; with no such spot it is not returned.",
+    "trigger": "modelDestroyed",
+    "code": "curseOfTheWalkingPox",
+    "params": { "includeLeader": true, "excludeKeywords": ["MONSTER", "VEHICLE"] }
+  }
+]

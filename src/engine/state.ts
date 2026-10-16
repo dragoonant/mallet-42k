@@ -206,6 +206,28 @@ export function hasCoreAbility(state: GameState, unitId: UnitId, ability: CoreAb
   return (hookService.keywordsFor?.(state, unitId) ?? keywordsOf(state, unitId)).some((k) => norm(k) === want)
 }
 
+// DTG E1: true when the unit's datasheet has DEEP_STRIKE, or when the unit or its attached partner carries a runtime
+// ability or enhancement whose `code` is 'grantDeepStrike' (an enhancement's bearer unit = the whole attached unit).
+// Lives here (not in leaders.ts) to avoid an import cycle, so it resolves the partner through the unit's own fields.
+export function hasDeepStrike(state: GameState, unitId: UnitId): boolean {
+  const u = state.units[unitId]
+  if (!u) return false
+  if (state.datasheets[u.datasheetId]?.coreAbilities.some((c) => c.ability === 'DEEP_STRIKE')) return true
+  const halves = new Set<UnitId>([unitId])
+  if (u.bodyguardUnitId) halves.add(u.bodyguardUnitId)
+  if (u.attachedLeaderId) halves.add(u.attachedLeaderId)
+  for (const a of Object.values(state.abilities)) {
+    if (a.code !== 'grantDeepStrike') continue
+    if (a.source === 'enhancement') {
+      const bearer = a.bearerModelId === null ? undefined : state.models[a.bearerModelId]
+      if (bearer && halves.has(bearer.unitId)) return true
+    } else {
+      for (const id of halves) if (state.datasheets[state.units[id]?.datasheetId]?.abilities.includes(a.id)) return true
+    }
+  }
+  return false
+}
+
 // ---------- mutation helpers (draft state only) ----------
 export function setModelPos(model: Model, pos: Vec3, facing?: number): void {
   model.pos = { x: Math.round(pos.x * 1000) / 1000, y: Math.round(pos.y * 1000) / 1000, z: Math.round(pos.z * 1000) / 1000 }
@@ -580,8 +602,8 @@ export function createGameState(setup: GameSetup, bundle: DataBundle, seed: stri
       if (skippedRefs.has(ref)) continue
       const u = units[unitIdFor(pid, ref)]
       if (!u) throw new EngineInvariantError(`reserves unit '${ref}' not found for player ${pid}`)
-      const ds = datasheets[u.datasheetId]
-      const canDeepStrike = ds.coreAbilities.some((c) => c.ability === 'DEEP_STRIKE') || u.deepStrikeWith !== null
+      // createGame has no GameState yet: hasDeepStrike only reads these four maps
+      const canDeepStrike = hasDeepStrike({ datasheets, abilities, units, models } as unknown as GameState, u.id) || u.deepStrikeWith !== null
       if (!canDeepStrike) throw new EngineInvariantError(`unit '${ref}' cannot start in Reserves (no Deep Strike)`)
     }
 

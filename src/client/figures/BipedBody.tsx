@@ -9,12 +9,14 @@ import { EndBlock, HeadBlob, LimbSegment, WeaponMesh } from './primitives'
 import { TyranidExtras, TyranidHead } from './TyranidParts'
 import { usePoseFrame, clamp01, easeOut, useMaterialFader } from './anim'
 import { ADM_HEADS, AdmDressing, AdmHead, type AdmHeadShape } from './admParts'
+import { DG_HEADS, DgDressing, DgHead, type DgHeadShape } from './dgParts'
 import type { BipedConfig, BodyProps } from './types'
 
 const ORK_SKIN = '#6f8f3f'
 const MARINE_SKIN = '#c9a074'
 const DAEMON_SKIN = '#8c7d9a'
 const PALE_SKIN = '#e6cdb4'
+const SICKLY_SKIN = '#8f9a6c'
 const VISOR = '#15171c'
 
 const HIP_Y = 0.32
@@ -141,7 +143,7 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
   const armRadius = 0.06 * bulk
   const headRadius = Math.min(0.3, 0.19 + 0.02 * (bulk - 1))
 
-  const skinColor = config.skin === 'ork' ? ORK_SKIN : config.skin === 'marine' ? MARINE_SKIN : config.skin === 'daemon' ? DAEMON_SKIN : config.skin === 'pale' ? PALE_SKIN : undefined
+  const skinColor = config.skin === 'ork' ? ORK_SKIN : config.skin === 'marine' ? MARINE_SKIN : config.skin === 'daemon' ? DAEMON_SKIN : config.skin === 'pale' ? PALE_SKIN : config.skin === 'sickly' ? SICKLY_SKIN : undefined
   const limb = config.limbColor === 'metal' ? colors.metal : config.limbColor === 'primary' ? colors.primary : config.limbColor === 'skin' && skinColor ? skinColor : colors.secondary
   const legColor = config.legColor === 'trim' ? colors.trim : colors.primary
   const torsoCol = config.bareTorso ? (skinColor ?? colors.secondary) : config.torsoColor === 'secondary' ? colors.secondary : colors.primary
@@ -203,6 +205,7 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
             <StdMat color={colors.metal} metalness={0.4} roughness={0.6} />
           </mesh>
         )}
+        <DgDressing config={config} colors={colors} torsoWidth={torsoWidth} torsoDepth={torsoDepth} torsoHeight={TORSO_H} hipY={HIP_Y} />
         <AdmDressing config={config} colors={colors} torsoWidth={torsoWidth} torsoDepth={torsoDepth} torsoHeight={TORSO_H} hipY={HIP_Y} />
         <TyranidExtras config={config} colors={colors} torsoWidth={torsoWidth} torsoDepth={torsoDepth} torsoHeight={TORSO_H} />
         {config.tabard && (
@@ -296,6 +299,7 @@ function HeadBody({
   radius: number
 }) {
   if (ADM_HEADS.has(shape)) return <AdmHead shape={shape as AdmHeadShape} colors={colors} radius={radius} />
+  if (DG_HEADS.has(shape)) return <DgHead shape={shape as DgHeadShape} colors={colors} radius={radius} />
   switch (shape) {
     case 'marine-helmet':
       return (

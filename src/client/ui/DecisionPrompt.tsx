@@ -456,6 +456,13 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
     info: METHODICAL_INFO,
   },
   {
+    match: /walking-?plague/i,
+    info: {
+      title: 'Walking Plague: raise the infected',
+      hint: 'Pick a Poxwalkers unit near the bearer that has lost models. Roll a die: that many fallen Poxwalkers climb back in, at full health, as many as there is room for. Decline to skip this turn.',
+    },
+  },
+  {
     match: /reanimation/,
     info: {
       title: 'Reanimation Protocols',

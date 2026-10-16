@@ -1,0 +1,25 @@
+[
+  {
+    "id": "dg.folgoth-grelch",
+    "faction": "death-guard",
+    "name": "Folgoth Grelch",
+    "keywords": ["INFANTRY", "CHARACTER", "CHAOS", "NURGLE", "BIOLOGUS PUTRIFIER", "FOLGOTH GRELCH"],
+    "factionKeywords": ["DEATH GUARD"],
+    "stats": { "M": 5, "T": 5, "Sv": 3, "W": 4, "Ld": 6, "OC": 1 },
+    "composition": [
+      {
+        "modelId": "grelch",
+        "name": "Folgoth Grelch",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 40 },
+        "weapons": { "default": ["dg.w.hyper-blight-grenades", "dg.w.injector-pistol", "dg.w.plague-knives-grelch"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      }
+    ],
+    "abilities": ["dg.a.nurgles-gift", "dg.a.foul-infusion", "dg.a.foul-infusion-crit"],
+    "coreAbilities": [ { "ability": "LEADER" }, { "ability": "DEADLY_DEMISE", "value": "1" } ],
+    "leader": { "attachTo": ["dg.plague-marines"], "effects": [] },
+    "points": [ { "models": 1, "points": 0 } ],
+    "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+  }
+]
