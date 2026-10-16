@@ -6,7 +6,7 @@ export const meta = {
   phases: [{ title: 'Verify' }, { title: 'Commit' }],
 }
 
-const ROOT = '/Users/anthonyescasa/dev/mallet-42k'
+const ROOT = (typeof args !== 'undefined' && args && args.root) || '<repo-root>'
 const ATTR = (args && args.attribution) || 'Co-Authored-By: Claude <noreply@anthropic.com>'
 const RESULT = { type: 'object', properties: { ok: { type: 'boolean' }, summary: { type: 'string' }, files: { type: 'array', items: { type: 'string' } }, issues: { type: 'array', items: { type: 'string' } } }, required: ['ok', 'summary', 'files', 'issues'] }
 const VERDICT = { type: 'object', properties: { verdict: { type: 'string', enum: ['ok', 'needs-fix'] }, failing: { type: 'array', items: { type: 'object', properties: { where: { type: 'string' }, description: { type: 'string' }, fix: { type: 'string' } }, required: ['where', 'description', 'fix'] } }, notes: { type: 'string' } }, required: ['verdict', 'failing', 'notes'] }

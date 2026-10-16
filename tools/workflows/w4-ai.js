@@ -1,5 +1,5 @@
 // M5 — AI tier 1 (a bot that plays the mission), fail-fast.
-//   Workflow({ scriptPath: '/Users/anthonyescasa/dev/mallet-42k/tools/workflows/w4-ai.js', args: { attribution } })
+//   Workflow({ scriptPath: 'tools/workflows/w4-ai.js', args: { attribution } })
 // Shape: implement AI + bench (Sonnet) → one tune round if it loses too often (Sonnet) → wire into client + ship (Sonnet).
 export const meta = {
   name: 'w4-ai',
@@ -7,7 +7,7 @@ export const meta = {
   phases: [{ title: 'Build' }, { title: 'Tune' }, { title: 'Ship' }],
 }
 
-const ROOT = '/Users/anthonyescasa/dev/mallet-42k'
+const ROOT = (typeof args !== 'undefined' && args && args.root) || '<repo-root>'
 const ATTR = (args && args.attribution) || 'Co-Authored-By: Claude <noreply@anthropic.com>'
 const RESULT = { type: 'object', properties: { ok: { type: 'boolean' }, summary: { type: 'string' }, files: { type: 'array', items: { type: 'string' } }, issues: { type: 'array', items: { type: 'string' } } }, required: ['ok', 'summary', 'files', 'issues'] }
 const BENCH = { type: 'object', properties: { ok: { type: 'boolean' }, summary: { type: 'string' }, games: { type: 'number' }, aiWins: { type: 'number' }, draws: { type: 'number' }, meanMsPerDecision: { type: 'number' }, meanVpAi: { type: 'number' }, meanVpRandom: { type: 'number' }, files: { type: 'array', items: { type: 'string' } }, issues: { type: 'array', items: { type: 'string' } } }, required: ['ok', 'summary', 'games', 'aiWins', 'draws', 'meanMsPerDecision', 'meanVpAi', 'meanVpRandom', 'files', 'issues'] }

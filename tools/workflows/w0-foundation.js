@@ -9,7 +9,7 @@ export const meta = {
   ],
 }
 
-const ROOT = '/Users/anthonyescasa/dev/mallet-42k'
+const ROOT = (typeof args !== 'undefined' && args && args.root) || '<repo-root>'
 const ATTR = 'Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>'
 
 const RESULT = {

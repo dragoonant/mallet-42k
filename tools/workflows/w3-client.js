@@ -1,5 +1,5 @@
 // W3 client, playable-first. Invoke with the Workflow tool:
-//   Workflow({ scriptPath: '/Users/anthonyescasa/dev/mallet-42k/tools/workflows/w3-client.js', args: { attribution } })
+//   Workflow({ scriptPath: 'tools/workflows/w3-client.js', args: { attribution } })
 // Goal: a game the owner can open on Pages and play (vs a random-legal-move bot, or hotseat) with procedural SD figures.
 // Shape: build (Sonnet, parallel) → wire UI (Sonnet) → playtest in a real browser (session model) → fix (Sonnet) → commit + push.
 export const meta = {
@@ -8,7 +8,7 @@ export const meta = {
   phases: [{ title: 'Build' }, { title: 'Wire' }, { title: 'Playtest' }, { title: 'Ship' }],
 }
 
-const ROOT = '/Users/anthonyescasa/dev/mallet-42k'
+const ROOT = (typeof args !== 'undefined' && args && args.root) || '<repo-root>'
 const ATTR = (args && args.attribution) || 'Co-Authored-By: Claude <noreply@anthropic.com>'
 const RESULT = { type: 'object', properties: { ok: { type: 'boolean' }, summary: { type: 'string' }, files: { type: 'array', items: { type: 'string' } }, issues: { type: 'array', items: { type: 'string' } } }, required: ['ok', 'summary', 'files', 'issues'] }
 const PLAYTEST = { type: 'object', properties: { playable: { type: 'boolean' }, reached: { type: 'string' }, blockers: { type: 'array', items: { type: 'object', properties: { what: { type: 'string' }, where: { type: 'string' }, fix: { type: 'string' } }, required: ['what', 'where', 'fix'] } }, screenshots: { type: 'array', items: { type: 'string' } }, notes: { type: 'string' } }, required: ['playable', 'reached', 'blockers', 'screenshots', 'notes'] }

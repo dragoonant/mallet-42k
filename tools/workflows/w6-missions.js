@@ -1,5 +1,5 @@
 // M6 — Missions & stratagems (scoring, CP, core stratagems, end-of-game screen), fail-fast.
-//   Workflow({ scriptPath: '/Users/anthonyescasa/dev/mallet-42k/tools/workflows/w6-missions.js', args: { attribution } })
+//   Workflow({ scriptPath: 'tools/workflows/w6-missions.js', args: { attribution } })
 // Shape: audit in a real browser (session model) → fix engine ∥ fix client (Sonnet) → ship with screenshots (Sonnet).
 export const meta = {
   name: 'w6-missions',
@@ -7,7 +7,7 @@ export const meta = {
   phases: [{ title: 'Audit' }, { title: 'Fix' }, { title: 'Ship' }],
 }
 
-const ROOT = '/Users/anthonyescasa/dev/mallet-42k'
+const ROOT = (typeof args !== 'undefined' && args && args.root) || '<repo-root>'
 const ATTR = (args && args.attribution) || 'Co-Authored-By: Claude <noreply@anthropic.com>'
 const RESULT = { type: 'object', properties: { ok: { type: 'boolean' }, summary: { type: 'string' }, files: { type: 'array', items: { type: 'string' } }, issues: { type: 'array', items: { type: 'string' } } }, required: ['ok', 'summary', 'files', 'issues'] }
 const GAP = { type: 'object', properties: { what: { type: 'string' }, owner: { type: 'string', enum: ['engine', 'client'] }, where: { type: 'string' }, fix: { type: 'string' } }, required: ['what', 'owner', 'where', 'fix'] }

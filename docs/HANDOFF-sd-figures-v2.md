@@ -10,8 +10,8 @@ Last session, Claude in Chrome was attached only to the Chrome on the owner's **
 (`list_connected_browsers` showed one browser, macOS). Files saved there never reach the PC. Before starting:
 1. Run `mcp__claude-in-chrome__list_connected_browsers`. You need a browser whose platform is Windows. If there
    isn't one, stop and ask the owner to open Chrome **on the PC** with the Claude extension connected and signed
-   in to Google (anthony.j.escasa@gmail.com), then `select_browser` it. Do not use the Mac browser.
-2. Its downloads land in `C:\Users\antho\Downloads`. Check where Chrome actually saves before relying on that.
+   in to Google with the owner's account, then `select_browser` it. Do not use the Mac browser.
+2. Its downloads land in `%USERPROFILE%\Downloads`. Check where Chrome actually saves before relying on that.
 
 ## The images already exist; don't regenerate them
 All 36 images are in the owner's Gemini history. Open each chat in the PC's Chrome and pull the images out.
@@ -53,7 +53,7 @@ Full body, front three-quarter view, plain round black base, plain white backgro
   click the round send button with real `computer` actions.
 
 ## Building the models (local pipeline, see memory `hunyuan3d-model-pipeline`)
-Folders: `C:\Users\antho\Hunyuan3D-2` (2.0 venv: cutout, paint) and `C:\Users\antho\Hunyuan3D-2.1` (2.1 venv:
+Folders: `%USERPROFILE%\Hunyuan3D-2` (2.0 venv: cutout, paint) and `%USERPROFILE%\Hunyuan3D-2.1` (2.1 venv:
 shape, finalize). Defaults are already 10k faces and a 1024 texture, the same as the Necrons.
 1. Add each slug to `Hunyuan3D-2\units.json` (`{prompt, height (inches), base (mm)}`) and `picks.json`
    (`slug: "<absolute path to png>"`). **Write the JSON without a BOM.** PowerShell 5.1's `Out-File` adds one and

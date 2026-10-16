@@ -1,5 +1,5 @@
 // M8 — polish: dice animation, VFX, audio (ElevenLabs), walk/attack animation. Fail-fast.
-//   Workflow({ scriptPath: '/Users/anthonyescasa/dev/mallet-42k/tools/workflows/w8-polish.js', args: { attribution } })
+//   Workflow({ scriptPath: 'tools/workflows/w8-polish.js', args: { attribution } })
 // Shape: build dice ∥ vfx ∥ audio ∥ animation (Sonnet, disjoint files) → wire into scene/HUD/settings (Sonnet) → ship with screenshots (Sonnet).
 export const meta = {
   name: 'w8-polish',
@@ -7,7 +7,7 @@ export const meta = {
   phases: [{ title: 'Build' }, { title: 'Wire' }, { title: 'Ship' }],
 }
 
-const ROOT = '/Users/anthonyescasa/dev/mallet-42k'
+const ROOT = (typeof args !== 'undefined' && args && args.root) || '<repo-root>'
 const ATTR = (args && args.attribution) || 'Co-Authored-By: Claude <noreply@anthropic.com>'
 const RESULT = { type: 'object', properties: { ok: { type: 'boolean' }, summary: { type: 'string' }, files: { type: 'array', items: { type: 'string' } }, issues: { type: 'array', items: { type: 'string' } } }, required: ['ok', 'summary', 'files', 'issues'] }
 
@@ -23,7 +23,7 @@ Return JSON: ok, summary (≤60 words), files, issues.` },
   { key: 'audio', prompt: `${COMMON}
 You own ONLY tools/gen-audio.ts, tools/audio-manifest.json, public/audio/**, and src/client/audio/**.
 ElevenLabs API key: NEVER print it, log it, write it into any repo file, commit it, or put it in client code (the repo and site are public). Get it at runtime in the shell like this and pass it only via env:
-  export ELEVENLABS_API_KEY="$(textutil -convert txt -stdout '/Users/anthonyescasa/Library/CloudStorage/OneDrive-Personal/Documents/Mallet 42k/elevenlabs.token.rtf' | grep -oE 'sk_[A-Za-z0-9_-]+' | head -1)"
+  export ELEVENLABS_API_KEY="$(textutil -convert txt -stdout '<path-to-elevenlabs.token.rtf>' | grep -oE 'sk_[A-Za-z0-9_-]+' | head -1)"
 Account: Starter tier, ~29,000 credits left this month — HARD BUDGET for this task: 9,000 credits. Sound effects: POST https://api.elevenlabs.io/v1/sound-generation (JSON {text, duration_seconds, prompt_influence}; header xi-api-key; returns audio/mpeg) — set duration_seconds explicitly and short (0.5–2 s) to keep cost low. Voice: POST https://api.elevenlabs.io/v1/text-to-speech/{voice_id}?output_format=mp3_44100_64 with {text, model_id:'eleven_flash_v2_5'} (flash is cheaper); list voices with GET /v1/voices and pick one gruff announcer voice for narration. Check GET /v1/user/subscription (print only character_count/character_limit) before and after, and stop generating if the budget would be exceeded.
 1. tools/audio-manifest.json: ~28 SFX (bolter burst, shoota spray, heavy gun, flamer, psychic zap, hit impact, armour save clank, invulnerable shimmer, melee chainsword, power klaw crunch, Ork war cry, Marine shout, model death, vehicle explosion, charge rumble, dice rattle, dice land, objective captured chime, VP scored sting, CP gained click, stratagem used whoosh, battle-shock sting, turn start horn, UI click, UI error, victory fanfare, defeat sting, ambient battlefield loop 20 s) + ~12 short own-words narrator lines ("Battle round one", "Movement phase", "Shooting phase", "Charge!", "Fight phase", "Command phase", "Objective taken", "Unit destroyed", "Stratagem!", "Victory", "Defeat", "Your turn"). tools/gen-audio.ts (run with npx tsx) generates each missing file into public/audio/<id>.mp3, skips files that already exist (so reruns never re-spend), writes a cost log to stdout. Keep each file small (64 kbps mono where possible).
 2. src/client/audio/: export an audio manager (Web Audio, lazy-unlocked on first user click; preload small SFX, stream the ambient loop) with play(id, {volume, detune jitter}), master/sfx/voice/music volumes and mute persisted to localStorage, throttling so 20 simultaneous shots become a few layered sounds; paths must respect Vite base '/mallet-42k/' (use import.meta.env.BASE_URL).

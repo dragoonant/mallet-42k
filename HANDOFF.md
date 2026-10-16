@@ -52,7 +52,7 @@ foundations stage, or hand-edit. The `hooks` impl prompt already says "code hook
 (see STATUS.md Data section)" — STATUS.md now lists all 29 with the three enforcement notes.
 
 ## Workflow scripts (in `tools/workflows/`)
-Run with the Workflow tool: `Workflow({ scriptPath: '/Users/anthonyescasa/dev/mallet-42k/tools/workflows/<file>', args: {...} })`.
+Run with the Workflow tool: `Workflow({ scriptPath: 'tools/workflows/<file>', args: {...} })`.
 **The session must be opened in `~/dev/mallet-42k`** (or add it with the directory tool) — the Workflow
 tool refuses a `scriptPath` outside the session's working directories. The OneDrive folder
 `Documents/Mallet 42k` holds only `PLAN.md`; do not work there.
@@ -138,7 +138,7 @@ Owner priority changed: **playable first** (see CLAUDE.md "Owner priority"). Liv
   Command Re-roll setting + fast e2e `dd80e34` (`tests/e2e/play-fast.spec.ts`: full game in ~7.5 min; old
   play.spec.ts removed; helpers in `tests/e2e/helpers.ts`; also `bot-turn.spec.ts`, `deploy-only.spec.ts`).
 - Other sessions share this tree (f1 did deploy facing `d989070`; others did CC0 terrain `886366d`, dice grouping
-  `734224d` `2980c56`). Ownership agreed with Anthony: they own `src/client/board/**` + `PlacementOverlay.tsx`;
+  `734224d` `2980c56`). Ownership agreed with the owner: they own `src/client/board/**` + `PlacementOverlay.tsx`;
   stage files by exact path only.
 - Sonnet subagents keep backgrounding long commands and stalling; prompts must say "foreground only" and cap runs.
 - Open: formation ghost figures (PlacementOverlay, other session); move+nudge e2e is test.fixme; SM AI ~33% vs
