@@ -711,6 +711,7 @@ Rulings made while adding the Death Guard patrol, The Shambling Horde (M10). Spe
 | DTG-R17 | Damage events | Damage is applied one point per DamageApplied event, so DTG-019 sums the events. A D3 result of 3 needs a die of 5 or 6. | death-guard build ruling | open |
 | DTG-R18 | DTG-027 weapon owner | Spec DTG-027 credits Typhus with the grenades and pistol, but the data gives them to Grelch. The test uses Grelch's weapons through the attached Plague Marines. | death-guard build ruling | open |
 | DTG-R19 | Test weapon retuning | The DTG-019 and DTG-027 tests retune Ork weapon stats (damage, AP) in the per-game state weapon table to get deterministic saves. This leaves the bundle untouched. | death-guard build ruling | open |
+
 ## world-eaters build
 
 Rulings made while adding the World Eaters patrol, Karagar's Rampagers (M10); detail in `docs/spec/factions/world-eaters.md`. Ids use `WE-R`.
