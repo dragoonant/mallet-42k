@@ -865,3 +865,30 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | SOL-029 | SOL-6 | Smite focused witchfire on Xarius: Hazardous 1 → Xarius (CHARACTER) takes 3 mortal wounds |
 | SOL-030 | E1 | Stealth regression: datasheet Stealth units (other factions) unchanged; granted Stealth counted only when every half has it |
 | SOL-031 | E4 | Mission regression: Treasures of Aeons / Marked for Execution / Hallowed Retribution unchanged with the new `unitDestroyed` fields |
+
+## MOR — Orks: Morgrim's Butchas (docs/spec/factions/orks--morgrim-s-butchas.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| MOR-001 | MOR-1 | data: patrol `ork.cp.morgrims-butchas` loads; 4 units / 25 models (1 + 10 + 10 + 4); warlord `beastboss`; Morgrim attached to `snaggas-a` by default; listed in `faction.json` `combatPatrols` after the Gitstompas |
+| MOR-002 | MOR-6.1 | data: Morgrim M6 T5 Sv4+ inv 5+ W6 Ld6+ OC1, 50 mm, keywords include BEASTBOSS and WARBOSS, FNP 6, LEADER → Beast Snagga Boyz |
+| MOR-003 | MOR-6.3 | data: Beast Snagga Boyz T5 Sv5+ W1 (Nob 2) OC2, 32 mm, BATTLELINE; wargear Nob slugga + power snappa, 1 thump gun + ccw, 8 slugga + choppa |
+| MOR-004 | MOR-6.5 | data: Squighog Boyz M10 T7 Sv4+ W3 (Nob 4), FNP 5, MOUNTED (not INFANTRY); bases 75×42 / 90×52 oval |
+| MOR-005 | MOR-6.6 | data: every new weapon profile matches §6.2; Gitstompas weapons (`ork.w.shoota`, `choppa`, `close-combat-weapon`, `big-choppa`) unchanged |
+| MOR-006 | MOR-2.1 | Waaagh! called: a Snagga choppa fights at S6 A4 with a 5+ invuln; squighog jaws S7, A stays 3; Squighogs may charge after Advancing |
+| MOR-007 | MOR-6.2 | Morgrim attached: a Boy's melee hit roll of 3 (needs 3+) +1 → a natural 2 hits; ranged hit rolls unchanged; a detached Snagga unit gets no bonus |
+| MOR-008 | MOR-6.4 | Snagga Boyz vs a VEHICLE: a failed hit may be re-rolled; vs INFANTRY: no re-roll; an attached Morgrim's attacks vs a VEHICLE may re-roll too |
+| MOR-009 | MOR-6.6 | beastchoppa vs a VEHICLE: unmodified wound 4 → critical wound; stikka on a charge turn +1 to wound (Lance); saddlegit weapons fire after Advancing (Assault) |
+| MOR-010 | MOR-3.1 | Half-chewed: an attached Snagga Boy loses a wound → FNP rolled at 5+ (not 6+), one roll |
+| MOR-011 | MOR-3.1 | Half-chewed: ranged AP0 vs a Snagga Boy (Sv5+) → saves on 4+; melee AP0 → 5+; with cover still 4+ (cap +1) |
+| MOR-012 | MOR-3.1 | Half-chewed C1: during a Waaagh!, ranged AP−2 vs a Snagga Boy → armour 6+, invuln 5+ (not 4+); the auto-pick takes the invuln at 5+ |
+| MOR-013 | MOR-3.2 | Bosskilla: Morgrim's beastchoppa hit 6 → 1 extra hit (Sustained Hits 1) and Precision allocation to an attached enemy CHARACTER; Boyz' choppas unaffected; shoota unaffected |
+| MOR-014 | MOR-4.1 | Bag the Big 'Un: round 1 start offers enemy MONSTER/VEHICLE models; with none, only the enemy WARLORD |
+| MOR-015 | MOR-4.1 | Bag the Big 'Un: target killed by Morgrim → 12 VP at battle end; killed by a Snagga Boy in his attached unit → 8; alive → 0; Reserves never arrived → 8 |
+| MOR-016 | MOR-4.1 | Bag the Big 'Un (B3): one model of a 3-model VEHICLE unit picked → its death alone scores 8 at battle end, even though the unit survives |
+| MOR-017 | MOR-4.2 | Krumpin' Spree: end of own turn, holding the marker nearest the enemy edge plus one more marker outside own DZ → 4 VP; holding only a marker in own DZ → 0 |
+| MOR-018 | MOR-4.2 | Krumpin' Spree: not scored at the end of the opponent's turn; two markers tied for nearest and both held → 3 + 1 = 4 |
+| MOR-019 | MOR-5.1 | Tough As Squig-hide: S6 attack vs Snagga Boyz (T5) → −1 to wound; S5 → unchanged; offered in the opponent's Shooting and either Fight phase; not offered for Squighogs (MOUNTED) |
+| MOR-020 | MOR-5.2 | Bestial Bellow: start of the Fight phase, Morgrim 2" from an enemy unit → offered; the enemy rolls 2D6 −1 vs its Ld (7 → 6 passes vs Ld 6+, 6 → 5 fails) |
+| MOR-021 | MOR-5.2 | Bestial Bellow: offered for a Squighog Boy model; not for a Beast Snagga Boy model; not for an enemy 4" away; 1 CP spent once |
+| MOR-022 | MOR-5.3 | Get In There!: offered when an own ORKS unit is picked to fight; pile-in allowance 6"; consolidation still 3"; not offered for an enemy unit |
+| MOR-023 | MOR-1 | e2e: the start-screen patrol picker lists Morgrim's Butchas for Orks; starting with it fields 4 units; an AI-vs-AI sim game with this patrol completes 5 rounds without an engine error |
