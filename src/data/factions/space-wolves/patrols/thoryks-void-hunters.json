@@ -1,0 +1,102 @@
+{
+  "id": "sw.cp.thoryks-void-hunters",
+  "faction": "space-wolves",
+  "name": "Thoryk's Void Hunters",
+  "detachment": "sw.d.thoryks-void-hunters",
+  "units": [
+    {
+      "ref": "battle-leader-thoryk",
+      "datasheet": "sw.battle-leader-thoryk",
+      "size": 1,
+      "enhancement": "sw.e.tireless-hunter",
+      "attachTo": "intercessor-squad"
+    },
+    {
+      "ref": "intercessor-squad",
+      "datasheet": "sw.intercessor-squad",
+      "size": 10,
+      "patrolSquads": [
+        {
+          "ref": "intercessor-squad-a",
+          "size": 5,
+          "wargear": [
+            { "modelId": "sergeant", "count": 1, "weapons": ["sm.w.bolt-pistol", "sw.w.astartes-chainsword"] },
+            { "modelId": "intercessor", "count": 4, "weapons": ["sw.w.bolt-rifle", "sm.w.bolt-pistol", "sm.w.close-combat-weapon"] }
+          ]
+        },
+        {
+          "ref": "intercessor-squad-b",
+          "size": 5,
+          "wargear": [
+            { "modelId": "intercessor", "count": 5, "weapons": ["sw.w.bolt-rifle", "sm.w.bolt-pistol", "sm.w.close-combat-weapon"] }
+          ]
+        }
+      ]
+    },
+    {
+      "ref": "reiver-squad",
+      "datasheet": "sw.reiver-squad",
+      "size": 5
+    },
+    {
+      "ref": "invictor-tactical-warsuit",
+      "datasheet": "sw.invictor-tactical-warsuit",
+      "size": 1
+    }
+  ],
+  "stratagems": ["sw.s.a-warriors-death", "sw.s.keen-senses", "sw.s.pack-ambush"],
+  "enhancements": [
+    { "id": "sw.e.tireless-hunter", "default": true },
+    { "id": "sw.e.ferocious", "default": false }
+  ],
+  "secondaries": [
+    {
+      "id": "sw.sec.mighty-saga",
+      "name": "Mighty Saga",
+      "text": "At the start of round 1, pick one enemy CHARACTER, MONSTER or VEHICLE model. At the end of the battle: 8 victory points if that model was destroyed, or 12 if its unit was destroyed by your BATTLE LEADER model's own attacks.",
+      "default": true,
+      "scoring": [
+        {
+          "id": "saga-pick",
+          "when": "round.start",
+          "rounds": { "from": 1, "to": 1 },
+          "rule": "custom",
+          "pointsPer": 0,
+          "cap": 0,
+          "code": "bagPick",
+          "params": { "pickKeywords": ["CHARACTER", "MONSTER", "VEHICLE"], "fallbackWarlord": false }
+        },
+        {
+          "id": "saga-score",
+          "when": "battle.end",
+          "rounds": { "from": 5, "to": 5 },
+          "rule": "custom",
+          "pointsPer": 0,
+          "cap": 12,
+          "code": "bagTheBigUnScore",
+          "params": { "unitPoints": 8, "beastbossPoints": 12, "bigScoreOn": "unit" }
+        }
+      ]
+    },
+    {
+      "id": "sw.sec.reiving-conquerors",
+      "name": "Reiving Conquerors",
+      "text": "At the end of each of your opponent's turns, score 3 victory points if you control at least one No Man's Land objective marker and at least as many of them as your opponent.",
+      "default": false,
+      "scoring": [
+        {
+          "id": "reiving-conquerors",
+          "when": "turn.end",
+          "rounds": { "from": 1, "to": 5 },
+          "who": "opponent",
+          "rule": "custom",
+          "pointsPer": 3,
+          "cap": 3,
+          "code": "reconnaissanceInForce",
+          "params": { "tiePoints": 3 }
+        }
+      ]
+    }
+  ],
+  "warlord": "battle-leader-thoryk"
+}

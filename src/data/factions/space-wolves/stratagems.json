@@ -1,0 +1,64 @@
+[
+  {
+    "id": "sw.s.a-warriors-death",
+    "faction": "space-wolves",
+    "name": "A Warrior's Death",
+    "text": "Use in either player's Fight phase, just after an enemy unit selects its targets, when one of your ADEPTUS ASTARTES units is a target. Until the end of the phase, when a model in that unit is destroyed before it has fought, roll a D6: on a 4+ it stays on the table, fights once the attacking unit has finished its attacks, then is removed.",
+    "cost": 1,
+    "category": "epicDeed",
+    "phases": ["fight"],
+    "window": "fight.targetsDeclared",
+    "who": "either",
+    "condition": { "phase": "fight" },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "ADEPTUS ASTARTES" }, "state": "targetedByAttack", "count": 1 }
+    ],
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase",
+    "code": "aMartyrsDeath",
+    "params": { "threshold": 4, "discardBonus": 0, "discardsMiracleDie": false }
+  },
+  {
+    "id": "sw.s.keen-senses",
+    "faction": "space-wolves",
+    "name": "Keen Senses",
+    "text": "Use in your Shooting phase for one of your ADEPTUS ASTARTES units that has not yet been selected to shoot. Until the end of the phase, its ranged weapons ignore cover, and its attacks against a CHARACTER unit re-roll a Hit roll of 1.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["shooting"],
+    "window": ["shooting.start", "shooting.attacksResolved"],
+    "who": "active",
+    "condition": { "phase": "shooting", "ownTurn": true },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "ADEPTUS ASTARTES" }, "state": "notYetShot", "count": 1 }
+    ],
+    "effect": [
+      { "when": { "weaponType": "ranged" }, "grantWeaponAbility": { "ability": "IGNORES_COVER" } },
+      { "when": { "targetKeyword": ["CHARACTER"] }, "reroll": "ones" }
+    ],
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase",
+    "code": "keenSenses"
+  },
+  {
+    "id": "sw.s.pack-ambush",
+    "faction": "space-wolves",
+    "name": "Pack Ambush",
+    "text": "Use in your Shooting phase, just after one of your REIVER SQUAD units has finished shooting. Pick one enemy unit that was hit by any of those attacks and is not within Engagement Range of that Reiver Squad. It takes a Battle-shock test with 2 subtracted from the result.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["shooting"],
+    "window": "shooting.attacksResolved",
+    "who": "active",
+    "condition": { "phase": "shooting", "ownTurn": true },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "REIVER SQUAD" }, "count": 1 },
+      { "role": "unit", "owner": "enemy", "count": 1 }
+    ],
+    "duration": "instant",
+    "limit": "oncePerPhase",
+    "code": "packAmbush",
+    "params": { "weaponId": "sw.w.special-issue-bolt-pistol", "modifier": -2 }
+  }
+]

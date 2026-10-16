@@ -316,7 +316,7 @@ const aMartyrsDeath: EngineCodeHook = {
         const roll = ctx.rollExpr('D6', { purpose: 'ability', player, unitId: holder.id, commandRerollable: false }).total
         success = roll + bonus >= threshold
         s.phaseState.marks.push(`${markKey}=${success ? 1 : 0}`)
-        ctx.emit({ type: 'AbilityTriggered', abilityId: entry.source.id, sourceUnitId: holder.id, targetUnitId: byUnitId, summary: `A Martyr's Death: rolled ${roll}${bonus ? ` +${bonus}` : ''} for ${modelId}: ${success ? 'fights on' : 'falls'}`, player })
+        ctx.emit({ type: 'AbilityTriggered', abilityId: entry.source.id, sourceUnitId: holder.id, targetUnitId: byUnitId, summary: `${s.stratagems[entry.source.id]?.name ?? "A Martyr's Death"}: rolled ${roll}${bonus ? ` +${bonus}` : ''} for ${modelId}: ${success ? 'fights on' : 'falls'}`, player })
       }
     }
     if (!success) return null

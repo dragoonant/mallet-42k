@@ -1,0 +1,18 @@
+[
+  {
+    "id": "sw.a.target-priority",
+    "name": "Target Priority",
+    "text": "This model's unit, an attached unit included, may shoot and may declare a charge in a turn in which it Fell Back.",
+    "trigger": "always",
+    "effect": { "shootAfterFallBack": true, "chargeAfterFallBack": true },
+    "scope": { "who": "self" }
+  },
+  {
+    "id": "sw.a.fearsome-assault",
+    "name": "Fearsome Assault",
+    "text": "When the Fight phase begins, every enemy unit within Engagement Range of a unit with this ability takes a Battle-shock test.",
+    "trigger": "phaseStart",
+    "when": { "phase": "fight" },
+    "code": "pistonDrivenBrutality"
+  }
+]

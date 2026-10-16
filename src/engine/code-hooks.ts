@@ -27,6 +27,7 @@ import { greyKnightsHooks } from './factions/grey-knights'
 import { leaguesOfVotannHooks } from './factions/leagues-of-votann'
 import { spaceMarinesHooks, smRapidRepositioningCheck, smRapidRepositioningApply } from './factions/space-marines'
 import { adeptusCustodesHooks } from './factions/adeptus-custodes'
+import { spaceWolvesHooks } from './factions/space-wolves'
 import { deathGuardHooks } from './factions/death-guard'
 import { hookService, type HookSourceEntry } from './hooks-impl'
 import { leaderService } from './leaders'
@@ -881,6 +882,8 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   ...thousandSonsHooks(),
   // chaos-daemons (docs/spec/factions/chaos-daemons.md §7): shadowOfChaos, warpLocus, empyricPredators, worthyOfferings, darkConjunction
   ...chaosDaemonsHooks(),
+  // space-wolves (docs/spec/factions/space-wolves.md section 7): tirelessHunter, keenSenses, packAmbush
+  ...spaceWolvesHooks,
 }
 
 export type { ChooseOptionDecision }

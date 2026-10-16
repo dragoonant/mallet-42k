@@ -289,6 +289,12 @@ function properLootinAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId
   return total
 }
 
+// the Warlord's model id; removeModel moves a dead model out of unit.models into destroyedModels, so fall back to that
+function warlordModelId(s: GameState, pid: PlayerId): ModelId | null {
+  const wu = s.units[s.players[pid].warlordUnitId]
+  return wu?.models[0] ?? wu?.destroyedModels?.[0]?.id ?? null
+}
+
 // Bag the Big 'Un (11-combat-patrol §6 appendix roster, not present in current data — exercised only by synthetic
 // tests; see issues). `secondaryState.bagTargetUnitId` is the enemy unit whose (single) model was picked.
 function bagTheBigUnAmount(s: GameState, rule: ScoringRule, pid: PlayerId): number {
@@ -311,7 +317,7 @@ function bagTheBigUnAmount(s: GameState, rule: ScoringRule, pid: PlayerId): numb
   // the killing model (destroyedBy.modelId) with the unitId as a fallback for kills that carry no model attribution
   const warlordUnitId = s.players[pid].warlordUnitId // the Beastboss belongs to the scoring (Ork) player, not the target
   const warlord = s.units[warlordUnitId]
-  const beastbossModelId = warlord?.models[0] ?? null
+  const beastbossModelId = warlordModelId(s, pid)
   const byBeastboss = unit.destroyedBy.modelId === beastbossModelId || unit.destroyedBy.unitId === warlordUnitId
   return byBeastboss ? beastbossPoints : unitPoints
 }
@@ -321,8 +327,22 @@ function bagByModelAmount(s: GameState, rule: ScoringRule, pid: PlayerId, modelI
   const sec = s.players[pid].secondaryState
   const unitPoints = (rule.params?.unitPoints as number | undefined) ?? 8
   const beastbossPoints = (rule.params?.beastbossPoints as number | undefined) ?? 12
+  if (rule.params?.bigScoreOn === 'unit') {
+    // E2 (Mighty Saga): 12 only when the picked model's whole unit was destroyed by the Warlord's model; else 8 when the picked model died
+    const uid = (sec.bagTargetUnitId as UnitId | undefined) ?? s.models[modelId]?.unitId
+    const pu = uid ? s.units[uid] : undefined
+    if (pu && pu.location === 'destroyed' && pu.destroyedBy) {
+      // the Warlord may have died since: removeModel moves dead models out of unit.models into destroyedModels
+      const warlordModel = warlordModelId(s, pid)
+      if (warlordModel && pu.destroyedBy.modelId === warlordModel) return beastbossPoints
+    }
+    if (sec.bagKilled) return unitPoints
+    if (pu && pu.location === 'reserves' && transportService.transportOf(s, pu.id) === null) return unitPoints
+    if (pu && pu.location === 'destroyed') return unitPoints
+    return 0
+  }
   if (sec.bagKilled) {
-    const warlordModel = s.units[s.players[pid].warlordUnitId]?.models[0] ?? null
+    const warlordModel = warlordModelId(s, pid)
     return sec.bagKilledByModelId && sec.bagKilledByModelId === warlordModel ? beastbossPoints : unitPoints
   }
   const unitId = (sec.bagTargetUnitId as UnitId | undefined) ?? s.models[modelId]?.unitId
@@ -696,8 +716,11 @@ function stompEmPickRule(ctx: EngineContext, rule: ScoringRule, pid: PlayerId, k
 function bagPickRule(ctx: EngineContext, rule: ScoringRule, pid: PlayerId, key: string): void {
   const s = ctx.state
   const opp = otherPlayer(pid)
-  const big = Object.values(s.units).filter((u) => u.player === opp && u.location !== 'destroyed' && (keywordsOf(s, u.id).includes('MONSTER') || keywordsOf(s, u.id).includes('VEHICLE')))
-  const candidates = big.length > 0 ? big : ([s.units[s.players[opp].warlordUnitId]].filter((u): u is Unit => !!u))
+  // E2 (Mighty Saga): optional params; defaults keep Bag the Big 'Un unchanged
+  const pickKeywords = (rule.params?.pickKeywords as string[] | undefined) ?? ['MONSTER', 'VEHICLE']
+  const fallbackWarlord = (rule.params?.fallbackWarlord as boolean | undefined) ?? true
+  const big = Object.values(s.units).filter((u) => u.player === opp && u.location !== 'destroyed' && keywordsOf(s, u.id).some((k) => pickKeywords.includes(k)))
+  const candidates = big.length > 0 ? big : fallbackWarlord ? ([s.units[s.players[opp].warlordUnitId]].filter((u): u is Unit => !!u)) : []
   if (candidates.length === 0) return
   // one option per model (spec 7.1 B3); multi-model units get a "#n" label suffix
   const options = candidates.flatMap((u) => {

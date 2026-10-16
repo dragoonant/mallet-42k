@@ -180,6 +180,10 @@ const KNOWN_KIT: Record<string, KitId> = {
   'ths.ahrak-the-time-weaver': 'ths-ahrak',
   'ths.scarab-occult-terminators': 'ths-scarab-combi',
   'ths.tzaangors': 'ths-tzaangor',
+  'sw.intercessor-squad': 'sw-intercessor',
+  'sw.battle-leader-thoryk': 'sw-thoryk',
+  'sw.reiver-squad': 'sw-reiver',
+  'sw.invictor-tactical-warsuit': 'sw-invictor',
 }
 
 /** Models of a mixed unit that look different from the rest of it (a flamer sister is not a rifle sister), keyed
@@ -251,6 +255,8 @@ const KNOWN_KIT_BY_MODEL: Record<string, KitId> = {
   'adm.skitarii-rangers/arquebus': 'adm-arquebus',
   'adm.kataphron-destroyers/grav': 'adm-kataphron-grav',
   'adm.kataphron-destroyers/plasma': 'adm-kataphron-plasma',
+  'sw.intercessor-squad/sergeant': 'sw-sergeant',
+  'sw.intercessor-squad/intercessor': 'sw-intercessor',
   'tau.strike-team/shasui': 'tau-shasui',
   'tau.strike-team/fire-warrior-rifle': 'tau-fire-warrior',
   'tau.strike-team/fire-warrior-carbine': 'tau-fire-warrior',
@@ -478,6 +484,11 @@ const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
   'ths-scarab-soulreaper': 'heavy',
   'ths-scarab-hellfyre': 'heavy',
   'ths-tzaangor': 'infantry',
+  'sw-intercessor': 'infantry',
+  'sw-sergeant': 'infantry',
+  'sw-thoryk': 'infantry',
+  'sw-reiver': 'infantry',
+  'sw-invictor': 'vehicle',
   'generic-infantry': 'infantry',
   'generic-heavy': 'heavy',
   'generic-monster': 'monster',
@@ -538,6 +549,9 @@ const HEIGHT_BY_DATASHEET: Record<string, number> = {
   'adm.onager-dunecrawler': 2.6,
   'adm.kataphron-destroyers': 1.45,
   'ork.squighog-boyz': 1.7,
+  // Space Wolves: the Invictor Tactical Warsuit is a tall bipedal walker on a 90mm base.
+  'sw.invictor-tactical-warsuit': 2.4,
+  'sw.battle-leader-thoryk': 1.2,
   // Death Guard: bloated plate stands a touch taller than a regular footsoldier; Typhus is a Terminator-sized lord.
   'dg.plague-marines': 1.15,
   'dg.folgoth-grelch': 1.15,

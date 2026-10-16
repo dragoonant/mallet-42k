@@ -1,0 +1,14 @@
+[
+  {"id":"sw.w.bolt-pistol-thoryk","name":"Bolt pistol (Thoryk)","type":"ranged","range":12,"A":1,"skill":2,"S":4,"AP":0,"D":1,"abilities":[{"ability":"PISTOL"}],"figure":{"part":"sm.weapon.bolt-pistol","hands":1}},
+  {"id":"sw.w.master-crafted-bolter","name":"Master-crafted bolter","type":"ranged","range":24,"A":2,"skill":2,"S":4,"AP":-1,"D":2,"abilities":[],"figure":{"part":"sm.weapon.storm-bolter","hands":2}},
+  {"id":"sw.w.master-crafted-power-weapon","name":"Master-crafted power weapon","type":"melee","range":0,"A":5,"skill":2,"S":5,"AP":-2,"D":2,"abilities":[],"figure":{"part":"sm.weapon.power-sword","hands":1}},
+  {"id":"sw.w.bolt-rifle","name":"Bolt rifle","type":"ranged","range":24,"A":2,"skill":3,"S":4,"AP":-1,"D":1,"abilities":[{"ability":"ASSAULT"},{"ability":"HEAVY"}],"figure":{"part":"sm.weapon.storm-bolter","hands":2}},
+  {"id":"sw.w.astartes-chainsword","name":"Astartes chainsword","type":"melee","range":0,"A":5,"skill":3,"S":4,"AP":-1,"D":1,"abilities":[],"figure":{"part":"csm.weapon.astartes-chainsword","hands":1}},
+  {"id":"sw.w.special-issue-bolt-pistol","name":"Special issue bolt pistol","type":"ranged","range":12,"A":1,"skill":3,"S":4,"AP":-1,"D":1,"abilities":[{"ability":"PISTOL"},{"ability":"PRECISION"}],"figure":{"part":"sm.weapon.bolt-pistol","hands":1}},
+  {"id":"sw.w.combat-knife","name":"Combat knife","type":"melee","range":0,"A":4,"skill":3,"S":4,"AP":0,"D":1,"abilities":[{"ability":"PRECISION"}],"figure":{"part":"sm.weapon.fist","hands":1}},
+  {"id":"sw.w.fragstorm-grenade-launcher","name":"Fragstorm grenade launcher","type":"ranged","range":18,"A":"D6","skill":3,"S":4,"AP":0,"D":1,"abilities":[{"ability":"BLAST"}],"figure":{"part":"sm.weapon.storm-bolter","hands":1}},
+  {"id":"sw.w.heavy-bolter","name":"Heavy bolter","type":"ranged","range":36,"A":3,"skill":3,"S":5,"AP":-1,"D":2,"abilities":[{"ability":"SUSTAINED_HITS","value":1}],"figure":{"part":"csm.weapon.heavy-bolter","hands":2}},
+  {"id":"sw.w.twin-ironhail-autocannon","name":"Twin ironhail autocannon","type":"ranged","range":48,"A":3,"skill":3,"S":9,"AP":-1,"D":3,"abilities":[{"ability":"TWIN_LINKED"}],"figure":{"part":"sm.weapon.assault-cannon","hands":2}},
+  {"id":"sw.w.twin-ironhail-heavy-stubber","name":"Twin ironhail heavy stubber","type":"ranged","range":36,"A":3,"skill":3,"S":4,"AP":0,"D":1,"abilities":[{"ability":"RAPID_FIRE","value":3},{"ability":"TWIN_LINKED"}],"figure":{"part":"sm.weapon.storm-bolter","hands":2}},
+  {"id":"sw.w.invictor-fist","name":"Invictor fist","type":"melee","range":0,"A":5,"skill":3,"S":14,"AP":-2,"D":3,"abilities":[],"figure":{"part":"sm.weapon.power-fist","hands":2}}
+]

@@ -1,0 +1,41 @@
+[
+  {
+    "id": "sw.intercessor-squad",
+    "faction": "space-wolves",
+    "factionKeywords": ["ADEPTUS ASTARTES", "SPACE WOLVES"],
+    "name": "Intercessor Squad",
+    "keywords": ["INFANTRY", "BATTLELINE", "IMPERIUM", "TACTICUS", "INTERCESSOR SQUAD"],
+    "stats": { "M": 6, "T": 4, "Sv": 3, "W": 2, "Ld": 6, "OC": 2 },
+    "composition": [
+      {
+        "modelId": "sergeant",
+        "name": "Intercessor Sergeant",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "champion": true,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": {
+          "default": ["sm.w.bolt-pistol", "sw.w.astartes-chainsword"]
+        },
+        "figure": { "archetype": "infantry", "kit": "sm-tacticus" }
+      },
+      {
+        "modelId": "intercessor",
+        "name": "Intercessor",
+        "min": 9,
+        "max": 9,
+        "default": 9,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": {
+          "default": ["sw.w.bolt-rifle", "sm.w.bolt-pistol", "sm.w.close-combat-weapon"]
+        },
+        "figure": { "archetype": "infantry", "kit": "sm-tacticus" }
+      }
+    ],
+    "abilities": ["sm.a.oath-of-moment", "sm.a.patrol-squads"],
+    "coreAbilities": [],
+    "points": [{ "models": 10, "points": 0 }],
+    "figure": { "archetype": "infantry", "kit": "sm-tacticus" }
+  }
+]

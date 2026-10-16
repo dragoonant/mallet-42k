@@ -1,0 +1,23 @@
+{
+  "id": "space-wolves",
+  "name": "Space Wolves",
+  "factionKeyword": "ADEPTUS ASTARTES",
+  "armyRule": "sm.a.oath-of-moment",
+  "detachments": [
+    {
+      "id": "sw.d.thoryks-void-hunters",
+      "name": "Thoryk's Void Hunters",
+      "rule": "sm.a.oath-of-moment",
+      "stratagems": ["sw.s.a-warriors-death", "sw.s.keen-senses", "sw.s.pack-ambush"],
+      "enhancements": ["sw.e.tireless-hunter", "sw.e.ferocious"]
+    }
+  ],
+  "paintScheme": {
+    "primary": "#6b7f93",
+    "secondary": "#d9b13b",
+    "trim": "#a8322a",
+    "metal": "#8a8f98",
+    "decal": "#e8e2d0"
+  },
+  "combatPatrols": ["sw.cp.thoryks-void-hunters"]
+}

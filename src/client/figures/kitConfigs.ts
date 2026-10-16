@@ -132,6 +132,11 @@ export const BODY_KIND: Record<KitId, 'biped' | 'vehicle' | 'swarm' | 'artillery
   'ths-scarab-soulreaper': 'biped',
   'ths-scarab-hellfyre': 'biped',
   'ths-tzaangor': 'biped',
+  'sw-intercessor': 'biped',
+  'sw-sergeant': 'biped',
+  'sw-thoryk': 'biped',
+  'sw-reiver': 'biped',
+  'sw-invictor': 'biped',
   'generic-infantry': 'biped',
   'generic-heavy': 'biped',
   'generic-monster': 'biped',
@@ -1616,4 +1621,28 @@ export const VEHICLE_CONFIG: Partial<Record<KitId, VehicleConfig>> = {
   'ael-windrider-catapult': { weapon: 'twin-catapult', hasRotor: false, style: 'jetbike' },
   'ael-windrider-scatter': { weapon: 'scatter-laser', hasRotor: false, style: 'jetbike' },
   'ael-platform': { weapon: 'starcannon', hasRotor: false, style: 'platform' },
+}
+
+// Space Wolves (Thoryk's Void Hunters). The grey-and-gold look comes entirely from the faction paintScheme; the silhouettes differ
+// from the Ultramarine-style kit by a heavier build and a pelt-cloak on the Battle Leader. Reivers are lean, bare-backed knife
+// fighters; the Invictor is a tall walker (the Sentinel cab on a heavy frame) with a cannon arm and a power fist.
+BIPED_CONFIG['sw-intercessor'] = {
+  headShape: 'marine-helmet', rightWeapon: 'bolt-rifle', leftWeapon: 'none', bulk: 1.08, hasBackpack: true,
+  shoulderPads: 'small', hasCape: false, skin: 'none',
+}
+BIPED_CONFIG['sw-sergeant'] = {
+  headShape: 'marine-helmet', rightWeapon: 'power-sword', leftWeapon: 'slugga', bulk: 1.12, hasBackpack: true,
+  shoulderPads: 'large', hasCape: true, capeColor: 'secondary', skin: 'none',
+}
+BIPED_CONFIG['sw-thoryk'] = {
+  headShape: 'marine-helmet', rightWeapon: 'bolt-rifle', leftWeapon: 'power-sword', bulk: 1.3, hasBackpack: true,
+  shoulderPads: 'large', hasCape: true, capeColor: 'secondary', skin: 'none', chestPlate: true,
+}
+BIPED_CONFIG['sw-reiver'] = {
+  headShape: 'marine-helmet', rightWeapon: 'rusty-blade', leftWeapon: 'slugga', bulk: 0.95, hasBackpack: false,
+  shoulderPads: 'small', hasCape: false, skin: 'none', hunch: 0.12,
+}
+BIPED_CONFIG['sw-invictor'] = {
+  headShape: 'sentinel-cab', rightWeapon: 'burst-cannon', leftWeapon: 'power-fist', bulk: 2.0, hasBackpack: true,
+  shoulderPads: 'large', hasCape: false, skin: 'none', limbColor: 'metal',
 }

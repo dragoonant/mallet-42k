@@ -119,7 +119,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
     const avgD = shooter && state.weapons[shooter.weaponId] ? diceExprMean(state.weapons[shooter.weaponId].D) : 1
     if (avgD <= 1) return -Infinity
     withIt = without * ((avgD - 1) / avgD)
-  } else if (id.endsWith('a-martyrs-death')) {
+  } else if (id.endsWith('a-martyrs-death') || id.endsWith('a-warriors-death')) {
     return dyingStrikeValue(state, mineId, attackerId, melee, 0.5)
   } else if (id.endsWith('manifest-hate')) {
     withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, invuln: 4 }) // Chaos Daemons: 4+ invulnerable save for the phase
@@ -132,7 +132,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
 }
 
 const DEFENSIVE = ['skeinwrought-physiology', 'go-to-ground', 'smokescreen', 'gene-wrought-resilience', 'tough-as-squig-hide', 'holy-radiance', 'hyper-reactive',
-  'mercurial-resilience', 'reactive-field-shroud', 'a-martyrs-death', 'daemonic-fervour', 'blood-maddened-banishment', 'manifest-hate', 'lurking-killers', 'lives-before-territory', 'quicksilver-reactions', 'whip-fast-reactions', 'evaluation-of-mettle', 'disgustingly-resilient', 'mutant-cunning']
+  'mercurial-resilience', 'reactive-field-shroud', 'a-martyrs-death', 'a-warriors-death', 'daemonic-fervour', 'blood-maddened-banishment', 'manifest-hate', 'lurking-killers', 'lives-before-territory', 'quicksilver-reactions', 'whip-fast-reactions', 'evaluation-of-mettle', 'disgustingly-resilient', 'mutant-cunning']
 
 // Fire Overwatch: hits only on an unmodified 6, the bound unit only (picked within 24"), each weapon within its own range, with line of sight.
 function overwatchGain(state: GameState, player: PlayerId, action: UseStratagemAction, enemyId: UnitId): number {
@@ -486,14 +486,16 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
   // Morgrim's Butchas Bestial Bellow: forced Battle-shock test at -1 on a nearby enemy unit - worth P(fail) times what the
   // shock costs it (OC lost on objectives it is holding, plus a small share of its value).
   // World Eaters Overwhelming Onslaught (target 1 = the charger, target 2 = the enemy unit): the same -1 Battle-shock test as Bestial Bellow.
-  if (id.endsWith('bestial-bellow') || id.endsWith('overwhelming-onslaught')) {
-    const enemyId = id.endsWith('overwhelming-onslaught') ? targets.unitIds?.[1] : targets.unitIds?.[0]
+  // Space Wolves Pack Ambush (target 1 = the Reiver Squad, target 2 = the enemy unit): the same test at -2
+  if (id.endsWith('bestial-bellow') || id.endsWith('overwhelming-onslaught') || id.endsWith('pack-ambush')) {
+    const enemyId = id.endsWith('overwhelming-onslaught') || id.endsWith('pack-ambush') ? targets.unitIds?.[1] : targets.unitIds?.[0]
+    const shockMod = id.endsWith('pack-ambush') ? 2 : 1
     const enemy = enemyId ? state.units[enemyId] : undefined
     if (!enemyId || !enemy || enemy.player === player || enemy.battleShocked) return -Infinity
     const models = unitModels(state, enemyId)
     if (models.length === 0) return -Infinity
     const ld = Math.min(...models.map((m) => modelStats(state, m).Ld))
-    const pFail = 1 - chargeProb(ld + 1) // 2D6 - 1 must reach Leadership
+    const pFail = 1 - chargeProb(ld + shockMod) // 2D6 - shockMod must reach Leadership
     if (pFail < 0.05) return -Infinity
     let objValue = 0
     for (const o of Object.values(state.objectives)) {
@@ -501,6 +503,23 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
       objValue += objectiveScoreWeight(state, player, o.id)
     }
     return pFail * (objValue * 1.5 + unitValue(state, enemyId) * 0.02)
+  }
+  // Space Wolves Keen Senses: the unit's ranged weapons ignore cover, and re-roll Hit rolls of 1 against a CHARACTER unit (about a sixth
+  // more hits). Worth the best target in reach: the cover swing on an enemy in cover, or the re-roll on a CHARACTER.
+  if (id.endsWith('keen-senses')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId || !hasAnyRangedWeapon(state, unitId)) return -Infinity
+    const range = bestRangedRangeOfUnit(state, unitId) ?? 0
+    let best = 0
+    for (const e of boardUnitsOf(state, other(player))) {
+      if (minGapBetweenUnits(state, unitId, e.id) > range) continue
+      const plain = unitRangedDamage(state, unitId, e.id, {})
+      let gain = 0
+      if (alreadyInCover(state, e.id, unitId)) gain += plain - unitRangedDamage(state, unitId, e.id, { cover: true })
+      if (hasKeyword(state, e.id, 'CHARACTER')) gain += plain / 6
+      best = Math.max(best, gain * unitValue(state, e.id) * 0.03)
+    }
+    return best > 0.2 ? best : -Infinity
   }
   // World Eaters Rage Unchecked: Sustained Hits 1 on every weapon of a below-half-strength BERZERKERS unit that has not acted yet; a
   // critical hit (1 in 6) adds one hit, so it is worth about a sixth of the unit's damage into the best target in reach.

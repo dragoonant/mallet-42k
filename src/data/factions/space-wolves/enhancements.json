@@ -1,0 +1,36 @@
+[
+  {
+    "id": "sw.e.tireless-hunter",
+    "faction": "space-wolves",
+    "name": "Tireless Hunter",
+    "text": "When the first battle round begins, name one enemy unit, on the battlefield or in Reserves. For the rest of the battle, every attack the bearer itself makes against that unit, ranged or melee, adds 1 to its Wound roll. Other models in the bearer's unit get nothing.",
+    "cost": 0,
+    "restriction": { "keyword": ["BATTLE LEADER"] },
+    "effect": {
+      "id": "sw.e.tireless-hunter.effect",
+      "name": "Tireless Hunter",
+      "text": "The bearer's own attacks against the unit named at the start of round 1 add 1 to the Wound roll.",
+      "trigger": "woundRoll",
+      "effect": { "modifyRoll": { "roll": "wound", "value": 1 } },
+      "scope": { "who": "bearer" },
+      "code": "tirelessHunter"
+    }
+  },
+  {
+    "id": "sw.e.ferocious",
+    "faction": "space-wolves",
+    "name": "Ferocious",
+    "text": "The Heroic Intervention stratagem costs 0 CP when used on the bearer's unit, an attached unit included, and may be used on that unit even if it was already used on another unit this phase.",
+    "cost": 0,
+    "restriction": { "keyword": ["BATTLE LEADER"] },
+    "effect": {
+      "id": "sw.e.ferocious.effect",
+      "name": "Ferocious",
+      "text": "Heroic Intervention is free for the bearer's unit and ignores the once-per-phase limit.",
+      "trigger": "always",
+      "scope": { "who": "bearer" },
+      "code": "stratagemCostOverride",
+      "params": { "stratagemId": "core.s.heroic-intervention", "cost": 0, "ignoreLimit": true }
+    }
+  }
+]

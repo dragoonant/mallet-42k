@@ -1,0 +1,28 @@
+[
+  {
+    "id": "sw.reiver-squad",
+    "faction": "space-wolves",
+    "factionKeywords": ["ADEPTUS ASTARTES", "SPACE WOLVES"],
+    "name": "Reiver Squad",
+    "keywords": ["INFANTRY", "SMOKE", "IMPERIUM", "PHOBOS", "REIVER SQUAD"],
+    "stats": { "M": 6, "T": 4, "Sv": 3, "W": 2, "Ld": 6, "OC": 1 },
+    "composition": [
+      {
+        "modelId": "reiver",
+        "name": "Reiver",
+        "min": 5,
+        "max": 5,
+        "default": 5,
+        "base": { "shape": "round", "mm": 32 },
+        "weapons": {
+          "default": ["sw.w.special-issue-bolt-pistol", "sw.w.combat-knife"]
+        },
+        "figure": { "archetype": "infantry", "kit": "sm-tacticus" }
+      }
+    ],
+    "abilities": ["sm.a.oath-of-moment", "sw.a.fearsome-assault"],
+    "coreAbilities": [{ "ability": "DEEP_STRIKE" }, { "ability": "SCOUTS", "value": 6 }],
+    "points": [{ "models": 5, "points": 0 }],
+    "figure": { "archetype": "infantry", "kit": "sm-tacticus" }
+  }
+]

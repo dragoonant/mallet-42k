@@ -129,6 +129,7 @@ function costOverridesFor(state: GameState, player: PlayerId, s: RuntimeStratage
       for (const a of Object.values(state.abilities)) {
         if (a.source !== 'enhancement' || a.code !== 'stratagemCostOverride' || a.params?.stratagemId !== s.id || !a.bearerModelId) continue
         if (!state.units[half]?.models.includes(a.bearerModelId)) continue
+        if ((state.models[a.bearerModelId]?.woundsRemaining ?? 0) <= 0) continue // a destroyed bearer no longer grants it (SPA-3.2)
         out.push({ cost: Number(a.params.cost ?? s.cost), ignoreLimit: a.params.ignoreLimit === true })
       }
     }

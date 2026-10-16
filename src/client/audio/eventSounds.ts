@@ -68,6 +68,14 @@ export interface SoundLookup {
 const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ...SFX_IDS.filter((id) => id.startsWith('wpn-')).map((id) => [id.slice(4), id] as const),
   ['chainsword', 'melee-chainsword'] as const,
+  // Thoryk's Void Hunters: bolt rifles and master-crafted bolters crack like boltguns, the combat knife is a plain close-combat strike,
+  // the power weapon rings, the Invictor's fist crunches, its autocannon borrows the assault cannon and its stubber the heavy bolter.
+  ['bolt-rifle', 'wpn-boltgun'] as const,
+  ['master-crafted-bolter', 'wpn-boltgun'] as const,
+  ['combat-knife', 'wpn-close-combat-weapon'] as const,
+  ['invictor-fist', 'wpn-power-fist'] as const,
+  ['twin-ironhail-autocannon', 'wpn-assault-cannon'] as const,
+  ['twin-ironhail-heavy-stubber', 'wpn-heavy-bolter'] as const,
   // Strike Team Solarien: carbines crack like boltguns, the autocannon borrows the assault cannon, paired blades ring like power weapons.
   ['bolt-carbine', 'wpn-boltgun'] as const,
   ['accelerator-autocannon', 'wpn-assault-cannon'] as const,
@@ -363,6 +371,8 @@ const DEATH_SOUND: Record<string, SfxId> = {
   'thousand-sons': 'death-chaos-space-marines',
   // Banished daemons howl away in the same guttural voice as the Chaos Space Marines.
   'chaos-daemons': 'death-chaos-space-marines',
+  // Space Wolves fall with the same armoured-warrior cry as the Ultramarines-style Marines.
+  'space-wolves': 'death-space-marines',
 }
 
 /** Measured decoded RMS runs 0.05-0.40 across these; the loud three are pulled back toward ~0.15. */

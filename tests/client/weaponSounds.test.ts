@@ -33,7 +33,7 @@ const WE = 'world-eaters'
 const CDM = 'chaos-daemons'
 
 /** The engine faction id a weapon's own id prefix belongs to. */
-const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : id.startsWith('lov.') ? LOV : id.startsWith('drk.') ? DRK : id.startsWith('ael.') ? 'aeldari' : id.startsWith('adm.') ? ADM : id.startsWith('dg.') ? 'death-guard' : id.startsWith('we.') ? WE : id.startsWith('ths.') ? 'thousand-sons' : id.startsWith('cdm.') ? CDM : SM)
+const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : id.startsWith('lov.') ? LOV : id.startsWith('drk.') ? DRK : id.startsWith('ael.') ? 'aeldari' : id.startsWith('adm.') ? ADM : id.startsWith('dg.') ? 'death-guard' : id.startsWith('we.') ? WE : id.startsWith('ths.') ? 'thousand-sons' : id.startsWith('cdm.') ? CDM : id.startsWith('sw.') ? 'space-wolves' : SM)
 function lookupFor(faction: string): SoundLookup {
   return { weapon: (id) => bundle.weapons[id], factionOfUnit: () => faction }
 }
@@ -424,9 +424,27 @@ const WE_FLAVOUR: Record<string, WeaponFlavour> = {
 }
 const weWeapons = Object.entries(bundle.weapons).filter(([id]) => id.startsWith('we.'))
 
+// Space Wolves (Thoryk's Void Hunters) weapons, classified by weapon id.
+const SW = 'space-wolves'
+const SW_FLAVOUR: Record<string, WeaponFlavour> = {
+  'sw.w.bolt-pistol-thoryk': 'bolter',
+  'sw.w.master-crafted-bolter': 'bolter',
+  'sw.w.master-crafted-power-weapon': 'chain',
+  'sw.w.bolt-rifle': 'bolter',
+  'sw.w.astartes-chainsword': 'chain',
+  'sw.w.special-issue-bolt-pistol': 'bolter',
+  'sw.w.combat-knife': 'chain',
+  'sw.w.fragstorm-grenade-launcher': 'heavy',
+  'sw.w.heavy-bolter': 'heavy',
+  'sw.w.twin-ironhail-autocannon': 'heavy',
+  'sw.w.twin-ironhail-heavy-stubber': 'bolter',
+  'sw.w.invictor-fist': 'crush',
+}
+const swWeapons = Object.entries(bundle.weapons).filter(([id]) => id.startsWith('sw.'))
+
 describe('weapon flavour', () => {
   it('covers every weapon in the data bundle (a new weapon has to be classified here)', () => {
-    const known = Object.keys(EXPECTED).concat(adeWeapons.map(([id]) => id), drkWeapons.map(([id]) => id), weWeapons.map(([id]) => id))
+    const known = Object.keys(EXPECTED).concat(adeWeapons.map(([id]) => id), drkWeapons.map(([id]) => id), weWeapons.map(([id]) => id), swWeapons.map(([id]) => id))
     expect(known.sort()).toEqual(Object.keys(bundle.weapons).sort())
   })
 
@@ -456,6 +474,18 @@ describe('weapon flavour', () => {
       expect(WE_FLAVOUR[id], `${id} (${weapon.name}) needs an entry in WE_FLAVOUR`).toBeDefined()
       expect(weaponFlavour(id, weapon, WE), id).toBe(WE_FLAVOUR[id])
     }
+  })
+
+  it('every space-wolves weapon is classified, by id, and voiced by the matching sound', () => {
+    expect(swWeapons.length).toBeGreaterThan(0)
+    for (const [id, weapon] of swWeapons) {
+      expect(SW_FLAVOUR[id], `${id} (${weapon.name}) needs an entry in SW_FLAVOUR`).toBeDefined()
+      expect(weaponFlavour(id, weapon, SW), id).toBe(SW_FLAVOUR[id])
+    }
+    expect(soundIds(declared(['sw.w.bolt-rifle']), SW)).toEqual(['wpn-boltgun'])
+    expect(soundIds(declared(['sw.w.heavy-bolter']), SW)).toEqual(['wpn-heavy-bolter'])
+    expect(soundIds(declared(['sw.w.astartes-chainsword'], 'fight'), SW)).toEqual(['melee-chainsword'])
+    expect(soundIds(declared(['sw.w.invictor-fist'], 'fight'), SW)).toEqual(['wpn-power-fist'])
   })
 
   it('world-eaters melee weapons sound as chain blades, bludgeons and a relic blade', () => {

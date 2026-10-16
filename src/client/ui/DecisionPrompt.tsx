@@ -221,6 +221,13 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
     },
   },
   {
+    match: /tireless-?hunter/i,
+    info: {
+      title: 'Tireless Hunter: name your quarry',
+      hint: "Pick one enemy unit, on the battlefield or still in Reserves. For the rest of the battle, every attack your Battle Leader makes against that unit, shooting or melee, adds 1 to the wound roll. Other models in his unit get no bonus, so name the unit he is most likely to face.",
+    },
+  },
+  {
     match: /omnissiahs?-?blessing/i,
     info: {
       title: "Omnissiah's Blessing: mend a model?",
@@ -590,9 +597,16 @@ function chooseOptionInfoFor(
       hint: `The unit finishes its move beside a friendly transport. Climbing aboard takes it off the battlefield (it can disembark in a later Movement phase); staying keeps it on the board where it is.${pair ? ' The attached Leader travels with its bodyguard, so both embark together and count against the capacity of the transport.' : ''}`,
     }
   }
+  // Mighty Saga (Space Wolves) reuses the Bag the Big 'Un pick, but names a Character, Monster or Vehicle and pays on the whole unit.
+  if (context.topic === 'bagTarget' && state && player && state.players[player as PlayerId]?.faction === 'space-wolves') {
+    return {
+      title: 'Pick a Mighty Saga quarry',
+      hint: "Name an enemy Character, Monster or Vehicle model now. At the end of the battle you score 8 VP if that model was destroyed, or 12 VP if its whole unit was destroyed by your Battle Leader's own attacks.",
+    }
+  }
   const choice = context.data && typeof context.data.choice === 'string' ? CHOICE_PROMPT_KEYS[context.data.choice] : undefined
   // Both Cult Ambush steps (marker, return) carry the code; the return step has no ability id.
-  const key = context.data?.code === 'toilEarnsPick' ? 'toil-earns-pick' : context.data?.code === 'holyApparatusPick' ? 'holy-apparatus-pick' : context.data?.code === 'cultAmbush' ? 'cult-ambush' : context.data?.code === 'etherealEdictPick' ? 'ethereal-edict' : context.data?.code === 'divineJudgementPick' ? 'divine-judgement' : context.data?.code === 'targetedPurgePick' ? 'targeted-purge' : context.data?.code === 'doctrinaImperatives' ? 'doctrina' : context.data?.code === 'blessingsOfKhorne' ? 'blessings-of-khorne' : context.data?.code === 'lineBreakers' ? 'line-breakers' : context.abilityId ?? choice ?? null
+  const key = context.data?.code === 'toilEarnsPick' ? 'toil-earns-pick' : context.data?.code === 'holyApparatusPick' ? 'holy-apparatus-pick' : context.data?.code === 'cultAmbush' ? 'cult-ambush' : context.data?.code === 'etherealEdictPick' ? 'ethereal-edict' : context.data?.code === 'divineJudgementPick' ? 'divine-judgement' : context.data?.code === 'targetedPurgePick' ? 'targeted-purge' : context.data?.code === 'doctrinaImperatives' ? 'doctrina' : context.data?.code === 'blessingsOfKhorne' ? 'blessings-of-khorne' : context.data?.code === 'lineBreakers' ? 'line-breakers' : context.data?.code === 'tirelessHunter' ? 'tireless-hunter' : context.abilityId ?? choice ?? null
   if (choice === 'patrol-squads' && Array.isArray(context.data?.sizes)) {
     const sizes = (context.data.sizes as number[]).filter((n) => typeof n === 'number')
     if (sizes.length > 0) {
