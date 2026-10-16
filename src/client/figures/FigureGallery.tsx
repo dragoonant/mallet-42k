@@ -115,6 +115,20 @@ const GALLERY_ENTRIES: GalleryEntry[] = [
   { datasheetId: 'gsc.hybrid-metamorphs', modelId: 'mutant', faction: 'genestealer-cults', label: 'Hybrid Metamorph' },
   { datasheetId: 'gsc.atalan-jackals', modelId: 'rider', faction: 'genestealer-cults', label: 'Atalan Jackal' },
   { datasheetId: 'gsc.achilles-ridgerunner', modelId: 'ridgerunner', faction: 'genestealer-cults', label: 'Achilles Ridgerunner' },
+  { datasheetId: 'sm.lieutenant-solarien', modelId: 'solarien', faction: 'sm', label: "Lieutenant Solarien" },
+  { datasheetId: 'sm.librarian-xarius', modelId: 'xarius', faction: 'sm', label: "Librarian Xarius" },
+  { datasheetId: 'sm.infiltrator-squad', modelId: 'infiltrator', faction: 'sm', label: "Infiltrator" },
+  { datasheetId: 'sm.suppressor-squad', modelId: 'suppressor', faction: 'sm', label: "Suppressor" },
+  { datasheetId: 'csm.ghallaron-the-pious', modelId: 'ghallaron', faction: 'chaos-space-marines', label: "Ghallaron the Pious" },
+  { datasheetId: 'csm.ghallaron-the-pious', modelId: 'disciple', faction: 'chaos-space-marines', label: "Dark Disciple" },
+  { datasheetId: 'csm.legionaries-dz', modelId: 'chainsword', faction: 'chaos-space-marines', label: "Legionary (chainsword)" },
+  { datasheetId: 'csm.legionaries-dz', modelId: 'icon', faction: 'chaos-space-marines', label: "Legionary (icon)" },
+  { datasheetId: 'csm.havocs', modelId: 'champion', faction: 'chaos-space-marines', label: "Havoc Champion" },
+  { datasheetId: 'csm.havocs', modelId: 'heavy-bolter', faction: 'chaos-space-marines', label: "Havoc (heavy bolter)" },
+  { datasheetId: 'csm.havocs', modelId: 'lascannon', faction: 'chaos-space-marines', label: "Havoc (lascannon)" },
+  { datasheetId: 'csm.havocs', modelId: 'missile-launcher', faction: 'chaos-space-marines', label: "Havoc (missile launcher)" },
+  { datasheetId: 'csm.havocs', modelId: 'reaper-chaincannon', faction: 'chaos-space-marines', label: "Havoc (reaper chaincannon)" },
+  { datasheetId: 'csm.helbrute', modelId: 'helbrute', faction: 'chaos-space-marines', label: "Helbrute" },
 ]
 
 // Figures are true tabletop-miniature scale (~1-2 world-inches tall — see resolveBase), so packing
