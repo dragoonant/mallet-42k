@@ -52,6 +52,7 @@ const FACTION_COLOR: Record<string, string> = {
   'tau-empire': '#4fc3e8',
   'genestealer-cults': '#b36be0',
   'adeptus-custodes': '#f3d77a',
+  'leagues-of-votann': '#59c8ff',
 }
 
 const NEUTRAL_MELEE_COLOR = '#e8e8f0'

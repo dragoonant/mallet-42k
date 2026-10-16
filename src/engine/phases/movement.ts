@@ -22,7 +22,7 @@
 // Transports (R-5.17–R-5.20): no Combat Patrol datasheet has one, so embark/disembark are implemented in
 // transports.ts as bookkeeping + legality predicates only — not wired into an interactive decision here. See issues.
 import { centroid, filterValid, formationPlacements, optionActions, repairCoherency, translatePlacements, unitVector } from './legal'
-import { battlefieldEdgeStrip, dist2D } from '../geometry'
+import { battlefieldEdgeStrip, dist2D, playerBattlefieldEdge } from '../geometry'
 import { rollSum } from '../dice'
 import {
   EPS, anyWithinEngagementRange, checkPlacements, emptyMoveConstraints, horizontalGap, isCoherent,
@@ -43,8 +43,8 @@ import { phantomsOverwatchArm, phantomsOverwatchStep } from '../factions/tyranid
 import { isBigGunsUnit, targetLegality } from './shooting'
 import { weaponService } from '../weapons'
 import { terrainService } from '../terrain'
-import { transportService } from '../transports'
-import { clearTeleport, destroyTeleportingUnit, isTeleporting } from '../teleport'
+import { markNoCharge, transportService } from '../transports'
+import { clearTeleport, destroyTeleportingUnit, isTeleporting, teleportArrivalOpts } from '../teleport'
 import { notImplementedHandle, otherPlayer, type AdvanceResult, type EngineContext, type PhaseModule } from '../modules'
 import {
   boardModelsOf, boardUnitsOf, datasheetOf, deploymentZone, enemyModelsOnBoard, hasKeyword, keywordsOf, modelStats, removeModel,
@@ -582,6 +582,29 @@ export function strategicReservesConstraints(state: GameState, player: PlayerId)
   return emptyMoveConstraints(9999, { region: boardPolygon(state), forbidden, minDistanceFromEnemies: 9, coherency: false })
 }
 
+// Leagues of Votann Outflanking Mag-Riders (LEA-6.3): wholly within 6" of a battlefield edge other than the opponent's,
+// more than minEnemyGap from every enemy. Forbidden = the board inset 6" on every side, plus the 6"-deep strip along the
+// opponent's edge less its two 6" corner squares (those corners are within 6" of an edge that is not the opponent's).
+export function magRidersArrivalConstraints(state: GameState, player: PlayerId, minEnemyGap: number): MoveConstraints {
+  const hw = state.board.w / 2, hh = state.board.h / 2, d = 6
+  const inner: Polygon = [{ x: -hw + d, z: -hh + d }, { x: hw - d, z: -hh + d }, { x: hw - d, z: hh - d }, { x: -hw + d, z: hh - d }]
+  const rect = (x0: number, x1: number, z0: number, z1: number): Polygon => [{ x: x0, z: z0 }, { x: x1, z: z0 }, { x: x1, z: z1 }, { x: x0, z: z1 }]
+  const edge = playerBattlefieldEdge(state.board, deploymentZone(state, otherPlayer(player)))
+  const strip = edge === 'L' ? rect(-hw, -hw + d, -hh + d, hh - d)
+    : edge === 'R' ? rect(hw - d, hw, -hh + d, hh - d)
+      : edge === 'T' ? rect(-hw + d, hw - d, -hh, -hh + d)
+        : rect(-hw + d, hw - d, hh - d, hh)
+  return emptyMoveConstraints(9999, { region: boardPolygon(state), forbidden: [inner, strip], minDistanceFromEnemies: minEnemyGap, coherency: false })
+}
+
+// the constraints for a teleporting unit's arrival, from the rules recorded when it was removed
+function teleportArrivalConstraints(state: GameState, player: PlayerId, unitId: UnitId): MoveConstraints {
+  const o = teleportArrivalOpts(state, unitId)
+  return o.region === 'edgeNotOpponent'
+    ? magRidersArrivalConstraints(state, player, o.minEnemyGap)
+    : emptyMoveConstraints(9999, { minDistanceFromEnemies: o.minEnemyGap, coherency: false })
+}
+
 function eligibleArrivals(state: GameState, player: PlayerId): UnitId[] {
   const seen = new Set<UnitId>()
   const out: UnitId[] = []
@@ -695,7 +718,9 @@ function resolveArrival(state: GameState, groupIds: UnitId[], placements: ModelP
       ? emptyMoveConstraints(9999, { region: nextWaveZone(state, player), mustEndOutsideEngagement: true, coherency: false })
       : via === 'cultAmbush'
         ? cultAmbushArrivalConstraints(state, arrivalMarker(state), groupIds[0])
-        : emptyMoveConstraints(9999, { minDistanceFromEnemies: 9, coherency: false })
+        : via === 'teleportAssault'
+          ? teleportArrivalConstraints(state, player, groupIds[0])
+          : emptyMoveConstraints(9999, { minDistanceFromEnemies: 9, coherency: false })
   const result = checkPlacements({ unitModels: models, placements, constraints, otherFriendly, enemies, board: state.board })
   if (result.rejection) return result
   // E2 Omni-scramblers: no arrival model within the zone distance of a source unit's models (all arrival routes)
@@ -816,7 +841,7 @@ function raiseArrivalDecision(ctx: EngineContext, unitId: UnitId, player: Player
   ctx.decide({
     kind: 'deployUnit', player, window: 'movement.reinforcements', canPass: false,
     context: { unitIds: groupIds, zone: boardPolygon(s), infiltrators: [], reservesAllowed: groupIds },
-    constraints: withReserveExclusion(s, player, via === 'strategicReserves' ? strategicReservesConstraints(s, player) : emptyMoveConstraints(9999, { minDistanceFromEnemies: 9, coherency: false })),
+    constraints: withReserveExclusion(s, player, via === 'strategicReserves' ? strategicReservesConstraints(s, player) : via === 'teleportAssault' ? teleportArrivalConstraints(s, player, unitId) : emptyMoveConstraints(9999, { minDistanceFromEnemies: 9, coherency: false })),
   })
 }
 
@@ -1448,6 +1473,7 @@ export const movementModule: PhaseModule = {
       }
       const result = resolveArrival(s, groupIds, action.placements, via)
       if (result.rejection) throw new EngineInvariantError('movement: stored arrival placements failed re-validation', { rejection: result.rejection })
+      const tpOpts = via === 'teleportAssault' ? teleportArrivalOpts(s, groupIds[0]) : null // read before clearTeleport drops the record
       for (const r of result.resolved) setModelPos(s.models[r.model.id], r.to, r.facing)
       for (const uid of groupIds) {
         const u = s.units[uid]
@@ -1457,7 +1483,8 @@ export const movementModule: PhaseModule = {
           s.units[id].turn.arrivedThisTurn = true
         }
         // GEN-2.3: a Cult Ambush return is set up "using Deep Strike", so the event says so (no events.ts change)
-        ctx.emit({ type: 'ReinforcementsArrived', unitId: uid, via: via === 'cultAmbush' ? 'deepStrike' : via, player: u.player })
+        ctx.emit({ type: 'ReinforcementsArrived', unitId: uid, via: via === 'cultAmbush' ? 'deepStrike' : via === 'teleportAssault' ? (tpOpts?.eventVia ?? 'teleportAssault') : via, player: u.player })
+        if (tpOpts?.forbidChargeOnArrival) for (const id of leaderService.halves(s, uid)) markNoCharge(s, id)
         if (via === 'teleportAssault') clearTeleport(s, uid)
       }
       // GEN-2.2: reinforcements count as a move, so an arrival within 9" of an enemy Cult Ambush marker removes it

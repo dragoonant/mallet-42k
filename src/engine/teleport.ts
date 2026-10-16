@@ -6,7 +6,15 @@ import { removeModel } from './state'
 import { EngineInvariantError, type GameState, type PlayerId, type UnitId } from './types'
 import type { EngineContext } from './modules'
 
-export interface TeleportRecord { unitId: UnitId; removedRound: number; removedInTurnOf: PlayerId; source: string }
+// How a removed unit comes back (Deathwatch E1 + Leagues of Votann E2). Absent on a record = the Grey Knights defaults.
+export interface TeleportArrivalOpts {
+  minEnemyGap: number                                       // arrive more than this far from every enemy model
+  forbidChargeOnArrival: boolean                            // the unit may not declare a charge in the turn it arrives
+  region?: 'anywhere' | 'edgeNotOpponent'                   // absent = 'anywhere' (Deep Strike geometry)
+  eventVia?: 'teleportAssault' | 'strategicReserves'        // ReinforcementsArrived.via to emit; absent = 'teleportAssault'
+}
+export const DEFAULT_TELEPORT_ARRIVAL: TeleportArrivalOpts = { minEnemyGap: 9, forbidChargeOnArrival: false }
+export interface TeleportRecord { unitId: UnitId; removedRound: number; removedInTurnOf: PlayerId; source: string; arrival?: TeleportArrivalOpts }
 export interface TeleportAssaultState {
   pending: TeleportRecord[]                                         // canonical unit ids currently off-board via Teleport Assault
   fervour: { unitId: UnitId; round: number; turn: PlayerId } | null // Daemonic Fervour grant, valid only for that round+turn
@@ -59,7 +67,7 @@ export function isTeleporting(state: GameState, unitId: UnitId): boolean {
 
 // canonical unit: every half goes to Reserves (attachment kept), a record is pushed and UnitRemovedFromBattlefield is
 // emitted once with the canonical id. Throws EngineInvariantError if the unit is not on the board.
-export function removeUnitToReserves(ctx: EngineContext, unitId: UnitId, source: string): void {
+export function removeUnitToReserves(ctx: EngineContext, unitId: UnitId, source: string, opts?: TeleportArrivalOpts): void {
   const s = ctx.state
   const id = canonical(s, unitId)
   const unit = s.units[id]
@@ -71,8 +79,17 @@ export function removeUnitToReserves(ctx: EngineContext, unitId: UnitId, source:
     for (const o of live) { if (s.units[o].bodyguardUnitId === h) s.units[o].bodyguardUnitId = null; if (s.units[o].attachedLeaderId === h) s.units[o].attachedLeaderId = null }
   }
   for (const h of live) s.units[h].location = 'reserves'
-  teleportState(s, unit.player).pending.push({ unitId: id, removedRound: s.round, removedInTurnOf: s.activePlayer, source })
+  teleportState(s, unit.player).pending.push({ unitId: id, removedRound: s.round, removedInTurnOf: s.activePlayer, source, ...(opts ? { arrival: { ...opts } } : {}) })
   ctx.emit({ type: 'UnitRemovedFromBattlefield', unitId: id, source, player: unit.player })
+}
+
+// the arrival rules recorded for a teleporting unit (unitId or any half); the Grey Knights defaults when none was recorded
+export function teleportArrivalOpts(state: GameState, unitId: UnitId): TeleportArrivalOpts {
+  const u = state.units[unitId]
+  if (!u) return DEFAULT_TELEPORT_ARRIVAL
+  const ids = new Set<UnitId>([unitId, canonical(state, unitId)])
+  const rec = teleportState(state, u.player).pending.find((r) => ids.has(r.unitId))
+  return { ...DEFAULT_TELEPORT_ARRIVAL, ...(rec?.arrival ?? {}) }
 }
 
 export function clearTeleport(state: GameState, unitId: UnitId): void {

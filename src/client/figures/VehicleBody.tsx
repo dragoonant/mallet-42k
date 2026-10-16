@@ -84,6 +84,15 @@ export function VehicleBody({ config, colors, pose, seed }: BodyProps & { config
     )
   }
 
+  if (config.style === 'gravbike') {
+    return (
+      <group ref={bodyRef}>
+        <GravbikeParts colors={colors} rig={config.rig} gunRef={gunRef} />
+        <group ref={rotorRef} visible={false} />
+      </group>
+    )
+  }
+
   if (config.style === 'hover') {
     return (
       <group ref={bodyRef}>
@@ -235,6 +244,129 @@ function HoverParts({ colors }: { colors: BodyProps['colors'] }) {
         <GBox args={[0.5, 0.04, 0.1]} />
         <StdMat color={colors.trim} roughness={0.5} />
       </mesh>
+    </group>
+  )
+}
+
+const GOGGLE = '#ffb347'
+
+/** Hernkyn Pioneer: a squat wheel-less grav-bike with glowing amber thruster pads, a twin nose autocannon and a holstered
+ *  shotgun, ridden by a stocky Kin scout in a slate flight suit. `rig` adds the bike's one distinguishing kit:
+ *  a tall comms mast, a roll-bar searchlight or a multi-barrel rotary cannon. */
+function GravbikeParts({ colors, rig, gunRef }: { colors: BodyProps['colors']; rig: VehicleConfig['rig']; gunRef: React.RefObject<Group> }) {
+  return (
+    <group>
+      {/* hull and nose wedge */}
+      <mesh position={[0, 0.34, -0.02]}>
+        <GBox args={[0.36, 0.2, 0.92]} />
+        <StdMat color={colors.primary} roughness={0.55} metalness={0.2} />
+      </mesh>
+      <mesh position={[0, 0.32, 0.5]} rotation={[0.35, 0, 0]}>
+        <GBox args={[0.32, 0.14, 0.34]} />
+        <StdMat color={colors.primary} roughness={0.5} metalness={0.2} />
+      </mesh>
+      <mesh position={[0, 0.45, -0.02]}>
+        <GBox args={[0.38, 0.03, 0.94]} />
+        <StdMat color={colors.trim} roughness={0.4} metalness={0.6} />
+      </mesh>
+      {/* amber grav pads under the hull, no wheels */}
+      {[-0.28, 0.28].map((z) => (
+        <mesh key={z} position={[0, 0.2, z]}>
+          <GBox args={[0.46, 0.04, 0.26]} />
+          <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.3} roughness={0.4} />
+        </mesh>
+      ))}
+      {/* side intake pods */}
+      {[-0.23, 0.23].map((x) => (
+        <mesh key={x} position={[x, 0.3, -0.05]} rotation={[Math.PI / 2, 0, 0]}>
+          <GCylinder args={[0.06, 0.06, 0.6, 8]} />
+          <StdMat color={colors.metal} metalness={0.5} roughness={0.5} />
+        </mesh>
+      ))}
+      {/* the rider: stocky body, cream beard, goggles */}
+      <mesh position={[0, 0.66, -0.12]}>
+        <GBox args={[0.3, 0.28, 0.22]} />
+        <StdMat color={colors.primary} roughness={0.55} />
+      </mesh>
+      <mesh position={[0, 0.88, -0.1]}>
+        <GSphere args={[0.12, 12, 9]} />
+        <StdMat color={colors.primary} roughness={0.5} />
+      </mesh>
+      <mesh position={[0, 0.88, 0.0]}>
+        <GBox args={[0.18, 0.06, 0.05]} />
+        <StdMat color={GOGGLE} emissive={GOGGLE} emissiveIntensity={0.9} />
+      </mesh>
+      <mesh position={[0, 0.78, 0.0]}>
+        <GBox args={[0.16, 0.12, 0.08]} />
+        <StdMat color={colors.decal} roughness={0.85} />
+      </mesh>
+      {[-0.18, 0.18].map((x) => (
+        <mesh key={x} position={[x, 0.62, 0.08]} rotation={[0.9, 0, 0]}>
+          <GCylinder args={[0.04, 0.04, 0.26, 6]} />
+          <StdMat color={colors.primary} roughness={0.6} />
+        </mesh>
+      ))}
+      {/* twin nose autocannon (recoils with the shoot pose) and a holstered shotgun */}
+      <group ref={gunRef} position={[0, 0.4, 0.62]}>
+        {[-0.04, 0.04].map((x) => (
+          <mesh key={x} position={[x, 0, 0.1]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.025, 0.025, 0.34, 7]} />
+            <StdMat color={colors.metal} metalness={0.7} roughness={0.3} />
+          </mesh>
+        ))}
+        <mesh position={[0, 0, -0.02]}>
+          <GBox args={[0.14, 0.1, 0.14]} />
+          <StdMat color={colors.trim} roughness={0.5} metalness={0.4} />
+        </mesh>
+      </group>
+      <mesh position={[0.22, 0.46, -0.1]} rotation={[Math.PI / 2, 0, 0.12]}>
+        <GCylinder args={[0.018, 0.018, 0.4, 6]} />
+        <StdMat color={colors.metal} metalness={0.6} roughness={0.4} />
+      </mesh>
+      {rig === 'comms' && (
+        <group position={[0, 0.45, -0.4]}>
+          <mesh position={[0, 0.4, 0]}>
+            <GCylinder args={[0.012, 0.012, 0.8, 5]} />
+            <StdMat color={colors.metal} metalness={0.6} />
+          </mesh>
+          <mesh position={[0, 0.74, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.1, 0.1, 0.02, 14]} />
+            <StdMat color={colors.decal} emissive={colors.decal} emissiveIntensity={0.5} roughness={0.5} />
+          </mesh>
+        </group>
+      )}
+      {rig === 'searchlight' && (
+        <group position={[0, 0.46, -0.32]}>
+          {[-0.2, 0.2].map((x) => (
+            <mesh key={x} position={[x, 0.3, 0]}>
+              <GCylinder args={[0.018, 0.018, 0.6, 6]} />
+              <StdMat color={colors.metal} metalness={0.6} />
+            </mesh>
+          ))}
+          <mesh position={[0, 0.6, 0]}>
+            <GBox args={[0.44, 0.03, 0.03]} />
+            <StdMat color={colors.metal} metalness={0.6} />
+          </mesh>
+          <mesh position={[0, 0.66, 0.04]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.06, 0.07, 0.1, 10]} />
+            <StdMat color="#fff4c9" emissive="#fff4c9" emissiveIntensity={1.8} />
+          </mesh>
+        </group>
+      )}
+      {rig === 'rotary' && (
+        <group position={[0.26, 0.5, 0.2]}>
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <mesh key={i} position={[Math.cos((i / 6) * Math.PI * 2) * 0.035, Math.sin((i / 6) * Math.PI * 2) * 0.035, 0.2]} rotation={[Math.PI / 2, 0, 0]}>
+              <GCylinder args={[0.014, 0.014, 0.42, 5]} />
+              <StdMat color={colors.metal} metalness={0.7} roughness={0.3} />
+            </mesh>
+          ))}
+          <mesh position={[0, 0, 0]}>
+            <GBox args={[0.14, 0.14, 0.2]} />
+            <StdMat color={colors.trim} roughness={0.5} metalness={0.4} />
+          </mesh>
+        </group>
+      )}
     </group>
   )
 }

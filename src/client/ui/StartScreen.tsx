@@ -23,11 +23,12 @@ const FACTION_BLURBS: Record<string, string> = {
   'tau-empire': 'Sleek gunline soldiers and stealthy battlesuits who mark a target, then pour precise fire into it from afar.',
   'genestealer-cults': 'A secret brood of hooded workers and four-armed hybrids who spring from hiding, led by a psychic magus.',
   'adeptus-custodes': 'Towering golden bodyguards of the Emperor: few in number, nearly unbreakable, and each fight they choose a stance to strike harder.',
+  'leagues-of-votann': 'Stocky Kin warriors who keep a grudge ledger: every Votann unit you cut down marks its killer, and marked enemies are easier to hit and wound.',
   'grey-knights': 'A small band of silver-armoured psykers who blink across the board and punish anything that lingers.',
 }
 
 // Button order for the factions the game ships; any other faction in the bundle follows alphabetically.
-const FACTION_ORDER = ['sm', 'ork', 'necrons', 'chaos-space-marines', 'tyranids', 'adepta-sororitas', 'astra-militarum', 'grey-knights', 'tau-empire', 'genestealer-cults', 'adeptus-custodes']
+const FACTION_ORDER = ['sm', 'ork', 'necrons', 'chaos-space-marines', 'tyranids', 'adepta-sororitas', 'astra-militarum', 'grey-knights', 'tau-empire', 'genestealer-cults', 'adeptus-custodes', 'leagues-of-votann']
 
 interface FactionChoice {
   id: string

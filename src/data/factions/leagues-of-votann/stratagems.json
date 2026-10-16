@@ -1,0 +1,59 @@
+[
+  {
+    "id": "lov.s.payment-in-kind",
+    "faction": "leagues-of-votann",
+    "name": "Payment in Kind",
+    "text": "Use just after an enemy attack destroys the last model of one of your LEAGUES OF VOTANN units. For the rest of the battle, your LEAGUES OF VOTANN models re-roll hit rolls of 1 when attacking the unit that made that attack.",
+    "cost": 1,
+    "category": "epicDeed",
+    "phases": ["command", "movement", "shooting", "charge", "fight"],
+    "window": "attack.modelDestroyed",
+    "who": "either",
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "LEAGUES OF VOTANN" }, "state": "justDestroyed", "count": 1 }
+    ],
+    "effect": { "reroll": "ones" },
+    "scope": { "who": "attacker" },
+    "duration": "battle",
+    "code": "paymentInKind",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "lov.s.pan-spectral-sweep",
+    "faction": "leagues-of-votann",
+    "name": "Pan-Spectral Sweep",
+    "text": "Use in your Shooting phase before you pick a unit to shoot, on one LEAGUES OF VOTANN unit that has not shot yet. Until the end of the phase, its ranged weapons gain [LETHAL HITS].",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["shooting"],
+    "window": ["shooting.start", "shooting.attacksResolved"],
+    "who": "active",
+    "condition": { "phase": "shooting" },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "LEAGUES OF VOTANN" }, "state": "notYetShot", "count": 1 }
+    ],
+    "effect": { "when": { "weaponType": "ranged" }, "grantWeaponAbility": { "ability": "LETHAL_HITS" } },
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "lov.s.skeinwrought-physiology",
+    "faction": "leagues-of-votann",
+    "name": "Skeinwrought Physiology",
+    "text": "Use in your opponent's Shooting phase, just after an enemy unit picks its targets, when one of your LEAGUES OF VOTANN units is a target. Until the end of the phase, improve the Save characteristic of its models by 1 (the invulnerable save is unchanged).",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["shooting"],
+    "window": "shooting.targetsDeclared",
+    "who": "reactive",
+    "condition": { "phase": "shooting", "ownTurn": false },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "LEAGUES OF VOTANN" }, "state": "targetedByAttack", "count": 1 }
+    ],
+    "effect": { "modifyStat": { "stat": "Sv", "value": -1 } },
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  }
+]

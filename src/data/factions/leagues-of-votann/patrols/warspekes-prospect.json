@@ -1,0 +1,80 @@
+{
+  "id": "lov.cp.warspekes-prospect",
+  "faction": "leagues-of-votann",
+  "name": "Warspeke's Prospect",
+  "detachment": "lov.d.warspekes-prospect",
+  "units": [
+    {
+      "ref": "kahl",
+      "datasheet": "lov.kahl-warspeke",
+      "size": 1,
+      "enhancement": "lov.e.waste-feeds-the-void",
+      "attachTo": "hearthkyn"
+    },
+    {
+      "ref": "hearthkyn",
+      "datasheet": "lov.hearthkyn-warriors",
+      "size": 10,
+      "patrolSquads": [
+        {
+          "ref": "hearthkyn-a",
+          "size": 5,
+          "wargear": [
+            { "modelId": "theyn", "count": 1, "weapons": ["lov.w.etacarn-plasma-pistol", "lov.w.kin-melee-weapon"] },
+            { "modelId": "warrior-hylas", "count": 1, "weapons": ["lov.w.autoch-pattern-bolt-pistol", "lov.w.hylas-auto-rifle", "lov.w.close-combat-weapon"] },
+            { "modelId": "warrior-medipack", "count": 1, "weapons": ["lov.w.autoch-pattern-bolt-pistol", "lov.w.ion-blaster", "lov.w.close-combat-weapon"] },
+            { "modelId": "warrior-comms", "count": 1, "weapons": ["lov.w.autoch-pattern-bolt-pistol", "lov.w.ion-blaster", "lov.w.close-combat-weapon"] },
+            { "modelId": "warrior", "count": 1, "weapons": ["lov.w.autoch-pattern-bolt-pistol", "lov.w.ion-blaster", "lov.w.close-combat-weapon"] }
+          ]
+        },
+        {
+          "ref": "hearthkyn-b",
+          "size": 5,
+          "wargear": [
+            { "modelId": "warrior-magna", "count": 1, "weapons": ["lov.w.autoch-pattern-bolt-pistol", "lov.w.magna-rail-rifle", "lov.w.close-combat-weapon"] },
+            { "modelId": "warrior-scanner", "count": 1, "weapons": ["lov.w.autoch-pattern-bolt-pistol", "lov.w.ion-blaster", "lov.w.close-combat-weapon"] },
+            { "modelId": "warrior", "count": 3, "weapons": ["lov.w.autoch-pattern-bolt-pistol", "lov.w.ion-blaster", "lov.w.close-combat-weapon"] }
+          ]
+        }
+      ]
+    },
+    {
+      "ref": "pioneers",
+      "datasheet": "lov.hernkyn-pioneers",
+      "size": 3
+    },
+    {
+      "ref": "beserks",
+      "datasheet": "lov.cthonian-beserks",
+      "size": 5
+    }
+  ],
+  "stratagems": ["lov.s.payment-in-kind", "lov.s.pan-spectral-sweep", "lov.s.skeinwrought-physiology"],
+  "enhancements": [
+    { "id": "lov.e.waste-feeds-the-void", "default": true },
+    { "id": "lov.e.pragmaat-comms-uplink", "default": false }
+  ],
+  "secondaries": [
+    {
+      "id": "lov.sec.toil-earns",
+      "name": "Toil Earns",
+      "text": "At the start of Deploy Armies, pick one objective marker outside your deployment zone. From battle round 2, at the end of each of your turns, score 4 victory points if you control that marker.",
+      "default": true,
+      "scoring": [
+        { "id": "toil-earns-pick", "when": "deployment.unit", "rounds": { "from": 0, "to": 0 }, "who": "both", "rule": "custom", "pointsPer": 0, "cap": 0, "code": "toilEarnsPick" },
+        { "id": "toil-earns", "when": "turn.end", "rounds": { "from": 2, "to": 5 }, "who": "active", "rule": "custom", "pointsPer": 4, "cap": 4, "code": "toilEarnsScore" }
+      ]
+    },
+    {
+      "id": "lov.sec.holy-apparatus",
+      "name": "Holy Apparatus",
+      "text": "From battle round 2, at the start of each round pick one enemy unit holding at least one Judgement token that is not destroyed. At the end of that round, score 4 victory points if it was destroyed.",
+      "default": false,
+      "scoring": [
+        { "id": "holy-apparatus-pick", "when": "round.start", "rounds": { "from": 2, "to": 5 }, "who": "both", "rule": "custom", "pointsPer": 0, "cap": 0, "code": "holyApparatusPick" },
+        { "id": "holy-apparatus", "when": "round.end", "rounds": { "from": 2, "to": 5 }, "who": "both", "rule": "custom", "pointsPer": 4, "cap": 4, "code": "holyApparatusScore" }
+      ]
+    }
+  ],
+  "warlord": "kahl"
+}

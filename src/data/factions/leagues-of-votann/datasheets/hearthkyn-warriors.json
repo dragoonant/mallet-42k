@@ -1,0 +1,79 @@
+[
+  {
+    "id": "lov.hearthkyn-warriors",
+    "faction": "leagues-of-votann",
+    "name": "Hearthkyn Warriors",
+    "keywords": ["INFANTRY", "BATTLELINE", "HEARTHKYN WARRIORS"],
+    "factionKeywords": ["LEAGUES OF VOTANN"],
+    "stats": { "M": 5, "T": 5, "Sv": 4, "W": 1, "Ld": 7, "OC": 2 },
+    "composition": [
+      {
+        "modelId": "theyn",
+        "name": "Theyn",
+        "min": 1, "max": 1, "default": 1,
+        "champion": true,
+        "base": { "shape": "round", "mm": 28 },
+        "weapons": { "default": ["lov.w.etacarn-plasma-pistol", "lov.w.kin-melee-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "warrior",
+        "name": "Warrior (ion blaster)",
+        "min": 4, "max": 4, "default": 4,
+        "base": { "shape": "round", "mm": 28 },
+        "weapons": { "default": ["lov.w.autoch-pattern-bolt-pistol", "lov.w.ion-blaster", "lov.w.close-combat-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "warrior-comms",
+        "name": "Warrior (comms array)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 28 },
+        "weapons": { "default": ["lov.w.autoch-pattern-bolt-pistol", "lov.w.ion-blaster", "lov.w.close-combat-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "warrior-medipack",
+        "name": "Warrior (medipack)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 28 },
+        "weapons": { "default": ["lov.w.autoch-pattern-bolt-pistol", "lov.w.ion-blaster", "lov.w.close-combat-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "warrior-scanner",
+        "name": "Warrior (pan-spectral scanner)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 28 },
+        "weapons": { "default": ["lov.w.autoch-pattern-bolt-pistol", "lov.w.ion-blaster", "lov.w.close-combat-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "warrior-hylas",
+        "name": "Warrior (HYLas auto rifle)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 28 },
+        "weapons": { "default": ["lov.w.autoch-pattern-bolt-pistol", "lov.w.hylas-auto-rifle", "lov.w.close-combat-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "warrior-magna",
+        "name": "Warrior (magna-rail rifle)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 28 },
+        "weapons": { "default": ["lov.w.autoch-pattern-bolt-pistol", "lov.w.magna-rail-rifle", "lov.w.close-combat-weapon"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      }
+    ],
+    "abilities": [
+      "lov.a.eye-of-the-ancestors",
+      "lov.a.eye-of-the-ancestors-wound",
+      "lov.a.patrol-squads-hearthkyn",
+      "lov.a.medipack",
+      "lov.a.pan-spectral-scanner"
+    ],
+    "coreAbilities": [],
+    "points": [ { "models": 10, "points": 0 } ],
+    "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+  }
+]

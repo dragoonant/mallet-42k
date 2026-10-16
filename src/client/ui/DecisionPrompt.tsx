@@ -359,6 +359,34 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
     },
   },
   {
+    match: /grim-efficiency/,
+    info: {
+      title: 'Grim Efficiency: mark an enemy',
+      hint: 'Once per battle round your Kahl may mark one enemy unit he can see with a Judgement token (a unit holds at most 2). Votann attacking a marked unit hit it more easily, and against a unit with two marks they wound it more easily too. Pick the unit your army is about to shoot.',
+    },
+  },
+  {
+    match: /outflanking-mag-riders/,
+    info: {
+      title: 'Outflanking Mag-Riders',
+      hint: 'At the end of the opponent’s turn, a mounted unit near a battlefield edge and clear of enemies may ride off the board. It must come back in your next Movement phase, wholly within 6" of a board edge that is not the opponent’s, more than 9" from every enemy. A unit still off the board when the battle ends is lost. Pick the unit to send, or leave everyone where they stand.',
+    },
+  },
+  {
+    match: /toil-earns-pick/,
+    info: {
+      title: 'Toil Earns: choose your objective',
+      hint: 'Pick one objective marker outside your own deployment zone. From battle round 2, at the end of each of your turns you score 4 VP if you control it. Choose one you can realistically hold.',
+    },
+  },
+  {
+    match: /holy-apparatus-pick/,
+    info: {
+      title: 'Holy Apparatus: choose this round’s target',
+      hint: 'Pick one enemy unit that carries at least one Judgement token. If it is destroyed by the end of this battle round, by anything, you score 4 VP. Choose the unit most likely to fall.',
+    },
+  },
+  {
     match: /methodical-destruction/,
     info: METHODICAL_INFO,
   },
@@ -415,7 +443,7 @@ function chooseOptionInfoFor(
   }
   const choice = context.data && typeof context.data.choice === 'string' ? CHOICE_PROMPT_KEYS[context.data.choice] : undefined
   // Both Cult Ambush steps (marker, return) carry the code; the return step has no ability id.
-  const key = context.data?.code === 'cultAmbush' ? 'cult-ambush' : context.data?.code === 'etherealEdictPick' ? 'ethereal-edict' : context.data?.code === 'divineJudgementPick' ? 'divine-judgement' : context.abilityId ?? choice ?? null
+  const key = context.data?.code === 'toilEarnsPick' ? 'toil-earns-pick' : context.data?.code === 'holyApparatusPick' ? 'holy-apparatus-pick' : context.data?.code === 'cultAmbush' ? 'cult-ambush' : context.data?.code === 'etherealEdictPick' ? 'ethereal-edict' : context.data?.code === 'divineJudgementPick' ? 'divine-judgement' : context.abilityId ?? choice ?? null
   if (choice === 'patrol-squads' && Array.isArray(context.data?.sizes)) {
     const sizes = (context.data.sizes as number[]).filter((n) => typeof n === 'number')
     if (sizes.length > 0) {
@@ -611,7 +639,9 @@ function labelForOption(pending: PendingDecision, state: GameState, events: read
         const un = pending.context.unitId ? state.units[pending.context.unitId] : undefined
         if (tr) return `Embark ${un?.name ?? 'the unit'} into ${tr.name}`
       }
-      if (pending.context.data?.code === 'divineJudgementPick' && state.units[o.id]) return state.units[o.id].name
+      if ((pending.context.data?.code === 'divineJudgementPick' || pending.context.data?.code === 'holyApparatusPick') && state.units[o.id]) return state.units[o.id].name
+      if (pending.context.data?.code === 'toilEarnsPick') return objectiveLabel(o.id)
+      if (pending.context.abilityId && /grim-efficiency|outflanking-mag-riders/i.test(pending.context.abilityId) && state.units[o.id]) return state.units[o.id].name
       const pairLabel = pairOptionLabel(state, pending.context.abilityId, o.id)
       if (pairLabel) return pairLabel
       const orderLabel = orderOptionLabel(state, o.id)
@@ -635,7 +665,7 @@ function abilityOptionLabel(abilityId: string | null, o: { id: string; label: st
       case 'decline': return 'No pact'
     }
   }
-  if (/teleport-?assault/i.test(abilityId)) {
+  if (/teleport-?assault|outflanking-mag-riders/i.test(abilityId)) {
     if (/^(decline|skip|pass|none|stay)$/.test(o.id)) return 'Stay where they are'
   }
   if (/saintly-?relic/i.test(abilityId)) {

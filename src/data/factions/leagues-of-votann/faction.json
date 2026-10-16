@@ -1,0 +1,23 @@
+{
+  "id": "leagues-of-votann",
+  "name": "Leagues of Votann",
+  "factionKeyword": "LEAGUES OF VOTANN",
+  "armyRule": "lov.a.eye-of-the-ancestors",
+  "detachments": [
+    {
+      "id": "lov.d.warspekes-prospect",
+      "name": "Warspeke's Prospect",
+      "rule": "lov.a.eye-of-the-ancestors",
+      "stratagems": ["lov.s.payment-in-kind", "lov.s.pan-spectral-sweep", "lov.s.skeinwrought-physiology"],
+      "enhancements": ["lov.e.waste-feeds-the-void", "lov.e.pragmaat-comms-uplink"]
+    }
+  ],
+  "paintScheme": {
+    "primary": "#2f4a5c",
+    "secondary": "#d08a2c",
+    "trim": "#c9a64a",
+    "metal": "#8d939b",
+    "decal": "#efe6cf"
+  },
+  "combatPatrols": ["lov.cp.warspekes-prospect"]
+}

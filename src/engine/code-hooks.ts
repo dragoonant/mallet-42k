@@ -18,6 +18,7 @@ import { shotThisTurn } from './attack'
 import type { AttackContext, CodeHook, HookName, HookResult } from './hooks'
 import { chaosSpaceMarinesHooks } from './factions/chaos-space-marines'
 import { greyKnightsHooks } from './factions/grey-knights'
+import { leaguesOfVotannHooks } from './factions/leagues-of-votann'
 import { spaceMarinesHooks, smRapidRepositioningCheck, smRapidRepositioningApply } from './factions/space-marines'
 import { adeptusCustodesHooks } from './factions/adeptus-custodes'
 import { hookService, type HookSourceEntry } from './hooks-impl'
@@ -802,6 +803,7 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   reanimationProtocols, resonantFocusPick, resonantFocusReroll, requireFriendlyKeywordOnBoard, plasmacyteSurge,
   ...chaosSpaceMarinesHooks,
   ...greyKnightsHooks,
+  ...leaguesOfVotannHooks,
   ...spaceMarinesHooks,
   ...adeptusCustodesHooks,
   guardianOfTheRealm: missionHook('guardianOfTheRealm', 'onPhaseEnd'),

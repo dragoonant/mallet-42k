@@ -1,0 +1,45 @@
+[
+  {
+    "id": "lov.cthonian-beserks",
+    "faction": "leagues-of-votann",
+    "name": "Cthonian Beserks",
+    "keywords": ["INFANTRY", "CTHONIAN BESERKS"],
+    "factionKeywords": ["LEAGUES OF VOTANN"],
+    "stats": { "M": 5, "T": 5, "Sv": 6, "W": 2, "Ld": 7, "OC": 1 },
+    "composition": [
+      {
+        "modelId": "beserk",
+        "name": "Beserk (plasma axe)",
+        "min": 3, "max": 3, "default": 3,
+        "base": { "shape": "round", "mm": 28 },
+        "weapons": { "default": ["lov.w.heavy-plasma-axe-strike", "lov.w.heavy-plasma-axe-sweep"] },
+        "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+      },
+      {
+        "modelId": "beserk-mole",
+        "name": "Beserk (mole grenade launcher)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 50 },
+        "statsOverride": { "W": 3 },
+        "weapons": { "default": ["lov.w.mole-grenade-launcher", "lov.w.heavy-plasma-axe-strike-mole", "lov.w.heavy-plasma-axe-sweep-mole"] },
+        "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+      },
+      {
+        "modelId": "beserk-gauntlet",
+        "name": "Beserk (concussion gauntlets)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 28 },
+        "weapons": { "default": ["lov.w.twin-concussion-gauntlet"] },
+        "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+      }
+    ],
+    "abilities": [
+      "lov.a.eye-of-the-ancestors",
+      "lov.a.eye-of-the-ancestors-wound",
+      "lov.a.cyberstimms"
+    ],
+    "coreAbilities": [ { "ability": "FEEL_NO_PAIN", "value": 5 } ],
+    "points": [ { "models": 5, "points": 0 } ],
+    "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+  }
+]

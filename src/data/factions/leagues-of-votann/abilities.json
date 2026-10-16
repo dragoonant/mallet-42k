@@ -1,0 +1,75 @@
+[
+  {
+    "id": "lov.a.eye-of-the-ancestors",
+    "name": "Eye of the Ancestors",
+    "text": "Whenever an enemy unit destroys one of your LEAGUES OF VOTANN units, it gains a Judgement token (at most 2). Attacks by models with this ability add 1 to the hit roll against a unit holding a token, and also add 1 to the wound roll against a unit holding two.",
+    "trigger": "hitRoll",
+    "effect": { "modifyRoll": { "roll": "hit", "value": 1 } },
+    "scope": { "who": "self" },
+    "code": "eyeOfTheAncestors",
+    "params": { "min": 1 }
+  },
+  {
+    "id": "lov.a.eye-of-the-ancestors-wound",
+    "name": "Eye of the Ancestors (wound)",
+    "text": "Attacks by models with this ability add 1 to the wound roll against a unit holding two Judgement tokens.",
+    "trigger": "woundRoll",
+    "effect": { "modifyRoll": { "roll": "wound", "value": 1 } },
+    "scope": { "who": "self" },
+    "code": "eyeOfTheAncestors",
+    "params": { "min": 2 }
+  },
+  {
+    "id": "lov.a.grim-efficiency",
+    "name": "Grim Efficiency",
+    "text": "Once per battle round, in your Command phase, pick one enemy unit visible to this model. It gains a Judgement token (at most 2).",
+    "trigger": "commandPhase",
+    "code": "grimEfficiencyPick",
+    "scope": { "who": "self" },
+    "params": { "pickWindow": "command.start", "perRound": 1 }
+  },
+  {
+    "id": "lov.a.patrol-squads-hearthkyn",
+    "name": "Patrol Squads",
+    "text": "When you declare battle formations, before any unit is set up, this unit may be split into two units of five models each. Each half keeps all of its abilities.",
+    "trigger": "always",
+    "code": "patrolSquads",
+    "params": { "sizes": [5, 5] }
+  },
+  {
+    "id": "lov.a.medipack",
+    "name": "Medipack",
+    "text": "While the medipack bearer is alive, every model in his unit (an attached leader included) has a 6+ Feel No Pain save.",
+    "trigger": "always",
+    "when": { "unitHasModel": "warrior-medipack" },
+    "effect": { "feelNoPain": 6 },
+    "scope": { "who": "self" }
+  },
+  {
+    "id": "lov.a.pan-spectral-scanner",
+    "name": "Pan-Spectral Scanner",
+    "text": "While the scanner bearer is alive, ranged weapons carried by models in his unit gain [IGNORES COVER].",
+    "trigger": "always",
+    "when": { "unitHasModel": "warrior-scanner", "weaponType": "ranged" },
+    "effect": { "grantWeaponAbility": { "ability": "IGNORES_COVER" } },
+    "scope": { "who": "self" }
+  },
+  {
+    "id": "lov.a.outflanking-mag-riders",
+    "name": "Outflanking Mag-Riders",
+    "text": "When the opponent's turn ends (not their first), if this unit has a model within 6 inches of a battlefield edge and is not in Engagement Range of an enemy, you may take it off the board into Reserves. Next Reinforcements step, set it up wholly within 6 inches of a battlefield edge that is not the opponent's, more than 9 inches from every enemy.",
+    "trigger": "turnEnd",
+    "code": "outflankingMagRiders",
+    "scope": { "who": "self" },
+    "params": { "pickWindow": "turn.end", "arrival": "edgeNotOpponent", "edgeRange": 6, "minDistance": 9, "fromRound": 2 }
+  },
+  {
+    "id": "lov.a.cyberstimms",
+    "name": "Cyberstimms",
+    "text": "Each time a model in this unit is destroyed by a melee attack before the unit has fought this phase, roll a D6. On a 4+ it is not removed yet: it fights once after the attacking unit finishes, then is removed.",
+    "trigger": "phaseStart",
+    "when": { "phase": "fight" },
+    "code": "cyberstimms",
+    "params": { "threshold": 4 }
+  }
+]

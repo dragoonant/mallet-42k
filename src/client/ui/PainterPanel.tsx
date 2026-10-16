@@ -26,6 +26,7 @@ const PREVIEW: Record<string, { datasheetId: string; modelId?: string }> = {
   'tau-empire': { datasheetId: 'tau.strike-team', modelId: 'fire-warrior-rifle' },
   'genestealer-cults': { datasheetId: 'gsc.acolyte-hybrids', modelId: 'hybrid' },
   'adeptus-custodes': { datasheetId: 'cus.custodian-guard', modelId: 'blade' },
+  'leagues-of-votann': { datasheetId: 'lov.hearthkyn-warriors', modelId: 'warrior' },
 }
 
 const backdrop: CSSProperties = { position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'auto', zIndex: 60 }

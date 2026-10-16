@@ -1,0 +1,55 @@
+[
+  {
+    "id": "lov.e.waste-feeds-the-void",
+    "faction": "leagues-of-votann",
+    "name": "Waste Feeds the Void",
+    "text": "Ranged attacks by models in the bearer's unit re-roll hit rolls of 1. The bearer's unit may shoot in a turn in which it Fell Back, though it still cannot charge that turn.",
+    "cost": 0,
+    "restriction": { "keyword": ["KAHL"] },
+    "effect": [
+      {
+        "id": "lov.e.waste-feeds-the-void.reroll",
+        "name": "Waste Feeds the Void",
+        "text": "Ranged attacks by models in the bearer's unit re-roll hit rolls of 1.",
+        "trigger": "hitRoll",
+        "when": { "weaponType": "ranged" },
+        "effect": { "reroll": "ones" },
+        "scope": { "who": "self" }
+      },
+      {
+        "id": "lov.e.waste-feeds-the-void.fallback",
+        "name": "Waste Feeds the Void",
+        "text": "The bearer's unit can shoot after Falling Back.",
+        "trigger": "always",
+        "effect": { "shootAfterFallBack": true },
+        "scope": { "who": "self" }
+      }
+    ]
+  },
+  {
+    "id": "lov.e.pragmaat-comms-uplink",
+    "faction": "leagues-of-votann",
+    "name": "Prâgmaat Comms Uplink",
+    "text": "Add 1 to the Objective Control of every model in the bearer's unit. The bearer's unit may re-roll its Battle-shock tests.",
+    "cost": 0,
+    "restriction": { "keyword": ["KAHL"] },
+    "effect": [
+      {
+        "id": "lov.e.pragmaat-comms-uplink.oc",
+        "name": "Prâgmaat Comms Uplink",
+        "text": "Every model in the bearer's unit has +1 Objective Control.",
+        "trigger": "always",
+        "effect": { "modifyStat": { "stat": "OC", "value": 1 } },
+        "scope": { "who": "self" }
+      },
+      {
+        "id": "lov.e.pragmaat-comms-uplink.shock",
+        "name": "Prâgmaat Comms Uplink",
+        "text": "The bearer's unit may re-roll its Battle-shock tests.",
+        "trigger": "battleShockTest",
+        "effect": { "reroll": "fails" },
+        "scope": { "who": "self" }
+      }
+    ]
+  }
+]

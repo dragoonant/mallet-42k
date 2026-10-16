@@ -664,6 +664,38 @@ function HeadBody({
           </mesh>
         </group>
       )
+    case 'kin-helm':
+    case 'kin-helm-crest': {
+      // A Kin: a round bubble helm in plate colour with an amber lens band, a brass rim and a big cream braided beard
+      // (the decal slot) hanging off the chin. The crest variant adds a tall brass fin front to back.
+      return (
+        <group>
+          <HeadBlob radius={radius} color={colors.primary} />
+          <mesh position={[0, radius * 0.1, radius * 0.86]}>
+            <GBox args={[radius * 1.0, radius * 0.26, radius * 0.2]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={0.8} roughness={0.3} />
+          </mesh>
+          <mesh position={[0, radius * 0.45, 0]}>
+            <GCylinder args={[radius * 1.02, radius * 1.02, radius * 0.08, 14]} />
+            <StdMat color={colors.trim} roughness={0.4} metalness={0.6} />
+          </mesh>
+          <mesh position={[0, -radius * 0.7, radius * 0.55]}>
+            <GBox args={[radius * 1.25, radius * 0.95, radius * 0.7]} />
+            <StdMat color={colors.decal} roughness={0.85} />
+          </mesh>
+          <mesh position={[0, -radius * 1.2, radius * 0.6]}>
+            <GBox args={[radius * 0.5, radius * 0.4, radius * 0.4]} />
+            <StdMat color={colors.decal} roughness={0.85} />
+          </mesh>
+          {shape === 'kin-helm-crest' && (
+            <mesh position={[0, radius * 1.0, -radius * 0.05]}>
+              <GBox args={[radius * 0.18, radius * 0.6, radius * 1.3]} />
+              <StdMat color={colors.trim} roughness={0.4} metalness={0.6} />
+            </mesh>
+          )}
+        </group>
+      )
+    }
     case 'generic-head':
     default:
       return <HeadBlob radius={radius} color={colors.secondary} />

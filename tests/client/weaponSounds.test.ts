@@ -26,9 +26,10 @@ const AM = 'astra-militarum'
 const GK = 'grey-knights'
 const TAU = 'tau-empire'
 const GSC = 'genestealer-cults'
+const LOV = 'leagues-of-votann'
 
 /** The engine faction id a weapon's own id prefix belongs to. */
-const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : SM)
+const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : id.startsWith('lov.') ? LOV : SM)
 
 function lookupFor(faction: string): SoundLookup {
   return { weapon: (id) => bundle.weapons[id], factionOfUnit: () => faction }
@@ -251,6 +252,28 @@ const EXPECTED: Record<string, WeaponFlavour> = {
   'cus.w.castellan-axe-ranged': 'bolter',
   'cus.w.castellan-axe-melee': 'chain',
   'cus.w.balistus-grenade-launcher': 'heavy',
+  // Leagues of Votann: ion blasters, magna-rail rifles and the volkanite disintegrator are energy bolts; gauntlets crunch, axes and knives cut.
+  'lov.w.volkanite-disintegrator': 'psychic',
+  'lov.w.autoch-pattern-bolt-pistol': 'bolter',
+  'lov.w.autoch-pattern-bolter': 'bolter',
+  'lov.w.etacarn-plasma-pistol': 'heavy',
+  'lov.w.hylas-auto-rifle': 'bolter',
+  'lov.w.ion-blaster': 'psychic',
+  'lov.w.magna-rail-rifle': 'psychic',
+  'lov.w.bolt-revolver': 'bolter',
+  'lov.w.bolt-shotgun': 'bolter',
+  'lov.w.hylas-rotary-cannon': 'shoota',
+  'lov.w.magna-coil-autocannon': 'heavy',
+  'lov.w.mole-grenade-launcher': 'heavy',
+  'lov.w.mass-gauntlet': 'crush',
+  'lov.w.close-combat-weapon': 'chain',
+  'lov.w.kin-melee-weapon': 'chain',
+  'lov.w.plasma-knife': 'chain',
+  'lov.w.heavy-plasma-axe-strike': 'chain',
+  'lov.w.heavy-plasma-axe-sweep': 'chain',
+  'lov.w.heavy-plasma-axe-strike-mole': 'chain',
+  'lov.w.heavy-plasma-axe-sweep-mole': 'chain',
+  'lov.w.twin-concussion-gauntlet': 'crush',
 }
 
 // Adepta Sororitas weapons, by datasheet NAME (lower-cased) so the check holds whatever id spelling the data uses.
@@ -373,6 +396,14 @@ describe('firing sounds', () => {
     expect(soundIds(declared(['nec.w.twin-gauss-flayer']), NEC)).toEqual(['wpn-gauss-flayer'])
     expect(soundIds(declared(['tyr.w.leapers-talons'], 'fight'), TYR)).toEqual(['wpn-talons'])
     expect(soundIds(declared(['ork.w.power-klaw'], 'fight'), ORK)).toEqual(['power-klaw-crunch'])
+  })
+
+  it('Votann guns and gauntlets borrow the closest existing voice', () => {
+    expect(soundIds(declared(['lov.w.ion-blaster', 'lov.w.ion-blaster']), LOV)).toEqual(['pulse-rifle-shot'])
+    expect(soundIds(declared(['lov.w.magna-rail-rifle']), LOV)).toEqual(['ion-raker'])
+    expect(soundIds(declared(['lov.w.mass-gauntlet'], 'fight'), LOV)).toEqual(['wpn-power-fist'])
+    expect(soundIds(declared(['lov.w.heavy-plasma-axe-sweep-mole'], 'fight'), LOV)).toEqual(['wpn-relic-weapon'])
+    expect(soundIds(declared(['lov.w.autoch-pattern-bolt-pistol']), LOV)).toEqual(['wpn-bolt-pistol'])
   })
 
   it('an unknown weapon falls back to its flavour sound', () => {

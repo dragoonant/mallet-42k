@@ -384,3 +384,14 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Verification | typecheck, `validate:data`, `build` green; `npm test` 1896 passing (83 files); e2e `orks-morgrim-s-butchas.spec.ts` (picker) and `-play.spec.ts` (deploy, round 1; `e2e-out/m10-orks-morgrim-s-butchas-0{1,2,3}-*.png`, figures visible) |
 | Sim | `SIM_PATROL=ork.cp.morgrims-butchas npm run sim -- --games 6 --seed 5`: 0 violations, 6/6 finished, orks won 4 |
 | Known gaps | Mounted Squighog/Morgrim use borrowed kits, borrowed SFX; rulings in `docs/needs-rules-check.md` under "orks build" |
+
+## Leagues of Votann - Warspeke's Prospect (M10 - playable)
+
+| | |
+|---|---|
+| Patrol | Warspeke's Prospect: Kahl Warspeke, Hearthkyn Warriors, Hernkyn Pioneers, Cthonian Beserks. Data in `src/data/factions/leagues-of-votann/`; spec `docs/spec/factions/leagues-of-votann.md` |
+| Engine hooks | `src/engine/factions/leagues-of-votann.ts` (+ `src/engine/judgement.ts`): eyeOfTheAncestors, grimEfficiencyPick, paymentInKind, outflankingMagRiders, cyberstimms, toilEarnsPick/Score, holyApparatusPick/Score (Judgement tokens). Generic `TeleportArrivalOpts` added to `teleport.ts` (Grey Knights behaviour unchanged); `markNoCharge` exported from `transports.ts` |
+| Client | Procedural figures (gravbike vehicle style for Pioneers), Judgement token readout on the unit card, Votann weapon flavour/sound borrows, start-screen entry with Toil Earns / Holy Apparatus secondaries and the Hearthkyn split option |
+| Verification | typecheck, `validate:data`, `build` green; `npm test` 2473 passing (114 files); e2e `leagues-of-votann.spec.ts` (3 tests: start vs Orks bot, deploy, Overwatch/first shooting; Votann as opponent; gallery), screenshots `e2e-out/m10-leagues-of-votann-0*.png` |
+| Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all finished, but the default rotation never fields Votann on that seed. `--games 30 --seed 5`: 2 Votann games, both finished by VP (1 win vs genestealer-cults, 1 loss), 0 violations. No balance tuning |
+| Known gaps | Procedural placeholder figures (GLBs to come); weapons borrow existing SFX; no dedicated AI policy for Toil Earns / Holy Apparatus picks beyond defaults; rulings in `docs/needs-rules-check.md` under "leagues-of-votann build" (LOV-R01 to 16) |

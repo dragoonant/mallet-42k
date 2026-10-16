@@ -648,6 +648,64 @@ export function WeaponMesh({ shape, colors, hand }: { shape: WeaponShape; colors
           </mesh>
         </group>
       )
+    case 'ion-blaster':
+      // Boxy blaster rifle: a short barrel wrapped in a glowing blue ion coil on a slate body with an amber cell.
+      return (
+        <group scale={1.4}>
+          <Barrel length={0.24} radius={0.03} color={colors.metal} />
+          <mesh position={[0, 0, 0.16]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.042, 0.042, 0.08, 8]} />
+            <StdMat color="#59c8ff" emissive="#59c8ff" emissiveIntensity={1.4} />
+          </mesh>
+          <mesh position={[0, 0, 0.0]}>
+            <GBox args={[0.07, 0.09, 0.16]} />
+            <StdMat color={colors.primary} roughness={0.55} metalness={0.2} />
+          </mesh>
+          <mesh position={[0, 0.055, 0.0]}>
+            <GBox args={[0.03, 0.025, 0.08]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={0.9} />
+          </mesh>
+        </group>
+      )
+    case 'rail-rifle':
+      // Oversized rail rifle: a long barrel between two brass magnetic rails, with a glowing amber charge cell.
+      return (
+        <group scale={1.45}>
+          <Barrel length={0.44} radius={0.02} color={colors.metal} />
+          {[-0.032, 0.032].map((x) => (
+            <mesh key={x} position={[x, 0, 0.26]}>
+              <GBox args={[0.016, 0.03, 0.4]} />
+              <StdMat color={colors.trim} roughness={0.35} metalness={0.7} />
+            </mesh>
+          ))}
+          <mesh position={[0, 0.0, 0.0]}>
+            <GBox args={[0.07, 0.09, 0.18]} />
+            <StdMat color={colors.primary} roughness={0.55} metalness={0.2} />
+          </mesh>
+          <mesh position={[0, 0.06, 0.02]}>
+            <GBox args={[0.045, 0.04, 0.09]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.3} />
+          </mesh>
+        </group>
+      )
+    case 'plasma-axe':
+      // Two-handed axe: a metal haft ending in a broad head whose edge glows hot amber.
+      return (
+        <group scale={1.45}>
+          <mesh position={[0, 0, 0.14]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.018, 0.018, 0.34, 6]} />
+            <StdMat color={colors.metal} metalness={0.6} roughness={0.4} />
+          </mesh>
+          <mesh position={[0, 0.0, 0.3]}>
+            <GBox args={[0.035, 0.17, 0.1]} />
+            <StdMat color={colors.metal} metalness={0.6} roughness={0.35} />
+          </mesh>
+          <mesh position={[0, 0.0, 0.355]}>
+            <GBox args={[0.02, 0.2, 0.025]} />
+            <StdMat color="#ff9a3a" emissive="#ff9a3a" emissiveIntensity={1.6} />
+          </mesh>
+        </group>
+      )
     case 'none':
     default:
       return <EndBlock size={0.09} color={hand} />

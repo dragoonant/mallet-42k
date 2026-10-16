@@ -145,6 +145,10 @@ const KNOWN_KIT: Record<string, KitId> = {
   'cus.custodian-guard-tgb': 'cus-guard-blade',
   'cus.custodian-wardens': 'cus-guard-spear',
   'cus.allarus-custodians': 'cus-guard-spear',
+  'lov.kahl-warspeke': 'lov-kahl',
+  'lov.hearthkyn-warriors': 'lov-hearthkyn',
+  'lov.hernkyn-pioneers': 'lov-pioneer-comms',
+  'lov.cthonian-beserks': 'lov-beserk',
 }
 
 /** Models of a mixed unit that look different from the rest of it (a flamer sister is not a rifle sister), keyed
@@ -213,6 +217,20 @@ const KNOWN_KIT_BY_MODEL: Record<string, KitId> = {
   'cus.custodian-guard/vexilla': 'cus-vexilla',
   'cus.custodian-wardens/axe': 'cus-guard-blade',
   'cus.custodian-wardens/spear': 'cus-guard-spear',
+  // Leagues of Votann: one kit per visually distinct model.
+  'lov.hearthkyn-warriors/theyn': 'lov-theyn',
+  'lov.hearthkyn-warriors/warrior': 'lov-hearthkyn',
+  'lov.hearthkyn-warriors/warrior-comms': 'lov-hearthkyn-comms',
+  'lov.hearthkyn-warriors/warrior-medipack': 'lov-hearthkyn-medic',
+  'lov.hearthkyn-warriors/warrior-scanner': 'lov-hearthkyn-scanner',
+  'lov.hearthkyn-warriors/warrior-hylas': 'lov-hearthkyn-hylas',
+  'lov.hearthkyn-warriors/warrior-magna': 'lov-hearthkyn-magna',
+  'lov.hernkyn-pioneers/pioneer-comms': 'lov-pioneer-comms',
+  'lov.hernkyn-pioneers/pioneer-searchlight': 'lov-pioneer-searchlight',
+  'lov.hernkyn-pioneers/pioneer-rotary': 'lov-pioneer-rotary',
+  'lov.cthonian-beserks/beserk': 'lov-beserk',
+  'lov.cthonian-beserks/beserk-gauntlet': 'lov-beserk-gauntlet',
+  'lov.cthonian-beserks/beserk-mole': 'lov-beserk-mole',
 }
 
 const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
@@ -300,6 +318,20 @@ const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
   'gsc-hypermorph': 'heavy',
   'gsc-magus': 'infantry',
   'gsc-rockgrinder': 'vehicle',
+  'lov-hearthkyn': 'infantry',
+  'lov-theyn': 'infantry',
+  'lov-hearthkyn-hylas': 'infantry',
+  'lov-hearthkyn-magna': 'infantry',
+  'lov-hearthkyn-medic': 'infantry',
+  'lov-hearthkyn-comms': 'infantry',
+  'lov-hearthkyn-scanner': 'infantry',
+  'lov-kahl': 'heavy',
+  'lov-beserk': 'heavy',
+  'lov-beserk-gauntlet': 'heavy',
+  'lov-beserk-mole': 'heavy',
+  'lov-pioneer-comms': 'vehicle',
+  'lov-pioneer-searchlight': 'vehicle',
+  'lov-pioneer-rotary': 'vehicle',
   'generic-infantry': 'infantry',
   'generic-heavy': 'heavy',
   'generic-monster': 'monster',
@@ -351,6 +383,11 @@ const HEIGHT_BY_DATASHEET: Record<string, number> = {
   'ork.squighog-boyz': 1.7,
   'ork.squighog-boyz/squighog-boy': 1.7,
   'ork.squighog-boyz/nob-smasha-squig': 1.9,
+  // Leagues of Votann are short and stocky (leagues-of-votann spec §9): Kin infantry ~0.95", Beserks 1.0", the Kahl 1.05", a Pioneer's bike 1.3".
+  'lov.kahl-warspeke': 1.05,
+  'lov.hearthkyn-warriors': 0.95,
+  'lov.cthonian-beserks': 1.0,
+  'lov.hernkyn-pioneers': 1.3,
 }
 
 export function resolveBase(datasheet: DatasheetData | undefined, archetype: ArchetypeKind, modelId?: string): ResolvedBase {

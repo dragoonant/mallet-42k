@@ -1,5 +1,6 @@
 // Selected-unit inspector (docs/spec/50-client.md §5 "Unit card"). Selection comes from
 // src/client/interaction/UnitsLayer.tsx clicking a Figure; this file only reads state.
+import { judgementCount, judgementLine } from './judgement'
 import { useEffect, useState, type CSSProperties } from 'react'
 import { modelStats } from '@/engine'
 import type { GameState, Model, RuntimeWeapon } from '@/engine'
@@ -331,6 +332,10 @@ export function UnitCard() {
         <WoundRows state={state} unitId={unit.id} rows={rows} />
       </div>
       {unit.battleShocked && <div style={warn}>Battle-shocked — its objective control counts as 0</div>}
+      {(() => {
+        const line = judgementLine(judgementCount(state, unit.id))
+        return line ? <div style={warn} data-testid="unit-card-judgement">{line}</div> : null
+      })()}
 
       {weaponIds.length > 0 && (
         <>

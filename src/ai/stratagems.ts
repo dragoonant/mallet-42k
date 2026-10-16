@@ -104,6 +104,8 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
   } else if (id.endsWith('lives-before-territory')) {
     if (melee) return -Infinity
     withIt = incomingDamage(state, attackerId, mineId, false, { ...base, cover: true })
+  } else if (id.endsWith('skeinwrought-physiology')) {
+    withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, svMod: -1 })
   } else if (id.endsWith('mercurial-resilience')) {
     withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, invuln: 5 })
   } else if (id.endsWith('a-martyrs-death')) {
@@ -116,7 +118,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
   return g > 0 ? g : -Infinity
 }
 
-const DEFENSIVE = ['go-to-ground', 'smokescreen', 'gene-wrought-resilience', 'tough-as-squig-hide', 'holy-radiance', 'hyper-reactive',
+const DEFENSIVE = ['skeinwrought-physiology', 'go-to-ground', 'smokescreen', 'gene-wrought-resilience', 'tough-as-squig-hide', 'holy-radiance', 'hyper-reactive',
   'mercurial-resilience', 'a-martyrs-death', 'daemonic-fervour', 'lurking-killers', 'lives-before-territory']
 
 // Fire Overwatch: hits only on an unmodified 6, the bound unit only (picked within 24"), each weapon within its own range, with line of sight.
@@ -576,6 +578,38 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
     }
     if (dmg <= 0) return -Infinity
     return dmg * 0.17 * unitValue(state, killer) * 0.03 * Math.max(1, roundsLeft + 0.5)
+  }
+  // Leagues of Votann Payment in Kind: after the last Hearthkyn (etc.) falls to an enemy attack, our hit rolls of 1 against that unit are
+  // re-rolled for the rest of the battle (about +1/6 hits on a 3+/4+ hit roll); worth the 1 CP while our shooters or fighters can reach it.
+  if (id.endsWith('payment-in-kind')) {
+    const mark = state.phaseState.marks.find((m) => m.startsWith('deathReaction:'))
+    let killer: UnitId | null = null
+    if (mark) { try { killer = (JSON.parse(mark.slice('deathReaction:'.length)) as { attackerUnitId?: UnitId }).attackerUnitId ?? null } catch { killer = null } }
+    if (!killer || !state.units[killer] || state.units[killer].location !== 'board') return -Infinity
+    let dmg = 0
+    for (const u of boardUnitsOf(state, player)) {
+      if (u.battleShocked) continue
+      if (hasAnyRangedWeapon(state, u.id)) {
+        const range = bestRangedRangeOfUnit(state, u.id) ?? 0
+        if (minGapBetweenUnits(state, u.id, killer) <= range + 6) dmg += unitRangedDamage(state, u.id, killer, {})
+      }
+      if (hasAnyMeleeWeapon(state, u.id) && minGapBetweenUnits(state, u.id, killer) <= 12) dmg += unitMeleeDamage(state, u.id, killer, {})
+    }
+    if (dmg <= 0) return -Infinity
+    return dmg * 0.14 * unitValue(state, killer) * 0.03 * Math.max(1, roundsLeft + 0.5)
+  }
+  // Leagues of Votann Pan-Spectral Sweep: Lethal Hits on a not-yet-shot unit's ranged weapons (a hit of 6 auto-wounds, about +1/6 of the
+  // wounds on tough targets); pick the shooter that has the most to gain, i.e. the biggest volley at an enemy it can reach.
+  if (id.endsWith('pan-spectral-sweep')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId || state.phase !== 'shooting' || !hasAnyRangedWeapon(state, unitId)) return -Infinity
+    let best = 0
+    for (const e of boardUnitsOf(state, other(player))) {
+      const range = bestRangedRangeOfUnit(state, unitId) ?? 0
+      if (minGapBetweenUnits(state, unitId, e.id) > range) continue
+      best = Math.max(best, unitRangedDamage(state, unitId, e.id, {}) * unitValue(state, e.id) * 0.03 * 0.18)
+    }
+    return best > 0.25 ? best : -Infinity
   }
   // Custodes Overawing Magnificence: a free Normal move (up to M, ending outside Engagement Range) after the enemy falls back from
   // our unit; worth it when the freed unit can reach an objective we do not hold, or close on the retreating unit's lane.

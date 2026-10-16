@@ -13,6 +13,7 @@ import type { ScoringRule } from '../data/types'
 import { createRng, restoreRng, type Rng } from '../engine/rng'
 import { woundRollNeeded } from '../engine/dice'
 import { deployTerrainBlock } from '../engine/terrain'
+import { judgementTokens } from '../engine/judgement'
 import { commandRerollScore, scoreStratagemOrReaction } from './stratagems'
 import {
   bestMeleeWeapon, bestRangedRangeOfUnit, bestRangedWeapon, expectedAttack, hasAnyMeleeWeapon, hasAnyRangedWeapon,
@@ -598,6 +599,39 @@ function scoreChooseOption(state: GameState, pending: PendingDecision, action: A
     const hurt = !!unitId && state.units[unitId] ? (DEFAULT_SERVICES.leaders?.isBelowHalfStrength?.(state, unitId) ?? false) : false
     const embark = action.optionId.startsWith('embark:')
     return embark === hurt ? 1 : 0
+  }
+  // Leagues of Votann Grim Efficiency: a Judgement token helps every Votann attack on the unit (+1 hit, a second token +1 wound), so
+  // mark the valuable enemy unit with the fewest tokens (a unit already at the cap of 2 gains nothing).
+  if (code === 'grimEfficiencyPick' && hintUnitId) {
+    const tokens = judgementTokens(state, pending.player, hintUnitId)
+    score = tokens >= 2 ? -1 : unitValue(state, hintUnitId) * 0.03 * (tokens === 0 ? 1 : 0.7)
+  }
+  // Toil Earns (LEA-4.1): 4 VP a turn from round 2 for holding the marker, so name the one nearest our own deployment zone
+  // that is still outside it (the safest to keep).
+  if (code === 'toilEarnsPick') {
+    const obj = state.objectives[action.optionId]
+    if (obj) {
+      const home = polyCentroid(deploymentZone(state, pending.player))
+      score = 5 - Math.hypot(obj.pos.x - home.x, obj.pos.z - home.z) * 0.15
+    }
+  }
+  // Holy Apparatus (LEA-4.2): 4 VP if the picked token-holder dies this round, so name the one we are most likely to kill (cheapest).
+  if (code === 'holyApparatusPick' && hintUnitId) score = -unitValue(state, hintUnitId) * 0.03
+  // Outflanking Mag-Riders: a free redeployment along a board edge. Take it when enemies are closing in and the unit is not holding a
+  // marker; never when the battle ends before its next Reinforcements step (round 5, the opponent's turn is the last).
+  if (code === 'outflankingMagRiders') {
+    const noArrival = state.round >= 5 && state.firstPlayer === pending.player
+    if (action.optionId === 'decline') score += noArrival ? 4 : 1.5
+    else if (noArrival) score -= 4
+    else {
+      const near = nearestEnemyUnit(state, pending.player, action.optionId)
+      let holding = false
+      for (const o of Object.values(state.objectives)) {
+        if (o.removed) continue
+        if (unitModels(state, action.optionId).some((m) => withinObjectiveRange(m, o, 0, 3)) && objectiveScoreWeight(state, pending.player, o.id) > 0) holding = true
+      }
+      score += holding ? -2 : near && near.gap <= 24 ? 3 : 0
+    }
   }
   // Methodical Destruction: the VP only come if the pick dies this round, so mark the unit most likely to die (cheapest on the board).
   if (code === 'methodicalDestructionPick' && hintUnitId) score = -unitValue(state, hintUnitId) * 0.03

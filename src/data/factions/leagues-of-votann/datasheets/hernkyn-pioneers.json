@@ -1,0 +1,44 @@
+[
+  {
+    "id": "lov.hernkyn-pioneers",
+    "faction": "leagues-of-votann",
+    "name": "Hernkyn Pioneers",
+    "keywords": ["MOUNTED", "FLY", "HERNKYN PIONEERS"],
+    "factionKeywords": ["LEAGUES OF VOTANN"],
+    "stats": { "M": 12, "T": 6, "Sv": 4, "W": 3, "Ld": 7, "OC": 2 },
+    "composition": [
+      {
+        "modelId": "pioneer-comms",
+        "name": "Pioneer (comms array)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "oval", "mm": 90, "mm2": 52 },
+        "weapons": { "default": ["lov.w.bolt-revolver", "lov.w.bolt-shotgun", "lov.w.magna-coil-autocannon", "lov.w.plasma-knife"] },
+        "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+      },
+      {
+        "modelId": "pioneer-searchlight",
+        "name": "Pioneer (searchlight)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "oval", "mm": 90, "mm2": 52 },
+        "weapons": { "default": ["lov.w.bolt-revolver", "lov.w.bolt-shotgun", "lov.w.magna-coil-autocannon", "lov.w.plasma-knife"] },
+        "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+      },
+      {
+        "modelId": "pioneer-rotary",
+        "name": "Pioneer (rotary cannon)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "oval", "mm": 90, "mm2": 52 },
+        "weapons": { "default": ["lov.w.bolt-revolver", "lov.w.bolt-shotgun", "lov.w.magna-coil-autocannon", "lov.w.hylas-rotary-cannon", "lov.w.plasma-knife"] },
+        "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+      }
+    ],
+    "abilities": [
+      "lov.a.eye-of-the-ancestors",
+      "lov.a.eye-of-the-ancestors-wound",
+      "lov.a.outflanking-mag-riders"
+    ],
+    "coreAbilities": [ { "ability": "SCOUTS", "value": 9 } ],
+    "points": [ { "models": 3, "points": 0 } ],
+    "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+  }
+]

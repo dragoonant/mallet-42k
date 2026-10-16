@@ -107,6 +107,20 @@ export type KitId =
   | 'cus-prosecutor'
   | 'cus-vigilator'
   | 'cus-praetor'
+  | 'lov-hearthkyn'
+  | 'lov-theyn'
+  | 'lov-hearthkyn-hylas'
+  | 'lov-hearthkyn-magna'
+  | 'lov-hearthkyn-medic'
+  | 'lov-hearthkyn-comms'
+  | 'lov-hearthkyn-scanner'
+  | 'lov-kahl'
+  | 'lov-beserk'
+  | 'lov-beserk-gauntlet'
+  | 'lov-beserk-mole'
+  | 'lov-pioneer-comms'
+  | 'lov-pioneer-searchlight'
+  | 'lov-pioneer-rotary'
   | 'generic-infantry'
   | 'generic-heavy'
   | 'generic-monster'
@@ -127,6 +141,7 @@ export interface PaintColors {
 export type HeadShape = 'marine-helmet' | 'terminator-helmet' | 'ork-head' | 'ork-boss-head' | 'necron-skull' | 'necron-lord' | 'sister-bob' | 'sister-hood' | 'arco-mask' | 'tyranid-head' | 'tyranid-prime-head' | 'tyranid-brute-head' | 'generic-head'
   | 'chaos-helmet' | 'chaos-sorcerer' | 'possessed-head' | 'cultist-hood'
   | 'guard-helmet' | 'officer-cap' | 'sentinel-cab' | 'tau-helmet' | 'tau-ethereal' | 'custodes-helm'
+  | 'kin-helm' | 'kin-helm-crest'
 export type WeaponShape =
   | 'none'
   | 'bolt-rifle'
@@ -165,6 +180,9 @@ export type WeaponShape =
   | 'fusion-blaster'
   | 'burst-cannon'
   | 'honour-stave'
+  | 'ion-blaster'
+  | 'rail-rifle'
+  | 'plasma-axe'
 export type ShoulderPad = 'none' | 'small' | 'large'
 
 export interface BipedConfig {
@@ -215,7 +233,9 @@ export interface VehicleConfig {
   weapon: 'kustom-mega-blasta' | 'kopta-rokkits' | 'none'
   hasRotor: boolean
   /** 'dozer' = a tracked mining crawler (Goliath Rockgrinder); 'hover' = a skimmer transport (Devilfish); default is the gyrocopter rig. */
-  style?: 'copter' | 'dozer' | 'hover'
+  style?: 'copter' | 'dozer' | 'hover' | 'gravbike'
+  /** Grav-bike dressing (Hernkyn Pioneers): which kit the bike carries on top of its nose gun. */
+  rig?: 'comms' | 'searchlight' | 'rotary'
 }
 
 /** Props shared by every body renderer (BipedBody / VehicleBody). Authored at unit height

@@ -25,6 +25,7 @@ import type { DecisionHandler, EngineContext, WindowTrigger } from './modules'
 import { otherPlayer } from './modules'
 import { isTeleporting } from './teleport'
 import { championOfTitanModelDestroyed, noEscapeAmount } from './factions/grey-knights'
+import { holyApparatusAmount, holyApparatusOffer, toilEarnsAmount, toilEarnsOffer } from './factions/leagues-of-votann'
 import {
   guardianOfTheRealmAmount, guardianOfTheRealmModelDestroyed, guardianOfTheRealmSnapshot,
   tgbConsecratedGroundGain, tgbConsecratedGroundLoss, vexillaObjectiveIds,
@@ -200,7 +201,7 @@ function rulesFor(s: GameState, pid: PlayerId): ScoringRule[] {
 }
 
 // ScoringRule-shaped "pick" instances (pointsPer 0): raise a decision instead of computing an amount
-const PICK_CODES = new Set(['stompEmPick', 'bagPick', 'treasuresOfAeonsPick', 'methodicalDestructionPick', 'etherealEdictPick', 'divineJudgementPick'])
+const PICK_CODES = new Set(['stompEmPick', 'bagPick', 'treasuresOfAeonsPick', 'methodicalDestructionPick', 'etherealEdictPick', 'divineJudgementPick', 'toilEarnsPick', 'holyApparatusPick'])
 
 // ---------- generic ScoringRule.rule amounts ----------
 function tierPoints(tiers: Record<string, number>, die: number): number {
@@ -546,6 +547,8 @@ function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): num
     case 'infiltrationAgenda': return infiltrationAgendaAmount(s, rule, pid)
     case 'safeguardTheSanctuary': return safeguardTheSanctuaryAmount(ctx, rule, pid, (id) => holds(ctx, id, pid))
     case 'noEscape': return noEscapeAmount(ctx, rule, pid)
+    case 'toilEarnsScore': return toilEarnsAmount(s, rule, pid, (id) => holds(ctx, id, pid))
+    case 'holyApparatusScore': return holyApparatusAmount(s, rule, pid)
     case 'methodicalDestructionScore': return methodicalDestructionAmount(s, rule, pid)
     case 'raiseTheVexillas': {
       const v = vexillaObjectiveIds(s, pid)
@@ -661,6 +664,8 @@ function runPick(ctx: EngineContext, rule: ScoringRule, pid: PlayerId, key: stri
   else if (rule.code === 'methodicalDestructionPick') methodicalDestructionOffer(ctx, pid, rule.when, key)
   else if (rule.code === 'etherealEdictPick') etherealEdictOffer(ctx, pid, rule.when, key)
   else if (rule.code === 'divineJudgementPick') divineJudgementOffer(ctx, pid, rule.when, key)
+  else if (rule.code === 'toilEarnsPick') toilEarnsOffer(ctx, pid, rule.when, key)
+  else if (rule.code === 'holyApparatusPick') holyApparatusOffer(ctx, pid, rule.when, key)
 }
 
 // ---------- MissionRule (non-scoring) codes ----------

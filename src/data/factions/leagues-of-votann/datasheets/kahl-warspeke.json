@@ -1,0 +1,26 @@
+[
+  {
+    "id": "lov.kahl-warspeke",
+    "faction": "leagues-of-votann",
+    "name": "Kâhl Warspeke",
+    "keywords": ["INFANTRY", "CHARACTER", "KAHL", "WARSPEKE"],
+    "factionKeywords": ["LEAGUES OF VOTANN"],
+    "stats": { "M": 5, "T": 5, "Sv": 3, "W": 4, "Ld": 7, "OC": 1 },
+    "invuln": 4,
+    "composition": [
+      {
+        "modelId": "kahl",
+        "name": "Kâhl Warspeke",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 40 },
+        "weapons": { "default": ["lov.w.volkanite-disintegrator", "lov.w.mass-gauntlet"] },
+        "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+      }
+    ],
+    "abilities": ["lov.a.eye-of-the-ancestors", "lov.a.eye-of-the-ancestors-wound", "lov.a.grim-efficiency"],
+    "coreAbilities": [ { "ability": "LEADER" } ],
+    "leader": { "attachTo": ["lov.hearthkyn-warriors"], "effects": [] },
+    "points": [ { "models": 1, "points": 0 } ],
+    "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+  }
+]

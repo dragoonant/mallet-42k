@@ -213,7 +213,7 @@ export const transportService: TransportService = {
   },
 }
 
-function markNoCharge(state: GameState, unitId: UnitId): void {
+export function markNoCharge(state: GameState, unitId: UnitId): void {
   store(state, state.units[unitId].player, 'noCharge')[unitId] = `${state.round}:${state.activePlayer}`
 }
 

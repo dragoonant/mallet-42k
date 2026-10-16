@@ -160,6 +160,22 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ['penitent-eviscerator', 'wpn-brutal-assault-weapon'] as const,
   ['penitent-buzz-blades', 'wpn-spinnin-blades'] as const,
   ['armoured-tracks', 'wpn-brutal-assault-weapon'] as const,
+  // Leagues of Votann borrow: ion blasters crack like pulse rifles, rail rifles like the ion raker, the disintegrator thumps like a plasma cannon,
+  // HYLas and magna-coil guns chatter like an autogun / assault cannon, gauntlets crunch like fists, plasma axes ring like relic blades.
+  ['volkanite-disintegrator', 'wpn-plasma-cannon'] as const,
+  ['ion-blaster', 'pulse-rifle-shot'] as const,
+  ['autoch-pattern-bolter', 'wpn-boltgun'] as const,
+  ['hylas-auto-rifle', 'wpn-autogun'] as const,
+  ['hylas-rotary-cannon', 'wpn-assault-cannon'] as const,
+  ['magna-rail-rifle', 'ion-raker'] as const,
+  ['magna-coil-autocannon', 'wpn-assault-cannon'] as const,
+  ['bolt-revolver', 'wpn-bolt-pistol'] as const,
+  ['bolt-shotgun', 'wpn-boltgun'] as const,
+  ['mass-gauntlet', 'wpn-power-fist'] as const,
+  ['concussion-gauntlet', 'wpn-power-fist'] as const,
+  ['kin-melee-weapon', 'wpn-close-combat-weapon'] as const,
+  ['plasma-knife', 'wpn-power-weapon'] as const,
+  ['heavy-plasma-axe', 'wpn-relic-weapon'] as const,
 ].sort((a, b) => b[0].length - a[0].length)
 
 const WEAPON_TRIM: Partial<Record<SfxId, number>> = {

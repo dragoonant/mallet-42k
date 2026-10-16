@@ -377,6 +377,11 @@ export const setupModule: PhaseModule = {
             })
             return 'pending'
           }
+          // E3 (Leagues of Votann Toil Earns): Deploy Armies pick window, once, before the first unit is set up
+          if (ctx.once('deployArmiesStart')) {
+            ctx.services.missions.onWindow(ctx, 'deployment.unit', 'deployArmies')
+            if (s.pending) return 'pending'
+          }
           const pid = deploymentTurnPlayer(s)
           if (pid === null) { s.step = 'rollOffFirstTurn'; continue }
           const unitIds = remainingToDeploy(s, pid)

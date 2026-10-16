@@ -37,6 +37,7 @@ export interface AttackOptions {
   fnp?: number // granted Feel No Pain (stratagem); the better of this and the datasheet's applies
   strMod?: number // added to the attacking weapon's Strength (e.g. Disruption Fields)
   woundModHighS?: number // wound-roll modifier applied only when the weapon's Strength exceeds the target's Toughness
+  svMod?: number // added to the defender's Save characteristic (stratagem): -1 = one step better (4+ -> 3+)
 }
 
 export interface AttackEstimate { damage: number; modelsKilled: number }
@@ -119,7 +120,7 @@ export function expectedAttack(
   // save: sv' = Sv - AP (AP is stored negative), cover -1 (better) unless ignored/AP0-heavy-armour, invuln if better
   const dsInvuln = datasheetOf(state, targetUnitId).invuln
   const ignoresCover = weaponService.hasAbility(weapon, 'IGNORES_COVER')
-  let svArmour = tStats.Sv - weapon.AP
+  let svArmour = tStats.Sv + (opts.svMod ?? 0) - weapon.AP
   if (opts.cover && !ignoresCover && !(tStats.Sv <= 3 && weapon.AP === 0)) svArmour -= 1
   const effArmour = Math.max(2, Math.min(7, svArmour))
   const invulnSources = [dsInvuln, opts.invuln ?? null].filter((v): v is number => v !== null)

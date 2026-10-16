@@ -43,6 +43,7 @@ import type { RollSpec } from './dice'
 import { distance } from './geometry'
 import type { AttackContext, EffectRequest, RollModifierResult } from './hooks'
 import { leaderService } from './leaders'
+import { judgementOnUnitDestroyed } from './judgement'
 import type { AdvanceResult, DecisionHandler, EngineContext } from './modules'
 import { tryDeathBlow } from './deathblow'
 import { datasheetOf, hasKeyword, keywordsOf, modelKeywordsOf, modelStats, recordModelAttacked, removeModel, unitModels } from './state'
@@ -1606,6 +1607,7 @@ function destroyUnitTail(ctx: EngineContext, unit: Unit, by: DestroyedBy): void 
   unit.destroyedBy = { player: by.player ?? s.activePlayer, kind: by.kind, round: s.round, unitId: by.unitId, modelId: by.modelId }
   ctx.emit({ type: 'UnitDestroyed', unitId: unit.id, byPlayer: by.player, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
   ctx.services.hooks.run(ctx, 'onUnitDestroyed', { destroyedUnitId: unit.id, destroyedModelId: null, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
+  judgementOnUnitDestroyed(ctx, unit.id, by) // LEA-2.1 Eye of the Ancestors (Judgement token on the killer's unit)
   // E4: ranged kill flag (Devastating Wounds mortals of a ranged attack count; own Hazardous never does)
   const ra = s.phaseState.attack
   const rangedAttack = by.kind === 'ranged' || (by.kind === 'mortal' && by.unitId !== null && ra?.kind === 'ranged'
