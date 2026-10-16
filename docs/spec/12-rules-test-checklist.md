@@ -1238,3 +1238,34 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | DAR-023 | DAR-6 | Inceptors: Deep Strike from round 2 only (>9" from enemies); assault bolters Pistol — may shoot while in Engagement Range; Twin-linked re-rolls wound rolls; Sustained Hits 2 → 2 extra hits on a critical hit |
 | DAR-024 | DAR-6 | Intercessor bolt rifle: Assault (may shoot after Advancing) and Heavy (+1 to hit when stationary) |
 | DAR-025 | E1, E2 | Regression: storing `chargeLog` / `shotLog` in `mission.custom` leaves existing mission custom keys and replay hashes deterministic (same seed + actions → same hash) |
+
+## DRU — Drukhari: The Blades of Torment (docs/spec/factions/drukhari.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| DRU-001 | DRU-1 | patrol `drk.cp.blades-of-torment` loads (faction `drukhari`): 5 units, 18 models; Archon is WARLORD with Shudderworm Bottle, attached to the Kabalite Warriors; default secondary Rapacious Raiders; stratagems are the three `drk.s.*` ids; start screen lists Drukhari |
+| DRU-002 | DRU-6 | data: every stat/profile row of §6 matches (incl. splinter cannon BS 4+, Klaivex W2, Archon 2+ invuln); every datasheet has faction keyword DRUKHARI and keyword AELDARI; Raider transport capacity 11 DRUKHARI INFANTRY, Firing Deck 11 |
+| DRU-003 | DRU-2.1, E1 | Pain pool: each Drukhari player starts the battle with 1; +1 when an enemy unit is destroyed (each half of an attached unit counts); +1 when an enemy unit fails a Battle-shock test; own unit destroyed or enemy passing the test → no gain; non-Drukhari opponent has no pool |
+| DRU-004 | DRU-2.2, 2.5 | Empower offer: at the start of the Movement / Shooting / Charge / Fight phase (either turn) a player with tokens gets a chooseOption listing own on-board units + Keep tokens; none at command.start; 0 tokens → no offer; a unit Empowered this phase is not listed again; spending decrements the pool; both players are offered in a mirror match |
+| DRU-005 | DRU-2.4 | Empowered in own Shooting phase: Kabalite rifle misses are re-rolled; in the opponent's Fight phase an Empowered unit fighting back re-rolls hits; non-Empowered unit does not; expires at end of phase |
+| DRU-006 | DRU-2.3 | Empowered in Movement phase: Advance roll re-roll offered; in Charge phase: a short Charge roll is re-rolled; Empowered in the opponent's Movement phase and firing Overwatch → no hit re-roll |
+| DRU-007 | DRU-3.1 | Shudderworm Bottle: Archon leading Kabalites → each Kabalite and the Archon roll FNP 5+ per lost wound; Archon detached → no FNP for anyone |
+| DRU-008 | DRU-3.2 | Spiteful Predator: Archon's unit Falls Back → may shoot and may declare a charge that turn; without the enhancement → neither |
+| DRU-009 | DRU-4.1 | Rapacious Raiders: end of own turn, Kabalites wholly in the opponent's zone → 4 VP; only the Ravager wholly in → 3 VP; Raider + Incubi both in → 4 (not 7); one model straddling the line → 0 |
+| DRU-010 | DRU-4.1 | Rapacious Raiders: qualifying unit Battle-shocked → 0; attached unit with either half Battle-shocked → 0; unit embarked in a Raider that is in the zone → only the Raider counts (3 VP); end of the opponent's turn → 0; Necrons Reclaim and Dominate / CSM Idolatrous Despoilers amounts unchanged |
+| DRU-011 | DRU-4.2 | Murderous Monster: Archon kills an enemy model in the Fight phase (either turn) → 3 VP at the end of that phase; kills in two Fight phases → 3 + 3 |
+| DRU-012 | DRU-4.2 | Murderous Monster: only Kabalites kill → 0; Archon kills in the Shooting phase only → 0 at end of Shooting and 0 at end of the following Fight phase (no leak); Rapacious Raiders chosen → never scores |
+| DRU-013 | DRU-5.1 | Quicksilver Reactions: opponent's Shooting phase, enemy targets Kabalites → offered; used → every attack on them −1 to hit until end of phase; in the Drukhari's own Fight phase an enemy unit targets Incubi → offered |
+| DRU-014 | DRU-5.1 | Quicksilver Reactions not offered: Drukhari's own Shooting phase; untargeted unit; Raider/Ravager (not INFANTRY); second use in the same phase |
+| DRU-015 | DRU-5.2 | Many Cuts: own Shooting phase, Kabalites not yet shot → offered; vs a target below Starting Strength the splinter rifles get Sustained Hits 1 (a critical hit → 1 extra hit); vs a full-strength target → none; splinter cannon SH1 does not become SH2 |
+| DRU-016 | DRU-5.2 | Many Cuts in the Fight phase of either turn for Incubi not yet fought → offered; not offered for a unit that already shot / fought this phase, nor in the opponent's Shooting phase |
+| DRU-017 | DRU-5.3, E3 | There and Gone: end of the opponent's Fight phase, Incubi wholly within 3" of the Raider and out of ER → offered; used → Incubi embarked (location reserves, linked to the Raider); next own Movement phase they may disembark |
+| DRU-018 | DRU-5.3 | There and Gone not offered: unit in Engagement Range; a model more than 3" from the transport; capacity short (Kabalites 10 + Incubi 5 > 11); own Fight phase; Ravager as transport (not TRANSPORT) |
+| DRU-019 | E3 | Attached transport: Archon + Kabalites (11 models) embark after a Normal move and via There and Gone; both halves leave the board together and disembark together within 3"; may start embarked at setup; Firing Deck 11 lists weapons of both halves; Raider destroyed → both halves emergency-disembark; attach link kept |
+| DRU-020 | DRU-6.1, E2 | Shadowfield: Archon invulnerable 2+ used vs AP −1; a failed invuln save cannot be Command Re-rolled; after the first failure later saves use Sv 4+ (with AP) for the rest of the battle; a failed armour save or a mortal wound does not consume it |
+| DRU-021 | DRU-6.2 | Tormentors: start of the Fight phase (either turn), each enemy unit in Engagement Range of the Incubi takes one Battle-shock test; a failure gives the Drukhari player a Pain token; units not in ER are not tested |
+| DRU-022 | DRU-6.3 | Ravager at 4 wounds remaining: hit rolls −1 (dark lance hits on 4+); at 5 → no penalty |
+| DRU-023 | DRU-6.4 | Raider: Firing Deck 11 — embarked Kabalites' rifles fire through the Raider; non-DRUKHARI or non-INFANTRY units cannot embark |
+| DRU-024 | DRU-6 | Splinter weapons: Anti-INFANTRY 3+ — unmodified wound 3 vs INFANTRY is a critical wound (wounds T3–T10 alike); vs VEHICLE wounds as S2 |
+| DRU-025 | DRU-6 | Shredder Torrent auto-hits D6 attacks; Klaivex picks single or dual demiklaive profile per fight, dual is Twin-linked; dark lance damage D6+2 |
+| DRU-026 | DRU-6.5 | Raider / Ravager Deep Strike from round 2 only (>9" from enemies); Deadly Demise D3 on destruction |
+| DRU-027 | E1 | Regression: Pain pool and Empowered record in `secondaryState` keep replay hashes deterministic (same seed + actions → same hash); non-Drukhari games create no `painTokens` key |
