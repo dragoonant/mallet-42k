@@ -26,7 +26,7 @@ describe('black-templars client plumbing', () => {
         expect(kit, `${sheet.id}/${m.modelId}`).toMatch(/^bt-/)
         if (sheet.id === 'bt.impulsor') {
           expect(BODY_KIND[kit]).toBe('vehicle')
-          expect(VEHICLE_CONFIG[kit]?.style).toBe('impulsor')
+          expect(VEHICLE_CONFIG[kit]?.style).toBe('templar-impulsor')
         } else {
           expect(BODY_KIND[kit]).toBe('biped')
           expect(BIPED_CONFIG[kit], kit).toBeDefined()
