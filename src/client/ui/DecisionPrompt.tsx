@@ -240,6 +240,27 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
     },
   },
   {
+    match: /neural-disruption/,
+    info: {
+      title: 'Neural Disruption',
+      hint: 'Pick an enemy unit within 12 inches of this model, seen or not. It takes a Battle-shock test right now. Choose the unit most likely to crack.',
+    },
+  },
+  {
+    match: /neurogoad/,
+    info: {
+      title: 'Neurogoad',
+      hint: 'Pick a friendly Tyranid unit within 12 inches of the bearer (its own unit counts). Until your next Command phase it re-rolls its charge rolls and its hit rolls.',
+    },
+  },
+  {
+    match: /psionic-phantoms/,
+    info: {
+      title: 'Psionic Phantoms',
+      hint: 'The bearer is being shot at. Once per battle round it may slip up to 6 inches away first. If the shooters then cannot see it, a D6 decides: on 1-3 they re-pick targets, on 4-6 they fire nothing this phase.',
+    },
+  },
+  {
     match: /secretion-goad/,
     info: {
       title: 'Secretion Goad',

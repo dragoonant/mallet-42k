@@ -1,0 +1,109 @@
+{
+  "id": "tyr.cp.insidious-infiltrators",
+  "faction": "tyranids",
+  "name": "Insidious Infiltrators",
+  "units": [
+    {
+      "ref": "deaths-shadow",
+      "datasheet": "tyr.deaths-shadow",
+      "size": 1,
+      "enhancement": "tyr.e.neurogoad"
+    },
+    {
+      "ref": "lictor",
+      "datasheet": "tyr.lictor",
+      "size": 1
+    },
+    {
+      "ref": "leapers-a",
+      "datasheet": "tyr.von-ryans-leapers-inf",
+      "size": 3
+    },
+    {
+      "ref": "leapers-b",
+      "datasheet": "tyr.von-ryans-leapers-inf",
+      "size": 3
+    },
+    {
+      "ref": "leapers-c",
+      "datasheet": "tyr.von-ryans-leapers-inf",
+      "size": 3
+    }
+  ],
+  "stratagems": [
+    "tyr.s.swift-kills",
+    "tyr.s.pheromonal-trace",
+    "tyr.s.predators-not-prey"
+  ],
+  "enhancements": [
+    {
+      "id": "tyr.e.neurogoad",
+      "default": true
+    },
+    {
+      "id": "tyr.e.psionic-phantoms",
+      "default": false
+    }
+  ],
+  "secondaries": [
+    {
+      "id": "tyr.sec.alpha-predation",
+      "name": "Alpha Predation",
+      "text": "Once per battle, in the battle round when the enemy Warlord is first destroyed, score 15 victory points if that is round 1 or 2, 10 if round 3 or 4, or 5 if round 5.",
+      "default": true,
+      "scoring": [
+        {
+          "id": "alpha-predation",
+          "when": "any.unitDestroyed",
+          "rounds": {
+            "from": 1,
+            "to": 5
+          },
+          "who": "both",
+          "rule": "custom",
+          "pointsPer": 15,
+          "cap": 15,
+          "code": "alphaPredation",
+          "params": {
+            "tiers": [
+              {
+                "toRound": 2,
+                "vp": 15
+              },
+              {
+                "toRound": 4,
+                "vp": 10
+              },
+              {
+                "toRound": 5,
+                "vp": 5
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "tyr.sec.left-to-last",
+      "name": "Left to Last",
+      "text": "While the enemy Warlord has not been destroyed, score 4 victory points each time you destroy an enemy unit.",
+      "default": false,
+      "scoring": [
+        {
+          "id": "left-to-last",
+          "when": "any.unitDestroyed",
+          "rounds": {
+            "from": 1,
+            "to": 5
+          },
+          "who": "both",
+          "rule": "custom",
+          "pointsPer": 4,
+          "cap": 999,
+          "code": "leftToLast"
+        }
+      ]
+    }
+  ],
+  "warlord": "deaths-shadow"
+}

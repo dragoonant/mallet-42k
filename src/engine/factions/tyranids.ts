@@ -3,6 +3,7 @@
 // here may be read at module-evaluation time). Death Blow's deferred removal lives in ../deathblow.ts (attack.ts and fight.ts
 // call it for every game); this file re-exports its names so the spec's `factions/tyranids` entry points exist.
 import type { EffectList, ScoringRule, TimingWindowId } from '../../data/types'
+import type { AttackContext, RollContext } from '../hooks'
 import type { Action } from '../actions'
 import { distance, pointInPolygon, pointToPolygonEdge, OBJECTIVE_MARKER_RADIUS } from '../geometry'
 import { hookService, type HookSourceEntry } from '../hooks-impl'
@@ -10,7 +11,7 @@ import { leaderService } from '../leaders'
 import type { EngineContext } from '../modules'
 import { startReactiveMove } from '../phases/movement'
 import { buildShootingWeaponEntries } from '../phases/shooting'
-import { deploymentZone, keywordsOf, modelIdFor, modelStats, spawnUnitCopy, unitModels } from '../state'
+import { deploymentZone, keywordsOf, modelIdFor, modelKeywordsOf, modelStats, spawnUnitCopy, unitModels } from '../state'
 import type {
   ChooseOptionDecision, GameState, PendingDecision, PlayerId, Rejection, Unit, UnitId,
 } from '../types'
@@ -365,4 +366,366 @@ export function frozenClosestEligible(s: GameState, attackerUnitId: UnitId, kind
   if (mark === undefined) return null
   const rest = mark.slice(key.length)
   return rest === '' ? [] : rest.split(',')
+}
+
+
+// =====================================================================================================================
+// Insidious Infiltrators (docs/spec/factions/tyranids--insidious-infiltrators.md §7, INF-x)
+// =====================================================================================================================
+export const NEURAL_CODE = 'neuralDisruption'
+export const NEUROGOAD_CODE = 'neurogoad'
+export const PHANTOMS_CODE = 'psionicPhantoms'
+export const PHANTOMS_PENDING_MARK = 'phantoms:pending'
+export const SABOTEUR_CODE = 'psychologicalSaboteur'
+
+// the first enhancement ability with `code` whose bearer model is alive on the board for `player`
+function enhancementBearer(s: GameState, player: PlayerId, code: string): { abilityId: string; modelId: string; unitId: UnitId } | null {
+  for (const a of Object.values(s.abilities)) {
+    if (a.source !== 'enhancement' || a.code !== code || !a.bearerModelId) continue
+    const model = s.models[a.bearerModelId]
+    const unit = model ? s.units[model.unitId] : undefined
+    if (unit && unit.player === player && unit.location === 'board' && unit.models.includes(model.id)) return { abilityId: a.id, modelId: model.id, unitId: unit.id }
+  }
+  return null
+}
+
+function canonicalBoardUnits(s: GameState, pred: (u: Unit) => boolean): Unit[] {
+  const seen = new Set<UnitId>()
+  const out: Unit[] = []
+  for (const u of Object.values(s.units)) {
+    if (u.location !== 'board' || u.models.length === 0 || !pred(u)) continue
+    const c = leaderService.canonicalUnitId(s, u.id)
+    if (seen.has(c)) continue
+    seen.add(c)
+    out.push(s.units[c])
+  }
+  return out.sort((a, b) => (a.id < b.id ? -1 : 1))
+}
+
+function targetOptions(player: PlayerId, units: Unit[], declineLabel: string): ChooseOptionDecision['options'] {
+  return [
+    ...units.map((u) => ({ id: u.id, label: u.name, action: { type: 'chooseOption' as const, player, decisionId: '', optionId: u.id }, hint: { unitId: u.id } })),
+    { id: 'decline', label: declineLabel, action: { type: 'chooseOption' as const, player, decisionId: '', optionId: 'decline' } },
+  ]
+}
+
+// ---------- Neural Disruption (INF-6.1) ----------
+function neuralCandidates(s: GameState, holder: Unit, range: number): Unit[] {
+  return canonicalBoardUnits(s, (u) => u.player !== holder.player && leaderService.unitDistance(s, holder.id, u.id) <= range + EPS)
+}
+
+export function neuralOffer(ctx: EngineContext, window: TimingWindowId, key: string): boolean {
+  const s = ctx.state
+  const player = s.activePlayer
+  const holders = Object.values(s.units).filter((u) => u.player === player && boardUnit(s, u.id) && abilityIdWithCode(s, u, NEURAL_CODE)).sort((a, b) => (a.id < b.id ? -1 : 1))
+  for (const holder of holders) {
+    const mark = `neural:${s.round}:${player}:${holder.id}`
+    if (s.phaseState.marks.includes(mark)) continue
+    const abilityId = abilityIdWithCode(s, holder, NEURAL_CODE) as string
+    const range = (s.abilities[abilityId].params?.range as number | undefined) ?? 12
+    s.phaseState.marks.push(mark)
+    const candidates = neuralCandidates(s, holder, range)
+    if (candidates.length === 0) continue
+    ctx.decide({
+      kind: 'chooseOption', player, window, canPass: false,
+      context: { topic: 'abilityChoice', unitId: holder.id, abilityId, data: { window, key, code: NEURAL_CODE } },
+      options: targetOptions(player, candidates, 'Decline'),
+    })
+    return true
+  }
+  return false
+}
+
+export function neuralHandle(ctx: EngineContext, action: Action, pending: PendingDecision): Rejection | void {
+  if (action.type !== 'chooseOption' || pending.kind !== 'chooseOption') return notAnOption('Neural Disruption expects chooseOption')
+  if (action.optionId === 'decline') return
+  const s = ctx.state
+  const holder = boardUnit(s, pending.context.unitId ?? '')
+  const abilityId = pending.context.abilityId
+  if (!holder || !abilityId) return notAnOption('Neural Disruption: the holder is no longer on the battlefield')
+  const range = (s.abilities[abilityId]?.params?.range as number | undefined) ?? 12
+  if (!neuralCandidates(s, holder, range).some((u) => u.id === action.optionId)) return { code: 'E_INVALID_TARGET', reason: "pick an enemy unit within range of Death's Shadow" }
+  ctx.emit({ type: 'AbilityTriggered', abilityId, sourceUnitId: holder.id, targetUnitId: action.optionId, summary: `Neural Disruption: ${s.units[action.optionId].name} takes a Battle-shock test`, player: holder.player })
+  hookService.battleShockTest(ctx, action.optionId, abilityId)
+}
+
+// ---------- Neurogoad (INF-3.1, 3.3) ----------
+function neurogoadCandidates(s: GameState, player: PlayerId, bearerUnitId: UnitId, range: number, keyword: string): Unit[] {
+  return canonicalBoardUnits(s, (u) => u.player === player && keywordsOf(s, u.id).includes(keyword) && leaderService.unitDistance(s, u.id, bearerUnitId) <= range + EPS)
+}
+
+export function neurogoadOffer(ctx: EngineContext, window: TimingWindowId, key: string): boolean {
+  const s = ctx.state
+  const player = s.activePlayer
+  const mark = `neurogoad:${s.round}:${player}`
+  if (s.phaseState.marks.includes(mark)) return false
+  const bearer = enhancementBearer(s, player, NEUROGOAD_CODE)
+  if (!bearer) return false
+  s.phaseState.marks.push(mark)
+  const params = s.abilities[bearer.abilityId].params ?? {}
+  const candidates = neurogoadCandidates(s, player, bearer.unitId, (params.range as number | undefined) ?? 12, (params.keyword as string | undefined) ?? 'TYRANIDS')
+  if (candidates.length === 0) return false
+  ctx.decide({
+    kind: 'chooseOption', player, window, canPass: false,
+    context: { topic: 'abilityChoice', unitId: bearer.unitId, abilityId: bearer.abilityId, data: { window, key, code: NEUROGOAD_CODE } },
+    options: targetOptions(player, candidates, 'Decline'),
+  })
+  return true
+}
+
+export function neurogoadHandle(ctx: EngineContext, action: Action, pending: PendingDecision): Rejection | void {
+  if (action.type !== 'chooseOption' || pending.kind !== 'chooseOption') return notAnOption('Neurogoad expects chooseOption')
+  if (action.optionId === 'decline') return
+  const s = ctx.state
+  const bearerUnit = boardUnit(s, pending.context.unitId ?? '')
+  const abilityId = pending.context.abilityId
+  if (!bearerUnit || !abilityId) return notAnOption('Neurogoad: the bearer is no longer on the battlefield')
+  const params = s.abilities[abilityId]?.params ?? {}
+  const candidates = neurogoadCandidates(s, bearerUnit.player, bearerUnit.id, (params.range as number | undefined) ?? 12, (params.keyword as string | undefined) ?? 'TYRANIDS')
+  if (!candidates.some((u) => u.id === action.optionId)) return { code: 'E_INVALID_TARGET', reason: 'pick a friendly TYRANIDS unit within range of the bearer' }
+  ctx.services.effects.grant(ctx, action.optionId, [{ reroll: 'all' }], {
+    sourceAbilityId: abilityId, sourceUnitId: bearerUnit.id, scope: { who: 'self' }, duration: 'untilNextTurn', when: null,
+  })
+  ctx.emit({ type: 'AbilityTriggered', abilityId, sourceUnitId: bearerUnit.id, targetUnitId: action.optionId, summary: `Neurogoad: ${s.units[action.optionId].name} may re-roll Charge and Hit rolls`, player: bearerUnit.player })
+}
+
+// ---------- Psionic Phantoms (INF-3.2, 3.4 - 3.5): the offer and the 6" move; the after-move step is psionicPhantomsStep ----------
+export function phantomsOffer(ctx: EngineContext, window: TimingWindowId, key: string, overwatch = false): boolean {
+  const s = ctx.state
+  const attack = s.phaseState.attack
+  if (!attack || attack.kind !== 'ranged') return false
+  const shooter = s.units[attack.attackerUnitId]
+  if (!shooter) return false
+  const player = otherPlayerOf(shooter.player)
+  const bearer = enhancementBearer(s, player, PHANTOMS_CODE)
+  if (!bearer) return false
+  const bearerCanon = leaderService.canonicalUnitId(s, bearer.unitId)
+  if (!attack.targetUnitIds.some((t) => t === bearer.unitId || leaderService.canonicalUnitId(s, t) === bearerCanon)) return false
+  const roundMark = `phantoms:${s.round}`
+  if (s.players[player].oncePerBattleUsed.includes(roundMark)) return false
+  const occurrence = `pick:phantoms:${shooter.id}:${bearer.unitId}`
+  if (s.phaseState.marks.includes(occurrence)) return false
+  if (leaderService.inEngagementWithEnemy(s, bearer.unitId)) return false
+  s.phaseState.marks.push(occurrence)
+  ctx.decide({
+    kind: 'chooseOption', player, window, canPass: false,
+    // an Overwatch offer carries no window/key: answering it must not re-run the Shooting-phase pick offers
+    context: { topic: 'abilityChoice', unitId: bearer.unitId, abilityId: bearer.abilityId, data: overwatch ? { code: PHANTOMS_CODE, shooterUnitId: shooter.id } : { window, key, code: PHANTOMS_CODE, shooterUnitId: shooter.id } },
+    options: useDeclineOptions(player, 'Psionic Phantoms: Death\'s Shadow makes a Normal move of up to 6"'),
+  })
+  return true
+}
+
+export function phantomsHandle(ctx: EngineContext, action: Action, pending: PendingDecision): Rejection | void {
+  if (action.type !== 'chooseOption' || pending.kind !== 'chooseOption') return notAnOption('Psionic Phantoms expects chooseOption')
+  if (action.optionId === 'decline') return
+  if (action.optionId !== 'use') return notAnOption('Psionic Phantoms: use or decline')
+  const s = ctx.state
+  const bearer = boardUnit(s, pending.context.unitId ?? '')
+  const abilityId = pending.context.abilityId
+  if (!bearer || !abilityId) return notAnOption('Psionic Phantoms: the bearer is no longer on the battlefield')
+  const used = s.players[bearer.player].oncePerBattleUsed
+  const roundMark = `phantoms:${s.round}`
+  if (used.includes(roundMark)) return { code: 'E_STRATAGEM_USED', reason: 'Psionic Phantoms was already used this battle round' }
+  used.push(roundMark)
+  const shooterId = (pending.context.data.shooterUnitId as string | undefined) ?? ''
+  const prefix = `${PHANTOMS_PENDING_MARK}=`
+  s.phaseState.marks = s.phaseState.marks.filter((m) => !m.startsWith(prefix))
+  s.phaseState.marks.push(`${prefix}${shooterId}|${bearer.id}`)
+  const distanceCap = (s.abilities[abilityId]?.params?.distance as number | undefined) ?? 6
+  ctx.emit({ type: 'AbilityTriggered', abilityId, sourceUnitId: bearer.id, targetUnitId: shooterId || null, summary: "Psionic Phantoms: Death's Shadow slips away", player: bearer.player })
+  const moveWindow = (pending.window ?? 'shooting.targetsDeclared') as TimingWindowId
+  startReactiveMove(ctx, bearer.id, distanceCap, abilityId, moveWindow)
+}
+
+// ---------- Psychological Saboteur (INF-6.2) ----------
+const anyHalfShocked = (s: GameState, unitId: UnitId): boolean => leaderService.halves(s, unitId).some((h) => s.units[h]?.battleShocked)
+
+export function saboteurGate(state: GameState, holder: Unit, data?: Record<string, unknown>): boolean {
+  if (!holder || holder.location !== 'board' || holder.models.length === 0) return false
+  const attack = data?.attack as AttackContext | undefined
+  const roll = data?.roll as RollContext | undefined
+  if (!attack || !roll) return false
+  if (roll.purpose === 'hit') return anyHalfShocked(state, attack.attackerUnitId)
+  if (roll.purpose === 'wound') {
+    const target = state.units[attack.targetUnitId]
+    if (!target || target.player === holder.player || !anyHalfShocked(state, attack.targetUnitId)) return false
+    return leaderService.unitDistance(state, attack.targetUnitId, holder.id) <= 12 + EPS
+  }
+  return false
+}
+
+// ---------- Feeder Tendrils (INF-6.3) ----------
+export function feederTendrilsRun(ctx: EngineContext, entry: HookSourceEntry, data: Record<string, unknown>): void {
+  const s = ctx.state
+  const holder = s.units[entry.holderUnitId]
+  const byModelId = data.byModelId as string | null | undefined
+  const destroyedModelId = data.destroyedModelId as string | null | undefined
+  const destroyedUnitId = data.destroyedUnitId as string | undefined
+  if (!holder || !byModelId || !destroyedModelId || !destroyedUnitId || !holder.models.includes(byModelId)) return
+  const destroyedUnit = s.units[destroyedUnitId]
+  if (!destroyedUnit || destroyedUnit.player === holder.player) return
+  const keyword = (entry.params.keyword as string | undefined) ?? 'CHARACTER'
+  // the model may already be gone from state.models: fall back to the datasheet's keywords
+  let keywords: string[]
+  try { keywords = modelKeywordsOf(s, destroyedModelId) } catch { keywords = s.datasheets[destroyedUnit.datasheetId]?.keywords ?? [] }
+  if (!keywords.includes(keyword)) return
+  const cp = (entry.params.cp as number | undefined) ?? 1
+  hookService.gainCp(ctx, holder.player, cp, entry.source.id)
+  ctx.emit({ type: 'AbilityTriggered', abilityId: entry.source.id, sourceUnitId: holder.id, targetUnitId: destroyedUnitId, summary: 'Feeder Tendrils: an enemy CHARACTER falls, +1 CP', player: holder.player })
+}
+
+// ---------- Pheromonal Trace (INF-5.2) ----------
+export function pheromonalTraceApply(ctx: EngineContext, player: PlayerId, objectiveId: string): void {
+  const obj = ctx.state.objectives[objectiveId]
+  if (!obj) return
+  obj.securedBy = player
+  ctx.emit({ type: 'ObjectiveSecured', objectiveId: obj.id, by: player, flag: 'secured', player })
+}
+
+// ---------- secondaries (INF-4) ----------
+// Alpha Predation: the moment the opponent's Warlord unit is destroyed, once per battle; tiers by round
+export function alphaPredationAmount(s: GameState, rule: ScoringRule, pid: PlayerId, destroyedUnitId: UnitId): number {
+  if (s.players[pid].secondaryState.alphaPredationScored) return 0
+  if (destroyedUnitId !== s.players[otherPlayerOf(pid)].warlordUnitId) return 0
+  s.players[pid].secondaryState.alphaPredationScored = true
+  const tiers = (rule.params?.tiers as { toRound: number; vp: number }[] | undefined) ?? [{ toRound: 2, vp: 15 }, { toRound: 4, vp: 10 }, { toRound: 5, vp: 5 }]
+  return tiers.find((t) => s.round <= t.toRound)?.vp ?? 0
+}
+
+// Left to Last: `pid` destroys an enemy unit while the enemy Warlord's unit still lives (and this is not the Warlord's unit)
+export function leftToLastAmount(s: GameState, rule: ScoringRule, pid: PlayerId, info: { unitId: UnitId; byPlayer: PlayerId | null }): number {
+  if (info.byPlayer !== pid) return 0
+  const warlord = s.players[otherPlayerOf(pid)].warlordUnitId
+  if (!warlord || info.unitId === warlord || s.units[warlord]?.location === 'destroyed') return 0
+  return rule.pointsPer
+}
+
+// ---------- Psionic Phantoms: after-move step and re-declaration (INF-3.6 - 3.8) ----------
+export const PHANTOMS_REDECLARE_MARK = 'phantoms:redeclare'
+
+function markValue(s: GameState, key: string): string | null {
+  const prefix = `${key}=`
+  const m = s.phaseState.marks.find((x) => x.startsWith(prefix))
+  return m ? m.slice(prefix.length) : null
+}
+function setMark(s: GameState, key: string, value: string | null): void {
+  const prefix = `${key}=`
+  s.phaseState.marks = s.phaseState.marks.filter((x) => !x.startsWith(prefix))
+  if (value !== null) s.phaseState.marks.push(prefix + value)
+}
+
+// called by shooting.ts doResolve between the shooting.targetsDeclared window and attackService.advance
+export function psionicPhantomsStep(ctx: EngineContext, shooterUnitId: UnitId): 'pending' | 'done' {
+  const s = ctx.state
+  const raw = markValue(s, PHANTOMS_PENDING_MARK)
+  if (raw === null) return 'done'
+  if (s.pending) return 'pending'
+  const [markShooter, bearerId] = raw.split('|')
+  setMark(s, PHANTOMS_PENDING_MARK, null)
+  const attack = s.phaseState.attack
+  const bearer = s.units[bearerId]
+  const shooter = s.units[shooterUnitId]
+  if (markShooter !== shooterUnitId || !attack || !bearer || !shooter || bearer.location !== 'board') return 'done'
+  const abilityId = Object.values(s.abilities).find((a) => a.source === 'enhancement' && a.code === PHANTOMS_CODE)?.id ?? 'tyr.e.psionic-phantoms'
+  const shooterModels = boardModelsOf(s, shooterUnitId)
+  if (shooterModels.some((m) => ctx.services.los.unitVisible(s, m.id, bearerId))) {
+    ctx.emit({ type: 'AbilityTriggered', abilityId, sourceUnitId: bearerId, targetUnitId: shooterUnitId, summary: "Psionic Phantoms: Death's Shadow is still visible, the attacks stand", player: bearer.player })
+    return 'done'
+  }
+  const roll = ctx.roll({ purpose: 'ability', player: bearer.player, sides: 6, count: 1, mode: 'sum', unitId: bearerId, commandRerollable: false })
+  const value = roll.final.reduce((a, b) => a + b, 0)
+  const bearerCanon = leaderService.canonicalUnitId(s, bearerId)
+  const aimsAtBearer = (unitId: UnitId): boolean => leaderService.canonicalUnitId(s, unitId) === bearerCanon
+  if (value >= 4) {
+    const models = [...new Set(attack.targets.filter((t) => aimsAtBearer(t.targetUnitId)).map((t) => t.modelId))]
+    ctx.services.attack.dropAttackerModels(ctx, models)
+    ctx.emit({ type: 'AbilityTriggered', abilityId, sourceUnitId: bearerId, targetUnitId: shooterUnitId, summary: `Psionic Phantoms: rolled ${value}, ${models.length} model${models.length === 1 ? '' : 's'} make no attacks`, player: bearer.player })
+    return 'done'
+  }
+  const removed = ctx.services.attack.removeDeclaredTargets(ctx, (t) => aimsAtBearer(t.targetUnitId))
+  ctx.emit({ type: 'AbilityTriggered', abilityId, sourceUnitId: bearerId, targetUnitId: shooterUnitId, summary: `Psionic Phantoms: rolled ${value}, the shooters may pick new targets`, player: bearer.player })
+  if (removed.length === 0) return 'done'
+  const pairs = new Set(removed.map((t) => `${t.modelId}::${t.weaponId}`))
+  const weapons = buildShootingWeaponEntries(ctx, shooterUnitId)
+    .filter((w) => pairs.has(`${w.modelId}::${w.weaponId}`))
+    .map((w) => ({ ...w, legalTargets: w.legalTargets.filter((t) => !aimsAtBearer(t)) }))
+  if (!weapons.some((w) => w.legalTargets.length > 0)) return 'done'
+  setMark(s, PHANTOMS_REDECLARE_MARK, JSON.stringify(removed))
+  const engagedWith = [...new Set(weapons.flatMap((w) => w.legalTargets))].filter((t) => leaderService.unitsInEngagement(s, shooterUnitId, t))
+  ctx.decide({
+    kind: 'declareTargets', player: shooter.player, window: 'shooting.targetsDeclared', canPass: true,
+    context: { unitId: shooterUnitId, attackKind: 'ranged', overwatch: false, weapons, engagedWith },
+  })
+  return 'pending'
+}
+
+// answers the re-declaration (declareTargets or pass); shooting.ts has already validated against the restricted weapon list
+export function phantomsRedeclareHandle(ctx: EngineContext, action: Action, pending: PendingDecision): Rejection | void {
+  const s = ctx.state
+  if (action.type === 'pass') return
+  if (action.type !== 'declareTargets' || pending.kind !== 'declareTargets') return notAnOption('Psionic Phantoms: declare new targets or pass')
+  const attack = s.phaseState.attack
+  if (!attack) return
+  const unitId = action.unitId
+  if (action.targets.length === 0) return
+  const bigGuns = keywordsOf(s, unitId).some((k) => k === 'MONSTER' || k === 'VEHICLE')
+  if (!bigGuns && leaderService.inEngagementWithEnemy(s, unitId)) {
+    const distinct = new Set([...attack.targets.map((t) => leaderService.canonicalUnitId(s, t.targetUnitId)), ...action.targets.map((t) => leaderService.canonicalUnitId(s, t.targetUnitId))])
+    if (distinct.size > 1) return { code: 'E_INVALID_TARGET', reason: 'a unit in Engagement Range may shoot at only one of the enemy units it is engaged with', details: { targetUnitIds: [...distinct] } }
+  }
+  ctx.services.attack.appendDeclaredTargets(ctx, action.targets.map((t) => ({ modelId: t.modelId, weaponId: t.weaponId, targetUnitId: t.targetUnitId, profileGroup: t.profileGroup ?? null, attacks: null })))
+}
+
+// ---------- Psionic Phantoms vs Fire Overwatch (INF-3.4): arm after attackService.begin, step before attackService.advance ----------
+export const PHANTOMS_OW_MARK = 'phantoms:ow'
+
+// called by drainOverwatch / drainChargeOverwatch right after the Overwatch sequence begins; 'movement.moveStarted' (the
+// bearer is mid-move and cannot make a second Normal move) never arms
+export function phantomsOverwatchArm(ctx: EngineContext, shooterUnitId: UnitId, triggerWindow: TimingWindowId | null | undefined): void {
+  if (!ctx.state.phaseState.attack?.overwatch) return
+  if (triggerWindow === 'movement.moveStarted') return
+  setMark(ctx.state, PHANTOMS_OW_MARK, `${shooterUnitId}|${triggerWindow ?? 'movement.unitMoved'}|offer`)
+}
+
+// returns 'pending' while the offer / the 6" move is open; once both are done runs the visibility check and the D6
+export function phantomsOverwatchStep(ctx: EngineContext): 'pending' | 'done' {
+  const s = ctx.state
+  const raw = markValue(s, PHANTOMS_OW_MARK)
+  if (raw === null) return 'done'
+  if (s.pending) return 'pending'
+  const [shooterId, windowId, stage] = raw.split('|')
+  const attack = s.phaseState.attack
+  if (!attack || !attack.overwatch || attack.attackerUnitId !== shooterId) { setMark(s, PHANTOMS_OW_MARK, null); setMark(s, PHANTOMS_PENDING_MARK, null); return 'done' }
+  if (stage === 'offer') {
+    setMark(s, PHANTOMS_OW_MARK, `${raw.slice(0, raw.lastIndexOf('|'))}|asked`)
+    if (phantomsOffer(ctx, windowId as TimingWindowId, shooterId, true)) return 'pending'
+  }
+  setMark(s, PHANTOMS_OW_MARK, null)
+  const pendingRaw = markValue(s, PHANTOMS_PENDING_MARK)
+  if (pendingRaw === null) return 'done'
+  setMark(s, PHANTOMS_PENDING_MARK, null)
+  const [markShooter, bearerId] = pendingRaw.split('|')
+  const bearer = s.units[bearerId]
+  if (markShooter !== shooterId || !bearer || bearer.location !== 'board') return 'done'
+  const abilityId = Object.values(s.abilities).find((a) => a.source === 'enhancement' && a.code === PHANTOMS_CODE)?.id ?? 'tyr.e.psionic-phantoms'
+  if (boardModelsOf(s, shooterId).some((m) => ctx.services.los.unitVisible(s, m.id, bearerId))) {
+    ctx.emit({ type: 'AbilityTriggered', abilityId, sourceUnitId: bearerId, targetUnitId: shooterId, summary: "Psionic Phantoms: Death's Shadow is still visible, the Overwatch stands", player: bearer.player })
+    return 'done'
+  }
+  const roll = ctx.roll({ purpose: 'ability', player: bearer.player, sides: 6, count: 1, mode: 'sum', unitId: bearerId, commandRerollable: false })
+  const value = roll.final.reduce((a, b) => a + b, 0)
+  if (value >= 4) {
+    const models = [...new Set(attack.targets.map((t) => t.modelId))]
+    ctx.services.attack.dropAttackerModels(ctx, models)
+    ctx.emit({ type: 'AbilityTriggered', abilityId, sourceUnitId: bearerId, targetUnitId: shooterId, summary: `Psionic Phantoms: rolled ${value}, the Overwatch makes no attacks`, player: bearer.player })
+  } else {
+    // RULING: INF-3.6/3.7 say a re-declared target follows the normal target rules at that moment. Overwatch can only target the
+    // unit that triggered it (the bearer), and the bearer is no longer visible, so no legal new target exists: on 1-3 the attacks
+    // aimed at it are lost, the same result as 4-6.
+    const aims = (unitId: UnitId): boolean => leaderService.canonicalUnitId(s, unitId) === leaderService.canonicalUnitId(s, bearerId)
+    const removed = ctx.services.attack.removeDeclaredTargets(ctx, (t) => aims(t.targetUnitId))
+    ctx.emit({ type: 'AbilityTriggered', abilityId, sourceUnitId: bearerId, targetUnitId: shooterId, summary: `Psionic Phantoms: rolled ${value}, no legal Overwatch target remains (${removed.length} attack${removed.length === 1 ? '' : 's'} lost)`, player: bearer.player })
+  }
+  return 'done'
 }

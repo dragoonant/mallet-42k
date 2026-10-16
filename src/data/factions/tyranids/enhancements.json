@@ -41,5 +41,60 @@
         "duration": "untilEndOfPhase"
       }
     }
+  },
+  {
+    "id": "tyr.e.neurogoad",
+    "faction": "tyranids",
+    "name": "Neurogoad",
+    "text": "In your Command phase, pick one friendly TYRANIDS unit within 12 inches of the bearer (the bearer's own unit allowed). Until the start of your next Command phase, that unit may re-roll its Charge rolls and its models may re-roll their hit rolls.",
+    "cost": 0,
+    "restriction": {
+      "keyword": [
+        "DEATH'S SHADOW"
+      ]
+    },
+    "effect": {
+      "id": "tyr.e.neurogoad.effect",
+      "name": "Neurogoad",
+      "text": "Once per Command phase, a nearby friendly TYRANIDS unit may re-roll Charge rolls and hit rolls until your next Command phase.",
+      "trigger": "commandPhase",
+      "scope": {
+        "who": "bearer"
+      },
+      "code": "neurogoad",
+      "params": {
+        "range": 12,
+        "keyword": "TYRANIDS",
+        "pickWindow": "command.start",
+        "pickTopic": "abilityChoice"
+      }
+    }
+  },
+  {
+    "id": "tyr.e.psionic-phantoms",
+    "faction": "tyranids",
+    "name": "Psionic Phantoms",
+    "text": "Once per battle round, when the bearer is chosen as a target of ranged attacks by an enemy unit, it may make a Normal move of up to 6 inches. If that unit can then no longer see the bearer, roll a D6: on 1-3 the models that had picked the bearer may choose new targets; on 4-6 they cannot, and make no attacks this phase.",
+    "cost": 0,
+    "restriction": {
+      "keyword": [
+        "DEATH'S SHADOW"
+      ]
+    },
+    "effect": {
+      "id": "tyr.e.psionic-phantoms.effect",
+      "name": "Psionic Phantoms",
+      "text": "When targeted by ranged attacks, once per battle round, the bearer may slip 6 inches away and possibly spoil the shots.",
+      "trigger": "targetsDeclared",
+      "scope": {
+        "who": "bearer"
+      },
+      "code": "psionicPhantoms",
+      "params": {
+        "distance": 6,
+        "pickWindow": "shooting.targetsDeclared",
+        "pickTopic": "abilityChoice"
+      }
+    }
   }
 ]

@@ -177,7 +177,7 @@ stratagem pattern and `Objective.securedBy`, the Marked for Execution kill-trigg
 
 ### 7.1 Engine changes (c) — exact signatures
 
-No frozen contract changes: nothing in `src/engine/{types,actions,events,hooks,rng,decider,index}.ts` changes (new
+One additive frozen-contract change: `src/engine/hooks.ts` `EFFECT_HOOKS` gains the keys `moveThroughModels` and `autoPassDesperateEscape` (empty hook lists), noted in `docs/spec/00-architecture.md`. Nothing else in `src/engine/{types,actions,events,hooks,rng,decider,index}.ts` changes (new
 Effect keys live in `src/data/types.ts`; the re-declaration reuses the existing `declareTargets` decision and
 `DeclaredTarget` type; `ObjectiveSecured` already has `flag:'secured'`). The (b) hooks are written against these.
 

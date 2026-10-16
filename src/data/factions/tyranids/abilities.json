@@ -72,5 +72,68 @@
     "trigger": "always",
     "code": "patrolSquads",
     "params": { "sizes": [10, 10] }
+  },
+  {
+    "id": "tyr.a.neural-disruption",
+    "name": "Neural Disruption",
+    "text": "In your Command phase, pick one enemy unit within 12 inches of this model, whether or not it can be seen. That unit takes a Battle-shock test.",
+    "trigger": "commandPhase",
+    "code": "neuralDisruption",
+    "params": {
+      "range": 12,
+      "pickWindow": "command.start",
+      "pickTopic": "abilityChoice"
+    }
+  },
+  {
+    "id": "tyr.a.psychological-saboteur",
+    "name": "Psychological Saboteur",
+    "text": "Aura 12 inches. While an enemy unit within 12 inches of this model is Battle-shocked, each attack made by a model in that unit takes -1 to its hit roll.",
+    "trigger": "hitRoll",
+    "code": "psychologicalSaboteur",
+    "effect": {
+      "modifyRoll": {
+        "roll": "hit",
+        "value": -1
+      }
+    },
+    "scope": {
+      "who": "enemy",
+      "within": 12
+    },
+    "params": {
+      "range": 12
+    }
+  },
+  {
+    "id": "tyr.a.psychological-saboteur-wounds",
+    "name": "Psychological Saboteur (wounds)",
+    "text": "Second half of the Psychological Saboteur aura: while an enemy unit within 12 inches of this model is Battle-shocked, each attack a friendly TYRANIDS model makes against that unit gets +1 to its wound roll.",
+    "trigger": "woundRoll",
+    "code": "psychologicalSaboteur",
+    "effect": {
+      "modifyRoll": {
+        "roll": "wound",
+        "value": 1
+      }
+    },
+    "scope": {
+      "who": "friendly",
+      "keyword": "TYRANIDS"
+    },
+    "params": {
+      "range": 12
+    }
+  },
+  {
+    "id": "tyr.a.feeder-tendrils",
+    "name": "Feeder Tendrils",
+    "text": "Each time this model destroys an enemy CHARACTER model, you gain 1 CP.",
+    "trigger": "modelDestroyed",
+    "code": "feederTendrils",
+    "params": {
+      "cp": 1,
+      "keyword": "CHARACTER"
+    }
   }
 ]

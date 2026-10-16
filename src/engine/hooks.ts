@@ -200,6 +200,9 @@ export const EFFECT_HOOKS: Record<keyof Effect, HookName[]> = {
   stealth: ['onHitRoll'],
   lethalOn: ['onHitRoll'],
   critWoundAp: ['onWoundRoll'],
+  // INF-5.6: read directly by movement.ts / charge.ts, never through a hook
+  moveThroughModels: [],
+  autoPassDesperateEscape: [],
 }
 
 // hooks a descriptor must be registered at: its trigger's hook plus every hook its effect keys need

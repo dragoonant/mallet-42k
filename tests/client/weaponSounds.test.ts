@@ -139,6 +139,8 @@ const EXPECTED: Record<string, WeaponFlavour> = {
   'tyr.w.chitinous-claws-and-teeth-termagant': 'chain',
   'tyr.w.chitinous-claws-and-teeth-barbgaunt': 'chain',
   'tyr.w.leapers-talons': 'chain',
+  'tyr.w.piercing-claws-and-talons': 'chain',
+  'tyr.w.lictor-claws-and-talons': 'chain',
   'am.w.bolt-pistol': 'bolter',
   'am.w.lasgun': 'bolter',
   'am.w.laspistol': 'bolter',

@@ -36,12 +36,14 @@ import {
 import { hookService } from '../hooks-impl'
 import { leaderService } from '../leaders'
 import { attackService } from '../attack'
+import { handleReactiveMove, reactiveMoveLegalActions, validateReactiveMove } from './movement'
+import { phantomsOverwatchArm, phantomsOverwatchStep } from '../factions/tyranids'
 import { weaponService } from '../weapons'
 import { defaultOverwatchSelection } from './movement'
 import { targetLegality } from './shooting'
 import { terrainService } from '../terrain'
 import { transportService } from '../transports'
-import { crossesBigFriendly } from './movement'
+import { crossesBigFriendly, unitMovesThroughModels } from './movement'
 import { pendingReactions, consumeReaction } from '../code-hooks'
 import { cultAmbushOnMoveEnded } from '../cult-ambush'
 import { notImplementedHandle, otherPlayer, type AdvanceResult, type EngineContext, type PhaseModule } from '../modules'
@@ -124,7 +126,7 @@ function eligibleChargers(state: GameState, player: import('../types').PlayerId)
 
 // ---------- geometry: the charging unit's own models, its declared targets, and everyone else on the board ----------
 
-interface ChargeGeometry { models: Model[]; targetGroups: Model[][]; nonTargets: Model[]; otherFriendly: Model[]; fly: boolean }
+interface ChargeGeometry { models: Model[]; targetGroups: Model[][]; nonTargets: Model[]; otherFriendly: Model[]; fly: boolean; through: boolean }
 
 function targetModelGroups(state: GameState, targetUnitIds: UnitId[]): Model[][] {
   return targetUnitIds.map((id) => (leaderService.combinedModels ? leaderService.combinedModels(state, id) : unitModels(state, id)).filter((m) => state.units[m.unitId]?.location === 'board'))
@@ -140,7 +142,8 @@ function chargeGeometry(state: GameState, unitId: UnitId, targetUnitIds: UnitId[
   const otherFriendly: Model[] = []
   for (const u of boardUnitsOf(state, player)) if (!mine.has(u.id)) otherFriendly.push(...unitModels(state, u.id))
   const fly = models.length > 0 && models.every((m) => hasKeyword(state, m.unitId, 'FLY'))
-  return { models, targetGroups, nonTargets, otherFriendly, fly }
+  // INF-5.6 (Predators, Not Prey): crosses models like FLY for mid-path purposes only (path measurement stays 2D)
+  return { models, targetGroups, nonTargets, otherFriendly, fly, through: unitMovesThroughModels(state, unitId) }
 }
 
 // travel (2D, straight line toward `target`'s centre) needed for `m` to close its real (elliptical-base-aware)
@@ -187,7 +190,7 @@ function contactCandidateWithDetour(geo: ChargeGeometry, m: Model, target: Model
   const direct = contactCandidate(m, target, stopGap)
   const directPath: Path = [m.pos, direct.point]
   const fp: Footprint = { pos: direct.point, facing: m.facing, base: m.base }
-  const blocked = !geo.fly && (pathEntersEngagement(fp, directPath, geo.nonTargets) || pathCrossesModels(fp, directPath, geo.nonTargets))
+  const blocked = !(geo.fly || geo.through) && (pathEntersEngagement(fp, directPath, geo.nonTargets) || pathCrossesModels(fp, directPath, geo.nonTargets))
   if (!blocked) return { point: direct.point, travel: direct.travel, path: directPath }
   let best: { point: Vec3; travel: number; path: Path } | null = null
   const steps = 24
@@ -221,7 +224,7 @@ function tryChargePlacement(state: GameState, geo: ChargeGeometry, m: Model, can
   const allTargets = geo.targetGroups.flat()
   // W1-G: ending on top of an enemy model (e.g. contact with one oval target model while clipping its neighbour)
   if ([...allTargets, ...geo.nonTargets].some((b) => basesOverlap(fp, b))) return null
-  if (!geo.fly && (pathEntersEngagement(fp, path, geo.nonTargets) || pathCrossesModels(fp, path, [...geo.nonTargets, ...allTargets]))) return null
+  if (!(geo.fly || geo.through) && (pathEntersEngagement(fp, path, geo.nonTargets) || pathCrossesModels(fp, path, [...geo.nonTargets, ...allTargets]))) return null
   if (crossesBigFriendly(state, m, fp, path, geo.otherFriendly)) return null
   if (terrainService.crossesImpassable(state, m, path) || !terrainService.canEndAt(state, m, to).ok) return null
   return { model: m, from: m.pos, to, facing: m.facing, path, distance: travel }
@@ -344,7 +347,7 @@ function checkChargeArrangement(state: GameState, geo: ChargeGeometry, targetUni
       return { rejection: { code: 'E_ENGAGEMENT', reason: `${r.model.id} would end within engagement range of a unit it did not charge`, details: { modelId: r.model.id } } }
     }
     if (r.distance <= EPS) continue
-    if (!geo.fly) {
+    if (!(geo.fly || geo.through)) {
       if (pathEntersEngagement(fp, r.path, geo.nonTargets)) return { rejection: { code: 'E_ENGAGEMENT', reason: `${r.model.id}'s path would enter engagement range of a unit it did not charge`, details: { modelId: r.model.id } } }
       if (pathCrossesModels(fp, r.path, [...geo.nonTargets, ...allTargets])) return { rejection: { code: 'E_OVERLAP', reason: `${r.model.id}'s path would cross an enemy model`, details: { modelId: r.model.id } } }
     }
@@ -436,7 +439,7 @@ function couldReachBaseContact(state: GameState, geo: ChargeGeometry, model: Mod
     if (!whollyOnBoard(fp, state.board)) continue
     if (blockers.some((b) => basesOverlap(fp, b))) continue
     const path: Path = [model.pos, to]
-    if (!geo.fly && (pathEntersEngagement(fp, path, geo.nonTargets) || pathCrossesModels(fp, path, [...geo.nonTargets, ...geo.targetGroups.flat()]))) continue
+    if (!(geo.fly || geo.through) && (pathEntersEngagement(fp, path, geo.nonTargets) || pathCrossesModels(fp, path, [...geo.nonTargets, ...geo.targetGroups.flat()]))) continue
     if (crossesBigFriendly(state, model, fp, path, geo.otherFriendly)) continue
     if (terrainService.crossesImpassable(state, model, path)) continue
     if (!terrainService.canEndAt(state, model, to).ok) continue
@@ -486,13 +489,14 @@ export function overwatchTargetsFor(state: GameState, shooterUnitId: UnitId, cha
 
 function drainChargeOverwatch(ctx: EngineContext, chargerUnitId: UnitId): AdvanceResult {
   for (;;) {
-    if (ctx.state.phaseState.attack) { if (attackService.advance(ctx) === 'pending') return 'pending'; continue }
+    if (ctx.state.phaseState.attack) { if (phantomsOverwatchStep(ctx) === 'pending') return 'pending'; if (attackService.advance(ctx) === 'pending') return 'pending'; continue }
     const req = pendingReactions(ctx.state, 'overwatch').find((r) => r.enemyUnitId === chargerUnitId)
     if (!req) return 'done'
     consumeReaction(ctx.state, 'overwatch', req.unitId)
     const targets = overwatchTargetsFor(ctx.state, req.unitId, chargerUnitId)
     if (targets.length === 0) continue
     attackService.begin(ctx, { kind: 'ranged', attackerUnitId: req.unitId, overwatch: true, targets, overwatchHitOn: hookService.overwatchHitOnFor!(ctx.state, req.unitId, req.stratagemId) })
+    phantomsOverwatchArm(ctx, req.unitId, req.window)
   }
 }
 
@@ -749,7 +753,7 @@ function chargeLegalActions(state: GameState, pending: PendingDecision): Action[
 
 export const chargeModule: PhaseModule = {
   name: 'charge',
-  legalActions(state, pending) { return chargeLegalActions(state, pending) },
+  legalActions(state, pending) { return reactiveMoveLegalActions(state, pending) ?? chargeLegalActions(state, pending) },
   enter(ctx) {
     ctx.state.step = 'declare'
     ctx.state.phaseState.activated = []
@@ -776,6 +780,8 @@ export const chargeModule: PhaseModule = {
     }
   },
   validate(state, action, pending) {
+    const rm = validateReactiveMove(state, action, pending)
+    if (rm !== undefined) return rm
     if (pending.kind === 'declareCharge') {
       if (action.type !== 'declareCharge') return optionCheck(pending, action)
       if (action.unitId !== pending.context.unitId) return { code: 'E_INVALID_TARGET', reason: 'declareCharge is for the wrong unit', details: { expected: pending.context.unitId } }
@@ -796,6 +802,8 @@ export const chargeModule: PhaseModule = {
   },
   handle(ctx, action, pending): Rejection | void {
     const s = ctx.state
+    const reactive = handleReactiveMove(ctx, action, pending)
+    if (reactive !== null) return reactive
     if (action.type === 'pass') {
       // a Precision allocation (canPass) is declined with a pass: the attack sequence answers it
       if (pending.kind === 'allocateAttack' && s.phaseState.attack) return attackService.handler.handle(ctx, action, pending)

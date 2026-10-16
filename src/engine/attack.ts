@@ -89,6 +89,10 @@ export interface AttackService {
   // C5: the tail of destroyModel (Deadly Demise, removal, ModelDestroyed, kill credit, UnitDestroyed, missions, detach) — also the point at
   // which a fight-on-death model, deferred until it had fought, is finally removed
   finishDestroy(ctx: EngineContext, modelId: ModelId, by: DestroyedBy): void
+  // INF-3.6..3.8 (Psionic Phantoms): edit a running sequence before anything has rolled. Spec: docs/spec/factions/tyranids--insidious-infiltrators.md §7.1 C1
+  removeDeclaredTargets(ctx: EngineContext, pred: (t: DeclaredTarget) => boolean): DeclaredTarget[]
+  dropAttackerModels(ctx: EngineContext, modelIds: ModelId[]): void
+  appendDeclaredTargets(ctx: EngineContext, targets: DeclaredTarget[]): void
 }
 
 // C4: a model destroyed by an enemy attack leaves a phase-scoped `deathReaction:<json>` request, offered to its owner's death-reaction
@@ -1209,30 +1213,20 @@ export function pruneUnreachableTargets(ctx: EngineContext, attackerUnitId: Unit
   a.targetUnitIds = [...new Set(a.targets.map((t) => t.targetUnitId))]
 }
 
-export const attackService: AttackService = {
-  begin(ctx, spec) {
-    // [ONE SHOT] backstop: a weapon already fired this battle (Model.oneShotUsed) is dropped from any declaration, so no
-    // caller (shooting, either Overwatch builder, a client-built action) can fire it a second time
-    if (spec.targets.some((t) => ctx.state.models[t.modelId]?.oneShotUsed.includes(t.weaponId) && ctx.state.weapons[t.weaponId]?.abilities.some((a) => a.ability === 'ONE_SHOT'))) {
-      spec = { ...spec, targets: spec.targets.filter((t) => !(ctx.state.models[t.modelId]?.oneShotUsed.includes(t.weaponId) && ctx.state.weapons[t.weaponId]?.abilities.some((a) => a.ability === 'ONE_SHOT'))) }
-    }
-    // C4 backstop: a weapon a code hook currently makes unavailable (DS8 Support Turret) is dropped from any declaration
-    if (spec.targets.some((t) => !weaponService.isAvailable(ctx.state, t.modelId, t.weaponId))) spec = { ...spec, targets: spec.targets.filter((t) => weaponService.isAvailable(ctx.state, t.modelId, t.weaponId)) }
-    ctx.state.phaseState.marks = ctx.state.phaseState.marks.filter((m) => !SEQUENCE_SCOPED_MARK_PREFIXES.some((p) => m.startsWith(p)))
-    if (spec.overwatch && spec.overwatchHitOn !== undefined && spec.overwatchHitOn < 6) ctx.state.phaseState.marks.push(`atk:owHitOn=${spec.overwatchHitOn}`)
-    if (spec.kind === 'ranged' && spec.targets.length > 0) recordShot(ctx.state, spec.attackerUnitId)
-    const targetUnitIds = [...new Set(spec.targets.map((t) => t.targetUnitId))]
+// builds the attack groups for `targetUnitIds` (target-major, weapon-major) plus the per-target snapshots begin() takes
+// (blast count, Big Guns target flag, Indirect Fire LoS marks); shared by begin() and appendDeclaredTargets()
+function buildGroups(ctx: EngineContext, attackerUnitId: UnitId, targets: DeclaredTarget[], targetUnitIds: UnitId[]): AttackGroup[] {
     const groups: AttackGroup[] = []
     // SHOOT-005-timing (R-6.3): Big Guns Never Tire's -1 to hit is decided once, right now — "when targets were
     // selected" — not re-derived from live board state at every hit roll (see module header).
-    const attackerKeywords = keywordsOf(ctx.state, spec.attackerUnitId)
+    const attackerKeywords = keywordsOf(ctx.state, attackerUnitId)
     const attackerBig = attackerKeywords.includes('MONSTER') || attackerKeywords.includes('VEHICLE')
-    if (attackerBig && leaderService.inEngagementWithEnemy(ctx.state, spec.attackerUnitId)) {
+    if (attackerBig && leaderService.inEngagementWithEnemy(ctx.state, attackerUnitId)) {
       ctx.state.phaseState.marks.push('bgntAttacker=1')
     }
-    const attackerPlayer = ctx.state.units[spec.attackerUnitId]?.player
+    const attackerPlayer = ctx.state.units[attackerUnitId]?.player
     for (const targetUnitId of targetUnitIds) {
-      const entries = spec.targets.filter((t) => t.targetUnitId === targetUnitId)
+      const entries = targets.filter((t) => t.targetUnitId === targetUnitId)
       const order: WeaponId[] = []
       for (const e of entries) if (!order.includes(e.weaponId)) order.push(e.weaponId)
       for (const weaponId of order) {
@@ -1256,12 +1250,29 @@ export const attackService: AttackService = {
     }
     // SHOOT-041/WEAP-020 (R-6.23): Indirect Fire's -1-to-hit/auto-fail is likewise about visibility "when [the
     // target] was selected" — snapshotted per (firing model, target) here rather than re-checked live per roll.
-    for (const t of spec.targets) {
+    for (const t of targets) {
       const w = weaponService.effectiveWeapon(ctx.state, t.modelId, t.weaponId)
       if (w && hasAbility(w, 'INDIRECT_FIRE') && !ctx.services.los.unitVisible(ctx.state, t.modelId, t.targetUnitId)) {
         ctx.state.phaseState.marks.push(`indirectNoLos:${t.modelId}:${t.targetUnitId}=1`)
       }
     }
+    return groups
+}
+
+export const attackService: AttackService = {
+  begin(ctx, spec) {
+    // [ONE SHOT] backstop: a weapon already fired this battle (Model.oneShotUsed) is dropped from any declaration, so no
+    // caller (shooting, either Overwatch builder, a client-built action) can fire it a second time
+    if (spec.targets.some((t) => ctx.state.models[t.modelId]?.oneShotUsed.includes(t.weaponId) && ctx.state.weapons[t.weaponId]?.abilities.some((a) => a.ability === 'ONE_SHOT'))) {
+      spec = { ...spec, targets: spec.targets.filter((t) => !(ctx.state.models[t.modelId]?.oneShotUsed.includes(t.weaponId) && ctx.state.weapons[t.weaponId]?.abilities.some((a) => a.ability === 'ONE_SHOT'))) }
+    }
+    // C4 backstop: a weapon a code hook currently makes unavailable (DS8 Support Turret) is dropped from any declaration
+    if (spec.targets.some((t) => !weaponService.isAvailable(ctx.state, t.modelId, t.weaponId))) spec = { ...spec, targets: spec.targets.filter((t) => weaponService.isAvailable(ctx.state, t.modelId, t.weaponId)) }
+    ctx.state.phaseState.marks = ctx.state.phaseState.marks.filter((m) => !SEQUENCE_SCOPED_MARK_PREFIXES.some((p) => m.startsWith(p)))
+    if (spec.overwatch && spec.overwatchHitOn !== undefined && spec.overwatchHitOn < 6) ctx.state.phaseState.marks.push(`atk:owHitOn=${spec.overwatchHitOn}`)
+    if (spec.kind === 'ranged' && spec.targets.length > 0) recordShot(ctx.state, spec.attackerUnitId)
+    const targetUnitIds = [...new Set(spec.targets.map((t) => t.targetUnitId))]
+    const groups = buildGroups(ctx, spec.attackerUnitId, spec.targets, targetUnitIds)
     ctx.state.phaseState.attack = {
       kind: spec.kind, attackerUnitId: spec.attackerUnitId, overwatch: spec.overwatch, targets: spec.targets, groups, current: null,
       mortalQueue: [], hazardousPending: [], targetUnitIds,
@@ -1269,6 +1280,50 @@ export const attackService: AttackService = {
     ctx.emit({ type: 'AttackSequenceStarted', unitId: spec.attackerUnitId, kind: spec.kind, overwatch: spec.overwatch })
     ctx.emit({ type: 'TargetsDeclared', unitId: spec.attackerUnitId, targets: spec.targets.map((t) => ({ modelId: t.modelId, weaponId: t.weaponId, targetUnitId: t.targetUnitId })) })
     ctx.services.hooks.run(ctx, 'onTargetsDeclared', { attackerUnitId: spec.attackerUnitId, targetUnitIds, kind: spec.kind })
+  },
+
+  removeDeclaredTargets(ctx, pred) {
+    const a = ctx.state.phaseState.attack
+    if (!a) throw new EngineInvariantError('attack.removeDeclaredTargets: no active sequence')
+    const removed = a.targets.filter(pred)
+    if (removed.length === 0) return []
+    const key = (t: DeclaredTarget): string => `${t.modelId}::${t.weaponId}::${t.targetUnitId}`
+    const gone = new Set(removed.map(key))
+    a.targets = a.targets.filter((t) => !gone.has(key(t)))
+    a.groups = a.groups.filter((g) => !(g.resolved === 0 && g.attackerModelIds.every((m) => gone.has(`${m}::${g.weaponId}::${g.targetUnitId}`))))
+    a.targetUnitIds = [...new Set(a.targets.map((t) => t.targetUnitId))]
+    ctx.state.phaseState.marks = ctx.state.phaseState.marks.filter((m) => !removed.some((t) => m.startsWith(`indirectNoLos:${t.modelId}:${t.targetUnitId}`)))
+    return removed
+  },
+
+  dropAttackerModels(ctx, modelIds) {
+    const a = ctx.state.phaseState.attack
+    if (!a) throw new EngineInvariantError('attack.dropAttackerModels: no active sequence')
+    const drop = new Set(modelIds)
+    a.targets = a.targets.filter((t) => !drop.has(t.modelId))
+    const kept: AttackGroup[] = []
+    for (const g of a.groups) {
+      if (g.resolved > 0) { kept.push(g); continue }
+      const remaining = g.attackerModelIds.filter((m) => !drop.has(m))
+      if (remaining.length === 0) continue
+      if (remaining.length !== g.attackerModelIds.length && g.attacks > 0) g.attacks = Math.round((g.attacks * remaining.length) / g.attackerModelIds.length)
+      g.attackerModelIds = remaining
+      kept.push(g)
+    }
+    a.groups = kept
+    a.targetUnitIds = [...new Set(a.targets.map((t) => t.targetUnitId))]
+  },
+
+  appendDeclaredTargets(ctx, targets) {
+    const a = ctx.state.phaseState.attack
+    if (!a) throw new EngineInvariantError('attack.appendDeclaredTargets: no active sequence')
+    if (targets.length === 0) return
+    const newUnitIds = [...new Set(targets.map((t) => t.targetUnitId))]
+    // a target unit already in the sequence keeps its existing groups; the new weapons get their own groups after them
+    a.groups = [...a.groups, ...buildGroups(ctx, a.attackerUnitId, targets, newUnitIds)]
+    a.targets = [...a.targets, ...targets]
+    a.targetUnitIds = [...new Set([...a.targetUnitIds, ...newUnitIds])]
+    ctx.emit({ type: 'TargetsDeclared', unitId: a.attackerUnitId, targets: targets.map((t) => ({ modelId: t.modelId, weaponId: t.weaponId, targetUnitId: t.targetUnitId })) })
   },
 
   advance(ctx) {

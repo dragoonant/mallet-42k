@@ -103,6 +103,8 @@ Effect keys (any subset; unknown keys rejected):
 | `stealth` | true | −1 to hit for ranged attacks targeting the unit |
 | `lethalOn` | `5+` etc | override ability threshold |
 | `critWoundAp` | int ≥1 | AP improves by n for an attack whose unmodified wound roll was a critical wound |
+| `moveThroughModels` | `true` | models of the unit may cross any model and ignore Engagement Range mid-path (end-position rules unchanged); read directly by movement/charge |
+| `autoPassDesperateEscape` | `true` | Desperate Escape tests are passed without rolling; read directly by movement |
 
 Core abilities that are flags rather than rules text go on the datasheet as `coreAbilities:[{ability, value?}]` with
 enum `DEEP_STRIKE SCOUTS INFILTRATORS LONE_OPERATIVE LEADER STEALTH DEADLY_DEMISE FIRING_DECK FEEL_NO_PAIN FIGHTS_FIRST`.

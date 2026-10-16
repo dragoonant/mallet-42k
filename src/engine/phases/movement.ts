@@ -31,6 +31,7 @@ import {
 } from '../geometry'
 import type { TimingWindowId } from '../../data/types'
 import { hookService } from '../hooks-impl'
+import { effectService } from '../effects'
 import { leaderService } from '../leaders'
 import { pendingReactions, consumeReaction } from '../code-hooks'
 import {
@@ -38,6 +39,7 @@ import {
   pendingCultAmbushReactions,
 } from '../cult-ambush'
 import { attackService, REACTIVE_MOVED_PREFIX } from '../attack'
+import { phantomsOverwatchArm, phantomsOverwatchStep } from '../factions/tyranids'
 import { isBigGunsUnit, targetLegality } from './shooting'
 import { weaponService } from '../weapons'
 import { terrainService } from '../terrain'
@@ -305,6 +307,13 @@ export function crossesBigFriendly(state: GameState, model: Model, fp: Footprint
   return pathCrossesModels(fp, path, otherFriendly.filter((m) => isBig(m.unitId)))
 }
 
+// INF-5.6 (Predators, Not Prey): effects.activeFor carries the descriptor flags; read directly, never through a hook
+function unitHasEffectFlag(state: GameState, unitId: UnitId, key: 'moveThroughModels' | 'autoPassDesperateEscape'): boolean {
+  return effectService.activeFor(state, unitId).some((e) => (Array.isArray(e.effect) ? e.effect : [e.effect]).some((x) => x[key] === true))
+}
+export function unitMovesThroughModels(state: GameState, unitId: UnitId): boolean { return unitHasEffectFlag(state, unitId, 'moveThroughModels') }
+export function unitAutoPassesDesperateEscape(state: GameState, unitId: UnitId): boolean { return unitHasEffectFlag(state, unitId, 'autoPassDesperateEscape') }
+
 function checkPaths(state: GameState, moveType: MoveType, result: { rejection: null; resolved: ResolvedPlacement[] }, enemies: Footprint[], otherFriendly: Model[], flyOf: (m: Model) => boolean):
   { rejection: Rejection } | { rejection: null; resolved: ResolvedPlacement[] } {
   const isBig = (unitId: UnitId): boolean => hasKeyword(state, unitId, 'MONSTER') || hasKeyword(state, unitId, 'VEHICLE')
@@ -323,7 +332,7 @@ function checkPaths(state: GameState, moveType: MoveType, result: { rejection: n
     }
     const end = terrainService.canEndAt(state, r.model, r.to)
     if (!end.ok) return { rejection: { code: 'E_OVERLAP', reason: end.reason ?? `${r.model.id} cannot end there`, details: { modelId: r.model.id } } }
-    const fly = flyOf(r.model)
+    const fly = flyOf(r.model) || unitMovesThroughModels(state, r.model.unitId)
     if (fly) continue
     const fp: Footprint = { pos: r.to, facing: r.facing, base: r.model.base }
     // MOVE-003-fallback (R-5.2): a MONSTER/VEHICLE may not pass through another MONSTER/VEHICLE, whatever the move type
@@ -420,6 +429,7 @@ export function overwatchTargets(state: GameState, shooterUnitId: UnitId, target
 function drainOverwatch(ctx: EngineContext, moverUnitId: UnitId): AdvanceResult {
   for (;;) {
     if (ctx.state.phaseState.attack) {
+      if (phantomsOverwatchStep(ctx) === 'pending') return 'pending'
       if (attackService.advance(ctx) === 'pending') return 'pending'
       continue
     }
@@ -429,6 +439,7 @@ function drainOverwatch(ctx: EngineContext, moverUnitId: UnitId): AdvanceResult 
     const targets = overwatchTargets(ctx.state, req.unitId, moverUnitId)
     if (targets.length === 0) continue
     attackService.begin(ctx, { kind: 'ranged', attackerUnitId: req.unitId, overwatch: true, targets, overwatchHitOn: hookService.overwatchHitOnFor!(ctx.state, req.unitId, req.stratagemId) })
+    phantomsOverwatchArm(ctx, req.unitId, req.window)
   }
 }
 
@@ -1104,7 +1115,13 @@ function doMove(ctx: EngineContext): 'pending' | 'select' {
       .filter((r) => !hasKeyword(s, r.model.unitId, 'FLY') && r.distance > EPS && pathCrossesModels({ pos: r.from, facing: r.facing, base: r.model.base }, r.path, enemies))
       .map((r) => r.model.id)
     const testSet = shocked ? resolved.map((r) => r.model.id) : crossing
-    if (testSet.length > 0) {
+    if (testSet.length > 0 && unitAutoPassesDesperateEscape(s, unitId)) {
+      // INF-5.6: every test is passed without rolling
+      for (const mid of testSet) { const mm = s.models[mid]; if (mm) mm.flags.desperateEscapeTested = true }
+      ctx.emit({ type: 'DesperateEscapeRolled', unitId, dice: [], casualties: 0, player: unit.player })
+      writeMark(s, 'mv:deRemaining', '0')
+      writeMark(s, 'mv:deFails', '0')
+    } else if (testSet.length > 0) {
       const roll = ctx.roll({ purpose: 'desperateEscape', player: unit.player, count: testSet.length, sides: 6, mode: 'perDie', unitId })
       for (const mid of testSet) { const mm = s.models[mid]; if (mm) mm.flags.desperateEscapeTested = true }
       const fails = roll.final.filter((d) => d <= 2).length

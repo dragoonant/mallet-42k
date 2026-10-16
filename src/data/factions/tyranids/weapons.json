@@ -14,5 +14,43 @@
   { "id": "tyr.w.chitinous-claws-and-teeth-barbgaunt", "name": "Chitinous claws and teeth", "type": "melee", "range": 0, "A": 1, "skill": 4, "S": 4, "AP": 0, "D": 1,
     "abilities": [], "figure": { "part": "tyr.weapon.chitinous-claws-and-teeth", "hands": 1 } },
   { "id": "tyr.w.leapers-talons", "name": "Leaper's talons", "type": "melee", "range": 0, "A": 6, "skill": 3, "S": 5, "AP": -1, "D": 1,
-    "abilities": [], "figure": { "part": "tyr.weapon.leapers-talons" } }
+    "abilities": [], "figure": { "part": "tyr.weapon.leapers-talons" } },
+  {
+    "id": "tyr.w.piercing-claws-and-talons",
+    "name": "Piercing claws and talons",
+    "type": "melee",
+    "range": 0,
+    "A": 6,
+    "skill": 2,
+    "S": 6,
+    "AP": -2,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "PRECISION"
+      }
+    ],
+    "figure": {
+      "part": "tyr.weapon.piercing-claws-and-talons"
+    }
+  },
+  {
+    "id": "tyr.w.lictor-claws-and-talons",
+    "name": "Lictor claws and talons",
+    "type": "melee",
+    "range": 0,
+    "A": 6,
+    "skill": 2,
+    "S": 7,
+    "AP": -2,
+    "D": 2,
+    "abilities": [
+      {
+        "ability": "PRECISION"
+      }
+    ],
+    "figure": {
+      "part": "tyr.weapon.lictor-claws-and-talons"
+    }
+  }
 ]

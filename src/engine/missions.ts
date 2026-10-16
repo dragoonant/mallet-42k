@@ -8,7 +8,7 @@
 // in the decision's `context.data`) once the pick is answered, mirroring the pattern `hookService.offerPicks` uses for
 // Oath of Moment / Waaagh!. Per-rule "done" marks (`phaseState.marks`) make every step idempotent across that resume.
 import { championOfTheDarkGodsAmount } from './factions/chaos-space-marines'
-import { alphaXenoformAmount, chitinousTideAmount } from './factions/tyranids'
+import { alphaPredationAmount, alphaXenoformAmount, chitinousTideAmount, leftToLastAmount } from './factions/tyranids'
 import type { AttackKind } from './types'
 import type { MissionRule, ScoringRule, TimingWindowId } from '../data/types'
 import { etherealEdictAmount, etherealEdictOffer, kauyonLureAmount, leadershipCasteAmount, surpriseAttackAmount } from './factions/tau-empire'
@@ -493,12 +493,29 @@ function pinpointPurgeDestroyed(ctx: EngineContext, info: { unitId: UnitId; byPl
   s.mission.scored.push({ ruleId: rule.id, player: pid, round: s.round, turn: s.activePlayer, amount })
 }
 
+// Alpha Predation / Left to Last (INF-4): kill-triggered; amounts decided in factions/tyranids.ts
+function infiltratorsUnitDestroyed(ctx: EngineContext, info: { unitId: UnitId; byPlayer: PlayerId | null }): void {
+  const s = ctx.state
+  for (const pid of ['A', 'B'] as PlayerId[]) {
+    for (const code of ['alphaPredation', 'leftToLast']) {
+      const rule = rulesFor(s, pid).find((r) => r.rule === 'custom' && r.code === code && s.round >= r.rounds.from && s.round <= r.rounds.to)
+      if (!rule) continue
+      const raw = code === 'alphaPredation' ? alphaPredationAmount(s, rule, pid, info.unitId) : leftToLastAmount(s, rule, pid, info)
+      const amount = Math.min(raw, rule.cap - (s.players[pid].vpBySource[rule.id] ?? 0))
+      if (amount <= 0) continue
+      awardVp(ctx, pid, amount, rule.id)
+      s.mission.scored.push({ ruleId: rule.id, player: pid, round: s.round, turn: s.activePlayer, amount })
+    }
+  }
+}
+
 function unitDestroyedHook(ctx: EngineContext, info: { unitId: UnitId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: string | null; kind?: AttackKind | 'mortal' | 'other'; rangedAttack?: boolean }): void {
   treasuresUnitDestroyed(ctx, info)
   markedForExecutionDestroyed(ctx, info)
   hallowedRetributionUnitDestroyed(ctx, info)
   tgbConsecratedGroundUnitDestroyed(ctx, info)
   pinpointPurgeDestroyed(ctx, info)
+  infiltratorsUnitDestroyed(ctx, info)
 }
 
 function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): number {

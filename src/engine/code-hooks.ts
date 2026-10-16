@@ -721,6 +721,39 @@ const disruptionBombardment: EngineCodeHook = {
   pick: { window: 'shooting.attacksResolved', topic: 'abilityChoice', offer: (ctx, w, k) => tyr.disruptionOffer(ctx, w, k), handle: (ctx, a, p) => tyr.disruptionHandle(ctx, a, p) },
 }
 
+// ---------- Insidious Infiltrators (docs/spec/factions/tyranids--insidious-infiltrators.md §7) ----------
+const neuralDisruption: EngineCodeHook = {
+  name: 'neuralDisruption', kind: 'ability', hook: 'onCommandPhase', run: noop,
+  pick: { window: 'command.start', topic: 'abilityChoice', offer: (ctx, w, k) => tyr.neuralOffer(ctx, w, k), handle: (ctx, a, p) => tyr.neuralHandle(ctx, a, p) },
+}
+
+const neurogoad: EngineCodeHook = {
+  name: 'neurogoad', kind: 'ability', hook: 'onCommandPhase', run: noop,
+  hooks: ['onHitRoll', 'onChargeRoll'], rerollHooks: ['onHitRoll', 'onChargeRoll'],
+  pick: { window: 'command.start', topic: 'abilityChoice', offer: (ctx, w, k) => tyr.neurogoadOffer(ctx, w, k), handle: (ctx, a, p) => tyr.neurogoadHandle(ctx, a, p) },
+}
+
+const psionicPhantoms: EngineCodeHook = {
+  name: 'psionicPhantoms', kind: 'ability', hook: 'onTargetsDeclared', run: noop,
+  pick: { window: 'shooting.targetsDeclared', topic: 'abilityChoice', offer: (ctx, w, k) => tyr.phantomsOffer(ctx, w, k), handle: (ctx, a, p) => tyr.phantomsHandle(ctx, a, p) },
+}
+
+const psychologicalSaboteur: EngineCodeHook = {
+  name: 'psychologicalSaboteur', kind: 'ability', hook: 'onHitRoll', run: noop, hooks: ['onHitRoll', 'onWoundRoll'],
+  gateEffect: (state, holder, _entry, data) => tyr.saboteurGate(state, holder, data),
+}
+
+const feederTendrils: EngineCodeHook = {
+  name: 'feederTendrils', kind: 'ability', hook: 'onModelDestroyed', run: noop,
+  runAt: (ctx, entry, data) => tyr.feederTendrilsRun(ctx, entry, data),
+}
+
+const pheromonalTrace: EngineCodeHook = {
+  name: 'pheromonalTrace', kind: 'stratagem', hook: 'onObjectiveControl', run: noop, needsObjective: true,
+  check: (env, t) => dutyAndHonour.check?.(env, t) ?? false,
+  apply: (ctx, env, t) => tyr.pheromonalTraceApply(ctx, env.player, t.objectiveId as string),
+}
+
 // marker abilities: the logic lives in the engine (deathblow.ts, stratagems.ts effectiveCost, setup.ts splitPatrolSquad)
 const deathBlow: EngineCodeHook = { name: 'deathBlow', kind: 'ability', hook: 'onModelDestroyed', run: noop }
 const stratagemCostOverride: EngineCodeHook = { name: 'stratagemCostOverride', kind: 'ability', hook: 'onCharge', run: noop }
@@ -778,6 +811,8 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   tgbConsecratedGround: missionHook('tgbConsecratedGround', 'onUnitDestroyed'),
   markedForExecution: missionHook('markedForExecution', 'onUnitDestroyed'),
   synapseBattleShock, shadowInTheWarp, secretionGoadShoot, secretionGoadFight, skulkingHorrors, disruptionBombardment,
+  neuralDisruption, neurogoad, psionicPhantoms, psychologicalSaboteur, feederTendrils, pheromonalTrace,
+  alphaPredation: missionHook('alphaPredation', 'onUnitDestroyed'), leftToLast: missionHook('leftToLast', 'onUnitDestroyed'),
   deathBlow, stratagemCostOverride, patrolSquads, voraciousAssaultHit, teemingBroods, alphaXenoform, chitinousTide,
   ...adeptaSororitasHooks,
   hallowedRetribution: missionHook('hallowedRetribution', 'onUnitDestroyed'),

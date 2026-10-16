@@ -602,6 +602,12 @@
         "critWoundAp": {
           "type": "integer",
           "minimum": 1
+        },
+        "moveThroughModels": {
+          "const": true
+        },
+        "autoPassDesperateEscape": {
+          "const": true
         }
       },
       "not": {

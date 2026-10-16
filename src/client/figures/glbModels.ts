@@ -130,6 +130,9 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'tyr.termagants/termagant': 'termagant',
   'tyr.barbgaunts/barbgaunt': 'barbgaunt',
   'tyr.von-ryans-leapers/leaper': 'von-ryan-leaper',
+  'tyr.von-ryans-leapers-inf/leaper': 'von-ryan-leaper',
+  'tyr.lictor/lictor': 'lictor',
+  'tyr.deaths-shadow/neurolictor': 'deaths-shadow',
   // Adepta Sororitas: no GLBs yet — same story as the Necrons above; the procedural kits draw them until a file lands.
   'ade.canoness-adalya/canoness': 'canoness-adalya',
   'ade.battle-sisters-squad/superior': 'sister-superior',

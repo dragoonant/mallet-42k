@@ -128,6 +128,9 @@ export interface Effect {
   lethalOn?: RollTarget
   // AP improves by this much for an attack whose unmodified wound roll was a critical wound
   critWoundAp?: number
+  // INF-5.6 (Predators, Not Prey): models may cross any model and ignore ER mid-path; Desperate Escape tests pass unrolled
+  moveThroughModels?: true
+  autoPassDesperateEscape?: true
 }
 export type EffectList = Effect | Effect[]
 

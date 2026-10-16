@@ -19,5 +19,5 @@
     "metal": "#2b2228",
     "decal": "#7fd14b"
   },
-  "combatPatrols": ["tyr.cp.vardenghast-swarm"]
+  "combatPatrols": ["tyr.cp.vardenghast-swarm", "tyr.cp.insidious-infiltrators"]
 }

@@ -97,7 +97,7 @@ describe('adepta sororitas figures', () => {
     }
 
     it(`${ds.id} uses its enabled SD figure GLB`, () => {
-      // Datasheets without GLB art yet (Ghallaron, Havocs, Helbrute) use the procedural kits.
+      // Datasheets without GLB art yet (Ghallaron, Havocs, Helbrute, Lictor, Death's Shadow) use the procedural kits.
       const withArt = ds.composition.some((m) => glbSlugFor(ds.id, m.modelId))
       if (!withArt) return
       for (const m of ds.composition) expect(glbSlugFor(ds.id, m.modelId), m.modelId).toBeDefined()
@@ -162,7 +162,7 @@ describe('chaos space marine figures', () => {
     })
 
     it(`${ds.id} uses its enabled SD figure GLB`, () => {
-      // Datasheets without GLB art yet (Ghallaron, Havocs, Helbrute) use the procedural kits.
+      // Datasheets without GLB art yet (Ghallaron, Havocs, Helbrute, Lictor, Death's Shadow) use the procedural kits.
       const withArt = ds.composition.some((m) => glbSlugFor(ds.id, m.modelId))
       if (!withArt) return
       for (const m of ds.composition) expect(glbSlugFor(ds.id, m.modelId), m.modelId).toBeDefined()
@@ -178,13 +178,14 @@ describe('tyranid figures', () => {
   const tyrSheets = Object.values(bundle.datasheets).filter((d) => d.id.startsWith('tyr.'))
 
   it('there are tyranid datasheets to check', () => {
-    expect(tyrSheets.length).toBe(5)
+    expect(tyrSheets.length).toBe(8)
   })
 
-  it('every tyranid unit gets its own kit, and the five kits look different', () => {
+  it('every tyranid unit gets its own kit, and the kits look different', () => {
     const kits = tyrSheets.map((ds) => resolveFigureKit(ds.id, ds).kit)
     for (const k of kits) expect(k.startsWith('tyr-'), k).toBe(true)
-    expect(new Set(kits).size).toBe(tyrSheets.length)
+    // von-ryans-leapers and its Insidious Infiltrators variant share one kit
+    expect(new Set(kits).size).toBe(tyrSheets.length - 1)
     const heads = new Set(kits.map((k) => BIPED_CONFIG[k]?.headShape))
     expect(heads.size).toBeGreaterThanOrEqual(3)
   })
@@ -197,7 +198,7 @@ describe('tyranid figures', () => {
     })
 
     it(`${ds.id} uses its enabled SD figure GLB`, () => {
-      // Datasheets without GLB art yet (Ghallaron, Havocs, Helbrute) use the procedural kits.
+      // Datasheets without GLB art yet (Ghallaron, Havocs, Helbrute, Lictor, Death's Shadow) use the procedural kits.
       const withArt = ds.composition.some((m) => glbSlugFor(ds.id, m.modelId))
       if (!withArt) return
       for (const m of ds.composition) expect(glbSlugFor(ds.id, m.modelId), m.modelId).toBeDefined()

@@ -50,6 +50,8 @@ const GALLERY_ENTRIES: GalleryEntry[] = [
   { datasheetId: 'tyr.von-ryans-leapers', modelId: 'leaper', faction: 'tyranids', label: "Von Ryan's Leaper" },
   { datasheetId: 'tyr.terror-of-vardenghast', modelId: 'prime', faction: 'tyranids', label: "Terror of Vardenghast" },
   { datasheetId: 'tyr.psychophage', modelId: 'psychophage', faction: 'tyranids', label: "Psychophage" },
+  { datasheetId: 'tyr.lictor', modelId: 'lictor', faction: 'tyranids', label: "Lictor" },
+  { datasheetId: 'tyr.deaths-shadow', modelId: 'neurolictor', faction: 'tyranids', label: "Death's Shadow" },
   { datasheetId: 'ade.canoness-adalya', faction: 'adepta-sororitas', label: 'Canoness Adalya', modelId: 'canoness' },
   { datasheetId: 'ade.battle-sisters-squad', faction: 'adepta-sororitas', label: 'Sister Superior', modelId: 'superior' },
   { datasheetId: 'ade.battle-sisters-squad', faction: 'adepta-sororitas', label: 'Sister (flamer)', modelId: 'sister-flamer' },

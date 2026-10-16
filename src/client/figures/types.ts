@@ -46,6 +46,8 @@ export type KitId =
   | 'tyr-termagant'
   | 'tyr-barbgaunt'
   | 'tyr-leaper'
+  | 'tyr-lictor'
+  | 'tyr-neurolictor'
   | 'ade-canoness'
   | 'ade-sister'
   | 'ade-sister-superior'

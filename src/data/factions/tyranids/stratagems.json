@@ -56,5 +56,155 @@
     "limit": "oncePerPhase",
     "code": "teemingBroods",
     "params": { "reviveDice": "D6", "respawnDice": "2D6", "respawnCap": 20, "respawnTo": "strategicReserves" }
+  },
+  {
+    "id": "tyr.s.swift-kills",
+    "faction": "tyranids",
+    "name": "Swift Kills",
+    "text": "Use in the Fight phase, in either player's turn, on one of your TYRANIDS units that has not yet fought this phase. Until the end of the phase, its melee weapons improve their AP by 1 and gain Anti-Monster 4+ and Anti-Vehicle 4+.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": [
+      "fight"
+    ],
+    "window": [
+      "fight.start",
+      "fight.attacksResolved"
+    ],
+    "who": "either",
+    "condition": {
+      "phase": "fight"
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "TYRANIDS"
+        },
+        "state": "notYetFought",
+        "count": 1
+      }
+    ],
+    "effect": [
+      {
+        "when": {
+          "weaponType": "melee"
+        },
+        "modifyStat": {
+          "stat": "AP",
+          "value": -1
+        }
+      },
+      {
+        "when": {
+          "weaponType": "melee"
+        },
+        "grantWeaponAbility": {
+          "ability": "ANTI",
+          "keyword": "MONSTER",
+          "value": 4
+        }
+      },
+      {
+        "when": {
+          "weaponType": "melee"
+        },
+        "grantWeaponAbility": {
+          "ability": "ANTI",
+          "keyword": "VEHICLE",
+          "value": 4
+        }
+      }
+    ],
+    "scope": {
+      "who": "self"
+    },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "tyr.s.pheromonal-trace",
+    "faction": "tyranids",
+    "name": "Pheromonal Trace",
+    "text": "Use at the end of your Command phase on one of your VON RYAN'S LEAPERS units within range of an objective marker you control. That marker becomes secured by you.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": [
+      "command"
+    ],
+    "window": "command.end",
+    "who": "active",
+    "condition": {
+      "phase": "command"
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "VON RYAN'S LEAPERS",
+          "within": {
+            "of": "controlledObjective",
+            "inches": 3
+          }
+        },
+        "count": 1
+      }
+    ],
+    "code": "pheromonalTrace",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "tyr.s.predators-not-prey",
+    "faction": "tyranids",
+    "name": "Predators, Not Prey",
+    "text": "Use in your Movement phase or Charge phase on one of your TYRANIDS units that has not yet moved or declared a charge this phase. Until the end of the phase, its models pass Desperate Escape tests automatically, and may move through other models as if they were not there.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": [
+      "movement",
+      "charge"
+    ],
+    "window": [
+      "movement.start",
+      "charge.start"
+    ],
+    "who": "active",
+    "condition": {
+      "ownTurn": true,
+      "any": [
+        {
+          "phase": "movement"
+        },
+        {
+          "phase": "charge"
+        }
+      ]
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "TYRANIDS"
+        },
+        "state": "notYetActivated",
+        "count": 1
+      }
+    ],
+    "effect": [
+      {
+        "moveThroughModels": true
+      },
+      {
+        "autoPassDesperateEscape": true
+      }
+    ],
+    "scope": {
+      "who": "self"
+    },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
   }
 ]

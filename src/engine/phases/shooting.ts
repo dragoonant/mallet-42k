@@ -31,6 +31,7 @@ import { leaderService } from '../leaders'
 import { losService } from '../los'
 import { attackService, pruneUnreachableTargets } from '../attack'
 import { consumeReaction } from '../code-hooks'
+import { PHANTOMS_REDECLARE_MARK, phantomsRedeclareHandle, psionicPhantomsStep } from '../factions/tyranids'
 import { handleReactiveMove, resolveSurgeMove, reactiveMoveLegalActions, validateReactiveMove } from './movement'
 import { weaponService } from '../weapons'
 import { transportService } from '../transports'
@@ -305,7 +306,7 @@ function doOpenDeclareTargets(ctx: EngineContext): void {
   })
 }
 
-function validateDeclareTargets(state: GameState, action: Action, pending: PendingDecision & { kind: 'declareTargets' }): Rejection | null {
+export function validateDeclareTargets(state: GameState, action: Action, pending: PendingDecision & { kind: 'declareTargets' }): Rejection | null {
   if (action.type === 'pass') return pending.canPass ? null : { code: 'E_PASS_NOT_ALLOWED', reason: 'this unit must declare targets or none' }
   if (action.type !== 'declareTargets') return { code: 'E_NOT_AN_OPTION', reason: 'expected declareTargets' }
   if (action.unitId !== pending.context.unitId) return { code: 'E_INVALID_TARGET', reason: 'targets are for the wrong unit', details: { expected: pending.context.unitId } }
@@ -379,6 +380,8 @@ function doResolve(ctx: EngineContext): 'pending' | 'selectUnit' {
   // R-11.5: `shooting.targetsDeclared` opens before any hit is rolled, defensive (targeted player) first
   if (ctx.window('shooting.targetsDeclared', unitId, ctx.order.defensive(opponent), { unitId })) return 'pending'
   pruneUnreachableTargets(ctx, unitId) // E6: a reactive move in the window above may have taken targets out of reach
+  // INF-3.6..3.8 (Psionic Phantoms): the after-move visibility check / re-declaration, before any hit is rolled
+  if (s.phaseState.attack && psionicPhantomsStep(ctx, unitId) === 'pending') return 'pending'
   if (s.phaseState.attack && attackService.advance(ctx) === 'pending') return 'pending'
   if (ctx.window('shooting.attacksResolved', unitId, ctx.order.active(), { unitId })) return 'pending'
   // mortal wounds queued by an attacksResolved window (late Dark Pact test) resolve before the next unit is chosen
@@ -530,6 +533,13 @@ export const shootingModule: PhaseModule = {
     const s = ctx.state
     const reactive = handleReactiveMove(ctx, action, pending)
     if (reactive !== null) return reactive
+    // INF-3.7: a declareTargets answer while Psionic Phantoms' re-declaration is open (pass = no new targets)
+    if (pending.kind === 'declareTargets' && (action.type === 'declareTargets' || action.type === 'pass') && s.phaseState.marks.some((m) => m.startsWith(`${PHANTOMS_REDECLARE_MARK}=`))) {
+      const rej = phantomsRedeclareHandle(ctx, action, pending)
+      if (rej) return rej
+      writeMark(s, PHANTOMS_REDECLARE_MARK, null)
+      return
+    }
     if (action.type === 'pass') {
       if (s.phaseState.attack && pending.kind === 'allocateAttack') return attackService.handler.handle(ctx, action, pending)
       if (pending.kind === 'chooseUnitToActivate') { writeMark(s, 'sh:ended', '1'); return }
