@@ -212,6 +212,25 @@ export const ENABLED_GLB_SLUGS: readonly string[] = [
   'kataphron-destroyer-grav',
   'kataphron-destroyer-plasma',
   'onager-dunecrawler',
+  // Blood Angels, Space Wolves and Deathwatch (Black Templars and Dark Angels have no GLBs yet).
+  'librarian-marcellos',
+  'ba-intercessor-sergeant',
+  'ba-intercessor',
+  'ba-incursor-sergeant',
+  'ba-incursor',
+  'ba-aggressor',
+  'ba-impulsor',
+  'battle-leader-thoryk',
+  'sw-intercessor-sergeant',
+  'sw-intercessor',
+  'sw-reiver',
+  'sw-invictor',
+  'lieutenant-alphion',
+  'apothecary-krenn',
+  'dw-intercessor-sergeant',
+  'dw-intercessor',
+  'dw-intercessor-grenadier',
+  'dw-aggressor',
 ]
 
 export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
@@ -299,6 +318,27 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'bt.primaris-crusader-squad/neophyte-firearm': 'crusader-neophyte-firearm',
   'bt.marshal-siguard/siguard': 'marshal-siguard',
   'bt.impulsor/impulsor': 'bt-impulsor',
+
+  // Blood Angels, Space Wolves and Deathwatch (MGSD GLBs). Incursor mine carriers share the Incursor figure.
+  'ba.librarian-marcellos/marcellos': 'librarian-marcellos',
+  'ba.intercessor-squad/sergeant': 'ba-intercessor-sergeant',
+  'ba.intercessor-squad/intercessor': 'ba-intercessor',
+  'ba.incursor-squad/sergeant': 'ba-incursor-sergeant',
+  'ba.incursor-squad/incursor': 'ba-incursor',
+  'ba.incursor-squad/incursor-haywire': 'ba-incursor',
+  'ba.aggressor-squad/aggressor': 'ba-aggressor',
+  'ba.impulsor/impulsor': 'ba-impulsor',
+  'sw.battle-leader-thoryk/thoryk': 'battle-leader-thoryk',
+  'sw.intercessor-squad/sergeant': 'sw-intercessor-sergeant',
+  'sw.intercessor-squad/intercessor': 'sw-intercessor',
+  'sw.reiver-squad/reiver': 'sw-reiver',
+  'sw.invictor-tactical-warsuit/invictor': 'sw-invictor',
+  'dw.lieutenant-alphion/alphion': 'lieutenant-alphion',
+  'dw.apothecary-krenn/krenn': 'apothecary-krenn',
+  'dw.intercessor-squad/sergeant': 'dw-intercessor-sergeant',
+  'dw.intercessor-squad/intercessor': 'dw-intercessor',
+  'dw.intercessor-squad/grenadier': 'dw-intercessor-grenadier',
+  'dw.aggressor-squad/aggressor': 'dw-aggressor',
 
   // Grey Knights (MGSD GLBs).
   'gk.librarian-aurellios/librarian': 'librarian-aurellios',
