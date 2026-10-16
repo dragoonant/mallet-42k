@@ -1412,3 +1412,38 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | DTG-028 | E2 | condition `unitOnObjectiveControlledBy: 'self'` true only when the holder (either half) is in range of a marker whose `controller` is the holder's player; existing `targetOnObjectiveControlledBy` unchanged |
 | DTG-029 | E1 | `hasDeepStrike` true for a datasheet with DEEP_STRIKE and for any half of an attached unit carrying `grantDeepStrike`; false otherwise; existing Deep Strike and Tellyporta tests unchanged |
 | DTG-030 | DTG-1 | AI: a full AI-vs-AI game with this patrol (both sides or vs Space Marines) finishes without a stuck decision (Walking Plague prompt, Harbingers, Curse returns) |
+
+## CHA (101–130) — Chaos Daemons: Butchers of Hyporia (docs/spec/factions/chaos-daemons.md)
+IDs start at CHA-101: CHA-001…034 belong to Chaos Space Marines above.
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| CHA-101 | DMN-1 | patrol `cdm.cp.butchers-of-hyporia` loads (faction `chaos-daemons`): 6 units, 34 models; Kh'har'ret is WARLORD with Incarnated Rage, attached to `bloodletters-1`; default secondary Worthy Offerings; stratagems are the three `cdm.s.*` ids; start screen lists Chaos Daemons |
+| CHA-102 | DMN-6 | data: every stat/profile row of §6 matches (Bloodletters Sv 7+ inv 5+, Bloodcrushers T7 W4 inv 4+, Kh'har'ret Sv 5+ inv 4+); every datasheet has faction keyword LEGIONES DAEMONICA and the Shadow of Chaos ability; bases 40 / 32 / 90×52 / 60×35 mm |
+| CHA-103 | DMN-2.1, E1 | Shadow areas: a Daemon unit partly in its own deployment zone is in the Shadow; a unit wholly in No Man's Land is not, unless at the start of the phase the Daemons controlled ≥ half the NML markers (then it is until the phase ends); a non-Daemon game writes no `shadowOfChaos` key |
+| CHA-104 | DMN-2.1 c, 2.5 b | enemy deployment zone joins the Shadow only when the Daemons control ≥ half of its markers at phase start; control gained mid-phase takes effect at the next phase start; an area with zero markers never qualifies |
+| CHA-105 | DMN-2.2 | Manifestation modifier: Bloodletters below half strength in own DZ test in the Command phase with +1 (dice log shows it); same unit in NML outside the Shadow → no modifier |
+| CHA-106 | DMN-2.2, 2.5 d | Manifestation pass: Bloodletters (BATTLELINE) with 6 destroyed models pass → D3 destroyed models return at legal spots, never above Starting Strength; failed test → nothing returns |
+| CHA-107 | DMN-2.2, 2.5 d | Manifestation pass on Bloodcrushers (not BATTLELINE) with a model on 1 wound → that model regains D3 (capped at W4); Kh'har'ret attached and wounded with no Bloodletters lost → Kh'har'ret is healed |
+| CHA-108 | DMN-2.4 | Insane Bravery auto-pass inside the Shadow triggers Manifestation; a unit at full strength is never tested just for being in the Shadow |
+| CHA-109 | DMN-2.3 | Daemonic Terror: an enemy unit below half strength inside the Daemon deployment zone tests with −1 in its Command phase; on a fail it takes D3 mortal wounds (resolved before the next unit tests); on a pass nothing; an enemy outside the Shadow has no −1 |
+| CHA-110 | DMN-2.3, E2 | Terror mortal wounds that destroy the enemy unit emit UnitDestroyed with no attacking model (Worthy Offerings 10-VP tier never triggers from them) |
+| CHA-111 | DMN-2.5 e | mirror match: a unit standing in both Shadows tests at net 0 and gets both Manifestation (if passed) or Terror (if failed) from the right player |
+| CHA-112 | DMN-3.1 | Incarnated Rage: Kh'har'ret leading Bloodletters → hellblade unmodified 6 to hit auto-wounds (Lethal Hits) for the Bloodletters and for the blade of blood; detached → no Lethal Hits |
+| CHA-113 | DMN-3.2 | Warp Locus: an objective whose centre is 2.9" from Kh'har'ret in NML is in the Shadow; at 3.1" not; an enemy unit within 3" of him tests with −1; Kh'har'ret in Reserves → no area |
+| CHA-114 | DMN-4.1 | Worthy Offerings: opponent's Warlord destroyed by Bloodletters → 6 VP at battle end; destroyed by Kh'har'ret's own attack → 10 VP; alive → 0; never arrived from Reserves → 6 |
+| CHA-115 | DMN-4.1 | Worthy Offerings: Warlord killed by Kh'har'ret while he leads Bloodletters → 10 (credited to his model, not the Bloodletters); killed by a Bloodletter of his attached unit → 6 |
+| CHA-116 | DMN-4.2 | Dark Conjunction: round 1 → 0; round 2, end of own turn, Daemons controlled 2 of 3 NML markers at `fight.start` → every NML marker (3) scores 1 VP each, controlled or not; markers in own DZ never score; end of the opponent's turn → 0 |
+| CHA-117 | DMN-4.2 | Dark Conjunction: Daemons control 1 of 3 NML markers → NML not in Shadow → only Warp Locus-covered markers score; controlling half the enemy-zone markers adds them |
+| CHA-118 | DMN-5.1 | Blood-Maddened Banishment: enemy targets Bloodletters in the Fight phase → offered; a destroyed Bloodletter that had not fought rolls D6, 4+ stays and fights after the attacker finishes, then is removed; 1–3 removed at once |
+| CHA-119 | DMN-5.1 | Blood-Maddened Banishment not offered: target is Flesh Hounds / Bloodcrushers; Bloodletters already fought this phase; second use in the same phase |
+| CHA-120 | DMN-5.2 | Empyric Predators: opponent's Movement phase, enemy unit ends a Normal move 5" from Flesh Hounds → offered; used → Flesh Hounds make a Normal move of up to 6" (not into Engagement Range) |
+| CHA-121 | DMN-5.2, E3 | Empyric Predators: after it, Fire Overwatch is not offered for those Flesh Hounds this phase; Flesh Hounds that already fired Overwatch this phase are not eligible targets; enemy 6.5" away → not offered; own Movement phase → not offered |
+| CHA-122 | DMN-5.3 | Manifest Hate: opponent's Shooting phase, enemy targets Bloodletters → offered; used → saves on 4+ invulnerable vs AP −3 until end of phase; not offered in the Fight phase or the Daemons' own Shooting phase |
+| CHA-123 | DMN-6.1, E4 | A Gory Path: Kh'har'ret's unit consolidates up to 6" (a 5.5" placement legal, 6.5" refused); pile-in still 3"; Bloodletters without him consolidate 3" |
+| CHA-124 | DMN-6.2 | Collar of Khorne: Flesh Hounds roll FNP 3+ against a Psychic weapon's wounds and Psychic-ability mortal wounds; no FNP against a bolter |
+| CHA-125 | DMN-6 | Bloodcrushers fight with hellblade + bladed horn (Extra Attacks) together; bladed horn gets +1 to wound only when they charged (Lance) |
+| CHA-126 | DMN-6 | Gore Hound's burning roar auto-hits D6 times (Torrent) and the target gets no cover bonus (Ignores Cover); other Flesh Hounds have no ranged weapon |
+| CHA-127 | DMN-6.3 | Kh'har'ret + Bloodletters Deep Strike together from round 2, more than 9" from enemies; refused in round 1 |
+| CHA-128 | DMN-6 | Sv 7+: a Bloodletter hit by AP 0 saves only with its 5+ invulnerable; Kh'har'ret saves on his 4+ invulnerable rather than his 5+ armour (also vs AP 0) |
+| CHA-129 | E1/E2 | regression: Shadow record + modifiers keep replay hashes deterministic (same seed + actions → same hash); Drukhari Pain gain on a failed test still fires alongside Daemonic Terror |
+| CHA-130 | DMN-1.2 | icon / musician models carry no extra rule: OC, Ld and attacks identical to a plain Bloodletter / Bloodcrusher |
