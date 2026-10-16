@@ -1209,3 +1209,32 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | BLA-023 | BLA-6.3 | (E-BT3) Siguard leading the Intercessors (6 models) embarks as one unit, occupies 6/6 capacity, disembarks together wholly within 3" and stays attached; Siguard + unsplit Crusaders (11) refused |
 | BLA-024 | BLA-6 | weapons: plasma pistol supercharge Hazardous (roll 1 → Siguard, a CHARACTER, takes 3 mortal wounds); multi-melta Melta 2 within 9" (+2 D); bolt rifle Assault + Heavy; storm bolters Rapid Fire 2 at half range → 4 shots each; Impulsor Deadly Demise D3 |
 | BLA-025 | E-BT1 | Condition `targetModelKeyword`: true at the save of a model with the keyword, false for other models of the same unit and when no target model is known; existing conditions unchanged |
+
+## DAR — Dark Angels: Mordekai's Judgement (docs/spec/factions/dark-angels.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| DAR-001 | DAR-1 | patrol `da.cp.mordekais-judgement` loads (faction `dark-angels`): 4 units, 10 models; Mordekai is WARLORD with Stoic Exemplar, attached to the Intercessor Squad; default secondary Endless Hunt; stratagems are the three `da.s.mj-*` ids; the start screen lists Dark Angels as its own faction |
+| DAR-002 | DAR-1.4, 6 | data: every stat/profile row of §6 matches; every datasheet has faction keywords ADEPTUS ASTARTES + DARK ANGELS; reused `sm.w.bolt-pistol` / `sm.w.close-combat-weapon` / `sm.w.power-weapon` and all SM patrols load unchanged |
+| DAR-003 | DAR-2.1 | Oath of Moment: an Intercessor bolt rifle attack vs the Oath target re-rolls a failed hit; SM-vs-DA game keeps one Oath target per player |
+| DAR-004 | DAR-6.1 | Litany of Hate: Mordekai leading Intercessors → their melee wound rolls +1 (close combat weapon S4 vs T4 wounds on 3+); ranged attacks unaffected; Mordekai unattached → no bonus |
+| DAR-005 | DAR-3.1 | Stoic Exemplar: enemy unit charges Mordekai's unit → that turn every enemy melee attack against it −1 to wound (including a second enemy unit that did not charge); ranged attacks unaffected |
+| DAR-006 | DAR-3.1 | Stoic Exemplar not active: no charge this turn (fight in a later turn); enemy charged a different unit; enemy charge failed; next turn the effect is gone |
+| DAR-007 | DAR-3.1, E1 | Stoic Exemplar via Heroic Intervention: in the DA turn, an enemy unit heroically intervenes into Mordekai's unit → enemy melee attacks −1 to wound that Fight phase; `chargersIntoThisTurn` stale log from a previous turn returns [] |
+| DAR-008 | DAR-3.2 | Zealous Wrath: Mordekai + Intercessors Advance → re-roll offer; charge roll that falls short is re-rolled; a die already re-rolled (Command Re-roll) is never re-rolled again |
+| DAR-009 | DAR-4.1 | Endless Hunt: round 2, end of own turn, Intercessors on a controlled No Man's Land marker → 3 VP; on a controlled marker in the opponent's zone → 5 VP (not 8 when both); marker in own zone → 0; Mordekai attached, only Mordekai's model within range of a controlled No Man's Land marker → 3 VP (the combined unit is an INTERCESSOR SQUAD unit); attached Mordekai alone in range of a controlled marker in the opponent's zone → 5 VP |
+| DAR-010 | DAR-4.1 | Endless Hunt: round 1 → 0; Intercessors Battle-shocked → 0; attached unit with either half Battle-shocked → 0; marker in range but controlled by the opponent → 0; Inceptors on the marker (no Intercessors) → 0; end of the opponent's turn → 0 |
+| DAR-011 | DAR-4.2 | Archeotech Reliquary: start of round 1 the OPPONENT gets a `chooseOption` listing every live marker; DA controls it at battle end → 10 VP; does not → 0 |
+| DAR-012 | DAR-4.2 | Archeotech Reliquary: the picked marker is later removed by a mission rule → 0; no pick offered in rounds 2–5; Endless Hunt chosen → no pick at all |
+| DAR-013 | DAR-5.1 | Unyielding: own Command phase, Intercessors OC 2 → 3 through the opponent's turn, back to 2 at the next own Command phase; Mordekai alone and the Redemptor are not offered |
+| DAR-014 | DAR-5.2 | March of Vengeance: Intercessors Fall Back → offered; used → eligible to shoot in that Shooting phase; if they did not shoot they may declare a charge |
+| DAR-015 | DAR-5.2, E2 | March of Vengeance: after the unit shot this turn it is not eligible to charge; not offered after a Normal move or Advance, nor for the Redemptor; expires at end of turn; `shotThisTurn` ignores Overwatch |
+| DAR-016 | DAR-5.3 | Relic Munitions: opponent targets Intercessors standing on a marker DA controls → offered; used → Benefit of Cover against every attack that phase (+1 save vs AP 0 per R-6 cover rules); Ignores Cover weapons bypass it |
+| DAR-017 | DAR-5.3 | Relic Munitions not offered: unit not within range of a controlled marker; marker controlled by the opponent; untargeted unit; Redemptor (not INFANTRY); expires at the end of the phase |
+| DAR-018 | DAR-5.4 | Keywords: unattached Mordekai (no INFANTRY on the CP card) is not a legal target for Unyielding / March of Vengeance / Relic Munitions / Go to Ground; attached Mordekai + Intercessors is |
+| DAR-019 | DAR-6.2 | Redemptor at 4 wounds remaining: its hit rolls −1 (gatling cannon hits on 4+); at 5 wounds no penalty |
+| DAR-020 | DAR-6 | Redemptor Deadly Demise D3: destroyed → roll D6; on a 6, D3 mortal wounds to each unit within 6" |
+| DAR-021 | DAR-6 | Macro plasma incinerator: choose standard or supercharge per shooting; supercharge Hazardous 1 → Redemptor takes 3 mortal wounds; Blast adds +1 A per 5 target models |
+| DAR-022 | DAR-6 | Icarus rocket pod: unmodified wound 2 vs a FLY unit is a critical wound; onslaught gatling cannon critical wounds become mortal wounds (Devastating Wounds) |
+| DAR-023 | DAR-6 | Inceptors: Deep Strike from round 2 only (>9" from enemies); assault bolters Pistol — may shoot while in Engagement Range; Twin-linked re-rolls wound rolls; Sustained Hits 2 → 2 extra hits on a critical hit |
+| DAR-024 | DAR-6 | Intercessor bolt rifle: Assault (may shoot after Advancing) and Heavy (+1 to hit when stationary) |
+| DAR-025 | E1, E2 | Regression: storing `chargeLog` / `shotLog` in `mission.custom` leaves existing mission custom keys and replay hashes deterministic (same seed + actions → same hash) |
