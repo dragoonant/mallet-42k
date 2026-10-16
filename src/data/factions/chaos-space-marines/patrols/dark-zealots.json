@@ -1,0 +1,179 @@
+{
+  "id": "csm.cp.dark-zealots",
+  "faction": "chaos-space-marines",
+  "name": "Dark Zealots",
+  "armyRule": "csm.a.dark-pacts-dz",
+  "units": [
+    {
+      "ref": "ghallaron",
+      "datasheet": "csm.ghallaron-the-pious",
+      "size": 3,
+      "enhancement": "csm.e.hateful-exhortation",
+      "attachTo": "legionaries"
+    },
+    {
+      "ref": "legionaries",
+      "datasheet": "csm.legionaries-dz",
+      "size": 10,
+      "patrolSquads": [
+        {
+          "ref": "legionaries-a",
+          "size": 5,
+          "wargear": [
+            {
+              "modelId": "champion",
+              "count": 1,
+              "weapons": [
+                "csm.w.plasma-pistol",
+                "csm.w.plasma-pistol-supercharge",
+                "csm.w.accursed-weapon"
+              ]
+            },
+            {
+              "modelId": "heavy-bolter",
+              "count": 1,
+              "weapons": [
+                "csm.w.bolt-pistol",
+                "csm.w.heavy-bolter",
+                "csm.w.close-combat-weapon"
+              ]
+            },
+            {
+              "modelId": "boltgun",
+              "count": 2,
+              "weapons": [
+                "csm.w.bolt-pistol",
+                "csm.w.boltgun",
+                "csm.w.close-combat-weapon"
+              ]
+            },
+            {
+              "modelId": "chainsword",
+              "count": 1,
+              "weapons": [
+                "csm.w.bolt-pistol",
+                "csm.w.astartes-chainsword"
+              ]
+            }
+          ]
+        },
+        {
+          "ref": "legionaries-b",
+          "size": 5,
+          "wargear": [
+            {
+              "modelId": "meltagun",
+              "count": 1,
+              "weapons": [
+                "csm.w.bolt-pistol",
+                "csm.w.meltagun",
+                "csm.w.close-combat-weapon"
+              ]
+            },
+            {
+              "modelId": "icon",
+              "count": 1,
+              "weapons": [
+                "csm.w.bolt-pistol",
+                "csm.w.astartes-chainsword"
+              ]
+            },
+            {
+              "modelId": "chainsword",
+              "count": 1,
+              "weapons": [
+                "csm.w.bolt-pistol",
+                "csm.w.astartes-chainsword"
+              ]
+            },
+            {
+              "modelId": "boltgun",
+              "count": 2,
+              "weapons": [
+                "csm.w.bolt-pistol",
+                "csm.w.boltgun",
+                "csm.w.close-combat-weapon"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ref": "havocs",
+      "datasheet": "csm.havocs",
+      "size": 5
+    },
+    {
+      "ref": "helbrute",
+      "datasheet": "csm.helbrute",
+      "size": 1
+    }
+  ],
+  "stratagems": [
+    "csm.s.empyric-rites",
+    "csm.s.bitter-blows",
+    "csm.s.malicious-volleys"
+  ],
+  "enhancements": [
+    {
+      "id": "csm.e.hateful-exhortation",
+      "default": true
+    },
+    {
+      "id": "csm.e.infernal-blessing",
+      "default": false
+    }
+  ],
+  "secondaries": [
+    {
+      "id": "csm.sec.champion-of-the-dark-gods",
+      "name": "Champion of the Dark Gods",
+      "text": "At the end of every phase, in either player's turn, score 3 victory points if your Dark Apostle model itself destroyed at least one enemy model during that phase. Kills by his Disciples or bodyguard do not count.",
+      "default": true,
+      "scoring": [
+        {
+          "id": "champion-of-the-dark-gods",
+          "when": "phase.end",
+          "rounds": {
+            "from": 1,
+            "to": 5
+          },
+          "who": "both",
+          "rule": "custom",
+          "pointsPer": 3,
+          "cap": 999,
+          "code": "championOfTheDarkGods",
+          "params": {
+            "keyword": "DARK APOSTLE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "csm.sec.idolatrous-despoilers",
+      "name": "Idolatrous Despoilers",
+      "text": "At the end of your opponent's turn, score 4 victory points if at least one of your units that is not Battle-shocked has every model wholly within the opponent's deployment zone. The award is flat, however many units qualify.",
+      "default": false,
+      "scoring": [
+        {
+          "id": "idolatrous-despoilers",
+          "when": "turn.end",
+          "rounds": {
+            "from": 1,
+            "to": 5
+          },
+          "who": "opponent",
+          "rule": "custom",
+          "pointsPer": 4,
+          "cap": 999,
+          "code": "reclaimAndDominate",
+          "params": {
+            "keyword": "HERETIC ASTARTES"
+          }
+        }
+      ]
+    }
+  ],
+  "warlord": "ghallaron"
+}

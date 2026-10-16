@@ -1,0 +1,147 @@
+[
+  {
+    "id": "csm.havocs",
+    "faction": "chaos-space-marines",
+    "name": "Havocs",
+    "keywords": [
+      "INFANTRY",
+      "CHAOS",
+      "HAVOCS"
+    ],
+    "factionKeywords": [
+      "HERETIC ASTARTES"
+    ],
+    "stats": {
+      "M": 5,
+      "T": 5,
+      "Sv": 3,
+      "W": 2,
+      "Ld": 6,
+      "OC": 1
+    },
+    "composition": [
+      {
+        "modelId": "champion",
+        "name": "Havoc Champion",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "champion": true,
+        "base": {
+          "shape": "round",
+          "mm": 40
+        },
+        "weapons": {
+          "default": [
+            "csm.w.plasma-gun",
+            "csm.w.plasma-gun-supercharge",
+            "csm.w.havoc-astartes-chainsword"
+          ]
+        },
+        "figure": {
+          "archetype": "heavy",
+          "kit": "generic-heavy"
+        }
+      },
+      {
+        "modelId": "heavy-bolter",
+        "name": "Havoc (heavy bolter)",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 40
+        },
+        "weapons": {
+          "default": [
+            "csm.w.havoc-heavy-bolter",
+            "csm.w.close-combat-weapon"
+          ]
+        },
+        "figure": {
+          "archetype": "heavy",
+          "kit": "generic-heavy"
+        }
+      },
+      {
+        "modelId": "lascannon",
+        "name": "Havoc (lascannon)",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 40
+        },
+        "weapons": {
+          "default": [
+            "csm.w.havoc-lascannon",
+            "csm.w.close-combat-weapon"
+          ]
+        },
+        "figure": {
+          "archetype": "heavy",
+          "kit": "generic-heavy"
+        }
+      },
+      {
+        "modelId": "missile-launcher",
+        "name": "Havoc (missile launcher)",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 40
+        },
+        "weapons": {
+          "default": [
+            "csm.w.havoc-missile-launcher-frag",
+            "csm.w.havoc-missile-launcher-krak",
+            "csm.w.close-combat-weapon"
+          ]
+        },
+        "figure": {
+          "archetype": "heavy",
+          "kit": "generic-heavy"
+        }
+      },
+      {
+        "modelId": "reaper-chaincannon",
+        "name": "Havoc (reaper chaincannon)",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 40
+        },
+        "weapons": {
+          "default": [
+            "csm.w.havoc-reaper-chaincannon",
+            "csm.w.close-combat-weapon"
+          ]
+        },
+        "figure": {
+          "archetype": "heavy",
+          "kit": "generic-heavy"
+        }
+      }
+    ],
+    "abilities": [
+      "csm.a.dark-pacts-dz"
+    ],
+    "coreAbilities": [],
+    "points": [
+      {
+        "models": 5,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "heavy",
+      "kit": "generic-heavy"
+    }
+  }
+]

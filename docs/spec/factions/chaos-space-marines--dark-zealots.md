@@ -19,7 +19,7 @@ Owner's choice: Dark Zealots is this file's patrol. Zarkan's Daemonkin is alread
 
 ## 1. Roster
 
-4 patrol units (5 if Legionaries split), **21 models**. WARLORD: the DARK APOSTLE model (Ghallaron). Faction keyword
+4 patrol units (5 if Legionaries split), **19 models**. WARLORD: the DARK APOSTLE model (Ghallaron). Faction keyword
 HERETIC ASTARTES on every datasheet.
 
 | Ref | Unit (datasheet id) | Models | Wargear as built (fixed) | Leader / notes |
@@ -202,7 +202,7 @@ data: `tests/data/chaos-space-marines-dark-zealots.test.ts`.
 
 | ID | Ref | Scenario → expected |
 |---|---|---|
-| DZE-001 | DZE-1 | patrol `csm.cp.dark-zealots` loads: 4 units, 21 models (Ghallaron unit 3, Legionaries 10, Havocs 5, Helbrute 1); Ghallaron model is WARLORD with Hateful Exhortation, attached to Legionaries; default secondary Champion of the Dark Gods; Zarkan's Daemonkin still loads unchanged |
+| DZE-001 | DZE-1 | patrol `csm.cp.dark-zealots` loads: 4 units, 19 models (Ghallaron unit 3, Legionaries 10, Havocs 5, Helbrute 1); Ghallaron model is WARLORD with Hateful Exhortation, attached to Legionaries; default secondary Champion of the Dark Gods; Zarkan's Daemonkin still loads unchanged |
 | DZE-002 | DZE-1.1 | Ghallaron unit: Ghallaron W4 Sv3+ Ld5+, Disciples W1 Sv6+ Ld7+, all 4+ invuln; attached to Legionaries, an enemy non-Precision attack may be allocated to a Disciple but not to Ghallaron while a Legionary lives |
 | DZE-003 | DZE-1.2 | Patrol Squads: split → `legionaries-a` and `legionaries-b` of 5 each with the DZE-1.2 wargear, Ghallaron attaches to `legionaries-a`; unsplit is the default |
 | DZE-004 | DZE-2.1 | Havocs selected to shoot → Dark Pact offered (lethal / sustained / decline); decline → no test at any point |

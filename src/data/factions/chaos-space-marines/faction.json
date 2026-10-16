@@ -19,5 +19,5 @@
     "metal": "#8d9299",
     "decal": "#c9b8f0"
   },
-  "combatPatrols": ["csm.cp.zarkans-daemonkin"]
+  "combatPatrols": ["csm.cp.zarkans-daemonkin", "csm.cp.dark-zealots"]
 }

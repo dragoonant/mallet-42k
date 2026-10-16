@@ -455,7 +455,7 @@ export function createGameState(setup: GameSetup, bundle: DataBundle, seed: stri
     if (!secondary) throw new EngineInvariantError(`secondary '${ps.secondaryId}' is not offered by patrol '${patrol.id}'`)
     secondaries[pid] = secondary.scoring
     for (const sid of patrol.stratagems) stratagems[sid] = req(bundle.stratagems, sid, 'stratagem')
-    const armyRuleId = addAbility(faction.armyRule, 'core')
+    const armyRuleId = addAbility(patrol.armyRule ?? faction.armyRule, 'core')
     // Orders (Astra Militarum Voice of Command) are ability records that sit on no datasheet and are only granted as ActiveEffects
     for (const orderId of (abilities[armyRuleId].params?.orderIds as string[] | undefined) ?? []) addAbility(orderId, 'core')
 

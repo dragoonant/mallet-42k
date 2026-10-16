@@ -903,6 +903,8 @@ function driveFightUnit(ctx: EngineContext): 'pending' | 'progress' {
       if (ctx.window('fight.attacksResolved', unitId, ctx.order.active(), { unitId })) return 'pending'
       ctx.once(`fi:arWindow:${unitId}`)
     }
+    // DZE C1: mortal wounds queued by a pick offer in the window above (Dark Pacts late test) resolve now
+    if (s.phaseState.attack && attackService.advance(ctx) === 'pending') return 'pending'
   }
   finishUnit(ctx, unitId, unit.player)
   return 'progress'

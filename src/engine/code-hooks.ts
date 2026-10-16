@@ -799,6 +799,7 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   supplyLines: missionHook('supplyLines'),
   sweepingRaidEndgameBonus: missionHook('sweepingRaidEndgameBonus'),
   wrathOfTheEmperor: missionHook('wrathOfTheEmperor'),
+  championOfTheDarkGods: missionHook('championOfTheDarkGods'),
   // astra-militarum (docs/spec/factions/astra-militarum.md §7): voiceOfCommand, commandLaurels, gunneryOfficer, requireActiveOrder,
   // wargearBearerAlive, holdTheLine, methodicalDestructionPick/Score, sendInTheNextWave, bringItDown, artilleryStrike
   ...astraMilitarumHooks(),

@@ -53,9 +53,14 @@ async function diceCount(page: Page): Promise<number> {
   return Number(/\((\d+)\)/.exec(txt)?.[1] ?? 0)
 }
 
-test('chaos space marines vs bot: start, deploy, reach the first shooting phase', async ({ page }) => {
+for (const v of [
+  { label: 'default patrol', pick: "Zarkan's Daemonkin" as string | null, tag: 'chaos-space-marines', leader: /Zarkan/, seed: 'csm-1' },
+  { label: 'Dark Zealots patrol', pick: 'Dark Zealots', tag: 'chaos-space-marines-dark-zealots', leader: /Ghallaron/, seed: 'dze-2' },
+]) {
+test(`chaos space marines (${v.label}) vs bot: start, deploy, reach the first shooting phase`, async ({ page }) => {
   test.setTimeout(6 * 60_000)
   mkdirSync('e2e-out', { recursive: true })
+  page.setDefaultTimeout(8000)
   const consoleErrors: string[] = []
   page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text().slice(0, 300)) })
   page.on('pageerror', (e) => consoleErrors.push(`pageerror: ${e.message.slice(0, 300)}`))
@@ -64,9 +69,10 @@ test('chaos space marines vs bot: start, deploy, reach the first shooting phase'
   await page.goto('/')
   await expect(page.getByTestId('start-game')).toBeVisible()
   await page.getByTestId('setup-patrol-A').getByRole('button', { name: 'Chaos Space Marines' }).click()
+  if (v.pick) await page.getByTestId('setup-patrol-pick-A').getByRole('button', { name: v.pick }).click()
   await page.getByRole('button', { name: 'Bot', exact: true }).click()
-  await page.getByTestId('setup-seed').fill('csm-1')
-  await page.screenshot({ path: 'e2e-out/m10-chaos-space-marines-01-start.png' })
+  await page.getByTestId('setup-seed').fill(v.seed)
+  await page.screenshot({ path: `e2e-out/m10-${v.tag}-01-start.png` })
   await page.getByTestId('start-game').click()
   await expect(page.getByTestId('phase-tracker')).toBeVisible({ timeout: 20_000 })
   await page.waitForFunction(() => !!(window as any).__mallet) // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -76,7 +82,7 @@ test('chaos space marines vs bot: start, deploy, reach the first shooting phase'
   const humanSeat = s0.humanSeat
   const mine = s0.units.filter((u) => u.player === humanSeat).map((u) => u.name)
   expect(mine.join(' | '), 'human army is the Chaos Space Marines patrol').toMatch(/Legionaries/)
-  expect(mine.join(' | ')).toMatch(/Zarkan/)
+  expect(mine.join(' | ')).toMatch(v.leader)
 
   const start = Date.now()
   let shotDeployed = false
@@ -90,7 +96,7 @@ test('chaos space marines vs bot: start, deploy, reach the first shooting phase'
     if (!shotDeployed && s.phase !== 'setup' && s.phase !== 'deployment' && mineOnBoard > 0) {
       await dismissBanner(page)
       await page.waitForTimeout(1200)
-      await page.screenshot({ path: 'e2e-out/m10-chaos-space-marines-02-deployed.png' })
+      await page.screenshot({ path: `e2e-out/m10-${v.tag}-02-deployed.png` })
       shotDeployed = true
     }
     if (s.phase === 'shooting' && s.round >= 1) {
@@ -99,14 +105,14 @@ test('chaos space marines vs bot: start, deploy, reach the first shooting phase'
       if (shootStartDice === null) { shootStartDice = n; shootStartAt = Date.now() }
       if (n > shootStartDice || Date.now() - shootStartAt > 20_000) {
         await page.waitForTimeout(1200)
-        await page.screenshot({ path: 'e2e-out/m10-chaos-space-marines-03-shooting.png' })
+        await page.screenshot({ path: `e2e-out/m10-${v.tag}-03-shooting.png` })
         console.log(`[csm] shooting shot: dice ${shootStartDice} -> ${n}`)
         shotShooting = true
         break
       }
     }
     if (shootStartDice !== null && s.phase !== 'shooting') {
-      await page.screenshot({ path: 'e2e-out/m10-chaos-space-marines-03-shooting.png' })
+      await page.screenshot({ path: `e2e-out/m10-${v.tag}-03-shooting.png` })
       shotShooting = true
       break
     }
@@ -116,7 +122,7 @@ test('chaos space marines vs bot: start, deploy, reach the first shooting phase'
       await clickFirstOption(page, true)
       await page.waitForTimeout(2200)
       await dismissBanner(page)
-      await page.screenshot({ path: 'e2e-out/m10-chaos-space-marines-03-shooting.png' })
+      await page.screenshot({ path: `e2e-out/m10-${v.tag}-03-shooting.png` })
       console.log('[csm] overwatch shot taken')
       shotShooting = true
       break
@@ -133,4 +139,36 @@ test('chaos space marines vs bot: start, deploy, reach the first shooting phase'
   expect(shotShooting, `reached the Shooting phase (now ${fin.phase} round ${fin.round})`).toBe(true)
   expect(deployed.length, 'chaos units on the board').toBeGreaterThanOrEqual(4)
   expect(consoleErrors, 'no console errors').toEqual([])
+})
+}
+
+test('DZE-027 dark zealots patrol: picker starts Ghallaron attached to Legionaries, Havocs and Helbrute on the roster', async ({ page }) => {
+  const consoleErrors: string[] = []
+  page.on('pageerror', (e) => consoleErrors.push(`pageerror: ${e.message.slice(0, 300)}`))
+  await page.setViewportSize({ width: W, height: H })
+  await page.goto('/')
+  await expect(page.getByTestId('start-game')).toBeVisible()
+  await page.getByTestId('setup-patrol-A').getByRole('button', { name: 'Chaos Space Marines' }).click()
+  await page.getByTestId('setup-patrol-pick-A').getByRole('button', { name: 'Dark Zealots' }).click()
+  await page.getByRole('button', { name: 'Bot', exact: true }).click()
+  await page.getByTestId('setup-seed').fill('dze-1')
+  await page.getByTestId('start-game').click()
+  await expect(page.getByTestId('phase-tracker')).toBeVisible({ timeout: 20_000 })
+  await page.waitForFunction(() => !!(window as any).__mallet) // eslint-disable-line @typescript-eslint/no-explicit-any
+  const info = await page.evaluate(() => {
+    const g = (window as any).__mallet.useGameStore.getState() // eslint-disable-line @typescript-eslint/no-explicit-any
+    const s = g.state
+    const mine = Object.values(s.units).filter((u: any) => u.player === g.humanSeat) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
+    return mine.map((u) => ({ name: u.name, datasheet: u.datasheetId, attached: u.attachedLeaderId, id: u.id }))
+  })
+  const names = info.map((u) => u.name).join(' | ')
+  expect(names).toMatch(/Ghallaron/)
+  expect(names).toMatch(/Havocs/)
+  expect(names).toMatch(/Helbrute/)
+  const body = info.find((u) => /Legionaries/.test(u.name))
+  const leader = info.find((u) => /Ghallaron/.test(u.name))
+  expect(body, 'legionaries present').toBeDefined()
+  expect(leader, 'ghallaron present').toBeDefined()
+  expect(body!.attached === leader!.id || (leader as any).attachedTo === body!.id || body!.attached !== null, 'Ghallaron attached to the Legionaries').toBe(true) // eslint-disable-line @typescript-eslint/no-explicit-any
+  expect(consoleErrors).toEqual([])
 })

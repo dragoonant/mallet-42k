@@ -48,5 +48,76 @@
       { "when": { "weaponType": "melee" }, "reroll": "ones" },
       { "when": { "weaponType": "melee", "targetOnObjective": true }, "reroll": "fails" }
     ]
+  },
+  {
+    "id": "csm.a.dark-pacts-dz",
+    "name": "Dark Pacts (Dark Zealots)",
+    "text": "Each time this unit is selected to shoot or to fight, you may make a Dark Pact for it: choose [LETHAL HITS] or [SUSTAINED HITS 1] and every weapon in the unit has that ability until the end of the phase. No test is taken first. Once the unit has finished its attacks, it takes a Leadership test; on a failure it suffers D3 mortal wounds. Fire Overwatch does not offer a Pact.",
+    "trigger": "unitSelectedToShoot",
+    "code": "darkPact",
+    "params": {
+      "optional": true,
+      "windows": [
+        "shooting.unitSelected",
+        "fight.unitSelected"
+      ],
+      "leadershipTest": true,
+      "testTiming": "afterAttacks",
+      "mortalWounds": "D3",
+      "choices": [
+        {
+          "grantWeaponAbility": {
+            "ability": "LETHAL_HITS"
+          }
+        },
+        {
+          "grantWeaponAbility": {
+            "ability": "SUSTAINED_HITS",
+            "value": 1
+          }
+        }
+      ],
+      "scope": "self",
+      "duration": "untilEndOfPhase",
+      "excludeOverwatch": true
+    }
+  },
+{
+    "id": "csm.a.dark-zealotry",
+    "name": "Dark Zealotry",
+    "text": "While Ghallaron is alive and his unit is leading a bodyguard, each melee attack made by a model in the combined unit adds 1 to its wound roll.",
+    "trigger": "woundRoll",
+    "when": {
+      "leaderAttached": true
+    },
+    "scope": {
+      "who": "self"
+    },
+    "effect": {
+      "when": {
+        "weaponType": "melee"
+      },
+      "modifyRoll": {
+        "roll": "wound",
+        "value": 1
+      }
+    },
+    "code": "wargearBearerAlive",
+    "params": {
+      "modelId": "ghallaron"
+    }
+  },
+{
+    "id": "csm.a.patrol-squads-legionaries",
+    "name": "Patrol Squads",
+    "text": "When you declare battle formations, before any unit is set up, this unit may be split into two units of five models each. Each half keeps all of its abilities.",
+    "trigger": "always",
+    "code": "patrolSquads",
+    "params": {
+      "sizes": [
+        5,
+        5
+      ]
+    }
   }
 ]

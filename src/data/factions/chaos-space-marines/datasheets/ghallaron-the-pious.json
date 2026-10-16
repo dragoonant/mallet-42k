@@ -1,0 +1,102 @@
+[
+  {
+    "id": "csm.ghallaron-the-pious",
+    "faction": "chaos-space-marines",
+    "name": "Ghallaron the Pious",
+    "keywords": [
+      "INFANTRY",
+      "CHAOS"
+    ],
+    "factionKeywords": [
+      "HERETIC ASTARTES"
+    ],
+    "stats": {
+      "M": 6,
+      "T": 4,
+      "Sv": 6,
+      "W": 1,
+      "Ld": 7,
+      "OC": 1
+    },
+    "invuln": 4,
+    "composition": [
+      {
+        "modelId": "ghallaron",
+        "name": "Ghallaron (Dark Apostle)",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "champion": true,
+        "keywords": [
+          "CHARACTER",
+          "DARK APOSTLE",
+          "GHALLARON THE PIOUS"
+        ],
+        "statsOverride": {
+          "Sv": 3,
+          "W": 4,
+          "Ld": 5
+        },
+        "base": {
+          "shape": "round",
+          "mm": 40
+        },
+        "weapons": {
+          "default": [
+            "csm.w.bolt-pistol",
+            "csm.w.accursed-crozius"
+          ]
+        },
+        "figure": {
+          "archetype": "heavy",
+          "kit": "generic-heavy"
+        }
+      },
+      {
+        "modelId": "disciple",
+        "name": "Dark Disciple",
+        "min": 2,
+        "max": 2,
+        "default": 2,
+        "base": {
+          "shape": "round",
+          "mm": 25
+        },
+        "weapons": {
+          "default": [
+            "csm.w.dark-disciple-ccw"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "sm-tacticus"
+        }
+      }
+    ],
+    "abilities": [
+      "csm.a.dark-pacts-dz",
+      "csm.a.dark-zealotry"
+    ],
+    "coreAbilities": [
+      {
+        "ability": "LEADER"
+      }
+    ],
+    "leader": {
+      "attachTo": [
+        "csm.legionaries-dz"
+      ],
+      "effects": []
+    },
+    "points": [
+      {
+        "models": 3,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "heavy",
+      "kit": "generic-heavy"
+    }
+  }
+]

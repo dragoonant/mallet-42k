@@ -176,6 +176,20 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
     },
   },
   {
+    match: /dark-pacts-dz/i,
+    info: {
+      title: 'Make a Dark Pact?',
+      hint: 'The unit gains the power you pick right away, no test needed, for every weapon it fires this phase. After its attacks are done it tests its nerve (2D6 against Leadership); on a failure it takes D3 mortal wounds. Decline to skip all of it.',
+    },
+  },
+  {
+    match: /hateful-exhortation/i,
+    info: {
+      title: 'Mark an enemy unit',
+      hint: 'The chosen enemy unit is marked for the whole battle. While the bearer lives, the unit the bearer leads gets +1 AP on critical wounds against the marked unit.',
+    },
+  },
+  {
     match: /dark-?pact/i,
     info: {
       title: 'Make a Dark Pact?',

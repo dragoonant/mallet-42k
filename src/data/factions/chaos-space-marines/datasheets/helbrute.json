@@ -1,0 +1,66 @@
+[
+  {
+    "id": "csm.helbrute",
+    "faction": "chaos-space-marines",
+    "name": "Helbrute",
+    "keywords": [
+      "VEHICLE",
+      "WALKER",
+      "CHAOS",
+      "HELBRUTE"
+    ],
+    "factionKeywords": [
+      "HERETIC ASTARTES"
+    ],
+    "stats": {
+      "M": 6,
+      "T": 9,
+      "Sv": 2,
+      "W": 8,
+      "Ld": 6,
+      "OC": 3
+    },
+    "composition": [
+      {
+        "modelId": "helbrute",
+        "name": "Helbrute",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 60
+        },
+        "weapons": {
+          "default": [
+            "csm.w.helbrute-plasma-cannon",
+            "csm.w.helbrute-hammer"
+          ]
+        },
+        "figure": {
+          "archetype": "vehicle",
+          "kit": "generic-vehicle"
+        }
+      }
+    ],
+    "abilities": [
+      "csm.a.dark-pacts-dz"
+    ],
+    "coreAbilities": [
+      {
+        "ability": "DEADLY_DEMISE",
+        "value": 1
+      }
+    ],
+    "points": [
+      {
+        "models": 1,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "vehicle",
+      "kit": "generic-vehicle"
+    }
+  }
+]

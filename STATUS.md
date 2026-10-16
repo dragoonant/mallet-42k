@@ -209,6 +209,16 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all 6 finished; chaos-space-marines in 4 games: 2 wins, 2 losses (ork 2, necrons 1, sm 1 overall). No balance tuning |
 | Known gaps | No GLB models; bot ignores the CSM stratagems and Dark Pact is answered by the generic chooser; rulings in `docs/needs-rules-check.md` under "chaos-space-marines build" (CSM-01 to CSM-18) |
 
+### Chaos Space Marines: Dark Zealots patrol (M10, second patrol)
+
+| Area | State |
+|---|---|
+| Patrol | Dark Zealots: Ghallaron the Pious (Dark Apostle, attached to Legionaries), Legionaries, Havocs, Helbrute; picked via the start-screen patrol picker. Data in `src/data/factions/chaos-space-marines/patrols/dark-zealots.json`, spec `docs/spec/factions/chaos-space-marines--dark-zealots.md` |
+| Hooks | Extended `src/engine/factions/chaos-space-marines.ts` (Hateful Exhortation, Infernal Blessing, Champion of the Dark Gods, Dark Pact late test) plus small additive edits to missions.ts, code-hooks.ts, fight.ts |
+| Verification | typecheck, validate:data, build green; `npm test` 1923 passing (83 files; DZE- tests in `tests/engine/chaos-space-marines-dark-zealots*.test.ts`, `tests/data/chaos-space-marines-dark-zealots.test.ts`); e2e deploys and reaches Shooting for both patrols (`e2e-out/m10-chaos-space-marines-dark-zealots-0*.png`) |
+| Sim | `npm run sim -- --games 6 --seed 5`: 0 violations; chaos-space-marines 1 win (adepta-sororitas 3, astra-militarum 1, genestealer-cults 1) |
+| Known gaps | Procedural figures only (csm-apostle, csm-havoc, csm-helbrute kits); borrowed SFX; rulings in `docs/needs-rules-check.md` (CSM-DZ-01 to CSM-DZ-16) |
+
 ## Tyranids (M10 — Vardenghast Swarm patrol, playable)
 
 | Area | State |

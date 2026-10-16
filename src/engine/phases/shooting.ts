@@ -290,6 +290,8 @@ function doResolve(ctx: EngineContext): 'pending' | 'selectUnit' {
   if (ctx.window('shooting.targetsDeclared', unitId, ctx.order.defensive(opponent), { unitId })) return 'pending'
   if (s.phaseState.attack && attackService.advance(ctx) === 'pending') return 'pending'
   if (ctx.window('shooting.attacksResolved', unitId, ctx.order.active(), { unitId })) return 'pending'
+  // mortal wounds queued by an attacksResolved window (late Dark Pact test) resolve before the next unit is chosen
+  if (s.phaseState.attack && attackService.advance(ctx) === 'pending') return 'pending'
   // RC-014/061: Krump da Gitz! (queued in the window above) — the targeted unit surges toward the shooter now
   for (let r = consumeReaction(s, 'surge'); r; r = consumeReaction(s, 'surge')) resolveSurgeMove(ctx, r.unitId, r.distance ?? 0, r.enemyUnitId)
   // E4: models kept on the table by A Martyr's Death shoot now, then leave

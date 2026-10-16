@@ -18,6 +18,9 @@ export const BODY_KIND: Record<KitId, 'biped' | 'vehicle' | 'swarm' | 'artillery
   'csm-zarkan': 'biped',
   'csm-possessed': 'biped',
   'csm-cultist': 'biped',
+  'csm-apostle': 'biped',
+  'csm-havoc': 'biped',
+  'csm-helbrute': 'biped',
   'tyr-prime': 'biped',
   'tyr-psychophage': 'biped',
   'tyr-termagant': 'biped',
@@ -222,6 +225,42 @@ export const BIPED_CONFIG: Partial<Record<KitId, BipedConfig>> = {
     hasCape: false,
     skin: 'none',
     torsoColor: 'secondary',
+  },
+  // Dark Apostle: preacher in plate, horned sorcerer-style head, crozius in hand, cape, big shoulders.
+  'csm-apostle': {
+    headShape: 'chaos-sorcerer',
+    rightWeapon: 'mace',
+    leftWeapon: 'slugga',
+    bulk: 1.45,
+    hasBackpack: false,
+    shoulderPads: 'large',
+    hasCape: true,
+    skin: 'none',
+    chestPlate: true,
+  },
+  // Havoc: legionary plate, bulkier, backpack, a heavy gun in the hands.
+  'csm-havoc': {
+    headShape: 'chaos-helmet',
+    rightWeapon: 'plasma-cannon',
+    leftWeapon: 'none',
+    bulk: 1.25,
+    hasBackpack: true,
+    shoulderPads: 'large',
+    hasCape: false,
+    skin: 'none',
+    chestPlate: true,
+  },
+  // Helbrute: hulking walker, crushing fist and a plasma cannon, no cape or pack.
+  'csm-helbrute': {
+    headShape: 'chaos-helmet',
+    rightWeapon: 'power-fist',
+    leftWeapon: 'plasma-cannon',
+    bulk: 2.3,
+    hasBackpack: false,
+    shoulderPads: 'large',
+    hasCape: false,
+    skin: 'none',
+    chestPlate: true,
   },
   // Tyranids: bone-white carapace and legs (primary), purple limbs (secondary), red trim, dark chitin (metal) for
   // claws/spines, green decal as the glow (eyes, spine tips, spore sacs). Each unit has its own head shape and

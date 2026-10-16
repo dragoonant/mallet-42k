@@ -115,6 +115,13 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ['webber', 'webber-spray'] as const,
   ['demolition-charge', 'wpn-grenade-launcher'] as const,
   ['clearance-incinerator', 'wpn-heavy-flamer'] as const,
+  // Chaos Space Marines (Dark Zealots / Havocs / Helbrute): crozius rings like a power weapon, the rest borrow.
+  ['accursed-crozius', 'wpn-power-weapon'] as const,
+  ['dark-disciple-ccw', 'wpn-close-combat-weapon'] as const,
+  ['havoc-lascannon', 'wpn-plasma-cannon'] as const,
+  ['missile-launcher', 'wpn-malleus-rocket-launcher'] as const,
+  ['reaper-chaincannon', 'wpn-assault-cannon'] as const,
+  ['helbrute-hammer', 'wpn-power-fist'] as const,
   ['magus-stave', 'wpn-staff-of-possession'] as const,
   ['cult-claws-and-knife', 'wpn-claws-and-teeth'] as const,
   ['heavy-mining-tool', 'rock-drill-grind'] as const,

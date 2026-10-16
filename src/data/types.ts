@@ -309,6 +309,7 @@ export interface CombatPatrolData {
   faction: Id
   name: string
   detachment?: Id
+  armyRule?: Id // overrides FactionData.armyRule for this patrol
   units: PatrolUnitData[]
   unitChoices?: { id: string; refs: string[]; default: string }[]
   stratagems: Id[]

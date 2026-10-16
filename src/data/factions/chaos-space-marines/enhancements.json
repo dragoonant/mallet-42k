@@ -35,5 +35,54 @@
         "battleShockModifier": -1
       }
     }
+  },
+  {
+    "id": "csm.e.hateful-exhortation",
+    "faction": "chaos-space-marines",
+    "name": "Hateful Exhortation",
+    "text": "At the start of the first battle round, pick one enemy unit. For the rest of the battle, each attack made by a model in the bearer's unit against that enemy unit improves its AP by 1 if it scores a Critical Wound. This works only while the bearer is alive.",
+    "cost": 0,
+    "restriction": {
+      "keyword": [
+        "DARK APOSTLE"
+      ]
+    },
+    "effect": {
+      "id": "csm.e.hateful-exhortation.effect",
+      "name": "Hateful Exhortation",
+      "text": "Critical Wounds against the marked enemy unit improve the attack's AP by 1.",
+      "trigger": "woundRoll",
+      "scope": {
+        "who": "self"
+      },
+      "effect": {
+        "critWoundAp": 1
+      },
+      "code": "hatefulExhortation"
+    }
+  },
+{
+    "id": "csm.e.infernal-blessing",
+    "faction": "chaos-space-marines",
+    "name": "Infernal Blessing",
+    "text": "The bearer has a 5+ Feel No Pain save against every wound it loses, mortal wounds included.",
+    "cost": 0,
+    "restriction": {
+      "keyword": [
+        "DARK APOSTLE"
+      ]
+    },
+    "effect": {
+      "id": "csm.e.infernal-blessing.effect",
+      "name": "Infernal Blessing",
+      "text": "The bearer ignores lost wounds on a 5+.",
+      "trigger": "always",
+      "effect": {
+        "feelNoPain": 5
+      },
+      "scope": {
+        "who": "bearer"
+      }
+    }
   }
 ]

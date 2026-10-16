@@ -57,5 +57,137 @@
     "limit": "oncePerPhase",
     "code": "daemonicFervour",
     "params": { "threshold": 4 }
+  },
+  {
+    "id": "csm.s.empyric-rites",
+    "faction": "chaos-space-marines",
+    "name": "Empyric Rites",
+    "text": "Use just after an enemy unit selects its targets, in the opponent's Shooting phase or in a Fight phase, when one of your INFANTRY units is a target. Until the end of the phase, models in that unit have a 4+ invulnerable save.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": [
+      "shooting",
+      "fight"
+    ],
+    "window": [
+      "shooting.targetsDeclared",
+      "fight.targetsDeclared"
+    ],
+    "who": "either",
+    "condition": {
+      "any": [
+        {
+          "phase": "shooting",
+          "ownTurn": false
+        },
+        {
+          "phase": "fight"
+        }
+      ]
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "INFANTRY"
+        },
+        "state": "targetedByAttack",
+        "count": 1
+      }
+    ],
+    "effect": {
+      "invuln": 4
+    },
+    "scope": {
+      "who": "self"
+    },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  },
+{
+    "id": "csm.s.bitter-blows",
+    "faction": "chaos-space-marines",
+    "name": "Bitter Blows",
+    "text": "Use in a Fight phase just after an enemy unit selects its targets, when one of your INFANTRY units is a target. Until the end of the phase, each time a model in that unit is destroyed before the unit has fought, roll a D6: on a 4+ it is not removed yet, and once the enemy unit finishes its attacks it fights, then is removed.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": [
+      "fight"
+    ],
+    "window": [
+      "fight.targetsDeclared"
+    ],
+    "who": "either",
+    "condition": {
+      "phase": "fight"
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "INFANTRY"
+        },
+        "state": "targetedByAttack",
+        "count": 1
+      }
+    ],
+    "scope": {
+      "who": "self"
+    },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase",
+    "code": "daemonicFervour",
+    "params": {
+      "threshold": 4
+    }
+  },
+{
+    "id": "csm.s.malicious-volleys",
+    "faction": "chaos-space-marines",
+    "name": "Malicious Volleys",
+    "text": "Use in your Shooting phase, for one of your INFANTRY units not yet selected to shoot. Until the end of the phase, each attack by that unit re-rolls a hit roll of 1; if the target is below half-strength, the attack may re-roll any failed hit roll instead.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": [
+      "shooting"
+    ],
+    "window": [
+      "shooting.start"
+    ],
+    "who": "active",
+    "condition": {
+      "phase": "shooting",
+      "ownTurn": true
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "INFANTRY"
+        },
+        "state": "notYetShot",
+        "count": 1
+      }
+    ],
+    "effect": [
+      {
+        "when": {
+          "targetBelowHalf": true
+        },
+        "reroll": "all"
+      },
+      {
+        "reroll": "ones"
+      }
+    ],
+    "scope": {
+      "who": "self"
+    },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase",
+    "code": "voraciousAssaultHit"
   }
 ]

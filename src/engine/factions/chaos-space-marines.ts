@@ -6,7 +6,7 @@
 // Fight module drains it right after the `*.unitSelected` window closes (so a later pick, e.g. the Dagger after the Pact, is still offered
 // before any allocation decision). The granted effects are granted eagerly - a unit or bearer wiped out by the mortal wounds simply has
 // no weapons left to carry them.
-import type { Effect } from '../../data/types'
+import type { Effect, ScoringRule } from '../../data/types'
 import type { EngineCodeHook, StratagemEnv, StratagemTuple } from '../code-hooks'
 import { distance } from '../geometry'
 import type { AttackContext, RollContext } from '../hooks'
@@ -85,7 +85,8 @@ function queueMortalsLazy(ctx: EngineContext, targetUnitId: UnitId, count: numbe
 function rejectNotOption(why: string): Rejection { return { code: 'E_NOT_AN_OPTION', reason: why } }
 
 // ---------- Dark Pacts (CHA-2.x) ----------
-const PACT_MARK = (unit: UnitId, phase: string) => `pick:darkPact:${unit}:${phase}`
+const PACT_DUE = 'pactTestDue:'
+const PACT_MARK =(unit: UnitId, phase: string) => `pick:darkPact:${unit}:${phase}`
 
 function darkPactOffer(ctx: EngineContext, window: TimingWindowId, key: string): boolean {
   const s = ctx.state
@@ -129,7 +130,10 @@ function darkPactHandle(ctx: EngineContext, action: Action, pending: PendingDeci
   const unit = s.units[unitId]
   if (!unit) return rejectNotOption('dark pact: unit missing')
   // CHA-2.2: Leadership test (not a Battle-shock test); a failure costs D3 mortal wounds, the pact is made either way
-  const passed = ctx.services.hooks.leadershipTest ? ctx.services.hooks.leadershipTest(ctx, unitId, abilityId) : true
+  // DZE-2.3 (testTiming 'afterAttacks'): the test is deferred to darkPactLateTest at the attacksResolved window.
+  const late = s.abilities[abilityId]?.params?.testTiming === 'afterAttacks'
+  const passed = late ? true : ctx.services.hooks.leadershipTest ? ctx.services.hooks.leadershipTest(ctx, unitId, abilityId) : true
+  if (late) s.phaseState.marks.push(`${PACT_DUE}${leaderService.canonicalUnitId(s, unitId)}:${abilityId}`)
   const choices = (s.abilities[abilityId]?.params?.choices as Effect[] | undefined) ?? [{ grantWeaponAbility: { ability: 'LETHAL_HITS' } }, { grantWeaponAbility: { ability: 'SUSTAINED_HITS', value: 1 } }]
   const granted: Effect[] = action.optionId === 'both' ? choices : [action.optionId === 'lethal' ? choices[0] : choices[1]]
   ctx.services.effects.grant(ctx, unitId, granted, { sourceAbilityId: abilityId, sourceUnitId: unitId, scope: { who: 'self' }, duration: 'untilEndOfPhase', when: null })
@@ -144,6 +148,115 @@ function darkPactHandle(ctx: EngineContext, action: Action, pending: PendingDeci
 const darkPact: EngineCodeHook = {
   name: 'darkPact', kind: 'ability', hook: 'onUnitSelectedToShoot', run: noop,
   pick: { window: 'shooting.unitSelected', windows: ['shooting.unitSelected', 'fight.unitSelected'], topic: 'abilityChoice', offer: darkPactOffer, handle: darkPactHandle },
+}
+
+// DZE-2.3: the deferred Leadership test, run once the unit has finished its attacks. Never raises a decision (offer returns false).
+const darkPactLateTest: EngineCodeHook = {
+  name: 'darkPactLateTest', kind: 'ability', hook: 'onPhaseEnd', run: noop,
+  pick: {
+    window: 'shooting.attacksResolved', windows: ['shooting.attacksResolved', 'fight.attacksResolved'], topic: 'abilityChoice',
+    offer(ctx, _window, key) {
+      const s = ctx.state
+      const canon = leaderService.canonicalUnitId(s, key)
+      const prefix = `${PACT_DUE}${canon}:`
+      const mark = s.phaseState.marks.find((m) => m.startsWith(prefix))
+      if (!mark) return false
+      s.phaseState.marks = s.phaseState.marks.filter((m) => m !== mark)
+      const abilityId = mark.slice(prefix.length)
+      if (boardHalves(s, canon).length === 0) return false // wiped out before the test: nothing to test
+      const unit = s.units[canon]
+      const passed = ctx.services.hooks.leadershipTest ? ctx.services.hooks.leadershipTest(ctx, canon, abilityId) : true
+      if (!passed) {
+        const n = ctx.rollExpr('D3', { purpose: 'ability', player: unit.player, unitId: canon }).total
+        ctx.emit({ type: 'AbilityTriggered', abilityId, sourceUnitId: canon, targetUnitId: canon, summary: `Dark Pact: Leadership test failed, ${n} mortal wound(s)`, player: unit.player })
+        queueMortalsLazy(ctx, canon, n, abilityId)
+      } else {
+        ctx.emit({ type: 'AbilityTriggered', abilityId, sourceUnitId: canon, targetUnitId: canon, summary: 'Dark Pact: Leadership test passed', player: unit.player })
+      }
+      return false
+    },
+    handle: () => undefined,
+  },
+}
+
+// ---------- Hateful Exhortation (DZE-3.1) ----------
+function hatefulHolder(s: GameState, player: PlayerId): string | null {
+  for (const a of Object.values(s.abilities)) {
+    if (a.source !== 'enhancement' || a.code !== 'hatefulExhortation' || !a.bearerModelId) continue
+    const m = s.models[a.bearerModelId]
+    if (m && s.units[m.unitId]?.player === player) return a.id
+  }
+  return null
+}
+
+const hatefulExhortation: EngineCodeHook = {
+  name: 'hatefulExhortation', kind: 'ability', hook: 'onWoundRoll', run: noop,
+  pick: {
+    window: 'round.start', topic: 'abilityChoice',
+    offer(ctx, window, key) {
+      const s = ctx.state
+      if (s.round !== 1) return false
+      for (const player of ['A', 'B'] as PlayerId[]) {
+        const mark = `pick:hatefulExhortation:${player}`
+        if (s.phaseState.marks.includes(mark) || s.players[player].secondaryState.hatefulTarget) continue
+        const abilityId = hatefulHolder(s, player)
+        if (!abilityId) continue
+        s.phaseState.marks.push(mark)
+        const canon = new Set<UnitId>()
+        for (const u of Object.values(s.units)) if (u.player !== player && u.location !== 'destroyed') canon.add(leaderService.canonicalUnitId(s, u.id))
+        const options = [...canon].filter((id) => !!s.units[id] && s.units[id].location !== 'destroyed').map((id) => ({
+          id, label: `Hateful Exhortation: ${s.units[id].name}`, action: optionAction(player, id), hint: { unitId: id },
+        }))
+        if (options.length === 0) continue
+        ctx.decide({
+          kind: 'chooseOption', player, window, canPass: false,
+          context: { topic: 'abilityChoice', unitId: null, abilityId, data: { window, key, code: 'hatefulExhortation' } },
+          options,
+        })
+        return true
+      }
+      return false
+    },
+    handle(ctx, action, pending) {
+      if (action.type !== 'chooseOption' || pending.kind !== 'chooseOption') return rejectNotOption('hateful exhortation expects chooseOption')
+      const s = ctx.state
+      const target = s.units[action.optionId]
+      if (!target || target.player === pending.player || target.location === 'destroyed') return { code: 'E_INVALID_TARGET', reason: 'hateful exhortation must mark a live enemy unit' }
+      const canon = leaderService.canonicalUnitId(s, target.id)
+      const ss = s.players[pending.player].secondaryState
+      ss.hatefulTarget = canon
+      ss.hatefulHalves = leaderService.halves(s, canon) // both halves stay marked even if they later separate
+      ctx.emit({ type: 'AbilityTriggered', abilityId: pending.context.abilityId ?? 'csm.e.hateful-exhortation', sourceUnitId: pending.context.unitId, targetUnitId: canon, summary: `Hateful Exhortation: ${s.units[canon].name} is marked`, player: pending.player })
+    },
+  },
+  gate(state, holder, entry, data) {
+    const attack = data?.attack as AttackContext | undefined
+    if (!attack || !entry.bearerModelId || !state.models[entry.bearerModelId]) return false
+    const ss = state.players[holder.player].secondaryState
+    const halves = ss.hatefulHalves as string[] | undefined
+    const target = ss.hatefulTarget as string | undefined
+    if (!target) return false
+    return (halves ?? [target]).includes(attack.targetUnitId) || leaderService.sameUnit(state, target, attack.targetUnitId)
+  },
+}
+
+// ---------- Champion of the Dark Gods (DZE-4.1), called from missions.ts customAmount ----------
+export function championOfTheDarkGodsAmount(s: GameState, rule: ScoringRule, pid: PlayerId): number {
+  const keyword = (rule.params?.keyword as string | undefined) ?? 'DARK APOSTLE'
+  const kills = s.players[pid].secondaryState.killsThisPhase as Record<string, number> | undefined
+  s.players[pid].secondaryState.killsThisPhase = {} // reset at phase end, like Wrath of the Emperor
+  if (!kills) return 0
+  for (const u of Object.values(s.units)) {
+    if (u.player !== pid) continue
+    const ids = new Set((s.datasheets[u.datasheetId]?.models ?? []).filter((m) => m.keywords?.includes(keyword)).map((m) => m.modelId))
+    if (ids.size === 0) continue
+    for (const [modelId, n] of Object.entries(kills)) {
+      if (n < 1 || !modelId.startsWith(`${u.id}#`)) continue
+      const snap = s.models[modelId] ?? u.destroyedModels?.find((m) => m.id === modelId)
+      if (snap && ids.has(snap.datasheetModelId)) return rule.pointsPer
+    }
+  }
+  return 0
 }
 
 // ---------- Foul Zealotry: marker, read by darkPact ----------
@@ -326,4 +439,4 @@ const daemonicFervour: EngineCodeHook = {
   },
 }
 
-export const chaosSpaceMarinesHooks = { darkPact, foulZealotry, preyOnTheWeak, sacrificialDagger, vindictiveStrategy, violentUnbinding, daemonicFervour }
+export const chaosSpaceMarinesHooks = { darkPact, darkPactLateTest, hatefulExhortation, foulZealotry, preyOnTheWeak, sacrificialDagger, vindictiveStrategy, violentUnbinding, daemonicFervour }

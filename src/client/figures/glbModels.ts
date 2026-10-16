@@ -116,6 +116,12 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'csm.legionaries/meltagun': 'legionary',
   'csm.legionaries/heavy-bolter': 'legionary',
   'csm.legionaries/boltgun': 'legionary',
+  'csm.legionaries-dz/champion': 'legionary-champion',
+  'csm.legionaries-dz/boltgun': 'legionary',
+  'csm.legionaries-dz/heavy-bolter': 'legionary',
+  'csm.legionaries-dz/meltagun': 'legionary',
+  'csm.legionaries-dz/chainsword': 'legionary',
+  'csm.legionaries-dz/icon': 'legionary',
   'csm.cultist-mob/champion': 'cultist-champion',
   'csm.cultist-mob/cultist': 'cultist',
   // Tyranids: no GLBs yet; same deal as the Necrons above (procedural kits in kitConfigs.ts draw them).

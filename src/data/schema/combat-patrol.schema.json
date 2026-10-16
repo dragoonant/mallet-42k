@@ -19,6 +19,10 @@
       "$ref": "common.schema.json#/$defs/Id",
       "description": "optional; Combat Patrol has no detachment rule"
     },
+    "armyRule": {
+      "$ref": "common.schema.json#/$defs/Id",
+      "description": "optional; overrides the faction armyRule for this patrol (a patrol printing an older/different faction ability)"
+    },
     "units": {
       "type": "array",
       "minItems": 1,
