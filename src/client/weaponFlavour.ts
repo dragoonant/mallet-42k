@@ -95,7 +95,7 @@ export interface VfxClassification {
 /** Engine faction ids by the prefix of a weapon id ('ork.w.shoota'), for weapons classified with no faction given. */
 const ID_PREFIX_FACTION: [string, string][] = [
   ['ork.', 'ork'], ['nec', 'necrons'], ['tyr', 'tyranids'], ['gsc.', 'genestealer-cults'], ['tau.', 'tau-empire'],
-  ['am.', 'astra-militarum'], ['lov.', 'leagues-of-votann'], ['gk.', 'grey-knights'], ['csm', 'chaos-space-marines'], ['we.', 'world-eaters'], ['ade', 'adepta-sororitas'], ['cus.', 'adeptus-custodes'], ['drk.', 'drukhari'], ['ael.', 'aeldari'], ['adm.', 'adeptus-mechanicus'], ['dg.', 'death-guard'], ['ths.', 'thousand-sons'], ['sw.', 'space-wolves'], ['da.', 'dark-angels'],
+  ['am.', 'astra-militarum'], ['lov.', 'leagues-of-votann'], ['gk.', 'grey-knights'], ['csm', 'chaos-space-marines'], ['we.', 'world-eaters'], ['ade', 'adepta-sororitas'], ['cus.', 'adeptus-custodes'], ['drk.', 'drukhari'], ['ael.', 'aeldari'], ['adm.', 'adeptus-mechanicus'], ['dg.', 'death-guard'], ['ths.', 'thousand-sons'], ['sw.', 'space-wolves'], ['da.', 'dark-angels'], ['ba.', 'blood-angels'],
 ]
 
 export function classifyVfxFamily(weaponId: string, weapon: WeaponData | undefined, faction: string): VfxClassification {

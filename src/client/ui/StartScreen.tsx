@@ -33,11 +33,12 @@ const FACTION_BLURBS: Record<string, string> = {
   'thousand-sons': 'Blue-and-gold sorcerers, armoured Rubric warriors and horned mutants: pool sorcerous power each round and spend it on rituals that bend the odds.',
   'space-wolves': 'Grey-armoured Astartes hunters led by a fierce battle leader: a strong core of rifles and a hard-hitting walker, backed by ambush tactics and sharp senses.',
   'dark-angels': 'Green-armoured Space Marines led by a grim Chaplain: Oath of Moment on a chosen target, jump-pack Inceptors, and a Redemptor Dreadnought to anchor the line.',
+  'blood-angels': 'Crimson-armoured sons of Sanguinius: a steady Intercessor line backed by stealthy Incursors, hulking Aggressors and a psychic Librarian, who strike hard whenever a fight turns bloody.',
   'chaos-daemons': 'Red-skinned Khorne daemons who bring a creeping Shadow of Chaos with them: your units in its shade steady and heal, while enemies caught inside it falter and bleed.',
 }
 
 // Button order for the factions the game ships; any other faction in the bundle follows alphabetically.
-const FACTION_ORDER = ['sm', 'space-wolves', 'ork', 'necrons', 'chaos-space-marines', 'world-eaters', 'tyranids', 'adepta-sororitas', 'astra-militarum', 'grey-knights', 'tau-empire', 'genestealer-cults', 'adeptus-custodes', 'leagues-of-votann', 'drukhari', 'aeldari', 'adeptus-mechanicus', 'death-guard', 'thousand-sons', 'chaos-daemons', 'dark-angels']
+const FACTION_ORDER = ['sm', 'space-wolves', 'ork', 'necrons', 'chaos-space-marines', 'world-eaters', 'tyranids', 'adepta-sororitas', 'astra-militarum', 'grey-knights', 'tau-empire', 'genestealer-cults', 'adeptus-custodes', 'leagues-of-votann', 'drukhari', 'aeldari', 'adeptus-mechanicus', 'death-guard', 'thousand-sons', 'chaos-daemons', 'dark-angels', 'blood-angels']
 
 interface FactionChoice {
   id: string

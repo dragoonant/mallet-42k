@@ -484,3 +484,12 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Verification | typecheck, validate:data (268 files), build green; `npm test` 3440 passing (149 files, after rebase on Space Wolves, incl. DAR- tests in `tests/engine/dark-angels*.test.ts`, `tests/data/dark-angels.test.ts`, `tests/client/darkAngels.test.ts`); e2e `tests/e2e/dark-angels.spec.ts` starts as Dark Angels vs bot, deploys by board click, Fires Overwatch into round 1 Shooting; `e2e-out/m10-dark-angels-0*.png` |
 | Sim | `npm run sim -- --games 6 --seed 5`: 0 violations; default rotation does not field dark-angels on that seed. `SIM_FACTION=dark-angels`: 6 games all finished (round 5), dark-angels 2 wins, 3 losses, 1 draw, 0 violations |
 | Known gaps | Procedural figures only (GLBs to be generated later on the Alteisen box); borrowed SFX; bot ignores the DA stratagems; rulings DAR-R01 to DAR-R13 in `docs/needs-rules-check.md` under "dark-angels build" |
+
+### M10 blood-angels - Strike Force Marcellos (new faction, playable)
+| Item | State |
+|---|---|
+| Patrol | Strike Force Marcellos: Librarian Marcellos (leads the Intercessors), Intercessor Squad, Incursor Squad, Aggressor Squad, Impulsor; secondaries Angelic Wrath / Strategic Aggression. Data `src/data/factions/blood-angels/`; spec `docs/spec/factions/blood-angels.md` |
+| Engine hooks | New `src/engine/factions/blood-angels.ts` (registered in `code-hooks.ts`): multiSpectrumArray, haywireMine, rapidStrike. Everything else (Mental Fortress, Harness the Flaw, Controlled Ferocity) is declarative data reusing existing hooks |
+| Verification | typecheck, validate:data (259 files), build green; `npm test` 3382 passing (145 files, incl. `tests/engine/blood-angels*.test.ts`, `tests/data/blood-angels.test.ts`, `tests/client/bloodAngels.test.ts`); e2e `blood-angels.spec.ts` starts as Blood Angels vs the bot, deploys every unit by board click, fires Overwatch into round 1 Shooting (`e2e-out/m10-blood-angels-01-start.png`, `-02-deployed.png`, `-03-shooting.png`) |
+| Sim | `SIM_FACTION=blood-angels npm run sim -- --games 6 --seed 5`: 0 violations, all 6 finished (round 5); blood-angels 2 wins, 4 losses to other factions, 0 draws |
+| Known gaps | Procedural figures (no GLBs, 3D models come later via Alteisen); borrowed SFX; Haywire Mine rule taken from the matched-play wargear because the patrol page prints none; rulings BA-R01 to BA-R11 in `docs/needs-rules-check.md` under "blood-angels build" |

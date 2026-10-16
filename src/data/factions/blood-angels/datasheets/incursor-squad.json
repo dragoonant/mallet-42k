@@ -1,0 +1,116 @@
+[
+  {
+    "id": "ba.incursor-squad",
+    "faction": "blood-angels",
+    "name": "Incursor Squad",
+    "keywords": [
+      "INFANTRY",
+      "SMOKE",
+      "IMPERIUM",
+      "PHOBOS",
+      "INCURSOR SQUAD"
+    ],
+    "factionKeywords": [
+      "ADEPTUS ASTARTES",
+      "BLOOD ANGELS"
+    ],
+    "stats": {
+      "M": 6,
+      "T": 4,
+      "Sv": 3,
+      "W": 2,
+      "Ld": 6,
+      "OC": 1
+    },
+    "composition": [
+      {
+        "modelId": "sergeant",
+        "name": "Incursor Sergeant",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "champion": true,
+        "base": {
+          "shape": "round",
+          "mm": 32
+        },
+        "weapons": {
+          "default": [
+            "sm.w.bolt-pistol",
+            "ba.w.occulus-bolt-carbine",
+            "ba.w.paired-combat-blades"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "sm-tacticus"
+        }
+      },
+      {
+        "modelId": "incursor",
+        "name": "Incursor",
+        "min": 3,
+        "max": 3,
+        "default": 3,
+        "base": {
+          "shape": "round",
+          "mm": 32
+        },
+        "weapons": {
+          "default": [
+            "sm.w.bolt-pistol",
+            "ba.w.occulus-bolt-carbine",
+            "ba.w.paired-combat-blades"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "sm-tacticus"
+        }
+      },
+      {
+        "modelId": "incursor-haywire",
+        "name": "Incursor (haywire mine)",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 32
+        },
+        "weapons": {
+          "default": [
+            "sm.w.bolt-pistol",
+            "ba.w.occulus-bolt-carbine",
+            "ba.w.paired-combat-blades"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "sm-tacticus"
+        }
+      }
+    ],
+    "abilities": [
+      "sm.a.oath-of-moment",
+      "ba.a.multi-spectrum-array",
+      "ba.a.haywire-mine"
+    ],
+    "coreAbilities": [
+      {
+        "ability": "SCOUTS",
+        "value": 6
+      }
+    ],
+    "points": [
+      {
+        "models": 5,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "infantry",
+      "kit": "sm-tacticus"
+    }
+  }
+]

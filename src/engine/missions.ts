@@ -722,8 +722,13 @@ function bagPickRule(ctx: EngineContext, rule: ScoringRule, pid: PlayerId, key: 
   // E2 (Mighty Saga): optional params; defaults keep Bag the Big 'Un unchanged
   const pickKeywords = (rule.params?.pickKeywords as string[] | undefined) ?? ['MONSTER', 'VEHICLE']
   const fallbackWarlord = (rule.params?.fallbackWarlord as boolean | undefined) ?? true
+  // Blood Angels: every enemy unit with params.fallbackKeyword (CHARACTER) when no pick-keyword unit exists
+  const fallbackKeyword = rule.params?.fallbackKeyword as string | undefined
   const big = Object.values(s.units).filter((u) => u.player === opp && u.location !== 'destroyed' && keywordsOf(s, u.id).some((k) => pickKeywords.includes(k)))
-  const candidates = big.length > 0 ? big : fallbackWarlord ? ([s.units[s.players[opp].warlordUnitId]].filter((u): u is Unit => !!u)) : []
+  const fallback: Unit[] = fallbackKeyword
+    ? Object.values(s.units).filter((u) => u.player === opp && u.location !== 'destroyed' && keywordsOf(s, u.id).includes(fallbackKeyword))
+    : fallbackWarlord ? ([s.units[s.players[opp].warlordUnitId]].filter((u): u is Unit => !!u)) : []
+  const candidates = big.length > 0 ? big : fallback
   if (candidates.length === 0) return
   // one option per model (spec 7.1 B3); multi-model units get a "#n" label suffix
   const options = candidates.flatMap((u) => {

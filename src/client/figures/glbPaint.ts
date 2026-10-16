@@ -26,6 +26,7 @@ const SOURCE_HUES: Record<string, { major: string | null; minor: string | null }
   'death-guard': { major: '#6f7149', minor: '#6a4f3c' },
   'world-eaters': { major: '#62252b', minor: '#7a6140' },
   'adeptus-mechanicus': { major: '#a4492f', minor: null },
+  'blood-angels': { major: '#9e1b1b', minor: '#c9a227' },
   'chaos-daemons': { major: '#7b342d', minor: '#77603f' },
   'dark-angels': { major: '#1f3b2a', minor: '#d9cfb4' },
 }

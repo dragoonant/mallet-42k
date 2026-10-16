@@ -1,0 +1,78 @@
+[
+  {
+    "id": "ba.librarian-marcellos",
+    "faction": "blood-angels",
+    "name": "Librarian Marcellos",
+    "keywords": [
+      "INFANTRY",
+      "CHARACTER",
+      "PSYKER",
+      "IMPERIUM",
+      "TACTICUS",
+      "LIBRARIAN",
+      "MARCELLOS"
+    ],
+    "factionKeywords": [
+      "ADEPTUS ASTARTES",
+      "BLOOD ANGELS"
+    ],
+    "stats": {
+      "M": 6,
+      "T": 4,
+      "Sv": 3,
+      "W": 4,
+      "Ld": 6,
+      "OC": 1
+    },
+    "composition": [
+      {
+        "modelId": "marcellos",
+        "name": "Librarian Marcellos",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 40
+        },
+        "weapons": {
+          "default": [
+            "sm.w.smite",
+            "sm.w.smite-focused",
+            "sm.w.bolt-pistol",
+            "sm.w.force-weapon"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "sm-tacticus"
+        }
+      }
+    ],
+    "abilities": [
+      "sm.a.oath-of-moment",
+      "ba.a.mental-fortress"
+    ],
+    "coreAbilities": [
+      {
+        "ability": "LEADER"
+      }
+    ],
+    "leader": {
+      "attachTo": [
+        "ba.intercessor-squad"
+      ],
+      "effects": []
+    },
+    "points": [
+      {
+        "models": 1,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "infantry",
+      "kit": "sm-tacticus"
+    }
+  }
+]

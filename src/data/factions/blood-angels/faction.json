@@ -1,0 +1,32 @@
+{
+  "id": "blood-angels",
+  "name": "Blood Angels",
+  "factionKeyword": "ADEPTUS ASTARTES",
+  "armyRule": "sm.a.oath-of-moment",
+  "detachments": [
+    {
+      "id": "ba.d.strike-force-marcellos",
+      "name": "Strike Force Marcellos",
+      "rule": "sm.a.oath-of-moment",
+      "stratagems": [
+        "ba.s.controlled-ferocity",
+        "ba.s.harness-the-flaw",
+        "ba.s.rapid-strike"
+      ],
+      "enhancements": [
+        "ba.e.baalite-bladesman",
+        "ba.e.radiant-wrath"
+      ]
+    }
+  ],
+  "paintScheme": {
+    "primary": "#9e1b1b",
+    "secondary": "#c9a227",
+    "trim": "#1a1a1a",
+    "metal": "#8a8f98",
+    "decal": "#f2e6c8"
+  },
+  "combatPatrols": [
+    "ba.cp.strike-force-marcellos"
+  ]
+}

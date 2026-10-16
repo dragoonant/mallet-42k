@@ -33,7 +33,7 @@ const WE = 'world-eaters'
 const CDM = 'chaos-daemons'
 
 /** The engine faction id a weapon's own id prefix belongs to. */
-const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : id.startsWith('lov.') ? LOV : id.startsWith('drk.') ? DRK : id.startsWith('ael.') ? 'aeldari' : id.startsWith('adm.') ? ADM : id.startsWith('dg.') ? 'death-guard' : id.startsWith('we.') ? WE : id.startsWith('ths.') ? 'thousand-sons' : id.startsWith('cdm.') ? CDM : id.startsWith('sw.') ? 'space-wolves' : id.startsWith('da.') ? 'dark-angels' : SM)
+const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : id.startsWith('lov.') ? LOV : id.startsWith('drk.') ? DRK : id.startsWith('ael.') ? 'aeldari' : id.startsWith('adm.') ? ADM : id.startsWith('dg.') ? 'death-guard' : id.startsWith('we.') ? WE : id.startsWith('ths.') ? 'thousand-sons' : id.startsWith('cdm.') ? CDM : id.startsWith('sw.') ? 'space-wolves' : id.startsWith('da.') ? 'dark-angels' : id.startsWith('ba.') ? 'blood-angels' : SM)
 function lookupFor(faction: string): SoundLookup {
   return { weapon: (id) => bundle.weapons[id], factionOfUnit: () => faction }
 }
@@ -453,9 +453,25 @@ const SW_FLAVOUR: Record<string, WeaponFlavour> = {
 }
 const swWeapons = Object.entries(bundle.weapons).filter(([id]) => id.startsWith('sw.'))
 
+// Blood Angels weapons (Strike Force Marcellos), classified by weapon id; their sm.* pistols and Librarian powers are in EXPECTED.
+const BA_FLAVOUR: Record<string, WeaponFlavour> = {
+  'ba.w.bolt-rifle': 'bolter',
+  'ba.w.astartes-chainsword': 'chain',
+  'ba.w.occulus-bolt-carbine': 'bolter',
+  'ba.w.paired-combat-blades': 'chain',
+  'ba.w.flamestorm-gauntlets': 'flame',
+  'ba.w.twin-power-fists': 'crush',
+  'ba.w.bellicatus-frag': 'heavy',
+  'ba.w.bellicatus-icarus': 'heavy',
+  'ba.w.bellicatus-krak': 'heavy',
+  'ba.w.impulsor-storm-bolter': 'bolter',
+  'ba.w.armoured-hull': 'crush',
+}
+const baWeapons = Object.entries(bundle.weapons).filter(([id]) => id.startsWith('ba.'))
+
 describe('weapon flavour', () => {
   it('covers every weapon in the data bundle (a new weapon has to be classified here)', () => {
-    const known = Object.keys(EXPECTED).concat(adeWeapons.map(([id]) => id), drkWeapons.map(([id]) => id), weWeapons.map(([id]) => id), swWeapons.map(([id]) => id))
+    const known = Object.keys(EXPECTED).concat(adeWeapons.map(([id]) => id), drkWeapons.map(([id]) => id), weWeapons.map(([id]) => id), swWeapons.map(([id]) => id), baWeapons.map(([id]) => id))
     expect(known.sort()).toEqual(Object.keys(bundle.weapons).sort())
   })
 
@@ -476,6 +492,15 @@ describe('weapon flavour', () => {
     for (const [id, weapon] of drkWeapons) {
       expect(DRK_FLAVOUR[id], `${id} (${weapon.name}) needs an entry in DRK_FLAVOUR`).toBeDefined()
       expect(weaponFlavour(id, weapon, DRK), id).toBe(DRK_FLAVOUR[id])
+    }
+  })
+
+  it('every blood-angels weapon is classified, by id', () => {
+    expect(baWeapons.length).toBe(Object.keys(BA_FLAVOUR).length)
+    for (const [id, weapon] of baWeapons) {
+      const expected = BA_FLAVOUR[id]
+      expect(expected, `${id} (${weapon.name}) needs an entry in BA_FLAVOUR`).toBeDefined()
+      expect(weaponFlavour(id, weapon, 'blood-angels'), id).toBe(expected)
     }
   })
 

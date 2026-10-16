@@ -144,6 +144,20 @@ const METHODICAL_INFO = {
  *  prefix or a variant of the same rule still reads right. */
 const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string } }[] = [
   {
+    match: /multi-?spectrum-?array/i,
+    info: {
+      title: 'Multi-spectrum Array: mark a target',
+      hint: 'Your Incursors just finished shooting. Pick one enemy unit they hit: until the end of this phase every Adeptus Astartes attack against it gets +1 to the Hit roll, so mark the target your remaining squads are about to shoot.',
+    },
+  },
+  {
+    match: /haywire-?mine/i,
+    info: {
+      title: 'Haywire Mine: detonate it?',
+      hint: 'One use per battle. Pick an enemy unit within 3 inches of the mine carrier and roll a D6: on a 2 or more it takes D3 mortal wounds (2D3 if it is a Vehicle). A 1 still uses the mine up. Decline to keep it for a better moment.',
+    },
+  },
+  {
     match: /power-?from-?pain/i,
     info: {
       title: 'Power from Pain: Empower a unit?',
@@ -632,6 +646,10 @@ function chooseOptionInfoFor(
   if (context.topic === 'abilityChoice' && !context.abilityId && state && options) {
     const picks = options.filter((o) => o.id !== 'decline')
     if (picks.length > 0 && picks.every((o) => state.units[o.id] && state.units[o.id].player !== player)) return METHODICAL_INFO
+  }
+  // Strategic Aggression shares the Bag the Big 'Un pick, but names a Monster/Vehicle (or a Character) for a flat 10 VP.
+  if (context.topic === 'bagTarget' && state && player && state.players[player as PlayerId]?.faction === 'blood-angels') {
+    return { title: 'Strategic Aggression: pick a target', hint: 'Name an enemy model now, ideally a Monster or Vehicle (you are only offered Characters if they have none). If it has been destroyed by the end of the battle, by anyone, you score 10 VP.' }
   }
   // Retrieve Intelligence only pays out while the Warlord is on the board — say so, since a search without one is wasted.
   if (context.topic === 'recoverObjective' && state && player && state.players[player as PlayerId]) {

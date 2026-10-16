@@ -1,0 +1,89 @@
+[
+  {
+    "id": "ba.impulsor",
+    "faction": "blood-angels",
+    "name": "Impulsor",
+    "keywords": [
+      "VEHICLE",
+      "TRANSPORT",
+      "DEDICATED TRANSPORT",
+      "IMPERIUM",
+      "IMPULSOR"
+    ],
+    "factionKeywords": [
+      "ADEPTUS ASTARTES",
+      "BLOOD ANGELS"
+    ],
+    "stats": {
+      "M": 12,
+      "T": 9,
+      "Sv": 3,
+      "W": 11,
+      "Ld": 6,
+      "OC": 2
+    },
+    "composition": [
+      {
+        "modelId": "impulsor",
+        "name": "Impulsor",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 100
+        },
+        "weapons": {
+          "default": [
+            "ba.w.bellicatus-frag",
+            "ba.w.bellicatus-icarus",
+            "ba.w.bellicatus-krak",
+            "sm.w.storm-bolter",
+            "ba.w.impulsor-storm-bolter",
+            "ba.w.armoured-hull"
+          ]
+        },
+        "figure": {
+          "archetype": "vehicle",
+          "kit": "generic-vehicle"
+        }
+      }
+    ],
+    "abilities": [
+      "sm.a.oath-of-moment"
+    ],
+    "coreAbilities": [
+      {
+        "ability": "DEADLY_DEMISE",
+        "value": "D3"
+      },
+      {
+        "ability": "FIRING_DECK",
+        "value": 6
+      }
+    ],
+    "transport": {
+      "capacity": 6,
+      "keywords": [
+        "ADEPTUS ASTARTES",
+        "INFANTRY"
+      ],
+      "excludeKeywords": [
+        "GRAVIS",
+        "TERMINATOR",
+        "JUMP PACK"
+      ],
+      "firingDeck": 6
+    },
+    "points": [
+      {
+        "models": 1,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "vehicle",
+      "kit": "generic-vehicle"
+    }
+  }
+]

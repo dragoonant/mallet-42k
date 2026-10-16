@@ -203,6 +203,29 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
             </mesh>
           </group>
         )}
+        {config.bloodDrop && (
+          <group position={[0, TORSO_H * 0.58, torsoDepth / 2 + 0.01]}>
+            {/* a cream blood-drop: a diamond with a rounded belly, sitting on a gold gorget bar */}
+            <mesh position={[0, 0.02, 0]} rotation={[0, 0, Math.PI / 4]}>
+              <GBox args={[torsoWidth * 0.22, torsoWidth * 0.22, 0.018]} />
+              <StdMat color={colors.decal} roughness={0.6} />
+            </mesh>
+            <mesh position={[0, -0.03, 0.002]}>
+              <GSphere args={[torsoWidth * 0.12, 8, 6]} />
+              <StdMat color={colors.decal} roughness={0.6} />
+            </mesh>
+            <mesh position={[0, torsoWidth * 0.3, 0]}>
+              <GBox args={[torsoWidth * 0.8, 0.035, 0.02]} />
+              <StdMat color={colors.secondary} roughness={0.4} metalness={0.5} />
+            </mesh>
+          </group>
+        )}
+        {config.satchel && (
+          <mesh position={[torsoWidth / 2 + 0.03, 0.06, 0]}>
+            <GBox args={[0.07, 0.09, 0.12]} />
+            <StdMat color={colors.secondary} roughness={0.45} metalness={0.5} />
+          </mesh>
+        )}
         {config.hasBackpack && (
           <mesh position={[0, TORSO_H * 0.62, -torsoDepth / 2 - 0.05 * bulk]}>
             <GBox args={[torsoWidth * 0.7, TORSO_H * 0.65, 0.1 * bulk]} />
@@ -278,7 +301,7 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
           </group>
 
           <group ref={headRef} position={[0, NECK_H + headRadius, 0]}>
-            <HeadBody shape={config.headShape} colors={colors} skinColor={skinColor} radius={headRadius} helm={config.helmColor === 'metal' ? colors.metal : undefined} />
+            <HeadBody shape={config.headShape} colors={colors} skinColor={skinColor} radius={headRadius} helm={config.helmColor === 'metal' ? colors.metal : config.helmColor === 'primary' ? colors.primary : undefined} />
             {config.horns && <HornPair colors={colors} radius={headRadius} />}
             {config.halo && (
               <mesh position={[0, headRadius * 0.25, -headRadius * 1.15]} rotation={[Math.PI / 2, 0, 0]}>
@@ -314,7 +337,7 @@ function HeadBody({
     case 'marine-helmet':
       return (
         <group>
-          <HeadBlob radius={radius} color={colors.secondary} />
+          <HeadBlob radius={radius} color={helm ?? colors.secondary} />
           <mesh position={[0, -radius * 0.1, radius * 0.9]}>
             <GBox args={[radius * 0.9, radius * 0.35, radius * 0.2]} />
             <StdMat color={VISOR} roughness={0.2} />
@@ -328,7 +351,7 @@ function HeadBody({
     case 'terminator-helmet':
       return (
         <group>
-          <HeadBlob radius={radius * 1.1} color={colors.secondary} />
+          <HeadBlob radius={radius * 1.1} color={helm ?? colors.secondary} />
           <mesh position={[0, -radius * 0.15, radius]}>
             <GBox args={[radius * 1.1, radius * 0.4, radius * 0.22]} />
             <StdMat color={VISOR} roughness={0.2} />

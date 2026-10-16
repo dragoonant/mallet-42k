@@ -1,0 +1,131 @@
+[
+  {
+    "id": "ba.s.controlled-ferocity",
+    "faction": "blood-angels",
+    "name": "Controlled Ferocity",
+    "text": "Use in the Fight phase, just after an enemy unit has picked its targets, when one of your Adeptus Astartes Infantry units was picked. Until the end of the phase, attacks against your unit suffer -1 to the Hit roll.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": [
+      "fight"
+    ],
+    "window": "fight.targetsDeclared",
+    "who": "either",
+    "condition": {
+      "phase": "fight"
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "INFANTRY"
+        },
+        "state": "targetedByAttack",
+        "count": 1
+      }
+    ],
+    "effect": {
+      "modifyRoll": {
+        "roll": "hit",
+        "value": -1
+      }
+    },
+    "scope": {
+      "who": "attacker"
+    },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "ba.s.harness-the-flaw",
+    "faction": "blood-angels",
+    "name": "Harness the Flaw",
+    "text": "Use in the Fight phase for one of your Adeptus Astartes Infantry units that has not yet been selected to fight. Until the end of the phase, each attack it makes re-rolls a Wound roll of 1; against a Monster or Vehicle it may re-roll any Wound roll instead.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": [
+      "fight"
+    ],
+    "window": [
+      "fight.start",
+      "fight.attacksResolved"
+    ],
+    "who": "either",
+    "condition": {
+      "phase": "fight"
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "INFANTRY"
+        },
+        "state": "notYetFought"
+      }
+    ],
+    "effect": [
+      {
+        "when": {
+          "targetKeyword": [
+            "MONSTER",
+            "VEHICLE"
+          ]
+        },
+        "reroll": "all"
+      },
+      {
+        "reroll": "ones"
+      }
+    ],
+    "scope": {
+      "who": "self"
+    },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase",
+    "code": "veteranInstincts"
+  },
+  {
+    "id": "ba.s.rapid-strike",
+    "faction": "blood-angels",
+    "name": "Rapid Strike",
+    "text": "Use at the end of your Shooting phase for one of your Intercessor Squad or Incursor Squad units (an attached Librarian moves with it) that is not within Engagement Range of any enemy unit. It makes a Normal move, but cannot embark into a Transport at the end of it and cannot declare a charge for the rest of the turn.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": [
+      "shooting"
+    ],
+    "window": "phase.end",
+    "who": "active",
+    "condition": {
+      "phase": "shooting",
+      "ownTurn": true
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "ADEPTUS ASTARTES"
+        },
+        "count": 1
+      }
+    ],
+    "effect": {
+      "forbid": "charge"
+    },
+    "scope": {
+      "who": "self"
+    },
+    "duration": "untilEndOfTurn",
+    "limit": "oncePerPhase",
+    "code": "rapidStrike",
+    "params": {
+      "keywords": [
+        "INTERCESSOR SQUAD",
+        "INCURSOR SQUAD"
+      ]
+    }
+  }
+]

@@ -99,7 +99,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
   } else if (id.endsWith('holy-radiance')) {
     if (melee) return -Infinity
     withIt = incomingDamage(state, attackerId, mineId, false, { ...base, hitMod: -1, fnp: 5 })
-  } else if (id.endsWith('hyper-reactive') || id.endsWith('lurking-killers') || id.endsWith('quicksilver-reactions') || id.endsWith('whip-fast-reactions')) {
+  } else if (id.endsWith('hyper-reactive') || id.endsWith('lurking-killers') || id.endsWith('quicksilver-reactions') || id.endsWith('whip-fast-reactions') || id.endsWith('controlled-ferocity')) {
     withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, hitMod: -1 })
   } else if (id.endsWith('lives-before-territory') || id.endsWith('mutant-cunning') || id.endsWith('mj-relic-munitions')) {
     if (melee) return -Infinity
@@ -132,7 +132,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
 }
 
 const DEFENSIVE = ['skeinwrought-physiology', 'go-to-ground', 'smokescreen', 'gene-wrought-resilience', 'tough-as-squig-hide', 'holy-radiance', 'hyper-reactive',
-  'mercurial-resilience', 'reactive-field-shroud', 'a-martyrs-death', 'a-warriors-death', 'daemonic-fervour', 'blood-maddened-banishment', 'manifest-hate', 'lurking-killers', 'lives-before-territory', 'quicksilver-reactions', 'whip-fast-reactions', 'evaluation-of-mettle', 'disgustingly-resilient', 'mutant-cunning', 'mj-relic-munitions']
+  'mercurial-resilience', 'reactive-field-shroud', 'a-martyrs-death', 'a-warriors-death', 'daemonic-fervour', 'blood-maddened-banishment', 'manifest-hate', 'lurking-killers', 'lives-before-territory', 'quicksilver-reactions', 'whip-fast-reactions', 'evaluation-of-mettle', 'disgustingly-resilient', 'mutant-cunning', 'mj-relic-munitions', 'controlled-ferocity']
 
 // Fire Overwatch: hits only on an unmodified 6, the bound unit only (picked within 24"), each weapon within its own range, with line of sight.
 function overwatchGain(state: GameState, player: PlayerId, action: UseStratagemAction, enemyId: UnitId): number {
@@ -426,7 +426,7 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
   }
   // Veteran Instincts: reroll 1s normally, reroll any wound vs MONSTER/VEHICLE — the big reroll-all case is the
   // one worth spending CP on; a plain reroll-ones against rank-and-file is only worth it against a juicy target.
-  if (id.endsWith('veteran-instincts')) {
+  if (id.endsWith('veteran-instincts') || id.endsWith('harness-the-flaw')) {
     const unitId = targets.unitIds?.[0]
     if (!unitId) return -Infinity
     const enemies = engagedEnemyUnits(state, player, unitId)
@@ -439,6 +439,25 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
     if (!bestIsMonsterVehicle && bestDmg < 4) return -Infinity // reroll-ones on a weak fight isn't worth 1 CP
     const bonusFrac = bestIsMonsterVehicle ? 0.5 : 0.15
     return bestDmg * bonusFrac * unitValue(state, bestEnemyId) * 0.02
+  }
+  // Blood Angels Rapid Strike: a Normal move at the end of our Shooting phase; worth it when it brings the unit onto (or into range of)
+  // a scoring marker we do not hold yet (the move is up to the unit's M, the marker's control range is added on top).
+  if (id.endsWith('rapid-strike')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId) return -Infinity
+    const models = unitModels(state, unitId)
+    const c = centerOfUnit(state, unitId)
+    if (models.length === 0 || !c) return -Infinity
+    const move = Math.min(...models.map((m) => modelStats(state, m).M))
+    const reach = state.mission.data.objectiveRange ?? 3
+    let best = 0
+    for (const o of Object.values(state.objectives)) {
+      if (o.removed || DEFAULT_SERVICES.objectives.controller(state, o.id) === player) continue
+      const d = Math.hypot(o.pos.x - c.x, o.pos.z - c.z)
+      if (d > move + reach) continue
+      best = Math.max(best, objectiveScoreWeight(state, player, o.id) * 1.5)
+    }
+    return best > 0 ? best : -Infinity
   }
   // Epic Challenge: Precision lets our Character snipe the enemy's attached leader directly instead of whatever
   // model would normally be allocated to — only worth it when there's actually a leader there to snipe.

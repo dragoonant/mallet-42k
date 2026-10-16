@@ -1,0 +1,209 @@
+[
+  {
+    "id": "ba.w.bolt-rifle",
+    "name": "Bolt rifle",
+    "type": "ranged",
+    "range": 24,
+    "A": 2,
+    "skill": 3,
+    "S": 4,
+    "AP": -1,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "ASSAULT"
+      },
+      {
+        "ability": "HEAVY"
+      }
+    ],
+    "figure": {
+      "part": "sm.weapon.storm-bolter",
+      "hands": 2
+    }
+  },
+  {
+    "id": "ba.w.astartes-chainsword",
+    "name": "Astartes chainsword",
+    "type": "melee",
+    "range": 0,
+    "A": 5,
+    "skill": 3,
+    "S": 4,
+    "AP": -1,
+    "D": 1,
+    "abilities": [],
+    "figure": {
+      "part": "sm.weapon.power-sword",
+      "hands": 1
+    }
+  },
+  {
+    "id": "ba.w.occulus-bolt-carbine",
+    "name": "Occulus bolt carbine",
+    "type": "ranged",
+    "range": 24,
+    "A": 2,
+    "skill": 3,
+    "S": 4,
+    "AP": 0,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "ASSAULT"
+      },
+      {
+        "ability": "IGNORES_COVER"
+      }
+    ],
+    "figure": {
+      "part": "sm.weapon.storm-bolter",
+      "hands": 2
+    }
+  },
+  {
+    "id": "ba.w.paired-combat-blades",
+    "name": "Paired combat blades",
+    "type": "melee",
+    "range": 0,
+    "A": 3,
+    "skill": 3,
+    "S": 4,
+    "AP": 0,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "SUSTAINED_HITS",
+        "value": 1
+      }
+    ],
+    "figure": {
+      "part": "sm.weapon.power-sword",
+      "hands": 1
+    }
+  },
+  {
+    "id": "ba.w.flamestorm-gauntlets",
+    "name": "Flamestorm gauntlets",
+    "type": "ranged",
+    "range": 12,
+    "A": "D6+1",
+    "skill": null,
+    "S": 4,
+    "AP": 0,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "IGNORES_COVER"
+      },
+      {
+        "ability": "TORRENT"
+      },
+      {
+        "ability": "TWIN_LINKED"
+      }
+    ],
+    "figure": {
+      "part": "sm.weapon.pyreblaster",
+      "hands": 2
+    }
+  },
+  {
+    "id": "ba.w.twin-power-fists",
+    "name": "Twin power fists",
+    "type": "melee",
+    "range": 0,
+    "A": 3,
+    "skill": 4,
+    "S": 8,
+    "AP": -2,
+    "D": 2,
+    "abilities": [
+      {
+        "ability": "TWIN_LINKED"
+      }
+    ],
+    "figure": {
+      "part": "sm.weapon.power-fist",
+      "hands": 2
+    }
+  },
+  {
+    "id": "ba.w.bellicatus-frag",
+    "name": "Bellicatus missile array (frag)",
+    "type": "ranged",
+    "range": 48,
+    "A": "D6",
+    "skill": 3,
+    "S": 4,
+    "AP": 0,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "BLAST"
+      }
+    ],
+    "profileGroup": "ba.w.bellicatus"
+  },
+  {
+    "id": "ba.w.bellicatus-icarus",
+    "name": "Bellicatus missile array (icarus)",
+    "type": "ranged",
+    "range": 48,
+    "A": "D3",
+    "skill": 3,
+    "S": 8,
+    "AP": -1,
+    "D": 2,
+    "abilities": [
+      {
+        "ability": "ANTI",
+        "keyword": "FLY",
+        "value": 2
+      }
+    ],
+    "profileGroup": "ba.w.bellicatus"
+  },
+  {
+    "id": "ba.w.bellicatus-krak",
+    "name": "Bellicatus missile array (krak)",
+    "type": "ranged",
+    "range": 48,
+    "A": 1,
+    "skill": 3,
+    "S": 8,
+    "AP": -2,
+    "D": "D6",
+    "abilities": [],
+    "profileGroup": "ba.w.bellicatus"
+  },
+  {
+    "id": "ba.w.impulsor-storm-bolter",
+    "name": "Storm bolter (Impulsor, second)",
+    "type": "ranged",
+    "range": 24,
+    "A": 2,
+    "skill": 3,
+    "S": 4,
+    "AP": 0,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "RAPID_FIRE",
+        "value": 2
+      }
+    ]
+  },
+  {
+    "id": "ba.w.armoured-hull",
+    "name": "Armoured hull",
+    "type": "melee",
+    "range": 0,
+    "A": 3,
+    "skill": 4,
+    "S": 6,
+    "AP": 0,
+    "D": 1,
+    "abilities": []
+  }
+]

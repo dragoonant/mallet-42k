@@ -1,0 +1,115 @@
+{
+  "id": "ba.cp.strike-force-marcellos",
+  "faction": "blood-angels",
+  "name": "Strike Force Marcellos",
+  "units": [
+    {
+      "ref": "librarian-marcellos",
+      "datasheet": "ba.librarian-marcellos",
+      "size": 1,
+      "enhancement": "ba.e.baalite-bladesman",
+      "attachTo": "intercessor-squad"
+    },
+    {
+      "ref": "intercessor-squad",
+      "datasheet": "ba.intercessor-squad",
+      "size": 5
+    },
+    {
+      "ref": "incursor-squad",
+      "datasheet": "ba.incursor-squad",
+      "size": 5
+    },
+    {
+      "ref": "aggressor-squad",
+      "datasheet": "ba.aggressor-squad",
+      "size": 3
+    },
+    {
+      "ref": "impulsor",
+      "datasheet": "ba.impulsor",
+      "size": 1
+    }
+  ],
+  "stratagems": [
+    "ba.s.controlled-ferocity",
+    "ba.s.harness-the-flaw",
+    "ba.s.rapid-strike"
+  ],
+  "enhancements": [
+    {
+      "id": "ba.e.baalite-bladesman",
+      "default": true
+    },
+    {
+      "id": "ba.e.radiant-wrath",
+      "default": false
+    }
+  ],
+  "secondaries": [
+    {
+      "id": "ba.sec.angelic-wrath",
+      "name": "Angelic Wrath",
+      "text": "At the end of each of your opponent's turns, score 4 victory points if you control at least one objective marker inside, or within 6 inches of, your opponent's deployment zone. The award is flat: 4 points per turn however many markers qualify.",
+      "default": true,
+      "scoring": [
+        {
+          "id": "angelic-wrath",
+          "when": "turn.end",
+          "rounds": {
+            "from": 1,
+            "to": 5
+          },
+          "who": "opponent",
+          "rule": "custom",
+          "pointsPer": 4,
+          "cap": 4,
+          "code": "chitinousTide",
+          "params": {
+            "withinInches": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": "ba.sec.strategic-aggression",
+      "name": "Strategic Aggression",
+      "text": "At the start of round 1, pick one enemy Monster or Vehicle model (an enemy Character model if there is none). At the end of the battle, score 10 victory points if that model has been destroyed, by anything.",
+      "default": false,
+      "scoring": [
+        {
+          "id": "aggression-pick",
+          "when": "round.start",
+          "rounds": {
+            "from": 1,
+            "to": 1
+          },
+          "rule": "custom",
+          "pointsPer": 0,
+          "cap": 0,
+          "code": "bagPick",
+          "params": {
+            "fallbackKeyword": "CHARACTER"
+          }
+        },
+        {
+          "id": "aggression-score",
+          "when": "battle.end",
+          "rounds": {
+            "from": 5,
+            "to": 5
+          },
+          "rule": "custom",
+          "pointsPer": 0,
+          "cap": 10,
+          "code": "bagTheBigUnScore",
+          "params": {
+            "unitPoints": 10,
+            "beastbossPoints": 10
+          }
+        }
+      ]
+    }
+  ],
+  "warlord": "librarian-marcellos"
+}

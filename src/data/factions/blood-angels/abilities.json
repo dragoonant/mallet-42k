@@ -1,0 +1,38 @@
+[
+  {
+    "id": "ba.a.mental-fortress",
+    "name": "Mental Fortress (Psychic)",
+    "text": "While this model leads a unit, every model in that unit, this one included, has a 4+ invulnerable save. A Librarian fighting alone gains no such protection.",
+    "trigger": "always",
+    "when": {
+      "leaderAttached": true
+    },
+    "effect": {
+      "invuln": 4
+    },
+    "scope": {
+      "who": "self"
+    }
+  },
+  {
+    "id": "ba.a.multi-spectrum-array",
+    "name": "Multi-spectrum Array",
+    "text": "In your Shooting phase, just after this unit has shot, pick one enemy unit it hit. Until the end of the phase, attacks by Adeptus Astartes models against that enemy unit get +1 to the Hit roll.",
+    "trigger": "unitSelectedToShoot",
+    "code": "multiSpectrumArray"
+  },
+  {
+    "id": "ba.a.haywire-mine",
+    "name": "Haywire Mine",
+    "text": "Once per battle, at the start of any phase, the model carrying the mine may pick one enemy unit within 3 inches of it and roll a D6. On a 2 or more the unit suffers D3 mortal wounds, or 2D3 if it is a Vehicle.",
+    "trigger": "always",
+    "code": "haywireMine",
+    "params": {
+      "modelId": "incursor-haywire",
+      "range": 3,
+      "roll": 2,
+      "damage": "D3",
+      "vehicleDamage": "2D3"
+    }
+  }
+]

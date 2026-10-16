@@ -194,6 +194,14 @@ export type KitId =
   | 'cdm-bloodcrusher-musician'
   | 'cdm-flesh-hound'
   | 'cdm-gore-hound'
+  | 'ba-intercessor'
+  | 'ba-intercessor-sergeant'
+  | 'ba-incursor'
+  | 'ba-incursor-sergeant'
+  | 'ba-incursor-mine'
+  | 'ba-aggressor'
+  | 'ba-librarian'
+  | 'ba-impulsor'
   | 'generic-infantry'
   | 'generic-heavy'
   | 'generic-monster'
@@ -327,10 +335,14 @@ export interface BipedConfig {
   horns?: boolean
   juggernaut?: boolean
   /** Helmet paint slot for the Chaos helm (default 'secondary'). */
-  helmColor?: 'secondary' | 'metal'
+  helmColor?: 'secondary' | 'metal' | 'primary'
   /** Chaos Daemons dressing: a barbed tail behind the hips and a pair of bat wings behind the shoulders. */
   daemonTail?: boolean
   daemonWings?: boolean
+  /** Blood Angels dressing: the blood-drop chest badge (paintScheme.decal). */
+  bloodDrop?: boolean
+  /** A gold-cased mine satchel slung at the hip (the Incursor carrying a haywire mine). */
+  satchel?: boolean
 }
 
 /** Towed/emplaced gun with its crew (Astra Militarum Field Ordnance Battery): a long barrel or a rocket rack. */
@@ -355,7 +367,7 @@ export interface VehicleConfig {
   weapon: 'kustom-mega-blasta' | 'kopta-rokkits' | 'twin-catapult' | 'scatter-laser' | 'starcannon' | 'none'
   hasRotor: boolean
   /** 'dozer' = a tracked mining crawler (Goliath Rockgrinder); 'hover' = a skimmer transport (Devilfish); default is the gyrocopter rig. */
-  style?: 'copter' | 'dozer' | 'hover' | 'gravbike' | 'skiff' | 'gunboat' | 'jetbike' | 'platform'
+  style?: 'copter' | 'dozer' | 'hover' | 'gravbike' | 'skiff' | 'gunboat' | 'jetbike' | 'platform' | 'impulsor'
   /** Grav-bike dressing (Hernkyn Pioneers): which kit the bike carries on top of its nose gun. */
   rig?: 'comms' | 'searchlight' | 'rotary'
 }

@@ -1,0 +1,95 @@
+[
+  {
+    "id": "ba.e.baalite-bladesman",
+    "faction": "blood-angels",
+    "name": "Baalite Bladesman",
+    "text": "Every melee weapon carried by a model in the bearer's unit, an attached unit included, has its Armour Penetration improved by 1.",
+    "cost": 0,
+    "restriction": {
+      "keyword": [
+        "LIBRARIAN"
+      ]
+    },
+    "effect": {
+      "id": "ba.e.baalite-bladesman.effect",
+      "name": "Baalite Bladesman",
+      "text": "Melee weapons in the bearer's unit improve their AP by 1.",
+      "trigger": "always",
+      "effect": {
+        "when": {
+          "weaponType": "melee"
+        },
+        "modifyStat": {
+          "stat": "AP",
+          "value": -1
+        }
+      },
+      "scope": {
+        "who": "self"
+      }
+    }
+  },
+  {
+    "id": "ba.e.radiant-wrath",
+    "faction": "blood-angels",
+    "name": "Radiant Wrath (Psychic)",
+    "text": "Both of the bearer's Smite profiles gain [ANTI-MONSTER 5+] and [ANTI-VEHICLE 5+].",
+    "cost": 0,
+    "restriction": {
+      "keyword": [
+        "LIBRARIAN"
+      ]
+    },
+    "effect": {
+      "id": "ba.e.radiant-wrath.effect",
+      "name": "Radiant Wrath (Psychic)",
+      "text": "The bearer's Smite gains Anti-Monster 5+ and Anti-Vehicle 5+.",
+      "trigger": "always",
+      "effect": [
+        {
+          "when": {
+            "weaponId": "sm.w.smite"
+          },
+          "grantWeaponAbility": {
+            "ability": "ANTI",
+            "keyword": "MONSTER",
+            "value": 5
+          }
+        },
+        {
+          "when": {
+            "weaponId": "sm.w.smite"
+          },
+          "grantWeaponAbility": {
+            "ability": "ANTI",
+            "keyword": "VEHICLE",
+            "value": 5
+          }
+        },
+        {
+          "when": {
+            "weaponId": "sm.w.smite-focused"
+          },
+          "grantWeaponAbility": {
+            "ability": "ANTI",
+            "keyword": "MONSTER",
+            "value": 5
+          }
+        },
+        {
+          "when": {
+            "weaponId": "sm.w.smite-focused"
+          },
+          "grantWeaponAbility": {
+            "ability": "ANTI",
+            "keyword": "VEHICLE",
+            "value": 5
+          }
+        }
+      ],
+      "scope": {
+        "who": "bearer"
+      }
+    }
+  }
+]

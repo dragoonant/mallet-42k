@@ -81,6 +81,13 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ['accelerator-autocannon', 'wpn-assault-cannon'] as const,
   ['paired-combat-blades', 'wpn-power-weapon'] as const,
   ['power-klaw', 'power-klaw-crunch'] as const,
+  // Strike Force Marcellos: the bolt rifle barks like a boltgun, the flamestorm gauntlets roar like a heavy flamer, the Impulsor's missile
+  // array lobs frags like a grenade launcher, hits armour with a krak like a rocket launcher and sends an Icarus rocket like a hunter-killer.
+  ['bolt-rifle', 'wpn-boltgun'] as const,
+  ['flamestorm-gauntlets', 'wpn-heavy-flamer'] as const,
+  ['bellicatus-frag', 'wpn-grenade-launcher'] as const,
+  ['bellicatus-krak', 'wpn-malleus-rocket-launcher'] as const,
+  ['bellicatus-icarus', 'wpn-hunter-killer-missile'] as const,
   // Morgrim's Butchas: the beast klaw crunches like a power klaw, snappa and jaws bite, the thump gun lobs a shell.
   ['beast-snagga-klaw', 'power-klaw-crunch'] as const,
   ['power-snappa', 'wpn-claws-and-teeth'] as const,
@@ -387,6 +394,8 @@ const DEATH_SOUND: Record<string, SfxId> = {
   'space-wolves': 'death-space-marines',
   // Dark Angels are Space Marines and die like them.
   'dark-angels': 'death-space-marines',
+  // Sons of Sanguinius fall with the same armoured-warrior cry as other Space Marines.
+  'blood-angels': 'death-space-marines',
 }
 
 /** Measured decoded RMS runs 0.05-0.40 across these; the loud three are pulled back toward ~0.15. */

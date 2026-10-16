@@ -33,6 +33,7 @@ const PREVIEW: Record<string, { datasheetId: string; modelId?: string }> = {
   'adeptus-mechanicus': { datasheetId: 'adm.skitarii-vanguard', modelId: 'vanguard' },
   'death-guard': { datasheetId: 'dg.plague-marines', modelId: 'boltgun' },
   'thousand-sons': { datasheetId: 'ths.scarab-occult-terminators', modelId: 'combi' },
+  'blood-angels': { datasheetId: 'ba.intercessor-squad', modelId: 'sergeant' },
   'chaos-daemons': { datasheetId: 'cdm.bloodletters', modelId: 'bloodletter' },
   'space-wolves': { datasheetId: 'sw.intercessor-squad', modelId: 'sergeant' },
   'dark-angels': { datasheetId: 'da.intercessor-squad', modelId: 'intercessor' },

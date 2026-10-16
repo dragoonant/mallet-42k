@@ -113,6 +113,17 @@ export function VehicleBody({ config, colors, pose, seed }: BodyProps & { config
     )
   }
 
+  if (config.style === 'impulsor') {
+    return (
+      <group ref={bodyRef}>
+        <HoverParts colors={colors} />
+        <ImpulsorRoof colors={colors} />
+        <group ref={rotorRef} visible={false} />
+        <group ref={gunRef} />
+      </group>
+    )
+  }
+
   if (config.style === 'hover') {
     return (
       <group ref={bodyRef}>
@@ -264,6 +275,47 @@ function HoverParts({ colors }: { colors: BodyProps['colors'] }) {
         <GBox args={[0.5, 0.04, 0.1]} />
         <StdMat color={colors.trim} roughness={0.5} />
       </mesh>
+    </group>
+  )
+}
+
+/** Impulsor: the skimmer hull plus what makes it a troop carrier — a shield-plated roof deck with a pintle storm bolter,
+ *  a side-mounted missile array and a gold hull stripe. */
+function ImpulsorRoof({ colors }: { colors: BodyProps['colors'] }) {
+  return (
+    <group>
+      {/* gold stripe along the flanks */}
+      {[-0.32, 0.32].map((x) => (
+        <mesh key={x} position={[x, 0.4, -0.02]}>
+          <GBox args={[0.02, 0.05, 1.0]} />
+          <StdMat color={colors.secondary} roughness={0.4} metalness={0.5} />
+        </mesh>
+      ))}
+      {/* open roof deck with a raised rim */}
+      <mesh position={[0, 0.56, -0.28]}>
+        <GBox args={[0.5, 0.04, 0.4]} />
+        <StdMat color={colors.trim} roughness={0.5} />
+      </mesh>
+      {/* pintle storm bolter on the deck */}
+      <mesh position={[0, 0.66, -0.2]}>
+        <GCylinder args={[0.025, 0.025, 0.16, 6]} />
+        <StdMat color={colors.metal} metalness={0.6} roughness={0.4} />
+      </mesh>
+      <mesh position={[0, 0.74, -0.08]} rotation={[Math.PI / 2, 0, 0]}>
+        <GCylinder args={[0.03, 0.03, 0.3, 8]} />
+        <StdMat color={colors.metal} metalness={0.7} roughness={0.3} />
+      </mesh>
+      {/* missile array on the right shoulder of the hull */}
+      <mesh position={[0.2, 0.66, 0.1]}>
+        <GBox args={[0.14, 0.12, 0.3]} />
+        <StdMat color={colors.primary} roughness={0.5} />
+      </mesh>
+      {[-0.03, 0.03].map((dx) => (
+        <mesh key={dx} position={[0.2 + dx, 0.66, 0.27]} rotation={[Math.PI / 2, 0, 0]}>
+          <GCylinder args={[0.025, 0.025, 0.06, 6]} />
+          <StdMat color={colors.decal} roughness={0.6} />
+        </mesh>
+      ))}
     </group>
   )
 }

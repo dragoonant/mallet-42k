@@ -28,6 +28,7 @@ import { leaguesOfVotannHooks } from './factions/leagues-of-votann'
 import { spaceMarinesHooks, smRapidRepositioningCheck, smRapidRepositioningApply } from './factions/space-marines'
 import { adeptusCustodesHooks } from './factions/adeptus-custodes'
 import { spaceWolvesHooks } from './factions/space-wolves'
+import { bloodAngelsHooks } from './factions/blood-angels'
 import { deathGuardHooks } from './factions/death-guard'
 import { darkAngelsHooks } from './factions/dark-angels'
 import { hookService, type HookSourceEntry } from './hooks-impl'
@@ -821,6 +822,8 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   ...greyKnightsHooks,
   ...leaguesOfVotannHooks,
   ...spaceMarinesHooks,
+  // blood-angels (docs/spec/factions/blood-angels.md §7): multiSpectrumArray, haywireMine, rapidStrike
+  ...bloodAngelsHooks,
   ...adeptusCustodesHooks,
   guardianOfTheRealm: missionHook('guardianOfTheRealm', 'onPhaseEnd'),
   championOfTitan: missionHook('championOfTitan', 'onModelDestroyed'),
