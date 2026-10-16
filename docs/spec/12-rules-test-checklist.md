@@ -1378,3 +1378,37 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | ADM-024 | ADM-6.6 | Sulphurhound weapons: sulphur breath (Torrent, Pistol) fires while in Engagement Range; the carbine model fires either its pistols or the carbine, never both; carbine Blast +2 A vs a 10-model unit (+1 per 5 models, rounded down); arc maul (Extra Attacks) adds 1 attack alongside the clawed limbs |
 | ADM-025 | ADM-6 | Pteraxii: Deep Strike from round 2 more than 9" from enemies; FLY moves over models; taser goad Sustained Hits 2 → 2 extra hits on a 6; Alpha's flechette blaster (Pistol) fired in Engagement Range |
 | ADM-026 | ADM-2.1, 4.1 | AI: Doctrina AI picks Conqueror only when an enemy unit in its own DZ is within 18" of a Doctrina unit, else Protector; Targeted Purge AI picker chooses the highest sum(W)×T eligible unit; a full AI-vs-AI game with this patrol finishes without a stuck decision |
+
+## DTG — Death Guard: The Shambling Horde (docs/spec/factions/death-guard.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| DTG-001 | DTG-1 | patrol loads: faction `death-guard`, 6 units, 39 models (1+1+7+10+10+10); Typhus is WARLORD with Walking Plague, attached to `poxwalkers-a`; Grelch attached to Plague Marines; default secondary Contaminate Ground |
+| DTG-002 | DTG-1.2 | Typhus may instead lead `poxwalkers-b` or `-c` (pre-game), never Plague Marines; Grelch may lead only Plague Marines |
+| DTG-003 | DTG-6 | data: every stat/profile row of §6 matches (Typhus T6 2+ 4++ W6 base 50 mm; Poxwalkers Sv 7+ Ld 8+ M4; Plague Marines OC 2; manreaper strike 5A S9 AP−2 D3 / sweep 10A S6 AP−1 D1; spewer D6 Torrent Anti-Infantry 2+) |
+| DTG-004 | DTG-2.1 | Contagion Range is 3" in round 1, 6" in round 2, 9" in rounds 3–5 (`contagionRange`) |
+| DTG-005 | DTG-2.2 | round 1: enemy T4 unit 2.9" from Plague Marines → wound rolls against it use T3; at 3.1" → T4 |
+| DTG-006 | DTG-2.3 | enemy within range of three DG units → T reduced by 1 only; a T1 target stays T1 |
+| DTG-007 | DTG-2.4 | enemy moves out of range mid-turn → T restored immediately; an attached enemy unit with one half in range → both halves at −1 T |
+| DTG-008 | DTG-2.5 | DG unit in Reserves projects no Contagion Range; aura never affects friendly units |
+| DTG-009 | DTG-3 | Walking Plague: Command phase, Poxwalkers unit with 4 destroyed models within range, D6 = 6 → 4 return (cap at Starting Strength), at full W, in coherency, not newly in Engagement Range |
+| DTG-010 | DTG-3 | Walking Plague: Poxwalkers unit outside the bearer's Contagion Range or at full strength → not offered; no candidate → no decision; offered once per Command phase, before Battle-shock tests |
+| DTG-011 | DTG-3 | Walking Plague: no legal spot for a returned model → it and the remaining returns are lost; a wholly destroyed Poxwalkers unit cannot be picked |
+| DTG-012 | DTG-3 | Miasmic Arrival: Typhus + Poxwalkers may be set up in Reserves and arrive by Deep Strike (round 2+, >9" from enemies); without it, the attached pair cannot go into Deep Strike Reserves |
+| DTG-013 | DTG-4 | Contaminate Ground: round 1 → 0 VP; round 2 end of own turn, Plague Marines model 2.9" from centre → +3 VP; 3.1" → 0; two units in → still 3 VP |
+| DTG-014 | DTG-4 | Contaminate Ground: the only unit near the centre is Battle-shocked → 0 VP; opponent's turn end → no score |
+| DTG-015 | DTG-4 | Spread the Blight: enemy unit within Contagion Range at the start of the Fight phase, destroyed by Poxwalkers that phase → +2 VP; two such kills → +4 VP |
+| DTG-016 | DTG-4 | Spread the Blight: enemy that moved into range during the phase (outside at phase start) → no VP; enemy that arrived by Deep Strike this phase → no VP |
+| DTG-017 | DTG-5 | Corrosive Effluents: Plague Marines' plague boltgun AP 0 → −1 and heavy plague weapon −2 → −3 until end of phase; offered in either Fight phase; not for a unit that already shot / fought this phase |
+| DTG-018 | DTG-5 | Harbingers of Despair: at the start of a Fight phase, Poxwalkers in Engagement Range of two enemy units → each takes one Battle-shock test; an attached enemy unit tests once; not offered for a DG unit not in Engagement Range |
+| DTG-019 | DTG-5 | Disgustingly Resilient: enemy targets Plague Marines with D2 weapons → each allocated attack deals 1; D1 attacks stay 1; random D rolled first; only in the opponent's Shooting phase |
+| DTG-020 | DTG-6.1 | The Destroyer Hive: melee attacks against Typhus + Poxwalkers get −1 to hit; ranged attacks do not; unattached Typhus gets no modifier |
+| DTG-021 | DTG-6.2 | Foul Infusion: with Grelch attached, a plague boltgun unmodified hit roll of 5 is a Critical Hit and auto-wounds (Lethal Hits); Plague Marines without Grelch crit only on 6 |
+| DTG-022 | DTG-6.3 | Remorseless: Plague Marines within range of a marker their side controls → Battle-shock test +1; marker contested or enemy-controlled → no bonus |
+| DTG-023 | DTG-6.4 | Curse of the Walking Pox: a Poxwalker kills an enemy INFANTRY model while the unit has destroyed models → one Poxwalker returns at once (placement rules), up to Starting Strength |
+| DTG-024 | DTG-6.4 | Curse of the Walking Pox: killing a MONSTER or VEHICLE model → no return; unit at full strength → no return; the kill by attached Typhus returns a Poxwalker (`includeLeader`) |
+| DTG-025 | DTG-6.6 | Grelch destroyed → Deadly Demise 1: D6 = 6 → 1 mortal wound to each unit within 6"; 1–5 → nothing |
+| DTG-026 | DTG-6.7 | Poxwalkers: AP 0 attack, Sv 7+ → no armour save; in cover 6+ save is rolled; Feel No Pain 5+ ignores wounds incl. mortal wounds |
+| DTG-027 | DTG-6 | Typhus 4+ invuln used against AP −3 (2+ armour becomes 5+); hyper blight grenades Blast +2 A vs a 10-model unit, Assault after Advancing; injector pistol fired in Engagement Range |
+| DTG-028 | E2 | condition `unitOnObjectiveControlledBy: 'self'` true only when the holder (either half) is in range of a marker whose `controller` is the holder's player; existing `targetOnObjectiveControlledBy` unchanged |
+| DTG-029 | E1 | `hasDeepStrike` true for a datasheet with DEEP_STRIKE and for any half of an attached unit carrying `grantDeepStrike`; false otherwise; existing Deep Strike and Tellyporta tests unchanged |
+| DTG-030 | DTG-1 | AI: a full AI-vs-AI game with this patrol (both sides or vs Space Marines) finishes without a stuck decision (Walking Plague prompt, Harbingers, Curse returns) |
