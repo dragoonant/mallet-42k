@@ -3,6 +3,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { modelStats } from '@/engine'
 import type { GameState, Model, RuntimeWeapon } from '@/engine'
+import { transportService } from '@/engine/transports'
 import { useDisplayState } from '../presentation/presentedStore'
 import { useUiStore } from './uiStore'
 import { prettifyId } from './labels'
@@ -304,6 +305,15 @@ export function UnitCard() {
       </div>
       <DatasheetPopup state={state} unitId={unit.id} hover={nameSheet} />
       <div style={mutedText}>{state.players[unit.player].name}</div>
+      {(() => {
+        const aboard = transportService.embarkedIn(state, unit.id)
+        const host = transportService.transportOf(state, unit.id)
+        if (aboard.length > 0) {
+          return <div style={{ fontSize: 13, marginTop: 4 }} data-testid="unit-card-embarked">Embarked: {aboard.map((id) => `${state.units[id]?.name ?? id} (${state.units[id]?.models.length ?? 0})`).join(', ')}</div>
+        }
+        if (host) return <div style={{ fontSize: 13, marginTop: 4 }} data-testid="unit-card-embarked-in">Embarked in {state.units[host]?.name ?? host}</div>
+        return null
+      })()}
       <div style={{ fontSize: 13, marginTop: 6 }}>
         {models.length}/{unit.startingStrength} models
       </div>

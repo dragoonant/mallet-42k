@@ -9,6 +9,7 @@ import {
   unitModels,
   type Action, type ChooseOptionTopic, type DecisionOption, type GameEvent, type GameState, type MoveType, type PendingDecision, type PlayerId, type StratagemId,
 } from '@/engine'
+import { transportService } from '@/engine/transports'
 import { useGameStore } from '../store/game'
 import { useUiStore } from './uiStore'
 import {
@@ -357,7 +358,7 @@ function miraclePool(data: Record<string, unknown> | undefined): number[] {
 }
 
 function chooseOptionInfoFor(
-  context: { topic: ChooseOptionTopic; abilityId: string | null; data?: Record<string, unknown> },
+  context: { topic: ChooseOptionTopic; abilityId: string | null; unitId?: string | null; data?: Record<string, unknown> },
   options?: readonly { id: string }[],
   state?: GameState,
   player?: string,
@@ -368,6 +369,13 @@ function chooseOptionInfoFor(
     return {
       title: `Act of Faith: ${purpose} roll`,
       hint: `Spend one of your Miracle dice (${pool.length > 0 ? pool.join(', ') : 'none left'}) and its number counts as the roll instead of a fresh die. Modifiers still apply after, and a spent die is gone. Or roll as normal and keep them.`,
+    }
+  }
+  if (context.topic === 'other' && context.data?.kind === 'embark') {
+    const uname = context.unitId && state ? state.units[context.unitId]?.name : undefined
+    return {
+      title: `Embark ${uname ?? 'this unit'}?`,
+      hint: 'The unit finishes its move beside a friendly transport. Climbing aboard takes it off the battlefield (it can disembark in a later Movement phase); staying keeps it on the board where it is.',
     }
   }
   const choice = context.data && typeof context.data.choice === 'string' ? CHOICE_PROMPT_KEYS[context.data.choice] : undefined
@@ -466,8 +474,10 @@ function describeAction(a: Action, state: GameState): string {
   switch (a.type) {
     case 'pass':
       return 'Pass'
-    case 'chooseUnitToActivate':
-      return `Activate ${unitName(a.unitId)}`
+    case 'chooseUnitToActivate': {
+      const tid = a.unitId && state.phase === 'movement' ? transportService.transportOf(state, a.unitId) : null
+      return tid ? `Disembark ${unitName(a.unitId)} from ${unitName(tid)}` : `Activate ${unitName(a.unitId)}`
+    }
     case 'chooseFightUnit':
       return `Fight with ${unitName(a.unitId)}`
     case 'declareMove':
@@ -559,6 +569,12 @@ function labelForOption(pending: PendingDecision, state: GameState, events: read
         const idx = o.action.type === 'chooseOption' ? o.action.dieIndexes : undefined
         const picked = idx?.map((i) => pool[i]).filter((v): v is number => typeof v === 'number')
         return picked && picked.length > 0 ? `Spend a Miracle die (${picked.join(', ')})` : 'Spend a Miracle die'
+      }
+      if (pending.context.topic === 'other' && pending.context.data?.kind === 'embark') {
+        if (o.id === 'stay') return 'Stay on the battlefield'
+        const tr = state.units[o.id.replace(/^embark:/, '')]
+        const un = pending.context.unitId ? state.units[pending.context.unitId] : undefined
+        if (tr) return `Embark ${un?.name ?? 'the unit'} into ${tr.name}`
       }
       const pairLabel = pairOptionLabel(state, pending.context.abilityId, o.id)
       if (pairLabel) return pairLabel
@@ -902,6 +918,12 @@ function DecisionPromptBody() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { resetForDecision(); cancelHelp() }, [pending?.id])
 
+  // A mid-game disembark names exactly one unit: pre-select it so the very next board click places it.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (pending?.kind === 'deployUnit' && state?.phase === 'movement' && pending.player !== botSeat && pending.context.unitIds.length === 1) setDeployTarget(pending.context.unitIds[0])
+  }, [pending?.id])
+
   // M4 formation memory (#5): a move-family decision already knows its unit, so it can be primed
   // the moment it becomes pending — 'keep' at the remembered facing if this unit has one, else
   // 'keep' with facing left on "auto" (recomputed from direction of travel on the first click).
@@ -1024,6 +1046,8 @@ function DecisionPromptBody() {
     : undefined
   const kindTitle = chooseOptionInfo?.title ?? KIND_TITLE[pending.kind] ?? pending.kind
   const isDeploy = pending.kind === 'deployUnit'
+  const disembarkId = isDeploy && state.phase === 'movement' && pending.context.unitIds.length === 1 && transportService.transportOf(state, pending.context.unitIds[0]) ? pending.context.unitIds[0] : null
+  const kindTitleShown = disembarkId ? `Disembark ${state.units[disembarkId]?.name ?? 'the unit'}` : kindTitle
 
   return (
     <>
@@ -1031,7 +1055,7 @@ function DecisionPromptBody() {
       <div style={isDeploy ? deployWrap : wrap} data-testid="prompt">
       <MinimizeButton decisionId={pending.id} />
       {activeHelp && <OptionHelp help={activeHelp} />}
-      <div style={heading}>{kindTitle}</div>
+      <div style={heading}>{kindTitleShown}</div>
       {chooseOptionInfo && <div style={hint}>{chooseOptionInfo.hint}</div>}
       {pending.kind === 'chooseOption' && (() => {
         const step = pending.context.data?.code === 'cultAmbush' ? pending.context.data.step : null
@@ -1220,9 +1244,29 @@ function DecisionPromptBody() {
         )
       })()}
 
+      {disembarkId && (() => {
+        const auto = legal?.find((a): a is Extract<Action, { type: 'deployUnit' }> => a.type === 'deployUnit' && !a.toReserves && a.placements.length > 0)
+        if (!auto) return null
+        return (
+          <button
+            style={{ ...buttonPrimary, marginTop: 6 }}
+            data-testid="btn-disembark-auto"
+            onClick={() => {
+              setDeployTarget(auto.unitId)
+              const first = auto.placements[0]
+              setDraft({ decisionId: pending.id, unitId: auto.unitId, anchor: { x: first.pos.x, z: first.pos.z }, placements: auto.placements })
+            }}
+          >
+            Auto-place beside the transport
+          </button>
+        )
+      })()}
+
       {bespoke && (
         <div style={hint}>
-          {pending.kind === 'deployUnit'
+          {disembarkId
+            ? `Click within 3" of ${state.units[transportService.transportOf(state, disembarkId) ?? '']?.name ?? 'the transport'} to set the unit down, or pass to keep it aboard.`
+            : pending.kind === 'deployUnit'
             ? deployTargetUnitId
               ? 'Click inside your deployment zone to place the unit.'
               : 'Pick a unit above, then click inside your zone.'

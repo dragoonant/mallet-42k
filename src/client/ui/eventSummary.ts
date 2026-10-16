@@ -282,7 +282,8 @@ export function summariseEvents(events: readonly GameEvent[], state: GameState, 
         if (e.delta !== 0) push(e, `${pname(e.player)} ${e.delta > 0 ? 'gains' : 'spends'} ${Math.abs(e.delta)} CP — ${sourceName(state, bundle, e.source)} (now ${e.total})`)
         break
       case 'AbilityTriggered':
-        push(e, `${e.summary || sourceName(state, bundle, e.abilityId)}`)
+        if (e.abilityId === 'transport.emergencyDisembark') push(e, `${e.summary || 'Passengers abandon the wrecked transport'} (emergency disembark)`)
+        else push(e, `${e.summary || sourceName(state, bundle, e.abilityId)}`)
         break
       case 'MiracleDieSpent':
         push(e, `${pname(e.player)} spends a Miracle die (${e.value}) — ${e.mode === 'substitute' ? 'substituted' : 'discarded'}`)
