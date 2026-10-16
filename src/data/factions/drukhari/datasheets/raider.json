@@ -1,0 +1,80 @@
+[
+  {
+    "id": "drk.raider",
+    "faction": "drukhari",
+    "name": "Raider",
+    "keywords": [
+      "VEHICLE",
+      "TRANSPORT",
+      "DEDICATED TRANSPORT",
+      "FLY",
+      "AELDARI",
+      "RAIDER"
+    ],
+    "factionKeywords": [
+      "DRUKHARI"
+    ],
+    "stats": {
+      "M": 14,
+      "T": 8,
+      "Sv": 4,
+      "W": 10,
+      "Ld": 6,
+      "OC": 2
+    },
+    "invuln": 6,
+    "composition": [
+      {
+        "modelId": "raider",
+        "name": "Raider",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 60
+        },
+        "weapons": {
+          "default": [
+            "drk.w.disintegrator-cannon",
+            "drk.w.bladevanes"
+          ]
+        },
+        "figure": {
+          "archetype": "vehicle",
+          "kit": "generic-vehicle"
+        }
+      }
+    ],
+    "abilities": [
+      "drk.a.power-from-pain"
+    ],
+    "coreAbilities": [
+      {
+        "ability": "DEADLY_DEMISE",
+        "value": "D3"
+      },
+      {
+        "ability": "DEEP_STRIKE"
+      }
+    ],
+    "transport": {
+      "capacity": 11,
+      "keywords": [
+        "DRUKHARI",
+        "INFANTRY"
+      ],
+      "firingDeck": 11
+    },
+    "points": [
+      {
+        "models": 1,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "vehicle",
+      "kit": "generic-vehicle"
+    }
+  }
+]

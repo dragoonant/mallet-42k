@@ -49,6 +49,7 @@ import { tryDeathBlow } from './deathblow'
 import { datasheetOf, hasKeyword, keywordsOf, modelKeywordsOf, modelStats, recordModelAttacked, removeModel, unitModels } from './state'
 import { weaponService } from './weapons'
 import { transportService } from './transports'
+import { fragileInvulnLost, hasFragileInvuln, loseFragileInvuln } from './fragile-invuln'
 import { fightOnDeathThreshold } from './fight-on-death'
 import type { AttackRollContext } from './events'
 import {
@@ -788,7 +789,8 @@ function saveSetup(ctx: EngineContext, group: AttackGroup, attackerModelId: Mode
   const preResults = collectSaveMods(ctx, actx, preFake)
   const ignoreCoverHook = preResults.some((r) => r.ignoreCover)
   const cover = rawCover && !ignoreCoverHook
-  let invuln: number | null = datasheetOf(s, model.unitId).invuln
+  // E2 (Shadowfield): a model that has failed its single-failure invulnerable save has none for the rest of the battle
+  let invuln: number | null = fragileInvulnLost(s, modelId) ? null : datasheetOf(s, model.unitId).invuln
   for (const r of preResults) if (r.invuln !== undefined) invuln = invuln === null ? r.invuln : Math.min(invuln, r.invuln)
 
   // Modifiers from the pre-pass. These don't depend on the die's value (the impossibility check relies on the same thing).
@@ -863,13 +865,14 @@ function doSaveStage(ctx: EngineContext, gi: number, group: AttackGroup): 'pendi
     dieIndex = cur.saveDie
   } else {
     // WEAP-008-dice/WEAP-011: per-slot key so a Sustained Hits extra hit's save never reuses the primary attack's roll
-    const r = ctx.rollOnce(`save:${gi}:${cur.slot ?? 0}`, { purpose: 'save', player: s.units[model.unitId].player, sides: 6, count: 1, mode: 'perDie', unitId: model.unitId, modelId, weaponId: weapon.id, targetUnitId: group.targetUnitId, commandRerollable: true, needed: setup.targetRoll })
+    const r = ctx.rollOnce(`save:${gi}:${cur.slot ?? 0}`, { purpose: 'save', player: s.units[model.unitId].player, sides: 6, count: 1, mode: 'perDie', unitId: model.unitId, modelId, weaponId: weapon.id, targetUnitId: group.targetUnitId, commandRerollable: !(kind === 'invuln' && hasFragileInvuln(s, modelId)), needed: setup.targetRoll })
     if (!r) return 'pending'
     roll = r
   }
   const ev = evaluateSave(ctx, setup, roll, dieIndex)
   ctx.emit({ type: 'SaveRolled', attack: rollAttackCtx(actx), modelId, kind, die: ev.unmodified, final: ev.final, needed, saved: ev.saved, ...(cur.saveDie !== undefined && batchRoll ? { rollId: roll.id, dieIndex } : {}) })
   cur.save = { kind, die: ev.unmodified, final: ev.final, passed: ev.saved }
+  if (kind === 'invuln' && !ev.saved && hasFragileInvuln(s, modelId) && !fragileInvulnLost(s, modelId)) loseFragileInvuln(ctx, modelId)
   if (ev.saved) { finishSlot(ctx, gi, group); return 'progress' }
   cur.stage = 'damage'
   return 'progress'
@@ -896,6 +899,7 @@ function saveBatchTarget(ctx: EngineContext, lead: number): number | null {
   for (const id of eligible) {
     const model = s.models[id]
     if (!model) return null
+    if (hasFragileInvuln(s, id)) return null // E2: a single-failure invulnerable save always rolls singly (no re-roll, loses on a failure)
     for (const attackerModelId of attackers) {
       const setup = saveSetup(ctx, group, attackerModelId, id, coverFor(ctx, group, attackerModelId, id))
       if (!setup || setup.impossible) return null

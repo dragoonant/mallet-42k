@@ -12,6 +12,7 @@ import {
 } from './modules'
 import { flushDeferredRemovals } from './deferred'
 import { onCultAmbushUnitDestroyed, raisePendingCultAmbushMarker } from './cult-ambush'
+import { onPainEvent, startBattlePain } from './pain'
 import { clearActsOfFaithPhase, miracleGate, offerMiracleRerolls, onOwnUnitDestroyed, runActsOfFaithTurnStart } from './miracle'
 import { restoreRng, type Rng } from './rng'
 import { cloneForStep, createGameState, emptyPhaseState, emptyTurnState, hashState, removeModel, unitModelsForCoherency } from './state'
@@ -79,6 +80,8 @@ function makeContext(draft: GameState, rng: Rng, modules: ModuleTable, rt: StepR
       rt.events.push({ ...(rest as object), ...envelope(player) } as GameEvent)
       // E1: a destroyed ADEPTA SORORITAS unit earns its owner a Miracle die, wherever the event is emitted
       if (e.type === 'UnitDestroyed') { onOwnUnitDestroyed(ctx, e.unitId); onCultAmbushUnitDestroyed(ctx, e.unitId) } // GSC: Cult Ambush roll
+      // Drukhari Power from Pain: the opponent of a destroyed unit / a unit failing a Battle-shock test gains a Pain token
+      if (e.type === 'UnitDestroyed' || (e.type === 'BattleShockTested' && !e.passed)) onPainEvent(ctx, e)
     },
     roll(spec) {
       const id = `r:${++s.rollCounter}`
@@ -454,6 +457,7 @@ function startRoundChain(ctx: EngineContext, modules: ModuleTable): void {
     for (const p of Object.values(s.players)) p.cpGainedThisRound = 0
     ctx.emit({ type: 'RoundStarted' })
   }
+  if (s.round === 1 && ctx.once('pain:battleStart')) startBattlePain(ctx) // Drukhari Power from Pain: each player starts with a token
   if (ctx.window('round.start', `${s.round}`, ctx.order.first())) return
   const first = s.firstPlayer
   const second = otherPlayer(first)

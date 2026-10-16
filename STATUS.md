@@ -335,6 +335,16 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Sim | `SIM_PATROL=tyr.cp.insidious-infiltrators npm run sim -- --games 6 --seed 5`: 6 games, all finished (round 5), 0 violations; Tyranids won 3 |
 | Known gaps | Lictor and Death's Shadow use procedural kits (no GLB); bot ignores the new abilities; rulings under "tyranids build" (INF-R01 to INF-R15) in `docs/needs-rules-check.md` |
 
+## Drukhari - The Blades of Torment (M10 - third-party faction, playable)
+
+| Area | State |
+|---|---|
+| Patrol | The Blades of Torment: Archon (attached to Kabalite Warriors), Incubi, Raider, Ravager; secondaries Rapacious Raiders / Murderous Monster. Data in `src/data/factions/drukhari/`; spec `docs/spec/factions/drukhari.md` |
+| Engine hooks | `src/engine/factions/drukhari.ts`: powerFromPain, powerFromPainSpend, thereAndGone, murderousMonster (registered via `drukhariHooks` in code-hooks.ts). Pain tokens in `src/engine/pain.ts`; Shadowfield collapse in `src/engine/fragile-invuln.ts`; Rapacious Raiders extends `reclaimAndDominateAmount` in missions.ts. E3 (attached Leader + bodyguard embark/disembark as one unit) is generic in `src/engine/transports.ts`; client side in `src/client/interaction/embarkGroup.ts` |
+| Verification | typecheck, validate:data (175 files), build green; `npm test` 2449 passing (114 files, incl. `tests/engine/drukhari*.test.ts`, `tests/data/drukhari.test.ts`, `tests/client/embarkGroup.test.ts`); e2e `drukhari-blades-of-torment.spec.ts` starts the patrol vs the bot, deploys through the UI and fires Overwatch (`e2e-out/m10-drukhari-0*.png`) |
+| Sim | `SIM_FACTION=drukhari npm run sim -- --games 6 --seed 5`: 6 games, all finished (round 5), 0 violations; drukhari 3 wins (astra-militarum 1, chaos-space-marines 2). Default rotation does not field drukhari at that seed. No balance tuning |
+| Known gaps | Procedural figures only (no GLBs yet); no AI policy for Power from Pain beyond option ordering; attached-pair embark not driven by e2e; fight-phase UI profile picker for the Klaivex not exercised; 24 rulings under "drukhari build" (DRK-R01 to DRK-R24) in `docs/needs-rules-check.md` |
+
 ## Client+engine (units stand on terrain and ruin floors; cover badge)
 - Engine: `surfaceY` (terrain.ts) snaps placement y to the surface under the base; `checkPlacements` (geometry.ts) applies it to move, charge, pile-in, consolidate, deployment and reserves. A mid-air y that differs from the model's current y is still rejected by `canEndAt`.
 - Client: ruin floor selector (Ground/1/2, PageUp/PageDown) sets placement y; ghosts and previews draw at the chosen height. Fixed: the picker now shows on hover (not only once staged) and stays after the pointer leaves the board; the selected floor is applied to every formation the client builds (before, y never changed). A one-model nudge keeps its floor while still on that floor polygon (else selected floor, else ground) and drags track the pointer on the floor plane.

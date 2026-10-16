@@ -1,7 +1,7 @@
 // Flyer rig for the one vehicle kit this data set has (Deffkopta) plus its generic fallback:
 // chassis + tail boom + spinning top rotor, no legs — 30-figures.md §2's vehicle bones
 // (hull/turret/gunMount) reduced to what a gyrocopter actually needs.
-import { GBox, GCapsule, GCylinder, GSphere, StdMat } from './shared'
+import { GBox, GCapsule, GCone, GCylinder, GSphere, StdMat } from './shared'
 import { useRef } from 'react'
 import type { Group } from 'three'
 import { usePoseFrame, clamp01, easeOut, useMaterialFader } from './anim'
@@ -89,6 +89,16 @@ export function VehicleBody({ config, colors, pose, seed }: BodyProps & { config
       <group ref={bodyRef}>
         <GravbikeParts colors={colors} rig={config.rig} gunRef={gunRef} />
         <group ref={rotorRef} visible={false} />
+      </group>
+    )
+  }
+
+  if (config.style === 'skiff' || config.style === 'gunboat') {
+    return (
+      <group ref={bodyRef}>
+        <SkiffParts colors={colors} gunboat={config.style === 'gunboat'} />
+        <group ref={rotorRef} visible={false} />
+        <group ref={gunRef} />
       </group>
     )
   }
@@ -366,6 +376,99 @@ function GravbikeParts({ colors, rig, gunRef }: { colors: BodyProps['colors']; r
             <StdMat color={colors.trim} roughness={0.5} metalness={0.4} />
           </mesh>
         </group>
+      )}
+    </group>
+  )
+}
+
+/** Drukhari skimmer: a long, low, knife-edged hull with a swept prow blade, raised rear fins and a teal engine glow.
+ *  `gunboat` (Ravager) swaps the open deck for a raised gun platform with a bank of three lance barrels; the default
+ *  (Raider) keeps an open passenger deck with a prow cannon. Hull runs along Z (prow at +Z), about 2 units long. */
+function SkiffParts({ colors, gunboat }: { colors: BodyProps['colors']; gunboat: boolean }) {
+  const width = gunboat ? 0.62 : 0.5
+  return (
+    <group>
+      {/* hover glow under the keel */}
+      <mesh position={[0, 0.12, -0.05]}>
+        <GBox args={[width * 0.8, 0.03, 1.5]} />
+        <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.1} roughness={0.4} />
+      </mesh>
+      {/* main hull */}
+      <mesh position={[0, 0.26, -0.1]}>
+        <GBox args={[width, 0.2, 1.5]} />
+        <StdMat color={colors.primary} roughness={0.5} metalness={0.2} />
+      </mesh>
+      {/* swept prow: a wedge dropping to a point */}
+      <mesh position={[0, 0.27, 0.86]} rotation={[Math.PI / 2, Math.PI / 4, 0]} scale={[1, 1, 0.4]}>
+        <GCone args={[width * 0.62, 0.55, 4]} />
+        <StdMat color={colors.primary} roughness={0.5} metalness={0.2} />
+      </mesh>
+      {/* crimson prow blade along the keel line */}
+      <mesh position={[0, 0.3, 1.05]} rotation={[Math.PI / 2, 0, 0]}>
+        <GCone args={[0.05, 0.4, 4]} />
+        <StdMat color={colors.trim} roughness={0.4} metalness={0.4} />
+      </mesh>
+      {/* side blades */}
+      {[-1, 1].map((side) => (
+        <mesh key={side} position={[side * (width / 2 + 0.06), 0.3, 0.1]} rotation={[0, 0, side * 0.35]}>
+          <GBox args={[0.04, 0.2, 1.2]} />
+          <StdMat color={colors.metal} roughness={0.35} metalness={0.7} />
+        </mesh>
+      ))}
+      {/* tall twin tail fins */}
+      {[-1, 1].map((side) => (
+        <mesh key={`fin${side}`} position={[side * width * 0.32, 0.55, -0.78]} rotation={[-0.3, 0, side * 0.12]}>
+          <GBox args={[0.03, 0.5, 0.3]} />
+          <StdMat color={colors.trim} roughness={0.5} />
+        </mesh>
+      ))}
+      {/* engine glow */}
+      <mesh position={[0, 0.28, -0.88]} rotation={[Math.PI / 2, 0, 0]}>
+        <GCylinder args={[0.12, 0.12, 0.05, 10]} />
+        <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.6} />
+      </mesh>
+      {gunboat ? (
+        <>
+          {/* raised gun platform and the lance bank */}
+          <mesh position={[0, 0.5, 0.05]}>
+            <GBox args={[width * 0.8, 0.22, 0.6]} />
+            <StdMat color={colors.secondary} roughness={0.45} metalness={0.2} />
+          </mesh>
+          {[-0.17, 0, 0.17].map((x) => (
+            <mesh key={x} position={[x, 0.55 + (x === 0 ? 0.04 : 0), 0.6]} rotation={[Math.PI / 2, 0, 0]}>
+              <GCylinder args={[0.04, 0.05, 0.75, 8]} />
+              <StdMat color={colors.metal} metalness={0.7} roughness={0.3} />
+            </mesh>
+          ))}
+          {[-0.17, 0, 0.17].map((x) => (
+            <mesh key={`tip${x}`} position={[x, 0.55 + (x === 0 ? 0.04 : 0), 1.0]} rotation={[Math.PI / 2, 0, 0]}>
+              <GCylinder args={[0.025, 0.025, 0.04, 8]} />
+              <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.6} />
+            </mesh>
+          ))}
+        </>
+      ) : (
+        <>
+          {/* open deck with raked passenger rails, and a chin cannon */}
+          <mesh position={[0, 0.38, -0.2]}>
+            <GBox args={[width * 0.7, 0.06, 0.9]} />
+            <StdMat color="#15171c" roughness={0.6} />
+          </mesh>
+          {[-1, 1].map((side) => (
+            <mesh key={`rail${side}`} position={[side * width * 0.4, 0.46, -0.2]}>
+              <GBox args={[0.03, 0.12, 0.9]} />
+              <StdMat color={colors.primary} roughness={0.5} />
+            </mesh>
+          ))}
+          <mesh position={[0, 0.42, 0.55]}>
+            <GBox args={[0.16, 0.12, 0.2]} />
+            <StdMat color={colors.secondary} roughness={0.45} />
+          </mesh>
+          <mesh position={[0, 0.42, 0.78]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.035, 0.045, 0.3, 8]} />
+            <StdMat color={colors.metal} metalness={0.7} roughness={0.3} />
+          </mesh>
+        </>
       )}
     </group>
   )

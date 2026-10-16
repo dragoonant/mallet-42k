@@ -10,7 +10,7 @@ import {
 import { answerMiracleReroll, gainMiracleDie, miracleRerollOnGain, offerMiracleRerolls } from '../../src/engine/miracle'
 import { buildShootingWeaponEntries, firingDeckWeapons } from '../../src/engine/phases/shooting'
 import { shootingModule } from '../../src/engine/phases/shooting'
-import { transportService } from '../../src/engine/transports'
+import { passengerHalves, transportService } from '../../src/engine/transports'
 import { placeUnit } from '../fixtures'
 
 let bundle: DataBundle
@@ -102,10 +102,12 @@ describe('E-PEN2 Firing Deck 2 through the Sororitas Rhino', () => {
     const { s, rhino, sisters } = embarkedState()
     const deck = firingDeckWeapons(s, rhino)
     expect(deck.length).toBeGreaterThan(0)
-    expect(deck.every((d) => s.models[d.modelId].unitId === sisters)).toBe(true)
+    // E3: an attached pair embarks as one unit, so the deck lists the models of both halves
+    const halves = passengerHalves(s, sisters)
+    expect(deck.every((d) => halves.includes(s.models[d.modelId].unitId))).toBe(true)
     const { ctx } = createContext(s, new ScriptedRng([]), DEFAULT_MODULES)
     const entries = buildShootingWeaponEntries(ctx, rhino)
-    const pass = entries.filter((e) => s.models[e.modelId].unitId === sisters)
+    const pass = entries.filter((e) => halves.includes(s.models[e.modelId].unitId))
     expect(pass.length).toBeGreaterThan(0)
     const target = 'B:arcos'
     const models = [...new Set(pass.filter((e) => e.legalTargets.includes(target)).map((e) => e.modelId))]

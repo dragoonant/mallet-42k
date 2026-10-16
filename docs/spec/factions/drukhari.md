@@ -23,12 +23,12 @@ keyword DRUKHARI on every datasheet; every datasheet also carries AELDARI.
 | Ref | Datasheet id | Models | Wargear as built | Leader / notes |
 |---|---|---|---|---|
 | `archon` | `drk.archon` | 1 | splinter pistol, huskblade | **WARLORD**; default enhancement Shudderworm Bottle; Leader → Kabalite Warriors |
-| `kabalite-warriors` | `drk.kabalite-warriors` | 10 | Sybarite: splinter pistol, Sybarite weapon. 7 Warriors: splinter rifle, close combat weapon. 1 Warrior: shredder, close combat weapon. 1 Warrior: splinter cannon, close combat weapon | led by the Archon |
+| `kabalites` | `drk.kabalite-warriors` | 10 | Sybarite: splinter pistol, Sybarite weapon. 7 Warriors: splinter rifle, close combat weapon. 1 Warrior: shredder, close combat weapon. 1 Warrior: splinter cannon, close combat weapon | led by the Archon |
 | `incubi` | `drk.incubi` | 5 | Klaivex: demiklaives (2 profiles). 4 Incubi: klaive | — |
 | `raider` | `drk.raider` | 1 | disintegrator cannon, bladevanes | TRANSPORT 11, Firing Deck 11 |
 | `ravager` | `drk.ravager` | 1 | 2 dark lances, disintegrator cannon, bladevanes | — |
 
-- DRU-1.1 Default attachment: Archon → Kabalite Warriors (patrol `attachTo: 'kabalite-warriors'`); the setup UI may
+- DRU-1.1 Default attachment: Archon → Kabalite Warriors (patrol `attachTo: 'kabalites'`); the setup UI may
   detach him. He cannot lead the Incubi.
 - DRU-1.2 No wargear options: the box builds exactly the loadouts above. Model keys: `sybarite` (champion, 1),
   `warrior` (7, rifle), `shredder-warrior` (1), `cannon-warrior` (1); `klaivex` (champion, 1), `incubus` (4).

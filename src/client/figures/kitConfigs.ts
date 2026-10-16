@@ -105,6 +105,15 @@ export const BODY_KIND: Record<KitId, 'biped' | 'vehicle' | 'swarm' | 'artillery
   'ade-repentia-superior': 'biped',
   'ade-penitent-engine': 'biped',
   'ade-rhino': 'vehicle',
+  'drk-sybarite': 'biped',
+  'drk-kabalite': 'biped',
+  'drk-kabalite-shredder': 'biped',
+  'drk-kabalite-cannon': 'biped',
+  'drk-archon': 'biped',
+  'drk-incubus': 'biped',
+  'drk-klaivex': 'biped',
+  'drk-raider': 'vehicle',
+  'drk-ravager': 'vehicle',
 }
 
 export const BIPED_CONFIG: Partial<Record<KitId, BipedConfig>> = {
@@ -1190,6 +1199,37 @@ export const BIPED_CONFIG: Partial<Record<KitId, BipedConfig>> = {
   },
 }
 
+// Drukhari: dark spiked armour (primary), teal glow (secondary), crimson trim; the silhouette is lean and barbed
+// where a Marine's is bulky. Kabalites carry a long splinter rifle, the Incubi a glowing klaive.
+BIPED_CONFIG['drk-kabalite'] = {
+  headShape: 'kabal-helm', rightWeapon: 'splinter-rifle', leftWeapon: 'none', bulk: 0.95, hasBackpack: false,
+  shoulderPads: 'small', hasCape: false, skin: 'none', limbColor: 'primary', spikedPauldrons: true,
+}
+BIPED_CONFIG['drk-sybarite'] = {
+  headShape: 'kabal-helm', rightWeapon: 'huskblade', leftWeapon: 'none', bulk: 1.0, hasBackpack: false,
+  shoulderPads: 'small', hasCape: true, capeColor: 'trim', skin: 'none', limbColor: 'primary', spikedPauldrons: true,
+}
+BIPED_CONFIG['drk-kabalite-shredder'] = {
+  headShape: 'kabal-helm', rightWeapon: 'shredder', leftWeapon: 'none', bulk: 0.95, hasBackpack: true,
+  shoulderPads: 'small', hasCape: false, skin: 'none', limbColor: 'primary', spikedPauldrons: true,
+}
+BIPED_CONFIG['drk-kabalite-cannon'] = {
+  headShape: 'kabal-helm', rightWeapon: 'splinter-cannon', leftWeapon: 'none', bulk: 1.0, hasBackpack: true,
+  shoulderPads: 'large', hasCape: false, skin: 'none', limbColor: 'primary', spikedPauldrons: true,
+}
+BIPED_CONFIG['drk-archon'] = {
+  headShape: 'archon-crown', rightWeapon: 'huskblade', leftWeapon: 'plasma-pistol', bulk: 1.15, hasBackpack: false,
+  shoulderPads: 'large', hasCape: true, capeColor: 'trim', skin: 'pale', limbColor: 'primary', chestPlate: true, spikedPauldrons: true,
+}
+BIPED_CONFIG['drk-incubus'] = {
+  headShape: 'incubus-helm', rightWeapon: 'klaive', leftWeapon: 'klaive', bulk: 1.1, hasBackpack: false,
+  shoulderPads: 'large', hasCape: false, skin: 'none', limbColor: 'primary', torsoColor: 'secondary',
+}
+BIPED_CONFIG['drk-klaivex'] = {
+  headShape: 'incubus-helm', rightWeapon: 'klaive', leftWeapon: 'klaive', bulk: 1.15, hasBackpack: false,
+  shoulderPads: 'large', hasCape: true, capeColor: 'trim', skin: 'none', limbColor: 'primary', torsoColor: 'secondary', spikedPauldrons: true,
+}
+
 export const ARTILLERY_CONFIG: Partial<Record<KitId, ArtilleryConfig>> = {
   'am-field-gun': { barrel: 'field-gun' },
   'am-rocket-battery': { barrel: 'rocket-rack' },
@@ -1204,4 +1244,6 @@ export const VEHICLE_CONFIG: Partial<Record<KitId, VehicleConfig>> = {
   'lov-pioneer-comms': { weapon: 'none', hasRotor: false, style: 'gravbike', rig: 'comms' },
   'lov-pioneer-searchlight': { weapon: 'none', hasRotor: false, style: 'gravbike', rig: 'searchlight' },
   'lov-pioneer-rotary': { weapon: 'none', hasRotor: false, style: 'gravbike', rig: 'rotary' },
+  'drk-raider': { weapon: 'none', hasRotor: false, style: 'skiff' },
+  'drk-ravager': { weapon: 'none', hasRotor: false, style: 'gunboat' },
 }

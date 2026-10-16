@@ -17,6 +17,7 @@ import { adeptaSororitasHooks } from './factions/adepta-sororitas'
 import { shotThisTurn } from './attack'
 import type { AttackContext, CodeHook, HookName, HookResult } from './hooks'
 import { chaosSpaceMarinesHooks } from './factions/chaos-space-marines'
+import { drukhariHooks } from './factions/drukhari'
 import { greyKnightsHooks } from './factions/grey-knights'
 import { leaguesOfVotannHooks } from './factions/leagues-of-votann'
 import { spaceMarinesHooks, smRapidRepositioningCheck, smRapidRepositioningApply } from './factions/space-marines'
@@ -849,6 +850,8 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   rapidRepositioning,
   // genestealer-cults (docs/spec/factions/genestealer-cults.md §7): cultAmbush, defendTheMagus, returnToTheShadows, riseUp, willOfThePatriarch
   ...genestealerCultsHooks(),
+  // drukhari (docs/spec/factions/drukhari.md §7): powerFromPain, powerFromPainSpend, thereAndGone, murderousMonster
+  ...drukhariHooks,
 }
 
 export type { ChooseOptionDecision }

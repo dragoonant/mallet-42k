@@ -149,6 +149,11 @@ const KNOWN_KIT: Record<string, KitId> = {
   'lov.hearthkyn-warriors': 'lov-hearthkyn',
   'lov.hernkyn-pioneers': 'lov-pioneer-comms',
   'lov.cthonian-beserks': 'lov-beserk',
+  'drk.archon': 'drk-archon',
+  'drk.kabalite-warriors': 'drk-kabalite',
+  'drk.incubi': 'drk-incubus',
+  'drk.raider': 'drk-raider',
+  'drk.ravager': 'drk-ravager',
 }
 
 /** Models of a mixed unit that look different from the rest of it (a flamer sister is not a rifle sister), keyed
@@ -231,6 +236,12 @@ const KNOWN_KIT_BY_MODEL: Record<string, KitId> = {
   'lov.cthonian-beserks/beserk': 'lov-beserk',
   'lov.cthonian-beserks/beserk-gauntlet': 'lov-beserk-gauntlet',
   'lov.cthonian-beserks/beserk-mole': 'lov-beserk-mole',
+  'drk.kabalite-warriors/sybarite': 'drk-sybarite',
+  'drk.kabalite-warriors/warrior': 'drk-kabalite',
+  'drk.kabalite-warriors/shredder-warrior': 'drk-kabalite-shredder',
+  'drk.kabalite-warriors/cannon-warrior': 'drk-kabalite-cannon',
+  'drk.incubi/klaivex': 'drk-klaivex',
+  'drk.incubi/incubus': 'drk-incubus',
 }
 
 const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
@@ -332,6 +343,15 @@ const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
   'lov-pioneer-comms': 'vehicle',
   'lov-pioneer-searchlight': 'vehicle',
   'lov-pioneer-rotary': 'vehicle',
+  'drk-sybarite': 'infantry',
+  'drk-kabalite': 'infantry',
+  'drk-kabalite-shredder': 'infantry',
+  'drk-kabalite-cannon': 'infantry',
+  'drk-archon': 'infantry',
+  'drk-incubus': 'infantry',
+  'drk-klaivex': 'infantry',
+  'drk-raider': 'vehicle',
+  'drk-ravager': 'vehicle',
   'generic-infantry': 'infantry',
   'generic-heavy': 'heavy',
   'generic-monster': 'monster',
@@ -380,6 +400,9 @@ const DEFAULT_BASE_MM = 32
 /** Mounted Orks have no mounted kit yet: they borrow a biped kit scaled up to the spec's figure height
  *  (orks--morgrim-s-butchas §9). Only applies when the datasheet carries no explicit figure.scale. */
 const HEIGHT_BY_DATASHEET: Record<string, number> = {
+  // Drukhari skimmers: the hull is drawn ~2 units long, so the scale (= figure height) sets the hull length in inches.
+  'drk.raider': 3.1,
+  'drk.ravager': 3.1,
   'ork.squighog-boyz': 1.7,
   'ork.squighog-boyz/squighog-boy': 1.7,
   'ork.squighog-boyz/nob-smasha-squig': 1.9,

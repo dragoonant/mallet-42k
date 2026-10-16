@@ -219,13 +219,21 @@ export function embarkOptions(bundle: DataBundle, factionKey: FactionKey, patrol
     if (!spec) continue
     for (const parent of patrol.units) {
       if (parent.ref === t.ref) continue
+      if (parent.attachTo && patrol.units.some((u) => u.ref === parent.attachTo)) continue // an attached Leader only travels with its bodyguard
       // Split Patrol Squads: offer each half (own ref + own size) in place of the parent unit.
       const parts = split && parent.patrolSquads?.length ? parent.patrolSquads.map((h, i) => ({ ref: h.ref, size: h.size, name: `${bundle.datasheets[parent.datasheet]?.name ?? parent.ref} (half ${i + 1})` })) : [{ ref: parent.ref, size: parent.size, name: bundle.datasheets[parent.datasheet]?.name ?? parent.ref }]
-      const kw = kwOf(parent.datasheet)
-      if (!(spec.keywords ?? []).every((k) => kw.includes(k)) || (spec.excludeKeywords ?? []).some((k) => kw.includes(k))) continue
+      // E3: an attached Leader rides with its bodyguard as one unit, so it must pass the keyword gates and fit the capacity too.
+      const leaders = split && parent.patrolSquads?.length ? [] : patrol.units.filter((l) => l.attachTo === parent.ref)
+      const gateOk = [parent.datasheet, ...leaders.map((l) => l.datasheet)].every((ds) => {
+        const kw = kwOf(ds)
+        return (spec.keywords ?? []).every((k) => kw.includes(k)) && !(spec.excludeKeywords ?? []).some((k) => kw.includes(k))
+      })
+      if (!gateOk) continue
+      const extra = leaders.reduce((n, l) => n + l.size, 0)
+      const withLeaders = leaders.length > 0 ? ` with ${leaders.map((l) => bundle.datasheets[l.datasheet]?.name ?? l.ref).join(' and ')}` : ''
       for (const u of parts) {
-        if (u.size > spec.capacity) continue
-        out.push({ unitRef: u.ref, transportRef: t.ref, unitName: u.name, transportName: bundle.datasheets[t.datasheet]?.name ?? t.ref, models: u.size })
+        if (u.size + extra > spec.capacity) continue
+        out.push({ unitRef: u.ref, transportRef: t.ref, unitName: `${u.name}${withLeaders}`, transportName: bundle.datasheets[t.datasheet]?.name ?? t.ref, models: u.size + extra })
       }
     }
   }

@@ -5,6 +5,7 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { modelStats } from '@/engine'
 import type { GameState, Model, RuntimeWeapon } from '@/engine'
 import { transportService } from '@/engine/transports'
+import { groupLabel, groupUnitIds } from '../interaction/embarkGroup'
 import { useDisplayState } from '../presentation/presentedStore'
 import { useUiStore } from './uiStore'
 import { prettifyId } from './labels'
@@ -310,9 +311,20 @@ export function UnitCard() {
         const aboard = transportService.embarkedIn(state, unit.id)
         const host = transportService.transportOf(state, unit.id)
         if (aboard.length > 0) {
-          return <div style={{ fontSize: 13, marginTop: 4 }} data-testid="unit-card-embarked">Embarked: {aboard.map((id) => `${state.units[id]?.name ?? id} (${state.units[id]?.models.length ?? 0})`).join(', ')}</div>
+          // an attached Leader + bodyguard ride as one passenger: list the pair once
+          const seen = new Set<string>()
+          const rows = aboard.flatMap((id) => {
+            if (seen.has(id)) return []
+            const group = groupUnitIds(state, id)
+            group.forEach((g) => seen.add(g))
+            return [`${groupLabel(state, id)} (${group.reduce((n, g) => n + (state.units[g]?.models.length ?? 0), 0)})`]
+          })
+          return <div style={{ fontSize: 13, marginTop: 4 }} data-testid="unit-card-embarked">Embarked: {rows.join(', ')}</div>
         }
-        if (host) return <div style={{ fontSize: 13, marginTop: 4 }} data-testid="unit-card-embarked-in">Embarked in {state.units[host]?.name ?? host}</div>
+        if (host) {
+          const group = groupUnitIds(state, unit.id)
+          return <div style={{ fontSize: 13, marginTop: 4 }} data-testid="unit-card-embarked-in">Embarked in {state.units[host]?.name ?? host}{group.length > 1 ? ` (with ${state.units[group.find((g) => g !== unit.id) ?? '']?.name ?? 'its Leader'})` : ''}</div>
+        }
         return null
       })()}
       <div style={{ fontSize: 13, marginTop: 6 }}>

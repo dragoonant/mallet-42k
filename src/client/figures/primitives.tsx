@@ -707,6 +707,104 @@ export function WeaponMesh({ shape, colors, hand }: { shape: WeaponShape; colors
         </group>
       )
     case 'none':
+    case 'splinter-rifle':
+      // Long slim crystal rifle: a dark body, a crimson stock and a glowing teal shard at the muzzle.
+      return (
+        <group scale={1.4}>
+          <Barrel length={0.42} radius={0.018} color={colors.metal} />
+          <mesh position={[0, 0, 0.44]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCone args={[0.02, 0.06, 5]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.5} />
+          </mesh>
+          <mesh position={[0, 0.005, 0.04]}>
+            <GBox args={[0.045, 0.07, 0.2]} />
+            <StdMat color={colors.primary} roughness={0.5} />
+          </mesh>
+          <mesh position={[0, 0.035, 0.0]}>
+            <GBox args={[0.02, 0.025, 0.12]} />
+            <StdMat color={colors.trim} roughness={0.5} />
+          </mesh>
+        </group>
+      )
+    case 'splinter-cannon':
+      // Heavy two-barrel crystal gun with a big teal-lit ammo drum under the body.
+      return (
+        <group scale={1.5}>
+          {[-0.025, 0.025].map((x) => (
+            <mesh key={x} position={[x, 0, 0.2]} rotation={[Math.PI / 2, 0, 0]}>
+              <GCylinder args={[0.018, 0.018, 0.34, 6]} />
+              <StdMat color={colors.metal} metalness={0.6} roughness={0.4} />
+            </mesh>
+          ))}
+          <mesh position={[0, 0, 0.0]}>
+            <GBox args={[0.1, 0.09, 0.16]} />
+            <StdMat color={colors.primary} roughness={0.5} />
+          </mesh>
+          <mesh position={[0, -0.07, 0.02]} rotation={[0, 0, Math.PI / 2]}>
+            <GCylinder args={[0.05, 0.05, 0.1, 10]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={0.9} />
+          </mesh>
+        </group>
+      )
+    case 'shredder':
+      // Stubby gun with a wide flared bell that sprays shards.
+      return (
+        <group scale={1.4}>
+          <mesh position={[0, 0, 0.0]}>
+            <GBox args={[0.07, 0.08, 0.2]} />
+            <StdMat color={colors.primary} roughness={0.5} />
+          </mesh>
+          <mesh position={[0, 0, 0.22]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.07, 0.025, 0.18, 8]} />
+            <StdMat color={colors.metal} metalness={0.6} roughness={0.4} />
+          </mesh>
+          <mesh position={[0, 0, 0.31]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCylinder args={[0.055, 0.055, 0.015, 8]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.4} />
+          </mesh>
+        </group>
+      )
+    case 'huskblade':
+      // A long, narrow serrated blade on a spiked crimson guard.
+      return (
+        <group scale={1.4}>
+          <mesh position={[0, 0, -0.01]}>
+            <GBox args={[0.03, 0.03, 0.1]} />
+            <StdMat color={colors.trim} roughness={0.5} />
+          </mesh>
+          <mesh position={[0, 0, 0.05]}>
+            <GBox args={[0.02, 0.12, 0.025]} />
+            <StdMat color={colors.metal} metalness={0.6} roughness={0.4} />
+          </mesh>
+          <mesh position={[0, 0, 0.26]}>
+            <GBox args={[0.012, 0.05, 0.4]} />
+            <StdMat color={colors.decal} metalness={0.5} roughness={0.3} />
+          </mesh>
+          <mesh position={[0, 0, 0.47]} rotation={[Math.PI / 2, 0, 0]}>
+            <GCone args={[0.025, 0.07, 4]} />
+            <StdMat color={colors.decal} metalness={0.5} roughness={0.3} />
+          </mesh>
+        </group>
+      )
+    case 'klaive':
+      // A tall glowing blade on a long grip: the Incubi signature weapon, held forward.
+      return (
+        <group scale={1.5}>
+          <mesh position={[0, 0, 0.03]}>
+            <GBox args={[0.028, 0.028, 0.2]} />
+            <StdMat color={colors.metal} metalness={0.6} roughness={0.4} />
+          </mesh>
+          <mesh position={[0, 0.02, 0.2]}>
+            <GBox args={[0.016, 0.1, 0.22]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.2} />
+          </mesh>
+          <mesh position={[0, 0.07, 0.3]} rotation={[0.5, 0, 0]}>
+            <GBox args={[0.016, 0.08, 0.08]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.2} />
+          </mesh>
+        </group>
+      )
+    case 'none':
     default:
       return <EndBlock size={0.09} color={hand} />
   }

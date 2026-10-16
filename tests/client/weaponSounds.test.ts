@@ -27,9 +27,10 @@ const GK = 'grey-knights'
 const TAU = 'tau-empire'
 const GSC = 'genestealer-cults'
 const LOV = 'leagues-of-votann'
+const DRK = 'drukhari'
 
 /** The engine faction id a weapon's own id prefix belongs to. */
-const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : id.startsWith('lov.') ? LOV : SM)
+const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : id.startsWith('lov.') ? LOV : id.startsWith('drk.') ? DRK : SM)
 
 function lookupFor(faction: string): SoundLookup {
   return { weapon: (id) => bundle.weapons[id], factionOfUnit: () => faction }
@@ -310,9 +311,29 @@ const ADE_BY_NAME: Record<string, WeaponFlavour> = {
 }
 const adeWeapons = Object.entries(bundle.weapons).filter(([id]) => id.startsWith('ade.'))
 
+// Drukhari weapons, classified by weapon id (the flavour decides the firing/impact sound family and the tracer look).
+const DRK_FLAVOUR: Record<string, WeaponFlavour> = {
+  'drk.w.archon-splinter-pistol': 'shoota',
+  'drk.w.huskblade': 'chain',
+  'drk.w.splinter-pistol': 'shoota',
+  'drk.w.splinter-rifle': 'shoota',
+  'drk.w.shredder': 'flame',
+  'drk.w.splinter-cannon': 'shoota',
+  'drk.w.sybarite-weapon': 'chain',
+  'drk.w.close-combat-weapon': 'chain',
+  'drk.w.demiklaives-single': 'chain',
+  'drk.w.demiklaives-dual': 'chain',
+  'drk.w.klaive': 'chain',
+  'drk.w.disintegrator-cannon': 'heavy',
+  'drk.w.dark-lance': 'heavy',
+  'drk.w.dark-lance-2': 'heavy',
+  'drk.w.bladevanes': 'chain',
+}
+const drkWeapons = Object.entries(bundle.weapons).filter(([id]) => id.startsWith('drk.'))
+
 describe('weapon flavour', () => {
   it('covers every weapon in the data bundle (a new weapon has to be classified here)', () => {
-    const known = Object.keys(EXPECTED).concat(adeWeapons.map(([id]) => id))
+    const known = Object.keys(EXPECTED).concat(adeWeapons.map(([id]) => id), drkWeapons.map(([id]) => id))
     expect(known.sort()).toEqual(Object.keys(bundle.weapons).sort())
   })
 
@@ -325,6 +346,14 @@ describe('weapon flavour', () => {
       const expected = ADE_BY_NAME[weapon.name.toLowerCase()]
       expect(expected, `${id} (${weapon.name}) needs an entry in ADE_BY_NAME`).toBeDefined()
       expect(weaponFlavour(id, weapon, ADE), id).toBe(expected)
+    }
+  })
+
+  it('every drukhari weapon is classified, by id', () => {
+    expect(drkWeapons.length).toBeGreaterThan(0)
+    for (const [id, weapon] of drkWeapons) {
+      expect(DRK_FLAVOUR[id], `${id} (${weapon.name}) needs an entry in DRK_FLAVOUR`).toBeDefined()
+      expect(weaponFlavour(id, weapon, DRK), id).toBe(DRK_FLAVOUR[id])
     }
   })
 
@@ -389,6 +418,13 @@ describe('firing sounds', () => {
     expect(soundIds(declared(['ade.w.ministorum-flamer']), ADE)).toEqual(['wpn-flamer'])
     expect(soundIds(declared(['ade.w.ministorum-heavy-flamer']), ADE)).toEqual(['wpn-heavy-flamer'])
     expect(soundIds(declared(['sm.w.pyreblaster']), SM)).toEqual(['wpn-pyreblaster'])
+  })
+
+  it('drukhari splinter weapons patter, blades ring, lances thrum', () => {
+    expect(soundIds(declared(['drk.w.splinter-rifle']), DRK)).toEqual(['wpn-autogun'])
+    expect(soundIds(declared(['drk.w.splinter-cannon']), DRK)).toEqual(['wpn-big-shoota'])
+    expect(soundIds(declared(['drk.w.huskblade'], 'fight'), DRK)).toEqual(['wpn-power-weapon'])
+    expect(soundIds(declared(['drk.w.dark-lance', 'drk.w.dark-lance-2']), DRK)).toEqual(['wpn-tachyon-arrow'])
   })
 
   it('profile variants share their weapon\'s sound', () => {

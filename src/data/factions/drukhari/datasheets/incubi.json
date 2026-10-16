@@ -1,0 +1,86 @@
+[
+  {
+    "id": "drk.incubi",
+    "faction": "drukhari",
+    "name": "Incubi",
+    "keywords": [
+      "INFANTRY",
+      "AELDARI",
+      "INCUBI"
+    ],
+    "factionKeywords": [
+      "DRUKHARI"
+    ],
+    "stats": {
+      "M": 7,
+      "T": 3,
+      "Sv": 3,
+      "W": 1,
+      "Ld": 6,
+      "OC": 1
+    },
+    "invuln": 5,
+    "composition": [
+      {
+        "modelId": "klaivex",
+        "name": "Klaivex",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "champion": true,
+        "base": {
+          "shape": "round",
+          "mm": 28
+        },
+        "statsOverride": {
+          "W": 2
+        },
+        "weapons": {
+          "default": [
+            "drk.w.demiklaives-single",
+            "drk.w.demiklaives-dual"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "generic-infantry"
+        }
+      },
+      {
+        "modelId": "incubus",
+        "name": "Incubus",
+        "min": 4,
+        "max": 4,
+        "default": 4,
+        "base": {
+          "shape": "round",
+          "mm": 28
+        },
+        "weapons": {
+          "default": [
+            "drk.w.klaive"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "generic-infantry"
+        }
+      }
+    ],
+    "abilities": [
+      "drk.a.power-from-pain",
+      "drk.a.tormentors"
+    ],
+    "coreAbilities": [],
+    "points": [
+      {
+        "models": 5,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "infantry",
+      "kit": "generic-infantry"
+    }
+  }
+]

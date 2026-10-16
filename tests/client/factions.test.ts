@@ -2,9 +2,9 @@
 // Necron and Chaos Space Marine datasheet resolves to its own procedural kit (with GLB lookups falling back cleanly).
 import { describe, expect, it } from 'vitest'
 import { loadBundle } from '../../src/data'
-import { resolveFactionId, splittablePatrolRefs, useGameStore } from '../../src/client/store/game'
+import { embarkOptions, resolveFactionId, splittablePatrolRefs, useGameStore } from '../../src/client/store/game'
 import { resolveFigureKit } from '../../src/client/figures/data'
-import { BODY_KIND, BIPED_CONFIG, ARTILLERY_CONFIG } from '../../src/client/figures/kitConfigs'
+import { BODY_KIND, BIPED_CONFIG, ARTILLERY_CONFIG, VEHICLE_CONFIG } from '../../src/client/figures/kitConfigs'
 import { glbSlugFor } from '../../src/client/figures/glbModels'
 import { weaponIconKind, WEAPON_ICON_KINDS } from '../../src/client/ui/weaponIcons'
 
@@ -271,4 +271,73 @@ describe('Patrol Squads for both seats', () => {
     expect(splittablePatrolRefs(bundle, 'adepta-sororitas')).toEqual(['sisters'])
     expect(splittablePatrolRefs(bundle, 'space-marines')).toEqual([])
   }, 60000)
+})
+
+describe('drukhari figures and setup', () => {
+  const sheets = Object.values(bundle.datasheets).filter((d) => d.id.startsWith('drk.'))
+
+  it('the bundle carries the drukhari datasheets and a launchable patrol', () => {
+    expect(sheets.length).toBe(5)
+    expect(Object.values(bundle.patrols).some((p) => p.faction === 'drukhari')).toBe(true)
+    expect(resolveFactionId('drukhari')).toBe('drukhari')
+  })
+
+  for (const ds of sheets) {
+    for (const m of ds.composition) {
+      it(`${ds.id}/${m.modelId} resolves to a drukhari kit with a body config`, () => {
+        const { kit } = resolveFigureKit(ds.id, ds, m.modelId)
+        expect(kit.startsWith('drk-'), kit).toBe(true)
+        if (BODY_KIND[kit] === 'biped') expect(BIPED_CONFIG[kit], kit).toBeDefined()
+      })
+    }
+
+    it(`${ds.id} has no GLB yet and falls back to the procedural kit`, () => {
+      for (const m of ds.composition) expect(glbSlugFor(ds.id, m.modelId), m.modelId).toBeUndefined()
+    })
+  }
+
+  it('the kabalite squad reads as four different silhouettes', () => {
+    const kits = ['sybarite', 'warrior', 'shredder-warrior', 'cannon-warrior'].map((m) => resolveFigureKit('drk.kabalite-warriors', undefined, m).kit)
+    expect(new Set(kits).size).toBe(4)
+    const shapes = kits.map((k) => `${BIPED_CONFIG[k]!.rightWeapon}/${BIPED_CONFIG[k]!.leftWeapon}`)
+    expect(new Set(shapes).size).toBe(4)
+  })
+
+  it('incubi and archon are told apart from the kabalites by head and weapon', () => {
+    const head = (ds: string, m: string) => BIPED_CONFIG[resolveFigureKit(ds, undefined, m).kit]!.headShape
+    expect(new Set([head('drk.kabalite-warriors', 'warrior'), head('drk.incubi', 'incubus'), head('drk.archon', 'archon')]).size).toBe(3)
+  })
+
+  it('the Raider and Ravager are skimmers with their own hull style', () => {
+    expect(BODY_KIND[resolveFigureKit('drk.raider', undefined, 'raider').kit]).toBe('vehicle')
+    expect(BODY_KIND[resolveFigureKit('drk.ravager', undefined, 'ravager').kit]).toBe('vehicle')
+    expect(VEHICLE_CONFIG['drk-raider']!.style).toBe('skiff')
+    expect(VEHICLE_CONFIG['drk-ravager']!.style).toBe('gunboat')
+  })
+
+  it('an unknown drukhari model still gets its datasheet kit', () => {
+    expect(resolveFigureKit('drk.kabalite-warriors', undefined, 'mystery').kit).toBe('drk-kabalite')
+  })
+
+  it('newGame seats Drukhari against each other faction and in a mirror', async () => {
+    for (const opp of ['space-marines', 'orks', 'drukhari']) {
+      await useGameStore.getState().newGame({ playerFaction: 'drukhari', opponentFaction: opp, opponent: 'hotseat', seed: `drk-vs-${opp}` })
+      const s = useGameStore.getState().state!
+      expect([s.players.A.faction, s.players.B.faction], opp).toEqual(['drukhari', resolveFactionId(opp)])
+    }
+    await useGameStore.getState().newGame({ playerFaction: 'orks', opponentFaction: 'drukhari', opponent: 'hotseat', seed: 'ork-vs-drk' })
+    const s = useGameStore.getState().state!
+    expect([s.players.A.faction, s.players.B.faction]).toEqual(['ork', 'drukhari'])
+  }, 60000)
+
+  it('the Archon is offered embarked together with his Kabalites, never alone', () => {
+    const patrol = Object.values(bundle.patrols).find((p) => p.faction === 'drukhari')!
+    const opts = embarkOptions(bundle, 'drukhari', patrol.id)
+    const kab = opts.filter((o) => o.unitRef === 'kabalites')
+    // 10 Kabalites + the attached Archon is 11 models, exactly the Raider's capacity
+    expect(kab.length).toBeGreaterThan(0)
+    expect(kab.every((o) => o.models === 11 && o.unitName.includes('with Archon'))).toBe(true)
+    expect(opts.some((o) => o.unitRef === 'archon')).toBe(false)
+    expect(opts.some((o) => o.unitRef === 'incubi')).toBe(true)
+  })
 })

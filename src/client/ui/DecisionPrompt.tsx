@@ -27,6 +27,7 @@ import { commitStagedDraft } from '../interaction/commitDraft'
 import { FormationPicker } from './FormationPicker'
 import { WeaponPanel } from './WeaponPanel'
 import { opensWeaponPanel } from '../interaction/decisions'
+import { groupLabel, groupUnitIds, soleDeployUnit } from '../interaction/embarkGroup'
 import { rerollTrayModel, rollForOffer } from './rerollInfo'
 import { RerollTray } from './RerollTray'
 import { overwatchReach } from './overwatchInfo'
@@ -127,6 +128,13 @@ const METHODICAL_INFO = {
  *  the ability id is what says which rule is asking. Own-words text; matched by id fragment so a renamed
  *  prefix or a variant of the same rule still reads right. */
 const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string } }[] = [
+  {
+    match: /power-?from-?pain/i,
+    info: {
+      title: 'Power from Pain: Empower a unit?',
+      hint: 'Spend one Pain token to Empower a unit until the end of this phase. An Empowered unit may re-roll its Advance and Charge rolls, and in the Shooting or Fight phase it may re-roll hit rolls. Pick a unit that is about to attack, or keep your tokens for a later phase.',
+    },
+  },
   {
     match: /saintly-?relic/i,
     info: {
@@ -435,10 +443,11 @@ function chooseOptionInfoFor(
     }
   }
   if (context.topic === 'other' && context.data?.kind === 'embark') {
-    const uname = context.unitId && state ? state.units[context.unitId]?.name : undefined
+    const uname = context.unitId && state ? groupLabel(state, context.unitId) : undefined
+    const pair = !!context.unitId && !!state && groupUnitIds(state, context.unitId).length > 1
     return {
       title: `Embark ${uname ?? 'this unit'}?`,
-      hint: 'The unit finishes its move beside a friendly transport. Climbing aboard takes it off the battlefield (it can disembark in a later Movement phase); staying keeps it on the board where it is.',
+      hint: `The unit finishes its move beside a friendly transport. Climbing aboard takes it off the battlefield (it can disembark in a later Movement phase); staying keeps it on the board where it is.${pair ? ' The attached Leader travels with its bodyguard, so both embark together and count against the capacity of the transport.' : ''}`,
     }
   }
   const choice = context.data && typeof context.data.choice === 'string' ? CHOICE_PROMPT_KEYS[context.data.choice] : undefined
@@ -539,7 +548,7 @@ function describeAction(a: Action, state: GameState): string {
       return 'Pass'
     case 'chooseUnitToActivate': {
       const tid = a.unitId && state.phase === 'movement' ? transportService.transportOf(state, a.unitId) : null
-      return tid ? `Disembark ${unitName(a.unitId)} from ${unitName(tid)}` : `Activate ${unitName(a.unitId)}`
+      return tid ? `Disembark ${groupLabel(state, a.unitId)} from ${unitName(tid)}` : `Activate ${unitName(a.unitId)}`
     }
     case 'chooseFightUnit':
       return `Fight with ${unitName(a.unitId)}`
@@ -636,8 +645,7 @@ function labelForOption(pending: PendingDecision, state: GameState, events: read
       if (pending.context.topic === 'other' && pending.context.data?.kind === 'embark') {
         if (o.id === 'stay') return 'Stay on the battlefield'
         const tr = state.units[o.id.replace(/^embark:/, '')]
-        const un = pending.context.unitId ? state.units[pending.context.unitId] : undefined
-        if (tr) return `Embark ${un?.name ?? 'the unit'} into ${tr.name}`
+        if (tr) return `Embark ${pending.context.unitId ? groupLabel(state, pending.context.unitId) : 'the unit'} into ${tr.name}`
       }
       if ((pending.context.data?.code === 'divineJudgementPick' || pending.context.data?.code === 'holyApparatusPick') && state.units[o.id]) return state.units[o.id].name
       if (pending.context.data?.code === 'toilEarnsPick') return objectiveLabel(o.id)
@@ -991,7 +999,10 @@ function DecisionPromptBody() {
   // A mid-game disembark names exactly one unit: pre-select it so the very next board click places it.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (pending?.kind === 'deployUnit' && state?.phase === 'movement' && pending.player !== botSeat && pending.context.unitIds.length === 1) setDeployTarget(pending.context.unitIds[0])
+    if (pending?.kind === 'deployUnit' && state?.phase === 'movement' && pending.player !== botSeat) {
+      const sole = soleDeployUnit(state, pending.context.unitIds)
+      if (sole) setDeployTarget(sole)
+    }
   }, [pending?.id])
 
   // M4 formation memory (#5): a move-family decision already knows its unit, so it can be primed
@@ -1116,8 +1127,10 @@ function DecisionPromptBody() {
     : undefined
   const kindTitle = chooseOptionInfo?.title ?? KIND_TITLE[pending.kind] ?? pending.kind
   const isDeploy = pending.kind === 'deployUnit'
-  const disembarkId = isDeploy && state.phase === 'movement' && pending.context.unitIds.length === 1 && transportService.transportOf(state, pending.context.unitIds[0]) ? pending.context.unitIds[0] : null
-  const kindTitleShown = disembarkId ? `Disembark ${state.units[disembarkId]?.name ?? 'the unit'}` : kindTitle
+  // A mid-game disembark names exactly one unit: a lone unit, or both halves of an attached Leader + bodyguard pair (E3).
+  const soleDisembark = isDeploy && state.phase === 'movement' ? soleDeployUnit(state, pending.context.unitIds) : null
+  const disembarkId = soleDisembark && transportService.transportOf(state, soleDisembark) ? soleDisembark : null
+  const kindTitleShown = disembarkId ? `Disembark ${groupLabel(state, disembarkId)}` : kindTitle
 
   return (
     <>
@@ -1260,13 +1273,13 @@ function DecisionPromptBody() {
 
       {pending.kind === 'deployUnit' && (
         <div style={deployRowVertical}>
-          {pending.context.unitIds.map((uid) => (
+          {(soleDisembark ? [soleDisembark] : pending.context.unitIds).map((uid) => (
             <button
               key={uid}
               style={{ ...(uid === deployTargetUnitId ? buttonPrimary : buttonBase), flexShrink: 0, width: '100%', textAlign: 'left' }}
               onClick={() => setDeployTarget(uid)}
             >
-              {state.units[uid]?.name ?? uid}
+              {soleDisembark ? groupLabel(state, uid) : state.units[uid]?.name ?? uid}
             </button>
           ))}
           {pending.context.reservesAllowed.map((uid) => {
@@ -1335,7 +1348,7 @@ function DecisionPromptBody() {
       {bespoke && (
         <div style={hint}>
           {disembarkId
-            ? `Click within 3" of ${state.units[transportService.transportOf(state, disembarkId) ?? '']?.name ?? 'the transport'} to set the unit down, or pass to keep it aboard.`
+            ? `Click within 3" of ${state.units[transportService.transportOf(state, disembarkId) ?? '']?.name ?? 'the transport'} to set the unit down${groupUnitIds(state, disembarkId).length > 1 ? ' (its attached Leader lands with it)' : ''}, or pass to keep it aboard.`
             : pending.kind === 'deployUnit'
             ? deployTargetUnitId
               ? 'Click inside your deployment zone to place the unit.'

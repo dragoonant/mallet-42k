@@ -1,0 +1,78 @@
+[
+  {
+    "id": "drk.archon",
+    "faction": "drukhari",
+    "name": "Archon",
+    "keywords": [
+      "INFANTRY",
+      "CHARACTER",
+      "KABAL",
+      "AELDARI",
+      "ARCHON",
+      "MALIVEX"
+    ],
+    "factionKeywords": [
+      "DRUKHARI"
+    ],
+    "stats": {
+      "M": 8,
+      "T": 3,
+      "Sv": 4,
+      "W": 4,
+      "Ld": 6,
+      "OC": 1
+    },
+    "invuln": 2,
+    "composition": [
+      {
+        "modelId": "archon",
+        "name": "Archon",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "keywords": [
+          "ARCHON"
+        ],
+        "base": {
+          "shape": "round",
+          "mm": 25
+        },
+        "weapons": {
+          "default": [
+            "drk.w.archon-splinter-pistol",
+            "drk.w.huskblade"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "generic-infantry"
+        }
+      }
+    ],
+    "abilities": [
+      "drk.a.power-from-pain",
+      "drk.a.shadowfield"
+    ],
+    "coreAbilities": [
+      {
+        "ability": "LEADER"
+      }
+    ],
+    "leader": {
+      "attachTo": [
+        "drk.kabalite-warriors"
+      ],
+      "effects": []
+    },
+    "points": [
+      {
+        "models": 1,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "infantry",
+      "kit": "generic-infantry"
+    }
+  }
+]

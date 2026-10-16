@@ -56,9 +56,12 @@ export function weaponFlavour(weaponId: string, weapon: WeaponData | undefined, 
   // TORRENT is the rules-level marker for a flame template (no hit roll, auto-hits).
   if (hasAbility(weapon, 'TORRENT') || /flame|flamer|burna|pyre|melta|incinerat|fusion/.test(text)) return 'flame'
   if (/burst.cannon|rotary.cannon/.test(text)) return 'shoota' // a rattling gun, not an artillery piece
+  // Drukhari splinter weapons spit streams of crystal needles (a rattle, whatever the size of the gun); dark lances and
+  // disintegrator cannons are heavy energy shots.
+  if (/splinter/.test(text)) return 'shoota'
   // BLAST marks the explosive/ordnance profiles; the keywords catch the rest of the big guns, and
   // S7+ catches a heavy profile whose name says nothing (nothing in the current bundle needs it).
-  if (hasAbility(weapon, 'BLAST') || /cannon|kannon|rokkit|rocket|missile|thump|mega|lascannon|plasma|blasta|blaster|tachyon|heavy bolter|heavy-bolter|launcher|field-gun|field gun|howitzer|hunter-killer|bombast|malleus|raker|mining.laser/.test(text)) return 'heavy'
+  if (hasAbility(weapon, 'BLAST') || /cannon|kannon|rokkit|rocket|missile|thump|mega|lascannon|plasma|blasta|blaster|tachyon|heavy bolter|heavy-bolter|dark.lance|launcher|field-gun|field gun|howitzer|hunter-killer|bombast|malleus|raker|mining.laser/.test(text)) return 'heavy'
   // Guard small arms (lasgun, laspistol, autogun) fall through to 'bolter': a rifle crack with a warm orange tracer.
   if (/bolt/.test(text)) return 'bolter'
   // Cultist autoguns are cheap rattling cracks, not bolter thumps. Spat or flung biomass (fleshborers, spore-guns)
@@ -89,7 +92,7 @@ export interface VfxClassification {
 /** Engine faction ids by the prefix of a weapon id ('ork.w.shoota'), for weapons classified with no faction given. */
 const ID_PREFIX_FACTION: [string, string][] = [
   ['ork.', 'ork'], ['nec', 'necrons'], ['tyr', 'tyranids'], ['gsc.', 'genestealer-cults'], ['tau.', 'tau-empire'],
-  ['am.', 'astra-militarum'], ['lov.', 'leagues-of-votann'], ['gk.', 'grey-knights'], ['csm', 'chaos-space-marines'], ['ade', 'adepta-sororitas'], ['cus.', 'adeptus-custodes'],
+  ['am.', 'astra-militarum'], ['lov.', 'leagues-of-votann'], ['gk.', 'grey-knights'], ['csm', 'chaos-space-marines'], ['ade', 'adepta-sororitas'], ['cus.', 'adeptus-custodes'], ['drk.', 'drukhari'],
 ]
 
 export function classifyVfxFamily(weaponId: string, weapon: WeaponData | undefined, faction: string): VfxClassification {
@@ -103,6 +106,10 @@ export function classifyVfxFamily(weaponId: string, weapon: WeaponData | undefin
   if (/gauss|tachyon|doomsday|necron/.test(text)) return kw('gauss')
   if (/melta|fusion/.test(text) || hasAbility(weapon, 'MELTA')) return kw('melta')
   if (hasAbility(weapon, 'TORRENT') || /flame|flamer|burna|pyre|incinerat/.test(text)) return kw('flamer')
+  // Drukhari: splinter weapons are streams of crystal needles, dark lances are heavy beams, disintegrators a bright pulse.
+  if (/splinter/.test(text)) return kw('dakka')
+  if (/dark.?lance/.test(text)) return kw('lascannon')
+  if (/disintegrator/.test(text)) return kw('pulse')
   if (/pulse|ion.?raker|railgun|rail.?rifle|burst.?cannon|markerlight|\bion.?blaster|magna.?rail|volkanite|disintegrat/.test(text)) return kw('pulse')
   if (/grenade|krak|frag|demolition|charge cache|satchel/.test(text)) return kw('grenade')
   if (/rokkit|rocket|missile|thump|hunter.?killer|bombast|field.?gun|howitzer|launcher|mortar|malleus|kannon/.test(text)) return kw('missile')
@@ -119,6 +126,7 @@ export function classifyVfxFamily(weaponId: string, weapon: WeaponData | undefin
     case 'tau-empire': case 'leagues-of-votann': return { family: 'pulse', via: 'faction' }
     case 'astra-militarum': return { family: 'las', via: 'faction' }
     case 'grey-knights': return { family: 'psychic', via: 'faction' }
+    case 'drukhari': return { family: 'dakka', via: 'faction' }
     default: return { family: 'bolt', via: 'default' }
   }
 }

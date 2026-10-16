@@ -99,7 +99,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
   } else if (id.endsWith('holy-radiance')) {
     if (melee) return -Infinity
     withIt = incomingDamage(state, attackerId, mineId, false, { ...base, hitMod: -1, fnp: 5 })
-  } else if (id.endsWith('hyper-reactive') || id.endsWith('lurking-killers')) {
+  } else if (id.endsWith('hyper-reactive') || id.endsWith('lurking-killers') || id.endsWith('quicksilver-reactions')) {
     withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, hitMod: -1 })
   } else if (id.endsWith('lives-before-territory')) {
     if (melee) return -Infinity
@@ -119,7 +119,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
 }
 
 const DEFENSIVE = ['skeinwrought-physiology', 'go-to-ground', 'smokescreen', 'gene-wrought-resilience', 'tough-as-squig-hide', 'holy-radiance', 'hyper-reactive',
-  'mercurial-resilience', 'a-martyrs-death', 'daemonic-fervour', 'lurking-killers', 'lives-before-territory']
+  'mercurial-resilience', 'a-martyrs-death', 'daemonic-fervour', 'lurking-killers', 'lives-before-territory', 'quicksilver-reactions']
 
 // Fire Overwatch: hits only on an unmodified 6, the bound unit only (picked within 24"), each weapon within its own range, with line of sight.
 function overwatchGain(state: GameState, player: PlayerId, action: UseStratagemAction, enemyId: UnitId): number {
@@ -337,6 +337,29 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
     if (melee && enemy.gap > ENGAGEMENT_H) return -Infinity
     const dmg = melee ? unitMeleeDamage(state, unitId, enemy.unitId, {}) : unitRangedDamage(state, unitId, enemy.unitId, {})
     return dmg * 0.4 * unitValue(state, enemy.unitId) * 0.03
+  }
+  // Drukhari Many Cuts: Sustained Hits 1 for a not-yet-activated unit's attacks on a target below Starting Strength.
+  if (id.endsWith('many-cuts')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId) return -Infinity
+    const melee = state.phase === 'fight'
+    if (!(melee ? hasAnyMeleeWeapon(state, unitId) : hasAnyRangedWeapon(state, unitId))) return -Infinity
+    const pool = melee ? engagedEnemyUnits(state, player, unitId) : boardUnitsOf(state, other(player)).map((u) => u.id)
+    let best = 0
+    for (const e of pool) {
+      const eu = state.units[e]
+      if (!eu || eu.models.length >= eu.startingStrength) continue
+      const dmg = melee ? unitMeleeDamage(state, unitId, e, {}) : unitRangedDamage(state, unitId, e, {})
+      best = Math.max(best, dmg * 0.18 * unitValue(state, e) * 0.03)
+    }
+    return best > 0.2 ? best : -Infinity
+  }
+  // Drukhari There and Gone: pull a battered, disengaged infantry unit into a Transport at the end of the enemy Fight phase.
+  if (id.endsWith('there-and-gone')) {
+    const unitId = targets.unitIds?.[0]
+    const unit = unitId ? state.units[unitId] : undefined
+    if (!unit || unit.models.length * 2 > unit.startingStrength) return -Infinity
+    return unitValue(state, unit.id) * 0.05
   }
   // Ascetic Discipline (Adepta Sororitas): AP improves by 2 on critical wounds for the chosen unit this phase; use it on a
   // unit with real output against whatever it can hit (Shooting: nearest enemy in range; Fight: an engaged enemy).

@@ -53,6 +53,7 @@ const FACTION_COLOR: Record<string, string> = {
   'genestealer-cults': '#b36be0',
   'adeptus-custodes': '#f3d77a',
   'leagues-of-votann': '#59c8ff',
+  drukhari: '#3fe0c0',
 }
 
 const NEUTRAL_MELEE_COLOR = '#e8e8f0'

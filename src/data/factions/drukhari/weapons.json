@@ -1,0 +1,253 @@
+[
+  {
+    "id": "drk.w.archon-splinter-pistol",
+    "name": "Splinter pistol (Archon)",
+    "type": "ranged",
+    "range": 12,
+    "A": 1,
+    "skill": 2,
+    "S": 2,
+    "AP": 0,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "ANTI",
+        "keyword": "INFANTRY",
+        "value": 3
+      },
+      {
+        "ability": "ASSAULT"
+      },
+      {
+        "ability": "PISTOL"
+      }
+    ]
+  },
+  {
+    "id": "drk.w.huskblade",
+    "name": "Huskblade",
+    "type": "melee",
+    "range": 0,
+    "A": 5,
+    "skill": 2,
+    "S": 3,
+    "AP": -2,
+    "D": 2,
+    "abilities": [
+      {
+        "ability": "ANTI",
+        "keyword": "INFANTRY",
+        "value": 3
+      }
+    ]
+  },
+  {
+    "id": "drk.w.splinter-pistol",
+    "name": "Splinter pistol",
+    "type": "ranged",
+    "range": 12,
+    "A": 1,
+    "skill": 3,
+    "S": 2,
+    "AP": 0,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "ANTI",
+        "keyword": "INFANTRY",
+        "value": 3
+      },
+      {
+        "ability": "ASSAULT"
+      },
+      {
+        "ability": "PISTOL"
+      }
+    ]
+  },
+  {
+    "id": "drk.w.splinter-rifle",
+    "name": "Splinter rifle",
+    "type": "ranged",
+    "range": 24,
+    "A": 2,
+    "skill": 3,
+    "S": 2,
+    "AP": 0,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "ANTI",
+        "keyword": "INFANTRY",
+        "value": 3
+      },
+      {
+        "ability": "ASSAULT"
+      }
+    ]
+  },
+  {
+    "id": "drk.w.shredder",
+    "name": "Shredder",
+    "type": "ranged",
+    "range": 18,
+    "A": "D6",
+    "skill": null,
+    "S": 6,
+    "AP": 0,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "ASSAULT"
+      },
+      {
+        "ability": "TORRENT"
+      }
+    ]
+  },
+  {
+    "id": "drk.w.splinter-cannon",
+    "name": "Splinter cannon",
+    "type": "ranged",
+    "range": 36,
+    "A": 3,
+    "skill": 4,
+    "S": 3,
+    "AP": -1,
+    "D": 2,
+    "abilities": [
+      {
+        "ability": "ANTI",
+        "keyword": "INFANTRY",
+        "value": 3
+      },
+      {
+        "ability": "HEAVY"
+      },
+      {
+        "ability": "SUSTAINED_HITS",
+        "value": 1
+      }
+    ]
+  },
+  {
+    "id": "drk.w.sybarite-weapon",
+    "name": "Sybarite weapon",
+    "type": "melee",
+    "range": 0,
+    "A": 3,
+    "skill": 3,
+    "S": 3,
+    "AP": -1,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "ANTI",
+        "keyword": "INFANTRY",
+        "value": 3
+      }
+    ]
+  },
+  {
+    "id": "drk.w.close-combat-weapon",
+    "name": "Close combat weapon",
+    "type": "melee",
+    "range": 0,
+    "A": 2,
+    "skill": 3,
+    "S": 3,
+    "AP": 0,
+    "D": 1,
+    "abilities": []
+  },
+  {
+    "id": "drk.w.demiklaives-single",
+    "name": "Demiklaives - single blade",
+    "type": "melee",
+    "range": 0,
+    "A": 3,
+    "skill": 3,
+    "S": 4,
+    "AP": -2,
+    "D": 2,
+    "abilities": [],
+    "profileGroup": "drk.w.demiklaives"
+  },
+  {
+    "id": "drk.w.demiklaives-dual",
+    "name": "Demiklaives - dual blades",
+    "type": "melee",
+    "range": 0,
+    "A": 6,
+    "skill": 3,
+    "S": 4,
+    "AP": -1,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "TWIN_LINKED"
+      }
+    ],
+    "profileGroup": "drk.w.demiklaives"
+  },
+  {
+    "id": "drk.w.klaive",
+    "name": "Klaive",
+    "type": "melee",
+    "range": 0,
+    "A": 3,
+    "skill": 3,
+    "S": 4,
+    "AP": -2,
+    "D": 2,
+    "abilities": []
+  },
+  {
+    "id": "drk.w.disintegrator-cannon",
+    "name": "Disintegrator cannon",
+    "type": "ranged",
+    "range": 36,
+    "A": 3,
+    "skill": 3,
+    "S": 5,
+    "AP": -2,
+    "D": 2,
+    "abilities": []
+  },
+  {
+    "id": "drk.w.dark-lance",
+    "name": "Dark lance",
+    "type": "ranged",
+    "range": 36,
+    "A": 1,
+    "skill": 3,
+    "S": 12,
+    "AP": -3,
+    "D": "D6+2",
+    "abilities": []
+  },
+  {
+    "id": "drk.w.dark-lance-2",
+    "name": "Dark lance",
+    "type": "ranged",
+    "range": 36,
+    "A": 1,
+    "skill": 3,
+    "S": 12,
+    "AP": -3,
+    "D": "D6+2",
+    "abilities": []
+  },
+  {
+    "id": "drk.w.bladevanes",
+    "name": "Bladevanes",
+    "type": "melee",
+    "range": 0,
+    "A": 3,
+    "skill": 4,
+    "S": 6,
+    "AP": 0,
+    "D": 1,
+    "abilities": []
+  }
+]

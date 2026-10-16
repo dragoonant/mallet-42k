@@ -241,6 +241,17 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'csm.havocs/missile-launcher': 'havoc-missile-launcher',
   'csm.havocs/reaper-chaincannon': 'havoc-reaper-chaincannon',
   'csm.helbrute/helbrute': 'helbrute',
+
+  // Drukhari: no GLBs yet (slugs unlisted in ENABLED_GLB_SLUGS), so the procedural kits draw them until a file lands.
+  'drk.archon/archon': 'archon',
+  'drk.kabalite-warriors/sybarite': 'kabalite-sybarite',
+  'drk.kabalite-warriors/warrior': 'kabalite-warrior',
+  'drk.kabalite-warriors/shredder-warrior': 'kabalite-shredder',
+  'drk.kabalite-warriors/cannon-warrior': 'kabalite-splinter-cannon',
+  'drk.incubi/klaivex': 'incubi-klaivex',
+  'drk.incubi/incubus': 'incubus',
+  'drk.raider/raider': 'raider',
+  'drk.ravager/ravager': 'ravager',
 }
 
 /** The enabled GLB slug for a model type, or undefined (use the procedural figure). */

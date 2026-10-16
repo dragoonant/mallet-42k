@@ -1,0 +1,151 @@
+[
+  {
+    "id": "drk.s.quicksilver-reactions",
+    "faction": "drukhari",
+    "name": "Quicksilver Reactions",
+    "text": "Use just after an enemy unit selects its targets, in the opponent's Shooting phase or in the Fight phase of either turn, when one of your DRUKHARI INFANTRY units is a target. Until the end of the phase, every attack that targets that unit takes -1 to its Hit roll.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": [
+      "shooting",
+      "fight"
+    ],
+    "window": [
+      "shooting.targetsDeclared",
+      "fight.targetsDeclared"
+    ],
+    "who": "either",
+    "condition": {
+      "any": [
+        {
+          "phase": "shooting",
+          "ownTurn": false
+        },
+        {
+          "phase": "fight"
+        }
+      ]
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "INFANTRY"
+        },
+        "state": "targetedByAttack",
+        "count": 1
+      }
+    ],
+    "effect": {
+      "modifyRoll": {
+        "roll": "hit",
+        "value": -1
+      }
+    },
+    "scope": {
+      "who": "attacker"
+    },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "drk.s.many-cuts",
+    "faction": "drukhari",
+    "name": "Many Cuts",
+    "text": "Use in your Shooting phase, or in the Fight phase of either turn, on one of your DRUKHARI INFANTRY units that has not yet been selected to shoot (or to fight). Until the end of the phase, its weapons gain [SUSTAINED HITS 1] when they attack a unit that is below its Starting Strength.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": [
+      "shooting",
+      "fight"
+    ],
+    "window": [
+      "shooting.start",
+      "shooting.attacksResolved",
+      "fight.start",
+      "fight.attacksResolved"
+    ],
+    "who": "either",
+    "condition": {
+      "any": [
+        {
+          "phase": "shooting",
+          "ownTurn": true
+        },
+        {
+          "phase": "fight"
+        }
+      ]
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "INFANTRY"
+        },
+        "state": "notYetShot",
+        "count": 1
+      }
+    ],
+    "effect": {
+      "when": {
+        "targetBelowStartingStrength": true
+      },
+      "grantWeaponAbility": {
+        "ability": "SUSTAINED_HITS",
+        "value": 1
+      }
+    },
+    "scope": {
+      "who": "self"
+    },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase",
+    "params": {
+      "stateByPhase": {
+        "shooting": "notYetShot",
+        "fight": "notYetFought"
+      }
+    }
+  },
+  {
+    "id": "drk.s.there-and-gone",
+    "faction": "drukhari",
+    "name": "There and Gone",
+    "text": "Use at the end of your opponent's Fight phase on one of your DRUKHARI INFANTRY units that is not within Engagement Range of any enemy unit, and on one of your TRANSPORT models. The INFANTRY unit embarks in that TRANSPORT, provided every model of it is within 3 inches of the transport and the transport has room for the whole unit.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": [
+      "fight"
+    ],
+    "window": "phase.end",
+    "who": "reactive",
+    "condition": {
+      "phase": "fight",
+      "ownTurn": false
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "INFANTRY"
+        },
+        "count": 1
+      },
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "TRANSPORT"
+        },
+        "count": 1
+      }
+    ],
+    "duration": "instant",
+    "limit": "oncePerPhase",
+    "code": "thereAndGone"
+  }
+]

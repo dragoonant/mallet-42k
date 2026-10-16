@@ -8,6 +8,7 @@
 // in the decision's `context.data`) once the pick is answered, mirroring the pattern `hookService.offerPicks` uses for
 // Oath of Moment / Waaagh!. Per-rule "done" marks (`phaseState.marks`) make every step idempotent across that resume.
 import { championOfTheDarkGodsAmount } from './factions/chaos-space-marines'
+import { murderousMonsterAmount } from './factions/drukhari'
 import { alphaPredationAmount, alphaXenoformAmount, chitinousTideAmount, leftToLastAmount } from './factions/tyranids'
 import type { AttackKind } from './types'
 import type { MissionRule, ScoringRule, TimingWindowId } from '../data/types'
@@ -357,14 +358,20 @@ function krumpinSpreeAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId
 function reclaimAndDominateAmount(s: GameState, rule: ScoringRule, pid: PlayerId): number {
   const zone = deploymentZone(s, otherPlayer(pid))
   const keyword = (rule.params?.keyword as string | undefined) ?? 'NECRONS'
+  // Drukhari Rapacious Raiders (DRU-4.1): a qualifying unit with `bonusKeyword` on either half raises the award to `bonusPoints`
+  const bonusKeyword = rule.params?.bonusKeyword as string | undefined
+  let best = 0
   for (const u of boardUnitsOf(s, pid)) {
     if (u.bodyguardUnitId) continue
     const halves = leaderService.halves(s, u.id).map((id) => s.units[id]).filter((h) => h.location === 'board')
     if (halves.length === 0 || !halves.some((h) => hasKeyword(s, h.id, keyword)) || halves.some((h) => h.battleShocked)) continue
     const models = halves.flatMap((h) => unitModels(s, h.id))
-    if (models.length > 0 && models.every((m) => whollyWithinPolygon(m, zone))) return rule.pointsPer
+    if (models.length === 0 || !models.every((m) => whollyWithinPolygon(m, zone))) continue
+    if (!bonusKeyword) return rule.pointsPer
+    best = Math.max(best, rule.pointsPer)
+    if (halves.some((h) => hasKeyword(s, h.id, bonusKeyword))) return (rule.params?.bonusPoints as number | undefined) ?? rule.pointsPer
   }
-  return 0
+  return best
 }
 
 // ---- Treasures of Aeons (NEC-4) ----
@@ -528,6 +535,7 @@ function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): num
     case 'wrathOfTheEmperor': return wrathOfTheEmperorAmount(s, rule, pid)
     case 'alphaXenoform': return alphaXenoformAmount(s, rule, pid)
     case 'championOfTheDarkGods': return championOfTheDarkGodsAmount(s, rule, pid)
+    case 'murderousMonster': return murderousMonsterAmount(s, rule, pid)
     case 'chitinousTide': return chitinousTideAmount(s, rule, pid, (id) => holds(ctx, id, pid))
     case 'shockTactics': return shockTacticsAmount(ctx, rule, pid)
     case 'sweepingRaidEndgameBonus': return sweepingRaidBonusAmount(ctx, rule, pid)

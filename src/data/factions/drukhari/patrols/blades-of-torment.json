@@ -1,0 +1,102 @@
+{
+  "id": "drk.cp.blades-of-torment",
+  "faction": "drukhari",
+  "name": "The Blades of Torment",
+  "units": [
+    {
+      "ref": "archon",
+      "datasheet": "drk.archon",
+      "size": 1,
+      "enhancement": "drk.e.shudderworm-bottle",
+      "attachTo": "kabalites"
+    },
+    {
+      "ref": "kabalites",
+      "datasheet": "drk.kabalite-warriors",
+      "size": 10
+    },
+    {
+      "ref": "incubi",
+      "datasheet": "drk.incubi",
+      "size": 5
+    },
+    {
+      "ref": "raider",
+      "datasheet": "drk.raider",
+      "size": 1
+    },
+    {
+      "ref": "ravager",
+      "datasheet": "drk.ravager",
+      "size": 1
+    }
+  ],
+  "stratagems": [
+    "drk.s.quicksilver-reactions",
+    "drk.s.many-cuts",
+    "drk.s.there-and-gone"
+  ],
+  "enhancements": [
+    {
+      "id": "drk.e.shudderworm-bottle",
+      "default": true
+    },
+    {
+      "id": "drk.e.spiteful-predator",
+      "default": false
+    }
+  ],
+  "secondaries": [
+    {
+      "id": "drk.sec.rapacious-raiders",
+      "name": "Rapacious Raiders",
+      "text": "At the end of each of your turns, score 3 victory points if at least one of your DRUKHARI units that is not Battle-shocked has every model wholly within your opponent's deployment zone. If at least one of the units that qualify is an INFANTRY unit, score 4 victory points instead. The award never exceeds 4 per turn, however many units qualify.",
+      "default": true,
+      "scoring": [
+        {
+          "id": "rapacious-raiders",
+          "when": "turn.end",
+          "rounds": {
+            "from": 1,
+            "to": 5
+          },
+          "who": "active",
+          "rule": "custom",
+          "pointsPer": 3,
+          "cap": 999,
+          "code": "reclaimAndDominate",
+          "params": {
+            "keyword": "DRUKHARI",
+            "bonusKeyword": "INFANTRY",
+            "bonusPoints": 4
+          }
+        }
+      ]
+    },
+    {
+      "id": "drk.sec.murderous-monster",
+      "name": "Murderous Monster",
+      "text": "At the end of every Fight phase, in either player's turn, score 3 victory points if your Archon model itself destroyed at least one enemy model during that phase. Kills by the Kabalite Warriors, and kills in any other phase, do not count.",
+      "default": false,
+      "scoring": [
+        {
+          "id": "murderous-monster",
+          "when": "phase.end",
+          "rounds": {
+            "from": 1,
+            "to": 5
+          },
+          "who": "both",
+          "rule": "custom",
+          "pointsPer": 3,
+          "cap": 999,
+          "code": "murderousMonster",
+          "params": {
+            "keyword": "ARCHON"
+          }
+        }
+      ]
+    }
+  ],
+  "warlord": "archon"
+}

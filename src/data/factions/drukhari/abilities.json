@@ -1,0 +1,26 @@
+[
+  {
+    "id": "drk.a.power-from-pain",
+    "name": "Power from Pain",
+    "text": "Your army keeps a pool of Pain tokens: one when the battle begins, one per enemy unit destroyed, one per enemy unit that fails a Battle-shock test. At the start of any phase, spend tokens to Empower units with this ability until phase end. Movement or Charge: re-roll Advance and Charge rolls. Shooting or Fight: re-roll Hit rolls.",
+    "trigger": "always",
+    "code": "powerFromPain"
+  },
+  {
+    "id": "drk.a.shadowfield",
+    "name": "Shadowfield",
+    "text": "This model has a 2+ invulnerable save that can never be re-rolled. The first time a save made with it fails, the field collapses and the model has no invulnerable save for the rest of the battle.",
+    "trigger": "saveRoll",
+    "code": "shadowfield"
+  },
+  {
+    "id": "drk.a.tormentors",
+    "name": "Tormentors",
+    "text": "When the Fight phase begins, every enemy unit within Engagement Range of a unit with this ability must take a Battle-shock test.",
+    "trigger": "phaseStart",
+    "when": {
+      "phase": "fight"
+    },
+    "code": "pistonDrivenBrutality"
+  }
+]

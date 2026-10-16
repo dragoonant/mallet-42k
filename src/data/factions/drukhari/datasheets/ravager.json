@@ -1,0 +1,83 @@
+[
+  {
+    "id": "drk.ravager",
+    "faction": "drukhari",
+    "name": "Ravager",
+    "keywords": [
+      "VEHICLE",
+      "KABAL",
+      "FLY",
+      "AELDARI",
+      "RAVAGER"
+    ],
+    "factionKeywords": [
+      "DRUKHARI"
+    ],
+    "stats": {
+      "M": 14,
+      "T": 9,
+      "Sv": 4,
+      "W": 11,
+      "Ld": 6,
+      "OC": 3
+    },
+    "invuln": 6,
+    "composition": [
+      {
+        "modelId": "ravager",
+        "name": "Ravager",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "oval",
+          "mm": 170,
+          "mm2": 90
+        },
+        "weapons": {
+          "default": [
+            "drk.w.dark-lance",
+            "drk.w.dark-lance-2",
+            "drk.w.disintegrator-cannon",
+            "drk.w.bladevanes"
+          ]
+        },
+        "figure": {
+          "archetype": "vehicle",
+          "kit": "generic-vehicle"
+        }
+      }
+    ],
+    "abilities": [
+      "drk.a.power-from-pain"
+    ],
+    "coreAbilities": [
+      {
+        "ability": "DEADLY_DEMISE",
+        "value": "D3"
+      },
+      {
+        "ability": "DEEP_STRIKE"
+      }
+    ],
+    "damaged": {
+      "threshold": 4,
+      "effect": {
+        "modifyRoll": {
+          "roll": "hit",
+          "value": -1
+        }
+      }
+    },
+    "points": [
+      {
+        "models": 1,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "vehicle",
+      "kit": "generic-vehicle"
+    }
+  }
+]

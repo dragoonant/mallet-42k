@@ -1,0 +1,54 @@
+[
+  {
+    "id": "drk.e.shudderworm-bottle",
+    "faction": "drukhari",
+    "name": "Shudderworm Bottle",
+    "text": "While the bearer leads a unit, every model in that unit, the bearer included, has a 5+ Feel No Pain save.",
+    "cost": 0,
+    "restriction": {
+      "keyword": [
+        "ARCHON"
+      ]
+    },
+    "effect": {
+      "id": "drk.e.shudderworm-bottle.effect",
+      "name": "Shudderworm Bottle",
+      "text": "While the bearer leads a unit, models in that unit have Feel No Pain 5+.",
+      "trigger": "feelNoPainRoll",
+      "when": {
+        "leaderAttached": true
+      },
+      "effect": {
+        "feelNoPain": 5
+      },
+      "scope": {
+        "who": "self"
+      }
+    }
+  },
+  {
+    "id": "drk.e.spiteful-predator",
+    "faction": "drukhari",
+    "name": "Spiteful Predator",
+    "text": "The bearer's unit, attached unit included, can shoot and declare a charge in a turn in which it Fell Back.",
+    "cost": 0,
+    "restriction": {
+      "keyword": [
+        "ARCHON"
+      ]
+    },
+    "effect": {
+      "id": "drk.e.spiteful-predator.effect",
+      "name": "Spiteful Predator",
+      "text": "The bearer's unit can shoot and declare a charge in a turn in which it Fell Back.",
+      "trigger": "always",
+      "effect": {
+        "shootAfterFallBack": true,
+        "chargeAfterFallBack": true
+      },
+      "scope": {
+        "who": "self"
+      }
+    }
+  }
+]

@@ -43,7 +43,7 @@ import { phantomsOverwatchArm, phantomsOverwatchStep } from '../factions/tyranid
 import { isBigGunsUnit, targetLegality } from './shooting'
 import { weaponService } from '../weapons'
 import { terrainService } from '../terrain'
-import { markNoCharge, transportService } from '../transports'
+import { markNoCharge, passengerHalves, transportService } from '../transports'
 import { clearTeleport, destroyTeleportingUnit, isTeleporting, teleportArrivalOpts } from '../teleport'
 import { notImplementedHandle, otherPlayer, type AdvanceResult, type EngineContext, type PhaseModule } from '../modules'
 import {
@@ -771,7 +771,7 @@ function resolveDisembark(state: GameState, unitId: UnitId, placements: ModelPla
   { rejection: Rejection } | { rejection: null; resolved: ResolvedPlacement[] } {
   const player = state.units[unitId].player
   const result = checkPlacements({
-    unitModels: unitModels(state, unitId), placements,
+    unitModels: passengerHalves(state, unitId).flatMap((id) => unitModels(state, id)), placements,
     constraints: emptyMoveConstraints(9999, { region: boardPolygon(state), mustEndOutsideEngagement: true, coherency: true }),
     otherFriendly: boardModelsOf(state, player), enemies: enemyModelsOnBoard(state, player), board: state.board,
   })
@@ -928,7 +928,7 @@ export function disembarkCandidates(state: GameState, player: PlayerId): UnitId[
   const activated = new Set(state.phaseState.activated)
   const declined = new Set<string>(JSON.parse(readMark(state, 'mv:disembarkDeclined') ?? '[]'))
   return Object.values(state.units)
-    .filter((u) => u.player === player && u.location === 'reserves' && !activated.has(u.id) && !declined.has(u.id)
+    .filter((u) => u.player === player && u.location === 'reserves' && !u.bodyguardUnitId && !activated.has(u.id) && !declined.has(u.id)
       && transportService.disembarkMode(state, u.id) !== null && disembarkPlacement(state, u.id) !== null)
     .map((u) => u.id)
     .sort()
@@ -940,7 +940,7 @@ function disembarkPlacement(state: GameState, unitId: UnitId): ModelPlacement[] 
   const t = transportService.transportOf(state, unitId)
   if (t === null || !state.units[t] || state.units[t].location !== 'board') return null
   const player = state.units[unitId].player
-  const models = unitModels(state, unitId)
+  const models = passengerHalves(state, unitId).flatMap((id) => unitModels(state, id)) // E3: an attached pair disembarks together
   if (models.length === 0) return null
   const enemies = enemyModelsOnBoard(state, player)
   return autoDeployPlacements(models, transportService.disembarkZone(state, t), boardModelsOf(state, player), enemies, {
@@ -974,11 +974,12 @@ function raiseDisembark(ctx: EngineContext, unitId: UnitId): void {
   const unit = s.units[unitId]
   const transportId = transportService.transportOf(s, unitId) as UnitId
   const zone = transportService.disembarkZone(s, transportId)
-  writeMark(s, 'mv:arriveGroup', JSON.stringify([unitId]))
+  const groupIds = passengerHalves(s, unitId) // E3: canonical first
+  writeMark(s, 'mv:arriveGroup', JSON.stringify(groupIds))
   writeMark(s, 'mv:arriveVia', 'disembark')
   ctx.decide({
     kind: 'deployUnit', player: unit.player, window: 'movement.start', canPass: true,
-    context: { unitIds: [unitId], zone, infiltrators: [], reservesAllowed: [] },
+    context: { unitIds: groupIds, zone, infiltrators: [], reservesAllowed: [] },
     constraints: emptyMoveConstraints(9999, { region: zone, mustEndOutsideEngagement: true, coherency: true }),
   })
 }
@@ -1458,7 +1459,7 @@ export const movementModule: PhaseModule = {
         const transportId = transportService.transportOf(s, uid) as UnitId
         for (const r of placed.resolved) setModelPos(s.models[r.model.id], r.to, r.facing)
         const u = s.units[uid]
-        u.location = 'board'
+        for (const h of passengerHalves(s, uid)) s.units[h].location = 'board'
         const mode = transportService.disembarkMode(s, uid)
         transportService.disembark(s, uid)
         ctx.emit({ type: 'AbilityTriggered', abilityId: 'transport.disembark', sourceUnitId: transportId, targetUnitId: uid, summary: `${u.name} disembark from ${s.units[transportId].name}`, player: u.player })

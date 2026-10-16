@@ -640,7 +640,6 @@ export function createGameState(setup: GameSetup, bundle: DataBundle, seed: stri
       if (!passenger) throw new EngineInvariantError(`embarked: unit '${e.unitRef}' not found for player ${pid}`)
       if (!transport) throw new EngineInvariantError(`embarked: transport '${e.transportRef}' not found for player ${pid}`)
       if (!datasheets[transport.datasheetId].transport) throw new EngineInvariantError(`embarked: '${e.transportRef}' is not a Transport`)
-      if (passenger.attachedLeaderId || passenger.bodyguardUnitId) throw new EngineInvariantError(`embarked: '${e.unitRef}' is an attached unit and cannot start embarked`)
       if (setup.players[pid].reserves.includes(e.unitRef) || setup.players[pid].reserves.includes(e.transportRef)) throw new EngineInvariantError(`embarked: '${e.unitRef}' / '${e.transportRef}' cannot also start in Reserves`)
       if (!transportService.canCarry(state, passenger.id, transport.id)) throw new EngineInvariantError(`embarked: '${e.unitRef}' cannot be carried by '${e.transportRef}' (keywords or capacity)`)
       transportService.embark(state, passenger.id, transport.id)

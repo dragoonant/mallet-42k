@@ -237,6 +237,23 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
             </>
           )}
 
+          {config.spikedPauldrons && (
+            <>
+              {[-1, 1].map((side) => (
+                <group key={side}>
+                  <mesh position={[side * (shoulderOffsetX + 0.05), 0.09, 0]} rotation={[0, 0, -side * 0.5]}>
+                    <GCone args={[0.03 * bulk, 0.2 * bulk, 5]} />
+                    <StdMat color={colors.trim} roughness={0.5} metalness={0.3} />
+                  </mesh>
+                  <mesh position={[side * (shoulderOffsetX - 0.03), 0.04, -0.09 * bulk]} rotation={[-1.2, 0, side * 0.2]}>
+                    <GCone args={[0.025 * bulk, 0.16 * bulk, 5]} />
+                    <StdMat color={colors.metal} roughness={0.4} metalness={0.6} />
+                  </mesh>
+                </group>
+              ))}
+            </>
+          )}
+
           <group ref={armLRef} position={[-shoulderOffsetX, 0, 0]}>
             <LimbSegment length={ARM_LEN} radius={armRadius} color={limb} />
             <group position={[0, -ARM_LEN, 0]}>
@@ -696,6 +713,59 @@ function HeadBody({
         </group>
       )
     }
+    case 'kabal-helm':
+      // Sleek dark helm with a narrow glowing teal visor and a swept-back spike crest.
+      return (
+        <group>
+          <HeadBlob radius={radius} color={colors.primary} />
+          <mesh position={[0, radius * 0.05, radius * 0.9]}>
+            <GBox args={[radius * 0.85, radius * 0.16, radius * 0.18]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.3} />
+          </mesh>
+          <mesh position={[0, radius * 0.75, -radius * 0.45]} rotation={[-1.1, 0, 0]}>
+            <GCone args={[radius * 0.2, radius * 1.3, 5]} />
+            <StdMat color={colors.trim} roughness={0.5} metalness={0.3} />
+          </mesh>
+        </group>
+      )
+    case 'archon-crown':
+      // Pale, cruel face under a ring of tall metal spikes, with two long horns sweeping out.
+      return (
+        <group>
+          <HeadBlob radius={radius} color={skinColor ?? PALE_SKIN} />
+          <mesh position={[0, radius * 0.05, radius * 0.92]}>
+            <GBox args={[radius * 0.9, radius * 0.16, radius * 0.14]} />
+            <StdMat color={colors.trim} emissive={colors.trim} emissiveIntensity={0.8} />
+          </mesh>
+          {[-0.6, -0.2, 0.2, 0.6].map((x) => (
+            <mesh key={x} position={[x * radius, radius * 0.95, -radius * 0.1]} rotation={[0, 0, -x * 0.5]}>
+              <GCone args={[radius * 0.13, radius * 0.75, 5]} />
+              <StdMat color={colors.metal} metalness={0.7} roughness={0.35} />
+            </mesh>
+          ))}
+          {[-1, 1].map((side) => (
+            <mesh key={side} position={[side * radius * 1.1, radius * 0.35, -radius * 0.2]} rotation={[0, 0, -side * 1.0]}>
+              <GCone args={[radius * 0.12, radius * 0.9, 5]} />
+              <StdMat color={colors.trim} metalness={0.4} roughness={0.5} />
+            </mesh>
+          ))}
+        </group>
+      )
+    case 'incubus-helm':
+      // Full-face helm with a teal slit and a tall crimson crest running front to back.
+      return (
+        <group>
+          <HeadBlob radius={radius} color={colors.primary} />
+          <mesh position={[0, radius * 0.0, radius * 0.9]}>
+            <GBox args={[radius * 0.7, radius * 0.14, radius * 0.18]} />
+            <StdMat color={colors.secondary} emissive={colors.secondary} emissiveIntensity={1.4} />
+          </mesh>
+          <mesh position={[0, radius * 1.0, -radius * 0.05]}>
+            <GBox args={[radius * 0.18, radius * 0.7, radius * 1.5]} />
+            <StdMat color={colors.trim} roughness={0.55} />
+          </mesh>
+        </group>
+      )
     case 'generic-head':
     default:
       return <HeadBlob radius={radius} color={colors.secondary} />

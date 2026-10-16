@@ -1,0 +1,127 @@
+[
+  {
+    "id": "drk.kabalite-warriors",
+    "faction": "drukhari",
+    "name": "Kabalite Warriors",
+    "keywords": [
+      "INFANTRY",
+      "BATTLELINE",
+      "KABAL",
+      "AELDARI",
+      "KABALITE WARRIORS"
+    ],
+    "factionKeywords": [
+      "DRUKHARI"
+    ],
+    "stats": {
+      "M": 8,
+      "T": 3,
+      "Sv": 4,
+      "W": 1,
+      "Ld": 6,
+      "OC": 2
+    },
+    "invuln": 6,
+    "composition": [
+      {
+        "modelId": "sybarite",
+        "name": "Sybarite",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "champion": true,
+        "base": {
+          "shape": "round",
+          "mm": 25
+        },
+        "weapons": {
+          "default": [
+            "drk.w.splinter-pistol",
+            "drk.w.sybarite-weapon"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "generic-infantry"
+        }
+      },
+      {
+        "modelId": "warrior",
+        "name": "Kabalite Warrior (splinter rifle)",
+        "min": 7,
+        "max": 7,
+        "default": 7,
+        "base": {
+          "shape": "round",
+          "mm": 25
+        },
+        "weapons": {
+          "default": [
+            "drk.w.splinter-rifle",
+            "drk.w.close-combat-weapon"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "generic-infantry"
+        }
+      },
+      {
+        "modelId": "shredder-warrior",
+        "name": "Kabalite Warrior (shredder)",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 25
+        },
+        "weapons": {
+          "default": [
+            "drk.w.shredder",
+            "drk.w.close-combat-weapon"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "generic-infantry"
+        }
+      },
+      {
+        "modelId": "cannon-warrior",
+        "name": "Kabalite Warrior (splinter cannon)",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 25
+        },
+        "weapons": {
+          "default": [
+            "drk.w.splinter-cannon",
+            "drk.w.close-combat-weapon"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "generic-infantry"
+        }
+      }
+    ],
+    "abilities": [
+      "drk.a.power-from-pain"
+    ],
+    "coreAbilities": [],
+    "points": [
+      {
+        "models": 10,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "infantry",
+      "kit": "generic-infantry"
+    }
+  }
+]

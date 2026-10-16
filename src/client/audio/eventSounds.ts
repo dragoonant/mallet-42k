@@ -176,6 +176,19 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ['kin-melee-weapon', 'wpn-close-combat-weapon'] as const,
   ['plasma-knife', 'wpn-power-weapon'] as const,
   ['heavy-plasma-axe', 'wpn-relic-weapon'] as const,
+  // Drukhari: splinter weapons patter like autoguns (the cannon like a big shoota), the shredder sprays shards, blades ring
+  // like power weapons (klaives hum like hyperphase), disintegrators thump like plasma, dark lances fire a tachyon-style beam.
+  ['splinter-pistol', 'wpn-autopistol'] as const,
+  ['splinter-rifle', 'wpn-autogun'] as const,
+  ['splinter-cannon', 'wpn-big-shoota'] as const,
+  ['shredder', 'webber-spray'] as const,
+  ['huskblade', 'wpn-power-weapon'] as const,
+  ['sybarite-weapon', 'wpn-power-weapon'] as const,
+  ['demiklaives', 'wpn-hyperphase-weapons'] as const,
+  ['klaive', 'wpn-hyperphase-weapons'] as const,
+  ['disintegrator-cannon', 'wpn-plasma-cannon'] as const,
+  ['dark-lance', 'wpn-tachyon-arrow'] as const,
+  ['bladevanes', 'wpn-spinnin-blades'] as const,
 ].sort((a, b) => b[0].length - a[0].length)
 
 const WEAPON_TRIM: Partial<Record<SfxId, number>> = {

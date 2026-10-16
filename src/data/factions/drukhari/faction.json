@@ -1,0 +1,32 @@
+{
+  "id": "drukhari",
+  "name": "Drukhari",
+  "factionKeyword": "DRUKHARI",
+  "armyRule": "drk.a.power-from-pain",
+  "detachments": [
+    {
+      "id": "drk.d.blades-of-torment",
+      "name": "The Blades of Torment",
+      "rule": "drk.a.power-from-pain",
+      "stratagems": [
+        "drk.s.quicksilver-reactions",
+        "drk.s.many-cuts",
+        "drk.s.there-and-gone"
+      ],
+      "enhancements": [
+        "drk.e.shudderworm-bottle",
+        "drk.e.spiteful-predator"
+      ]
+    }
+  ],
+  "paintScheme": {
+    "primary": "#1d2a2e",
+    "secondary": "#3fae9a",
+    "trim": "#7a1f3d",
+    "metal": "#9aa3ad",
+    "decal": "#d8e8e2"
+  },
+  "combatPatrols": [
+    "drk.cp.blades-of-torment"
+  ]
+}

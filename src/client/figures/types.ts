@@ -121,6 +121,15 @@ export type KitId =
   | 'lov-pioneer-comms'
   | 'lov-pioneer-searchlight'
   | 'lov-pioneer-rotary'
+  | 'drk-sybarite'
+  | 'drk-kabalite'
+  | 'drk-kabalite-shredder'
+  | 'drk-kabalite-cannon'
+  | 'drk-archon'
+  | 'drk-incubus'
+  | 'drk-klaivex'
+  | 'drk-raider'
+  | 'drk-ravager'
   | 'generic-infantry'
   | 'generic-heavy'
   | 'generic-monster'
@@ -140,6 +149,7 @@ export interface PaintColors {
  *  datasheet in this data set that isn't a flyer resolves to a biped). */
 export type HeadShape = 'marine-helmet' | 'terminator-helmet' | 'ork-head' | 'ork-boss-head' | 'necron-skull' | 'necron-lord' | 'sister-bob' | 'sister-hood' | 'arco-mask' | 'tyranid-head' | 'tyranid-prime-head' | 'tyranid-brute-head' | 'generic-head'
   | 'chaos-helmet' | 'chaos-sorcerer' | 'possessed-head' | 'cultist-hood'
+  | 'kabal-helm' | 'archon-crown' | 'incubus-helm'
   | 'guard-helmet' | 'officer-cap' | 'sentinel-cab' | 'tau-helmet' | 'tau-ethereal' | 'custodes-helm'
   | 'kin-helm' | 'kin-helm-crest'
 export type WeaponShape =
@@ -183,6 +193,11 @@ export type WeaponShape =
   | 'ion-blaster'
   | 'rail-rifle'
   | 'plasma-axe'
+  | 'splinter-rifle'
+  | 'splinter-cannon'
+  | 'shredder'
+  | 'huskblade'
+  | 'klaive'
 export type ShoulderPad = 'none' | 'small' | 'large'
 
 export interface BipedConfig {
@@ -222,6 +237,8 @@ export interface BipedConfig {
   legColor?: 'primary' | 'trim'
   /** A red cross patch on the chest (paintScheme.decal): the Guard medic's mark. */
   chestCross?: boolean
+  /** Drukhari dressing: long swept spikes on the shoulders and back (a barbed, cruel silhouette). */
+  spikedPauldrons?: boolean
 }
 
 /** Towed/emplaced gun with its crew (Astra Militarum Field Ordnance Battery): a long barrel or a rocket rack. */
@@ -233,7 +250,7 @@ export interface VehicleConfig {
   weapon: 'kustom-mega-blasta' | 'kopta-rokkits' | 'none'
   hasRotor: boolean
   /** 'dozer' = a tracked mining crawler (Goliath Rockgrinder); 'hover' = a skimmer transport (Devilfish); default is the gyrocopter rig. */
-  style?: 'copter' | 'dozer' | 'hover' | 'gravbike'
+  style?: 'copter' | 'dozer' | 'hover' | 'gravbike' | 'skiff' | 'gunboat'
   /** Grav-bike dressing (Hernkyn Pioneers): which kit the bike carries on top of its nose gun. */
   rig?: 'comms' | 'searchlight' | 'rotary'
 }

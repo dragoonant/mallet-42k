@@ -540,6 +540,32 @@ function MiracleDice({ dice: diceIn, id, enabled }: { dice: number[] | undefined
   )
 }
 
+/** True when any of the player's units carries Drukhari Power from Pain (matched by ability code, so it follows the data). */
+function hasPowerFromPain(state: GameState, id: PlayerId): boolean {
+  return Object.values(state.units).some((u) => {
+    if (u.player !== id) return false
+    const ds = state.datasheets[u.datasheetId]
+    return !!ds && ds.abilities.some((ab) => (state.abilities[ab] as { code?: string } | undefined)?.code === 'powerFromPain')
+  })
+}
+
+/** Drukhari Pain tokens (Power from Pain): a row of small pips, one per saved token. Renders nothing for other armies. */
+function PainTokens({ state, id }: { state: GameState; id: PlayerId }) {
+  if (!hasPowerFromPain(state, id)) return null
+  const raw = state.players[id].secondaryState?.painTokens
+  const n = typeof raw === 'number' && raw > 0 ? raw : 0
+  return (
+    <Tooltip title="Pain tokens" body="Spend one at the start of a phase to Empower a unit: it may re-roll Advance, Charge and (in Shooting or Fight) hit rolls that phase. You gain one at the start of the battle, whenever an enemy unit is destroyed, and whenever an enemy unit fails a Battle-shock test." placement="bottom"><div style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 4 }} data-testid={`hud-pain-${id}`}>
+      <span>Pain</span>
+      {n === 0 && <span style={mutedText}>none</span>}
+      {n > 0 && n <= 8 && Array.from({ length: n }, (_, i) => (
+        <span key={i} style={{ width: 10, height: 10, borderRadius: 5, background: '#3fe0c0', boxShadow: '0 0 4px #3fe0c0' }} />
+      ))}
+      {n > 8 && <span style={{ fontWeight: 700 }}>{n}</span>}
+    </div></Tooltip>
+  )
+}
+
 function PlayerBadge({ id, state }: { id: PlayerId; state: GameState }) {
   const bundle = useGameStore((s) => s.bundle)
   const [open, setOpen] = useState(false)
@@ -556,6 +582,7 @@ function PlayerBadge({ id, state }: { id: PlayerId; state: GameState }) {
         CP {p.cp}
       </div>
       <MiracleDice dice={(p as { miracle?: { dice?: number[] } }).miracle?.dice} id={id} enabled={hasActsOfFaith(state, id)} />
+      <PainTokens state={state} id={id} />
       <button style={vpButton} data-testid={`hud-vp-${id}`} onClick={() => setOpen((v) => !v)}>
         VP {p.vp} {scored.length > 0 ? (open ? '▲' : '▼') : ''}
       </button>
