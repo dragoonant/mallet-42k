@@ -192,7 +192,7 @@ export const ENABLED_GLB_SLUGS: readonly string[] = [
   'incubus',
   'raider',
   'ravager',
-  // Adeptus Mechanicus Purge Corps Deltic-9 (the Maniple Verask-Alpha units have no GLBs yet).
+  // Adeptus Mechanicus Purge Corps Deltic-9 and Maniple Verask-Alpha.
   'manipulus-skand',
   'skitarii-vanguard-alpha',
   'skitarii-vanguard-arc-rifle',
@@ -203,6 +203,15 @@ export const ENABLED_GLB_SLUGS: readonly string[] = [
   'sulphurhound-pistols',
   'pteraxii-sterylizor-alpha',
   'pteraxii-sterylizor',
+  'enginseer-verask',
+  'skitarii-ranger-alpha',
+  'skitarii-ranger',
+  'skitarii-ranger-data-tether',
+  'skitarii-ranger-arc-rifle',
+  'skitarii-ranger-arquebus',
+  'kataphron-destroyer-grav',
+  'kataphron-destroyer-plasma',
+  'onager-dunecrawler',
 ]
 
 export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
@@ -386,7 +395,7 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'drk.raider/raider': 'raider',
   'drk.ravager/ravager': 'ravager',
 
-  // Adeptus Mechanicus Purge Corps Deltic-9 (MGSD GLBs). Maniple Verask-Alpha units (Enginseer, Rangers, Kataphrons, Dunecrawler) stay procedural.
+  // Adeptus Mechanicus Purge Corps Deltic-9 and Maniple Verask-Alpha (MGSD GLBs).
   'adm.manipulus-skand/skand': 'manipulus-skand',
   'adm.skitarii-vanguard/alpha': 'skitarii-vanguard-alpha',
   'adm.skitarii-vanguard/arc-rifle': 'skitarii-vanguard-arc-rifle',
@@ -397,6 +406,15 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'adm.serberys-sulphurhounds/pistols': 'sulphurhound-pistols',
   'adm.pteraxii-sterylizors/alpha': 'pteraxii-sterylizor-alpha',
   'adm.pteraxii-sterylizors/sterylizor': 'pteraxii-sterylizor',
+  'adm.enginseer-verask/verask': 'enginseer-verask',
+  'adm.skitarii-rangers/alpha': 'skitarii-ranger-alpha',
+  'adm.skitarii-rangers/ranger': 'skitarii-ranger',
+  'adm.skitarii-rangers/data-tether': 'skitarii-ranger-data-tether',
+  'adm.skitarii-rangers/arc-rifle': 'skitarii-ranger-arc-rifle',
+  'adm.skitarii-rangers/arquebus': 'skitarii-ranger-arquebus',
+  'adm.kataphron-destroyers/grav': 'kataphron-destroyer-grav',
+  'adm.kataphron-destroyers/plasma': 'kataphron-destroyer-plasma',
+  'adm.onager-dunecrawler/dunecrawler': 'onager-dunecrawler',
 
   // Wave 2 patrols (MGSD GLBs). Riders/vehicles render at baked GLB scale; icon/musician/plasma variants share a base slug.
   'ael.farseer-iraneth/farseer': 'farseer-iraneth',

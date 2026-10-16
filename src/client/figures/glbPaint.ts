@@ -25,6 +25,7 @@ const SOURCE_HUES: Record<string, { major: string | null; minor: string | null }
   'leagues-of-votann': { major: '#4c6067', minor: '#8a5a30' },
   'death-guard': { major: '#6f7149', minor: '#6a4f3c' },
   'world-eaters': { major: '#62252b', minor: '#7a6140' },
+  'adeptus-mechanicus': { major: '#a4492f', minor: null },
   'chaos-daemons': { major: '#7b342d', minor: '#77603f' },
 }
 

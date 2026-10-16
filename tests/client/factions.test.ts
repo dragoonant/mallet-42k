@@ -344,7 +344,6 @@ describe('drukhari figures and setup', () => {
 
 describe('adeptus mechanicus figures', () => {
   const sheets = Object.values(bundle.datasheets).filter((d) => d.id.startsWith('adm.'))
-  const PURGE_CORPS_SHEETS = new Set(['adm.manipulus-skand', 'adm.skitarii-vanguard', 'adm.serberys-sulphurhounds', 'adm.pteraxii-sterylizors'])
 
   it('the bundle carries the adeptus mechanicus datasheets', () => {
     expect(sheets.length).toBeGreaterThan(0)
@@ -369,16 +368,10 @@ describe('adeptus mechanicus figures', () => {
         if (BODY_KIND[kit] === 'hound') expect(HOUND_CONFIG[kit], kit).toBeDefined()
       })
 
-      // Purge Corps Deltic-9 units have SD figure GLBs; the Maniple Verask-Alpha units must fall back to the procedural figure.
-      if (PURGE_CORPS_SHEETS.has(ds.id)) {
-        it(`${ds.id}/${m.modelId} uses its enabled SD figure GLB`, () => {
-          expect(glbSlugFor(ds.id, m.modelId)).toBeDefined()
-        })
-      } else {
-        it(`${ds.id}/${m.modelId} has no GLB lookup and falls back to the procedural figure`, () => {
-          expect(glbSlugFor(ds.id, m.modelId)).toBeUndefined()
-        })
-      }
+      // Every Adeptus Mechanicus unit has an SD figure GLB.
+      it(`${ds.id}/${m.modelId} uses its enabled SD figure GLB`, () => {
+        expect(glbSlugFor(ds.id, m.modelId)).toBeDefined()
+      })
     }
   }
 
