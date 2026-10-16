@@ -1022,3 +1022,40 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | CLA-033 | CLA-6.7 | cult sniper rifle: Precision lets the hit go to an attached enemy CHARACTER; Heavy +1 to hit when stationary |
 | CLA-034 | CLA-6.8 | weapons: hand flamer D6 auto-hits ignoring cover and usable in Engagement Range; twin heavy stubber re-rolls failed wound rolls and fires 6 shots within 18"; mining laser D6+1 damage |
 | CLA-035 | CLA-6.9 | Metamorph mutations: each model fights with exactly one profile (strike 3 A or sweep 5 A), never both |
+
+## INF — Tyranids: Insidious Infiltrators (docs/spec/factions/tyranids--insidious-infiltrators.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| INF-001 | INF-1 | patrol loads: 5 units, 11 models (1 + 1 + 3 × 3); Death's Shadow is WARLORD and bearer of Neurogoad; default secondary Alpha Predation; three separate Leaper units |
+| INF-002 | INF-1.2 | Psionic Phantoms selected → its ability sits on Death's Shadow's only model (no CHARACTER in the army) |
+| INF-003 | INF-2.2 | no Synapse: a Leaper unit next to Death's Shadow takes a Battle-shock test on 2D6; `tyr.von-ryans-leapers-inf` differs from `tyr.von-ryans-leapers` only by lacking `tyr.a.synapse` |
+| INF-004 | INF-2.1 | Shadow in the Warp offered at either player's `command.start` while Death's Shadow is on the board; used → every enemy board unit tests once; never again this battle |
+| INF-005 | INF-6.1 | Neural Disruption at own `command.start`: enemy unit 11.9" away is an option, one 12.1" away is not; picked unit takes one Battle-shock test (2D6 vs Ld) |
+| INF-006 | INF-6.1 | Neural Disruption not offered in the opponent's Command phase, nor twice in one phase; a unit picked by both Neural Disruption and Shadow in the Warp tests twice |
+| INF-007 | INF-6.2 | Psychological Saboteur: a Battle-shocked enemy unit within 12" of Death's Shadow → its hit rolls −1; not shocked → 0; shocked but 12.5" away → 0 |
+| INF-008 | INF-6.2 | Psychological Saboteur wounds: the Lictor (20" from Death's Shadow) attacks a shocked enemy unit 10" from Death's Shadow → +1 to wound; target 13" away → 0; Death's Shadow destroyed → 0 |
+| INF-009 | INF-6.2 | Psychological Saboteur stacks with another −1 to hit only up to the −1 cap |
+| INF-010 | INF-6.3 | Feeder Tendrils: the Lictor destroys an enemy CHARACTER model → +1 CP; a non-CHARACTER kill → 0; a second CHARACTER kill in the same round → 0 (R-4.2 cap); a CHARACTER killed by a Leaper → 0 |
+| INF-011 | INF-6.6 | Precision: Lictor claws and talons vs an attached unit → the attacker may allocate to the Leader model |
+| INF-012 | INF-6.5 | Lone Operative: Death's Shadow and the Lictor can be shot from 12" but not 12.1" |
+| INF-013 | INF-6 | core abilities: the Lictor and Leapers fight in the Fights First step without charging, Death's Shadow does not; all three datasheets deploy via Infiltrators (>9" from the enemy DZ and models); ranged hit rolls vs each get −1 (Stealth) |
+| INF-014 | INF-6 | profiles: Death's Shadow 4+ invuln, Lictor no invuln, Leapers 6+; piercing claws A6 WS2+ S6 AP−2 D1; Lictor claws A6 WS2+ S7 AP−2 D2 |
+| INF-015 | INF-3.1, 3.3 | Neurogoad at own `command.start`: friendly unit 11" from the bearer is an option, 12.5" is not; picked → its charge roll may be re-rolled and its hit rolls may be re-rolled, also in the opponent's following Fight phase; the effect is gone at the start of the Tyranid player's next turn |
+| INF-016 | INF-3.3 | Neurogoad not offered in the opponent's Command phase, and only once per own Command phase |
+| INF-017 | INF-3.4, 3.5 | Psionic Phantoms: an enemy unit declares ranged targets including Death's Shadow → offer; used → a Normal move of up to 6" (6.1" rejected, ending in ER rejected); bearer still visible → the declared attacks resolve unchanged |
+| INF-018 | INF-3.6, 3.7 | Psionic Phantoms: bearer hidden after the move, D6 = 2 → the shooter re-declares only the weapons that targeted the bearer; new legal targets accepted, the bearer is not; pass → those attacks are lost; other declared targets unchanged |
+| INF-019 | INF-3.8 | Psionic Phantoms: bearer hidden, D6 = 5 → models that targeted the bearer make no attacks (their weapons aimed at other units dropped too); models that targeted other units still shoot |
+| INF-020 | INF-3.4 | Psionic Phantoms: once per battle round (second targeting in the same round → no offer; next round → offer); offered vs Fire Overwatch after set-up, after a move ends and after a charge declaration (4-6: that Overwatch makes no attacks), not offered vs the 'starts a move' Overwatch trigger, not offered while the bearer is in ER, or when only another unit is targeted |
+| INF-021 | INF-4.1, 4.3 | Alpha Predation: enemy Warlord destroyed in round 2 → +15 VP; in round 3 → +10; in round 5 → +5; scored once only |
+| INF-022 | INF-4.3 | Alpha Predation: enemy Warlord stranded in Reserves and culled at the end of round 3 → +10 VP |
+| INF-023 | INF-4.2, 4.4 | Left to Last: destroying an enemy non-Warlord unit while the enemy Warlord lives → +4 VP each; destroying the Warlord's unit → 0; any kill after that → 0 |
+| INF-024 | INF-4.4 | Left to Last: an enemy unit lost to its own Hazardous roll or the Reserves cull → 0; a Bodyguard half destroyed while its attached Warlord lives → +4 |
+| INF-025 | INF-5.1, 5.4 | Swift Kills on Leapers not yet fought: Leaper's talons AP −1 → −2, Anti-MONSTER 4+ and Anti-VEHICLE 4+ (wound roll 4 vs a VEHICLE is critical; vs INFANTRY not); ends at phase end |
+| INF-026 | INF-5.1 | Swift Kills offered in both players' Fight phases; not offered for a unit that has already fought this phase |
+| INF-027 | INF-5.2, 5.5 | Pheromonal Trace at own `command.end`: Leapers within 3" of a marker you control → `securedBy` you; Leapers leave → the marker stays yours; opponent controls it at the end of a later Command phase → flag cleared |
+| INF-028 | INF-5.2 | Pheromonal Trace not offered for the Lictor or Death's Shadow (not VON RYAN'S LEAPERS), for a marker you do not control, or for Leapers out of range |
+| INF-029 | INF-5.3, 5.6 | Predators, Not Prey in Movement on a unit not yet moved: a Normal move whose path crosses enemy and friendly models (and passes through ER) is accepted; ending within ER or overlapping is still rejected |
+| INF-030 | INF-5.6 | Predators, Not Prey: a Fall Back that crosses enemies (or a Battle-shocked unit) rolls no Desperate Escape dice and loses no models |
+| INF-031 | INF-5.3, 5.7 | Predators, Not Prey in the Charge phase before a charge is declared → the charge move may cross models; not offered for a unit that already moved / declared a charge, nor in the opponent's turn |
+| INF-032 | INF-6.4 | Pouncing Leap: Heroic Intervention on each Leaper unit costs 0 CP and is offered even after HI was used on another Leaper unit this phase; the Lictor pays 1 CP |
+| INF-033 | INF-1 | data: every new id exists and validates; the Vardenghast Swarm records (datasheets, weapons, abilities, stratagems, enhancements, patrol) are byte-for-byte unchanged |
