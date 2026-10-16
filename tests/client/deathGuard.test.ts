@@ -1,5 +1,5 @@
 // Death Guard in the client: selectable on either seat, every datasheet/model resolves to its own procedural kit
-// (no GLB assets exist yet, so the lookup must fall back cleanly), and the plague weapons voice as intended.
+// (each also has an SD figure GLB, Poxwalkers alternating two sculpts), and the plague weapons voice as intended.
 import { describe, expect, it } from 'vitest'
 import { loadBundle } from '../../src/data'
 import { useGameStore } from '../../src/client/store/game'
@@ -31,8 +31,8 @@ describe('death-guard client plumbing', () => {
     expect(kits.size).toBe(7)
   })
 
-  it('no GLB is registered yet, so the procedural figure is used', () => {
-    for (const sheet of dgSheets) for (const m of sheet.composition) expect(glbSlugFor(sheet.id, m.modelId), `${sheet.id}/${m.modelId}`).toBeUndefined()
+  it('every Death Guard model resolves to an enabled SD figure GLB', () => {
+    for (const sheet of dgSheets) for (const m of sheet.composition) expect(glbSlugFor(sheet.id, m.modelId), `${sheet.id}/${m.modelId}`).toBeDefined()
   })
 
   it('newGame seats Death Guard on either side and in a mirror', async () => {
@@ -45,5 +45,13 @@ describe('death-guard client plumbing', () => {
     await useGameStore.getState().newGame({ playerFaction: 'death-guard', opponentFaction: 'death-guard', opponent: 'hotseat', seed: 'dg-mirror' })
     s = useGameStore.getState().state!
     expect([s.players.A.faction, s.players.B.faction]).toEqual(['death-guard', 'death-guard'])
+  })
+})
+
+describe('poxwalker sculpt variants', () => {
+  it('alternate between the two Poxwalker GLBs by model instance id', () => {
+    const slugs = new Set(['m1', 'm2', 'm3', 'm4', 'm5', 'm6'].map((id) => glbSlugFor('dg.poxwalkers', 'poxwalker', id)))
+    expect(slugs).toEqual(new Set(['poxwalker', 'poxwalker-b']))
+    expect(glbSlugFor('dg.poxwalkers', 'poxwalker')).toBe('poxwalker')
   })
 })

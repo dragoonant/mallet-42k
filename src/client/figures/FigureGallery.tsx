@@ -14,6 +14,8 @@ interface GalleryEntry {
   label: string
   /** Datasheet model type, for a unit whose models look different (resolveFigureKit's per-model kits). */
   modelId?: string
+  /** Stable per-instance key, only to pick a model type's alternate GLB sculpt. */
+  variantKey?: string
 }
 
 const GALLERY_ENTRIES: GalleryEntry[] = [
@@ -157,9 +159,10 @@ const GALLERY_ENTRIES: GalleryEntry[] = [
   { datasheetId: 'dg.plague-marines', modelId: 'boltgun', faction: 'death-guard', label: 'Plague Marine' },
   { datasheetId: 'dg.plague-marines', modelId: 'spewer', faction: 'death-guard', label: 'Plague Marine (spewer)' },
   { datasheetId: 'dg.plague-marines', modelId: 'blight-launcher', faction: 'death-guard', label: 'Plague Marine (blight launcher)' },
-  { datasheetId: 'dg.folgoth-grelch', faction: 'death-guard', label: 'Folgoth Grelch' },
-  { datasheetId: 'dg.typhus', faction: 'death-guard', label: 'Typhus' },
-  { datasheetId: 'dg.poxwalkers', faction: 'death-guard', label: 'Poxwalker' },
+  { datasheetId: 'dg.folgoth-grelch', modelId: 'grelch', faction: 'death-guard', label: 'Folgoth Grelch' },
+  { datasheetId: 'dg.typhus', modelId: 'typhus', faction: 'death-guard', label: 'Typhus' },
+  { datasheetId: 'dg.poxwalkers', modelId: 'poxwalker', faction: 'death-guard', label: 'Poxwalker' },
+  { datasheetId: 'dg.poxwalkers', modelId: 'poxwalker', variantKey: 'b1', faction: 'death-guard', label: 'Poxwalker (variant)' },
   { datasheetId: 'csm.helbrute', modelId: 'helbrute', faction: 'chaos-space-marines', label: "Helbrute" },
   { datasheetId: 'we.khorne-berzerkers', modelId: 'champion', faction: 'world-eaters', label: 'Berzerker Champion' },
   { datasheetId: 'we.khorne-berzerkers', modelId: 'plasma', faction: 'world-eaters', label: 'Berzerker (plasma pistol)' },
@@ -275,8 +278,8 @@ export function FigureGallery({ pose = 'idle', faction }: FigureGalleryProps) {
         <meshStandardMaterial color="#2c2f38" />
       </mesh>
       {entries.map((entry, i) => (
-        <group key={`${entry.datasheetId}/${entry.modelId ?? ''}`} position={[startX + positions[i], 0, 0]}>
-          <Figure datasheetId={entry.datasheetId} modelId={entry.modelId} faction={entry.faction} pose={pose} />
+        <group key={`${entry.datasheetId}/${entry.modelId ?? ''}/${entry.variantKey ?? ''}`} position={[startX + positions[i], 0, 0]}>
+          <Figure datasheetId={entry.datasheetId} modelId={entry.modelId} variantKey={entry.variantKey} faction={entry.faction} pose={pose} />
           <Text position={[0, 0.15, 1.3]} fontSize={0.2} color="#e8e8f2" anchorX="center" anchorY="middle" maxWidth={MIN_SPACING - 0.4}>
             {entry.label}
           </Text>

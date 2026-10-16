@@ -20,8 +20,12 @@ const SOURCE_HUES: Record<string, { major: string | null; minor: string | null }
   'adeptus-custodes': { major: '#d9a521', minor: '#a3171d' },
   'genestealer-cults': { major: '#c79a2e', minor: '#5d3a8c' },
   drukhari: { major: null, minor: '#3fae9a' },
-  aeldari: { major: '#ece4cf', minor: '#1f6f78' },
+  aeldari: { major: '#ece4cf', minor: '#4a786d' },
   'thousand-sons': { major: '#1f4fa3', minor: '#d4a73a' },
+  'leagues-of-votann': { major: '#4c6067', minor: '#8a5a30' },
+  'death-guard': { major: '#6f7149', minor: '#6a4f3c' },
+  'world-eaters': { major: '#62252b', minor: '#7a6140' },
+  'chaos-daemons': { major: '#7b342d', minor: '#77603f' },
 }
 
 function hsv(hex: string): [number, number, number] {

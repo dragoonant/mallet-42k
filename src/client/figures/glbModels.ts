@@ -138,6 +138,50 @@ export const ENABLED_GLB_SLUGS: readonly string[] = [
   'devilfish',
   'deaths-shadow',
   'lictor',
+  // Wave 2 patrols (Aeldari, Leagues of Votann, Death Guard, Thousand Sons, World Eaters, Chaos Daemons).
+  'farseer-iraneth',
+  'guardian-defender',
+  'heavy-weapon-platform',
+  'windrider-catapult',
+  'windrider-scatter',
+  'wraithlord',
+  'kahl-warspeke',
+  'hearthkyn-theyn',
+  'hearthkyn-warrior-ion',
+  'hearthkyn-warrior-hylas',
+  'hearthkyn-warrior-magna',
+  'hernkyn-pioneer',
+  'cthonian-beserk-axe',
+  'cthonian-beserk-gauntlet',
+  'cthonian-beserk-mole',
+  'typhus',
+  'folgoth-grelch',
+  'plague-champion',
+  'plague-marine-spewer',
+  'plague-marine-blight-launcher',
+  'plague-marine',
+  'poxwalker',
+  'poxwalker-b',
+  'ahrak-the-time-weaver',
+  'scarab-occult-sorcerer',
+  'scarab-occult-combi',
+  'scarab-occult-soulreaper',
+  'scarab-occult-hellfyre',
+  'tzaangor',
+  'karagar-the-blooded',
+  'berzerker-champion',
+  'berzerker-icon',
+  'berzerker-eviscerator',
+  'berzerker',
+  'jakhal-pack-leader',
+  'jakhal-dishonoured',
+  'jakhal-mauler',
+  'jakhal',
+  'khharret',
+  'bloodletter',
+  'bloodcrusher',
+  'flesh-hound',
+  'gore-hound',
 ]
 
 export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
@@ -321,18 +365,77 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'drk.raider/raider': 'raider',
   'drk.ravager/ravager': 'ravager',
 
-  // Thousand Sons: no GLBs yet (slugs unlisted in ENABLED_GLB_SLUGS), so the procedural kits draw them until a file lands.
+  // Wave 2 patrols (MGSD GLBs). Riders/vehicles render at baked GLB scale; icon/musician/plasma variants share a base slug.
+  'ael.farseer-iraneth/farseer': 'farseer-iraneth',
+  'ael.guardian-defenders/guardian-defender': 'guardian-defender',
+  'ael.guardian-defenders/heavy-weapon-platform': 'heavy-weapon-platform',
+  'ael.windriders/windrider-catapult': 'windrider-catapult',
+  'ael.windriders/windrider-scatter': 'windrider-scatter',
+  'ael.wraithlord/wraithlord': 'wraithlord',
+  'lov.kahl-warspeke/kahl': 'kahl-warspeke',
+  'lov.hearthkyn-warriors/theyn': 'hearthkyn-theyn',
+  'lov.hearthkyn-warriors/warrior': 'hearthkyn-warrior-ion',
+  'lov.hearthkyn-warriors/warrior-comms': 'hearthkyn-warrior-ion',
+  'lov.hearthkyn-warriors/warrior-medipack': 'hearthkyn-warrior-ion',
+  'lov.hearthkyn-warriors/warrior-scanner': 'hearthkyn-warrior-ion',
+  'lov.hearthkyn-warriors/warrior-hylas': 'hearthkyn-warrior-hylas',
+  'lov.hearthkyn-warriors/warrior-magna': 'hearthkyn-warrior-magna',
+  'lov.hernkyn-pioneers/pioneer-comms': 'hernkyn-pioneer',
+  'lov.hernkyn-pioneers/pioneer-searchlight': 'hernkyn-pioneer',
+  'lov.hernkyn-pioneers/pioneer-rotary': 'hernkyn-pioneer',
+  'lov.cthonian-beserks/beserk': 'cthonian-beserk-axe',
+  'lov.cthonian-beserks/beserk-gauntlet': 'cthonian-beserk-gauntlet',
+  'lov.cthonian-beserks/beserk-mole': 'cthonian-beserk-mole',
+  'dg.typhus/typhus': 'typhus',
+  'dg.folgoth-grelch/grelch': 'folgoth-grelch',
+  'dg.plague-marines/champion': 'plague-champion',
+  'dg.plague-marines/spewer': 'plague-marine-spewer',
+  'dg.plague-marines/blight-launcher': 'plague-marine-blight-launcher',
+  'dg.plague-marines/boltgun': 'plague-marine',
+  'dg.poxwalkers/poxwalker': 'poxwalker',
   'ths.ahrak-the-time-weaver/ahrak': 'ahrak-the-time-weaver',
-  'ths.scarab-occult-terminators/sorcerer': 'scarab-sorcerer',
-  'ths.scarab-occult-terminators/combi': 'scarab-terminator-combi',
-  'ths.scarab-occult-terminators/soulreaper': 'scarab-terminator-soulreaper',
-  'ths.scarab-occult-terminators/hellfyre': 'scarab-terminator-hellfyre',
+  'ths.scarab-occult-terminators/sorcerer': 'scarab-occult-sorcerer',
+  'ths.scarab-occult-terminators/combi': 'scarab-occult-combi',
+  'ths.scarab-occult-terminators/soulreaper': 'scarab-occult-soulreaper',
+  'ths.scarab-occult-terminators/hellfyre': 'scarab-occult-hellfyre',
   'ths.tzaangors/tzaangor': 'tzaangor',
+  'we.karagar-the-blooded/karagar': 'karagar-the-blooded',
+  'we.khorne-berzerkers/champion': 'berzerker-champion',
+  'we.khorne-berzerkers/plasma': 'berzerker',
+  'we.khorne-berzerkers/icon': 'berzerker-icon',
+  'we.khorne-berzerkers/eviscerator': 'berzerker-eviscerator',
+  'we.khorne-berzerkers/chainblade': 'berzerker',
+  'we.jakhals/pack-leader': 'jakhal-pack-leader',
+  'we.jakhals/dishonoured': 'jakhal-dishonoured',
+  'we.jakhals/mauler': 'jakhal-mauler',
+  'we.jakhals/icon': 'jakhal',
+  'we.jakhals/jakhal': 'jakhal',
+  'cdm.khharret-the-butcher/khharret': 'khharret',
+  'cdm.bloodletters/bloodletter': 'bloodletter',
+  'cdm.bloodletters/bloodletter-icon': 'bloodletter',
+  'cdm.bloodletters/bloodletter-musician': 'bloodletter',
+  'cdm.bloodcrushers/bloodcrusher': 'bloodcrusher',
+  'cdm.bloodcrushers/bloodcrusher-icon': 'bloodcrusher',
+  'cdm.bloodcrushers/bloodcrusher-musician': 'bloodcrusher',
+  'cdm.flesh-hounds/flesh-hound': 'flesh-hound',
+  'cdm.flesh-hounds/gore-hound': 'gore-hound',
 }
 
 /** The enabled GLB slug for a model type, or undefined (use the procedural figure). */
-export function glbSlugFor(datasheetId: string, modelId: string | undefined): string | undefined {
+export function glbSlugFor(datasheetId: string, modelId: string | undefined, variantKey?: string): string | undefined {
   if (!modelId) return undefined
-  const slug = GLB_SLUG_BY_MODEL[`${datasheetId}/${modelId}`]
+  let slug = GLB_SLUG_BY_MODEL[`${datasheetId}/${modelId}`]
+  // A model type with two sculpts (the Poxwalkers) alternates by a stable hash of the model instance id.
+  const alt = slug ? GLB_ALT_SLUG[slug] : undefined
+  if (alt && variantKey && variantHash(variantKey) % 2 === 1) slug = alt
   return slug && ENABLED_GLB_SLUGS.includes(slug) ? slug : undefined
+}
+
+/** Slugs with a second sculpt: half of the model instances (by id hash) use the alternate. */
+const GLB_ALT_SLUG: Readonly<Record<string, string>> = { poxwalker: 'poxwalker-b' }
+
+function variantHash(key: string): number {
+  let h = 0
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0
+  return h
 }

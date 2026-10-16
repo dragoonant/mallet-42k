@@ -412,8 +412,8 @@ describe('thousand sons figures and setup', () => {
       })
     }
 
-    it(`${ds.id} has no GLB yet and falls back to the procedural kit`, () => {
-      for (const m of ds.composition) expect(glbSlugFor(ds.id, m.modelId), m.modelId).toBeUndefined()
+    it(`${ds.id} uses its enabled SD figure GLB`, () => {
+      for (const m of ds.composition) expect(glbSlugFor(ds.id, m.modelId), m.modelId).toBeDefined()
     })
   }
 
@@ -469,9 +469,8 @@ describe('chaos daemons figures and setup', () => {
         if (BODY_KIND[kit] === 'hound') expect(HOUND_CONFIG[kit], kit).toBeDefined()
       })
 
-      // No GLBs yet: a missing model must leave the procedural figure in place rather than throw.
-      it(`${ds.id}/${m.modelId} has no GLB lookup and falls back to the procedural figure`, () => {
-        expect(glbSlugFor(ds.id, m.modelId)).toBeUndefined()
+      it(`${ds.id}/${m.modelId} uses its enabled SD figure GLB`, () => {
+        expect(glbSlugFor(ds.id, m.modelId)).toBeDefined()
       })
     }
   }

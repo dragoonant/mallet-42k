@@ -39,6 +39,8 @@ export interface FigureProps {
   /** Datasheet model type (Model.datasheetModelId, e.g. "sergeant"). Optional; only used to pick a GLB body
    *  (see glbModels.ts) — omit and the procedural figure is always used. */
   modelId?: string
+  /** Stable per-model-instance key (the engine model id); only picks between a model type's alternate GLB sculpts (e.g. Poxwalkers). */
+  variantKey?: string
   /** Faction id, e.g. "sm" | "ork" | "necrons" — resolves the paintScheme. Unknown ids paint neutral grey. */
   faction: string
   /** Owning seat in a game; picks up that seat's game-only colours (paint.ts bySeat). Omit outside a game. */
@@ -80,6 +82,7 @@ const ORIGIN = [0, 0, 0] as const
 export const Figure = memo(function Figure({
   datasheetId,
   modelId,
+  variantKey,
   faction,
   seat,
   position = ORIGIN,
@@ -97,7 +100,7 @@ export const Figure = memo(function Figure({
   // faces local +Z, which three's rotation.y turns to (sin θ, cos θ); θ = π/2 − f lines them up.
   const yaw = rotationY === undefined ? 0 : Math.PI / 2 - rotationY
   const bundle = useDataBundle()
-  const glb = useGlbInstance(glbSlugFor(datasheetId, modelId))
+  const glb = useGlbInstance(glbSlugFor(datasheetId, modelId, variantKey))
   const seedRef = useRef(Math.random() * 100)
   const groupRef = useRef<Group>(null!)
   const easedPos = useRef({ x: position[0], y: position[1], z: position[2] })

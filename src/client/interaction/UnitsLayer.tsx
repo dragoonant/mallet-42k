@@ -68,6 +68,7 @@ function ModelFigure({ x, y, z, children }: { x: number; y: number; z: number; c
 
 interface UnitModelProps {
   unitId: string
+  modelInstanceId: string
   datasheetId: string
   modelType: string
   faction: string
@@ -117,6 +118,7 @@ const UnitModel = memo(function UnitModel(p: UnitModelProps) {
           <Figure
             datasheetId={p.datasheetId}
             modelId={p.modelType}
+            variantKey={p.modelInstanceId}
             faction={p.faction}
             seat={p.seat}
             rotationY={p.rotationY}
@@ -189,6 +191,7 @@ export function UnitsLayer() {
                 <UnitModel
                   key={modelId}
                   unitId={unit.id}
+                  modelInstanceId={modelId}
                   datasheetId={unit.datasheetId}
                   modelType={m.datasheetModelId}
                   faction={faction}
