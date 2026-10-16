@@ -952,3 +952,34 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | SDC-030 | SDC-6.8 | Devilfish destroyed with passengers: Deadly Demise first, then passengers placed within 3", D6 per model (1 = MW), unit Battle-shocked and cannot charge |
 | SDC-031 | SDC-6 | weapons: rail rifle Heavy +1 hit when stationary and Devastating Wounds on a crit wound; pulse blaster Assault after Advance; twin pulse carbine Twin-linked wound re-roll; projector Blast +1 A per 5 models |
 | SDC-032 | SDC-6 | Deep Strike: Cloudspear may start in Reserves (not round 1, >9" from enemies); Devilfish may not |
+
+## DZE — Chaos Space Marines: Dark Zealots (docs/spec/factions/chaos-space-marines--dark-zealots.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| DZE-001 | DZE-1 | patrol `csm.cp.dark-zealots` loads: 4 units, 21 models (Ghallaron unit 3, Legionaries 10, Havocs 5, Helbrute 1); Ghallaron model is WARLORD with Hateful Exhortation, attached to Legionaries; default secondary Champion of the Dark Gods; Zarkan's Daemonkin still loads unchanged |
+| DZE-002 | DZE-1.1 | Ghallaron unit: Ghallaron W4 Sv3+ Ld5+, Disciples W1 Sv6+ Ld7+, all 4+ invuln; attached to Legionaries, an enemy non-Precision attack may be allocated to a Disciple but not to Ghallaron while a Legionary lives |
+| DZE-003 | DZE-1.2 | Patrol Squads: split → `legionaries-a` and `legionaries-b` of 5 each with the DZE-1.2 wargear, Ghallaron attaches to `legionaries-a`; unsplit is the default |
+| DZE-004 | DZE-2.1 | Havocs selected to shoot → Dark Pact offered (lethal / sustained / decline); decline → no test at any point |
+| DZE-005 | DZE-2.2 | Pact made → no Ld roll at selection; the picked ability is on every weapon of the unit for the whole activation |
+| DZE-006 | DZE-2.3 | Pact made while shooting → Ld test rolled at `shooting.attacksResolved` after the last attack; fail → D3 mortal wounds resolved before the next unit is selected; pass → none |
+| DZE-007 | DZE-2.3 | Helbrute Pact in the Fight phase → Ld test after its attacks (after consolidation); attached Ghallaron + Legionaries test against Ld 5+ (best Ld) |
+| DZE-008 | DZE-2.3 | unit destroyed by its own Hazardous rolls before the test → no test, no error |
+| DZE-009 | DZE-2.1 | Fire Overwatch by Legionaries / Havocs → no Pact prompt; Zarkan's patrol units still test before attacking (CHA-003 regression) |
+| DZE-010 | DZE-3.1 | Hateful Exhortation: at the start of round 1 the owner picks enemy unit X (once, never again in later rounds); Legionary critical wound vs X (AP 0 boltgun) resolves at AP −1; vs another unit no change; non-critical wound vs X no change |
+| DZE-011 | DZE-3.1 | Hateful Exhortation stops once Ghallaron is destroyed; an attached marked enemy unit stays marked on both halves after its leader detaches |
+| DZE-012 | DZE-3.2 | Infernal Blessing: Ghallaron ignores lost wounds on 5+ (normal and mortal); Disciples and Legionaries get no FNP |
+| DZE-013 | DZE-4.1 | Champion of the Dark Gods: Ghallaron's crozius kills an enemy model in the Fight phase → +3 VP at that phase's end; also in the opponent's turn; a Disciple or Legionary kill alone → 0 |
+| DZE-014 | DZE-4.1 | Champion of the Dark Gods: Ghallaron kills a model and is then destroyed in the same phase → still +3; scores in each qualifying phase (no cap) |
+| DZE-015 | DZE-4.2 | Idolatrous Despoilers: at the end of the opponent's turn, one non-Battle-shocked unit wholly inside the enemy zone → +4 VP (flat with two units); one model outside → 0; Battle-shocked → 0; end of own turn → 0 |
+| DZE-016 | DZE-5.1 | Empyric Rites: Havocs targeted in the opponent's Shooting phase → 4+ invuln vs AP −3 this phase only; not offered for the Helbrute (VEHICLE) or in own Shooting phase; offered in either Fight phase |
+| DZE-017 | DZE-5.2 | Bitter Blows: Legionaries targeted in a Fight phase, model destroyed before they fought, D6 = 4 → model stays at 0 W, fights after the enemy unit's attacks, then removed; D6 = 3 → removed; already fought → no roll |
+| DZE-018 | DZE-5.2 | Bitter Blows not offered for the Helbrute; a deferred model gets no Dark Pact prompt or test (DZE-2.4) |
+| DZE-019 | DZE-5.3 | Malicious Volleys: Havocs vs a target at full strength → hit 1s re-rolled only; vs a Below Half-strength target → any failed hit roll re-rolled |
+| DZE-020 | DZE-5.3 | Malicious Volleys not offered for a unit already selected to shoot, for the Helbrute, or outside own Shooting phase |
+| DZE-021 | DZE-6.1 | Dark Zealotry: attached Ghallaron + Legionaries melee wound roll +1 (chainsword S4 vs T4 wounds on 3+); unattached Ghallaron unit → no bonus; Ghallaron dead (Disciples alive) → no bonus; ranged unaffected |
+| DZE-022 | DZE-6.2 | Havoc heavy bolter: no +1 to hit for Remaining Stationary, Sustained Hits 1 on a critical hit; Legionary heavy bolter still Heavy |
+| DZE-023 | DZE-6 | Havoc missile launcher frag Blast: D6 attacks +1 per 5 models in the target; plasma gun Rapid Fire 1 at half range; supercharge Hazardous |
+| DZE-024 | DZE-6.3 | Helbrute: Deadly Demise 1 on a 6 → 1 MW to each unit within 6"; plasma cannon Hazardous fail → 3 mortal wounds to the Helbrute (VEHICLE), not destroyed outright |
+| DZE-025 | C2 | patrol `armyRule` override: Dark Zealots registers and shows `csm.a.dark-pacts-dz`; patrols without the field keep the faction `armyRule` |
+| DZE-026 | data | data validates: every new datasheet/weapon/ability/stratagem/enhancement id resolves; no existing `csm.` record changed; `faction.json` lists both patrols |
+| DZE-027 | e2e | start screen: pick Chaos Space Marines → patrol picker → Dark Zealots → game starts with Ghallaron's unit attached to Legionaries and the Helbrute on the board |
