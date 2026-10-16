@@ -1310,3 +1310,41 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | LEA-035 | LEA-6 | magna-rail rifle: Heavy (+1 hit when stationary), D3+3 damage, Devastating Wounds on a critical wound; volkanite disintegrator Devastating Wounds |
 | LEA-036 | LEA-6 | HYLas auto rifle Rapid Fire 3 at half range → A6, Assault (shoot after Advance); HYLas rotary cannon Sustained Hits 1; twin concussion gauntlet Twin-linked |
 | LEA-037 | E1 | Regression: storing tokens in `secondaryState['lov:judgement']` keeps replay hashes deterministic (same seed + actions → same hash) and does not alter non-LoV games |
+
+## AEL — Aeldari: The Fatebreakers (docs/spec/factions/aeldari.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| AEL-001 | AEL-1 | patrol `ael.cp.the-fatebreakers` loads (faction `aeldari`): 4 units, 19 models; Farseer is WARLORD with Foresight, attached to Guardian Defenders; default secondary Ineffable Agenda; stratagems Whip-fast Reactions, Storm of Shots, Zephyr-swift |
+| AEL-002 | AEL-1, 6 | data: every stat/profile row of §6 matches; Heavy Weapon Platform OC 0, W 2, 40 mm; Wraithlord has two shuriken catapult weapons and no Strands of Fate |
+| AEL-003 | AEL-2.1 | round 1 start: 12 D6 rolled for the Aeldari player; `reroll` → 11 fresh dice replace the set; `keep` → pool = those values, one `MiracleDieGained` per die |
+| AEL-004 | AEL-2.1 | re-rolling down to 1 die ends the choice automatically with a 1-die pool; the opponent (non-Aeldari) gets no pool and no decision |
+| AEL-005 | AEL-2.2 | hit substitution: Fate die 6 replaces one shuriken catapult hit die → unmodified 6 (critical), die leaves the pool, `MiracleDieSpent` mode substitute; option label says "Fate" |
+| AEL-006 | AEL-2.2 | save substitution: Guardians targeted, Fate die 5 used on one save die vs AP −1 → succeeds as unmodified 5 then modified 4 vs 4+ |
+| AEL-007 | AEL-2.2 | charge substitution: Fate die replaces one of the 2D6 of a Windriders charge; Battle-shock: one of the 2D6 replaced |
+| AEL-008 | AEL-2.3 | the same unit can use Fate dice on several rolls in one phase (no Acts-of-Faith cap); at most one die per individual roll (2D6 charge / Battle-shock: 1); a 10-attack shuriken catapult hit batch accepts two Fate dice in one decision (two attacks' hit dice replaced, both dice leave the pool, both `MiracleDieSpent` events) while a Sororitas batch still caps at 1 |
+| AEL-009 | AEL-2.4 | a substituted die is not offered to Command Re-roll; no `miracleDie` offer for Eldritch Storm's D3 Damage, D6 attack count, Hazardous, Deadly Demise or Fortune's D6 |
+| AEL-010 | AEL-2.5 | Wraithlord attacks / saves never raise a `miracleDie` decision even with a non-empty pool; Sororitas Acts of Faith behaviour unchanged (ADE tests still pass) |
+| AEL-011 | AEL-3 | Foresight: bearer's unit offered Fire Overwatch at 0 CP with 0 CP in the pool; a second Overwatch the same turn is refused (once per turn) |
+| AEL-012 | AEL-3 | Foresight: Overwatch by Farseer+Guardians on a controlled marker hits on unmodified 4+, off it on 5+; criticals only on 6; without the enhancement 6s only |
+| AEL-013 | AEL-3 | Eldritch Might: Eldritch Storm re-rolls hit 1s, wound 1s and a D3 Damage result of 1; shuriken pistol attacks and Guardian attacks get no re-roll |
+| AEL-014 | AEL-4 | Ineffable Agenda: end of own turn, Aeldari take a marker outside their zone held by the opponent (or nobody) at turn start → +3 VP; a marker they already held → 0; a newly taken marker inside their own zone → 0 |
+| AEL-015 | AEL-4 | Ineffable Agenda: two newly taken markers → still 3 VP; end of the opponent's turn → 0 |
+| AEL-016 | AEL-4 | A Greater Destiny: battle end with Windriders wholly in the enemy zone → +10 VP; one model outside → 0; Battle-shocked → 0 |
+| AEL-017 | AEL-5 | Whip-fast Reactions: opponent targets Windriders with shooting → used → enemy attacks vs them −1 to hit (ranged and, in a Fight phase, melee); not offered for the Wraithlord; expires at phase end |
+| AEL-018 | AEL-5 | Storm of Shots on Guardian Defenders: +1 to hit (shuriken catapult hits on 2+); with a −1 source the ±1 cap nets 0 |
+| AEL-019 | AEL-5 | Storm of Shots after a Windriders split: first squad targeted, the second offered and accepted → both +1 to hit; INFANTRY target → no second pick; Wraithlord not a legal target |
+| AEL-020 | AEL-5 | Zephyr-swift: Guardians make a Normal move up to 6" in own Shooting phase, may then shoot (not yet shot), cannot declare a charge that turn |
+| AEL-021 | AEL-5, E5 | Zephyr-swift with two Windrider squads: two reactive moves run one after the other; a unit in Engagement Range is not offered; the move does not change Remained-Stationary status |
+| AEL-022 | AEL-6.1 | Fortune: own Command phase, D6 = 1 → nothing; D6 = 4 → Windriders within 12" chosen → enemy wound rolls vs them −1 until the start of the next own Command phase; a unit 12.1" away is not offered |
+| AEL-023 | AEL-6.1 | Fortune: the Farseer's own unit is a legal pick; the effect expires at the next own turn start |
+| AEL-024 | AEL-6.3 | Defenders of Fate: end of own Command phase, Guardians on one controlled marker → D6 rolled and added to the pool with that value (a 1 is added too); two markers → two dice; no controlled marker → none |
+| AEL-025 | AEL-6.4 | Crewed Platform: last Guardian Defender destroyed → the Heavy Weapon Platform is removed at once, unit destroyed, kill credited to the attacker; attached Farseer survives and operates alone |
+| AEL-026 | AEL-6.4 | Crewed Platform: platform destroyed while Guardians live → nothing else happens; Guardians die one by one while ≥1 lives → platform stays |
+| AEL-027 | AEL-6.5 | Swift Demise: Windriders shoot the closest eligible enemy → hit 1s re-rolled; a farther target → no re-roll |
+| AEL-028 | AEL-6.5, E4 | Swift Demise: closest target on a marker the opponent controls → any failed hit re-rolled; a marker the Aeldari control or an uncontrolled one → 1s only |
+| AEL-029 | AEL-6.6 | Patrol Squads: split at Declare Battle Formations gives two units of 3, each with one scatter laser; Starting Strength 3 each; default unsplit |
+| AEL-030 | AEL-6 | Farseer Leader: attaches only to Guardian Defenders; Precision-free attacks vs the attached unit allocate to Guardians first |
+| AEL-031 | AEL-6.7 | Wraithlord destroyed → Deadly Demise: on a 6, 1 mortal wound to each unit within 6" |
+| AEL-032 | AEL-6 | weapons: Eldritch Storm Blast adds +1 A per 5 target models; twin shuriken catapult Twin-linked wound re-roll; shuriken pistol usable in Engagement Range; Assault weapons usable after Advancing |
+| AEL-033 | AEL-6 | Wraithlord fires both shuriken catapults at two different targets; ghostglaive strike or sweep chosen per fight |
+| AEL-034 | AEL-6 | Windriders M 14 with FLY move over models; Heavy Weapon Platform OC 0 adds nothing to objective control |
