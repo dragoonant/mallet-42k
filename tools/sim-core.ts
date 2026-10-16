@@ -66,7 +66,15 @@ export function makeSimSetup(bundle: DataBundle, gameIndex: number, dataVersion:
   let wanted = only ? pairs.filter(([x, y]) => bundle.patrols[x].faction === only || bundle.patrols[y].faction === only) : pairs
   if (onlyPatrol) wanted = wanted.filter(([x, y]) => x === onlyPatrol || y === onlyPatrol)
   if (wanted.length === 0) throw new Error(`sim: no roster pairing includes faction ${only ?? '*'} patrol ${onlyPatrol ?? '*'}`)
-  const [p0, p1] = patrols.length === 2 && !onlyPatrol ? (gameIndex % 2 === 0 ? [patrols[0], patrols[1]] : [patrols[1], patrols[0]]) : wanted[gameIndex % wanted.length]
+  // plain run with 3+ rosters: the first roster walks the sorted list from the front and the opponent from the back, so a
+  // short run (e.g. 6 games) touches rosters at both ends instead of only the alphabetically first ones
+  const n = patrols.length
+  const rotate = n > 2 && !only && !onlyPatrol
+  const cycle = Math.floor(gameIndex / n)
+  const ra = gameIndex % n
+  let rb = (n - 1 - ra + cycle) % n
+  if (rb === ra) rb = (rb + 1) % n
+  const [p0, p1] = rotate ? [patrols[ra], patrols[rb]] : patrols.length === 2 && !onlyPatrol ? (gameIndex % 2 === 0 ? [patrols[0], patrols[1]] : [patrols[1], patrols[0]]) : wanted[gameIndex % wanted.length]
   const missionIndex = patrols.length === 2 && !onlyPatrol ? gameIndex : gameIndex + Math.floor(gameIndex / wanted.length)
   return {
     missionId: MISSIONS[missionIndex % MISSIONS.length],
