@@ -1,0 +1,154 @@
+[
+  {
+    "id": "we.jakhals",
+    "faction": "world-eaters",
+    "name": "Jakhals",
+    "keywords": [
+      "INFANTRY",
+      "BATTLELINE",
+      "CHAOS",
+      "KHORNE",
+      "JAKHALS"
+    ],
+    "factionKeywords": [
+      "WORLD EATERS"
+    ],
+    "stats": {
+      "M": 6,
+      "T": 3,
+      "Sv": 6,
+      "W": 1,
+      "Ld": 7,
+      "OC": 1
+    },
+    "composition": [
+      {
+        "modelId": "pack-leader",
+        "name": "Pack Leader",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "champion": true,
+        "base": {
+          "shape": "round",
+          "mm": 28
+        },
+        "weapons": {
+          "default": [
+            "csm.w.autopistol",
+            "we.w.jakhal-chainblades"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "generic-infantry"
+        }
+      },
+      {
+        "modelId": "dishonoured",
+        "name": "Dishonoured",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 40
+        },
+        "weapons": {
+          "default": [
+            "we.w.skullsmasher"
+          ]
+        },
+        "figure": {
+          "archetype": "heavy",
+          "kit": "generic-heavy"
+        }
+      },
+      {
+        "modelId": "mauler",
+        "name": "Jakhal (mauler chainblade)",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 28
+        },
+        "weapons": {
+          "default": [
+            "csm.w.autopistol",
+            "we.w.mauler-chainblade"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "generic-infantry"
+        }
+      },
+      {
+        "modelId": "icon",
+        "name": "Jakhal (icon of Khorne)",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 28
+        },
+        "weapons": {
+          "default": [
+            "csm.w.autopistol",
+            "we.w.jakhal-chainblades"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "generic-infantry"
+        }
+      },
+      {
+        "modelId": "jakhal",
+        "name": "Jakhal",
+        "min": 6,
+        "max": 6,
+        "default": 6,
+        "base": {
+          "shape": "round",
+          "mm": 28
+        },
+        "weapons": {
+          "default": [
+            "csm.w.autopistol",
+            "we.w.jakhal-chainblades"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "generic-infantry"
+        }
+      }
+    ],
+    "abilities": [
+      "we.a.blessings-of-khorne",
+      "we.a.blessing-wrathful-devotion",
+      "we.a.blessing-total-carnage",
+      "we.a.blessing-warp-blades"
+    ],
+    "coreAbilities": [
+      {
+        "ability": "FEEL_NO_PAIN",
+        "value": 6
+      }
+    ],
+    "points": [
+      {
+        "models": 10,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "infantry",
+      "kit": "generic-infantry"
+    }
+  }
+]

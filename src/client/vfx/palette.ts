@@ -45,6 +45,7 @@ const FACTION_COLOR: Record<string, string> = {
   ork: '#8dff5a',
   necrons: '#39ff6a',
   'chaos-space-marines': '#c25a7a',
+  'world-eaters': '#ff3a2a',
   tyranids: '#c14ee0',
   'adepta-sororitas': '#ff6a5a',
   'astra-militarum': '#c8a24a',

@@ -10,6 +10,7 @@ import { TyranidExtras, TyranidHead } from './TyranidParts'
 import { usePoseFrame, clamp01, easeOut, useMaterialFader } from './anim'
 import { ADM_HEADS, AdmDressing, AdmHead, type AdmHeadShape } from './admParts'
 import { DG_HEADS, DgDressing, DgHead, type DgHeadShape } from './dgParts'
+import { HornPair, Juggernaut } from './weParts'
 import type { BipedConfig, BodyProps } from './types'
 
 const ORK_SKIN = '#6f8f3f'
@@ -150,6 +151,7 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
 
   return (
     <group ref={bodyRef}>
+      {config.juggernaut && <Juggernaut colors={colors} bulk={bulk} />}
       <group ref={legLRef} position={[-hipOffsetX, HIP_Y, 0]}>
         <LimbSegment length={HIP_Y} radius={legRadius} color={legColor} />
         <EndBlock size={0.09 * bulk} color={colors.trim} />
@@ -273,7 +275,8 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
           </group>
 
           <group ref={headRef} position={[0, NECK_H + headRadius, 0]}>
-            <HeadBody shape={config.headShape} colors={colors} skinColor={skinColor} radius={headRadius} />
+            <HeadBody shape={config.headShape} colors={colors} skinColor={skinColor} radius={headRadius} helm={config.helmColor === 'metal' ? colors.metal : undefined} />
+            {config.horns && <HornPair colors={colors} radius={headRadius} />}
             {config.halo && (
               <mesh position={[0, headRadius * 0.25, -headRadius * 1.15]} rotation={[Math.PI / 2, 0, 0]}>
                 <GCylinder args={[headRadius * 1.15, headRadius * 1.15, 0.015, 18]} />
@@ -292,11 +295,13 @@ function HeadBody({
   colors,
   skinColor,
   radius,
+  helm,
 }: {
   shape: BipedConfig['headShape']
   colors: BodyProps['colors']
   skinColor: string | undefined
   radius: number
+  helm?: string
 }) {
   if (ADM_HEADS.has(shape)) return <AdmHead shape={shape as AdmHeadShape} colors={colors} radius={radius} />
   if (DG_HEADS.has(shape)) return <DgHead shape={shape as DgHeadShape} colors={colors} radius={radius} />
@@ -403,7 +408,7 @@ function HeadBody({
       const horn = lord ? 1.45 : 1
       return (
         <group>
-          <HeadBlob radius={radius} color={colors.secondary} />
+          <HeadBlob radius={radius} color={helm ?? colors.secondary} />
           {/* two glowing warp-violet eye slits */}
           <mesh position={[-radius * 0.34, radius * 0.05, radius * 0.93]}>
             <GBox args={[radius * 0.3, radius * 0.14, radius * 0.14]} />

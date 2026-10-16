@@ -1,0 +1,124 @@
+[
+  {
+    "id": "we.s.rage-unchecked",
+    "faction": "world-eaters",
+    "name": "Rage Unchecked",
+    "text": "Use in your Shooting phase or in a Fight phase, for one of your BERZERKERS units that is below half-strength and has not yet been selected to shoot or fight. Until the end of the phase, every weapon carried by that unit has [SUSTAINED HITS 1].",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": [
+      "shooting",
+      "fight"
+    ],
+    "window": [
+      "shooting.start",
+      "fight.start",
+      "fight.attacksResolved"
+    ],
+    "who": "either",
+    "condition": {
+      "phase": "any"
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "BERZERKERS"
+        },
+        "state": "belowHalf",
+        "count": 1
+      }
+    ],
+    "effect": {
+      "grantWeaponAbility": {
+        "ability": "SUSTAINED_HITS",
+        "value": 1
+      }
+    },
+    "scope": {
+      "who": "self"
+    },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase",
+    "code": "rageUnchecked"
+  },
+  {
+    "id": "we.s.unstoppable-fury",
+    "faction": "world-eaters",
+    "name": "Unstoppable Fury",
+    "text": "Use in a Fight phase, just before one of your WORLD EATERS units makes its Consolidation move. Until the end of the phase, that unit's models may consolidate up to 6\" instead of 3\", provided the unit ends the move within Engagement Range of an enemy unit.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": [
+      "fight"
+    ],
+    "window": "fight.beforeConsolidate",
+    "who": "either",
+    "condition": {
+      "phase": "fight"
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "WORLD EATERS"
+        },
+        "count": 1
+      }
+    ],
+    "scope": {
+      "who": "self"
+    },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase",
+    "code": "unstoppableFury",
+    "params": {
+      "consolidate": 6,
+      "consolidateOnly": true,
+      "enemyOnly": true
+    }
+  },
+  {
+    "id": "we.s.overwhelming-onslaught",
+    "faction": "world-eaters",
+    "name": "Overwhelming Onslaught",
+    "text": "Use in your Charge phase, just after one of your WORLD EATERS units ends a Charge move. Pick one enemy unit within Engagement Range of it: that enemy unit takes a Battle-shock test with 1 subtracted from the 2D6 result.",
+    "cost": 1,
+    "category": "epicDeed",
+    "phases": [
+      "charge"
+    ],
+    "window": "charge.moveEnded",
+    "who": "active",
+    "condition": {
+      "phase": "charge"
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "WORLD EATERS"
+        },
+        "state": "chargedThisTurn",
+        "count": 1
+      },
+      {
+        "role": "unit",
+        "owner": "enemy",
+        "filter": {
+          "within": {
+            "of": "previousTarget",
+            "inches": 1
+          }
+        },
+        "count": 1
+      }
+    ],
+    "duration": "instant",
+    "limit": "oncePerPhase",
+    "code": "overwhelmingOnslaught"
+  }
+]

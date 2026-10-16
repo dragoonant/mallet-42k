@@ -19,6 +19,7 @@ const PREVIEW: Record<string, { datasheetId: string; modelId?: string }> = {
   ork: { datasheetId: 'ork.boyz', modelId: 'boss-nob' },
   necrons: { datasheetId: 'nec.necron-warriors' },
   'chaos-space-marines': { datasheetId: 'csm.legionaries', modelId: 'champion' },
+  'world-eaters': { datasheetId: 'we.khorne-berzerkers', modelId: 'chainblade' },
   tyranids: { datasheetId: 'tyr.termagants', modelId: 'termagant' },
   'adepta-sororitas': { datasheetId: 'ade.battle-sisters-squad', modelId: 'superior' },
   'astra-militarum': { datasheetId: 'am.cadian-shock-troops', modelId: 'sergeant' },

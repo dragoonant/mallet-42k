@@ -63,7 +63,10 @@ export interface HookQueries {
   eligibilityFor(state: GameState, unitId: UnitId, check: HookContextFor<'onEligibility'>['check']): boolean
   // Get Stuck In (getStuckInDistance) — pile-in / consolidation allowance for the unit this phase
   pileInDistance(state: GameState, unitId: UnitId, base?: number): number
-  consolidateDistance(state: GameState, unitId: UnitId, base?: number): number
+  // C3: `form` 'objective' = the R-9.10 objective fallback, where an `enemyOnly` bonus (Unstoppable Fury) does not apply
+  consolidateDistance(state: GameState, unitId: UnitId, base?: number, form?: 'enemy' | 'objective'): number
+  // C1 (World Eaters Wrathful Devotion): folds every code hook's `adjustFeelNoPain` over the model's FNP so far (`current`; null = none)
+  feelNoPainAdjust(state: GameState, modelId: ModelId, current: number | null): { threshold: number | null; modifier: number } | null
   // Go to Ground / Smokescreen (grantBenefitOfCover) active on the unit (R-3.14)
   hasBenefitOfCover(state: GameState, unitId: UnitId): boolean
   // attacks by this unit's player against the Oath of Moment target (either half of an attached unit)
@@ -550,18 +553,34 @@ function stratCover(state: GameState, e: ActiveEffect): boolean {
   return state.stratagems[e.sourceAbilityId]?.code === 'grantBenefitOfCover' || state.abilities[e.sourceAbilityId]?.code === 'grantBenefitOfCover'
 }
 
-function getStuckIn(state: GameState, unitId: UnitId): { pileIn: number; consolidate: number | null } | null {
-  let best: { pileIn: number; consolidate: number | null } | null = null
+// C3: sources are `getStuckInDistance` stratagems and `unstoppableFury` (params consolidateOnly / enemyOnly). `pileIn` null = no
+// pile-in bonus; `enemyOnly` = the winning consolidate bonus applies only to the enemy-engagement form, and `objective` is the best
+// consolidate bonus that also applies to the R-9.10 objective fallback (null when every source is enemyOnly)
+const GET_STUCK_IN_CODES = new Set(['getStuckInDistance', 'unstoppableFury'])
+function getStuckIn(state: GameState, unitId: UnitId): { pileIn: number | null; consolidate: number | null; enemyOnly: boolean; objective: number | null } | null {
+  let pileIn: number | null = null
+  let consolidate: number | null = null
+  let enemyOnly = false
+  let objective: number | null = null
+  let found = false
   for (const id of leaderService.halves(state, unitId)) {
     for (const e of state.units[id].effects) {
       const src = state.stratagems[e.sourceAbilityId] ?? state.abilities[e.sourceAbilityId]
-      if (src?.code !== 'getStuckInDistance') continue
-      const params = (src.params ?? {}) as { pileIn?: number; consolidate?: number; pileInOnly?: boolean }
-      const pileIn = params.pileIn ?? 6
-      best = { pileIn, consolidate: params.pileInOnly ? null : (params.consolidate ?? pileIn) }
+      if (!src?.code || !GET_STUCK_IN_CODES.has(src.code)) continue
+      const params = (src.params ?? {}) as { pileIn?: number; consolidate?: number; pileInOnly?: boolean; consolidateOnly?: boolean; enemyOnly?: boolean }
+      found = true
+      const pi = params.consolidateOnly ? null : (params.pileIn ?? 6)
+      const co = params.pileInOnly ? null : (params.consolidate ?? params.pileIn ?? 6)
+      if (pi !== null && (pileIn === null || pi > pileIn)) pileIn = pi
+      if (co !== null) {
+        const eo = params.enemyOnly === true
+        // the larger bonus wins; on a tie an unrestricted source beats an enemyOnly one
+        if (consolidate === null || co > consolidate || (co === consolidate && enemyOnly && !eo)) { consolidate = co; enemyOnly = eo }
+        if (!eo && (objective === null || co > objective)) objective = co
+      }
     }
   }
-  return best
+  return found ? { pileIn, consolidate, enemyOnly, objective } : null
 }
 
 // R-4.7 expiry: the start of the owner's next Command phase
@@ -832,12 +851,33 @@ export const hookService: HookService & HookQueries = {
 
   pileInDistance(state, unitId, base = 3) {
     const g = getStuckIn(state, unitId)
-    return g ? Math.max(base, g.pileIn) : base
+    return g && g.pileIn !== null ? Math.max(base, g.pileIn) : base
   },
 
-  consolidateDistance(state, unitId, base = 3) {
+  consolidateDistance(state, unitId, base = 3, form = 'enemy') {
     const g = getStuckIn(state, unitId)
-    return g && g.consolidate !== null ? Math.max(base, g.consolidate) : base
+    if (!g) return base
+    const v = form === 'objective' ? g.objective : g.consolidate
+    return v !== null ? Math.max(base, v) : base
+  },
+
+  feelNoPainAdjust(state, modelId, current) {
+    const model = state.models[modelId]
+    if (!model) return null
+    let threshold = current
+    let modifier = 0
+    let any = false
+    for (const entry of sourcesFor(state)) {
+      const spec = codeHookFor(entry.code)
+      if (!spec?.adjustFeelNoPain) continue
+      if (!gateOpen(state, entry)) continue
+      const r = spec.adjustFeelNoPain(state, entry, modelId, threshold)
+      if (!r) continue
+      any = true
+      threshold = r.threshold ?? threshold
+      modifier += r.modifier
+    }
+    return any ? { threshold, modifier } : null
   },
 
   overwatchForbiddenAgainst(state, targetUnitId) {

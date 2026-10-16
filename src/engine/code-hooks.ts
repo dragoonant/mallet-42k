@@ -14,6 +14,7 @@ import { tauEmpireHooks } from './factions/tau-empire'
 import { genestealerCultsHooks } from './factions/genestealer-cults'
 import { aeldariHooks } from './factions/aeldari'
 import { adeptusMechanicusHooks } from './factions/adeptus-mechanicus'
+import { worldEatersHooks } from './factions/world-eaters'
 import { distance, withinEngagementRange, withinObjectiveRange, OBJECTIVE_MARKER_RADIUS } from './geometry'
 import { adeptaSororitasHooks } from './factions/adepta-sororitas'
 import { shotThisTurn } from './attack'
@@ -88,6 +89,10 @@ export interface EngineCodeHook extends CodeHook {
   forbidsOverwatchAgainst?(state: GameState, entry: HookSourceEntry, targetUnitId: UnitId): boolean
   // C4 (T'au DS8 Support Turret): false makes the weapon unavailable to the model (null = no opinion)
   weaponAvailable?(state: GameState, entry: HookSourceEntry, modelId: ModelId, weaponId: WeaponId): boolean | null
+  // C1 (World Eaters Wrathful Devotion): runs after every other FNP source of `modelId` has been merged. `current` = the best FNP
+  // threshold the model has without this source (null = none). Returns the threshold to use and a modifier added to the FNP die;
+  // null = no opinion
+  adjustFeelNoPain?(state: GameState, entry: HookSourceEntry, modelId: ModelId, current: number | null): { threshold: number | null; modifier: number } | null
   // answers a chooseOption whose context.data.code names this hook, when the hook has no `pick` of its own
   answer?(ctx: EngineContext, action: Action, pending: PendingDecision): Rejection | void
   // side effects at the descriptor's trigger hook, after its `when` passed (Piston-driven Brutality)
@@ -862,6 +867,9 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   // death-guard (docs/spec/factions/death-guard.md §7): nurglesGift, walkingPlague, grantDeepStrike, curseOfTheWalkingPox,
   // harbingersOfDespair, contaminateGround, spreadTheBlight
   ...deathGuardHooks(),
+  // world-eaters (docs/spec/factions/world-eaters.md §7): blessingsOfKhorne, wrathfulDevotion, totalCarnage, skullsForKhorne, ravageAndRansack,
+  // bloodOffering, rageUnchecked, unstoppableFury, overwhelmingOnslaught
+  ...worldEatersHooks(),
 }
 
 export type { ChooseOptionDecision }

@@ -481,8 +481,9 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
   }
   // Morgrim's Butchas Bestial Bellow: forced Battle-shock test at -1 on a nearby enemy unit - worth P(fail) times what the
   // shock costs it (OC lost on objectives it is holding, plus a small share of its value).
-  if (id.endsWith('bestial-bellow')) {
-    const enemyId = targets.unitIds?.[0]
+  // World Eaters Overwhelming Onslaught (target 1 = the charger, target 2 = the enemy unit): the same -1 Battle-shock test as Bestial Bellow.
+  if (id.endsWith('bestial-bellow') || id.endsWith('overwhelming-onslaught')) {
+    const enemyId = id.endsWith('overwhelming-onslaught') ? targets.unitIds?.[1] : targets.unitIds?.[0]
     const enemy = enemyId ? state.units[enemyId] : undefined
     if (!enemyId || !enemy || enemy.player === player || enemy.battleShocked) return -Infinity
     const models = unitModels(state, enemyId)
@@ -496,6 +497,38 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
       objValue += objectiveScoreWeight(state, player, o.id)
     }
     return pFail * (objValue * 1.5 + unitValue(state, enemyId) * 0.02)
+  }
+  // World Eaters Rage Unchecked: Sustained Hits 1 on every weapon of a below-half-strength BERZERKERS unit that has not acted yet; a
+  // critical hit (1 in 6) adds one hit, so it is worth about a sixth of the unit's damage into the best target in reach.
+  if (id.endsWith('rage-unchecked')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId) return -Infinity
+    let best = 0
+    if (state.phase === 'fight') {
+      for (const e of boardUnitsOf(state, other(player))) {
+        if (minGapBetweenUnits(state, unitId, e.id) > ENGAGEMENT_H + 3) continue
+        best = Math.max(best, unitMeleeDamage(state, unitId, e.id, {}) * unitValue(state, e.id) * 0.03 / 6)
+      }
+    } else {
+      const range = bestRangedRangeOfUnit(state, unitId) ?? 0
+      for (const e of boardUnitsOf(state, other(player))) {
+        if (minGapBetweenUnits(state, unitId, e.id) > range) continue
+        best = Math.max(best, unitRangedDamage(state, unitId, e.id, {}) * unitValue(state, e.id) * 0.03 / 6)
+      }
+    }
+    return best > 0.15 ? best : -Infinity
+  }
+  // World Eaters Unstoppable Fury: a 6" Consolidation, but only if it ends in Engagement Range of an enemy unit: worth it when an
+  // enemy unit sits beyond the normal 3" reach and within the 6".
+  if (id.endsWith('unstoppable-fury')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId || !hasAnyMeleeWeapon(state, unitId)) return -Infinity
+    let best = 0
+    for (const e of boardUnitsOf(state, other(player))) {
+      const gap = minGapBetweenUnits(state, unitId, e.id)
+      if (gap > 3 + ENGAGEMENT_H && gap <= 6 + ENGAGEMENT_H) best = Math.max(best, 0.6 + unitValue(state, e.id) * 0.01)
+    }
+    return best > 0 ? best : -Infinity
   }
   // Morgrim's Butchas Get In There!: PILE-IN ONLY goes to 6" (consolidation stays 3"; a pile-in must end closer to the
   // nearest enemy so it never reaches an objective): worth it only when the enemy sits beyond a normal 3" pile-in.

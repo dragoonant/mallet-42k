@@ -165,6 +165,7 @@ Shared enum used by engine (to open windows), data (stratagem `window`), AI and 
 | `fight.start` | active, then opponent | |
 | `fight.unitSelected` | owner of unit, then opponent | before pile-in |
 | `fight.targetsDeclared` | opponent of the fighting unit, then owner | after melee targets declared (FightSubStep `declareTargets`), before attacks: Gene-wrought Resilience, Tough as Squig-hide |
+| `fight.beforeConsolidate` | active player, then opponent (`ctx.order.active()`) | once per normal fight activation, after the unit's attacks and deferred deaths and before its Consolidation move (World Eaters Unstoppable Fury); not opened for Total Carnage / Daemonic Fervour deferred models |
 | `fight.attacksResolved` | owner, then opponent | after consolidation; Counter-offensive (opponent, `reactionWindow`) |
 | `attack.modelDestroyed` | owner of the destroyed model, then opponent | once the damage of the attack that destroyed an enemy-attacked model has fully resolved, before the next attack is allocated (Violent Unbinding); see `pendingDeathReaction` |
 | `any.unitDestroyed` | owner of destroyed unit, then opponent | |

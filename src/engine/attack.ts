@@ -903,7 +903,8 @@ function saveBatchTarget(ctx: EngineContext, lead: number): number | null {
     for (const attackerModelId of attackers) {
       const setup = saveSetup(ctx, group, attackerModelId, id, coverFor(ctx, group, attackerModelId, id))
       if (!setup || setup.impossible) return null
-      const key = `${setup.targetRoll}|${bestFeelNoPain(ctx, model, setup.actx)}`
+      const fnp = feelNoPainFor(ctx, model.id, setup.actx)
+      const key = `${setup.targetRoll}|${fnp ? `${fnp.threshold}/${fnp.modifier}` : 'none'}`
       if (sig === null) { sig = key; target = setup.targetRoll } else if (sig !== key) return null
     }
   }
@@ -942,17 +943,29 @@ function doSaveBatch(ctx: EngineContext, lead: number): 'pending' | 'progress' {
 
 // ---------- Feel No Pain (R-10.5) ----------
 
-function bestFeelNoPain(ctx: EngineContext, model: Model, actx: AttackContext, mortal = false, psychicSource = false): number | null {
+// C1 (World Eaters Wrathful Devotion): the Feel No Pain threshold and the (+1/-1 capped) modifier to the FNP die, or null when the
+// model has no FNP. Sources: datasheet core FEEL_NO_PAIN, `feelNoPain` effects (best wins), `modifyRoll:{roll:'feelNoPain'}`
+// effects, then code hooks with `adjustFeelNoPain` (run last, each seeing the best threshold so far).
+export function feelNoPainFor(ctx: EngineContext, modelId: ModelId, actx: AttackContext, mortal = false, psychicSource = false): { threshold: number; modifier: number } | null {
   const s = ctx.state
+  const model = s.models[modelId]
+  if (!model) return null
   const ds = datasheetOf(s, model.unitId)
   let best: number | null = null
+  let modifier = 0
   const core = ds.coreAbilities.find((c) => c.ability === 'FEEL_NO_PAIN')
   if (core) best = toNumber(core.value) || 6
   const fake = fakeRoll('fnp', s.units[model.unitId].player, model.unitId, model.id)
   const results = ctx.services.hooks.collect(ctx, 'onFeelNoPainRoll', { attack: actx, roll: { purpose: 'fnp', roll: fake, dieIndex: 0, unmodified: 0, rerolled: false }, mortal, psychicSource })
     .map((r) => r.result).filter(isRoll)
-  for (const r of results) if (r.feelNoPain !== undefined) best = best === null ? r.feelNoPain : Math.min(best, r.feelNoPain)
-  return best
+  for (const r of results) {
+    if (r.feelNoPain !== undefined) best = best === null ? r.feelNoPain : Math.min(best, r.feelNoPain)
+    if (r.modifier) modifier += r.modifier
+  }
+  const adj = ctx.services.hooks.feelNoPainAdjust?.(s, model.id, best)
+  if (adj) { best = adj.threshold ?? best; modifier += adj.modifier }
+  if (best === null) return null
+  return { threshold: best, modifier: Math.max(-1, Math.min(1, modifier)) }
 }
 
 // applies one point of damage to `model` (FNP first); returns true if the point was actually lost (not ignored) and
@@ -973,13 +986,14 @@ function applyOnePoint(ctx: EngineContext, model: Model, actx: AttackContext, so
   const psychicSource = 'abilityId' in source
     ? (!source.abilityId.startsWith('hazardous:') && isPsychicAbilitySource(s, source.abilityId))
     : 'stratagemId' in source ? false : !!actx.weapon?.abilities.some((a) => a.ability === 'PSYCHIC')
-  const threshold = bestFeelNoPain(ctx, model, actx, mortal, psychicSource)
+  const fnp = feelNoPainFor(ctx, model.id, actx, mortal, psychicSource)
   let ignored = false
-  if (threshold !== null) {
+  if (fnp !== null) {
+    const { threshold, modifier } = fnp
     const roll = ctx.roll({ purpose: 'fnp', player: s.units[model.unitId].player, sides: 6, count: 1, mode: 'perDie', unitId: model.unitId, modelId: model.id, commandRerollable: false })
     const die = roll.dice[0]
-    ignored = die >= threshold
-    ctx.emit({ type: 'FeelNoPainRolled', unitId: model.unitId, modelId: model.id, die, needed: threshold, ignored })
+    ignored = die + modifier >= threshold
+    ctx.emit({ type: 'FeelNoPainRolled', unitId: model.unitId, modelId: model.id, die, needed: threshold - modifier, ignored })
   }
   if (ignored) return false
   model.woundsRemaining -= 1

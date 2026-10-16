@@ -21,6 +21,7 @@ import { consecratedGroundAmount, divineJudgementAmount, divineJudgementOffer, h
 import { pinpointPurgeAmount, reconnaissanceInForceAmount } from './factions/space-marines'
 import { ineffableAgendaAmount } from './factions/aeldari'
 import { contaminateGroundAmount, spreadTheBlightGain, spreadTheBlightSnapshot } from './factions/death-guard'
+import { bloodOfferingAward, bloodOfferingSnapshot, ravageAndRansackAmount } from './factions/world-eaters'
 import { hookService } from './hooks-impl'
 import { leaderService } from './leaders'
 import { transportService } from './transports'
@@ -533,11 +534,22 @@ function spreadTheBlightDestroyed(ctx: EngineContext, info: { unitId: UnitId; by
   s.mission.scored.push({ ruleId: rule.id, player: pid, round: s.round, turn: s.activePlayer, amount })
 }
 
+// Blood Offering (WOR-4): a WORLD EATERS melee kill of an enemy unit that stood near a marker at the start of the phase; the
+// amount and once-per-unit guard live in factions/world-eaters.ts
+function bloodOfferingUnitDestroyed(ctx: EngineContext, info: { unitId: UnitId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: string | null; kind?: string }): void {
+  const s = ctx.state
+  const award = bloodOfferingAward(s, info)
+  if (!award) return
+  awardVp(ctx, award.pid, award.amount, award.rule.id)
+  s.mission.scored.push({ ruleId: award.rule.id, player: award.pid, round: s.round, turn: s.activePlayer, amount: award.amount })
+}
+
 function unitDestroyedHook(ctx: EngineContext, info: { unitId: UnitId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: string | null; kind?: AttackKind | 'mortal' | 'other'; rangedAttack?: boolean }): void {
   treasuresUnitDestroyed(ctx, info)
   markedForExecutionDestroyed(ctx, info)
   hallowedRetributionUnitDestroyed(ctx, info)
   tgbConsecratedGroundUnitDestroyed(ctx, info)
+  bloodOfferingUnitDestroyed(ctx, info)
   pinpointPurgeDestroyed(ctx, info)
   infiltratorsUnitDestroyed(ctx, info)
   spreadTheBlightDestroyed(ctx, info)
@@ -560,6 +572,7 @@ function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): num
     case 'properLootin': return properLootinAmount(ctx, rule, pid)
     case 'bagTheBigUnScore': return bagTheBigUnAmount(s, rule, pid)
     case 'krumpinSpreeScore': return krumpinSpreeAmount(ctx, rule, pid)
+    case 'ravageAndRansack': return ravageAndRansackAmount(ctx, rule, pid, (id) => holds(ctx, id, pid))
     case 'consecratedGround': return consecratedGroundAmount(s, pid, rule.pointsPer)
     case 'holdTheLine': return holdTheLineAmount(s, rule, pid)
     case 'kauyonLure': return kauyonLureAmount(s, rule, pid)
@@ -825,6 +838,7 @@ function processWindow(ctx: EngineContext, window: TimingWindowId, key: string):
   if (window.endsWith('.start') && once(s, `blightSnapshot:${window}`)) {
     for (const pid of ['A', 'B'] as PlayerId[]) if (rulesFor(s, pid).some((r) => r.rule === 'custom' && r.code === 'spreadTheBlight')) spreadTheBlightSnapshot(s, pid)
   }
+  if (window.endsWith('.start') && once(s, `bloodSnapshot:${window}`)) bloodOfferingSnapshot(s, rangeParams(s).range, rangeParams(s).radius)
   for (const rule of s.mission.rules) {
     if (rule.window !== window) continue
     if (!once(s, `missionRuleDone:${rule.id}:${key}`)) continue

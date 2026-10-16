@@ -1,0 +1,81 @@
+[
+  {
+    "id": "we.a.blessings-of-khorne",
+    "name": "Blessings of Khorne",
+    "text": "At the start of every battle round, eight dice are rolled. Matching dice can be spent to switch on up to two different Blessings (Wrathful Devotion, Total Carnage, Warp Blades), each lasting until the end of that round for every unit in the army that carries this ability. Dice spent on one Blessing cannot also pay for another, and leftover dice are lost.",
+    "trigger": "always",
+    "code": "blessingsOfKhorne",
+    "params": {
+      "armyRule": true,
+      "window": "round.start",
+      "dice": 8,
+      "max": 2,
+      "requirements": {
+        "wrathfulDevotion": {
+          "pairMin": 1
+        },
+        "totalCarnage": {
+          "pairMin": 4,
+          "triple": true
+        },
+        "warpBlades": {
+          "pairMin": 5,
+          "triple": true
+        }
+      }
+    }
+  },
+  {
+    "id": "we.a.blessing-wrathful-devotion",
+    "name": "Blessings of Khorne (Wrathful Devotion)",
+    "text": "While the Wrathful Devotion Blessing is active, models in this unit have Feel No Pain 6+. A model that already has a Feel No Pain save adds 1 to its Feel No Pain rolls instead.",
+    "trigger": "feelNoPainRoll",
+    "code": "wrathfulDevotion",
+    "scope": {
+      "who": "self"
+    },
+    "params": {
+      "blessing": "wrathfulDevotion",
+      "value": 6,
+      "bonus": 1
+    }
+  },
+  {
+    "id": "we.a.blessing-total-carnage",
+    "name": "Blessings of Khorne (Total Carnage)",
+    "text": "While the Total Carnage Blessing is active, each time a model in this unit is destroyed by a melee attack before the unit has fought this phase, roll a D6. On a 4+ it is not removed yet: it fights once after the attacking unit finishes, then is removed.",
+    "trigger": "phaseStart",
+    "when": {
+      "phase": "fight"
+    },
+    "code": "totalCarnage",
+    "scope": {
+      "who": "self"
+    },
+    "params": {
+      "blessing": "totalCarnage",
+      "threshold": 4
+    }
+  },
+  {
+    "id": "we.a.blessing-warp-blades",
+    "name": "Blessings of Khorne (Warp Blades)",
+    "text": "While the Warp Blades Blessing is active, melee weapons carried by models in this unit have [LETHAL HITS].",
+    "trigger": "always",
+    "effect": {
+      "when": {
+        "weaponType": "melee"
+      },
+      "grantWeaponAbility": {
+        "ability": "LETHAL_HITS"
+      }
+    },
+    "scope": {
+      "who": "self"
+    },
+    "code": "blessingsOfKhorne",
+    "params": {
+      "blessing": "warpBlades"
+    }
+  }
+]

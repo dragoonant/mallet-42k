@@ -35,7 +35,7 @@ Ids: lowercase kebab, namespaced by dot: `sm.intercessor-squad`, `sm.w.bolt-rifl
 | `Vec2` | `{x, z}` inches | board plane |
 | `Polygon` | `Vec2[]` (≥3, CCW) | |
 | `Phase` | `command \| movement \| shooting \| charge \| fight \| any` | |
-| `TimingWindowId` | enum, same list as 00-architecture §4 | includes `round.start`, `round.end`, `battle.end` (outside any turn), `movement.moveStarted`, `charge.moveStarted`, `fight.targetsDeclared` |
+| `TimingWindowId` | enum, same list as 00-architecture §4 | includes `round.start`, `round.end`, `battle.end` (outside any turn), `movement.moveStarted`, `charge.moveStarted`, `fight.targetsDeclared`, `fight.beforeConsolidate` |
 | `MissionRule` | `{id, code, window, params?}` | §9; `code` must exist in the hook registry |
 | `Stats` | `{M, T, Sv, W, Ld, OC}` | `M` inches int, `Sv`/`Ld` RollTarget, others int |
 | `Base` | `{shape: round\|oval, mm, mm2?}` | mm2 = minor axis for oval |

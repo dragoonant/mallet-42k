@@ -114,6 +114,7 @@
         "fight.start",
         "fight.unitSelected",
         "fight.targetsDeclared",
+        "fight.beforeConsolidate",
         "fight.attacksResolved",
         "attack.modelDestroyed",
         "any.unitDestroyed",

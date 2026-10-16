@@ -1,0 +1,155 @@
+[
+  {
+    "id": "we.khorne-berzerkers",
+    "faction": "world-eaters",
+    "name": "Khorne Berzerkers",
+    "keywords": [
+      "INFANTRY",
+      "CHAOS",
+      "KHORNE",
+      "BERZERKERS"
+    ],
+    "factionKeywords": [
+      "WORLD EATERS"
+    ],
+    "stats": {
+      "M": 6,
+      "T": 4,
+      "Sv": 3,
+      "W": 2,
+      "Ld": 6,
+      "OC": 2
+    },
+    "composition": [
+      {
+        "modelId": "champion",
+        "name": "Berzerker Champion",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "champion": true,
+        "base": {
+          "shape": "round",
+          "mm": 32
+        },
+        "weapons": {
+          "default": [
+            "csm.w.plasma-pistol",
+            "csm.w.plasma-pistol-supercharge",
+            "we.w.berzerker-chainblade"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "sm-tacticus",
+          "parts": {
+            "head": "sm.head.sergeant"
+          }
+        }
+      },
+      {
+        "modelId": "plasma",
+        "name": "Berzerker (plasma pistol)",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 32
+        },
+        "weapons": {
+          "default": [
+            "csm.w.plasma-pistol",
+            "csm.w.plasma-pistol-supercharge",
+            "we.w.berzerker-chainblade"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "sm-tacticus"
+        }
+      },
+      {
+        "modelId": "icon",
+        "name": "Berzerker (icon of Khorne)",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 32
+        },
+        "weapons": {
+          "default": [
+            "csm.w.plasma-pistol",
+            "csm.w.plasma-pistol-supercharge",
+            "we.w.berzerker-chainblade"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "sm-tacticus"
+        }
+      },
+      {
+        "modelId": "eviscerator",
+        "name": "Berzerker (Khornate eviscerator)",
+        "min": 2,
+        "max": 2,
+        "default": 2,
+        "base": {
+          "shape": "round",
+          "mm": 32
+        },
+        "weapons": {
+          "default": [
+            "csm.w.bolt-pistol",
+            "we.w.khornate-eviscerator"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "sm-tacticus"
+        }
+      },
+      {
+        "modelId": "chainblade",
+        "name": "Berzerker",
+        "min": 5,
+        "max": 5,
+        "default": 5,
+        "base": {
+          "shape": "round",
+          "mm": 32
+        },
+        "weapons": {
+          "default": [
+            "csm.w.bolt-pistol",
+            "we.w.berzerker-chainblade"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "sm-tacticus"
+        }
+      }
+    ],
+    "abilities": [
+      "we.a.blessings-of-khorne",
+      "we.a.blessing-wrathful-devotion",
+      "we.a.blessing-total-carnage",
+      "we.a.blessing-warp-blades"
+    ],
+    "coreAbilities": [],
+    "points": [
+      {
+        "models": 10,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "infantry",
+      "kit": "sm-tacticus"
+    }
+  }
+]

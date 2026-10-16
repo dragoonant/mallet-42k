@@ -29,9 +29,10 @@ const GSC = 'genestealer-cults'
 const LOV = 'leagues-of-votann'
 const DRK = 'drukhari'
 const ADM = 'adeptus-mechanicus'
+const WE = 'world-eaters'
 
 /** The engine faction id a weapon's own id prefix belongs to. */
-const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : id.startsWith('lov.') ? LOV : id.startsWith('drk.') ? DRK : id.startsWith('ael.') ? 'aeldari' : id.startsWith('adm.') ? ADM : id.startsWith('dg.') ? 'death-guard' : SM)
+const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : id.startsWith('lov.') ? LOV : id.startsWith('drk.') ? DRK : id.startsWith('ael.') ? 'aeldari' : id.startsWith('adm.') ? ADM : id.startsWith('dg.') ? 'death-guard' : id.startsWith('we.') ? WE : SM)
 
 function lookupFor(faction: string): SoundLookup {
   return { weapon: (id) => bundle.weapons[id], factionOfUnit: () => faction }
@@ -377,9 +378,23 @@ const DRK_FLAVOUR: Record<string, WeaponFlavour> = {
 }
 const drkWeapons = Object.entries(bundle.weapons).filter(([id]) => id.startsWith('drk.'))
 
+// World Eaters weapons, classified by weapon id (their csm.* pistols are covered by the Chaos table above).
+const WE_FLAVOUR: Record<string, WeaponFlavour> = {
+  'we.w.plasma-pistol-karagar': 'heavy',
+  'we.w.plasma-pistol-karagar-supercharge': 'heavy',
+  'we.w.exalted-chainblade': 'chain',
+  'we.w.juggernauts-bladed-horn': 'chain',
+  'we.w.berzerker-chainblade': 'chain',
+  'we.w.khornate-eviscerator': 'chain',
+  'we.w.jakhal-chainblades': 'chain',
+  'we.w.mauler-chainblade': 'chain',
+  'we.w.skullsmasher': 'crush',
+}
+const weWeapons = Object.entries(bundle.weapons).filter(([id]) => id.startsWith('we.'))
+
 describe('weapon flavour', () => {
   it('covers every weapon in the data bundle (a new weapon has to be classified here)', () => {
-    const known = Object.keys(EXPECTED).concat(adeWeapons.map(([id]) => id), drkWeapons.map(([id]) => id))
+    const known = Object.keys(EXPECTED).concat(adeWeapons.map(([id]) => id), drkWeapons.map(([id]) => id), weWeapons.map(([id]) => id))
     expect(known.sort()).toEqual(Object.keys(bundle.weapons).sort())
   })
 
@@ -401,6 +416,21 @@ describe('weapon flavour', () => {
       expect(DRK_FLAVOUR[id], `${id} (${weapon.name}) needs an entry in DRK_FLAVOUR`).toBeDefined()
       expect(weaponFlavour(id, weapon, DRK), id).toBe(DRK_FLAVOUR[id])
     }
+  })
+
+  it('every world-eaters weapon is classified, by id', () => {
+    expect(weWeapons.length).toBeGreaterThan(0)
+    for (const [id, weapon] of weWeapons) {
+      expect(WE_FLAVOUR[id], `${id} (${weapon.name}) needs an entry in WE_FLAVOUR`).toBeDefined()
+      expect(weaponFlavour(id, weapon, WE), id).toBe(WE_FLAVOUR[id])
+    }
+  })
+
+  it('world-eaters melee weapons sound as chain blades, bludgeons and a relic blade', () => {
+    expect(soundIds(declared(['we.w.berzerker-chainblade'], 'fight'), WE)).toEqual(['melee-chainsword'])
+    expect(soundIds(declared(['we.w.khornate-eviscerator'], 'fight'), WE)).toEqual(['wpn-brutal-assault-weapon'])
+    expect(soundIds(declared(['we.w.exalted-chainblade'], 'fight'), WE)).toEqual(['wpn-relic-weapon'])
+    expect(soundIds(declared(['we.w.skullsmasher'], 'fight'), WE)).toEqual(['wpn-power-fist'])
   })
 
   it("a sister's flamer and mace voice as themselves even with no datasheet to read", () => {

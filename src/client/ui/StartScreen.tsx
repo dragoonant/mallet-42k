@@ -18,6 +18,7 @@ const FACTION_BLURBS: Record<string, string> = {
   ork: 'A rowdy green tide that hits harder the more of them are left standing.',
   necrons: 'Ancient metal soldiers that shrug off damage and climb back to their feet turn after turn.',
   'chaos-space-marines': 'Fallen warriors who bargain with dark powers: stronger shots and blows, paid for in their own blood.',
+  'world-eaters': 'Frenzied axe-and-chain-blade zealots of Khorne: they hit hard the moment they arrive, and each round the Blood God grants blessings that harden them and sharpen their blows.',
   tyranids: 'A ravenous swarm that leaps, spits and keeps coming — losing a few hundred claws never slows the brood.',
   'adepta-sororitas': 'Armoured battle-nuns who pray for lucky dice: save Miracle dice and swap them in for a crucial roll.',
   'tau-empire': 'Sleek gunline soldiers and stealthy battlesuits who mark a target, then pour precise fire into it from afar.',
@@ -32,7 +33,7 @@ const FACTION_BLURBS: Record<string, string> = {
 }
 
 // Button order for the factions the game ships; any other faction in the bundle follows alphabetically.
-const FACTION_ORDER = ['sm', 'ork', 'necrons', 'chaos-space-marines', 'tyranids', 'adepta-sororitas', 'astra-militarum', 'grey-knights', 'tau-empire', 'genestealer-cults', 'adeptus-custodes', 'leagues-of-votann', 'drukhari', 'aeldari', 'adeptus-mechanicus', 'death-guard']
+const FACTION_ORDER = ['sm', 'ork', 'necrons', 'chaos-space-marines', 'world-eaters', 'tyranids', 'adepta-sororitas', 'astra-militarum', 'grey-knights', 'tau-empire', 'genestealer-cults', 'adeptus-custodes', 'leagues-of-votann', 'drukhari', 'aeldari', 'adeptus-mechanicus', 'death-guard']
 
 interface FactionChoice {
   id: string

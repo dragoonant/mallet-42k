@@ -20,7 +20,7 @@ export type TimingWindowId =
   | 'movement.start' | 'movement.moveStarted' | 'movement.unitMoved' | 'movement.reinforcements' | 'movement.end'
   | 'shooting.start' | 'shooting.unitSelected' | 'shooting.targetsDeclared' | 'shooting.attacksResolved'
   | 'charge.start' | 'charge.declared' | 'charge.rolled' | 'charge.moveStarted' | 'charge.moveEnded'
-  | 'fight.start' | 'fight.unitSelected' | 'fight.targetsDeclared' | 'fight.attacksResolved'
+  | 'fight.start' | 'fight.unitSelected' | 'fight.targetsDeclared' | 'fight.beforeConsolidate' | 'fight.attacksResolved'
   | 'attack.modelDestroyed'
   | 'any.unitDestroyed' | 'any.rollMade'
   | 'phase.end' | 'turn.end' | 'round.end' | 'battle.end'

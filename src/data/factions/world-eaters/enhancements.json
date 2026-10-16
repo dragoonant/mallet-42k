@@ -1,0 +1,53 @@
+[
+  {
+    "id": "we.e.skulls-for-khorne",
+    "faction": "world-eaters",
+    "name": "Skulls for Khorne",
+    "text": "Each time the bearer destroys an enemy unit with a melee attack, roll a D6. On a 2+ you gain 1 CP (the usual limit of one CP gained per battle round outside the Command phase still applies).",
+    "cost": 0,
+    "restriction": {
+      "keyword": [
+        "KARAGAR THE BLOODED"
+      ]
+    },
+    "effect": {
+      "id": "we.e.skulls-for-khorne.effect",
+      "name": "Skulls for Khorne",
+      "text": "Each enemy unit the bearer wipes out in melee has a 5-in-6 chance of paying out 1 CP.",
+      "trigger": "unitDestroyed",
+      "code": "skullsForKhorne",
+      "scope": {
+        "who": "bearer"
+      }
+    }
+  },
+  {
+    "id": "we.e.arch-slaughterer",
+    "faction": "world-eaters",
+    "name": "Arch-slaughterer",
+    "text": "The bearer's melee weapons have [PRECISION].",
+    "cost": 0,
+    "restriction": {
+      "keyword": [
+        "KARAGAR THE BLOODED"
+      ]
+    },
+    "effect": {
+      "id": "we.e.arch-slaughterer.effect",
+      "name": "Arch-slaughterer",
+      "text": "Karagar's melee weapons can pick out a visible CHARACTER inside an attached unit.",
+      "trigger": "always",
+      "effect": {
+        "when": {
+          "weaponType": "melee"
+        },
+        "grantWeaponAbility": {
+          "ability": "PRECISION"
+        }
+      },
+      "scope": {
+        "who": "bearer"
+      }
+    }
+  }
+]

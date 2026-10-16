@@ -689,12 +689,15 @@ function doConsolidate(ctx: EngineContext, unitId: UnitId): 'pending' | 'progres
   const s = ctx.state
   if (ctx.marked(`fi:consolidated:${unitId}`)) return 'progress'
   const geo = fightGeometry(s, unitId)
-  const dist = hookService.consolidateDistance?.(s, unitId, 3) ?? 3
-  const enemyFeasible = geo.models.length > 0 && legalApproachMoves(s, unitId, dist, null, 1).length > 0
+  // C3: an enemyOnly bonus (Unstoppable Fury) lengthens only the enemy-engagement form, never the R-9.10 objective fallback
+  const distEnemy = hookService.consolidateDistance?.(s, unitId, 3, 'enemy') ?? 3
+  const distObj = hookService.consolidateDistance?.(s, unitId, 3, 'objective') ?? 3
+  const enemyFeasible = geo.models.length > 0 && legalApproachMoves(s, unitId, distEnemy, null, 1).length > 0
   let objectiveId: ObjectiveId | null = null
-  if (!enemyFeasible) objectiveId = nearestReachableObjective(s, geo, dist)
-  if (objectiveId !== null && legalApproachMoves(s, unitId, dist, objectiveId, 1).length === 0) objectiveId = null
+  if (!enemyFeasible) objectiveId = nearestReachableObjective(s, geo, distObj)
+  if (objectiveId !== null && legalApproachMoves(s, unitId, distObj, objectiveId, 1).length === 0) objectiveId = null
   if (!enemyFeasible && objectiveId === null) { ctx.once(`fi:consolidated:${unitId}`); return 'progress' }
+  const dist = enemyFeasible ? distEnemy : distObj
   writeMark(s, `fi:dist:${unitId}`, String(dist))
   ctx.decide({
     kind: 'consolidate', player: s.units[unitId].player, window: 'fight.attacksResolved', canPass: false,
@@ -897,6 +900,11 @@ function driveFightUnit(ctx: EngineContext): 'pending' | 'progress' {
     fight.subStep = 'consolidate'
   }
   if (fight.subStep === 'consolidate') {
+    // C2 (World Eaters Unstoppable Fury): once per normal activation, after the attacks and deferred deaths, before the Consolidation move
+    if (!ctx.marked(`fi:bcWindow:${unitId}`) && fightGeometry(s, unitId).models.length > 0) {
+      if (ctx.window('fight.beforeConsolidate', unitId, ctx.order.active(), { unitId })) return 'pending'
+      ctx.once(`fi:bcWindow:${unitId}`)
+    }
     const r = doConsolidate(ctx, unitId)
     if (r === 'pending') return 'pending'
     if (!ctx.marked(`fi:arWindow:${unitId}`)) {

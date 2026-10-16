@@ -1,0 +1,83 @@
+{
+  "id": "we.cp.karagars-rampagers",
+  "faction": "world-eaters",
+  "name": "Karagar's Rampagers",
+  "units": [
+    {
+      "ref": "karagar",
+      "datasheet": "we.karagar-the-blooded",
+      "size": 1,
+      "enhancement": "we.e.skulls-for-khorne"
+    },
+    {
+      "ref": "berzerkers",
+      "datasheet": "we.khorne-berzerkers",
+      "size": 10
+    },
+    {
+      "ref": "jakhals",
+      "datasheet": "we.jakhals",
+      "size": 10
+    }
+  ],
+  "stratagems": [
+    "we.s.rage-unchecked",
+    "we.s.unstoppable-fury",
+    "we.s.overwhelming-onslaught"
+  ],
+  "enhancements": [
+    {
+      "id": "we.e.skulls-for-khorne",
+      "default": true
+    },
+    {
+      "id": "we.e.arch-slaughterer",
+      "default": false
+    }
+  ],
+  "secondaries": [
+    {
+      "id": "we.sec.ravage-and-ransack",
+      "name": "Ravage and Ransack",
+      "text": "At the end of each of your opponent's turns, score 4 victory points if you control the objective marker closest to your opponent's battlefield edge.",
+      "default": true,
+      "scoring": [
+        {
+          "id": "ravage-and-ransack",
+          "when": "turn.end",
+          "rounds": {
+            "from": 1,
+            "to": 5
+          },
+          "who": "opponent",
+          "rule": "custom",
+          "pointsPer": 4,
+          "cap": 20,
+          "code": "ravageAndRansack"
+        }
+      ]
+    },
+    {
+      "id": "we.sec.blood-offering",
+      "name": "Blood Offering",
+      "text": "Each time a WORLD EATERS model from your army destroys an enemy unit with a melee attack, score 2 victory points if that unit was within range of an objective marker at the start of the phase.",
+      "default": false,
+      "scoring": [
+        {
+          "id": "blood-offering",
+          "when": "any.unitDestroyed",
+          "rounds": {
+            "from": 1,
+            "to": 5
+          },
+          "who": "both",
+          "rule": "custom",
+          "pointsPer": 2,
+          "cap": 99,
+          "code": "bloodOffering"
+        }
+      ]
+    }
+  ],
+  "warlord": "karagar"
+}

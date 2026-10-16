@@ -1,0 +1,32 @@
+{
+  "id": "world-eaters",
+  "name": "World Eaters",
+  "factionKeyword": "WORLD EATERS",
+  "armyRule": "we.a.blessings-of-khorne",
+  "detachments": [
+    {
+      "id": "we.d.combat-patrol",
+      "name": "Combat Patrol",
+      "rule": "we.a.blessings-of-khorne",
+      "stratagems": [
+        "we.s.rage-unchecked",
+        "we.s.unstoppable-fury",
+        "we.s.overwhelming-onslaught"
+      ],
+      "enhancements": [
+        "we.e.skulls-for-khorne",
+        "we.e.arch-slaughterer"
+      ]
+    }
+  ],
+  "paintScheme": {
+    "primary": "#8e1b1b",
+    "secondary": "#26262b",
+    "trim": "#b08a3e",
+    "metal": "#8d9299",
+    "decal": "#e6dfcc"
+  },
+  "combatPatrols": [
+    "we.cp.karagars-rampagers"
+  ]
+}

@@ -193,6 +193,20 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
     },
   },
   {
+    match: /blessings?-?of-?khorne/i,
+    info: {
+      title: 'Blessings of Khorne',
+      hint: 'Eight dice have been rolled for the new battle round. Matching dice buy a Blessing that lasts the whole round: Wrathful Devotion (any pair) gives your units Feel No Pain 6+, or +1 to Feel No Pain rolls for models that already have it; Total Carnage (a pair of 4s or higher, or any triple) lets a model struck down before its unit fights strike back on a 4+; Warp Blades (a pair of 5s or 6s, or any triple) gives melee weapons Lethal Hits. Up to two Blessings, and one die can never pay for two. Each button lists a combination you can afford.',
+    },
+  },
+  {
+    match: /total-?carnage/i,
+    info: {
+      title: 'Total Carnage',
+      hint: 'A model in this unit was struck down before the unit fought. Roll a D6: on a 4+ it is held back, fights once after the attackers finish, and only then is removed.',
+    },
+  },
+  {
     match: /doctrina|doctrinaimperatives/i,
     info: {
       title: 'Choose a Doctrina Imperative',
@@ -523,7 +537,7 @@ function chooseOptionInfoFor(
   }
   const choice = context.data && typeof context.data.choice === 'string' ? CHOICE_PROMPT_KEYS[context.data.choice] : undefined
   // Both Cult Ambush steps (marker, return) carry the code; the return step has no ability id.
-  const key = context.data?.code === 'toilEarnsPick' ? 'toil-earns-pick' : context.data?.code === 'holyApparatusPick' ? 'holy-apparatus-pick' : context.data?.code === 'cultAmbush' ? 'cult-ambush' : context.data?.code === 'etherealEdictPick' ? 'ethereal-edict' : context.data?.code === 'divineJudgementPick' ? 'divine-judgement' : context.data?.code === 'targetedPurgePick' ? 'targeted-purge' : context.data?.code === 'doctrinaImperatives' ? 'doctrina' : context.data?.code === 'lineBreakers' ? 'line-breakers' : context.abilityId ?? choice ?? null
+  const key = context.data?.code === 'toilEarnsPick' ? 'toil-earns-pick' : context.data?.code === 'holyApparatusPick' ? 'holy-apparatus-pick' : context.data?.code === 'cultAmbush' ? 'cult-ambush' : context.data?.code === 'etherealEdictPick' ? 'ethereal-edict' : context.data?.code === 'divineJudgementPick' ? 'divine-judgement' : context.data?.code === 'targetedPurgePick' ? 'targeted-purge' : context.data?.code === 'doctrinaImperatives' ? 'doctrina' : context.data?.code === 'blessingsOfKhorne' ? 'blessings-of-khorne' : context.data?.code === 'lineBreakers' ? 'line-breakers' : context.abilityId ?? choice ?? null
   if (choice === 'patrol-squads' && Array.isArray(context.data?.sizes)) {
     const sizes = (context.data.sizes as number[]).filter((n) => typeof n === 'number')
     if (sizes.length > 0) {
@@ -744,6 +758,11 @@ function abilityOptionLabel(abilityId: string | null, o: { id: string; label: st
       case 'both': return 'Pact: Lethal Hits and Sustained Hits 1 (Foul Zealotry)'
       case 'decline': return 'No pact'
     }
+  }
+  if (/blessings?-?of-?khorne/i.test(abilityId)) {
+    if (/^(decline|skip|none|pass)$/i.test(o.id)) return 'No Blessing this round'
+    // The engine label already names each Blessing with its dice; do not rebuild it.
+    return o.label
   }
   if (/doctrina/i.test(abilityId)) {
     if (/protector/i.test(o.id)) return 'Protector: Heavy guns, and enemy shots at units in your zone lose 1 AP'

@@ -41,6 +41,17 @@ export type KitId =
   | 'csm-apostle'
   | 'csm-havoc'
   | 'csm-helbrute'
+  | 'we-berzerker'
+  | 'we-berzerker-champion'
+  | 'we-berzerker-plasma'
+  | 'we-berzerker-icon'
+  | 'we-berzerker-eviscerator'
+  | 'we-jakhal'
+  | 'we-jakhal-leader'
+  | 'we-jakhal-icon'
+  | 'we-jakhal-mauler'
+  | 'we-dishonoured'
+  | 'we-karagar'
   | 'tyr-prime'
   | 'tyr-psychophage'
   | 'tyr-termagant'
@@ -278,6 +289,11 @@ export interface BipedConfig {
   /** Death Guard dressing (dgParts.tsx): 'plate' = hoses + rag tabard + pustules, 'biologus' = plate plus a vial rack,
    *  'lord' = plate with a heavier tabard and bell-weight, 'pox' = swollen belly, ragged loincloth and boils (Poxwalkers). */
   nurgle?: 'plate' | 'biologus' | 'lord' | 'pox'
+  /** World Eaters dressing: swept brass horns on the helm, and an armoured Juggernaut mount under the rider. */
+  horns?: boolean
+  juggernaut?: boolean
+  /** Helmet paint slot for the Chaos helm (default 'secondary'). */
+  helmColor?: 'secondary' | 'metal'
 }
 
 /** Towed/emplaced gun with its crew (Astra Militarum Field Ordnance Battery): a long barrel or a rocket rack. */

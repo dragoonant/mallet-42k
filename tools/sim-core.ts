@@ -80,6 +80,9 @@ export function makeSimSetup(bundle: DataBundle, gameIndex: number, dataVersion:
   const onlyPatrol = process.env.SIM_PATROL
   let wanted = only ? pairs.filter(([x, y]) => bundle.patrols[x].faction === only || bundle.patrols[y].faction === only) : pairs
   if (onlyPatrol) wanted = wanted.filter(([x, y]) => x === onlyPatrol || y === onlyPatrol)
+  // SIM_VS=orks (with SIM_FACTION): only pairings where the other roster belongs to that faction (a fixed matchup, both seats)
+  const vs = process.env.SIM_VS
+  if (only && vs) wanted = wanted.filter(([x, y]) => (bundle.patrols[x].faction === only && bundle.patrols[y].faction === vs) || (bundle.patrols[y].faction === only && bundle.patrols[x].faction === vs))
   if (wanted.length === 0) throw new Error(`sim: no roster pairing includes faction ${only ?? '*'} patrol ${onlyPatrol ?? '*'}`)
   // plain run with 3+ rosters: the first roster walks the sorted list from the front and the opponent from the back, so a
   // short run (e.g. 6 games) touches rosters at both ends instead of only the alphabetically first ones

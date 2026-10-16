@@ -1,0 +1,175 @@
+[
+  {
+    "id": "we.w.plasma-pistol-karagar",
+    "name": "Plasma pistol (standard, Karagar)",
+    "type": "ranged",
+    "range": 12,
+    "A": 1,
+    "skill": 2,
+    "S": 7,
+    "AP": -2,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "PISTOL"
+      }
+    ],
+    "profileGroup": "we.w.plasma-pistol-karagar",
+    "figure": {
+      "part": "csm.weapon.plasma-pistol",
+      "hands": 1
+    }
+  },
+  {
+    "id": "we.w.plasma-pistol-karagar-supercharge",
+    "name": "Plasma pistol (supercharge, Karagar)",
+    "type": "ranged",
+    "range": 12,
+    "A": 1,
+    "skill": 2,
+    "S": 8,
+    "AP": -3,
+    "D": 2,
+    "abilities": [
+      {
+        "ability": "HAZARDOUS"
+      },
+      {
+        "ability": "PISTOL"
+      }
+    ],
+    "profileGroup": "we.w.plasma-pistol-karagar",
+    "figure": {
+      "part": "csm.weapon.plasma-pistol",
+      "hands": 1
+    }
+  },
+  {
+    "id": "we.w.exalted-chainblade",
+    "name": "Exalted chainblade",
+    "type": "melee",
+    "range": 0,
+    "A": 7,
+    "skill": 2,
+    "S": 6,
+    "AP": -1,
+    "D": 2,
+    "abilities": [],
+    "figure": {
+      "part": "csm.weapon.astartes-chainsword",
+      "hands": 1
+    }
+  },
+  {
+    "id": "we.w.juggernauts-bladed-horn",
+    "name": "Juggernaut's bladed horn",
+    "type": "melee",
+    "range": 0,
+    "A": 4,
+    "skill": 3,
+    "S": 6,
+    "AP": -1,
+    "D": 2,
+    "abilities": [
+      {
+        "ability": "EXTRA_ATTACKS"
+      },
+      {
+        "ability": "LANCE"
+      }
+    ],
+    "figure": {
+      "part": "csm.weapon.hideous-mutations"
+    }
+  },
+  {
+    "id": "we.w.berzerker-chainblade",
+    "name": "Berzerker chainblade",
+    "type": "melee",
+    "range": 0,
+    "A": 4,
+    "skill": 3,
+    "S": 5,
+    "AP": -1,
+    "D": 1,
+    "abilities": [],
+    "figure": {
+      "part": "csm.weapon.astartes-chainsword",
+      "hands": 1
+    }
+  },
+  {
+    "id": "we.w.khornate-eviscerator",
+    "name": "Khornate eviscerator",
+    "type": "melee",
+    "range": 0,
+    "A": 3,
+    "skill": 3,
+    "S": 8,
+    "AP": -2,
+    "D": 2,
+    "abilities": [],
+    "figure": {
+      "part": "csm.weapon.accursed-crozius",
+      "hands": 1
+    }
+  },
+  {
+    "id": "we.w.jakhal-chainblades",
+    "name": "Jakhal chainblades",
+    "type": "melee",
+    "range": 0,
+    "A": 2,
+    "skill": 4,
+    "S": 3,
+    "AP": 0,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "SUSTAINED_HITS",
+        "value": 1
+      }
+    ],
+    "figure": {
+      "part": "csm.weapon.brutal-assault-weapon",
+      "hands": 1
+    }
+  },
+  {
+    "id": "we.w.mauler-chainblade",
+    "name": "Mauler chainblade",
+    "type": "melee",
+    "range": 0,
+    "A": 2,
+    "skill": 5,
+    "S": 5,
+    "AP": -1,
+    "D": 2,
+    "abilities": [
+      {
+        "ability": "SUSTAINED_HITS",
+        "value": 1
+      }
+    ],
+    "figure": {
+      "part": "csm.weapon.accursed-weapon",
+      "hands": 1
+    }
+  },
+  {
+    "id": "we.w.skullsmasher",
+    "name": "Skullsmasher",
+    "type": "melee",
+    "range": 0,
+    "A": 4,
+    "skill": 4,
+    "S": 4,
+    "AP": -1,
+    "D": 2,
+    "abilities": [],
+    "figure": {
+      "part": "csm.weapon.helbrute-hammer",
+      "hands": 1
+    }
+  }
+]

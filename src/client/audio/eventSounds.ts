@@ -121,6 +121,15 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ['webber', 'webber-spray'] as const,
   ['demolition-charge', 'wpn-grenade-launcher'] as const,
   ['clearance-incinerator', 'wpn-heavy-flamer'] as const,
+  // World Eaters: chain blades whir like chainswords, the eviscerator and Juggernaut horn are brutal bludgeons, the skullsmasher crunches
+  // like a fist, Karagar's exalted blade rings like a relic weapon (his plasma pistols match the plasma-pistol sound by name).
+  ['berzerker-chainblade', 'melee-chainsword'] as const,
+  ['jakhal-chainblades', 'melee-chainsword'] as const,
+  ['mauler-chainblade', 'melee-chainsword'] as const,
+  ['khornate-eviscerator', 'wpn-brutal-assault-weapon'] as const,
+  ['juggernauts-bladed-horn', 'wpn-brutal-assault-weapon'] as const,
+  ['exalted-chainblade', 'wpn-relic-weapon'] as const,
+  ['skullsmasher', 'wpn-power-fist'] as const,
   // Chaos Space Marines (Dark Zealots / Havocs / Helbrute): crozius rings like a power weapon, the rest borrow.
   ['accursed-crozius', 'wpn-power-weapon'] as const,
   ['dark-disciple-ccw', 'wpn-close-combat-weapon'] as const,
@@ -312,6 +321,7 @@ const DEATH_SOUND: Record<string, SfxId> = {
   'astra-militarum': 'death-astra-militarum',
   'adepta-sororitas': 'death-adepta-sororitas',
   'chaos-space-marines': 'death-chaos-space-marines',
+  'world-eaters': 'death-chaos-space-marines',
   'grey-knights': 'death-grey-knights',
   'tau-empire': 'death-tau',
   'adeptus-custodes': 'death-adeptus-custodes',

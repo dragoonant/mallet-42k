@@ -1,0 +1,70 @@
+[
+  {
+    "id": "we.karagar-the-blooded",
+    "faction": "world-eaters",
+    "name": "Karagar the Blooded",
+    "keywords": [
+      "MOUNTED",
+      "CHARACTER",
+      "CHAOS",
+      "KHORNE",
+      "LORD ON JUGGERNAUT",
+      "KARAGAR THE BLOODED"
+    ],
+    "factionKeywords": [
+      "WORLD EATERS"
+    ],
+    "stats": {
+      "M": 10,
+      "T": 6,
+      "Sv": 2,
+      "W": 7,
+      "Ld": 6,
+      "OC": 2
+    },
+    "invuln": 4,
+    "composition": [
+      {
+        "modelId": "karagar",
+        "name": "Karagar the Blooded",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "oval",
+          "mm": 90,
+          "mm2": 52
+        },
+        "weapons": {
+          "default": [
+            "we.w.plasma-pistol-karagar",
+            "we.w.plasma-pistol-karagar-supercharge",
+            "we.w.exalted-chainblade",
+            "we.w.juggernauts-bladed-horn"
+          ]
+        },
+        "figure": {
+          "archetype": "heavy",
+          "kit": "generic-heavy"
+        }
+      }
+    ],
+    "abilities": [
+      "we.a.blessings-of-khorne",
+      "we.a.blessing-wrathful-devotion",
+      "we.a.blessing-total-carnage",
+      "we.a.blessing-warp-blades"
+    ],
+    "coreAbilities": [],
+    "points": [
+      {
+        "models": 1,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "heavy",
+      "kit": "generic-heavy"
+    }
+  }
+]

@@ -21,6 +21,17 @@ export const BODY_KIND: Record<KitId, 'biped' | 'vehicle' | 'swarm' | 'artillery
   'csm-apostle': 'biped',
   'csm-havoc': 'biped',
   'csm-helbrute': 'biped',
+  'we-berzerker': 'biped',
+  'we-berzerker-champion': 'biped',
+  'we-berzerker-plasma': 'biped',
+  'we-berzerker-icon': 'biped',
+  'we-berzerker-eviscerator': 'biped',
+  'we-jakhal': 'biped',
+  'we-jakhal-leader': 'biped',
+  'we-jakhal-icon': 'biped',
+  'we-jakhal-mauler': 'biped',
+  'we-dishonoured': 'biped',
+  'we-karagar': 'biped',
   'tyr-prime': 'biped',
   'tyr-psychophage': 'biped',
   'tyr-termagant': 'biped',
@@ -321,6 +332,19 @@ export const BIPED_CONFIG: Partial<Record<KitId, BipedConfig>> = {
     skin: 'none',
     chestPlate: true,
   },
+  // World Eaters (blood-red plate, brass horns and trim, bone-white glow): Berzerkers are bare-armed, helmed and hulking
+  // with a chain blade in hand; Jakhals are lean, hooded and fast; Karagar is a horned lord on an armoured Juggernaut.
+  'we-berzerker': { headShape: 'chaos-helmet', helmColor: 'metal', rightWeapon: 'rusty-blade', leftWeapon: 'slugga', bulk: 1.2, hasBackpack: false, shoulderPads: 'small', hasCape: false, skin: 'pale', limbColor: 'skin', chestPlate: true, hunch: 0.08 },
+  'we-berzerker-champion': { headShape: 'chaos-helmet', helmColor: 'metal', rightWeapon: 'power-sword', leftWeapon: 'plasma-pistol', bulk: 1.3, hasBackpack: false, shoulderPads: 'large', hasCape: true, capeColor: 'trim', skin: 'pale', limbColor: 'skin', chestPlate: true, spikedPauldrons: true, hunch: 0.08 },
+  'we-berzerker-plasma': { headShape: 'chaos-helmet', helmColor: 'metal', rightWeapon: 'rusty-blade', leftWeapon: 'plasma-pistol', bulk: 1.2, hasBackpack: false, shoulderPads: 'small', hasCape: false, skin: 'pale', limbColor: 'skin', chestPlate: true, hunch: 0.08 },
+  'we-berzerker-icon': { headShape: 'chaos-helmet', helmColor: 'metal', rightWeapon: 'banner', leftWeapon: 'rusty-blade', bulk: 1.2, hasBackpack: false, shoulderPads: 'small', hasCape: false, skin: 'pale', limbColor: 'skin', chestPlate: true, hunch: 0.06 },
+  'we-berzerker-eviscerator': { headShape: 'chaos-helmet', helmColor: 'metal', rightWeapon: 'plasma-axe', leftWeapon: 'none', bulk: 1.4, hasBackpack: false, shoulderPads: 'large', hasCape: false, skin: 'pale', limbColor: 'skin', chestPlate: true, hunch: 0.14 },
+  'we-jakhal': { headShape: 'cultist-hood', rightWeapon: 'rusty-blade', leftWeapon: 'slugga', bulk: 0.95, hasBackpack: false, shoulderPads: 'none', hasCape: false, skin: 'pale', limbColor: 'skin', horns: true, hunch: 0.16 },
+  'we-jakhal-leader': { headShape: 'cultist-hood', rightWeapon: 'power-sword', leftWeapon: 'slugga', bulk: 1.0, hasBackpack: false, shoulderPads: 'small', hasCape: true, capeColor: 'trim', skin: 'pale', limbColor: 'skin', horns: true, hunch: 0.16 },
+  'we-jakhal-icon': { headShape: 'cultist-hood', rightWeapon: 'banner', leftWeapon: 'rusty-blade', bulk: 0.95, hasBackpack: false, shoulderPads: 'none', hasCape: false, skin: 'pale', limbColor: 'skin', horns: true, hunch: 0.12 },
+  'we-jakhal-mauler': { headShape: 'cultist-hood', rightWeapon: 'rusty-blade', leftWeapon: 'rusty-blade', bulk: 1.0, hasBackpack: false, shoulderPads: 'none', hasCape: false, skin: 'pale', limbColor: 'skin', horns: true, hunch: 0.18 },
+  'we-dishonoured': { headShape: 'possessed-head', rightWeapon: 'mace', leftWeapon: 'mutant-claw', bulk: 1.7, hasBackpack: false, shoulderPads: 'large', hasCape: false, skin: 'daemon', limbColor: 'skin', hunch: 0.2 },
+  'we-karagar': { headShape: 'chaos-helmet', helmColor: 'metal', rightWeapon: 'power-sword', leftWeapon: 'plasma-pistol', bulk: 1.55, hasBackpack: false, shoulderPads: 'large', hasCape: true, capeColor: 'trim', skin: 'pale', limbColor: 'skin', chestPlate: true, spikedPauldrons: true, juggernaut: true },
   // Tyranids: bone-white carapace and legs (primary), purple limbs (secondary), red trim, dark chitin (metal) for
   // claws/spines, green decal as the glow (eyes, spine tips, spore sacs). Each unit has its own head shape and
   // silhouette extra: wings (Prime), hulking bulk (Psychophage), launcher + backpack (Barbgaunt), low tail (Leaper).
