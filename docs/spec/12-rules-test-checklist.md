@@ -1180,3 +1180,32 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | DEA-024 | DEA-6 | Twin power fists Twin-linked: failed wound rolls may be re-rolled; flamestorm gauntlets auto-hit (Torrent), ignore cover, Twin-linked wound re-roll |
 | DEA-025 | DEA-6 | Reductor pistol: legal only at ≤ 3"; Pistol may be fired while in Engagement Range |
 | DEA-026 | E1 | Grey Knights regression: Teleport Assault records without `arrival` still use the 9" gap and allow a charge after arrival |
+
+## BLA — Black Templars: Siguard's Crusaders (docs/spec/factions/black-templars.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| BLA-001 | BLA-1 | patrol `bt.cp.siguard-s-crusaders` loads: 4 units, 17 models; Siguard is WARLORD with Crusaders' Fervour, attached to the Crusader Squad; default secondary Path of Purgation; stratagems are the three `bt.s.*` ids; `black-templars` is a selectable faction |
+| BLA-002 | BLA-6 | data: every stat / weapon row of §6 matches (Neophyte Sv 4+, Initiates and Sword Brother Sv 3+, Siguard invuln 4+ W5, Impulsor T9 W11 OC2); reused `sm.*` ids unchanged; SM patrols still load |
+| BLA-003 | BLA-2.1 | Oath of Moment: a BT unit's attack against the Oath target re-rolls the hit roll (shared `sm.a.oath-of-moment`); BT v SM mirror keeps two separate Oath targets |
+| BLA-004 | BLA-1.1 | Siguard may attach to the Intercessors or the Crusader Squad (either split half); attaching to the Impulsor is refused |
+| BLA-005 | BLA-6.4 | Patrol Squads split → `crusader-squad-initiates` (5 Initiates: 2 chainsword, 2 bolt rifle, 1 pyreblaster) and `crusader-squad-brethren` (Sword Brother + 4 Neophytes), each Starting Strength 5; default unsplit |
+| BLA-006 | BLA-6 | Scouts 6": unled Crusader Squad (or a half) is offered a Scouts move; Siguard + Crusaders combined is not |
+| BLA-007 | BLA-3.1 | Crusaders' Fervour: Astartes chainsword makes 6 attacks, Siguard's master-crafted power weapon 7, Intercessors unaffected while Siguard leads the Crusaders; ranged weapons unchanged |
+| BLA-008 | BLA-3.2 | Righteous Defiance: Siguard ignores a wound on 5+ (FNP); unit models without activation have no FNP |
+| BLA-009 | BLA-3.3 | Righteous Defiance: opponent's unit targets Siguard's unit in Shooting → use/decline offer; use → every model FNP 4+ until phase end; never offered again in the battle; not offered when another unit is targeted |
+| BLA-010 | BLA-3.3 | Righteous Defiance in the Fight phase: offered at `fight.targetsDeclared`; after expiry (next phase) FNP back to 5+ (Siguard) / none |
+| BLA-011 | BLA-4.1 | Path of Purgation: battle end, Siguard wholly in enemy zone, not Battle-shocked → 10 VP; one base edge outside → falls back to 8 if any non-shocked ADEPTUS ASTARTES unit has a model partly inside |
+| BLA-012 | BLA-4.1 | Path of Purgation: only Battle-shocked units inside → 0; only the Impulsor partly inside → 8; embarked unit inside the transport does not count on its own; nothing scored before battle end |
+| BLA-013 | BLA-4.2 | Sacred Vow pick: no pick in round 1; at round 2 start the BT player picks a canonical enemy unit that is not destroyed; one pick per round |
+| BLA-014 | BLA-4.3 | Sacred Vow score: vow target destroyed by an Intercessor melee attack → 3 VP at round end; by a Neophyte or Initiate melee attack → 4 VP; by shooting → 0; survives → 0 |
+| BLA-015 | BLA-4.5 | Sacred Vow: Siguard (attached to the Crusaders) lands the killing melee blow → 3 VP; attached enemy target scores only when its last half dies; the enemy's own Hazardous kill → 0 |
+| BLA-016 | BLA-5.1 | Shield of Zeal: opponent shoots the Crusader Squad from 5.9" → Initiates save on invuln 4+ vs AP−3, Neophytes on 5+; shooter 6.1" away → armour only; not offered in own Shooting phase |
+| BLA-017 | BLA-5.1 | Shield of Zeal in either Fight phase: melee attacks against the targeted unit use the 4+ / 5+ invuln; Impulsor never an eligible target; expires at phase end |
+| BLA-018 | BLA-5.2 | Hate-Fuelled Strength: own Shooting, unit not yet shot → hit rolls against the closest eligible target may re-roll; a farther target → no re-roll; unit that already shot → not offered; usable in the opponent's Fight phase on a unit not yet fought |
+| BLA-019 | BLA-5.3 | Goaded to Fury: after an enemy unit shoots the Intercessors → offered; the unit moves up to 6" ending as close as possible to the shooter and outside Engagement Range; not offered for a unit the shooter did not target, nor in the BT player's own turn |
+| BLA-020 | BLA-6.1 | Righteous Zeal: Crusader Squad Advance roll and Charge roll each offered a re-roll; Intercessors not |
+| BLA-021 | BLA-6.3 | Transport: the 5 Intercessors embark (5/6); a 5-model Crusader half embarks; the unsplit 10-model squad is refused; Firing Deck 6 lets embarked models' bolt rifles fire from the Impulsor |
+| BLA-022 | BLA-6.2 | (E-BT2) Assault Vehicle: Impulsor Advances, then the passengers disembark (counts as a Normal move, no further move, charge declaration refused); after a Fall Back → no disembark; a Sororitas Rhino after an Advance still refuses |
+| BLA-023 | BLA-6.3 | (E-BT3) Siguard leading the Intercessors (6 models) embarks as one unit, occupies 6/6 capacity, disembarks together wholly within 3" and stays attached; Siguard + unsplit Crusaders (11) refused |
+| BLA-024 | BLA-6 | weapons: plasma pistol supercharge Hazardous (roll 1 → Siguard, a CHARACTER, takes 3 mortal wounds); multi-melta Melta 2 within 9" (+2 D); bolt rifle Assault + Heavy; storm bolters Rapid Fire 2 at half range → 4 shots each; Impulsor Deadly Demise D3 |
+| BLA-025 | E-BT1 | Condition `targetModelKeyword`: true at the save of a model with the keyword, false for other models of the same unit and when no target model is known; existing conditions unchanged |
