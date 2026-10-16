@@ -195,13 +195,14 @@ export const SCENARIOS: Record<string, ScenarioBuilder> = {
 }
 
 /** Builds the scenario's game state positioned in the human's Fight phase, ready for the first decision. */
-export async function buildScenario(name: string, seed = 'scenario'): Promise<ScenarioInit> {
+export async function buildScenario(name: string, seed = 'scenario', patrolId: string | null = patrolFromUrl()): Promise<ScenarioInit> {
   const build = SCENARIOS[name]
   if (!build) throw new Error(`unknown scenario "${name}" (known: ${Object.keys(SCENARIOS).join(', ')})`)
   const bundle = await loadBundle()
   registerDataBundle(bundle)
   const factionKey = SCENARIO_FACTIONS[name] ?? SCENARIO_FACTION
-  const patrol = Object.values(bundle.patrols).find((p) => p.faction === `faction.${factionKey}` || p.faction === factionKey)
+  const factionPatrols = Object.values(bundle.patrols).filter((p) => p.faction === `faction.${factionKey}` || p.faction === factionKey).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+  const patrol = (patrolId && factionPatrols.find((p) => p.id === patrolId)) || factionPatrols[0]
   if (!patrol) throw new Error(`scenario: no patrol for ${factionKey}`)
   const mission = Object.values(bundle.missions)[0]
   const player = (): GameSetup['players']['A'] => {
@@ -275,6 +276,12 @@ export async function buildScenario(name: string, seed = 'scenario'): Promise<Sc
 export function scenarioFromUrl(): string | null {
   if (typeof window === 'undefined') return null
   return new URLSearchParams(window.location.search).get('scenario')
+}
+
+/** Reads the optional `?patrol=<patrol id>` from the URL; null when absent. */
+export function patrolFromUrl(): string | null {
+  if (typeof window === 'undefined') return null
+  return new URLSearchParams(window.location.search).get('patrol')
 }
 
 /** Starts the named scenario against the bot (human = A). Resolves once the store holds the game. */

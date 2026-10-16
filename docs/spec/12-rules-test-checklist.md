@@ -830,3 +830,263 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | CUS-022 | CUS-6 | weapons: executioner greatblade Anti-PSYKER 4+ (wound roll 4 vs PSYKER is critical → Devastating Wounds); interceptor lance +1 to wound on the charge; hurricane bolter Rapid Fire 3 + Twin-linked at half range; sentinel blade Pistol usable in Engagement Range |
 | CUS-023 | CUS-6 | Deep Strike: Tyvan, Guard may start in Reserves; Praetors, Prosecutors, Vigilators may not |
 | CUS-024 | E2 | weapon-ability queries without an attack context are unchanged (Champion Duellist, Veil of Time, Epic Challenge regression) |
+
+## SOL — Space Marines: Strike Team Solarien (docs/spec/factions/space-marines--strike-team-solarien.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| SOL-001 | SOL-1 | patrol loads (default): 4 units, 15 models; Solarien is WARLORD with Auto-choral Resonators, attached to the Infiltrator Squad; default secondary Reconnaissance in Force; Strike Force Octavius still loads unchanged |
+| SOL-002 | SOL-1.2, 6.10 | Patrol Squads split → two 5-model Infiltrator units, each with Omni-scramblers; Solarien and Xarius can each attach to one half |
+| SOL-003 | SOL-6 | data: every profile/stat row of §6 matches (accelerator autocannon BS 4+, Solarien bolt pistol BS 2+); reused weapon ids are unchanged |
+| SOL-004 | SOL-2.1 | Oath of Moment: Infiltrator carbine attack vs the Oath target re-rolls the hit roll (shared `sm.a.oath-of-moment`) |
+| SOL-005 | SOL-6 | Infiltrators: attached Solarien + Infiltrators may deploy >9" from the enemy zone and models; Suppressors may not |
+| SOL-006 | SOL-6 | Scouts 6": unattached Solarien offered a Scouts move; attached Solarien + Infiltrators not offered |
+| SOL-007 | SOL-6 | Deep Strike: unattached Solarien may go to Reserves; Infiltrators, Xarius, Suppressors may not |
+| SOL-008 | SOL-3.1 | Auto-choral Resonators: end of own Command phase with Solarien's unit on a controlled marker → marker sticky (`ObjectiveSecured` sticky); unit leaves → still controlled; opponent gains higher OC at end of a turn → lost |
+| SOL-009 | SOL-3.1 | Auto-choral Resonators: not in range / marker not controlled / opponent's Command phase → no sticky |
+| SOL-010 | SOL-3.2 | Stealthy Hunter: unattached Solarien cannot be targeted from 13" by ranged attacks, can from 12"; ranged attacks against it −1 to hit |
+| SOL-011 | SOL-3.2 | Stealthy Hunter: attached to Infiltrators → no Lone Operative range limit and no Stealth −1 (Infiltrators lack Stealth) |
+| SOL-012 | SOL-3.2 | Stealthy Hunter carbine: unmodified wound 4 vs INFANTRY → critical wound → Devastating Wounds mortal wounds; may allocate to a visible CHARACTER (Precision); bolt pistol and blades unaffected |
+| SOL-013 | SOL-4.1 | Reconnaissance in Force: round 2, end of own turn, 1 v 1 No Man's Land markers → 2 VP; 2 v 1 → 4 VP; 0 v 0 → 0; home markers ignored |
+| SOL-014 | SOL-4.1 | Reconnaissance in Force: round 1 → 0; end of opponent's turn → 0 |
+| SOL-015 | SOL-4.2 | Pinpoint Purge: own ranged attack destroys an enemy unit → +2 VP; Oath target → +3 VP; melee kill → 0; opponent's own Hazardous kill → 0 |
+| SOL-016 | SOL-4.2 | Pinpoint Purge: kill by Overwatch in the opponent's turn scores; kill by Devastating Wounds mortal wounds of a ranged attack scores; attached unit scores once, when its last half is destroyed |
+| SOL-017 | SOL-5.1 | Vanguard Strike: own Command phase, Infiltrators OC 1 → 2 through the opponent's turn; back to 1 at the start of the next own Command phase |
+| SOL-018 | SOL-5.2 | Giantslayer Doctrine: Suppressor autocannon AP −1 → −2; unmodified wound 4 vs VEHICLE/MONSTER is a critical wound; not offered for a Suppressor unit that already shot; expires at phase end |
+| SOL-019 | SOL-5.3 | Rapid Repositioning: enemy ends a Normal/Advance/Fall Back move within 9" of Infiltrators → offered; unit moves up to 3" (Normal-move rules, ends outside Engagement Range) |
+| SOL-020 | SOL-5.3 | Rapid Repositioning not offered: target 9.5" away; target in Engagement Range; target is Suppressors (not PHOBOS); enemy unit arrived from Reserves |
+| SOL-021 | SOL-6.1 | Strategic Dispersal: after Solarien's unit shoots (not engaged) → use/decline; use → D6 roll, Normal move up to that many inches; not offered when engaged or after Overwatch |
+| SOL-022 | SOL-6.2 | Shrouding: Xarius leading Infiltrators → enemy ranged attack from 13" illegal (`E_NOT_IN_RANGE`), from 12" legal; ranged hits −1 (Stealth) |
+| SOL-023 | SOL-6.2 | Shrouding: Xarius unattached → no range cap, no Stealth; Infiltrators alone → none |
+| SOL-024 | SOL-6.3 | Omni-scramblers: enemy Deep Strike placement 11.9" from an Infiltrator model → rejected; 12.1" → accepted (all other arrival rules still apply) |
+| SOL-025 | SOL-6.3 | Omni-scramblers: applies to Strategic Reserves / Rapid Ingress arrivals too; does not restrict the owner's own arrivals; the arrival decision's `constraints.forbidden` includes the zone polygons |
+| SOL-026 | SOL-6.4 | Suppression Fire: autocannon hits enemy unit → it is suppressed: its attacks (ranged, melee, Overwatch) −1 to hit until the start of the SM player's next turn |
+| SOL-027 | SOL-6.4 | Suppression Fire: two units hit → `chooseOption`; a unit hit only by bolt pistols is not a candidate; Suppressors destroyed → penalty ends at once |
+| SOL-028 | SOL-6 | Accelerator autocannon Heavy: stationary Suppressors hit on 3+ (BS 4+ with +1) |
+| SOL-029 | SOL-6 | Smite focused witchfire on Xarius: Hazardous 1 → Xarius (CHARACTER) takes 3 mortal wounds |
+| SOL-030 | E1 | Stealth regression: datasheet Stealth units (other factions) unchanged; granted Stealth counted only when every half has it |
+| SOL-031 | E4 | Mission regression: Treasures of Aeons / Marked for Execution / Hallowed Retribution unchanged with the new `unitDestroyed` fields |
+
+## MOR — Orks: Morgrim's Butchas (docs/spec/factions/orks--morgrim-s-butchas.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| MOR-001 | MOR-1 | data: patrol `ork.cp.morgrims-butchas` loads; 4 units / 25 models (1 + 10 + 10 + 4); warlord `beastboss`; Morgrim attached to `snaggas-a` by default; listed in `faction.json` `combatPatrols` after the Gitstompas |
+| MOR-002 | MOR-6.1 | data: Morgrim M6 T5 Sv4+ inv 5+ W6 Ld6+ OC1, 50 mm, keywords include BEASTBOSS and WARBOSS, FNP 6, LEADER → Beast Snagga Boyz |
+| MOR-003 | MOR-6.3 | data: Beast Snagga Boyz T5 Sv5+ W1 (Nob 2) OC2, 32 mm, BATTLELINE; wargear Nob slugga + power snappa, 1 thump gun + ccw, 8 slugga + choppa |
+| MOR-004 | MOR-6.5 | data: Squighog Boyz M10 T7 Sv4+ W3 (Nob 4), FNP 5, MOUNTED (not INFANTRY); bases 75×42 / 90×52 oval |
+| MOR-005 | MOR-6.6 | data: every new weapon profile matches §6.2; Gitstompas weapons (`ork.w.shoota`, `choppa`, `close-combat-weapon`, `big-choppa`) unchanged |
+| MOR-006 | MOR-2.1 | Waaagh! called: a Snagga choppa fights at S6 A4 with a 5+ invuln; squighog jaws S7, A stays 3; Squighogs may charge after Advancing |
+| MOR-007 | MOR-6.2 | Morgrim attached: a Boy's melee hit roll of 3 (needs 3+) +1 → a natural 2 hits; ranged hit rolls unchanged; a detached Snagga unit gets no bonus |
+| MOR-008 | MOR-6.4 | Snagga Boyz vs a VEHICLE: a failed hit may be re-rolled; vs INFANTRY: no re-roll; an attached Morgrim's attacks vs a VEHICLE may re-roll too |
+| MOR-009 | MOR-6.6 | beastchoppa vs a VEHICLE: unmodified wound 4 → critical wound; stikka on a charge turn +1 to wound (Lance); saddlegit weapons fire after Advancing (Assault) |
+| MOR-010 | MOR-3.1 | Half-chewed: an attached Snagga Boy loses a wound → FNP rolled at 5+ (not 6+), one roll |
+| MOR-011 | MOR-3.1 | Half-chewed: ranged AP0 vs a Snagga Boy (Sv5+) → saves on 4+; melee AP0 → 5+; with cover still 4+ (cap +1) |
+| MOR-012 | MOR-3.1 | Half-chewed C1: during a Waaagh!, ranged AP−2 vs a Snagga Boy → armour 6+, invuln 5+ (not 4+); the auto-pick takes the invuln at 5+ |
+| MOR-013 | MOR-3.2 | Bosskilla: Morgrim's beastchoppa hit 6 → 1 extra hit (Sustained Hits 1) and Precision allocation to an attached enemy CHARACTER; Boyz' choppas unaffected; shoota unaffected |
+| MOR-014 | MOR-4.1 | Bag the Big 'Un: round 1 start offers enemy MONSTER/VEHICLE models; with none, only the enemy WARLORD |
+| MOR-015 | MOR-4.1 | Bag the Big 'Un: target killed by Morgrim → 12 VP at battle end; killed by a Snagga Boy in his attached unit → 8; alive → 0; Reserves never arrived → 8 |
+| MOR-016 | MOR-4.1 | Bag the Big 'Un (B3): one model of a 3-model VEHICLE unit picked → its death alone scores 8 at battle end, even though the unit survives |
+| MOR-017 | MOR-4.2 | Krumpin' Spree: end of own turn, holding the marker nearest the enemy edge plus one more marker outside own DZ → 4 VP; holding only a marker in own DZ → 0 |
+| MOR-018 | MOR-4.2 | Krumpin' Spree: not scored at the end of the opponent's turn; two markers tied for nearest and both held → 3 + 1 = 4 |
+| MOR-019 | MOR-5.1 | Tough As Squig-hide: S6 attack vs Snagga Boyz (T5) → −1 to wound; S5 → unchanged; offered in the opponent's Shooting and either Fight phase; not offered for Squighogs (MOUNTED) |
+| MOR-020 | MOR-5.2 | Bestial Bellow: start of the Fight phase, Morgrim 2" from an enemy unit → offered; the enemy rolls 2D6 −1 vs its Ld (7 → 6 passes vs Ld 6+, 6 → 5 fails) |
+| MOR-021 | MOR-5.2 | Bestial Bellow: offered for a Squighog Boy model; not for a Beast Snagga Boy model; not for an enemy 4" away; 1 CP spent once |
+| MOR-022 | MOR-5.3 | Get In There!: offered when an own ORKS unit is picked to fight; pile-in allowance 6"; consolidation still 3"; not offered for an enemy unit |
+| MOR-023 | MOR-1 | e2e: the start-screen patrol picker lists Morgrim's Butchas for Orks; starting with it fields 4 units; an AI-vs-AI sim game with this patrol completes 5 rounds without an engine error |
+
+## TRI — Adeptus Custodes: Tristraen's Gilded Blades (docs/spec/factions/adeptus-custodes--tristraen-s-gilded-blades.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| TRI-001 | TRI-1 | patrol loads (default): 3 units, 7 models (Tristraen 1, Guard 3, Wardens 3); Tristraen is WARLORD with Watchman of Terra, unattached; default secondary Raise the Vexillas |
+| TRI-002 | TRI-1.1 | `unitChoices:{retinue:'allarus'}` → 3 units, 6 models, no Wardens unit exists |
+| TRI-003 | TRI-1.3, 1.4 | no unit may start in Deep Strike Reserves; Guard has no BATTLELINE keyword; all 3 Guard models start at 4 W; Tristraen at 6 W; Allarus T 7, M 5 |
+| TRI-004 | TRI-2.1 | each time a TGB unit is selected to fight (both players' turns) its player gets a mandatory Dacatarai/Rendax choice for that unit only; no army-wide pick at Fight-phase start |
+| TRI-005 | TRI-2.2, 2.4 | two TGB units in one phase: Guard picks Dacatarai (critical hit → 1 extra hit), Wardens pick Rendax (critical hit auto-wounds); each unit only gets its own stance; ranged weapons unaffected; stance gone at phase end |
+| TRI-006 | TRI-2.5 | Guardians of the Throne still gets its Fight-phase-start pick (CUS-004 regression); a TGB-only army never sees it |
+| TRI-007 | TRI-3.1 | Watchman of Terra: Tristraen in Engagement Range → OC 4 (outweighs 3 OC 1 enemies on a marker); out of Engagement Range → OC 2; Battle-shocked → 0 |
+| TRI-008 | TRI-3.2 | Warrior Exemplar: Tristraen destroys the last model of an enemy unit → D6, 3+ gains 1 CP, 1–2 nothing; kill by a Guard model → no roll; a second gain in the same round is discarded by the R-4.2 cap |
+| TRI-009 | TRI-4.1 | Raise the Vexillas: round 3+, end of own turn, controls both edge-closest markers → +3; only one of them → 0; round 2 → 0; end of opponent's turn → 0 |
+| TRI-010 | TRI-4.1 | Raise the Vexillas edge selection: markers picked by distance to each player's battlefield edge for both deployment orientations; a tie lets either tied marker count |
+| TRI-011 | TRI-4.2 | Consecrated Ground: enemy unit destroyed in either turn (attack, mortal wounds, Reserve cull) → +3 each |
+| TRI-012 | TRI-4.2 | Consecrated Ground: own Custodes model destroyed → −1; at 0 secondary VP a loss removes nothing; VP from other sources are never reduced; the opponent's models dying do not reduce it |
+| TRI-013 | TRI-5.1 | Gilded Spear: Custodes unit not yet fought, either turn → pile-in up to 6" this phase; consolidate still 3"; not targetable after the unit fought |
+| TRI-014 | TRI-5.2 | Inescapable Vengeance: own Movement phase, unit not yet moved → Advance roll +2 (rolled 3 → 5"); not targetable once the unit moved; expires at phase end; not usable in the opponent's turn |
+| TRI-015 | TRI-5.3 | Overawing Magnificence: enemy declares a charge on a Custodes unit → offered; Ld test failed → charge roll −2 (2D6 = 9 → 7); passed → no change; Custodes unit not a charge target → not offered |
+| TRI-016 | TRI-5 | the Guardians of the Throne stratagems `cus.s.*` are not in this patrol's list, and the `cus.s.tgb-*` ones are not in Guardians' (both patrols' data load side by side) |
+| TRI-017 | TRI-6.1 | Tristraen fights with exactly one vaultswords profile: Behemor 6 A with Precision (may allocate to an attached CHARACTER), Hurricanus 9 A Sustained Hits 1, Victus 5 A Devastating Wounds D 3 |
+| TRI-018 | TRI-6.3 | balistus grenade launcher: D6 attacks +2 against a 10-model unit (Blast); cannot target a unit engaged with a friendly unit |
+| TRI-019 | TRI-6 | Wardens wargear as built: axe model has castellan axe ranged 24" A2 and melee A4 S9 AP−1 D3; spear models use reused guardian spear profiles |
+| TRI-020 | TRI-6 | Dacatarai on Hurricanus does not stack a second Sustained Hits; Rendax on Hurricanus gives both Lethal and Sustained |
+
+## SDC — T'au Empire: Sudden Dawn Cadre (docs/spec/factions/tau-empire--sudden-dawn-cadre.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| SDC-001 | SDC-1 | patrol loads: 4 units, 22 models; Cloudspear WARLORD with Electro-static Flares; default secondary Surprise Attack; first patrol's data unchanged |
+| SDC-002 | SDC-1.1 | Patrol Squads split: half A = Shas'ui + 4 carbines (has grav-inhibitor), half B = 3 rail rifles + 2 carbines |
+| SDC-003 | SDC-2.1 | FtGG: Breachers observing for Pathfinders → Guided attacks vs Spotted gain Ignores Cover; Devilfish observing → no Ignores Cover |
+| SDC-004 | SDC-2.2 | an embarked unit is never offered as Observer nor gets an FtGG pick |
+| SDC-005 | SDC-3 | Flares: Cloudspear has 4+ invuln; ranged attacks vs Breachers within 6" of Cloudspear −1 to hit; at 6.1" no penalty; Devilfish within 6" no penalty |
+| SDC-006 | SDC-3.1 | Flares −1 plus target Stealth/Go to Ground-style −1 still capped at −1 |
+| SDC-007 | SDC-3.2 | Flares: Fire Overwatch not offered against a T'au unit moving/charging within 6" of Cloudspear; offered against the Devilfish and against units beyond 6" |
+| SDC-008 | SDC-3 | Prototype Systems: 4+ invuln; one failed hit die re-rolled per activation (second batch gets no offer after use); one failed wound die likewise |
+| SDC-009 | SDC-3.3 | Prototype Systems: declining the hit re-roll in the projector batch keeps it for the plasma rifle batch of the same activation; next phase it is available again |
+| SDC-010 | SDC-3 | Prototype Systems: the projector's D6 Attacks roll may be re-rolled; plasma rifle has no attacks roll offer |
+| SDC-011 | SDC-4.1 | Surprise Attack: end of own turn round 1 controlling 2 NML markers → 8 VP; a home-DZ marker scores nothing; opponent's turn end scores nothing |
+| SDC-012 | SDC-4.2 | Surprise Attack: round 3 with 2 NML markers → 4 VP; round 5 with 3 NML markers → 5 VP (cap) |
+| SDC-013 | SDC-4.3 | Ethereal Edict: start of round 1 the opponent (not the owner) gets the pick over their own canonical units (attached pair once, Reserves included) |
+| SDC-014 | SDC-4.3 | Ethereal Edict: chosen unit destroyed by battle end → +12 VP; alive → 0; attached pair with only the bodyguard dead → 0 |
+| SDC-015 | SDC-5.1 | Fight by the Code: a unit that Fell Back shoots after the stratagem; not offered for a unit that did not Fall Back; without it a Fell-Back unit cannot shoot |
+| SDC-016 | SDC-5.2 | Rampart of Fire: pulse carbine vs a target 9" away resolves AP −1; vs a target 11" away AP 0; not offered for a unit that already shot |
+| SDC-017 | SDC-5 | Lives Before Territory: after an enemy declares shots at the Pathfinders, they move up to the rolled D6" and every attack against them that phase gets Benefit of Cover (AP 0 vs Sv 4+ → saves on 3+) |
+| SDC-018 | SDC-5.3 | Lives Before Territory: not offered for the Devilfish, for an untargeted unit, for a unit in Engagement Range, or in own turn |
+| SDC-019 | SDC-5.4 | Lives Before Territory: target moves out of a pulse rifle's range → that model's attacks are dropped; models still in range resolve normally; Indirect Fire attacks are not dropped for lost visibility |
+| SDC-020 | SDC-6.1 | Cloudspear starts at W 8 |
+| SDC-021 | SDC-6.2 | Weapon Support System: Cloudspear vs a −1-to-hit target hits on its BS unmodified; Indirect projector vs unseen target ignores the −1 but an unmodified 1–3 still fails |
+| SDC-022 | SDC-6.3 | Grav-inhibitor: enemy charges half A → 2D6 9 becomes 7; charging half B (no drone) → 9 |
+| SDC-023 | SDC-6.3 | Grav-inhibitor not cumulative: plus Laser-Marked-style −2 → total −2; with a −1 → −2; positive +1 still added (−2 + 1 = −1) |
+| SDC-024 | SDC-6.3 | Grav-inhibitor ends once the Shas'ui is destroyed |
+| SDC-025 | SDC-6.4 | Breach and Clear: Breacher ranged attack vs a unit within range of a marker re-rolls failed wounds (and may re-roll a success); vs a unit off-marker no re-roll; melee unaffected |
+| SDC-026 | SDC-6.5 | Scouts 7": Pathfinders make a pre-battle move ending > 9" from enemies; embarked alone in the Devilfish → the Devilfish may make it instead |
+| SDC-027 | SDC-6.7 | Transport setup: Breachers start embarked (not offered in deployment); 10 Breachers + 5 Pathfinders rejected (15 > 12); Cloudspear (BATTLESUIT) rejected |
+| SDC-028 | SDC-6.7 | Disembark: Devilfish not yet moved → Breachers placed wholly within 3", then must move (no Remain Stationary); after the Devilfish moved → counts as Normal move, cannot charge; Devilfish Advanced → no disembark |
+| SDC-029 | SDC-6.7 | Embark: Pathfinders end a Normal move with every model within 3" of the Devilfish → embark offered; one model at 3.1" → not offered; embarked units give no OC |
+| SDC-030 | SDC-6.8 | Devilfish destroyed with passengers: Deadly Demise first, then passengers placed within 3", D6 per model (1 = MW), unit Battle-shocked and cannot charge |
+| SDC-031 | SDC-6 | weapons: rail rifle Heavy +1 hit when stationary and Devastating Wounds on a crit wound; pulse blaster Assault after Advance; twin pulse carbine Twin-linked wound re-roll; projector Blast +1 A per 5 models |
+| SDC-032 | SDC-6 | Deep Strike: Cloudspear may start in Reserves (not round 1, >9" from enemies); Devilfish may not |
+
+## DZE — Chaos Space Marines: Dark Zealots (docs/spec/factions/chaos-space-marines--dark-zealots.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| DZE-001 | DZE-1 | patrol `csm.cp.dark-zealots` loads: 4 units, 21 models (Ghallaron unit 3, Legionaries 10, Havocs 5, Helbrute 1); Ghallaron model is WARLORD with Hateful Exhortation, attached to Legionaries; default secondary Champion of the Dark Gods; Zarkan's Daemonkin still loads unchanged |
+| DZE-002 | DZE-1.1 | Ghallaron unit: Ghallaron W4 Sv3+ Ld5+, Disciples W1 Sv6+ Ld7+, all 4+ invuln; attached to Legionaries, an enemy non-Precision attack may be allocated to a Disciple but not to Ghallaron while a Legionary lives |
+| DZE-003 | DZE-1.2 | Patrol Squads: split → `legionaries-a` and `legionaries-b` of 5 each with the DZE-1.2 wargear, Ghallaron attaches to `legionaries-a`; unsplit is the default |
+| DZE-004 | DZE-2.1 | Havocs selected to shoot → Dark Pact offered (lethal / sustained / decline); decline → no test at any point |
+| DZE-005 | DZE-2.2 | Pact made → no Ld roll at selection; the picked ability is on every weapon of the unit for the whole activation |
+| DZE-006 | DZE-2.3 | Pact made while shooting → Ld test rolled at `shooting.attacksResolved` after the last attack; fail → D3 mortal wounds resolved before the next unit is selected; pass → none |
+| DZE-007 | DZE-2.3 | Helbrute Pact in the Fight phase → Ld test after its attacks (after consolidation); attached Ghallaron + Legionaries test against Ld 5+ (best Ld) |
+| DZE-008 | DZE-2.3 | unit destroyed by its own Hazardous rolls before the test → no test, no error |
+| DZE-009 | DZE-2.1 | Fire Overwatch by Legionaries / Havocs → no Pact prompt; Zarkan's patrol units still test before attacking (CHA-003 regression) |
+| DZE-010 | DZE-3.1 | Hateful Exhortation: at the start of round 1 the owner picks enemy unit X (once, never again in later rounds); Legionary critical wound vs X (AP 0 boltgun) resolves at AP −1; vs another unit no change; non-critical wound vs X no change |
+| DZE-011 | DZE-3.1 | Hateful Exhortation stops once Ghallaron is destroyed; an attached marked enemy unit stays marked on both halves after its leader detaches |
+| DZE-012 | DZE-3.2 | Infernal Blessing: Ghallaron ignores lost wounds on 5+ (normal and mortal); Disciples and Legionaries get no FNP |
+| DZE-013 | DZE-4.1 | Champion of the Dark Gods: Ghallaron's crozius kills an enemy model in the Fight phase → +3 VP at that phase's end; also in the opponent's turn; a Disciple or Legionary kill alone → 0 |
+| DZE-014 | DZE-4.1 | Champion of the Dark Gods: Ghallaron kills a model and is then destroyed in the same phase → still +3; scores in each qualifying phase (no cap) |
+| DZE-015 | DZE-4.2 | Idolatrous Despoilers: at the end of the opponent's turn, one non-Battle-shocked unit wholly inside the enemy zone → +4 VP (flat with two units); one model outside → 0; Battle-shocked → 0; end of own turn → 0 |
+| DZE-016 | DZE-5.1 | Empyric Rites: Havocs targeted in the opponent's Shooting phase → 4+ invuln vs AP −3 this phase only; not offered for the Helbrute (VEHICLE) or in own Shooting phase; offered in either Fight phase |
+| DZE-017 | DZE-5.2 | Bitter Blows: Legionaries targeted in a Fight phase, model destroyed before they fought, D6 = 4 → model stays at 0 W, fights after the enemy unit's attacks, then removed; D6 = 3 → removed; already fought → no roll |
+| DZE-018 | DZE-5.2 | Bitter Blows not offered for the Helbrute; a deferred model gets no Dark Pact prompt or test (DZE-2.4) |
+| DZE-019 | DZE-5.3 | Malicious Volleys: Havocs vs a target at full strength → hit 1s re-rolled only; vs a Below Half-strength target → any failed hit roll re-rolled |
+| DZE-020 | DZE-5.3 | Malicious Volleys not offered for a unit already selected to shoot, for the Helbrute, or outside own Shooting phase |
+| DZE-021 | DZE-6.1 | Dark Zealotry: attached Ghallaron + Legionaries melee wound roll +1 (chainsword S4 vs T4 wounds on 3+); unattached Ghallaron unit → no bonus; Ghallaron dead (Disciples alive) → no bonus; ranged unaffected |
+| DZE-022 | DZE-6.2 | Havoc heavy bolter: no +1 to hit for Remaining Stationary, Sustained Hits 1 on a critical hit; Legionary heavy bolter still Heavy |
+| DZE-023 | DZE-6 | Havoc missile launcher frag Blast: D6 attacks +1 per 5 models in the target; plasma gun Rapid Fire 1 at half range; supercharge Hazardous |
+| DZE-024 | DZE-6.3 | Helbrute: Deadly Demise 1 on a 6 → 1 MW to each unit within 6"; plasma cannon Hazardous fail → 3 mortal wounds to the Helbrute (VEHICLE), not destroyed outright |
+| DZE-025 | C2 | patrol `armyRule` override: Dark Zealots registers and shows `csm.a.dark-pacts-dz`; patrols without the field keep the faction `armyRule` |
+| DZE-026 | data | data validates: every new datasheet/weapon/ability/stratagem/enhancement id resolves; no existing `csm.` record changed; `faction.json` lists both patrols |
+| DZE-027 | e2e | start screen: pick Chaos Space Marines → patrol picker → Dark Zealots → game starts with Ghallaron's unit attached to Legionaries and the Helbrute on the board |
+
+## CLA — Genestealer Cults: Claw of Ascension (docs/spec/factions/genestealer-cults--claw-of-ascension.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| CLA-001 | CLA-1 | patrol `gsc.cp.claw-of-ascension` loads: 5 units, 17 models; Shanus is WARLORD with Priority Kill Order, attached to `jackals`; default secondary Infiltration Agenda; `faction.json` lists both patrols; Hand of the Magus still loads unchanged |
+| CLA-002 | CLA-1 | wargear as built: Metamorph mutant has no ranged weapon; 3 flamers have hand flamer; Wolfquad has mining laser and 4 W, other Jackals 2 W |
+| CLA-003 | CLA-2.1 | Metamorphs destroyed in round 2 with D6 = 4 → total 5 → pool + marker decision; D6 = 3 → lost |
+| CLA-004 | CLA-2.1 | Metamorphs destroyed in round 3 with D6 = 4 → lost (no bonus); D6 = 5 → pool |
+| CLA-005 | CLA-2.1 | Atalan Jackals, Shanus and the Ridgerunner destroyed → no Cult Ambush roll |
+| CLA-006 | CLA-2.3 | return: a placement with a model 3.2" beyond the marker edge is rejected; all models wholly within 3", one touching, all >9" from enemies → accepted |
+| CLA-007 | CLA-2.3 | marker 1" from a board edge: offered placements stay on the board and inside the 3" region |
+| CLA-008 | CLA-2.4 | returned Metamorphs are a new unit at 5 models, full wounds; `oneShotUsed` empty on every model (resetOneShot) |
+| CLA-009 | CLA-2.5 | Metamorphs destroyed in round 1 during the GSC player's own first turn (going first) → pool + marker, but no return offered in the opponent's round-1 Movement phase; offered in round 2 |
+| CLA-010 | CLA-2.5 | Claw pool unit still waiting when the second player's round-3 reinforcements end → `UnitLostInReserves`, counted once more as destroyed, no Cult Ambush re-roll, pool empty |
+| CLA-011 | CLA-2.5 | Metamorphs destroyed in round 4 → roll made; on success no marker decision, never returns, never counted |
+| CLA-012 | CLA-2 | regression: Hand of the Magus Neophytes still +3 BATTLELINE / 4+, keep One Shot state, no round-1 restriction change (GEN-002, GEN-015 unchanged) |
+| CLA-013 | CLA-3.1 | Priority Kill Order: start of own Shooting phase → decision lists only enemies visible to Shanus; a missed Ridgerunner hit roll vs the picked unit is re-rolled; a successful one may be re-rolled by choice; vs another unit no re-roll; gone at phase end |
+| CLA-014 | CLA-3.1 | Priority Kill Order: not offered in the opponent's Shooting phase; no option for an enemy hidden from Shanus's model |
+| CLA-015 | CLA-3.2 | Master of Suppression: after Shanus's unit shoots, picks only among units it hit; that unit's attacks −1 to hit in its own next turn and in Overwatch during the GSC player's next Movement phase; gone at the start of the GSC player's next Shooting phase |
+| CLA-016 | CLA-3.2 | Master of Suppression stacked with Stealth on the target of the suppressed unit's attacks → still −1 (cap) |
+| CLA-017 | CLA-4.1 | Infiltration Agenda: end of own turn with a non-shocked Metamorph model's base overlapping the enemy zone → +4; two units in → still 4; Battle-shocked only → 0; end of opponent's turn → 0 |
+| CLA-018 | CLA-4.2 | Safeguard the Sanctuary: cp-01 GSC as player A controls `south` at battle end → +10; controls `north` only → 0 |
+| CLA-019 | CLA-4.2 | Safeguard the Sanctuary on cp-04 (triangle zone): closest marker to the west edge (`site-a`) is the one that scores |
+| CLA-020 | CLA-5.1 | Metamorphic Spasm: enemy picks Metamorphs in the Fight phase → offered; a model destroyed before the unit fought rolls 4+ → stays, fights after the enemy finishes, then removed; roll 3 → removed at once |
+| CLA-021 | CLA-5.1 | Metamorphic Spasm not offered for Jackals or the Ridgerunner |
+| CLA-022 | CLA-5.2 | Point-Blank Ambush: Jackals' small-arms critical hits vs a unit 10" away auto-wound; vs a unit 14" away they do not; usable in either player's Fight phase on a unit that has not fought |
+| CLA-023 | CLA-5.2 | Point-Blank Ambush not offered for a unit that already shot this phase, nor in the opponent's Shooting phase |
+| CLA-024 | CLA-5.3 | Swarm the Oppressors: start of own Charge phase, enemy X picked; a charge declaring X (alone or with others) gets +1 to the roll; a charge not including X gets none; gone after the phase |
+| CLA-025 | CLA-6.1 | Master Outrider: after Shanus+Jackals shoot, out of Engagement Range → may move up to 6" (Normal move, must end outside ER); afterwards no charge declaration offered that turn; declining keeps charging legal |
+| CLA-026 | CLA-6.1 | Master Outrider not offered when the unit is within Engagement Range after shooting, nor in the opponent's turn (Overwatch) |
+| CLA-027 | CLA-6.2 | Crossfire: after the Ridgerunner hits enemy X, X gets −1 AP improvement vs GSC attacks for the rest of the turn (Metamorph strike AP −1 resolves at −2 in the Fight phase); Shanus's ranged attacks vs X later that phase also improved; effect gone at end of turn |
+| CLA-028 | CLA-6.2 | Crossfire: no decision when the Ridgerunner hit nothing; a unit already Crossfire-marked this turn is not offered again |
+| CLA-029 | CLA-6.3 | Scouts: Shanus+Jackals and the Ridgerunner may Scout 9", Metamorphs 6"; Deep Strike offered to no unit |
+| CLA-030 | CLA-6.4 | Metamorphs FNP 5+: each lost wound rolls; Jackals have no FNP |
+| CLA-031 | CLA-6.5 | Stealth: ranged attacks vs Shanus+Jackals −1 to hit; melee unchanged |
+| CLA-032 | CLA-6.6 | Ridgerunner destroyed → Deadly Demise 1 on a 6 (1 mortal wound to each unit within 6") |
+| CLA-033 | CLA-6.7 | cult sniper rifle: Precision lets the hit go to an attached enemy CHARACTER; Heavy +1 to hit when stationary |
+| CLA-034 | CLA-6.8 | weapons: hand flamer D6 auto-hits ignoring cover and usable in Engagement Range; twin heavy stubber re-rolls failed wound rolls and fires 6 shots within 18"; mining laser D6+1 damage |
+| CLA-035 | CLA-6.9 | Metamorph mutations: each model fights with exactly one profile (strike 3 A or sweep 5 A), never both |
+
+## INF — Tyranids: Insidious Infiltrators (docs/spec/factions/tyranids--insidious-infiltrators.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| INF-001 | INF-1 | patrol loads: 5 units, 11 models (1 + 1 + 3 × 3); Death's Shadow is WARLORD and bearer of Neurogoad; default secondary Alpha Predation; three separate Leaper units |
+| INF-002 | INF-1.2 | Psionic Phantoms selected → its ability sits on Death's Shadow's only model (no CHARACTER in the army) |
+| INF-003 | INF-2.2 | no Synapse: a Leaper unit next to Death's Shadow takes a Battle-shock test on 2D6; `tyr.von-ryans-leapers-inf` differs from `tyr.von-ryans-leapers` only by lacking `tyr.a.synapse` |
+| INF-004 | INF-2.1 | Shadow in the Warp offered at either player's `command.start` while Death's Shadow is on the board; used → every enemy board unit tests once; never again this battle |
+| INF-005 | INF-6.1 | Neural Disruption at own `command.start`: enemy unit 11.9" away is an option, one 12.1" away is not; picked unit takes one Battle-shock test (2D6 vs Ld) |
+| INF-006 | INF-6.1 | Neural Disruption not offered in the opponent's Command phase, nor twice in one phase; a unit picked by both Neural Disruption and Shadow in the Warp tests twice |
+| INF-007 | INF-6.2 | Psychological Saboteur: a Battle-shocked enemy unit within 12" of Death's Shadow → its hit rolls −1; not shocked → 0; shocked but 12.5" away → 0 |
+| INF-008 | INF-6.2 | Psychological Saboteur wounds: the Lictor (20" from Death's Shadow) attacks a shocked enemy unit 10" from Death's Shadow → +1 to wound; target 13" away → 0; Death's Shadow destroyed → 0 |
+| INF-009 | INF-6.2 | Psychological Saboteur stacks with another −1 to hit only up to the −1 cap |
+| INF-010 | INF-6.3 | Feeder Tendrils: the Lictor destroys an enemy CHARACTER model → +1 CP; a non-CHARACTER kill → 0; a second CHARACTER kill in the same round → 0 (R-4.2 cap); a CHARACTER killed by a Leaper → 0 |
+| INF-011 | INF-6.6 | Precision: Lictor claws and talons vs an attached unit → the attacker may allocate to the Leader model |
+| INF-012 | INF-6.5 | Lone Operative: Death's Shadow and the Lictor can be shot from 12" but not 12.1" |
+| INF-013 | INF-6 | core abilities: the Lictor and Leapers fight in the Fights First step without charging, Death's Shadow does not; all three datasheets deploy via Infiltrators (>9" from the enemy DZ and models); ranged hit rolls vs each get −1 (Stealth) |
+| INF-014 | INF-6 | profiles: Death's Shadow 4+ invuln, Lictor no invuln, Leapers 6+; piercing claws A6 WS2+ S6 AP−2 D1; Lictor claws A6 WS2+ S7 AP−2 D2 |
+| INF-015 | INF-3.1, 3.3 | Neurogoad at own `command.start`: friendly unit 11" from the bearer is an option, 12.5" is not; picked → its charge roll may be re-rolled and its hit rolls may be re-rolled, also in the opponent's following Fight phase; the effect is gone at the start of the Tyranid player's next turn |
+| INF-016 | INF-3.3 | Neurogoad not offered in the opponent's Command phase, and only once per own Command phase |
+| INF-017 | INF-3.4, 3.5 | Psionic Phantoms: an enemy unit declares ranged targets including Death's Shadow → offer; used → a Normal move of up to 6" (6.1" rejected, ending in ER rejected); bearer still visible → the declared attacks resolve unchanged |
+| INF-018 | INF-3.6, 3.7 | Psionic Phantoms: bearer hidden after the move, D6 = 2 → the shooter re-declares only the weapons that targeted the bearer; new legal targets accepted, the bearer is not; pass → those attacks are lost; other declared targets unchanged |
+| INF-019 | INF-3.8 | Psionic Phantoms: bearer hidden, D6 = 5 → models that targeted the bearer make no attacks (their weapons aimed at other units dropped too); models that targeted other units still shoot |
+| INF-020 | INF-3.4 | Psionic Phantoms: once per battle round (second targeting in the same round → no offer; next round → offer); offered vs Fire Overwatch after set-up, after a move ends and after a charge declaration (4-6: that Overwatch makes no attacks), not offered vs the 'starts a move' Overwatch trigger, not offered while the bearer is in ER, or when only another unit is targeted |
+| INF-021 | INF-4.1, 4.3 | Alpha Predation: enemy Warlord destroyed in round 2 → +15 VP; in round 3 → +10; in round 5 → +5; scored once only |
+| INF-022 | INF-4.3 | Alpha Predation: enemy Warlord stranded in Reserves and culled at the end of round 3 → +10 VP |
+| INF-023 | INF-4.2, 4.4 | Left to Last: destroying an enemy non-Warlord unit while the enemy Warlord lives → +4 VP each; destroying the Warlord's unit → 0; any kill after that → 0 |
+| INF-024 | INF-4.4 | Left to Last: an enemy unit lost to its own Hazardous roll or the Reserves cull → 0; a Bodyguard half destroyed while its attached Warlord lives → +4 |
+| INF-025 | INF-5.1, 5.4 | Swift Kills on Leapers not yet fought: Leaper's talons AP −1 → −2, Anti-MONSTER 4+ and Anti-VEHICLE 4+ (wound roll 4 vs a VEHICLE is critical; vs INFANTRY not); ends at phase end |
+| INF-026 | INF-5.1 | Swift Kills offered in both players' Fight phases; not offered for a unit that has already fought this phase |
+| INF-027 | INF-5.2, 5.5 | Pheromonal Trace at own `command.end`: Leapers within 3" of a marker you control → `securedBy` you; Leapers leave → the marker stays yours; opponent controls it at the end of a later Command phase → flag cleared |
+| INF-028 | INF-5.2 | Pheromonal Trace not offered for the Lictor or Death's Shadow (not VON RYAN'S LEAPERS), for a marker you do not control, or for Leapers out of range |
+| INF-029 | INF-5.3, 5.6 | Predators, Not Prey in Movement on a unit not yet moved: a Normal move whose path crosses enemy and friendly models (and passes through ER) is accepted; ending within ER or overlapping is still rejected |
+| INF-030 | INF-5.6 | Predators, Not Prey: a Fall Back that crosses enemies (or a Battle-shocked unit) rolls no Desperate Escape dice and loses no models |
+| INF-031 | INF-5.3, 5.7 | Predators, Not Prey in the Charge phase before a charge is declared → the charge move may cross models; not offered for a unit that already moved / declared a charge, nor in the opponent's turn |
+| INF-032 | INF-6.4 | Pouncing Leap: Heroic Intervention on each Leaper unit costs 0 CP and is offered even after HI was used on another Leaper unit this phase; the Lictor pays 1 CP |
+| INF-033 | INF-1 | data: every new id exists and validates; the Vardenghast Swarm records (datasheets, weapons, abilities, stratagems, enhancements, patrol) are byte-for-byte unchanged |
+/^>>>>>>> bc61039/d
+## PEN — Adepta Sororitas: The Penitent Host (docs/spec/factions/adepta-sororitas--the-penitent-host.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| PEN-001 | PEN-1 | patrol `ade.cp.the-penitent-host` loads: 7 units, 26 models; Ellyrine is WARLORD with Armour of Faith, attached to the Battle Sisters; default secondary Divine Judgement; stratagems are the three `ade.s.pen.*` ids |
+| PEN-002 | PEN-1.3 | data: Sanctuary Guardians still loads unchanged; no existing `ade.*` datasheet / weapon / ability / stratagem value differs from before; every new id is unique |
+| PEN-003 | PEN-1.1 | Ellyrine may attach only to `ade.pen.battle-sisters-squad` (Seraphim / Repentia / Arcos refused) |
+| PEN-004 | PEN-1.2 | Patrol Squads split → `sisters-a` (Superior, flamer, 3 boltgun) and `sisters-b` (storm bolter, Simulacrum, 3 boltgun), each Starting Strength 5; default unsplit |
+| PEN-005 | PEN-2.1 | own Penitent Engine destroyed → +1 Miracle die; its hit roll is offered a Miracle substitution; Rhino's save is offered one |
+| PEN-006 | PEN-3 | Armour of Faith: Ellyrine FNP 4+; attached Battle Sisters FNP 5+; after Ellyrine dies the Sisters lose it |
+| PEN-007 | PEN-3.1 | Saintly Relic gain: end of own Command phase, bearer within range of a controlled marker → +1 die; two markers → still 1; bearer's unit Battle-shocked → 0; marker not controlled → 0; opponent's Command phase → 0 |
+| PEN-008 | PEN-3.2 | Saintly Relic re-roll: bearer on board → each gained die (turn start, unit destroyed, Relic gain) gets one keep/reroll offer; reroll replaces the value and is not offered again; bearer dead → no offer; Armour of Faith patrol → no offer |
+| PEN-009 | PEN-4.1 | Divine Judgement pick: at round 1 start the **opponent** gets the decision; candidates exclude MONSTER and VEHICLE units; choice stored for the Sororitas player; no pick in round 2 |
+| PEN-010 | PEN-4.2 | Divine Judgement score at battle end only: target destroyed by Repentia melee → 10; by shooting (or by an enemy's own Hazardous) → 6; survives → 0; Reserves cull → 6; nothing scored before battle end |
+| PEN-011 | PEN-4.3 | Rites of Reconsecration: round 1 → 0; round 2+, end of own turn, a unit wholly inside the enemy zone → 3; one model outside → 0; Battle-shocked → 0; two units inside → 3 |
+| PEN-012 | PEN-5.1 | Ascetic Discipline: opponent's Shooting, Repentia targeted → 5+ invuln (Sister Repentia saves on 5+ instead of 6+); Battle Sisters / Seraphim → 4+; not usable in own Shooting phase; expires at phase end |
+| PEN-013 | PEN-5.2 | A Martyr's Death: own Shooting, Battle Sisters not yet shot → boltgun unmodified 6 to hit auto-wounds; Penitent Engine / Rhino not eligible targets; not usable in the opponent's Shooting phase; usable in the opponent's Fight phase on a unit that has not fought yet |
+| PEN-014 | PEN-5.3 | Holy Radiance (2 CP): enemy fights Repentia, a not-yet-fought Repentia is destroyed → no D6, model stays, fights after the enemy unit's attacks, then removed; a model that already fought → removed at once; no Miracle discard prompt; not offered in Shooting |
+| PEN-015 | PEN-5.3 | Sanctuary Guardians `ade.s.a-martyrs-death` behaviour unchanged by the `aMartyrsDeath` param extension (D6 + discard still happen) |
+| PEN-016 | PEN-6.1 | Lead the Righteous: led Battle Sisters may re-roll hits; unled → no re-roll |
+| PEN-017 | PEN-6.3 | Angelic Ascent: Seraphim shoot, not in Engagement Range → offered a Normal move up to 6"; used → cannot declare a charge this turn; declined → can charge; within Engagement Range → no offer |
+| PEN-018 | PEN-6.3 | Seraphim Deep Strike: may start in Reserves, arrive from round 2 more than 9" from enemies |
+| PEN-019 | PEN-6.4 | Overseer of Redemption: Superior alive → melee hit re-roll; wound re-roll only after a Charge move this turn; Superior dead → neither; bolt pistol shots unaffected |
+| PEN-020 | PEN-6 | Repentia per-model stats: Superior Sv 3+ Ld 7+; Sister Repentia Sv 7+ (invuln 6+ used) Ld 8+; FNP 5+ per wound |
+| PEN-021 | PEN-6.6 | PEN Arco-flagellants: FNP 4+; arco-flails Twin-linked (wound re-roll) + Sustained Hits 1; no Extremis decision offered |
+| PEN-022 | PEN-6.5, 6.7 | Penitent Engine: declares a charge after Advancing; FNP 5+; Deadly Demise 1; penitent flamers 2D6 Torrent Twin-linked and fire after an Advance (Assault) |
+| PEN-023 | PEN-6.7 | Sororitas Rhino: T9 W10 Sv 3+ invuln 6+; storm bolter Rapid Fire 2 at half range → 4 shots; Deadly Demise D3 |
+| PEN-024 | PEN-6.8 | (E-PEN2) Battle Sisters end a move within 3" of the Rhino → embark offer; Seraphim (JUMP PACK) never offered; capacity counts models (12); disembark next Movement phase wholly within 3" |
+| PEN-025 | PEN-6.8 | (E-PEN2) Firing Deck 2: the Rhino shoots with up to 2 embarked models' ranged weapons; those passenger units cannot shoot afterwards |
+| PEN-026 | PEN-6 | weapons: plasma supercharge profile is Hazardous (Ellyrine BS 2+, Seraphim BS 3+); artificer storm bolter D2 Rapid Fire 2; neural whips Anti-Infantry 4+ (unmodified 4 vs INFANTRY is a critical wound); penitent eviscerator S6 AP−2 D2 |
+| PEN-027 | E-PEN3 | `unitHasModel` condition: true while a matching live model exists in the holder unit (attached halves included), false otherwise and for non-matching keys |
