@@ -1476,3 +1476,38 @@ IDs start at CHA-101: CHA-001…034 belong to Chaos Space Marines above.
 | WOR-023 | WOR-6 | Jakhal weapons: Jakhal chainblades and mauler chainblade Sustained Hits 1; the Dishonoured has only the skullsmasher (no ranged attack, still counts for OC/coherency); Jakhals FNP 6+ vs normal damage |
 | WOR-024 | WOR-2.2 | `feasibleBlessingSets` unit test: never returns a set needing more dice than rolled; set order is the AI preference order; `none` always offered |
 | WOR-025 | WOR-2 | AI: the Blessings AI takes the first offered option; a full AI-vs-AI game with this patrol finishes without a stuck decision |
+
+## THO — Thousand Sons: The Coven Temporus (docs/spec/factions/thousand-sons.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| THO-001 | THO-1 | patrol `ths.cp.the-coven-temporus` loads (faction `thousand-sons`): 4 units, 26 models (1 + 5 + 10 + 10); Ahrak is WARLORD with Temporal Sorceries; default secondary Sorcerous Ritual; the three `ths.s.*` stratagems; no leader attachment offered |
+| THO-002 | THO-6 | data: every stat/weapon row of §6 matches; invulns 5+/4+/6+; only the Sorcerer model has PSYKER; Screamer Invocation is one profile group with skill null + TORRENT |
+| THO-003 | THO-2.1 | end of own Command phase with Ahrak and the Sorcerer on the board, none Battle-shocked, no marker held → pool = 3 + Temporal Sorceries D3 |
+| THO-004 | THO-2.1 | Scarab unit Battle-shocked → Sorcerer adds 0; Sorcerer dead → 0; Ahrak in Reserves → neither his 2 nor the D3 |
+| THO-005 | THO-2.2 | pool 4 left at the end of the opponent's turn → reset to 0 at the start of own Command phase before any Ritual offer; unchanged during the opponent's turn |
+| THO-006 | THO-2.3 | start of the opponent's Shooting phase with pool 2 → Ritual offer lists Weaver (per PSYKER) and done, not Echoes; pool 1 → no offer |
+| THO-007 | THO-2.3 | Weaver used at `shooting.start` → not offered again that phase; offered again at `charge.start`; pool reduced by 2 |
+| THO-008 | THO-2.4 | Weaver active, Tzaangors 17" from Ahrak fail a save → re-roll offered; used → no second Weaver re-roll this phase; Tzaangors 19" away → no offer; with the Sorcerer chosen, range is measured from the Sorcerer model, not the closest Terminator of its unit; in a Thousand Sons mirror match each player gets their own once-per-phase re-roll |
+| THO-009 | THO-2.4, C2 | Weaver re-roll in a fast-rolled save batch: offer lists the failed dice, one re-rolled, `DiceRerolled` with source `ths.a.weaver-of-fates`; the re-rolled save cannot take a Command Re-roll |
+| THO-010 | THO-2.4 | Weaver does not apply to an enemy unit's saves, nor to a Thousand Sons unit when the chosen PSYKER is no longer on the board |
+| THO-011 | THO-2.5, C3 | Echoes (pool 6) on Ahrak's unit, then Epic Challenge on Ahrak → 0 CP; a second stratagem on Ahrak the same phase costs normal CP |
+| THO-012 | THO-2.5, C3 | Echoes on the Scarab unit after Malign Entanglement was already used this phase on another unit → Malign Entanglement on the Scarabs allowed for 0 CP; override expires at phase end unused |
+| THO-013 | THO-3.1 | Temporal Sorceries: Ahrak may be set in Reserves (Deep Strike, C1) and arrives >9" from enemies from round 2; Rapid Ingress is offered for him |
+| THO-014 | THO-3.1 | Lone Operative: enemy model 13" from Ahrak cannot target him with a ranged attack; at 11" it can |
+| THO-015 | THO-3.2 | Arch-Diabolist: Ahrak in Engagement Range may fire Screamer Invocation at the engaged enemy (Pistol); he still has Deep Strike and Lone Operative; no D3 Cabal points at Command end |
+| THO-016 | THO-4.1 | Sorcerous Ritual: round 2, end of opponent's Fight phase, Ahrak on a controlled marker outside own DZ, pool 2, D6 = 3 → 3+2 = 5 → +3 VP; D6 = 2 → 0 |
+| THO-017 | THO-4.1 | Sorcerous Ritual: bonus capped at +3 (pool 5, D6 = 1 → 4 → 0 VP); round 1 → no roll; marker inside own DZ → no roll; end of own Fight phase → no roll |
+| THO-018 | THO-4.1 | Sorcerous Ritual: only a Terminator (not the Sorcerer) on the marker → no roll; the Sorcerer on it → roll |
+| THO-019 | THO-4.2 | Bringer of Change: Warpsmite kills an enemy model in own Shooting → D3 VP at phase end; a soulreaper kill only → 0 |
+| THO-020 | THO-4.2, C5 | Bringer of Change: a Warpsmite Devastating Wounds mortal kill counts; force weapon kill in the opponent's Fight phase counts; Ahrak dying to his own Hazardous never counts; total capped at 12 |
+| THO-021 | THO-5.1 | Wreathed in Warpflame: Scarabs' khopesh critical hit auto-wounds (Lethal Hits); vs a VEHICLE an unmodified 5 to hit is a critical hit; vs INFANTRY a 5 is not; not offered for Tzaangors or a unit that already fought |
+| THO-022 | THO-5.2 | Mutant Cunning: opponent targets Tzaangors with shooting → offered; used → D6" Normal move (not into Engagement Range) then the unit has cover vs ranged attacks to phase end; not offered for Scarabs or an engaged Tzaangors unit |
+| THO-023 | THO-5.3 | Malign Entanglement: enemy declares a charge at the Scarabs → offered; used → charge roll 2D6 = 9 counts as 7; not offered for a unit that is not a charge target; expires at phase end |
+| THO-024 | THO-6.1, C4 | Glimpse: Ahrak's force weapon wound roll of 2 → fix to 6 offered → critical wound; a second fix the same turn is not offered; offered again in the next turn |
+| THO-025 | THO-6.1, C4 | Glimpse on a save: AP −2 attack allocated to Ahrak, save die 1 → fixed to 6 → saved; on a D3 force weapon damage roll → becomes 3; the fixed die cannot be re-rolled |
+| THO-026 | THO-6.1 | Glimpse is never offered for Scarab or Tzaangor rolls, nor on Hazardous, charge or Battle-shock rolls; Screamer Invocation (Torrent) has no hit roll to fix |
+| THO-027 | THO-6.2 | Implacable Guardians: S6 attack vs Scarabs (T5) → −1 to wound; S5 → no change; Sorcerer destroyed → no modifier; with another −1 the ±1 cap holds |
+| THO-028 | THO-6.3 | Relic Hunters: own Command end, Tzaangors on 2 controlled markers → 2 D6, each 4+ = +1 Cabal; both Tzaangors units on one marker → 1 die; marker not controlled → no die |
+| THO-029 | THO-6 | weapons: Warpsmite Anti-INFANTRY 4+ crit wound on 4 + Devastating Wounds mortal; Screamer focused profile 2D6 auto-hits and takes a Hazardous test; inferno combi-bolter Rapid Fire 2 at half range → 4 shots; soulreaper Devastating Wounds |
+| THO-030 | THO-6 | Scarabs Deep Strike from round 2 >9" from enemies; the Sorcerer picks force weapon or khopesh per fight, never both |
+| THO-031 | THO-2.3 | AI: Ritual AI keeps points (`done`) at its own movement start and spends Weaver at the opponent's shooting start when a Thousand Sons unit is likely targeted; a full AI-vs-AI game with this patrol finishes without a stuck decision |
