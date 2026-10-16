@@ -27,6 +27,7 @@ import { commitStagedDraft } from '../interaction/commitDraft'
 import { FormationPicker } from './FormationPicker'
 import { WeaponPanel } from './WeaponPanel'
 import { opensWeaponPanel } from '../interaction/decisions'
+import { baseFitsRoom, deploymentRoom } from '../../data/rosterFit'
 import { groupLabel, groupUnitIds, soleDeployUnit } from '../interaction/embarkGroup'
 import { rerollTrayModel, rollForOffer } from './rerollInfo'
 import { RerollTray } from './RerollTray'
@@ -1526,6 +1527,21 @@ function DecisionPromptBody() {
           })}
         </div>
       )}
+
+      {pending.kind === 'deployUnit' && state.phase === 'deployment' && (() => {
+        // a unit whose base is wider than the narrowest deployment zone side was set aside in Reserves when the game was created
+        const room = deploymentRoom(state.mission.data.deploymentZones)
+        const names = Object.values(state.units)
+          .filter((u) => u.player === pending.player && u.location === 'reserves' && state.setup.players[pending.player].reserves.includes(u.ref)
+            && u.models.some((id) => !baseFitsRoom(state.models[id].base, room)))
+          .map((u) => u.name)
+        if (names.length === 0) return null
+        return (
+          <div style={{ fontSize: 12, opacity: 0.85, marginTop: 6 }} data-testid="oversize-reserves-note">
+            {names.join(', ')} starts in Reserves: its base is too wide to stand inside this deployment zone. It joins the battle later, from round 2.
+          </div>
+        )
+      })()}
 
       {pending.kind === 'deployUnit' && pending.constraints.mustTouch && (() => {
         const auto = legal?.find((a): a is Extract<Action, { type: 'deployUnit' }> => a.type === 'deployUnit' && !a.toReserves && a.placements.length > 0)

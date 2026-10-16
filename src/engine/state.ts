@@ -5,6 +5,7 @@ import type {
 } from '../data/types'
 import type { CoreAbilityName } from '../data/types'
 import { parseDiceExpr } from './dice'
+import { baseFitsRoom, deploymentRoom } from '../data/rosterFit'
 import { mmToInch, transformPolygon } from './geometry'
 import { hookService } from './hooks-impl'
 import { otherPlayer, type EngineContext } from './modules'
@@ -348,6 +349,23 @@ export function deploymentZone(state: GameState, player: PlayerId): Polygon {
   return side === 'attacker' ? state.mission.data.deploymentZones.A : state.mission.data.deploymentZones.B
 }
 
+// A unit whose base is wider than the narrowest deployment zone side (Onager Dunecrawler, 130 mm, vs cp-01's 5" strips) has no
+// legal setup placement, so it starts in Reserves (arriving later by Strategic Reserves, R-5.15) instead of stalling deployment.
+// Returns `setup` with those refs appended to each player's `reserves`; embarked units and attached Leader/Bodyguard pairs are left alone.
+export function oversizeReserveRefs(setup: GameSetup, units: Record<UnitId, Unit>, models: Record<ModelId, Model>, zones: { A: Polygon; B: Polygon }, player: PlayerId): string[] {
+  const room = deploymentRoom(zones)
+  const embarked = new Set((setup.players[player].embarked ?? []).map((e) => e.unitRef))
+  return Object.values(units)
+    .filter((u) => u.player === player && !u.attachedLeaderId && !u.bodyguardUnitId && !embarked.has(u.ref) && !setup.players[player].reserves.includes(u.ref))
+    .filter((u) => u.models.some((id) => !baseFitsRoom(models[id].base, room)))
+    .map((u) => u.ref)
+}
+function withOversizeReserves(setup: GameSetup, units: Record<UnitId, Unit>, models: Record<ModelId, Model>, zones: { A: Polygon; B: Polygon }): GameSetup {
+  const extra = { A: oversizeReserveRefs(setup, units, models, zones, 'A'), B: oversizeReserveRefs(setup, units, models, zones, 'B') }
+  if (!extra.A.length && !extra.B.length) return setup
+  return { ...setup, players: { A: { ...setup.players.A, reserves: [...setup.players.A.reserves, ...extra.A] }, B: { ...setup.players.B, reserves: [...setup.players.B.reserves, ...extra.B] } } }
+}
+
 // ---------- createGameState ----------
 function req<T>(table: Record<string, T> | undefined, id: string, what: string): T {
   const v = table?.[id]
@@ -628,7 +646,7 @@ export function createGameState(setup: GameSetup, bundle: DataBundle, seed: stri
     dataVersion: setup.dataVersion,
     seed,
     rng: createRng(seed).serialize(),
-    setup,
+    setup: withOversizeReserves(setup, units, models, mission.deploymentZones),
     round: 0,
     activePlayer: 'A',
     firstPlayer: 'A',

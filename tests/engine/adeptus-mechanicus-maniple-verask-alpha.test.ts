@@ -5,7 +5,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { loadBundle } from '../../src/data'
 import type { DataBundle } from '../../src/data/types'
 import {
-  DEFAULT_MODULES, ENGINE_VERSION, ScriptedRng, createContext, createGameState, deploymentZone, emptyPhaseState, view,
+  DEFAULT_MODULES, ENGINE_VERSION, ScriptedRng, createContext, createGame, createGameState, legalActions, step, deploymentZone, emptyPhaseState, view,
   type Action, type AttackContext, type ChooseOptionDecision, type DeclaredTarget, type DiceRoll, type EngineContext, type GameEvent, type GameSetup, type GameState,
   type ModuleTable, type PendingDecision, type PlayerId, type PlayerSetup, type RollContext, type Services, type UseStratagemAction,
 } from '../../src/engine'
@@ -21,8 +21,8 @@ import { stratagemService } from '../../src/engine/stratagems'
 import { weaponService } from '../../src/engine/weapons'
 import { effectService } from '../../src/engine/effects'
 import { HOLD_CP_SCORE, stratagemScore } from '../../src/ai/stratagems'
-import { makeSimSetup, runGame } from '../../tools/sim-core'
-import { rosterFitsMission } from '../../src/data/rosterFit'
+import { runGame } from '../../tools/sim-core'
+import { baseFitsRoom, deploymentRoom } from '../../src/data/rosterFit'
 import { placeUnit } from '../fixtures'
 
 let bundle: DataBundle
@@ -987,20 +987,37 @@ describe('AI (MVA-019)', () => {
     expect(stratagemScore(m, 'A', window('movement.unitMoved', { unitId: VER }), use(RETRO, VER), 2)).toBeGreaterThan(-Infinity)
   })
 
-  it(`MVA-021 the Dunecrawler (130 mm base) cannot be set up wholly in cp-01's 5" strips, so cp-01 is not offered for this patrol; the other missions fit`, () => {
+  it(`MVA-021 (CP-1.9 / R-5.15) the Dunecrawler's 130 mm base cannot stand in cp-01's 5" strips, so it starts in Reserves for both seats and arrives by Strategic Reserves in round 2+`, async () => {
     const id = 'adm.cp.maniple-verask-alpha'
-    expect(rosterFitsMission(bundle, id, 'mission.cp-01')).toBe(false)
-    for (const m of ['mission.cp-02', 'mission.cp-03', 'mission.cp-04', 'mission.cp-05', 'mission.cp-06']) expect(rosterFitsMission(bundle, id, m), m).toBe(true)
-    // the simulator never pairs this patrol with a mission it cannot deploy on
-    process.env.SIM_PATROL = id
-    try {
-      for (let g = 0; g < 8; g++) {
-        const setup = makeSimSetup(bundle, g, 'test')
-        expect(rosterFitsMission(bundle, setup.players.A.patrolId!, setup.missionId), `game ${g}`).toBe(true)
-        expect(rosterFitsMission(bundle, setup.players.B.patrolId!, setup.missionId), `game ${g}`).toBe(true)
-      }
-    } finally { delete process.env.SIM_PATROL }
-  })
+    // the geometry: 5.12" does not fit cp-01's narrowest zone side, but fits every other mission's
+    const room = (m: string) => deploymentRoom(bundle.missions[m].deploymentZones)
+    const dune = { radius: 130 / 25.4 / 2 }
+    expect(baseFitsRoom(dune, room('mission.cp-01'))).toBe(false)
+    for (const m of ['mission.cp-02', 'mission.cp-03', 'mission.cp-04', 'mission.cp-05', 'mission.cp-06']) expect(baseFitsRoom(dune, room(m)), m).toBe(true)
+    const patrol = bundle.patrols[id]
+    const pl = (name: string): PlayerSetup => ({ name, faction: patrol.faction, patrolId: id, enhancementId: patrol.enhancements.find((e) => e.default)?.id ?? patrol.enhancements[0].id,
+      secondaryId: patrol.secondaries.find((x) => x.default)?.id ?? patrol.secondaries[0].id, attachments: [{ leaderRef: 'verask', bodyguardRef: 'rangers' }], reserves: [], battleReadyVp: 0 })
+    const setup: GameSetup = { missionId: 'mission.cp-01', terrainLayoutId: Object.keys(bundle.terrainLayouts ?? {}).sort()[0] ?? 'terrain.cp-01',
+      players: { A: pl('A'), B: pl('B') }, sides: 'rollOff', firstTurn: 'rollOff', dataVersion: 'test' }
+    const deciders = { A: new UtilityDecider('normal', 'mva21A'), B: new UtilityDecider('normal', 'mva21B') }
+    let r = createGame(setup, 'mva21', bundle)
+    // both seats' Dunecrawlers are set aside at creation; nothing else is
+    for (const p of ['A', 'B'] as PlayerId[]) expect(r.state.setup.players[p].reserves, p).toEqual(['dunecrawler'])
+    for (const u of Object.values(r.state.units)) expect(u.location === 'reserves' && r.state.setup.players[u.player].reserves.includes(u.ref), u.id).toBe(u.ref === 'dunecrawler')
+    const arrived: Record<string, number> = {}
+    let steps = 0
+    while (r.pending && r.state.phase !== 'ended' && r.state.round <= 3 && Object.keys(arrived).length < 2 && steps++ < 4000) {
+      const a = await deciders[r.pending.player].decide(view(r.state, r.pending.player), r.pending, legalActions(r.state, r.pending))
+      // deployment must never offer or accept the Dunecrawler
+      if (r.state.phase === 'deployment' && r.pending.kind === 'deployUnit') expect(r.pending.context.unitIds.some((u) => u.endsWith(':dunecrawler'))).toBe(false)
+      r = step(r.state, a)
+      expect(r.rejection).toBeFalsy()
+      for (const p of ['A', 'B']) if (!(p in arrived) && r.state.units[`${p}:dunecrawler`].location === 'board') arrived[p] = r.state.round
+    }
+    // it is still in Reserves through deployment and round 1, and any arrival is round 2 or later
+    for (const [p, round] of Object.entries(arrived)) expect(round, p).toBeGreaterThanOrEqual(2)
+    expect(Object.keys(arrived).length, 'at least one Dunecrawler reached the board by round 3').toBeGreaterThan(0)
+  }, 120_000)
 
   it('MVA-019 short sim-bot games with this patrol (odd games take the Surge-wafer and Holy Apparatus variants; the mirror included) finish without a stuck decision', () => {
     process.env.SIM_PATROL = 'adm.cp.maniple-verask-alpha'

@@ -5,7 +5,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { loadBundle } from '../../data'
 import type { DataBundle } from '../../data/types'
-import { rosterFitsMission } from '../../data/rosterFit'
 import { AI_DIFFICULTY_OPTIONS, DEFAULT_AI_DIFFICULTY, resolveFactionId, patrolsForFaction, resolvePatrol, splittablePatrolRefs, patrolUnitChoices, embarkOptions, RANDOM_UNIT_CHOICE, useGameStore, type AiDifficulty, type FactionKey, type OpponentKind } from '../store/game'
 import { primaryScoringSummary } from './labels'
 import { randomArmyPaint, usePaintStore } from '../figures/paint'
@@ -181,16 +180,6 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
   const patrolsA = useMemo(() => (bundle ? patrolsForFaction(bundle, faction) : []), [bundle, faction])
   const patrol = useMemo(() => (bundle ? resolvePatrol(bundle, faction, patrolId) : undefined), [bundle, faction, patrolId])
   const patrolsB = useMemo(() => (bundle && opponentFaction ? patrolsForFaction(bundle, opponentFaction) : []), [bundle, opponentFaction])
-  // A roster with a base wider than a mission's deployment strip (Onager Dunecrawler vs cp-01's 5" strips) cannot be set up
-  // there, so that mission is disabled for it (and for a chosen opponent roster); a random opponent is drawn from rosters that fit.
-  const chosenOppPatrol = useMemo(() => (bundle && opponentFaction ? resolvePatrol(bundle, opponentFaction, opponentPatrolId) : undefined), [bundle, opponentFaction, opponentPatrolId])
-  const missionFits = (id: string): boolean => !bundle || ((!patrol || rosterFitsMission(bundle, patrol.id, `mission.${id}`)) && (!chosenOppPatrol || rosterFitsMission(bundle, chosenOppPatrol.id, `mission.${id}`)))
-  useEffect(() => {
-    if (!bundle || missionFits(mission)) return
-    const next = MISSION_IDS.find(missionFits)
-    if (next) setMission(next)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bundle, patrol, chosenOppPatrol, mission])
   // Changing faction resets the patrol to that faction's default.
   useEffect(() => { setPatrolId('') }, [faction])
   useEffect(() => { setOpponentPatrolId('') }, [opponentFaction])
@@ -260,15 +249,11 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
   const canSplitB = !!bundle && opponent === 'hotseat' && !!opponentFaction && splittablePatrolRefs(bundle, opponentFaction, opponentPatrolId || undefined).length > 0
 
   const start = async () => {
-    const fitsHere = (pid: string) => !bundle || rosterFitsMission(bundle, pid, `mission.${mission}`)
-    const fitting = factions.filter((f) => !bundle || patrolsForFaction(bundle, f.id).some((p) => fitsHere(p.id)))
-    const pool = fitting.length ? fitting : factions
-    const randomFaction = pool.length ? pool[Math.floor(Math.random() * pool.length)].id : undefined
+    const randomFaction = factions.length ? factions[Math.floor(Math.random() * factions.length)].id : undefined
     const oppFactionId = opponentFaction || randomFaction
-    // Automatic opponent: a random patrol of the (chosen or random) faction that fits the chosen mission.
+    // Automatic opponent: a random patrol of the (chosen or random) faction.
     const allOppPatrols = bundle && oppFactionId ? patrolsForFaction(bundle, oppFactionId) : []
-    const oppPatrols = allOppPatrols.some((p) => fitsHere(p.id)) ? allOppPatrols.filter((p) => fitsHere(p.id)) : allOppPatrols
-    const oppPatrolId = opponentFaction ? opponentPatrolId || undefined : oppPatrols.length > 1 || (oppPatrols.length === 1 && allOppPatrols.length > 1) ? oppPatrols[Math.floor(Math.random() * oppPatrols.length)].id : undefined
+    const oppPatrolId = opponentFaction ? opponentPatrolId || undefined : allOppPatrols.length > 1 ? allOppPatrols[Math.floor(Math.random() * allOppPatrols.length)].id : undefined
     // The opponent gets a fresh random colour scheme every game (game-only; your saved paint is untouched).
     usePaintStore.getState().setSeatPaint('B', randomArmyPaint())
     try {
@@ -354,8 +339,8 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
         <div style={label}>Mission</div>
         <select style={select} value={mission} data-testid="setup-mission" onChange={(e) => setMission(e.target.value)}>
           {MISSION_IDS.map((id) => (
-            <option key={id} value={id} disabled={!missionFits(id)}>
-              {bundle?.missions[`mission.${id}`]?.name ?? `Combat Patrol — ${id.toUpperCase()}`}{missionFits(id) ? '' : ' (a roster base is too wide for its deployment zone)'}
+            <option key={id} value={id}>
+              {bundle?.missions[`mission.${id}`]?.name ?? `Combat Patrol — ${id.toUpperCase()}`}
             </option>
           ))}
         </select>

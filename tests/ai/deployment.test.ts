@@ -4,7 +4,6 @@ import { loadBundle } from '../../src/data/index'
 import { createGame, legalActions, step, view, type Decider, type PlayerId, type StepResult } from '../../src/engine'
 import { UtilityDecider } from '../../src/ai/utility'
 import type { DataBundle } from '../../src/data/index'
-import { rosterFitsMission } from '../../src/data/rosterFit'
 
 async function deployOnly(bundle: DataBundle, missionId: string, pa: string, pb: string, seed: string): Promise<StepResult> {
   const setup = (id: string, name: string) => {
@@ -61,9 +60,8 @@ describe('AI deployment completes', () => {
     const patrols = Object.keys(bundle.patrols).sort()
     const missions = Object.keys(bundle.missions).sort()
     const full = process.env.SWEEP_FULL === '1'
-    // a roster whose base is wider than the mission's deployment strip (Onager Dunecrawler vs cp-01) cannot deploy there; the
-    // start screen and the sim never pair them, so the sweep skips those pairings too
-    const deployable = (m: string, a: string, b: string) => rosterFitsMission(bundle, a, m) && rosterFitsMission(bundle, b, m)
+    // an oversize base (Onager Dunecrawler vs cp-01's 5" strips) is set aside in Reserves at setup, so every pairing deploys
+    const deployable = (_m: string, _a: string, _b: string) => true
     for (let m = 0; m < missions.length; m++) {
       if (full) {
         for (const a of patrols) for (const b of patrols) if (a !== b && deployable(missions[m], a, b)) await deployOnly(bundle, missions[m], a, b, 'sweep')
