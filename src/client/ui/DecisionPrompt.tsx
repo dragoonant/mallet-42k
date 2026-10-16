@@ -242,7 +242,21 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
     match: /patrol-squads/,
     info: {
       title: 'Patrol Squads',
-      hint: 'Split this brood into two units of 10 before deployment, or keep it as one big unit of 20. Each half keeps every ability.',
+      hint: 'Split this unit into smaller units before deployment, or keep it as one larger unit. Each part keeps every ability.',
+    },
+  },
+  {
+    match: /strategic-dispersal/,
+    info: {
+      title: 'Strategic Dispersal',
+      hint: 'After this unit finishes shooting, it may move up to D6 inches, provided it is not engaged with the enemy. Decline to hold your ground.',
+    },
+  },
+  {
+    match: /suppression-fire/,
+    info: {
+      title: 'Suppression Fire',
+      hint: 'Pick an enemy unit to pin down. All of its attacks get -1 to hit until your next turn, for as long as the Suppressors survive.',
     },
   },
   {
@@ -338,6 +352,16 @@ function chooseOptionInfoFor(
   const choice = context.data && typeof context.data.choice === 'string' ? CHOICE_PROMPT_KEYS[context.data.choice] : undefined
   // Both Cult Ambush steps (marker, return) carry the code; the return step has no ability id.
   const key = context.data?.code === 'cultAmbush' ? 'cult-ambush' : context.abilityId ?? choice ?? null
+  if (choice === 'patrol-squads' && Array.isArray(context.data?.sizes)) {
+    const sizes = (context.data.sizes as number[]).filter((n) => typeof n === 'number')
+    if (sizes.length > 0) {
+      const total = sizes.reduce((a, b) => a + b, 0)
+      return {
+        title: 'Patrol Squads',
+        hint: `Split this unit into ${sizes.length === 2 ? 'two units' : `${sizes.length} units`} of ${sizes.join(' and ')} before deployment, or keep it as one unit of ${total}. Each part keeps every ability.`,
+      }
+    }
+  }
   const byAbility = key ? ABILITY_PROMPT_INFO.find((a) => a.match.test(key)) : undefined
   if (byAbility) return byAbility.info
   // Order offers carry ids like "am.order.take-aim@A:shock-a" whichever ability id the engine attaches.

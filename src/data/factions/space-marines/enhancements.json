@@ -5,17 +5,37 @@
     "name": "Champion Duellist",
     "text": "Every melee weapon this model carries counts as having [PRECISION] and [LETHAL HITS].",
     "cost": 0,
-    "restriction": { "keyword": ["CAPTAIN"] },
+    "restriction": {
+      "keyword": [
+        "CAPTAIN"
+      ]
+    },
     "effect": {
       "id": "sm.e.champion-duellist.effect",
       "name": "Champion Duellist",
       "text": "Every melee weapon this model carries counts as having [PRECISION] and [LETHAL HITS].",
       "trigger": "always",
       "effect": [
-        { "when": { "weaponType": "melee" }, "grantWeaponAbility": { "ability": "PRECISION" } },
-        { "when": { "weaponType": "melee" }, "grantWeaponAbility": { "ability": "LETHAL_HITS" } }
+        {
+          "when": {
+            "weaponType": "melee"
+          },
+          "grantWeaponAbility": {
+            "ability": "PRECISION"
+          }
+        },
+        {
+          "when": {
+            "weaponType": "melee"
+          },
+          "grantWeaponAbility": {
+            "ability": "LETHAL_HITS"
+          }
+        }
       ],
-      "scope": { "who": "bearer" }
+      "scope": {
+        "who": "bearer"
+      }
     }
   },
   {
@@ -24,14 +44,101 @@
     "name": "Oathsworn Determination",
     "text": "Every model in the bearer's unit (an attached unit included) gets +1 to its Objective Control characteristic.",
     "cost": 0,
-    "restriction": { "keyword": ["CAPTAIN"] },
+    "restriction": {
+      "keyword": [
+        "CAPTAIN"
+      ]
+    },
     "effect": {
       "id": "sm.e.oathsworn-determination.effect",
       "name": "Oathsworn Determination",
       "text": "Every model in the bearer's unit gets +1 OC.",
       "trigger": "always",
-      "effect": { "modifyStat": { "stat": "OC", "value": 1 } },
-      "scope": { "who": "self" }
+      "effect": {
+        "modifyStat": {
+          "stat": "OC",
+          "value": 1
+        }
+      },
+      "scope": {
+        "who": "self"
+      }
+    }
+  },
+  {
+    "id": "sm.e.auto-choral-resonators",
+    "faction": "sm",
+    "name": "Auto-choral Resonators",
+    "text": "At the end of your Command phase, any objective marker you control that the bearer's unit (attached unit included) is within range of stays under your control, even with no models in range, until your opponent's Level of Control there is greater than yours at the start or end of any turn.",
+    "cost": 0,
+    "restriction": {
+      "keyword": [
+        "LIEUTENANT"
+      ]
+    },
+    "effect": {
+      "id": "sm.e.auto-choral-resonators.effect",
+      "name": "Auto-choral Resonators",
+      "text": "End of your Command phase: markers held by the bearer's unit stay yours.",
+      "trigger": "phaseEnd",
+      "when": {
+        "phase": "command",
+        "ownTurn": true
+      },
+      "scope": {
+        "who": "bearer"
+      },
+      "code": "autoChoralResonators"
+    }
+  },
+  {
+    "id": "sm.e.stealthy-hunter",
+    "faction": "sm",
+    "name": "Stealthy Hunter",
+    "text": "The bearer gains Lone Operative and Stealth, and its master-crafted scoped bolt carbine gains [ANTI-INFANTRY 4+], [DEVASTATING WOUNDS] and [PRECISION].",
+    "cost": 0,
+    "restriction": {
+      "keyword": [
+        "LIEUTENANT"
+      ]
+    },
+    "effect": {
+      "id": "sm.e.stealthy-hunter.effect",
+      "name": "Stealthy Hunter",
+      "text": "Bearer gains Lone Operative and Stealth; its scoped carbine gains Anti-Infantry 4+, Devastating Wounds and Precision.",
+      "trigger": "always",
+      "effect": [
+        {
+          "when": {
+            "weaponId": "sm.w.master-crafted-scoped-bolt-carbine"
+          },
+          "grantWeaponAbility": {
+            "ability": "ANTI",
+            "keyword": "INFANTRY",
+            "value": 4
+          }
+        },
+        {
+          "when": {
+            "weaponId": "sm.w.master-crafted-scoped-bolt-carbine"
+          },
+          "grantWeaponAbility": {
+            "ability": "DEVASTATING_WOUNDS"
+          }
+        },
+        {
+          "when": {
+            "weaponId": "sm.w.master-crafted-scoped-bolt-carbine"
+          },
+          "grantWeaponAbility": {
+            "ability": "PRECISION"
+          }
+        }
+      ],
+      "scope": {
+        "who": "bearer"
+      },
+      "code": "stealthyHunter"
     }
   }
 ]

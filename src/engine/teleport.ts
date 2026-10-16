@@ -115,7 +115,7 @@ export function destroyTeleportingUnit(ctx: EngineContext, unitId: UnitId): void
     }
     if (destroyed) {
       ctx.emit({ type: 'UnitDestroyed', unitId: h, byPlayer: null, byUnitId: null, byModelId: null, kind: 'other', player: owner })
-      ctx.services.missions.unitDestroyed?.(ctx, { unitId: h, byPlayer: null, byUnitId: null, byModelId: null })
+      ctx.services.missions.unitDestroyed?.(ctx, { unitId: h, byPlayer: null, byUnitId: null, byModelId: null, kind: 'other', rangedAttack: false })
     }
   }
   clearTeleport(s, id)

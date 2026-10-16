@@ -8,8 +8,29 @@
       "id": "sm.d.combat-patrol",
       "name": "Combat Patrol",
       "rule": "sm.a.oath-of-moment",
-      "stratagems": ["sm.s.gene-wrought-resilience", "sm.s.veteran-instincts", "sm.s.duty-and-honour"],
-      "enhancements": ["sm.e.champion-duellist", "sm.e.oathsworn-determination"]
+      "stratagems": [
+        "sm.s.gene-wrought-resilience",
+        "sm.s.veteran-instincts",
+        "sm.s.duty-and-honour"
+      ],
+      "enhancements": [
+        "sm.e.champion-duellist",
+        "sm.e.oathsworn-determination"
+      ]
+    },
+    {
+      "id": "sm.d.strike-team-solarien",
+      "name": "Strike Team Solarien",
+      "rule": "sm.a.oath-of-moment",
+      "stratagems": [
+        "sm.s.vanguard-strike",
+        "sm.s.giantslayer-doctrine",
+        "sm.s.rapid-repositioning"
+      ],
+      "enhancements": [
+        "sm.e.auto-choral-resonators",
+        "sm.e.stealthy-hunter"
+      ]
     }
   ],
   "paintScheme": {
@@ -19,5 +40,8 @@
     "metal": "#8a8f98",
     "decal": "#ffffff"
   },
-  "combatPatrols": ["sm.cp.strike-force-octavius"]
+  "combatPatrols": [
+    "sm.cp.strike-force-octavius",
+    "sm.cp.strike-team-solarien"
+  ]
 }

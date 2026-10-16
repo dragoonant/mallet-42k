@@ -6,16 +6,49 @@
     "text": "Use when one of your Astartes units is chosen as a target in the opponent's Shooting phase or either player's Fight phase. Until the phase ends, attacks against it whose Strength exceeds the unit's Toughness suffer -1 to wound.",
     "cost": 1,
     "category": "battleTactic",
-    "phases": ["shooting", "fight"],
-    "window": ["shooting.targetsDeclared", "fight.targetsDeclared"],
-    "who": "either",
-    "condition": { "any": [ { "phase": "shooting", "ownTurn": false }, { "phase": "fight" } ] },
-    "targets": [
-      { "role": "unit", "owner": "friendly", "filter": { "keyword": "ADEPTUS ASTARTES" }, "state": "targetedByAttack", "count": 1 }
+    "phases": [
+      "shooting",
+      "fight"
     ],
-    "when": { "strengthVsToughness": "gt" },
-    "effect": { "modifyRoll": { "roll": "wound", "value": -1 } },
-    "scope": { "who": "attacker" },
+    "window": [
+      "shooting.targetsDeclared",
+      "fight.targetsDeclared"
+    ],
+    "who": "either",
+    "condition": {
+      "any": [
+        {
+          "phase": "shooting",
+          "ownTurn": false
+        },
+        {
+          "phase": "fight"
+        }
+      ]
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "ADEPTUS ASTARTES"
+        },
+        "state": "targetedByAttack",
+        "count": 1
+      }
+    ],
+    "when": {
+      "strengthVsToughness": "gt"
+    },
+    "effect": {
+      "modifyRoll": {
+        "roll": "wound",
+        "value": -1
+      }
+    },
+    "scope": {
+      "who": "attacker"
+    },
     "duration": "untilEndOfPhase",
     "limit": "oncePerPhase"
   },
@@ -26,18 +59,44 @@
     "text": "Use in the Fight phase for one of your Terminator units not yet selected to fight this phase. Until the phase ends, each attack it makes re-rolls a wound roll of 1; an attack against a Monster or Vehicle unit may re-roll any wound roll instead.",
     "cost": 1,
     "category": "battleTactic",
-    "phases": ["fight"],
-    "window": ["fight.start", "fight.attacksResolved"],
+    "phases": [
+      "fight"
+    ],
+    "window": [
+      "fight.start",
+      "fight.attacksResolved"
+    ],
     "who": "either",
-    "condition": { "phase": "fight" },
+    "condition": {
+      "phase": "fight"
+    },
     "targets": [
-      { "role": "unit", "owner": "friendly", "filter": { "keyword": "TERMINATOR" }, "state": "notYetFought" }
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "TERMINATOR"
+        },
+        "state": "notYetFought"
+      }
     ],
     "effect": [
-      { "when": { "targetKeyword": ["MONSTER", "VEHICLE"] }, "reroll": "all" },
-      { "reroll": "ones" }
+      {
+        "when": {
+          "targetKeyword": [
+            "MONSTER",
+            "VEHICLE"
+          ]
+        },
+        "reroll": "all"
+      },
+      {
+        "reroll": "ones"
+      }
     ],
-    "scope": { "who": "self" },
+    "scope": {
+      "who": "self"
+    },
     "duration": "untilEndOfPhase",
     "limit": "oncePerPhase",
     "code": "veteranInstincts"
@@ -49,14 +108,169 @@
     "text": "Use at the end of your Command phase for one Adeptus Astartes unit within range of an objective marker you control. That marker stays under your control, even with no models in range of it, until your opponent's Level of Control there is greater than yours at the start or end of any turn.",
     "cost": 1,
     "category": "strategicPloy",
-    "phases": ["command"],
+    "phases": [
+      "command"
+    ],
     "window": "command.end",
     "who": "active",
-    "condition": { "phase": "command" },
+    "condition": {
+      "phase": "command"
+    },
     "targets": [
-      { "role": "unit", "owner": "friendly", "filter": { "keyword": "ADEPTUS ASTARTES", "within": { "of": "controlledObjective", "inches": 3 } } }
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "ADEPTUS ASTARTES",
+          "within": {
+            "of": "controlledObjective",
+            "inches": 3
+          }
+        }
+      }
     ],
     "code": "dutyAndHonour",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "sm.s.vanguard-strike",
+    "faction": "sm",
+    "name": "Vanguard Strike",
+    "text": "Use in your Command phase, targeting one Adeptus Astartes unit from your army. Until the start of your next Command phase, add 1 to the Objective Control characteristic of every model in that unit.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": [
+      "command"
+    ],
+    "window": [
+      "command.start",
+      "command.end"
+    ],
+    "who": "active",
+    "condition": {
+      "phase": "command",
+      "ownTurn": true
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "ADEPTUS ASTARTES"
+        },
+        "count": 1
+      }
+    ],
+    "effect": {
+      "modifyStat": {
+        "stat": "OC",
+        "value": 1
+      }
+    },
+    "scope": {
+      "who": "self"
+    },
+    "duration": "untilNextTurn",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "sm.s.giantslayer-doctrine",
+    "faction": "sm",
+    "name": "Giantslayer Doctrine",
+    "text": "Use in your Shooting phase, targeting one Suppressor Squad unit from your army that has not been selected to shoot this phase. Until the end of the phase, its ranged weapons improve their Armour Penetration by 1 and gain [ANTI-MONSTER 4+] and [ANTI-VEHICLE 4+].",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": [
+      "shooting"
+    ],
+    "window": [
+      "shooting.start",
+      "shooting.attacksResolved"
+    ],
+    "who": "active",
+    "condition": {
+      "phase": "shooting",
+      "ownTurn": true
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "SUPPRESSOR SQUAD"
+        },
+        "state": "notYetShot",
+        "count": 1
+      }
+    ],
+    "effect": [
+      {
+        "when": {
+          "weaponType": "ranged"
+        },
+        "modifyStat": {
+          "stat": "AP",
+          "value": -1
+        }
+      },
+      {
+        "when": {
+          "weaponType": "ranged"
+        },
+        "grantWeaponAbility": {
+          "ability": "ANTI",
+          "keyword": "MONSTER",
+          "value": 4
+        }
+      },
+      {
+        "when": {
+          "weaponType": "ranged"
+        },
+        "grantWeaponAbility": {
+          "ability": "ANTI",
+          "keyword": "VEHICLE",
+          "value": 4
+        }
+      }
+    ],
+    "scope": {
+      "who": "self"
+    },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "sm.s.rapid-repositioning",
+    "faction": "sm",
+    "name": "Rapid Repositioning",
+    "text": "Use in your opponent's Movement phase, just after an enemy unit ends a Normal, Advance or Fall Back move. Pick one of your Phobos units within 9 inches of it that is not within Engagement Range of any enemy unit; that unit may make a Normal move of up to 3 inches.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": [
+      "movement"
+    ],
+    "window": "movement.unitMoved",
+    "who": "reactive",
+    "condition": {
+      "phase": "movement",
+      "ownTurn": false
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "PHOBOS"
+        },
+        "count": 1
+      }
+    ],
+    "scope": {
+      "who": "self"
+    },
+    "duration": "instant",
+    "code": "rapidRepositioning",
     "limit": "oncePerPhase"
   }
 ]

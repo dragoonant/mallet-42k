@@ -120,8 +120,9 @@ Weapon profiles (reused ids marked; every reused profile was checked equal to th
 
 (a) = existing declarative descriptor (20-data-schema §3/§6/§9); (b) = new code hook in
 `src/engine/factions/space-marines.ts` (new file; spread into `codeHooks` as `...spaceMarinesHooks`); (c) = engine
-change beyond a code hook. **No (c) item touches a frozen contract** (`types/actions/events/hooks/rng/decider/index.ts`):
-new members go on `EngineCodeHook` (code-hooks.ts), `HookService` (hooks-impl.ts) and `MissionService` (missions.ts),
+change beyond a code hook. **One additive, optional frozen-contract change** (documented in `00-architecture.md`): `Player.stratagemIds?` in
+`types.ts` (patrol-scoped stratagem ownership, filled in `state.ts`, read by `stratagems.ts` `ownedBy`). No other (c) item
+touches a frozen contract (`types/actions/events/hooks/rng/decider/index.ts`); new members go on `EngineCodeHook` (code-hooks.ts), `HookService` (hooks-impl.ts) and `MissionService` (missions.ts),
 all non-frozen; signals reuse `AbilityTriggered`, `ObjectiveSecured`, `VpScored`, `UnitMoved`.
 Reused mechanisms: `oathOfMomentPick`, `patrolSquads`/`splitPatrolSquad`, `dutyAndHonour`'s sticky marker
 (`obj.stickyBy`), `unitsHitByWeapon` (CHA C3), `startReactiveMove` (Tyranid Skulking Horrors / Custodes Overawing

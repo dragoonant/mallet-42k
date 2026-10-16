@@ -4,32 +4,101 @@
     "name": "Oath of Moment",
     "text": "Pick one enemy unit at the start of your Command phase; until your next Command phase, attacks by models with this ability against it may re-roll the hit roll, whatever that roll was.",
     "trigger": "hitRoll",
-    "when": { "oathTarget": true },
-    "effect": { "reroll": "all" },
+    "when": {
+      "oathTarget": true
+    },
+    "effect": {
+      "reroll": "all"
+    },
     "code": "oathOfMomentPick",
-    "params": { "pickWindow": "command.start" }
+    "params": {
+      "pickWindow": "command.start"
+    }
   },
   {
     "id": "sm.a.fury-of-the-first",
     "name": "Fury of the First",
     "text": "Attacks by this unit against the Oath target get +1 to hit.",
     "trigger": "hitRoll",
-    "when": { "oathTarget": true },
-    "effect": { "modifyRoll": { "roll": "hit", "value": 1 } }
+    "when": {
+      "oathTarget": true
+    },
+    "effect": {
+      "modifyRoll": {
+        "roll": "hit",
+        "value": 1
+      }
+    }
   },
   {
     "id": "sm.a.unstoppable-valour",
     "name": "Unstoppable Valour",
     "text": "This model's unit shrugs off a poor charge roll and rolls it again.",
     "trigger": "chargeRoll",
-    "effect": { "reroll": "all" }
+    "effect": {
+      "reroll": "all"
+    }
   },
   {
     "id": "sm.a.veil-of-time",
     "name": "Veil of Time",
     "text": "This model glimpses moments before they happen; every weapon carried by the unit it leads strikes with [SUSTAINED HITS 1].",
     "trigger": "always",
-    "effect": { "grantWeaponAbility": { "ability": "SUSTAINED_HITS", "value": 1 } },
-    "scope": { "who": "self" }
+    "effect": {
+      "grantWeaponAbility": {
+        "ability": "SUSTAINED_HITS",
+        "value": 1
+      }
+    },
+    "scope": {
+      "who": "self"
+    }
+  },
+  {
+    "id": "sm.a.strategic-dispersal",
+    "name": "Strategic Dispersal",
+    "text": "In your Shooting phase, just after this model's unit has shot, if it is not within Engagement Range of any enemy unit it may make a Normal move of up to D6 inches.",
+    "trigger": "unitSelectedToShoot",
+    "code": "strategicDispersal"
+  },
+  {
+    "id": "sm.a.shrouding",
+    "name": "Shrouding (Psychic)",
+    "text": "While this model leads a unit, every model in that unit has Stealth, and the unit cannot be targeted by a ranged attack unless the attacking model is within 12 inches.",
+    "trigger": "always",
+    "code": "shrouding"
+  },
+  {
+    "id": "sm.a.omni-scramblers",
+    "name": "Omni-scramblers",
+    "text": "Enemy units arriving from Reserves cannot be set up within 12 inches of any model in this unit.",
+    "trigger": "always",
+    "code": "omniScramblers",
+    "params": {
+      "range": 12
+    }
+  },
+  {
+    "id": "sm.a.suppression-fire",
+    "name": "Suppression Fire",
+    "text": "After this unit has shot in your Shooting phase, pick one enemy unit hit by its accelerator autocannons. Until the start of your next turn, while this unit remains on the battlefield, each attack that enemy unit makes gets -1 to the Hit roll.",
+    "trigger": "unitSelectedToShoot",
+    "code": "suppressionFire",
+    "params": {
+      "weaponId": "sm.w.accelerator-autocannon"
+    }
+  },
+  {
+    "id": "sm.a.patrol-squads",
+    "name": "Patrol Squads",
+    "text": "When you declare battle formations, before any unit is set up, this unit may be split into two units of 5 models each. Each half keeps all of its abilities.",
+    "trigger": "always",
+    "code": "patrolSquads",
+    "params": {
+      "sizes": [
+        5,
+        5
+      ]
+    }
   }
 ]

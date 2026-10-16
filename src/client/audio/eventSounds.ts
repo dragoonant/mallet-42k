@@ -68,6 +68,10 @@ export interface SoundLookup {
 const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ...SFX_IDS.filter((id) => id.startsWith('wpn-')).map((id) => [id.slice(4), id] as const),
   ['chainsword', 'melee-chainsword'] as const,
+  // Strike Team Solarien: carbines crack like boltguns, the autocannon borrows the assault cannon, paired blades ring like power weapons.
+  ['bolt-carbine', 'wpn-boltgun'] as const,
+  ['accelerator-autocannon', 'wpn-assault-cannon'] as const,
+  ['paired-combat-blades', 'wpn-power-weapon'] as const,
   ['power-klaw', 'power-klaw-crunch'] as const,
   // Grey Knights have their own generated sounds (public/audio: purge-soul, psilencer-burst, psycannon-burst, nemesis-force-swing).
   ['purge-soul', 'purge-soul'] as const,

@@ -81,7 +81,9 @@ const codeOf = (s: RuntimeStratagem): EngineCodeHook | null => (s.code ? (codeHo
 const isCommandReroll = (s: RuntimeStratagem): boolean => windowsOf(s).includes('any.rollMade')
 
 function ownedBy(state: GameState, s: RuntimeStratagem, player: PlayerId): boolean {
-  return s.faction === 'core' || s.faction === state.players[player].faction
+  if (s.faction === 'core') return true
+  const ids = state.players[player].stratagemIds
+  return ids ? ids.includes(s.id) : s.faction === state.players[player].faction
 }
 
 function commandRerollStratagem(state: GameState): RuntimeStratagem | null {

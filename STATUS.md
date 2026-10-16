@@ -275,6 +275,16 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, 6 games all finished (mean 5 rounds), genestealer-cults 1 win, no draws |
 | Known gaps | No GLB models or bespoke sounds; marker option labels not customised; rulings in `docs/needs-rules-check.md` under "genestealer-cults build" (GSC-01 to GSC-22) |
 
+## Space Marines - Strike Team Solarien (M10 - second patrol, playable)
+
+| Area | State |
+|---|---|
+| Patrol | Strike Team Solarien: Lieutenant Solarien, Librarian Xarius, Infiltrator Squad, Suppressor Squad; secondaries Reconnaissance in Force / Pinpoint Purge. Picked via the start-screen patrol picker. Data: `patrols/strike-team-solarien.json` plus new datasheets/weapons/abilities/stratagems/enhancements appended in `src/data/factions/space-marines/` |
+| Engine hooks | `src/engine/factions/space-marines.ts`: Strategic Dispersal, Suppression Fire, Stealthy Hunter (grantsCoreAbility), Omni-scramblers, Auto-choral Resonators, Pinpoint Purge, merged Rapid Repositioning hook (code-hooks.ts), Scouts rule for attached units (setup.ts) |
+| Verification | typecheck, validate:data (128 files), build green; `npm test` 1899 passing (84 files, incl. SOL- tests in `tests/engine/space-marines-strike-team-solarien*.test.ts` and `tests/data/`); `tests/e2e/space-marines-strike-team-solarien.spec.ts` starts the patrol vs bot, deploys, takes Overwatch (screenshots `e2e-out/m10-space-marines-strike-team-solarien-0*.png`) |
+| Sim | `SIM_PATROL=sm.cp.strike-team-solarien npm run sim -- --games 6 --seed 5`: 6 games, all finished (round 5), 0 violations; Solarien won 1 |
+| Known gaps | Placeholder figures (reused sm-tacticus / sm-terminator kits), borrowed weapon sounds; bot ignores the new abilities; rulings under "space-marines build" in `docs/needs-rules-check.md` |
+
 ## Client+engine (units stand on terrain and ruin floors; cover badge)
 - Engine: `surfaceY` (terrain.ts) snaps placement y to the surface under the base; `checkPlacements` (geometry.ts) applies it to move, charge, pile-in, consolidate, deployment and reserves. A mid-air y that differs from the model's current y is still rejected by `canEndAt`.
 - Client: ruin floor selector (Ground/1/2, PageUp/PageDown) sets placement y; ghosts and previews draw at the chosen height. Fixed: the picker now shows on hover (not only once staged) and stays after the pointer leaves the board; the selected floor is applied to every formation the client builds (before, y never changed). A one-model nudge keeps its floor while still on that floor polygon (else selected floor, else ground) and drags track the pointer on the floor plane.

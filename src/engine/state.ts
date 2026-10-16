@@ -584,7 +584,7 @@ export function createGameState(setup: GameSetup, bundle: DataBundle, seed: stri
     }
 
     players[pid] = {
-      id: pid, name: ps.name, faction: faction.id, patrolId: patrol.id, side: null, cp: 0, vp: 0, vpBySource: {}, cpGainedThisRound: 0,
+      id: pid, name: ps.name, faction: faction.id, patrolId: patrol.id, stratagemIds: [...patrol.stratagems], side: null, cp: 0, vp: 0, vpBySource: {}, cpGainedThisRound: 0,
       stratagemUses: [], oncePerBattleUsed: [], enhancementId: enh.id, secondaryId: secondary.id, warlordUnitId, oathTargetUnitId: null,
       waaagh: { used: false, activeRound: null }, commandRerollLocked: false, battleReadyVp: ps.battleReadyVp ?? 0, secondaryState: {},
       miracle: { dice: [], spentThisPhase: [] },

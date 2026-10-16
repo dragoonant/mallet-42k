@@ -553,7 +553,7 @@ describe('verify r3: pre-battle sequence', () => {
   it('MISSION-028-scouts P8: pre-battle Scouts moves alternate between players starting with the first-turn player', () => {
     const s = freshState()
     const sheets = { ...s.datasheets }
-    for (const id of ['red.grunts', 'red.walker', 'blu.brute', 'blu.kopta']) {
+    for (const id of ['red.grunts', 'red.boss', 'red.walker', 'blu.brute', 'blu.kopta']) {
       const ds = sheets[id]
       sheets[id] = { ...ds, coreAbilities: [...ds.coreAbilities, { ability: 'SCOUTS', value: 6 }] } as typeof ds
     }

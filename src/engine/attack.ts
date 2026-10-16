@@ -414,7 +414,7 @@ function hitOpts(ctx: EngineContext, a: AttackSequenceState, group: AttackGroup,
     // SHOOT-036-attached (R-6.8): Stealth only if EVERY model of the (possibly attached) target has it
     const targetHalves = leaderService.halves(s, group.targetUnitId).filter((id) => s.units[id]?.location === 'board' && unitModels(s, id).length > 0)
     const stealthHalves = targetHalves.length > 0 ? targetHalves : [group.targetUnitId]
-    if (stealthHalves.every((id) => datasheetOf(s, id).coreAbilities.some((c) => c.ability === 'STEALTH'))) manualMods.push(-1)
+    if (stealthHalves.every((id) => ctx.services.hooks.hasCoreAbility?.(s, id, 'STEALTH') ?? datasheetOf(s, id).coreAbilities.some((c) => c.ability === 'STEALTH'))) manualMods.push(-1)
     // SHOOT-041/WEAP-020: Indirect Fire vs a target with no visible model — -1 to hit, and (below) an unmodified
     // roll of 3 or less always fails; the target still counts as being in cover (R-3.14, applied at allocation).
     // Frozen at `attack.begin` (target declaration), not re-evaluated live here — see module header.
@@ -1479,7 +1479,11 @@ function destroyUnitTail(ctx: EngineContext, unit: Unit, by: DestroyedBy): void 
   unit.destroyedBy = { player: by.player ?? s.activePlayer, kind: by.kind, round: s.round, unitId: by.unitId, modelId: by.modelId }
   ctx.emit({ type: 'UnitDestroyed', unitId: unit.id, byPlayer: by.player, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
   ctx.services.hooks.run(ctx, 'onUnitDestroyed', { destroyedUnitId: unit.id, destroyedModelId: null, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind })
-  ctx.services.missions.unitDestroyed?.(ctx, { unitId: unit.id, byPlayer: by.player, byUnitId: by.unitId, byModelId: by.modelId })
+  // E4: ranged kill flag (Devastating Wounds mortals of a ranged attack count; own Hazardous never does)
+  const ra = s.phaseState.attack
+  const rangedAttack = by.kind === 'ranged' || (by.kind === 'mortal' && by.unitId !== null && ra?.kind === 'ranged'
+    && leaderService.canonicalUnitId(s, by.unitId) === leaderService.canonicalUnitId(s, ra.attackerUnitId) && by.player !== unit.player)
+  ctx.services.missions.unitDestroyed?.(ctx, { unitId: unit.id, byPlayer: by.player, byUnitId: by.unitId, byModelId: by.modelId, kind: by.kind, rangedAttack })
   if (leaderService.isAttached(s, unit.id) && leaderService.detach) {
     // SHOOT-048/LEAD-014/R-10.1: the leader/bodyguard split happens only once the attacking unit's WHOLE
     // sequence has finished — detaching now would immediately break leaderService.halves()/allocatableModels()

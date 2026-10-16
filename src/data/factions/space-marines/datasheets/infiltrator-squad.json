@@ -1,0 +1,69 @@
+[
+  {
+    "id": "sm.infiltrator-squad",
+    "faction": "sm",
+    "factionKeywords": [
+      "ADEPTUS ASTARTES"
+    ],
+    "name": "Infiltrator Squad",
+    "keywords": [
+      "INFANTRY",
+      "SMOKE",
+      "IMPERIUM",
+      "PHOBOS",
+      "INFILTRATOR SQUAD"
+    ],
+    "stats": {
+      "M": 6,
+      "T": 4,
+      "Sv": 3,
+      "W": 2,
+      "Ld": 6,
+      "OC": 1
+    },
+    "composition": [
+      {
+        "modelId": "infiltrator",
+        "name": "Infiltrator",
+        "min": 10,
+        "max": 10,
+        "default": 10,
+        "base": {
+          "shape": "round",
+          "mm": 32
+        },
+        "weapons": {
+          "default": [
+            "sm.w.bolt-pistol",
+            "sm.w.marksman-bolt-carbine",
+            "sm.w.close-combat-weapon"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "sm-tacticus"
+        }
+      }
+    ],
+    "abilities": [
+      "sm.a.oath-of-moment",
+      "sm.a.omni-scramblers",
+      "sm.a.patrol-squads"
+    ],
+    "coreAbilities": [
+      {
+        "ability": "INFILTRATORS"
+      }
+    ],
+    "points": [
+      {
+        "models": 10,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "infantry",
+      "kit": "sm-tacticus"
+    }
+  }
+]

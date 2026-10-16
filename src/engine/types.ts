@@ -216,6 +216,8 @@ export interface Player {
   name: string
   faction: Id
   patrolId: Id
+  // ids of the patrol's own stratagems (core ones are always allowed); absent on old saves -> faction-wide ownership
+  stratagemIds?: StratagemId[]
   side: 'attacker' | 'defender' | null
   cp: number
   vp: number

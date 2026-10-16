@@ -601,7 +601,7 @@ function cullStrandedReserves(ctx: EngineContext, endOfRound3 = false): void {
     if (destroyed) {
       ctx.emit({ type: 'UnitDestroyed', unitId, byPlayer: null, byUnitId: null, byModelId: null, kind: 'other', player })
       // CSM-06: a stranded unit counts as destroyed for mission rules (Marked for Execution on a stranded Warlord)
-      ctx.services.missions.unitDestroyed?.(ctx, { unitId, byPlayer: null, byUnitId: null, byModelId: null })
+      ctx.services.missions.unitDestroyed?.(ctx, { unitId, byPlayer: null, byUnitId: null, byModelId: null, kind: 'other', rangedAttack: false })
     }
   }
   for (const u of Object.values(s.units)) {
@@ -633,6 +633,27 @@ function cultAmbushArrivalConstraints(marker: Vec3 | null): MoveConstraints {
   return emptyMoveConstraints(9999, { minDistanceFromEnemies: 9, coherency: false, mustTouch: marker ? { pos: marker, radius: CULT_AMBUSH_MARKER_RADIUS } : null })
 }
 
+// E2 (Omni-scramblers): polygons (32-gon circles, radius = distance + the model's base radius, circumscribed) that units
+// arriving from Reserves for `arrivingPlayer` must avoid; the exact horizontal-gap test in resolveArrival is authoritative.
+export function reserveExclusionPolygons(state: GameState, arrivingPlayer: PlayerId): Polygon[] {
+  const out: Polygon[] = []
+  const N = 32
+  for (const z of hookService.reserveExclusionZones?.(state, arrivingPlayer) ?? []) {
+    for (const id of z.unitIds) {
+      if (state.units[id]?.location !== 'board') continue
+      for (const m of unitModels(state, id)) {
+        const r = (z.distance + Math.max(m.base.radius, m.base.radius2 ?? 0)) / Math.cos(Math.PI / N)
+        out.push(Array.from({ length: N }, (_, i) => ({ x: m.pos.x + r * Math.cos((2 * Math.PI * (i + 0.5)) / N), z: m.pos.z + r * Math.sin((2 * Math.PI * (i + 0.5)) / N) })))
+      }
+    }
+  }
+  return out
+}
+function withReserveExclusion(state: GameState, player: PlayerId, c: MoveConstraints): MoveConstraints {
+  const extra = reserveExclusionPolygons(state, player)
+  return extra.length === 0 ? c : { ...c, forbidden: [...c.forbidden, ...extra] }
+}
+
 function resolveArrival(state: GameState, groupIds: UnitId[], placements: ModelPlacement[], via: ArrivalVia = 'deepStrike'):
   { rejection: Rejection } | { rejection: null; resolved: ResolvedPlacement[] } {
   const models = groupIds.flatMap((id) => unitModels(state, id))
@@ -648,6 +669,18 @@ function resolveArrival(state: GameState, groupIds: UnitId[], placements: ModelP
         : emptyMoveConstraints(9999, { minDistanceFromEnemies: 9, coherency: false })
   const result = checkPlacements({ unitModels: models, placements, constraints, otherFriendly, enemies, board: state.board })
   if (result.rejection) return result
+  // E2 Omni-scramblers: no arrival model within the zone distance of a source unit's models (all arrival routes)
+  for (const z of hookService.reserveExclusionZones?.(state, player) ?? []) {
+    for (const r of result.resolved) {
+      const fp = { pos: r.to, facing: r.facing, base: r.model.base }
+      for (const id of z.unitIds) {
+        if (state.units[id]?.location !== 'board') continue
+        if (unitModels(state, id).some((zm) => horizontalGap(fp, zm) <= z.distance + EPS)) {
+          return { rejection: { code: 'E_ENGAGEMENT', reason: `${r.model.id} must be set up more than ${z.distance}" from ${z.sourceUnitId} (Omni-scramblers)`, details: { modelId: r.model.id, unitId: z.sourceUnitId } } }
+        }
+      }
+    }
+  }
   // MOVE-021-terrain/air: a Deep Strike (or Rapid Ingress) arrival is still an "end a move here" placement — it may
   // not be set up inside solid terrain or on a height with no matching surface.
   for (const r of result.resolved) {
@@ -706,7 +739,7 @@ function raiseArrivalDecision(ctx: EngineContext, unitId: UnitId, player: Player
     ctx.decide({
       kind: 'deployUnit', player, window: 'movement.reinforcements', canPass: false,
       context: { unitIds: [unitId], zone: boardPolygon(s), infiltrators: [], reservesAllowed: [] },
-      constraints: cultAmbushArrivalConstraints(marker),
+      constraints: withReserveExclusion(s, player, cultAmbushArrivalConstraints(marker)),
     })
     return
   }
@@ -717,7 +750,7 @@ function raiseArrivalDecision(ctx: EngineContext, unitId: UnitId, player: Player
     ctx.decide({
       kind: 'deployUnit', player, window: 'movement.reinforcements', canPass: false,
       context: { unitIds: [unitId], zone: nextWaveZone(s, player), infiltrators: [], reservesAllowed: [] },
-      constraints: emptyMoveConstraints(9999, { region: nextWaveZone(s, player), mustEndOutsideEngagement: true, coherency: false }),
+      constraints: withReserveExclusion(s, player, emptyMoveConstraints(9999, { region: nextWaveZone(s, player), mustEndOutsideEngagement: true, coherency: false })),
     })
     return
   }
@@ -733,7 +766,7 @@ function raiseArrivalDecision(ctx: EngineContext, unitId: UnitId, player: Player
   ctx.decide({
     kind: 'deployUnit', player, window: 'movement.reinforcements', canPass: false,
     context: { unitIds: groupIds, zone: boardPolygon(s), infiltrators: [], reservesAllowed: groupIds },
-    constraints: via === 'strategicReserves' ? strategicReservesConstraints(s, player) : emptyMoveConstraints(9999, { minDistanceFromEnemies: 9, coherency: false }),
+    constraints: withReserveExclusion(s, player, via === 'strategicReserves' ? strategicReservesConstraints(s, player) : emptyMoveConstraints(9999, { minDistanceFromEnemies: 9, coherency: false })),
   })
 }
 

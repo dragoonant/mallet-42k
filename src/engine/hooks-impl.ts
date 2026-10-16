@@ -88,6 +88,10 @@ export interface HookQueries {
   chargeForbidden(state: GameState, unitId: UnitId): boolean
   // C1: sum of skillDeltaVsTarget answers (signed BS/WS step; -1 = better)
   skillDeltaFor(state: GameState, attackerModelId: ModelId, weapon: RuntimeWeapon, targetUnitId: UnitId, info: { kind: 'ranged' | 'melee'; overwatch: boolean }): number
+  // E2: active reserve-arrival exclusion zones against units arriving for `arrivingPlayer`
+  reserveExclusionZones(state: GameState, arrivingPlayer: PlayerId): { sourceUnitId: UnitId; unitIds: UnitId[]; distance: number }[]
+  // E3: minimum of all non-null targetRangeCap answers, or null
+  targetRangeCapFor(state: GameState, targetUnitId: UnitId, firingModelId: ModelId): number | null
   // C2: lowest overwatchHitOn answer, default 6
   overwatchHitOnFor(state: GameState, shooterUnitId: UnitId, stratagemId: string): number
 }
@@ -701,6 +705,30 @@ export const hookService: HookService & HookQueries = {
       sum += spec.skillDeltaVsTarget(state, entry, attackerModelId, weapon, targetUnitId, info) ?? 0
     }
     return sum
+  },
+
+  reserveExclusionZones(state, arrivingPlayer) {
+    const out: { sourceUnitId: UnitId; unitIds: UnitId[]; distance: number }[] = []
+    for (const entry of sourcesFor(state)) {
+      const spec = codeHookFor(entry.code)
+      if (!spec?.reserveExclusion || entry.active) continue
+      if (!gateOpen(state, entry)) continue
+      const z = spec.reserveExclusion(state, entry, arrivingPlayer)
+      if (z && z.unitIds.length > 0) out.push({ sourceUnitId: entry.holderUnitId, unitIds: z.unitIds, distance: z.distance })
+    }
+    return out
+  },
+
+  targetRangeCapFor(state, targetUnitId, firingModelId) {
+    let best: number | null = null
+    for (const entry of sourcesFor(state)) {
+      const spec = codeHookFor(entry.code)
+      if (!spec?.targetRangeCap || entry.active) continue
+      if (!gateOpen(state, entry)) continue
+      const v = spec.targetRangeCap(state, entry, targetUnitId, firingModelId)
+      if (v !== null && (best === null || v < best)) best = v
+    }
+    return best
   },
 
   overwatchHitOnFor(state, shooterUnitId, stratagemId) {

@@ -18,6 +18,7 @@ import { shotThisTurn } from './attack'
 import type { AttackContext, CodeHook, HookName, HookResult } from './hooks'
 import { chaosSpaceMarinesHooks } from './factions/chaos-space-marines'
 import { greyKnightsHooks } from './factions/grey-knights'
+import { spaceMarinesHooks, smRapidRepositioningCheck, smRapidRepositioningApply } from './factions/space-marines'
 import { adeptusCustodesHooks } from './factions/adeptus-custodes'
 import { hookService, type HookSourceEntry } from './hooks-impl'
 import { leaderService } from './leaders'
@@ -27,7 +28,7 @@ import { answerReanimation } from './factions/necrons'
 import { keywordsOf, modelStats, mortalCredit, unitModels, type MortalCreditBy } from './state'
 import { isTeleporting } from './teleport'
 import type {
-  ChooseOptionDecision, ChooseOptionTopic, GameState, ModelId, PendingDecision, PlayerId, ReactionWindowDecision, Rejection,
+  ChooseOptionDecision, ChooseOptionTopic, GameState, ModelId, Objective, PendingDecision, PlayerId, ReactionWindowDecision, Rejection,
   RuntimeStratagem, RuntimeWeapon, Unit, UnitId, WeaponId,
 } from './types'
 
@@ -67,6 +68,11 @@ export interface EngineCodeHook extends CodeHook {
   rerollsAttackCount?(state: GameState, entry: HookSourceEntry, attackerModelId: ModelId, weapon: RuntimeWeapon): boolean
   // C5: core abilities this source currently grants to `unitId` (Gunnery Officer: LONE_OPERATIVE)
   grantsCoreAbility?(state: GameState, entry: HookSourceEntry, unitId: UnitId): CoreAbility['ability'][]
+  // E2 (SM Omni-scramblers): enemy units arriving from Reserves for `arrivingPlayer` may not be set up within `distance"
+  // (horizontal edge-to-edge) of any model of `unitIds`; null = no zone
+  reserveExclusion?(state: GameState, entry: HookSourceEntry, arrivingPlayer: PlayerId): { unitIds: UnitId[]; distance: number } | null
+  // E3 (SM Shrouding): ranged attacks against `targetUnitId` from `firingModelId` are only legal within this many inches; null = no opinion
+  targetRangeCap?(state: GameState, entry: HookSourceEntry, targetUnitId: UnitId, firingModelId: ModelId): number | null
   // C1 (T'au For the Greater Good): signed BS/WS step for one attack: -1 = one step better (4+ -> 3+), +1 = one step worse; null/0 = no opinion
   skillDeltaVsTarget?(state: GameState, entry: HookSourceEntry, attackerModelId: ModelId, weapon: RuntimeWeapon,
     targetUnitId: UnitId, info: { kind: 'ranged' | 'melee'; overwatch: boolean }): number | null
@@ -508,6 +514,14 @@ const grantBenefitOfCover: EngineCodeHook = {
   name: 'grantBenefitOfCover', kind: 'stratagem', hook: 'onSaveRoll', run: noop,
 }
 
+// true when any board model of the unit (attached unit included) is within the mission's objective range of the marker
+export function unitWithinObjectiveRange(state: GameState, unitId: UnitId, obj: Objective): boolean {
+  const models = leaderService.halves(state, unitId).flatMap((id) => state.units[id]?.location === 'board' ? unitModels(state, id) : [])
+  const range = state.mission.data.objectiveRange ?? 3
+  const radius = state.mission.data.objectiveMarkerRadius ?? OBJECTIVE_MARKER_RADIUS
+  return models.some((m) => withinObjectiveRange(m, obj, 0, range, radius))
+}
+
 const dutyAndHonour: EngineCodeHook = {
   name: 'dutyAndHonour', kind: 'stratagem', hook: 'onObjectiveControl', run: noop, needsObjective: true,
   check(env, t) {
@@ -515,10 +529,7 @@ const dutyAndHonour: EngineCodeHook = {
     const obj = t.objectiveId ? state.objectives[t.objectiveId] : null
     // STATUS hook note: the marker must be controlled by the active player (the stratagem user)
     if (!obj || obj.removed || obj.controller !== env.player || state.activePlayer !== env.player) return false
-    const models = leaderService.halves(state, t.ids[0]).flatMap((id) => state.units[id].location === 'board' ? unitModels(state, id) : [])
-    const range = state.mission.data.objectiveRange ?? 3
-    const radius = state.mission.data.objectiveMarkerRadius ?? OBJECTIVE_MARKER_RADIUS
-    return models.some((m) => withinObjectiveRange(m, obj, 0, range, radius))
+    return unitWithinObjectiveRange(state, t.ids[0], obj)
   },
   apply(ctx, env, t) {
     const obj = ctx.state.objectives[t.objectiveId as string]
@@ -731,6 +742,15 @@ const teemingBroods: EngineCodeHook = {
 const alphaXenoform = missionHook('alphaXenoform')
 const chitinousTide = missionHook('chitinousTide', 'onTurnEnd')
 
+// 'rapidRepositioning' is the code name of both the T'au stratagem (end of Shooting phase move) and the Space Marines one (SOL-5.3,
+// Strike Team Solarien, reactive move after an enemy move); one registry key, so dispatch on the stratagem id's faction prefix
+const tauHooks = tauEmpireHooks()
+const rapidRepositioning: EngineCodeHook = {
+  ...tauHooks.rapidRepositioning,
+  check: (env, t) => env.stratagem.id.startsWith('sm.') ? smRapidRepositioningCheck(env, t) : (tauHooks.rapidRepositioning.check?.(env, t) ?? true),
+  apply: (ctx, env, t) => env.stratagem.id.startsWith('sm.') ? smRapidRepositioningApply(ctx, env, t) : tauHooks.rapidRepositioning.apply?.(ctx, env, t),
+}
+
 export const codeHooks: Record<string, EngineCodeHook> = {
   oathOfMomentPick, waaaghCall, deadArdFeelNoPain, pistonDrivenBrutality, tellyportaGrant, veteranInstincts,
   fireOverwatch, heroicInterventionCharge, rapidIngressArrival, counterOffensive, epicChallenge, tankShockMortalWounds,
@@ -738,6 +758,7 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   reanimationProtocols, resonantFocusPick, resonantFocusReroll, requireFriendlyKeywordOnBoard, plasmacyteSurge,
   ...chaosSpaceMarinesHooks,
   ...greyKnightsHooks,
+  ...spaceMarinesHooks,
   ...adeptusCustodesHooks,
   guardianOfTheRealm: missionHook('guardianOfTheRealm', 'onPhaseEnd'),
   championOfTitan: missionHook('championOfTitan', 'onModelDestroyed'),
@@ -771,7 +792,8 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   ...astraMilitarumHooks(),
   // tau-empire (docs/spec/factions/tau-empire.md §7): forTheGreaterGood, forwardObservers, coordinatedLeadership, coverFire, ds8SupportTurret,
   // kauyonLure, leadershipCaste, rapidRepositioning, laserMarkedTargets
-  ...tauEmpireHooks(),
+  ...tauHooks,
+  rapidRepositioning,
   // genestealer-cults (docs/spec/factions/genestealer-cults.md §7): cultAmbush, defendTheMagus, returnToTheShadows, riseUp, willOfThePatriarch
   ...genestealerCultsHooks(),
 }

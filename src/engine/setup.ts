@@ -422,6 +422,9 @@ export const setupModule: PhaseModule = {
             if (unit.player !== pid || unit.location !== 'board') return false
             const ds = s.datasheets[unit.datasheetId]
             if (!ds.coreAbilities.some((c) => c.ability === 'SCOUTS')) return false
+            // an attached Leader and its bodyguard are one unit: it has Scouts only if every half does (R-10.8 / SOL-006)
+            const halves = [unit.id, unit.attachedLeaderId, unit.bodyguardUnitId].filter((h): h is string => !!h)
+            if (halves.length > 1 && !halves.every((h) => s.datasheets[s.units[h].datasheetId].coreAbilities.some((c) => c.ability === 'SCOUTS'))) return false
             return !s.phaseState.marks.includes(`scouted:${unit.id}`)
           })
           const first = s.firstPlayer

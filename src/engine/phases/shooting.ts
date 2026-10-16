@@ -103,7 +103,7 @@ export function targetLegality(state: GameState, firingUnitId: UnitId, firingMod
   const targetModels = leaderService.halves(state, targetUnitId).flatMap((id) => (state.units[id]?.location === 'board' ? unitModels(state, id) : []))
   if (!attackerModel || targetModels.length === 0) return { code: 'E_INVALID_TARGET', reason: `${targetUnitId} is not on the board`, details: { modelId: firingModelId, weaponId: weapon.id, targetUnitId } }
   // R-6.9 Lone Operative: unattached, only within 12" (whichever is smaller than the weapon's own range)
-  const effRange = isLoneOperative(state, targetUnitId) ? Math.min(weapon.range, 12) : weapon.range
+  const effRange = Math.min(weapon.range, isLoneOperative(state, targetUnitId) ? 12 : Infinity, hookService.targetRangeCapFor?.(state, targetUnitId, firingModelId) ?? Infinity)
   // [INDIRECT FIRE] waives visibility — but never for a Torrent weapon (SHOOT-041-torrent)
   const indirect = weaponService.hasAbility(weapon, 'INDIRECT_FIRE') && !weaponService.hasAbility(weapon, 'TORRENT')
   const inRange = (tm: typeof targetModels[number]) => distance(attackerModel, tm) <= effRange + EPS

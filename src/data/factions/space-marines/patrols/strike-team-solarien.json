@@ -1,0 +1,128 @@
+{
+  "id": "sm.cp.strike-team-solarien",
+  "faction": "sm",
+  "name": "Strike Team Solarien",
+  "detachment": "sm.d.strike-team-solarien",
+  "units": [
+    {
+      "ref": "lieutenant-solarien",
+      "datasheet": "sm.lieutenant-solarien",
+      "size": 1,
+      "enhancement": "sm.e.auto-choral-resonators",
+      "attachTo": "infiltrator-squad"
+    },
+    {
+      "ref": "librarian-xarius",
+      "datasheet": "sm.librarian-xarius",
+      "size": 1
+    },
+    {
+      "ref": "infiltrator-squad",
+      "datasheet": "sm.infiltrator-squad",
+      "size": 10,
+      "patrolSquads": [
+        {
+          "ref": "infiltrator-squad-a",
+          "size": 5,
+          "wargear": [
+            {
+              "modelId": "infiltrator",
+              "count": 5,
+              "weapons": [
+                "sm.w.bolt-pistol",
+                "sm.w.marksman-bolt-carbine",
+                "sm.w.close-combat-weapon"
+              ]
+            }
+          ]
+        },
+        {
+          "ref": "infiltrator-squad-b",
+          "size": 5,
+          "wargear": [
+            {
+              "modelId": "infiltrator",
+              "count": 5,
+              "weapons": [
+                "sm.w.bolt-pistol",
+                "sm.w.marksman-bolt-carbine",
+                "sm.w.close-combat-weapon"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ref": "suppressor-squad",
+      "datasheet": "sm.suppressor-squad",
+      "size": 3
+    }
+  ],
+  "stratagems": [
+    "sm.s.vanguard-strike",
+    "sm.s.giantslayer-doctrine",
+    "sm.s.rapid-repositioning"
+  ],
+  "enhancements": [
+    {
+      "id": "sm.e.auto-choral-resonators",
+      "default": true
+    },
+    {
+      "id": "sm.e.stealthy-hunter",
+      "default": false
+    }
+  ],
+  "secondaries": [
+    {
+      "id": "sm.sec.reconnaissance-in-force",
+      "name": "Reconnaissance in Force",
+      "text": "From battle round 2, at the end of each of your turns, count the No Man's Land objective markers each side controls. If you control at least one and the counts are equal, score 2 victory points; if you control at least one and more than your opponent, score 4. Markers in either deployment zone are ignored.",
+      "default": true,
+      "scoring": [
+        {
+          "id": "reconnaissance-in-force",
+          "when": "turn.end",
+          "rounds": {
+            "from": 2,
+            "to": 5
+          },
+          "who": "active",
+          "rule": "custom",
+          "pointsPer": 4,
+          "cap": 4,
+          "code": "reconnaissanceInForce",
+          "params": {
+            "tiePoints": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "sm.sec.pinpoint-purge",
+      "name": "Pinpoint Purge",
+      "text": "Each time one of your models destroys an enemy unit with a ranged attack, in either player's turn, score 2 victory points, or 3 if that unit was your Oath of Moment target.",
+      "default": false,
+      "scoring": [
+        {
+          "id": "pinpoint-purge",
+          "when": "any.unitDestroyed",
+          "rounds": {
+            "from": 1,
+            "to": 5
+          },
+          "who": "both",
+          "rule": "custom",
+          "pointsPer": 2,
+          "cap": 99,
+          "code": "pinpointPurge",
+          "params": {
+            "oathPoints": 3
+          }
+        }
+      ]
+    }
+  ],
+  "warlord": "lieutenant-solarien"
+}

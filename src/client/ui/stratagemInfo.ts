@@ -9,9 +9,10 @@
 import type { GameState, PlayerId, RuntimeStratagem, StratagemId } from '@/engine'
 
 export function stratagemsFor(state: GameState, player: PlayerId): RuntimeStratagem[] {
-  const faction = state.players[player].faction
+  const { faction, stratagemIds } = state.players[player]
+  // Mirrors the engine's ownedBy (src/engine/stratagems.ts): a player's own patrol list wins over faction.
   return Object.values(state.stratagems)
-    .filter((s) => s.faction === 'core' || s.faction === faction)
+    .filter((s) => s.faction === 'core' || (stratagemIds ? stratagemIds.includes(s.id) : s.faction === faction))
     .sort((a, b) => a.name.localeCompare(b.name))
 }
 

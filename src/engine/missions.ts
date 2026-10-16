@@ -8,12 +8,14 @@
 // in the decision's `context.data`) once the pick is answered, mirroring the pattern `hookService.offerPicks` uses for
 // Oath of Moment / Waaagh!. Per-rule "done" marks (`phaseState.marks`) make every step idempotent across that resume.
 import { alphaXenoformAmount, chitinousTideAmount } from './factions/tyranids'
+import type { AttackKind } from './types'
 import type { MissionRule, ScoringRule, TimingWindowId } from '../data/types'
 import { kauyonLureAmount, leadershipCasteAmount } from './factions/tau-empire'
 import { riseUpAmount, willOfThePatriarchAmount } from './factions/genestealer-cults'
 import { holdTheLineAmount, methodicalDestructionAmount, methodicalDestructionOffer } from './factions/astra-militarum'
 import { OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE, pointInPolygon, whollyWithinPolygon, withinObjectiveRange } from './geometry'
 import { consecratedGroundAmount, hallowedRetributionAmount } from './factions/adepta-sororitas'
+import { pinpointPurgeAmount, reconnaissanceInForceAmount } from './factions/space-marines'
 import { hookService } from './hooks-impl'
 import { leaderService } from './leaders'
 import { liveClaimers, pruneClaim, recordClaim } from './objectives'
@@ -45,7 +47,7 @@ export interface MissionService {
   // R-12.7 / CP-1.11: VP totals incl. Battle Ready; equal → draw
   finalResult(state: GameState, reason: GameResult['reason']): GameResult
   // a unit was just destroyed (attack.ts destroyModel): kill-triggered secondaries (Treasures of Aeons, NEC-4)
-  unitDestroyed?(ctx: EngineContext, info: { unitId: UnitId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: string | null }): void
+  unitDestroyed?(ctx: EngineContext, info: { unitId: UnitId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: string | null; kind?: AttackKind | 'mortal' | 'other'; rangedAttack?: boolean }): void
   // E4 (Grey Knights Champion of Titan): a model was just destroyed (attack.ts announceDestroyed, after the onModelDestroyed hooks)
   modelDestroyed?(ctx: EngineContext, info: ModelDestroyedInfo): void
   // answers chooseOption topics razeObjective / recoverObjective / stompTarget / bagTarget
@@ -430,17 +432,32 @@ export function tgbConsecratedGroundModelDestroyed(ctx: EngineContext, info: Mod
   if (loss > 0) deductVp(ctx, owner, loss, rule.id)
 }
 
-function unitDestroyedHook(ctx: EngineContext, info: { unitId: UnitId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: string | null }): void {
+// Pinpoint Purge (SOL-4.2, Strike Team Solarien): a ranged attack by the scoring player destroys an enemy unit (amount in factions/space-marines.ts)
+function pinpointPurgeDestroyed(ctx: EngineContext, info: { unitId: UnitId; byPlayer: PlayerId | null; rangedAttack?: boolean }): void {
+  const s = ctx.state
+  const pid = info.byPlayer
+  if (!pid) return
+  const rule = rulesFor(s, pid).find((r) => r.rule === 'custom' && r.code === 'pinpointPurge' && s.round >= r.rounds.from && s.round <= r.rounds.to)
+  if (!rule) return
+  const amount = Math.min(pinpointPurgeAmount(s, rule, pid, info), rule.cap - (s.players[pid].vpBySource[rule.id] ?? 0))
+  if (amount <= 0) return
+  awardVp(ctx, pid, amount, rule.id)
+  s.mission.scored.push({ ruleId: rule.id, player: pid, round: s.round, turn: s.activePlayer, amount })
+}
+
+function unitDestroyedHook(ctx: EngineContext, info: { unitId: UnitId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: string | null; kind?: AttackKind | 'mortal' | 'other'; rangedAttack?: boolean }): void {
   treasuresUnitDestroyed(ctx, info)
   markedForExecutionDestroyed(ctx, info)
   hallowedRetributionUnitDestroyed(ctx, info)
   tgbConsecratedGroundUnitDestroyed(ctx, info)
+  pinpointPurgeDestroyed(ctx, info)
 }
 
 function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): number {
   const s = ctx.state
   switch (rule.code) {
     case 'guardianOfTheRealm': return guardianOfTheRealmAmount(s, rule, pid)
+    case 'reconnaissanceInForce': return reconnaissanceInForceAmount(s, rule, pid)
     case 'reclaimAndDominate': return reclaimAndDominateAmount(s, rule, pid)
     case 'wrathOfTheEmperor': return wrathOfTheEmperorAmount(s, rule, pid)
     case 'alphaXenoform': return alphaXenoformAmount(s, rule, pid)
