@@ -44,7 +44,7 @@ function describeScoring(e: GameEvent, state: GameState, bundle: DataBundle | nu
     return `${playerName(state, e.player)} ${e.delta >= 0 ? 'gains' : 'spends'} ${Math.abs(e.delta)} CP — ${name}`
   }
   if (e.type === 'VpScored') {
-    return `${playerName(state, e.player)} +${e.amount} VP — ${sourceName(state, bundle, e.source)}`
+    return `${playerName(state, e.player)} ${e.amount >= 0 ? "+" : ""}${e.amount} VP — ${sourceName(state, bundle, e.source)}`
   }
   return null
 }

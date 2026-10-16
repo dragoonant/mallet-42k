@@ -1,0 +1,65 @@
+[
+  {
+    "id": "cus.custodian-guard-tgb",
+    "faction": "adeptus-custodes",
+    "name": "Custodian Guard",
+    "keywords": [
+      "INFANTRY",
+      "IMPERIUM",
+      "CUSTODIAN GUARD"
+    ],
+    "factionKeywords": [
+      "ADEPTUS CUSTODES"
+    ],
+    "stats": {
+      "M": 6,
+      "T": 6,
+      "Sv": 2,
+      "W": 3,
+      "Ld": 6,
+      "OC": 2
+    },
+    "invuln": 4,
+    "composition": [
+      {
+        "modelId": "guard",
+        "name": "Custodian Guard (sentinel blade)",
+        "min": 3,
+        "max": 3,
+        "default": 3,
+        "base": {
+          "shape": "round",
+          "mm": 40
+        },
+        "statsOverride": {
+          "W": 4
+        },
+        "weapons": {
+          "default": [
+            "cus.w.sentinel-blade-ranged",
+            "cus.w.sentinel-blade-guard"
+          ]
+        },
+        "figure": {
+          "archetype": "heavy",
+          "kit": "generic-heavy"
+        }
+      }
+    ],
+    "abilities": [
+      "cus.a.martial-katah-tgb",
+      "cus.a.praesidium-shield"
+    ],
+    "coreAbilities": [],
+    "points": [
+      {
+        "models": 3,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "heavy",
+      "kit": "generic-heavy"
+    }
+  }
+]

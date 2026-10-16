@@ -541,7 +541,7 @@ function scoreChooseOption(state: GameState, pending: PendingDecision, action: A
   // Patrol Squads: a bot keeps its unit whole (one activation, one deployment spot) rather than splitting at random
   if ((pending.context.data as { choice?: string }).choice === 'patrolSquads' && action.optionId === 'keep') score += 0.5
   const code = (pending.context.data as { code?: string }).code
-  if (code === 'martialKatahPick') {
+  if (code === 'martialKatahPick' || code === 'katahOnSelect') {
     const rendax = katahPrefersRendax(state, pending.player, pending.context.unitId ?? null)
     score += (action.optionId === 'rendax') === rendax ? 2 : 0
   }

@@ -1,0 +1,82 @@
+[
+  {
+    "id": "cus.custodian-wardens",
+    "faction": "adeptus-custodes",
+    "name": "Custodian Wardens",
+    "keywords": [
+      "INFANTRY",
+      "IMPERIUM",
+      "CUSTODIAN WARDENS"
+    ],
+    "factionKeywords": [
+      "ADEPTUS CUSTODES"
+    ],
+    "stats": {
+      "M": 6,
+      "T": 6,
+      "Sv": 2,
+      "W": 3,
+      "Ld": 6,
+      "OC": 2
+    },
+    "invuln": 4,
+    "composition": [
+      {
+        "modelId": "axe",
+        "name": "Custodian Warden (castellan axe)",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 40
+        },
+        "weapons": {
+          "default": [
+            "cus.w.castellan-axe-ranged",
+            "cus.w.castellan-axe-melee"
+          ]
+        },
+        "figure": {
+          "archetype": "heavy",
+          "kit": "generic-heavy"
+        }
+      },
+      {
+        "modelId": "spear",
+        "name": "Custodian Warden (guardian spear)",
+        "min": 2,
+        "max": 2,
+        "default": 2,
+        "base": {
+          "shape": "round",
+          "mm": 40
+        },
+        "weapons": {
+          "default": [
+            "cus.w.guardian-spear-ranged",
+            "cus.w.guardian-spear-melee"
+          ]
+        },
+        "figure": {
+          "archetype": "heavy",
+          "kit": "generic-heavy"
+        }
+      }
+    ],
+    "abilities": [
+      "cus.a.martial-katah-tgb"
+    ],
+    "coreAbilities": [],
+    "points": [
+      {
+        "models": 3,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "heavy",
+      "kit": "generic-heavy"
+    }
+  }
+]

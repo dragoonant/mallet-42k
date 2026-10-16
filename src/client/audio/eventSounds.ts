@@ -82,6 +82,9 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ['interceptor-lance', 'guardian-spear-swing'] as const,
   ['sentinel-blade', 'sentinel-blade-strike'] as const,
   ['executioner-greatblade', 'castellan-axe-cleave'] as const,
+  ['castellan-axe-ranged', 'guardian-spear-shot'] as const,
+  ['castellan-axe-melee', 'castellan-axe-cleave'] as const,
+  ['vaultswords', 'sentinel-blade-strike'] as const,
   ['pulse-rifle', 'pulse-rifle-shot'] as const,
   ['pulse-carbine', 'pulse-carbine-burst'] as const,
   ['pulse-pistol', 'pulse-rifle-shot'] as const,
@@ -116,6 +119,7 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ['misericordia', 'wpn-close-combat-weapon'] as const,
   ['interceptor-lance', 'wpn-relic-weapon'] as const,
   ['executioner-greatblade', 'wpn-relic-weapon'] as const,
+  ['balistus-grenade-launcher', 'wpn-grenade-launcher'] as const,
 ].sort((a, b) => b[0].length - a[0].length)
 
 const WEAPON_TRIM: Partial<Record<SfxId, number>> = {
@@ -273,7 +277,7 @@ export function soundsForEvent(event: GameEvent, perspective?: PlayerId, lookup?
       return [{ id: 'objective-captured-chime' }, { id: 'narr-objective-taken' }]
 
     case 'VpScored':
-      return [{ id: 'vp-scored-sting' }]
+      return event.amount < 0 ? [] : [{ id: 'vp-scored-sting' }]
 
     case 'CpChanged':
       return event.delta > 0 ? [{ id: 'cp-gained-click' }] : []

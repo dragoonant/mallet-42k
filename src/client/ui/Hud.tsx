@@ -565,7 +565,7 @@ function PlayerBadge({ id, state }: { id: PlayerId; state: GameState }) {
           {scored.map((row, i) => (
             <div key={i} style={vpRow}>
               <span style={mutedText}>R{row.round} {sourceName(state, bundle, row.ruleId)}</span>
-              <span>+{row.amount}</span>
+              <span>{row.amount >= 0 ? "+" : ""}{row.amount}</span>
             </div>
           ))}
         </div>

@@ -112,6 +112,10 @@ const KNOWN_KIT: Record<string, KitId> = {
   'cus.shield-captain-tyvan': 'cus-captain',
   'cus.vertus-praetors': 'cus-praetor',
   'cus.vigilators': 'cus-vigilator',
+  'cus.tristraen': 'cus-captain',
+  'cus.custodian-guard-tgb': 'cus-guard-blade',
+  'cus.custodian-wardens': 'cus-guard-spear',
+  'cus.allarus-custodians': 'cus-guard-spear',
 }
 
 /** Models of a mixed unit that look different from the rest of it (a flamer sister is not a rifle sister), keyed
@@ -153,6 +157,8 @@ const KNOWN_KIT_BY_MODEL: Record<string, KitId> = {
   'cus.custodian-guard/spear': 'cus-guard-spear',
   'cus.custodian-guard/blade': 'cus-guard-blade',
   'cus.custodian-guard/vexilla': 'cus-vexilla',
+  'cus.custodian-wardens/axe': 'cus-guard-blade',
+  'cus.custodian-wardens/spear': 'cus-guard-spear',
 }
 
 const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {

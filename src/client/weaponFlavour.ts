@@ -110,7 +110,7 @@ export function classifyVfxFamily(weaponId: string, weapon: WeaponData | undefin
   if (/shoota|slugga|dakka|stikk|big.?shoota|kopta/.test(text)) return kw('dakka')
   if (/autocannon|assault cannon|assault-cannon|heavy.?bolter|heavy.?stubber|stubber|seismic|cannon/.test(text)) return kw('autocannon')
   if (/lasgun|laspistol|lascarbine|las.?pistol/.test(text)) return kw('las')
-  if (/bolt|combi|storm|hurricane|spear|sentinel blade|sentinel-blade|autogun|autopistol|hybrid firearm|pistol/.test(text)) return kw('bolt')
+  if (/bolt|combi|storm|hurricane|spear|castellan|sentinel blade|sentinel-blade|autogun|autopistol|hybrid firearm|pistol/.test(text)) return kw('bolt')
   switch (fac) {
     case 'ork': case 'orks': return { family: 'dakka', via: 'faction' }
     case 'tyranids': return { family: 'bio', via: 'faction' }

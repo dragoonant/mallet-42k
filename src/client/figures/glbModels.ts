@@ -185,6 +185,7 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'cus.custodian-guard/spear': 'custodian-guard-spear',
   'cus.custodian-guard/vexilla': 'custodian-guard-vexilla',
   'cus.custodian-guard/blade': 'custodian-guard-shield',
+  'cus.custodian-guard-tgb/guard': 'custodian-guard-shield',
   'cus.vertus-praetors/praetor': 'vertus-praetor',
   'cus.prosecutors/prosecutor': 'prosecutor',
   'cus.vigilators/vigilator': 'vigilator',

@@ -112,5 +112,21 @@
     "scope": {
       "who": "attacker"
     }
+  },
+  {
+    "id": "cus.a.martial-katah-tgb",
+    "name": "Martial Ka'tah",
+    "text": "Each time this unit is selected to fight, its player picks a stance for this unit alone, lasting until its attacks are done. Dacatarai: the unit's melee weapons gain [SUSTAINED HITS 1]. Rendax: the unit's melee weapons gain [LETHAL HITS].",
+    "trigger": "unitSelectedToFight",
+    "code": "katahOnSelect",
+    "scope": {
+      "who": "self"
+    },
+    "params": {
+      "stances": [
+        "dacatarai",
+        "rendax"
+      ]
+    }
   }
 ]

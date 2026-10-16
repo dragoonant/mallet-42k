@@ -21,7 +21,10 @@ import type { DecisionHandler, EngineContext, WindowTrigger } from './modules'
 import { otherPlayer } from './modules'
 import { isTeleporting } from './teleport'
 import { championOfTitanModelDestroyed, noEscapeAmount } from './factions/grey-knights'
-import { guardianOfTheRealmAmount, guardianOfTheRealmModelDestroyed, guardianOfTheRealmSnapshot } from './factions/adeptus-custodes'
+import {
+  guardianOfTheRealmAmount, guardianOfTheRealmModelDestroyed, guardianOfTheRealmSnapshot,
+  tgbConsecratedGroundGain, tgbConsecratedGroundLoss, vexillaObjectiveIds,
+} from './factions/adeptus-custodes'
 import { boardUnitsOf, deploymentZone, hasKeyword, keywordsOf, modelIdFor, unitModels } from './state'
 import type {
   ChooseOptionDecision, ChooseOptionTopic, GameResult, GameState, ModelId, Objective, ObjectiveId, PendingDecision,
@@ -99,6 +102,18 @@ function awardVp(ctx: EngineContext, pid: PlayerId, amount: number, source: stri
   p.vp += amount
   p.vpBySource[source] = (p.vpBySource[source] ?? 0) + amount
   ctx.emit({ type: 'VpScored', source, amount, total: p.vp, player: pid })
+}
+
+// VP loss, floored so the source's own running total never drops below 0. Returns the VP actually removed (>= 0).
+export function deductVp(ctx: EngineContext, pid: PlayerId, amount: number, source: string): number {
+  const p = ctx.state.players[pid]
+  const removed = Math.min(amount, p.vpBySource[source] ?? 0)
+  if (removed <= 0) return 0
+  p.vp -= removed
+  p.vpBySource[source] -= removed
+  ctx.emit({ type: 'VpScored', source, amount: -removed, total: p.vp, player: pid })
+  ctx.state.mission.scored.push({ ruleId: source, player: pid, round: ctx.state.round, turn: ctx.state.activePlayer, amount: -removed })
+  return removed
 }
 
 function once(state: GameState, key: string): boolean {
@@ -391,10 +406,35 @@ function hallowedRetributionUnitDestroyed(ctx: EngineContext, info: { unitId: Un
   s.mission.scored.push({ ruleId: rule.id, player: pid, round: s.round, turn: s.activePlayer, amount })
 }
 
+// Consecrated Ground (TRI-4.2): event-driven in both directions; amounts decided in factions/adeptus-custodes.ts
+export function tgbConsecratedGroundUnitDestroyed(ctx: EngineContext, info: { unitId: UnitId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: string | null }): void {
+  const s = ctx.state
+  for (const pid of ['A', 'B'] as PlayerId[]) {
+    const rule = rulesFor(s, pid).find((r) => r.rule === 'custom' && r.code === 'tgbConsecratedGround' && s.round >= r.rounds.from && s.round <= r.rounds.to)
+    if (!rule) continue
+    const raw = tgbConsecratedGroundGain(s, info, pid, rule)
+    const amount = Math.min(raw, rule.cap - (s.players[pid].vpBySource[rule.id] ?? 0))
+    if (amount <= 0) continue
+    awardVp(ctx, pid, amount, rule.id)
+    s.mission.scored.push({ ruleId: rule.id, player: pid, round: s.round, turn: s.activePlayer, amount })
+  }
+}
+
+export function tgbConsecratedGroundModelDestroyed(ctx: EngineContext, info: ModelDestroyedInfo): void {
+  const s = ctx.state
+  const owner = s.units[info.unitId]?.player
+  if (!owner) return
+  const rule = rulesFor(s, owner).find((r) => r.rule === 'custom' && r.code === 'tgbConsecratedGround' && s.round >= r.rounds.from && s.round <= r.rounds.to)
+  if (!rule) return
+  const loss = tgbConsecratedGroundLoss(s, info, owner, rule)
+  if (loss > 0) deductVp(ctx, owner, loss, rule.id)
+}
+
 function unitDestroyedHook(ctx: EngineContext, info: { unitId: UnitId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: string | null }): void {
   treasuresUnitDestroyed(ctx, info)
   markedForExecutionDestroyed(ctx, info)
   hallowedRetributionUnitDestroyed(ctx, info)
+  tgbConsecratedGroundUnitDestroyed(ctx, info)
 }
 
 function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): number {
@@ -418,6 +458,11 @@ function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): num
     case 'willOfThePatriarch': return willOfThePatriarchAmount(s, rule, pid)
     case 'noEscape': return noEscapeAmount(ctx, rule, pid)
     case 'methodicalDestructionScore': return methodicalDestructionAmount(s, rule, pid)
+    case 'raiseTheVexillas': {
+      const v = vexillaObjectiveIds(s, pid)
+      return v.own.some((id) => holds(ctx, id, pid)) && v.enemy.some((id) => holds(ctx, id, pid)) ? rule.pointsPer : 0
+    }
+    case 'tgbConsecratedGround': return 0 // event-driven, scored in the destroy fan-outs
     default: return 0
   }
 }
@@ -720,6 +765,7 @@ export const missionService: MissionService = {
   modelDestroyed(ctx, info) {
     championOfTitanModelDestroyed(ctx, info)
     guardianOfTheRealmModelDestroyed(ctx, info)
+    tgbConsecratedGroundModelDestroyed(ctx, info)
   },
   isTabled(state) { return !hasForces(state, 'A') && !hasForces(state, 'B') },
   finalResult(state, reason) {

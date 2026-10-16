@@ -306,3 +306,12 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Verification | typecheck, `validate:data`, `build` green; `npm test` 1764 passing (69 files); `tests/e2e/adeptus-custodes.spec.ts` starts vs bot, deploys via UI, reaches round 1 Shooting (`e2e-out/m10-adeptus-custodes-0{1,2,3}-*.png`, figures visible) |
 | Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all 6 games finished (mean 5 rounds); adeptus-custodes was not in the seeded pairings (0 games, 0 wins) |
 | Known gaps | Generic figure kits, borrowed SFX, Praetors not mounted; rulings in `docs/needs-rules-check.md` under "adeptus-custodes build" |
+
+### M10 adeptus-custodes - Tristraen's Gilded Blades (second patrol)
+| Item | State |
+|---|---|
+| Patrol | Tristraen's Gilded Blades: Tristraen, Custodian Guard (TGB), Custodian Wardens, Allarus Custodians; secondaries Raise the Vexillas / Consecrated Ground. Data in `patrols/tristraen-s-gilded-blades.json` plus new datasheets/weapons/abilities/stratagems/enhancements |
+| Engine hooks | Added to `src/engine/factions/adeptus-custodes.ts` (patrol-scoped faction ability, Ka'tah per unit, Consecrated Ground, Raise the Vexillas, Overawing -2 charge); small additive edits in missions.ts, code-hooks.ts |
+| Verification | typecheck, validate:data, build green; `npm test` 1897 passing (84 files); `tests/e2e/tristraens-gilded-blades.spec.ts` picks the patrol, deploys, reaches round 1 Shooting (`e2e-out/m10-adeptus-custodes-tristraen-s-gilded-blades-0{1,2,3}-*.png`, figures visible) |
+| Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, 6 games finished; adeptus-custodes 1 win (astra-militarum 1, adepta-sororitas 3, genestealer-cults 1) |
+| Known gaps | New units reuse existing Custodes kits; borrowed SFX; Raise the Vexillas end-of-turn scoring has no unit test; rulings TRI-R01..07 in `docs/needs-rules-check.md` |

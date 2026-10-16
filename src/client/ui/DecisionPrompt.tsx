@@ -127,6 +127,13 @@ const METHODICAL_INFO = {
  *  prefix or a variant of the same rule still reads right. */
 const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string } }[] = [
   {
+    match: /martial-?katah-tgb/i,
+    info: {
+      title: "Choose a Ka'tah stance",
+      hint: 'This choice is for the one unit about to fight, and only for this activation. Dacatarai gives its melee weapons an extra hit on a 6 to hit; Rendax makes a 6 to hit wound automatically. Other units pick their own stance when they are selected to fight.',
+    },
+  },
+  {
     match: /martial-?katah/i,
     info: {
       title: "Choose a Ka'tah stance",

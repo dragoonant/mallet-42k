@@ -742,6 +742,8 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   guardianOfTheRealm: missionHook('guardianOfTheRealm', 'onPhaseEnd'),
   championOfTitan: missionHook('championOfTitan', 'onModelDestroyed'),
   noEscape: missionHook('noEscape', 'onTurnEnd'),
+  raiseTheVexillas: missionHook('raiseTheVexillas', 'onTurnEnd'),
+  tgbConsecratedGround: missionHook('tgbConsecratedGround', 'onUnitDestroyed'),
   markedForExecution: missionHook('markedForExecution', 'onUnitDestroyed'),
   synapseBattleShock, shadowInTheWarp, secretionGoadShoot, secretionGoadFight, skulkingHorrors, disruptionBombardment,
   deathBlow, stratagemCostOverride, patrolSquads, voraciousAssaultHit, teemingBroods, alphaXenoform, chitinousTide,

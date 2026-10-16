@@ -8,12 +8,13 @@
 import type { ScoringRule, TimingWindowId } from '../../data/types'
 import type { Action } from '../actions'
 import type { EngineCodeHook, StratagemEnv, StratagemTuple } from '../code-hooks'
-import { withinObjectiveRange, OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE } from '../geometry'
+import { withinObjectiveRange, OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE, playerBattlefieldEdge } from '../geometry'
+import { hookService, type HookSourceEntry } from '../hooks-impl'
 import { leaderService } from '../leaders'
 import type { EngineContext } from '../modules'
 import { startReactiveMove } from '../phases/movement'
-import { boardUnitsOf, modelIdFor, modelStats, unitModels } from '../state'
-import type { GameState, ModelId, PendingDecision, PlayerId, Rejection, Unit, UnitId } from '../types'
+import { boardUnitsOf, deploymentZone, keywordsOf, modelIdFor, modelStats, unitModels } from '../state'
+import type { GameState, ModelId, ObjectiveId, PendingDecision, PlayerId, Rejection, Unit, UnitId } from '../types'
 
 const noop = () => undefined
 
@@ -236,6 +237,144 @@ export function guardianOfTheRealmAmount(state: GameState, rule: ScoringRule, pi
   return kills.some((k) => near.includes(k.unitId) || near.includes(leaderService.canonicalUnitId(state, k.unitId))) ? bonus : rule.pointsPer
 }
 
+
+// ---------- Tristraen's Gilded Blades patrol (TRI-xxx) ----------
+// Martial Ka'tah per activation (TRI-2): the stance is picked each time the unit is selected to fight and covers that unit alone
+export const KATAH_SELECT_CODE = 'katahOnSelect'
+
+export function katahSelectOffer(ctx: EngineContext, window: TimingWindowId, key: string): boolean {
+  const s = ctx.state
+  if (window !== 'fight.unitSelected' || s.phase !== 'fight') return false
+  const canon = leaderService.canonicalUnitId(s, key)
+  const halves = boardHalves(s, canon)
+  let abilityId: string | null = null
+  for (const h of halves) abilityId = abilityId ?? abilityIdWithCode(s, h, KATAH_SELECT_CODE)
+  if (!abilityId) return false
+  const mark = `pick:katahSel:${canon}:${s.round}:${s.activePlayer}`
+  if (s.phaseState.marks.includes(mark)) return false
+  s.phaseState.marks.push(mark)
+  const player = s.units[canon].player
+  ctx.decide({
+    kind: 'chooseOption', player, window, canPass: false,
+    context: { topic: 'abilityChoice', unitId: canon, abilityId, data: { window, key, code: KATAH_SELECT_CODE } },
+    options: [
+      { id: 'dacatarai', label: "Dacatarai stance: melee weapons gain Sustained Hits 1", action: { type: 'chooseOption', player, decisionId: '', optionId: 'dacatarai' }, hint: { unitId: canon, priority: 1.2 } },
+      { id: 'rendax', label: "Rendax stance: melee weapons gain Lethal Hits", action: { type: 'chooseOption', player, decisionId: '', optionId: 'rendax' }, hint: { unitId: canon, priority: 1 } },
+    ],
+  })
+  return true
+}
+
+export function katahSelectHandle(ctx: EngineContext, action: Action, pending: PendingDecision): Rejection | void {
+  if (action.type !== 'chooseOption' || pending.kind !== 'chooseOption') return { code: 'E_NOT_AN_OPTION', reason: "Martial Ka'tah expects chooseOption" }
+  const stance = action.optionId as KatahStance
+  if (stance !== 'dacatarai' && stance !== 'rendax') return { code: 'E_NOT_AN_OPTION', reason: "Martial Ka'tah: dacatarai or rendax" }
+  const s = ctx.state
+  const canon = pending.context.unitId as UnitId
+  const abilityId = pending.context.abilityId ?? 'cus.a.martial-katah-tgb'
+  const unit = s.units[canon]
+  if (!unit) return { code: 'E_NOT_AN_OPTION', reason: "Martial Ka'tah: unit missing" }
+  const grant = stance === 'dacatarai'
+    ? { ability: 'SUSTAINED_HITS' as const, value: 1 }
+    : { ability: 'LETHAL_HITS' as const }
+  ctx.services.effects.grant(ctx, canon, [{ when: { weaponType: 'melee' }, grantWeaponAbility: grant }], {
+    sourceAbilityId: abilityId, sourceUnitId: canon, scope: { who: 'self' }, duration: 'untilEndOfPhase', when: null,
+  })
+  ctx.emit({ type: 'AbilityTriggered', abilityId, sourceUnitId: canon, targetUnitId: null, summary: `Martial Ka'tah: ${unit.name} adopts the ${stance === 'dacatarai' ? 'Dacatarai' : 'Rendax'} stance`, player: unit.player })
+}
+
+const katahOnSelect: EngineCodeHook = {
+  name: KATAH_SELECT_CODE, kind: 'ability', hook: 'onUnitSelectedToFight', run: noop,
+  pick: { window: 'fight.unitSelected', topic: 'abilityChoice', offer: (ctx, w, k) => katahSelectOffer(ctx, w, k), handle: (ctx, a, p) => katahSelectHandle(ctx, a, p) },
+}
+
+// Watchman of Terra (TRI-3.1): OC 4 while the bearer is within Engagement Range of an enemy (declarative setStat, gated here)
+export function watchmanOfTerraGate(state: GameState, holder: Unit): boolean {
+  return leaderService.inEngagementWithEnemy(state, holder.id)
+}
+const watchmanOfTerra: EngineCodeHook = { name: 'watchmanOfTerra', kind: 'ability', hook: 'onStatQuery', run: noop, gate: (state, holder) => watchmanOfTerraGate(state, holder) }
+
+// Warrior Exemplar (TRI-3.2): bearer destroys an enemy unit -> D6, on threshold+ gain CP
+export function warriorExemplarRun(ctx: EngineContext, entry: HookSourceEntry, data: Record<string, unknown>): void {
+  const s = ctx.state
+  const byModelId = data.byModelId as ModelId | null | undefined
+  if (!entry.bearerModelId || byModelId !== entry.bearerModelId) return
+  const holder = s.units[entry.holderUnitId]
+  const destroyed = s.units[data.destroyedUnitId as UnitId]
+  if (!holder || !destroyed || destroyed.player === holder.player) return
+  const threshold = (entry.params.threshold as number | undefined) ?? 3
+  const cp = (entry.params.cp as number | undefined) ?? 1
+  const total = ctx.rollExpr('D6', { purpose: 'ability', player: holder.player, unitId: holder.id, commandRerollable: false }).total
+  const gained = total >= threshold ? hookService.gainCp(ctx, holder.player, cp, entry.source.id) : 0
+  ctx.emit({ type: 'AbilityTriggered', abilityId: entry.source.id, sourceUnitId: holder.id, targetUnitId: destroyed.id, summary: `Warrior Exemplar: rolled ${total}${total >= threshold ? (gained > 0 ? `, +${gained} CP` : ', no CP gained (cap)') : ', no CP'}`, player: holder.player })
+}
+const warriorExemplar: EngineCodeHook = { name: 'warriorExemplar', kind: 'ability', hook: 'onUnitDestroyed', run: noop, runAt: warriorExemplarRun }
+
+// Overawing Magnificence (TRI-5.3): reactive to a charge declaration; the charger takes a Leadership test, a failure gives -2 to its charge roll
+export function tgbOverawingCheck(env: StratagemEnv, t: StratagemTuple): boolean {
+  const s = env.state
+  const charger = s.units[t.ids[0]]
+  if (!charger || charger.location !== 'board' || !leaderService.sameUnit(s, t.ids[0], env.trigger.unitId)) return false
+  const mine = s.units[t.ids[1]]
+  if (!mine || mine.location !== 'board' || mine.player !== env.player) return false
+  return (s.phaseState.charge?.targetUnitIds ?? []).some((id) => leaderService.sameUnit(s, id, t.ids[1]))
+}
+
+export function tgbOverawingApply(ctx: EngineContext, env: StratagemEnv, t: StratagemTuple): void {
+  const s = ctx.state
+  const canon = leaderService.canonicalUnitId(s, t.ids[0])
+  const passed = hookService.leadershipTest(ctx, canon, env.stratagem.id)
+  if (passed) {
+    ctx.emit({ type: 'AbilityTriggered', abilityId: env.stratagem.id, sourceUnitId: t.ids[1], targetUnitId: canon, summary: 'Overawing Magnificence: the charger holds its nerve, no penalty', player: env.player })
+    return
+  }
+  ctx.services.effects.grant(ctx, canon, [{ modifyRoll: { roll: 'charge', value: -2 } }], {
+    sourceAbilityId: env.stratagem.id, sourceUnitId: null, scope: { who: 'self' }, duration: 'untilEndOfPhase', when: null,
+  })
+  ctx.emit({ type: 'AbilityTriggered', abilityId: env.stratagem.id, sourceUnitId: t.ids[1], targetUnitId: canon, summary: 'Overawing Magnificence: the charger falters, -2 to its charge roll', player: env.player })
+}
+const tgbOverawing: EngineCodeHook = { name: 'tgbOverawing', kind: 'stratagem', hook: 'onCharge', run: noop, check: tgbOverawingCheck, apply: tgbOverawingApply }
+
+// Raise the Vexillas (TRI-4.1): markers closest to each battlefield edge (ties -> all tied ids)
+export function vexillaObjectiveIds(state: GameState, pid: PlayerId): { own: ObjectiveId[]; enemy: ObjectiveId[] } {
+  const hw = state.board.w / 2, hh = state.board.h / 2
+  const closest = (player: PlayerId): ObjectiveId[] => {
+    const edge = playerBattlefieldEdge(state.board, deploymentZone(state, player))
+    const dist = (p: { x: number; z: number }): number => (edge === 'L' ? p.x + hw : edge === 'R' ? hw - p.x : edge === 'T' ? p.z + hh : hh - p.z)
+    let best = Infinity
+    let ids: ObjectiveId[] = []
+    for (const o of Object.values(state.objectives)) {
+      if (o.removed) continue
+      const d = dist(o.pos)
+      if (d < best - 1e-6) { best = d; ids = [o.id] } else if (Math.abs(d - best) <= 1e-6) ids.push(o.id)
+    }
+    return ids.sort()
+  }
+  return { own: closest(pid), enemy: closest(otherOf(pid)) }
+}
+
+// Consecrated Ground (TRI-4.2) amounts: pure, missions.ts applies them
+export function tgbConsecratedGroundGain(
+  state: GameState,
+  info: { unitId: UnitId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: string | null },
+  pid: PlayerId, rule: ScoringRule,
+): number {
+  const u = state.units[info.unitId]
+  return u && u.player !== pid ? rule.pointsPer : 0
+}
+
+export function tgbConsecratedGroundLoss(
+  state: GameState,
+  info: { unitId: UnitId; modelId: ModelId; byPlayer: PlayerId | null; byUnitId: UnitId | null; byModelId: ModelId | null },
+  pid: PlayerId, rule: ScoringRule,
+): number {
+  const u = state.units[info.unitId]
+  if (!u || u.player !== pid) return 0
+  const kw = (rule.params?.keyword as string | undefined) ?? 'ADEPTUS CUSTODES'
+  if (!keywordsOf(state, u.id).includes(kw)) return 0
+  return (rule.params?.lossPerModel as number | undefined) ?? 1
+}
+
 export const adeptusCustodesHooks: Record<string, EngineCodeHook> = {
   martialKatahPick: {
     name: MARTIAL_KATAH_CODE, kind: 'ability', hook: 'onPhaseStart', run: noop,
@@ -245,4 +384,5 @@ export const adeptusCustodesHooks: Record<string, EngineCodeHook> = {
   standVigil,
   gildedSpear,
   overawingMagnificence,
+  katahOnSelect, watchmanOfTerra, warriorExemplar, tgbOverawing,
 }

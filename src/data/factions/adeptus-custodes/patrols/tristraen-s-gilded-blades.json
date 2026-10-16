@@ -1,0 +1,102 @@
+{
+  "id": "cus.cp.tristraen-s-gilded-blades",
+  "faction": "adeptus-custodes",
+  "name": "Tristraen's Gilded Blades",
+  "units": [
+    {
+      "ref": "tristraen",
+      "datasheet": "cus.tristraen",
+      "size": 1,
+      "enhancement": "cus.e.watchman-of-terra"
+    },
+    {
+      "ref": "guard",
+      "datasheet": "cus.custodian-guard-tgb",
+      "size": 3
+    },
+    {
+      "ref": "wardens",
+      "datasheet": "cus.custodian-wardens",
+      "size": 3
+    },
+    {
+      "ref": "allarus",
+      "datasheet": "cus.allarus-custodians",
+      "size": 2
+    }
+  ],
+  "unitChoices": [
+    {
+      "id": "retinue",
+      "refs": [
+        "wardens",
+        "allarus"
+      ],
+      "default": "wardens"
+    }
+  ],
+  "stratagems": [
+    "cus.s.tgb-gilded-spear",
+    "cus.s.tgb-inescapable-vengeance",
+    "cus.s.tgb-overawing-magnificence"
+  ],
+  "enhancements": [
+    {
+      "id": "cus.e.watchman-of-terra",
+      "default": true
+    },
+    {
+      "id": "cus.e.warrior-exemplar",
+      "default": false
+    }
+  ],
+  "secondaries": [
+    {
+      "id": "cus.sec.raise-the-vexillas",
+      "name": "Raise the Vexillas",
+      "text": "From battle round 3, at the end of your own turn, score 3 victory points if you control both the objective marker nearest your opponent's battlefield edge and the one nearest your own.",
+      "default": true,
+      "scoring": [
+        {
+          "id": "raise-the-vexillas",
+          "when": "turn.end",
+          "rounds": {
+            "from": 3,
+            "to": 5
+          },
+          "who": "active",
+          "rule": "custom",
+          "pointsPer": 3,
+          "cap": 999,
+          "code": "raiseTheVexillas"
+        }
+      ]
+    },
+    {
+      "id": "cus.sec.consecrated-ground",
+      "name": "Consecrated Ground",
+      "text": "Score 3 victory points each time an enemy unit is destroyed. Lose 1 victory point each time one of your ADEPTUS CUSTODES models is destroyed; this secondary's total never drops below 0.",
+      "default": false,
+      "scoring": [
+        {
+          "id": "consecrated-ground-tgb",
+          "when": "battle.end",
+          "rounds": {
+            "from": 1,
+            "to": 5
+          },
+          "who": "both",
+          "rule": "custom",
+          "pointsPer": 3,
+          "cap": 999,
+          "code": "tgbConsecratedGround",
+          "params": {
+            "lossPerModel": 1,
+            "keyword": "ADEPTUS CUSTODES"
+          }
+        }
+      ]
+    }
+  ],
+  "warlord": "tristraen"
+}

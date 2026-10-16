@@ -289,3 +289,5 @@ The TGB Custodian Guard (`cus.custodian-guard-tgb/guard`, 3 models) reuses the e
   unchanged).
 - Reused ids: `cus.w.sentinel-blade-ranged`, `cus.w.sentinel-blade-guard`, `cus.w.guardian-spear-ranged`,
   `cus.w.guardian-spear-melee`, `cus.a.praesidium-shield`.
+- Source typo: the page's replacement sentence calls the optional secondary "Victory's Price"; we follow the printed
+  section title Consecrated Ground (`cus.sec.consecrated-ground`).

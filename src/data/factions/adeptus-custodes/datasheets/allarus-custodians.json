@@ -1,0 +1,63 @@
+[
+  {
+    "id": "cus.allarus-custodians",
+    "faction": "adeptus-custodes",
+    "name": "Allarus Custodians",
+    "keywords": [
+      "INFANTRY",
+      "TERMINATOR",
+      "IMPERIUM",
+      "ALLARUS CUSTODIANS"
+    ],
+    "factionKeywords": [
+      "ADEPTUS CUSTODES"
+    ],
+    "stats": {
+      "M": 5,
+      "T": 7,
+      "Sv": 2,
+      "W": 4,
+      "Ld": 6,
+      "OC": 2
+    },
+    "invuln": 4,
+    "composition": [
+      {
+        "modelId": "allarus",
+        "name": "Allarus Custodian",
+        "min": 2,
+        "max": 2,
+        "default": 2,
+        "base": {
+          "shape": "round",
+          "mm": 40
+        },
+        "weapons": {
+          "default": [
+            "cus.w.balistus-grenade-launcher",
+            "cus.w.guardian-spear-ranged",
+            "cus.w.guardian-spear-melee"
+          ]
+        },
+        "figure": {
+          "archetype": "heavy",
+          "kit": "generic-heavy"
+        }
+      }
+    ],
+    "abilities": [
+      "cus.a.martial-katah-tgb"
+    ],
+    "coreAbilities": [],
+    "points": [
+      {
+        "models": 2,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "heavy",
+      "kit": "generic-heavy"
+    }
+  }
+]

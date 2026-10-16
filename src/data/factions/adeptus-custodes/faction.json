@@ -8,8 +8,15 @@
       "id": "cus.d.combat-patrol",
       "name": "Combat Patrol",
       "rule": "cus.a.martial-katah",
-      "stratagems": ["cus.s.gilded-spear", "cus.s.inescapable-vengeance", "cus.s.overawing-magnificence"],
-      "enhancements": ["cus.e.auramite-thunderbolt", "cus.e.blade-of-the-vaults"]
+      "stratagems": [
+        "cus.s.gilded-spear",
+        "cus.s.inescapable-vengeance",
+        "cus.s.overawing-magnificence"
+      ],
+      "enhancements": [
+        "cus.e.auramite-thunderbolt",
+        "cus.e.blade-of-the-vaults"
+      ]
     }
   ],
   "paintScheme": {
@@ -19,5 +26,8 @@
     "metal": "#b88a2c",
     "decal": "#f6efe0"
   },
-  "combatPatrols": ["cus.cp.guardians-of-the-throne"]
+  "combatPatrols": [
+    "cus.cp.guardians-of-the-throne",
+    "cus.cp.tristraen-s-gilded-blades"
+  ]
 }

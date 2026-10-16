@@ -5,15 +5,23 @@
     "name": "Auramite Thunderbolt",
     "text": "The bearer's unit may re-roll its Advance rolls and its Charge rolls.",
     "cost": 0,
-    "restriction": { "keyword": ["SHIELD-CAPTAIN"] },
+    "restriction": {
+      "keyword": [
+        "SHIELD-CAPTAIN"
+      ]
+    },
     "effect": {
       "id": "cus.e.auramite-thunderbolt.effect",
       "name": "Auramite Thunderbolt",
       "text": "The bearer's unit may re-roll Advance rolls and Charge rolls.",
       "trigger": "chargeRoll",
       "code": "auramiteThunderbolt",
-      "effect": { "reroll": "all" },
-      "scope": { "who": "self" }
+      "effect": {
+        "reroll": "all"
+      },
+      "scope": {
+        "who": "self"
+      }
     }
   },
   {
@@ -22,14 +30,76 @@
     "name": "Blade of the Vaults",
     "text": "Each time the bearer makes an attack that scores a Critical Wound, improve that attack's Armour Penetration by 1.",
     "cost": 0,
-    "restriction": { "keyword": ["SHIELD-CAPTAIN"] },
+    "restriction": {
+      "keyword": [
+        "SHIELD-CAPTAIN"
+      ]
+    },
     "effect": {
       "id": "cus.e.blade-of-the-vaults.effect",
       "name": "Blade of the Vaults",
       "text": "A Critical Wound by the bearer improves the attack's AP by 1.",
       "trigger": "woundRoll",
-      "effect": { "critWoundAp": 1 },
-      "scope": { "who": "bearer" }
+      "effect": {
+        "critWoundAp": 1
+      },
+      "scope": {
+        "who": "bearer"
+      }
+    }
+  },
+  {
+    "id": "cus.e.watchman-of-terra",
+    "faction": "adeptus-custodes",
+    "name": "Watchman of Terra",
+    "text": "While the bearer is within Engagement Range of an enemy unit, its Objective Control characteristic is 4.",
+    "cost": 0,
+    "restriction": {
+      "keyword": [
+        "BLADE CHAMPION"
+      ]
+    },
+    "effect": {
+      "id": "cus.e.watchman-of-terra.effect",
+      "name": "Watchman of Terra",
+      "text": "While the bearer is in Engagement Range of an enemy unit, its OC is 4.",
+      "trigger": "always",
+      "code": "watchmanOfTerra",
+      "effect": {
+        "setStat": {
+          "stat": "OC",
+          "value": 4
+        }
+      },
+      "scope": {
+        "who": "bearer"
+      }
+    }
+  },
+  {
+    "id": "cus.e.warrior-exemplar",
+    "faction": "adeptus-custodes",
+    "name": "Warrior Exemplar",
+    "text": "Each time the bearer destroys an enemy unit, roll one D6: on a 3+ you gain 1 CP.",
+    "cost": 0,
+    "restriction": {
+      "keyword": [
+        "BLADE CHAMPION"
+      ]
+    },
+    "effect": {
+      "id": "cus.e.warrior-exemplar.effect",
+      "name": "Warrior Exemplar",
+      "text": "When the bearer destroys an enemy unit, roll a D6; on 3+ gain 1 CP.",
+      "trigger": "unitDestroyed",
+      "code": "warriorExemplar",
+      "scope": {
+        "who": "bearer"
+      },
+      "params": {
+        "threshold": 3,
+        "cp": 1
+      }
     }
   }
 ]

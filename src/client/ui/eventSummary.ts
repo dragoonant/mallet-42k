@@ -306,7 +306,7 @@ export function summariseEvents(events: readonly GameEvent[], state: GameState, 
         push(e, `${pname(e.by)} secures ${objectiveLabel(e.objectiveId)}`, e.by)
         break
       case 'VpScored':
-        push(e, `${pname(e.player)} +${e.amount} VP — ${sourceName(state, bundle, e.source)} (total ${e.total})`)
+        push(e, `${pname(e.player)} ${e.amount >= 0 ? "+" : ""}${e.amount} VP — ${sourceName(state, bundle, e.source)} (total ${e.total})`)
         break
       case 'GameEnded':
         push(e, `Battle ends — ${e.result.winner === 'draw' ? 'a draw' : `${pname(e.result.winner)} wins`}`, null, 'header')

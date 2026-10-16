@@ -6,13 +6,29 @@
     "text": "Use just after an enemy attack destroys your SHIELD-CAPTAIN model. For the rest of the battle, ranged weapons carried by your ADEPTUS CUSTODES models gain [SUSTAINED HITS 1] when they attack the unit that destroyed it.",
     "cost": 1,
     "category": "battleTactic",
-    "phases": ["command", "movement", "shooting", "charge", "fight"],
+    "phases": [
+      "command",
+      "movement",
+      "shooting",
+      "charge",
+      "fight"
+    ],
     "window": "attack.modelDestroyed",
     "who": "either",
     "targets": [
-      { "role": "unit", "owner": "friendly", "filter": { "keyword": "SHIELD-CAPTAIN" }, "state": "justDestroyed", "count": 1 }
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "SHIELD-CAPTAIN"
+        },
+        "state": "justDestroyed",
+        "count": 1
+      }
     ],
-    "scope": { "who": "self" },
+    "scope": {
+      "who": "self"
+    },
     "duration": "battle",
     "code": "gildedSpear",
     "limit": "oncePerPhase"
@@ -24,15 +40,34 @@
     "text": "Use in your Command phase, targeting one ADEPTUS CUSTODES unit from your army. Until the start of your next Command phase, add 1 to the Objective Control characteristic of every model in that unit.",
     "cost": 2,
     "category": "strategicPloy",
-    "phases": ["command"],
-    "window": ["command.start", "command.end"],
-    "who": "active",
-    "condition": { "phase": "command", "ownTurn": true },
-    "targets": [
-      { "role": "unit", "owner": "friendly", "count": 1 }
+    "phases": [
+      "command"
     ],
-    "effect": { "modifyStat": { "stat": "OC", "value": 1 } },
-    "scope": { "who": "self" },
+    "window": [
+      "command.start",
+      "command.end"
+    ],
+    "who": "active",
+    "condition": {
+      "phase": "command",
+      "ownTurn": true
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "count": 1
+      }
+    ],
+    "effect": {
+      "modifyStat": {
+        "stat": "OC",
+        "value": 1
+      }
+    },
+    "scope": {
+      "who": "self"
+    },
     "duration": "untilNextTurn",
     "limit": "oncePerPhase"
   },
@@ -43,16 +78,150 @@
     "text": "Use in your opponent's Movement phase, just after an enemy unit finishes a Fall Back move. Pick one of your ADEPTUS CUSTODES INFANTRY units that was within Engagement Range of it at the start of the phase and is no longer within Engagement Range of any enemy model. That unit may make a Normal move of up to its Move characteristic and must end outside Engagement Range.",
     "cost": 1,
     "category": "strategicPloy",
-    "phases": ["movement"],
+    "phases": [
+      "movement"
+    ],
     "window": "movement.unitMoved",
     "who": "reactive",
-    "condition": { "phase": "movement", "ownTurn": false },
+    "condition": {
+      "phase": "movement",
+      "ownTurn": false
+    },
     "targets": [
-      { "role": "unit", "owner": "friendly", "filter": { "keyword": "INFANTRY" }, "count": 1 }
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "INFANTRY"
+        },
+        "count": 1
+      }
     ],
-    "scope": { "who": "self" },
+    "scope": {
+      "who": "self"
+    },
     "duration": "instant",
     "code": "overawingMagnificence",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "cus.s.tgb-gilded-spear",
+    "faction": "adeptus-custodes",
+    "name": "The Gilded Spear",
+    "text": "Use in the Fight phase, before the next unit is picked to fight. One ADEPTUS CUSTODES unit from your army that has not yet fought this phase makes Pile-in moves of up to 6\" rather than 3\" until the phase ends.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": [
+      "fight"
+    ],
+    "window": [
+      "fight.start",
+      "fight.attacksResolved"
+    ],
+    "who": "either",
+    "condition": {
+      "phase": "fight"
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "ADEPTUS CUSTODES"
+        },
+        "state": "notYetFought",
+        "count": 1
+      }
+    ],
+    "scope": {
+      "who": "self"
+    },
+    "duration": "untilEndOfPhase",
+    "code": "getStuckInDistance",
+    "params": {
+      "pileIn": 6,
+      "pileInOnly": true
+    },
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "cus.s.tgb-inescapable-vengeance",
+    "faction": "adeptus-custodes",
+    "name": "Inescapable Vengeance",
+    "text": "Use in your Movement phase, before you pick a unit to move. One ADEPTUS CUSTODES unit from your army that has not yet moved this phase adds 2 to its Advance rolls until the phase ends.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": [
+      "movement"
+    ],
+    "window": [
+      "movement.start",
+      "movement.unitMoved"
+    ],
+    "who": "active",
+    "condition": {
+      "phase": "movement",
+      "ownTurn": true
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "ADEPTUS CUSTODES"
+        },
+        "state": "notYetActivated",
+        "count": 1
+      }
+    ],
+    "effect": {
+      "modifyRoll": {
+        "roll": "advance",
+        "value": 2
+      }
+    },
+    "scope": {
+      "who": "self"
+    },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "cus.s.tgb-overawing-magnificence",
+    "faction": "adeptus-custodes",
+    "name": "Overawing Magnificence",
+    "text": "Use in your opponent's Charge phase, just after an enemy unit declares a charge. Pick one ADEPTUS CUSTODES unit from your army that is a target of that charge; the charging unit takes a Leadership test. If it fails, it subtracts 2 from its Charge rolls until the phase ends.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": [
+      "charge"
+    ],
+    "window": "charge.declared",
+    "who": "reactive",
+    "condition": {
+      "phase": "charge",
+      "ownTurn": false
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "enemy",
+        "count": 1
+      },
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "ADEPTUS CUSTODES"
+        },
+        "count": 1
+      }
+    ],
+    "scope": {
+      "who": "target"
+    },
+    "duration": "untilEndOfPhase",
+    "code": "tgbOverawing",
     "limit": "oncePerPhase"
   }
 ]

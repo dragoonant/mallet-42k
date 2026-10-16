@@ -191,6 +191,12 @@ const EXPECTED: Record<string, WeaponFlavour> = {
   'cus.w.interceptor-lance': 'chain',
   'cus.w.close-combat-weapon-prosecutor': 'chain',
   'cus.w.executioner-greatblade': 'chain',
+  'cus.w.vaultswords-behemor': 'chain',
+  'cus.w.vaultswords-hurricanus': 'chain',
+  'cus.w.vaultswords-victus': 'chain',
+  'cus.w.castellan-axe-ranged': 'bolter',
+  'cus.w.castellan-axe-melee': 'chain',
+  'cus.w.balistus-grenade-launcher': 'heavy',
 }
 
 // Adepta Sororitas weapons, by datasheet NAME (lower-cased) so the check holds whatever id spelling the data uses.

@@ -497,7 +497,7 @@ export function vpToastFrom(state: GameState, bundle: DataBundle | null, events:
   const scored = events.filter((e): e is Extract<GameEvent, { type: 'VpScored' }> => e.type === 'VpScored')
   const last = scored[scored.length - 1]
   if (!last) return null
-  return { id: Date.now(), text: `+${last.amount} VP — ${sourceName(state, bundle, last.source)}` }
+  return { id: Date.now(), text: `${last.amount >= 0 ? "+" : ""}${last.amount} VP — ${sourceName(state, bundle, last.source)}` }
 }
 
 export const useGameStore = create<GameStore>()((set, get) => {
