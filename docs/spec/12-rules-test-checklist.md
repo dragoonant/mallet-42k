@@ -892,3 +892,27 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | MOR-021 | MOR-5.2 | Bestial Bellow: offered for a Squighog Boy model; not for a Beast Snagga Boy model; not for an enemy 4" away; 1 CP spent once |
 | MOR-022 | MOR-5.3 | Get In There!: offered when an own ORKS unit is picked to fight; pile-in allowance 6"; consolidation still 3"; not offered for an enemy unit |
 | MOR-023 | MOR-1 | e2e: the start-screen patrol picker lists Morgrim's Butchas for Orks; starting with it fields 4 units; an AI-vs-AI sim game with this patrol completes 5 rounds without an engine error |
+
+## TRI — Adeptus Custodes: Tristraen's Gilded Blades (docs/spec/factions/adeptus-custodes--tristraen-s-gilded-blades.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| TRI-001 | TRI-1 | patrol loads (default): 3 units, 7 models (Tristraen 1, Guard 3, Wardens 3); Tristraen is WARLORD with Watchman of Terra, unattached; default secondary Raise the Vexillas |
+| TRI-002 | TRI-1.1 | `unitChoices:{retinue:'allarus'}` → 3 units, 6 models, no Wardens unit exists |
+| TRI-003 | TRI-1.3, 1.4 | no unit may start in Deep Strike Reserves; Guard has no BATTLELINE keyword; all 3 Guard models start at 4 W; Tristraen at 6 W; Allarus T 7, M 5 |
+| TRI-004 | TRI-2.1 | each time a TGB unit is selected to fight (both players' turns) its player gets a mandatory Dacatarai/Rendax choice for that unit only; no army-wide pick at Fight-phase start |
+| TRI-005 | TRI-2.2, 2.4 | two TGB units in one phase: Guard picks Dacatarai (critical hit → 1 extra hit), Wardens pick Rendax (critical hit auto-wounds); each unit only gets its own stance; ranged weapons unaffected; stance gone at phase end |
+| TRI-006 | TRI-2.5 | Guardians of the Throne still gets its Fight-phase-start pick (CUS-004 regression); a TGB-only army never sees it |
+| TRI-007 | TRI-3.1 | Watchman of Terra: Tristraen in Engagement Range → OC 4 (outweighs 3 OC 1 enemies on a marker); out of Engagement Range → OC 2; Battle-shocked → 0 |
+| TRI-008 | TRI-3.2 | Warrior Exemplar: Tristraen destroys the last model of an enemy unit → D6, 3+ gains 1 CP, 1–2 nothing; kill by a Guard model → no roll; a second gain in the same round is discarded by the R-4.2 cap |
+| TRI-009 | TRI-4.1 | Raise the Vexillas: round 3+, end of own turn, controls both edge-closest markers → +3; only one of them → 0; round 2 → 0; end of opponent's turn → 0 |
+| TRI-010 | TRI-4.1 | Raise the Vexillas edge selection: markers picked by distance to each player's battlefield edge for both deployment orientations; a tie lets either tied marker count |
+| TRI-011 | TRI-4.2 | Consecrated Ground: enemy unit destroyed in either turn (attack, mortal wounds, Reserve cull) → +3 each |
+| TRI-012 | TRI-4.2 | Consecrated Ground: own Custodes model destroyed → −1; at 0 secondary VP a loss removes nothing; VP from other sources are never reduced; the opponent's models dying do not reduce it |
+| TRI-013 | TRI-5.1 | Gilded Spear: Custodes unit not yet fought, either turn → pile-in up to 6" this phase; consolidate still 3"; not targetable after the unit fought |
+| TRI-014 | TRI-5.2 | Inescapable Vengeance: own Movement phase, unit not yet moved → Advance roll +2 (rolled 3 → 5"); not targetable once the unit moved; expires at phase end; not usable in the opponent's turn |
+| TRI-015 | TRI-5.3 | Overawing Magnificence: enemy declares a charge on a Custodes unit → offered; Ld test failed → charge roll −2 (2D6 = 9 → 7); passed → no change; Custodes unit not a charge target → not offered |
+| TRI-016 | TRI-5 | the Guardians of the Throne stratagems `cus.s.*` are not in this patrol's list, and the `cus.s.tgb-*` ones are not in Guardians' (both patrols' data load side by side) |
+| TRI-017 | TRI-6.1 | Tristraen fights with exactly one vaultswords profile: Behemor 6 A with Precision (may allocate to an attached CHARACTER), Hurricanus 9 A Sustained Hits 1, Victus 5 A Devastating Wounds D 3 |
+| TRI-018 | TRI-6.3 | balistus grenade launcher: D6 attacks +2 against a 10-model unit (Blast); cannot target a unit engaged with a friendly unit |
+| TRI-019 | TRI-6 | Wardens wargear as built: axe model has castellan axe ranged 24" A2 and melee A4 S9 AP−1 D3; spear models use reused guardian spear profiles |
+| TRI-020 | TRI-6 | Dacatarai on Hurricanus does not stack a second Sustained Hits; Rendax on Hurricanus gives both Lethal and Sustained |
