@@ -27,10 +27,11 @@ const FACTION_BLURBS: Record<string, string> = {
   aeldari: 'Graceful, fragile seers and skimmers who read the threads of fate: save Fate dice in advance and spend them as the battle unfolds.',
   'grey-knights': 'A small band of silver-armoured psykers who blink across the board and punish anything that lingers.',
   drukhari: 'Cruel raiders on skimmers who feed on the pain they cause: the more your enemy suffers, the better your units fight.',
+  'adeptus-mechanicus': 'Hooded cyborg skirmishers and sulphur-breathing hounds led by a tech-priest: each round you pick a stance that sharpens either their guns or their advance.',
 }
 
 // Button order for the factions the game ships; any other faction in the bundle follows alphabetically.
-const FACTION_ORDER = ['sm', 'ork', 'necrons', 'chaos-space-marines', 'tyranids', 'adepta-sororitas', 'astra-militarum', 'grey-knights', 'tau-empire', 'genestealer-cults', 'adeptus-custodes', 'leagues-of-votann', 'drukhari', 'aeldari']
+const FACTION_ORDER = ['sm', 'ork', 'necrons', 'chaos-space-marines', 'tyranids', 'adepta-sororitas', 'astra-militarum', 'grey-knights', 'tau-empire', 'genestealer-cults', 'adeptus-custodes', 'leagues-of-votann', 'drukhari', 'aeldari', 'adeptus-mechanicus']
 
 interface FactionChoice {
   id: string

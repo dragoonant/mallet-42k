@@ -75,6 +75,16 @@ export type KitId =
   | 'gk-terminator'
   | 'gk-librarian'
   | 'gk-dreadknight'
+  | 'adm-vanguard'
+  | 'adm-vanguard-alpha'
+  | 'adm-vanguard-arc'
+  | 'adm-vanguard-plasma'
+  | 'adm-skand'
+  | 'adm-pteraxii'
+  | 'adm-pteraxii-alpha'
+  | 'adm-hound-alpha'
+  | 'adm-hound-carbine'
+  | 'adm-hound-pistols'
   | 'tau-fire-warrior'
   | 'tau-shasui'
   | 'tau-fireblade'
@@ -159,6 +169,7 @@ export type HeadShape = 'marine-helmet' | 'terminator-helmet' | 'ork-head' | 'or
   | 'guard-helmet' | 'officer-cap' | 'sentinel-cab' | 'tau-helmet' | 'tau-ethereal' | 'custodes-helm'
   | 'kin-helm' | 'kin-helm-crest'
   | 'aeldari-helm' | 'aeldari-farseer' | 'wraith-head'
+  | 'skitarii-hood' | 'skitarii-alpha' | 'tech-priest-hood' | 'pteraxii-helm'
 export type WeaponShape =
   | 'none'
   | 'bolt-rifle'
@@ -208,6 +219,7 @@ export type WeaponShape =
   | 'shuriken-catapult'
   | 'singing-spear'
   | 'ghostglaive'
+  | 'arc-rifle' | 'plasma-caliver' | 'radium-carbine' | 'omnissian-staff' | 'taser-goad' | 'arc-maul' | 'transonic-cannon' | 'phosphor-torch' | 'phosphor-carbine'
 export type ShoulderPad = 'none' | 'small' | 'large'
 
 export interface BipedConfig {
@@ -249,11 +261,24 @@ export interface BipedConfig {
   chestCross?: boolean
   /** Drukhari dressing: long swept spikes on the shoulders and back (a barbed, cruel silhouette). */
   spikedPauldrons?: boolean
+  /** Adeptus Mechanicus dressing: a twin-thruster jump pack (Pteraxii), a floor-length robe over the legs and three
+   *  reaching mechadendrites on the back (tech-priests). */
+  jumpPack?: boolean
+  robe?: boolean
+  mechadendrites?: boolean
 }
 
 /** Towed/emplaced gun with its crew (Astra Militarum Field Ordnance Battery): a long barrel or a rocket rack. */
 export interface ArtilleryConfig {
   barrel: 'field-gun' | 'rocket-rack'
+}
+
+/** A Serberys Sulphurhound: a cyber-mastiff with a Skitarii rider whose weapons are drawn on the arms. */
+export interface HoundConfig {
+  rightWeapon: WeaponShape
+  leftWeapon: WeaponShape
+  /** A brass crest on the rider's hood (the pack's alpha). */
+  crest?: boolean
 }
 
 export interface VehicleConfig {

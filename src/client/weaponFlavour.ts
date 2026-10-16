@@ -39,12 +39,12 @@ export function weaponFlavour(weaponId: string, weapon: WeaponData | undefined, 
   // Gauss weapons flay with a green energy bolt rather than a bullet, so they voice and trace as an energy
   // weapon; the psychic zap is the closest thing in the SFX palette.
   // T'au pulse weapons and the Votann ion blasters, magna-rail rifles and volkanite disintegrators are energy bolts too
-  const gauss = /gauss|pulse|\bion.?blaster|magna.?rail|volkanite/.test(text)
+  const gauss = /gauss|pulse|\bion.?blaster|magna.?rail|volkanite|\barc\b/.test(text)
   const strength = typeof weapon?.S === 'number' ? weapon.S : 0
 
   if (melee) {
     // A force weapon crackles rather than revs; everything else splits on whether it crushes or cuts.
-    if (psychic || /force|stave/.test(text)) return 'force'
+    if (psychic || /force|stave|staff|goad/.test(text)) return 'force'
     // Tyranid claws, talons and teeth rend and slash, so they voice as the cutting sound; only a klaw/fist
     // (or a plain crushing profile) is the heavy crunch.
     if (/fist|klaw|hammer|maul|mace|crush|limbs|mutation|sentinel(?![- ]blade)|mining|improvised|gauntlet|dozer|armoured hull|armoured-hull|armoured tracks|tracks/.test(text)) return 'crush'
@@ -54,7 +54,8 @@ export function weaponFlavour(weaponId: string, weapon: WeaponData | undefined, 
 
   if (psychic || gauss) return 'psychic'
   // TORRENT is the rules-level marker for a flame template (no hit roll, auto-hits).
-  if (hasAbility(weapon, 'TORRENT') || /flame|flamer|burna|pyre|melta|incinerat|fusion/.test(text)) return 'flame'
+  if (hasAbility(weapon, 'TORRENT') || /flame|flamer|burna|pyre|melta|incinerat|fusion|phosphor|sulphur/.test(text)) return 'flame'
+  if (/flechette/.test(text)) return 'shoota' // a rattling needle gun, whatever its blaster name
   if (/burst.cannon|rotary.cannon/.test(text)) return 'shoota' // a rattling gun, not an artillery piece
   // Drukhari splinter weapons spit streams of crystal needles (a rattle, whatever the size of the gun); dark lances and
   // disintegrator cannons are heavy energy shots.
@@ -92,7 +93,7 @@ export interface VfxClassification {
 /** Engine faction ids by the prefix of a weapon id ('ork.w.shoota'), for weapons classified with no faction given. */
 const ID_PREFIX_FACTION: [string, string][] = [
   ['ork.', 'ork'], ['nec', 'necrons'], ['tyr', 'tyranids'], ['gsc.', 'genestealer-cults'], ['tau.', 'tau-empire'],
-  ['am.', 'astra-militarum'], ['lov.', 'leagues-of-votann'], ['gk.', 'grey-knights'], ['csm', 'chaos-space-marines'], ['ade', 'adepta-sororitas'], ['cus.', 'adeptus-custodes'], ['drk.', 'drukhari'], ['ael.', 'aeldari'],
+  ['am.', 'astra-militarum'], ['lov.', 'leagues-of-votann'], ['gk.', 'grey-knights'], ['csm', 'chaos-space-marines'], ['ade', 'adepta-sororitas'], ['cus.', 'adeptus-custodes'], ['drk.', 'drukhari'], ['ael.', 'aeldari'], ['adm.', 'adeptus-mechanicus'],
 ]
 
 export function classifyVfxFamily(weaponId: string, weapon: WeaponData | undefined, faction: string): VfxClassification {
@@ -103,9 +104,9 @@ export function classifyVfxFamily(weaponId: string, weapon: WeaponData | undefin
   if (hasAbility(weapon, 'PSYCHIC') || /smite|witchfire|psychic|psychoclastic|psilencer|psycannon|purge soul|rite of possession|rite-of-possession/.test(text)) return kw('psychic')
   // Spat, flung or sprayed biomass: Tyranid guns, and the cult's webber.
   if (/fleshborer|barb|devourer|venom|spine|spore|acid|borer|webber|web/.test(text) || (fac === 'tyranids' && !/torrent/.test(text))) return kw('bio')
-  if (/gauss|tachyon|doomsday|necron/.test(text)) return kw('gauss')
+  if (/gauss|tachyon|doomsday|necron|\barc\b/.test(text)) return kw('gauss')
   if (/melta|fusion/.test(text) || hasAbility(weapon, 'MELTA')) return kw('melta')
-  if (hasAbility(weapon, 'TORRENT') || /flame|flamer|burna|pyre|incinerat/.test(text)) return kw('flamer')
+  if (hasAbility(weapon, 'TORRENT') || /flame|flamer|burna|pyre|incinerat|phosphor|sulphur/.test(text)) return kw('flamer')
   // Drukhari: splinter weapons are streams of crystal needles, dark lances are heavy beams, disintegrators a bright pulse.
   if (/splinter/.test(text)) return kw('dakka')
   if (/dark.?lance/.test(text)) return kw('lascannon')
@@ -116,10 +117,11 @@ export function classifyVfxFamily(weaponId: string, weapon: WeaponData | undefin
   if (/bright.?lance/.test(text)) return kw('lascannon')
   if (/scatter.?laser/.test(text)) return kw('las')
   if (/lascannon|las.?cannon|laser|beam/.test(text)) return kw('lascannon')
+  if (/flechette/.test(text)) return kw('bolt')
   if (/plasma|blaster|blasta|supercharge|starcannon/.test(text)) return kw(fac === 'ork' || fac === 'orks' ? 'dakka' : 'plasma')
   if (/shoota|slugga|dakka|stikk|big.?shoota|kopta|saddlegit/.test(text)) return kw('dakka')
   if (/autocannon|assault cannon|assault-cannon|hylas|auto.?rifle|heavy.?bolter|heavy.?stubber|stubber|seismic|cannon/.test(text)) return kw('autocannon')
-  if (/lasgun|laspistol|lascarbine|las.?pistol/.test(text)) return kw('las')
+  if (/lasgun|laspistol|lascarbine|las.?pistol|radium/.test(text)) return kw('las')
   if (/bolt|combi|storm|hurricane|spear|castellan|sentinel blade|sentinel-blade|autogun|autopistol|hybrid firearm|pistol|sniper|small.?arms/.test(text)) return kw('bolt')
   switch (fac) {
     case 'ork': case 'orks': return { family: 'dakka', via: 'faction' }
@@ -130,6 +132,7 @@ export function classifyVfxFamily(weaponId: string, weapon: WeaponData | undefin
     case 'grey-knights': return { family: 'psychic', via: 'faction' }
     case 'drukhari': return { family: 'dakka', via: 'faction' }
     case 'aeldari': return { family: 'pulse', via: 'faction' }
+    case 'adeptus-mechanicus': return { family: 'las', via: 'faction' }
     default: return { family: 'bolt', via: 'default' }
   }
 }

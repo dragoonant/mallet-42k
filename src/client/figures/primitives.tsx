@@ -3,6 +3,7 @@
 // silhouette still reads at tabletop zoom. Geometry is authored in the unit-height (H=1) space
 // that BipedBody/VehicleBody use; Figure scales the whole assembled group to the real height.
 import { GBox, GCapsule, GCone, GCylinder, GSphere, StdMat } from './shared'
+import { ADM_WEAPONS, AdmWeapon } from './admParts'
 import type { PaintColors, WeaponShape } from './types'
 
 /** A big, slightly-flattened sphere — the chibi head blob every kit head shape starts from. */
@@ -73,6 +74,7 @@ function PincerClaw({ size, color, open = 0.35 }: { size: number; color: string;
  *  the local origin. `hand` fills empty/'none' slots with a plain gauntlet fist so an arm never
  *  ends in nothing. */
 export function WeaponMesh({ shape, colors, hand }: { shape: WeaponShape; colors: PaintColors; hand: string }) {
+  if (ADM_WEAPONS.has(shape)) return <AdmWeapon shape={shape} colors={colors} />
   switch (shape) {
     case 'bolt-rifle':
       return (

@@ -12,6 +12,7 @@ import {
 import type { ScoringRule } from '../data/types'
 import { createRng, restoreRng, type Rng } from '../engine/rng'
 import { woundRollNeeded } from '../engine/dice'
+import { partlyWithinPolygon } from '../engine/geometry'
 import { deployTerrainBlock } from '../engine/terrain'
 import { judgementTokens } from '../engine/judgement'
 import { commandRerollScore, scoreStratagemOrReaction } from './stratagems'
@@ -644,10 +645,22 @@ function scoreChooseOption(state: GameState, pending: PendingDecision, action: A
   // Methodical Destruction: the VP only come if the pick dies this round, so mark the unit most likely to die (cheapest on the board).
   if (code === 'methodicalDestructionPick' && hintUnitId) score = -unitValue(state, hintUnitId) * 0.03
   // Ethereal Edict: the VP go to the T'au if the picked unit (one of ours) dies, so condemn the hardest one to kill (sum of W x T).
-  if (code === 'etherealEdictPick' && hintUnitId) {
+  if ((code === 'etherealEdictPick' || code === 'targetedPurgePick') && hintUnitId) {
     let hardness = 0
     for (const m of unitModels(state, hintUnitId)) { const st = modelStats(state, m); hardness += st.W * st.T }
     score = hardness * 0.01
+  }
+  // Adeptus Mechanicus Doctrina Imperatives: Conqueror (AP bonus into targets in the enemy deployment zone, Assault) while an enemy sits in
+  // its own deployment zone within 18" of one of our Doctrina units; otherwise Protector (Heavy, AP penalty against us while we hold our zone).
+  if (code === 'doctrinaImperatives') {
+    const conqueror = doctrinaPrefersConqueror(state, pending.player)
+    score += (action.optionId === 'conqueror') === conqueror ? 2 : 0
+  }
+  // Adeptus Mechanicus Line-breakers: put the mortal wounds on the enemy unit with the fewest wounds left (most likely to die)
+  if (code === 'lineBreakers' && hintUnitId) {
+    let wounds = 0
+    for (const m of unitModels(state, hintUnitId)) wounds += m.woundsRemaining
+    score = 10 - wounds * 0.1
   }
   // Divine Judgement (Sororitas secondary): the opponent (us) names the unit hardest to kill, by total wounds (tie: better save)
   if (code === 'divineJudgementPick' && hintUnitId) {
@@ -656,6 +669,20 @@ function scoreChooseOption(state: GameState, pending: PendingDecision, action: A
     score = wounds + sv * 0.01
   }
   return score
+}
+
+// ADM-2.1 / ADM-026: Conqueror only when an enemy unit stands (at least partly) in its own deployment zone within 18" of a Doctrina unit
+function doctrinaPrefersConqueror(state: GameState, player: PlayerId): boolean {
+  const enemy: PlayerId = player === 'A' ? 'B' : 'A'
+  const zone = deploymentZone(state, enemy)
+  const mine = Object.values(state.units).filter((u) => u.player === player && u.location === 'board' && state.datasheets[u.datasheetId]?.abilities.some((a) => state.abilities[a]?.code === 'doctrinaImperatives'))
+  if (mine.length === 0) return false
+  for (const e of Object.values(state.units)) {
+    if (e.player !== enemy || e.location !== 'board') continue
+    if (!unitModels(state, e.id).some((m) => partlyWithinPolygon(m, zone))) continue
+    if (mine.some((u) => minGapBetweenUnits(state, u.id, e.id) <= 18)) return true
+  }
+  return false
 }
 
 function scoreAction(state: GameState, player: PlayerId, pending: PendingDecision, action: Action): number {

@@ -158,6 +158,16 @@ const GALLERY_ENTRIES: GalleryEntry[] = [
   { datasheetId: 'ael.windriders', modelId: 'windrider-catapult', faction: 'aeldari', label: 'Windrider (catapults)' },
   { datasheetId: 'ael.windriders', modelId: 'windrider-scatter', faction: 'aeldari', label: 'Windrider (scatter laser)' },
   { datasheetId: 'ael.wraithlord', modelId: 'wraithlord', faction: 'aeldari', label: 'Wraithlord' },
+  { datasheetId: 'adm.manipulus-skand', modelId: 'skand', faction: 'adeptus-mechanicus', label: "Manipulus Skand" },
+  { datasheetId: 'adm.skitarii-vanguard', modelId: 'alpha', faction: 'adeptus-mechanicus', label: "Vanguard Alpha" },
+  { datasheetId: 'adm.skitarii-vanguard', modelId: 'arc-rifle', faction: 'adeptus-mechanicus', label: "Skitarius (arc rifle)" },
+  { datasheetId: 'adm.skitarii-vanguard', modelId: 'plasma-caliver', faction: 'adeptus-mechanicus', label: "Skitarius (plasma caliver)" },
+  { datasheetId: 'adm.skitarii-vanguard', modelId: 'vanguard', faction: 'adeptus-mechanicus', label: "Skitarius (radium carbine)" },
+  { datasheetId: 'adm.serberys-sulphurhounds', modelId: 'alpha', faction: 'adeptus-mechanicus', label: "Sulphurhound Alpha" },
+  { datasheetId: 'adm.serberys-sulphurhounds', modelId: 'carbine', faction: 'adeptus-mechanicus', label: "Sulphurhound (blast carbine)" },
+  { datasheetId: 'adm.serberys-sulphurhounds', modelId: 'pistols', faction: 'adeptus-mechanicus', label: "Sulphurhound (paired pistols)" },
+  { datasheetId: 'adm.pteraxii-sterylizors', modelId: 'alpha', faction: 'adeptus-mechanicus', label: "Sterylizor Alpha" },
+  { datasheetId: 'adm.pteraxii-sterylizors', modelId: 'sterylizor', faction: 'adeptus-mechanicus', label: "Pteraxii Sterylizor" },
 ]
 
 // Figures are true tabletop-miniature scale (~1-2 world-inches tall — see resolveBase), so packing

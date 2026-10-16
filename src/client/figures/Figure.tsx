@@ -10,7 +10,7 @@ import type { ThreeEvent } from '@react-three/fiber'
 import { applyPaintToColors, resolveBaseStyle, useArmyPaint } from './paint'
 import { resolveBase, resolveFigureKit, resolvePaintColors, useDataBundle } from './data'
 import { SwarmBody } from './SwarmBody'
-import { BODY_KIND, BIPED_CONFIG, VEHICLE_CONFIG, ARTILLERY_CONFIG } from './kitConfigs'
+import { BODY_KIND, BIPED_CONFIG, VEHICLE_CONFIG, ARTILLERY_CONFIG, HOUND_CONFIG } from './kitConfigs'
 import { BaseDisc, BASE_THICKNESS } from './BaseDisc'
 import { GlbBody } from './GlbBody'
 import { GlowAura } from './GlowAura'
@@ -19,6 +19,7 @@ import { useGlbInstance } from './glbLoader'
 import { BipedBody } from './BipedBody'
 import { VehicleBody } from './VehicleBody'
 import { ArtilleryBody } from './ArtilleryBody'
+import { HoundBody } from './HoundBody'
 import type { Pose, FigureAction, FigureActionKind } from './types'
 
 const POSITION_EASE_PER_SEC = 10
@@ -192,6 +193,8 @@ export const Figure = memo(function Figure({
           <SwarmBody colors={colors} pose={pose} seed={seedRef.current} />
         ) : bodyKind === 'artillery' ? (
           <ArtilleryBody config={ARTILLERY_CONFIG[kit] ?? { barrel: 'field-gun' }} colors={colors} pose={pose} seed={seedRef.current} />
+        ) : bodyKind === 'hound' ? (
+          <HoundBody config={HOUND_CONFIG[kit] ?? { rightWeapon: 'none', leftWeapon: 'none' }} colors={colors} pose={pose} seed={seedRef.current} />
         ) : bodyKind === 'vehicle' ? (
           <VehicleBody config={VEHICLE_CONFIG[kit] ?? { weapon: 'none', hasRotor: false }} colors={colors} pose={pose} seed={seedRef.current} />
         ) : (

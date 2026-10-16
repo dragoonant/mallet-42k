@@ -8,6 +8,7 @@ import type { Group } from 'three'
 import { EndBlock, HeadBlob, LimbSegment, WeaponMesh } from './primitives'
 import { TyranidExtras, TyranidHead } from './TyranidParts'
 import { usePoseFrame, clamp01, easeOut, useMaterialFader } from './anim'
+import { ADM_HEADS, AdmDressing, AdmHead, type AdmHeadShape } from './admParts'
 import type { BipedConfig, BodyProps } from './types'
 
 const ORK_SKIN = '#6f8f3f'
@@ -202,6 +203,7 @@ export function BipedBody({ config, colors, pose, seed }: BodyProps & { config: 
             <StdMat color={colors.metal} metalness={0.4} roughness={0.6} />
           </mesh>
         )}
+        <AdmDressing config={config} colors={colors} torsoWidth={torsoWidth} torsoDepth={torsoDepth} torsoHeight={TORSO_H} hipY={HIP_Y} />
         <TyranidExtras config={config} colors={colors} torsoWidth={torsoWidth} torsoDepth={torsoDepth} torsoHeight={TORSO_H} />
         {config.tabard && (
           <>
@@ -293,6 +295,7 @@ function HeadBody({
   skinColor: string | undefined
   radius: number
 }) {
+  if (ADM_HEADS.has(shape)) return <AdmHead shape={shape as AdmHeadShape} colors={colors} radius={radius} />
   switch (shape) {
     case 'marine-helmet':
       return (

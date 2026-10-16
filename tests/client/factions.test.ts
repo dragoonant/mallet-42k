@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { loadBundle } from '../../src/data'
 import { embarkOptions, resolveFactionId, splittablePatrolRefs, useGameStore } from '../../src/client/store/game'
 import { resolveFigureKit } from '../../src/client/figures/data'
-import { BODY_KIND, BIPED_CONFIG, ARTILLERY_CONFIG, VEHICLE_CONFIG } from '../../src/client/figures/kitConfigs'
+import { BODY_KIND, BIPED_CONFIG, ARTILLERY_CONFIG, VEHICLE_CONFIG, HOUND_CONFIG } from '../../src/client/figures/kitConfigs'
 import { glbSlugFor } from '../../src/client/figures/glbModels'
 import { weaponIconKind, WEAPON_ICON_KINDS } from '../../src/client/ui/weaponIcons'
 
@@ -339,5 +339,56 @@ describe('drukhari figures and setup', () => {
     expect(kab.every((o) => o.models === 11 && o.unitName.includes('with Archon'))).toBe(true)
     expect(opts.some((o) => o.unitRef === 'archon')).toBe(false)
     expect(opts.some((o) => o.unitRef === 'incubi')).toBe(true)
+  })
+})
+
+describe('adeptus mechanicus figures', () => {
+  const sheets = Object.values(bundle.datasheets).filter((d) => d.id.startsWith('adm.'))
+
+  it('the bundle carries the adeptus mechanicus datasheets', () => {
+    expect(sheets.length).toBeGreaterThan(0)
+  })
+
+  it('the faction can be picked for either seat, by bare faction id', async () => {
+    expect(resolveFactionId('adeptus-mechanicus')).toBe('adeptus-mechanicus')
+    await useGameStore.getState().newGame({ playerFaction: 'adeptus-mechanicus', opponentFaction: 'orks', opponent: 'hotseat', seed: 'adm-vs-ork' })
+    let s = useGameStore.getState().state!
+    expect([s.players.A.faction, s.players.B.faction]).toEqual(['adeptus-mechanicus', 'ork'])
+    await useGameStore.getState().newGame({ playerFaction: 'space-marines', opponentFaction: 'adeptus-mechanicus', opponent: 'hotseat', seed: 'sm-vs-adm' })
+    s = useGameStore.getState().state!
+    expect([s.players.A.faction, s.players.B.faction]).toEqual(['sm', 'adeptus-mechanicus'])
+  }, 60000)
+
+  for (const ds of sheets) {
+    for (const m of ds.composition) {
+      it(`${ds.id}/${m.modelId} resolves to an adm kit with a body config`, () => {
+        const { kit } = resolveFigureKit(ds.id, ds, m.modelId)
+        expect(kit.startsWith('adm-'), kit).toBe(true)
+        if (BODY_KIND[kit] === 'biped') expect(BIPED_CONFIG[kit], kit).toBeDefined()
+        if (BODY_KIND[kit] === 'hound') expect(HOUND_CONFIG[kit], kit).toBeDefined()
+      })
+
+      // No GLBs yet: a missing model must leave the procedural figure in place rather than throw.
+      it(`${ds.id}/${m.modelId} has no GLB lookup and falls back to the procedural figure`, () => {
+        expect(glbSlugFor(ds.id, m.modelId)).toBeUndefined()
+      })
+    }
+  }
+
+  it('the Sulphurhounds ride a hound body, and the tech-priest and jump troops carry their own dressing', () => {
+    expect(BODY_KIND[resolveFigureKit('adm.serberys-sulphurhounds', undefined, 'pistols').kit]).toBe('hound')
+    expect(BIPED_CONFIG['adm-skand']!.robe).toBe(true)
+    expect(BIPED_CONFIG['adm-pteraxii']!.jumpPack).toBe(true)
+  })
+
+  it('the mixed Vanguard squad reads as different silhouettes', () => {
+    const kits = ['alpha', 'arc-rifle', 'plasma-caliver', 'vanguard'].map((m) => resolveFigureKit('adm.skitarii-vanguard', undefined, m).kit)
+    expect(new Set(kits).size).toBe(4)
+    const guns = kits.map((k) => `${BIPED_CONFIG[k]!.headShape}/${BIPED_CONFIG[k]!.rightWeapon}`)
+    expect(new Set(guns).size).toBe(4)
+  })
+
+  it('the faction paint scheme is the one the data declares', () => {
+    expect(bundle.factions['adeptus-mechanicus'].paintScheme.primary).toBe('#8a2f1f')
   })
 })

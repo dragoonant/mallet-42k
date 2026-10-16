@@ -1,0 +1,48 @@
+[
+  {
+    "id": "adm.serberys-sulphurhounds",
+    "faction": "adeptus-mechanicus",
+    "name": "Serberys Sulphurhounds",
+    "keywords": ["MOUNTED", "IMPERIUM", "SKITARII", "SERBERYS SULPHURHOUNDS"],
+    "factionKeywords": ["ADEPTUS MECHANICUS"],
+    "stats": { "M": 12, "T": 4, "Sv": 4, "W": 2, "Ld": 7, "OC": 2 },
+    "invuln": 5,
+    "composition": [
+      {
+        "modelId": "alpha",
+        "name": "Sulphurhound Alpha",
+        "min": 1, "max": 1, "default": 1,
+        "champion": true,
+        "base": { "shape": "oval", "mm": 60, "mm2": 35 },
+        "weapons": { "default": ["adm.w.mechanicus-pistol", "adm.w.sulphur-breath", "adm.w.cavalry-arc-maul", "adm.w.clawed-limbs"] },
+        "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+      },
+      {
+        "modelId": "carbine",
+        "name": "Sulphurhound (phosphor blast carbine)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "oval", "mm": 60, "mm2": 35 },
+        "weapons": { "default": ["adm.w.phosphor-blast-carbine", "adm.w.phosphor-pistol", "adm.w.sulphur-breath", "adm.w.clawed-limbs"] },
+        "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+      },
+      {
+        "modelId": "pistols",
+        "name": "Sulphurhound (paired phosphor pistols)",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "oval", "mm": 60, "mm2": 35 },
+        "weapons": { "default": ["adm.w.paired-phosphor-pistols", "adm.w.sulphur-breath", "adm.w.clawed-limbs"] },
+        "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+      }
+    ],
+    "abilities": [
+      "adm.a.doctrina-protector-heavy",
+      "adm.a.doctrina-protector-ap",
+      "adm.a.doctrina-conqueror-assault",
+      "adm.a.doctrina-conqueror-ap",
+      "adm.a.line-breakers"
+    ],
+    "coreAbilities": [],
+    "points": [ { "models": 3, "points": 0 } ],
+    "figure": { "archetype": "heavy", "kit": "generic-heavy" }
+  }
+]

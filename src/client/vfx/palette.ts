@@ -55,6 +55,7 @@ const FACTION_COLOR: Record<string, string> = {
   'leagues-of-votann': '#59c8ff',
   drukhari: '#3fe0c0',
   aeldari: '#3fd0c8',
+  'adeptus-mechanicus': '#2fb5ad',
 }
 
 const NEUTRAL_MELEE_COLOR = '#e8e8f0'

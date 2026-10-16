@@ -106,6 +106,8 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
     withIt = incomingDamage(state, attackerId, mineId, false, { ...base, cover: true })
   } else if (id.endsWith('skeinwrought-physiology')) {
     withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, svMod: -1 })
+  } else if (id.endsWith('evaluation-of-mettle')) {
+    withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, fnp: 5 })
   } else if (id.endsWith('mercurial-resilience')) {
     withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, invuln: 5 })
   } else if (id.endsWith('a-martyrs-death')) {
@@ -119,7 +121,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
 }
 
 const DEFENSIVE = ['skeinwrought-physiology', 'go-to-ground', 'smokescreen', 'gene-wrought-resilience', 'tough-as-squig-hide', 'holy-radiance', 'hyper-reactive',
-  'mercurial-resilience', 'a-martyrs-death', 'daemonic-fervour', 'lurking-killers', 'lives-before-territory', 'quicksilver-reactions', 'whip-fast-reactions']
+  'mercurial-resilience', 'a-martyrs-death', 'daemonic-fervour', 'lurking-killers', 'lives-before-territory', 'quicksilver-reactions', 'whip-fast-reactions', 'evaluation-of-mettle']
 
 // Fire Overwatch: hits only on an unmodified 6, the bound unit only (picked within 24"), each weapon within its own range, with line of sight.
 function overwatchGain(state: GameState, player: PlayerId, action: UseStratagemAction, enemyId: UnitId): number {
@@ -291,8 +293,17 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
     if (roundsLeft < 1) return -Infinity
     return unit.startingStrength * ESTIMATED_MODEL_VALUE * 0.04 * Math.min(1, 0.4 + roundsLeft * 0.2)
   }
-  // T'au Fight by the Code: a unit that Fell Back may still shoot; worth its best volley at any enemy it can reach.
-  if (id.endsWith('fight-by-the-code')) {
+  // Adeptus Mechanicus Acceptable Risk Ratio: AP -1 on a not-yet-shot unit's ranged weapons, paid for with Hazardous tests (about 1/6 of
+  // the shooting models fall to a 1), so it is only worth a unit with a strong volley.
+  if (id.endsWith('acceptable-risk-ratio')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId || !hasAnyRangedWeapon(state, unitId)) return -Infinity
+    let best = 0
+    for (const e of boardUnitsOf(state, other(player))) best = Math.max(best, unitRangedDamage(state, unitId, e.id, {}) * 0.2 * unitValue(state, e.id) * 0.03)
+    return best > 0.3 ? best : -Infinity
+  }
+  // T'au Fight by the Code / Adeptus Mechanicus Optimised Efficiency: a unit that Fell Back may still shoot (and charge); worth its best volley at any enemy it can reach.
+  if (id.endsWith('fight-by-the-code') || id.endsWith('optimised-efficiency')) {
     const unitId = targets.unitIds?.[0]
     if (!unitId || state.units[unitId]?.turn.moveType !== 'fallBack' || !hasAnyRangedWeapon(state, unitId)) return -Infinity
     let best = 0

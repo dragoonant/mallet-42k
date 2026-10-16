@@ -1,0 +1,40 @@
+[
+  {
+    "id": "adm.pteraxii-sterylizors",
+    "faction": "adeptus-mechanicus",
+    "name": "Pteraxii Sterylizors",
+    "keywords": ["INFANTRY", "FLY", "JUMP PACK", "IMPERIUM", "SKITARII", "PTERAXII", "STERYLIZORS"],
+    "factionKeywords": ["ADEPTUS MECHANICUS"],
+    "stats": { "M": 12, "T": 4, "Sv": 4, "W": 2, "Ld": 7, "OC": 1 },
+    "invuln": 5,
+    "composition": [
+      {
+        "modelId": "alpha",
+        "name": "Sterylizor Alpha",
+        "min": 1, "max": 1, "default": 1,
+        "champion": true,
+        "base": { "shape": "round", "mm": 40 },
+        "weapons": { "default": ["adm.w.flechette-blaster", "adm.w.phosphor-torch", "adm.w.taser-goad", "adm.w.pteraxii-talons"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      },
+      {
+        "modelId": "sterylizor",
+        "name": "Pteraxii Sterylizor",
+        "min": 4, "max": 4, "default": 4,
+        "base": { "shape": "round", "mm": 40 },
+        "weapons": { "default": ["adm.w.phosphor-torch", "adm.w.pteraxii-talons"] },
+        "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+      }
+    ],
+    "abilities": [
+      "adm.a.doctrina-protector-heavy",
+      "adm.a.doctrina-protector-ap",
+      "adm.a.doctrina-conqueror-assault",
+      "adm.a.doctrina-conqueror-ap",
+      "adm.a.searing-conflagration"
+    ],
+    "coreAbilities": [ { "ability": "DEEP_STRIKE" } ],
+    "points": [ { "models": 5, "points": 0 } ],
+    "figure": { "archetype": "infantry", "kit": "generic-infantry" }
+  }
+]

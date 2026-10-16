@@ -1,0 +1,23 @@
+{
+  "id": "adeptus-mechanicus",
+  "name": "Adeptus Mechanicus",
+  "factionKeyword": "ADEPTUS MECHANICUS",
+  "armyRule": "adm.a.doctrina-imperatives",
+  "detachments": [
+    {
+      "id": "adm.d.purge-corps-deltic-9",
+      "name": "Purge Corps Deltic-9",
+      "rule": "adm.a.doctrina-imperatives",
+      "stratagems": ["adm.s.pcd-evaluation-of-mettle", "adm.s.pcd-optimised-efficiency", "adm.s.pcd-acceptable-risk-ratio"],
+      "enhancements": ["adm.e.aspergilla-of-tarentum", "adm.e.overcharged-electropositors"]
+    }
+  ],
+  "paintScheme": {
+    "primary": "#8a2f1f",
+    "secondary": "#3a4047",
+    "trim": "#b38b3b",
+    "metal": "#7b858a",
+    "decal": "#2fb5ad"
+  },
+  "combatPatrols": ["adm.cp.purge-corps-deltic-9"]
+}

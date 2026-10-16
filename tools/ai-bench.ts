@@ -28,6 +28,7 @@ function otherPlayer(p: PlayerId): PlayerId { return p === 'A' ? 'B' : 'A' }
 const FACTION_ARG_TO_DATA_ID: Record<string, string> = { 'space-marines': 'sm', orks: 'ork', necrons: 'necrons', 'chaos-space-marines': 'chaos-space-marines', tyranids: 'tyranids', 'adepta-sororitas': 'adepta-sororitas', 'astra-militarum': 'astra-militarum', 'grey-knights': 'grey-knights', 'tau-empire': 'tau-empire', 'genestealer-cults': 'genestealer-cults', 'adeptus-custodes': 'adeptus-custodes' }
 FACTION_ARG_TO_DATA_ID['leagues-of-votann'] = 'leagues-of-votann'
 FACTION_ARG_TO_DATA_ID.drukhari = 'drukhari'
+FACTION_ARG_TO_DATA_ID['adeptus-mechanicus'] = 'adeptus-mechanicus'
 
 // the patrol data's own `attachTo` hints (a Leader joining its bodyguard unit); other rosters attach in the client only
 function attachmentsOf(patrol: { units: { ref: string; attachTo?: string }[] }) {

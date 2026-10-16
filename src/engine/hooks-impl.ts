@@ -215,6 +215,21 @@ function targetOnControlledObjective(state: GameState, unitId: UnitId, controlle
   return Object.values(state.objectives).some((o) => !o.removed && o.controller === controller && models.some((m) => withinObjectiveRange(m, o, 0, range, radius)))
 }
 
+// E-ADM1 (Searing Conflagration, Line-breakers): `unitId` is within `within` inches (unit-to-unit, closest models) of at least one
+// OTHER friendly unit on the battlefield that has `keyword` (any half) and, when given, the datasheet faction keyword `factionKeyword`
+export function friendlyKeywordWithin(state: GameState, unitId: UnitId, keyword: string, within: number, factionKeyword?: string): boolean {
+  const self = state.units[unitId]
+  if (!self || leaderService.halves(state, unitId).every((id) => state.units[id]?.location !== 'board')) return false
+  for (const other of Object.values(state.units)) {
+    if (other.player !== self.player || other.location !== 'board') continue
+    if (leaderService.sameUnit(state, other.id, unitId)) continue
+    if (!unitKeywordsAny(state, other.id).includes(keyword)) continue
+    if (factionKeyword !== undefined && !leaderService.halves(state, other.id).some((id) => state.datasheets[state.units[id]?.datasheetId]?.factionKeywords.includes(factionKeyword))) continue
+    if (leaderService.unitDistance(state, other.id, unitId) <= within + 1e-6) return true
+  }
+  return false
+}
+
 function bound(v: number, b: { gte?: number; lte?: number }): boolean {
   return (b.gte === undefined || v >= b.gte) && (b.lte === undefined || v <= b.lte)
 }
@@ -278,6 +293,7 @@ export function evaluateCondition(env: ConditionEnv, c: Condition | null | undef
     if (!found) return false
   }
   if (c.leaderAttached !== undefined && !(h && leaderService.isAttached(state, h.id) === c.leaderAttached)) return false
+  if (c.friendlyKeywordWithin !== undefined && !(h && friendlyKeywordWithin(state, h.id, c.friendlyKeywordWithin.keyword, c.friendlyKeywordWithin.within, c.friendlyKeywordWithin.factionKeyword))) return false
   // [interp] roll bounds compare the unmodified die (modifiers are folded by the caller after collection)
   if (c.roll !== undefined && !(env.roll && bound(env.roll.unmodified, c.roll))) return false
   if (c.round !== undefined && !bound(state.round, c.round)) return false

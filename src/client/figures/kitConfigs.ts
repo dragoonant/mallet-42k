@@ -1,8 +1,8 @@
 // Per-kit visual dressing (30-figures.md §2/§4 flavour, not rules data). Keyed by KitId so
 // Figure.tsx can go straight from resolveFigureKit() to "what does this look like".
-import type { ArtilleryConfig, BipedConfig, KitId, VehicleConfig } from './types'
+import type { ArtilleryConfig, BipedConfig, HoundConfig, KitId, VehicleConfig } from './types'
 
-export const BODY_KIND: Record<KitId, 'biped' | 'vehicle' | 'swarm' | 'artillery'> = {
+export const BODY_KIND: Record<KitId, 'biped' | 'vehicle' | 'swarm' | 'artillery' | 'hound'> = {
   'sm-tacticus': 'biped',
   'sm-terminator': 'biped',
   'ork-boy': 'biped',
@@ -41,6 +41,16 @@ export const BODY_KIND: Record<KitId, 'biped' | 'vehicle' | 'swarm' | 'artillery
   'gk-terminator': 'biped',
   'gk-librarian': 'biped',
   'gk-dreadknight': 'biped',
+  'adm-vanguard': 'biped',
+  'adm-vanguard-alpha': 'biped',
+  'adm-vanguard-arc': 'biped',
+  'adm-vanguard-plasma': 'biped',
+  'adm-skand': 'biped',
+  'adm-pteraxii': 'biped',
+  'adm-pteraxii-alpha': 'biped',
+  'adm-hound-alpha': 'hound',
+  'adm-hound-carbine': 'hound',
+  'adm-hound-pistols': 'hound',
   'tau-fire-warrior': 'biped',
   'tau-shasui': 'biped',
   'tau-fireblade': 'biped',
@@ -528,6 +538,87 @@ export const BIPED_CONFIG: Partial<Record<KitId, BipedConfig>> = {
     chestCore: true,
   },
   // T'au Empire: cream armour (primary) with blue (secondary) cloth and glow, orange (trim) markings, slim pulse rifles.
+  // Adeptus Mechanicus (Skitarii): rust-red robes and hoods (paintScheme.primary), slate limbs, brass trim, teal lenses and emitters.
+  'adm-vanguard': {
+    headShape: 'skitarii-hood',
+    rightWeapon: 'radium-carbine',
+    leftWeapon: 'none',
+    bulk: 1,
+    hasBackpack: true,
+    shoulderPads: 'small',
+    hasCape: false,
+    skin: 'none',
+  },
+  'adm-vanguard-alpha': {
+    headShape: 'skitarii-alpha',
+    rightWeapon: 'taser-goad',
+    leftWeapon: 'plasma-pistol',
+    bulk: 1.05,
+    hasBackpack: true,
+    shoulderPads: 'large',
+    hasCape: true,
+    capeColor: 'trim',
+    skin: 'none',
+  },
+  'adm-vanguard-arc': {
+    headShape: 'skitarii-hood',
+    rightWeapon: 'arc-rifle',
+    leftWeapon: 'none',
+    bulk: 1,
+    hasBackpack: true,
+    shoulderPads: 'small',
+    hasCape: false,
+    skin: 'none',
+  },
+  'adm-vanguard-plasma': {
+    headShape: 'skitarii-hood',
+    rightWeapon: 'plasma-caliver',
+    leftWeapon: 'none',
+    bulk: 1,
+    hasBackpack: true,
+    shoulderPads: 'small',
+    hasCape: false,
+    skin: 'none',
+  },
+  // Manipulus Skand: a robed tech-priest with a brass sigil plate, mechadendrites, a transonic emitter and an Omnissian staff.
+  'adm-skand': {
+    headShape: 'tech-priest-hood',
+    rightWeapon: 'omnissian-staff',
+    leftWeapon: 'transonic-cannon',
+    bulk: 1.25,
+    hasBackpack: true,
+    shoulderPads: 'large',
+    hasCape: false,
+    skin: 'none',
+    limbColor: 'metal',
+    chestPlate: true,
+    robe: true,
+    mechadendrites: true,
+  },
+  // Pteraxii Sterylizors: slate-helmed skimmer troops on twin jump-pack thrusters, phosphor torch in hand.
+  'adm-pteraxii': {
+    headShape: 'pteraxii-helm',
+    rightWeapon: 'phosphor-torch',
+    leftWeapon: 'none',
+    bulk: 1,
+    hasBackpack: false,
+    jumpPack: true,
+    shoulderPads: 'small',
+    hasCape: false,
+    skin: 'none',
+  },
+  'adm-pteraxii-alpha': {
+    headShape: 'pteraxii-helm',
+    rightWeapon: 'phosphor-torch',
+    leftWeapon: 'taser-goad',
+    bulk: 1.05,
+    hasBackpack: false,
+    jumpPack: true,
+    shoulderPads: 'large',
+    hasCape: true,
+    capeColor: 'trim',
+    skin: 'none',
+  },
   'tau-fire-warrior': {
     headShape: 'tau-helmet',
     rightWeapon: 'pulse-rifle',
@@ -1255,6 +1346,12 @@ BIPED_CONFIG['drk-klaivex'] = {
 export const ARTILLERY_CONFIG: Partial<Record<KitId, ArtilleryConfig>> = {
   'am-field-gun': { barrel: 'field-gun' },
   'am-rocket-battery': { barrel: 'rocket-rack' },
+}
+
+export const HOUND_CONFIG: Partial<Record<KitId, HoundConfig>> = {
+  'adm-hound-alpha': { rightWeapon: 'arc-maul', leftWeapon: 'plasma-pistol', crest: true },
+  'adm-hound-carbine': { rightWeapon: 'phosphor-carbine', leftWeapon: 'none' },
+  'adm-hound-pistols': { rightWeapon: 'plasma-pistol', leftWeapon: 'plasma-pistol' },
 }
 
 export const VEHICLE_CONFIG: Partial<Record<KitId, VehicleConfig>> = {

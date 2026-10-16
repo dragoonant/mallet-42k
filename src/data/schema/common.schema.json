@@ -361,6 +361,26 @@
         "unitBattleShocked": {
           "type": "boolean"
         },
+        "friendlyKeywordWithin": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "keyword": {
+              "$ref": "#/$defs/Keyword"
+            },
+            "within": {
+              "type": "number",
+              "minimum": 0
+            },
+            "factionKeyword": {
+              "$ref": "#/$defs/Keyword"
+            }
+          },
+          "required": [
+            "keyword",
+            "within"
+          ]
+        },
         "leaderAttached": {
           "type": "boolean"
         },

@@ -1,0 +1,63 @@
+[
+  {
+    "id": "adm.s.pcd-evaluation-of-mettle",
+    "faction": "adeptus-mechanicus",
+    "name": "An Evaluation of Mettle",
+    "text": "Use just after an enemy unit has picked its targets, in the opponent's Shooting phase or in the Fight phase, when one of your ADEPTUS MECHANICUS units is a target. Until the end of the phase, models in that unit have Feel No Pain 5+.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["shooting", "fight"],
+    "window": ["shooting.targetsDeclared", "fight.targetsDeclared"],
+    "who": "either",
+    "condition": { "any": [ { "phase": "shooting", "ownTurn": false }, { "phase": "fight" } ] },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "ADEPTUS MECHANICUS" }, "state": "targetedByAttack", "count": 1 }
+    ],
+    "effect": { "feelNoPain": 5 },
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "adm.s.pcd-optimised-efficiency",
+    "faction": "adeptus-mechanicus",
+    "name": "Optimised Efficiency",
+    "text": "Use in your Movement phase, just after one of your ADEPTUS MECHANICUS units ends a Fall Back move. Until the end of the turn, that unit is eligible to shoot and to declare a charge even though it Fell Back.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["movement"],
+    "window": "movement.unitMoved",
+    "who": "active",
+    "condition": { "phase": "movement", "ownTurn": true },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "ADEPTUS MECHANICUS" }, "count": 1 }
+    ],
+    "effect": [ { "shootAfterFallBack": true }, { "chargeAfterFallBack": true } ],
+    "scope": { "who": "self" },
+    "duration": "untilEndOfTurn",
+    "limit": "oncePerPhase",
+    "code": "justFellBack"
+  },
+  {
+    "id": "adm.s.pcd-acceptable-risk-ratio",
+    "faction": "adeptus-mechanicus",
+    "name": "Acceptable Risk Ratio",
+    "text": "Use in your Shooting phase before you pick the next unit to shoot. Pick one ADEPTUS MECHANICUS unit that has not yet shot. Until the end of the phase, its ranged weapons improve their Armour Penetration by 1 and gain [HAZARDOUS].",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["shooting"],
+    "window": ["shooting.start", "shooting.attacksResolved"],
+    "who": "active",
+    "condition": { "phase": "shooting", "ownTurn": true },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "ADEPTUS MECHANICUS" }, "state": "notYetShot", "count": 1 }
+    ],
+    "effect": [
+      { "when": { "weaponType": "ranged" }, "modifyStat": { "stat": "AP", "value": -1 } },
+      { "when": { "weaponType": "ranged" }, "grantWeaponAbility": { "ability": "HAZARDOUS" } }
+    ],
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  }
+]

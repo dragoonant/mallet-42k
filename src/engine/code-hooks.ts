@@ -13,6 +13,7 @@ import { astraMilitarumHooks } from './factions/astra-militarum'
 import { tauEmpireHooks } from './factions/tau-empire'
 import { genestealerCultsHooks } from './factions/genestealer-cults'
 import { aeldariHooks } from './factions/aeldari'
+import { adeptusMechanicusHooks } from './factions/adeptus-mechanicus'
 import { distance, withinEngagementRange, withinObjectiveRange, OBJECTIVE_MARKER_RADIUS } from './geometry'
 import { adeptaSororitasHooks } from './factions/adepta-sororitas'
 import { shotThisTurn } from './attack'
@@ -855,6 +856,9 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   ...drukhariHooks,
   // aeldari (docs/spec/factions/aeldari.md section 7): strandsOfFate, fortune, crewedPlatform, foresight, ineffableAgenda, infantryOrMounted, stormOfShots, zephyrSwift
   ...aeldariHooks(),
+  // adeptus-mechanicus (docs/spec/factions/adeptus-mechanicus.md §7): doctrinaImperatives, radSaturation, lineBreakers, justFellBack,
+  // targetedPurgePick/Score, prescribedExcoriation
+  ...adeptusMechanicusHooks(),
 }
 
 export type { ChooseOptionDecision }

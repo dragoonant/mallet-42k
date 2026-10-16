@@ -81,6 +81,9 @@ export interface Condition {
   // holder unit (attached halves included) has a live model whose datasheet modelId equals this value (E-PEN3)
   unitHasModel?: string
   unitBattleShocked?: boolean
+  // holder unit (attached halves included) is within `within` inches (unit-to-unit, closest models) of at least one OTHER friendly
+  // unit on the battlefield that has `keyword` (any half) and, when given, `factionKeyword` (Adeptus Mechanicus E-ADM1)
+  friendlyKeywordWithin?: { keyword: Keyword; within: number; factionKeyword?: Keyword }
   leaderAttached?: boolean
   // onFeelNoPainRoll only: the point being saved is a mortal wound
   mortalWound?: boolean

@@ -1,0 +1,89 @@
+[
+  {
+    "id": "adm.a.doctrina-imperatives",
+    "name": "Doctrina Imperatives",
+    "text": "At the start of every battle round, choose the Protector or the Conqueror imperative. Until the end of that round it applies to each of your units that carries the Doctrina Imperatives ability.",
+    "trigger": "always",
+    "code": "doctrinaImperatives",
+    "params": { "armyRule": true, "window": "round.start" }
+  },
+  {
+    "id": "adm.a.doctrina-protector-heavy",
+    "name": "Doctrina Imperatives (Protector: steady aim)",
+    "text": "While the Protector imperative is active, ranged weapons carried by models in this unit have [HEAVY].",
+    "trigger": "always",
+    "effect": { "when": { "weaponType": "ranged" }, "grantWeaponAbility": { "ability": "HEAVY" } },
+    "scope": { "who": "self" },
+    "code": "doctrinaImperatives",
+    "params": { "imperative": "protector" }
+  },
+  {
+    "id": "adm.a.doctrina-protector-ap",
+    "name": "Doctrina Imperatives (Protector: hardened ground)",
+    "text": "While the Protector imperative is active and this unit is in its own deployment zone, each ranged attack that targets it has its Armour Penetration worsened by 1 (never past 0).",
+    "trigger": "always",
+    "effect": { "when": { "weaponType": "ranged" }, "modifyStat": { "stat": "AP", "value": 1, "cap": 0 } },
+    "scope": { "who": "attacker" },
+    "code": "doctrinaImperatives",
+    "params": { "imperative": "protector", "zone": "holderInOwnZone" }
+  },
+  {
+    "id": "adm.a.doctrina-conqueror-assault",
+    "name": "Doctrina Imperatives (Conqueror: advancing fire)",
+    "text": "While the Conqueror imperative is active, ranged weapons carried by models in this unit have [ASSAULT].",
+    "trigger": "always",
+    "effect": { "when": { "weaponType": "ranged" }, "grantWeaponAbility": { "ability": "ASSAULT" } },
+    "scope": { "who": "self" },
+    "code": "doctrinaImperatives",
+    "params": { "imperative": "conqueror" }
+  },
+  {
+    "id": "adm.a.doctrina-conqueror-ap",
+    "name": "Doctrina Imperatives (Conqueror: purging push)",
+    "text": "While the Conqueror imperative is active, each ranged attack this unit makes against a target within the enemy deployment zone improves its Armour Penetration by 1.",
+    "trigger": "always",
+    "effect": { "when": { "weaponType": "ranged" }, "modifyStat": { "stat": "AP", "value": -1 } },
+    "scope": { "who": "self" },
+    "code": "doctrinaImperatives",
+    "params": { "imperative": "conqueror", "zone": "targetInEnemyZone" }
+  },
+  {
+    "id": "adm.a.galvanic-field",
+    "name": "Galvanic Field",
+    "text": "While this model leads a unit, every weapon carried by a model in that unit, this model's own included, has [LETHAL HITS].",
+    "trigger": "always",
+    "when": { "leaderAttached": true },
+    "effect": { "grantWeaponAbility": { "ability": "LETHAL_HITS" } },
+    "scope": { "who": "self" }
+  },
+  {
+    "id": "adm.a.rad-saturation",
+    "name": "Rad-saturation",
+    "text": "Aura. While an enemy unit that is not a VEHICLE is within 3 inches of this unit, each model in that enemy unit has its Objective Control reduced by 1 (never below 0). The effect is not cumulative.",
+    "trigger": "always",
+    "effect": { "modifyStat": { "stat": "OC", "value": -1 } },
+    "scope": { "who": "enemy", "within": 3 },
+    "code": "radSaturation",
+    "params": { "excludeKeyword": "VEHICLE" }
+  },
+  {
+    "id": "adm.a.line-breakers",
+    "name": "Line-breakers",
+    "text": "Each time this unit ends a Charge move, pick one enemy unit in Engagement Range of it and roll one D6 per model of this unit in Engagement Range of that unit (add 2 to each roll if the unit began the move within 6 inches of a friendly ADEPTUS MECHANICUS BATTLELINE unit). Each 4+ inflicts 1 mortal wound on the enemy unit.",
+    "trigger": "always",
+    "code": "lineBreakers",
+    "params": { "keyword": "BATTLELINE", "within": 6, "bonus": 2, "threshold": 4 }
+  },
+  {
+    "id": "adm.a.searing-conflagration",
+    "name": "Searing Conflagration",
+    "text": "Each time a model in this unit attacks with a phosphor torch against an enemy unit within range of an objective marker, you may re-roll a wound roll of 1. If this unit is also within 6 inches of a friendly ADEPTUS MECHANICUS BATTLELINE unit, you may re-roll the wound roll instead.",
+    "trigger": "woundRoll",
+    "when": { "weaponId": "adm.w.phosphor-torch", "targetOnObjective": true },
+    "effect": [
+      { "when": { "friendlyKeywordWithin": { "keyword": "BATTLELINE", "within": 6, "factionKeyword": "ADEPTUS MECHANICUS" } }, "reroll": "all" },
+      { "reroll": "ones" }
+    ],
+    "scope": { "who": "self" }
+  }
+]

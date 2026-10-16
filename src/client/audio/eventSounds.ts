@@ -199,6 +199,23 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ['scatter-laser', 'wpn-lasgun'] as const,
   ['bright-lance', 'wpn-plasma-cannon'] as const,
   ['ghostglaive', 'wpn-relic-weapon'] as const,
+  // Adeptus Mechanicus: arc and radium weapons crackle like gauss, plasma and phosphor borrow the plasma and flame guns,
+  // the transonic cannon borrows the psychoclastic torrent, staffs and goads ring like force weapons, the arc maul crunches.
+  ['transonic-cannon', 'wpn-psychoclastic-torrent'] as const,
+  ['omnissian-staff', 'wpn-force-weapon'] as const,
+  ['mechanicus-pistol', 'wpn-laspistol'] as const,
+  ['arc-rifle', 'wpn-gauss-flayer'] as const,
+  ['plasma-caliver', 'wpn-plasma-gun'] as const,
+  ['radium-carbine', 'wpn-lasgun'] as const,
+  ['alpha-combat-weapon', 'wpn-power-weapon'] as const,
+  ['phosphor-blast-carbine', 'wpn-pyreblaster'] as const,
+  ['phosphor-pistol', 'wpn-flamer'] as const,
+  ['sulphur-breath', 'wpn-flamer'] as const,
+  ['phosphor-torch', 'wpn-heavy-flamer'] as const,
+  ['cavalry-arc-maul', 'wpn-power-fist'] as const,
+  ['clawed-limbs', 'wpn-talons'] as const,
+  ['flechette-blaster', 'wpn-autopistol'] as const,
+  ['taser-goad', 'wpn-force-weapon'] as const,
 ].sort((a, b) => b[0].length - a[0].length)
 
 const WEAPON_TRIM: Partial<Record<SfxId, number>> = {
@@ -289,6 +306,8 @@ const DEATH_SOUND: Record<string, SfxId> = {
   'tau-empire': 'death-tau',
   'adeptus-custodes': 'death-adeptus-custodes',
   'genestealer-cults': 'death-genestealer-cults',
+  // Cyborg Skitarii go down with a metallic power-down, like the Necrons.
+  'adeptus-mechanicus': 'death-necrons',
 }
 
 /** Measured decoded RMS runs 0.05-0.40 across these; the loud three are pulled back toward ~0.15. */

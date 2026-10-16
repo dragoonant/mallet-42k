@@ -193,6 +193,27 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
     },
   },
   {
+    match: /doctrina|doctrinaimperatives/i,
+    info: {
+      title: 'Choose a Doctrina Imperative',
+      hint: 'Pick one stance for the whole battle round. Protector: your ranged weapons gain Heavy, and while a unit stands in your own deployment zone, enemy ranged attacks against it lose a point of AP. Conqueror: your ranged weapons gain Assault, and your shots at targets inside the enemy deployment zone gain a point of AP. It lasts until the end of this battle round.',
+    },
+  },
+  {
+    match: /line-?breakers/i,
+    info: {
+      title: 'Line-breakers target',
+      hint: 'Your charging unit has just finished its move. Name one enemy unit it is touching: roll a die for each of your models in contact, and every 4+ deals a mortal wound (every roll gets +2 if the unit started within 6" of a friendly Battleline unit).',
+    },
+  },
+  {
+    match: /targeted-?purge/i,
+    info: {
+      title: 'Name the unit to protect',
+      hint: "Your opponent's Targeted Purge: pick one unit of YOUR army that is not a Monster or a Vehicle. If it has been destroyed when the battle ends, the Mechanicus player scores 12 VP. Choose the unit you are most sure of keeping alive.",
+    },
+  },
+  {
     match: /ethereal-?edict/i,
     info: {
       title: 'Name the unit to protect',
@@ -495,7 +516,7 @@ function chooseOptionInfoFor(
   }
   const choice = context.data && typeof context.data.choice === 'string' ? CHOICE_PROMPT_KEYS[context.data.choice] : undefined
   // Both Cult Ambush steps (marker, return) carry the code; the return step has no ability id.
-  const key = context.data?.code === 'toilEarnsPick' ? 'toil-earns-pick' : context.data?.code === 'holyApparatusPick' ? 'holy-apparatus-pick' : context.data?.code === 'cultAmbush' ? 'cult-ambush' : context.data?.code === 'etherealEdictPick' ? 'ethereal-edict' : context.data?.code === 'divineJudgementPick' ? 'divine-judgement' : context.abilityId ?? choice ?? null
+  const key = context.data?.code === 'toilEarnsPick' ? 'toil-earns-pick' : context.data?.code === 'holyApparatusPick' ? 'holy-apparatus-pick' : context.data?.code === 'cultAmbush' ? 'cult-ambush' : context.data?.code === 'etherealEdictPick' ? 'ethereal-edict' : context.data?.code === 'divineJudgementPick' ? 'divine-judgement' : context.data?.code === 'targetedPurgePick' ? 'targeted-purge' : context.data?.code === 'doctrinaImperatives' ? 'doctrina' : context.data?.code === 'lineBreakers' ? 'line-breakers' : context.abilityId ?? choice ?? null
   if (choice === 'patrol-squads' && Array.isArray(context.data?.sizes)) {
     const sizes = (context.data.sizes as number[]).filter((n) => typeof n === 'number')
     if (sizes.length > 0) {
@@ -691,7 +712,7 @@ function labelForOption(pending: PendingDecision, state: GameState, events: read
         const tr = state.units[o.id.replace(/^embark:/, '')]
         if (tr) return `Embark ${pending.context.unitId ? groupLabel(state, pending.context.unitId) : 'the unit'} into ${tr.name}`
       }
-      if ((pending.context.data?.code === 'divineJudgementPick' || pending.context.data?.code === 'holyApparatusPick') && state.units[o.id]) return state.units[o.id].name
+      if ((pending.context.data?.code === 'divineJudgementPick' || pending.context.data?.code === 'holyApparatusPick' || pending.context.data?.code === 'targetedPurgePick' || pending.context.data?.code === 'lineBreakers') && state.units[o.id]) return state.units[o.id].name
       if (pending.context.data?.code === 'toilEarnsPick') return objectiveLabel(o.id)
       if (pending.context.abilityId && /grim-efficiency|outflanking-mag-riders/i.test(pending.context.abilityId) && state.units[o.id]) return state.units[o.id].name
       const pairLabel = pairOptionLabel(state, pending.context.abilityId, o.id)
@@ -716,6 +737,10 @@ function abilityOptionLabel(abilityId: string | null, o: { id: string; label: st
       case 'both': return 'Pact: Lethal Hits and Sustained Hits 1 (Foul Zealotry)'
       case 'decline': return 'No pact'
     }
+  }
+  if (/doctrina/i.test(abilityId)) {
+    if (/protector/i.test(o.id)) return 'Protector: Heavy guns, and enemy shots at units in your zone lose 1 AP'
+    if (/conqueror/i.test(o.id)) return 'Conqueror: Assault guns, and your shots into the enemy zone gain 1 AP'
   }
   if (/teleport-?assault|outflanking-mag-riders/i.test(abilityId)) {
     if (/^(decline|skip|pass|none|stay)$/.test(o.id)) return 'Stay where they are'

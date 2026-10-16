@@ -409,8 +409,21 @@ export function surpriseAttackAmount(state: GameState, rule: { pointsPer: number
 // ---------- Ethereal Edict (SDC-4.3) ----------
 // The OPPONENT of the secondary's owner picks one canonical unit of their own army at the start of round 1.
 const EDICT = 'tau:edict'
-export function etherealEdictOffer(ctx: EngineContext, owner: PlayerId, window: TimingWindowId, key: string): void {
+export interface CondemnPickOptions {
+  code: string              // decision data.code, e.g. 'targetedPurgePick' (default 'etherealEdictPick')
+  abilityId: string         // AbilityTriggered id (default 'tau.sec.ethereal-edict')
+  label: string             // log summary prefix (default 'Ethereal Edict')
+  excludeKeywords?: string[] // a candidate is skipped (and rejected in answerEdict) if any half has one of these
+}
+const EDICT_DEFAULTS: CondemnPickOptions = { code: 'etherealEdictPick', abilityId: 'tau.sec.ethereal-edict', label: 'Ethereal Edict' }
+
+function excludedByKeyword(s: GameState, unitId: UnitId, exclude: string[] | undefined): boolean {
+  return !!exclude && exclude.length > 0 && exclude.some((k) => anyHalfHasKeyword(s, unitId, k))
+}
+
+export function etherealEdictOffer(ctx: EngineContext, owner: PlayerId, window: TimingWindowId, key: string, opts?: CondemnPickOptions): void {
   const s = ctx.state
+  const o = opts ?? EDICT_DEFAULTS
   const picker: PlayerId = owner === 'A' ? 'B' : 'A'
   const seen = new Set<UnitId>()
   const candidates: Unit[] = []
@@ -419,26 +432,35 @@ export function etherealEdictOffer(ctx: EngineContext, owner: PlayerId, window: 
     const c = canon(s, u.id)
     if (seen.has(c) || !s.units[c] || s.units[c].location === 'destroyed') continue
     seen.add(c)
+    if (excludedByKeyword(s, c, o.excludeKeywords)) continue
     candidates.push(s.units[c])
   }
   if (candidates.length === 0) return
   ctx.decide({
     kind: 'chooseOption', player: picker, window, canPass: false,
-    context: { topic: 'abilityChoice', unitId: null, abilityId: null, data: { window, key, code: 'etherealEdictPick', owner } },
+    context: {
+      topic: 'abilityChoice', unitId: null, abilityId: null,
+      data: { window, key, code: o.code, owner, abilityId: o.abilityId, label: o.label, excludeKeywords: o.excludeKeywords ?? [] },
+    },
     options: candidates.map((u) => ({
       id: u.id, label: u.name, action: { type: 'chooseOption' as const, player: picker, decisionId: '', optionId: u.id }, hint: { unitId: u.id },
     })),
   })
 }
 
-function answerEdict(ctx: EngineContext, action: Action, pending: PendingDecision): Rejection | void {
+export function answerEdict(ctx: EngineContext, action: Action, pending: PendingDecision): Rejection | void {
   if (action.type !== 'chooseOption' || pending.kind !== 'chooseOption') return { code: 'E_NOT_AN_OPTION', reason: 'Ethereal Edict expects chooseOption' }
   const s = ctx.state
   const unit = s.units[action.optionId]
   if (!unit || unit.player !== pending.player || unit.location === 'destroyed') return { code: 'E_INVALID_TARGET', reason: 'pick one of your own units that is not destroyed' }
-  const owner = ((pending.context.data as { owner?: PlayerId }).owner ?? (pending.player === 'A' ? 'B' : 'A')) as PlayerId
+  const data = pending.context.data as { owner?: PlayerId; abilityId?: string; label?: string; excludeKeywords?: string[] }
+  if (excludedByKeyword(s, canon(s, unit.id), data.excludeKeywords)) return { code: 'E_INVALID_TARGET', reason: 'that unit is not an eligible pick' }
+  const owner = (data.owner ?? (pending.player === 'A' ? 'B' : 'A')) as PlayerId
   s.players[owner].secondaryState[EDICT] = { halves: leaderService.halves(s, canon(s, unit.id)) }
-  ctx.emit({ type: 'AbilityTriggered', abilityId: 'tau.sec.ethereal-edict', sourceUnitId: null, targetUnitId: unit.id, summary: `Ethereal Edict: ${unit.name} is condemned`, player: owner })
+  ctx.emit({
+    type: 'AbilityTriggered', abilityId: data.abilityId ?? EDICT_DEFAULTS.abilityId, sourceUnitId: null, targetUnitId: unit.id,
+    summary: `${data.label ?? EDICT_DEFAULTS.label}: ${unit.name} is condemned`, player: owner,
+  })
   const w = pending.context.data.window as TimingWindowId | undefined
   const k = pending.context.data.key as string | undefined
   if (w && k !== undefined && !s.pending) ctx.services.missions.onWindow(ctx, w, k)

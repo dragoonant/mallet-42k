@@ -1,0 +1,38 @@
+{
+  "id": "adm.cp.purge-corps-deltic-9",
+  "faction": "adeptus-mechanicus",
+  "name": "Purge Corps Deltic-9",
+  "units": [
+    { "ref": "skand", "datasheet": "adm.manipulus-skand", "size": 1, "enhancement": "adm.e.aspergilla-of-tarentum", "attachTo": "vanguard" },
+    { "ref": "vanguard", "datasheet": "adm.skitarii-vanguard", "size": 10 },
+    { "ref": "sulphurhounds", "datasheet": "adm.serberys-sulphurhounds", "size": 3 },
+    { "ref": "pteraxii", "datasheet": "adm.pteraxii-sterylizors", "size": 5 }
+  ],
+  "stratagems": ["adm.s.pcd-evaluation-of-mettle", "adm.s.pcd-optimised-efficiency", "adm.s.pcd-acceptable-risk-ratio"],
+  "enhancements": [
+    { "id": "adm.e.aspergilla-of-tarentum", "default": true },
+    { "id": "adm.e.overcharged-electropositors", "default": false }
+  ],
+  "secondaries": [
+    {
+      "id": "adm.sec.targeted-purge",
+      "name": "Targeted Purge",
+      "text": "At the start of battle round 1 your opponent picks one unit in their own army that is neither a MONSTER nor a VEHICLE. At the end of the battle, score 12 victory points if that unit has been destroyed.",
+      "default": true,
+      "scoring": [
+        { "id": "targeted-purge-pick", "when": "round.start", "rounds": { "from": 1, "to": 1 }, "rule": "custom", "pointsPer": 0, "cap": 0, "code": "targetedPurgePick", "params": { "excludeKeywords": ["MONSTER", "VEHICLE"] } },
+        { "id": "targeted-purge", "when": "battle.end", "rounds": { "from": 5, "to": 5 }, "rule": "custom", "pointsPer": 12, "cap": 12, "code": "targetedPurgeScore" }
+      ]
+    },
+    {
+      "id": "adm.sec.prescribed-excoriation",
+      "name": "Prescribed Excoriation",
+      "text": "From battle round 2, at the end of each of your turns, score 5 victory points if no enemy unit (Battle-shocked units ignored) is within 6 inches of your deployment zone, or otherwise 3 victory points if no such enemy unit is inside your deployment zone.",
+      "default": false,
+      "scoring": [
+        { "id": "prescribed-excoriation", "when": "turn.end", "rounds": { "from": 2, "to": 5 }, "who": "active", "rule": "custom", "pointsPer": 3, "cap": 20, "code": "prescribedExcoriation", "params": { "nearInches": 6, "nearPoints": 5 } }
+      ]
+    }
+  ],
+  "warlord": "skand"
+}

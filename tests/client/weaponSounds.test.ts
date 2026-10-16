@@ -28,9 +28,10 @@ const TAU = 'tau-empire'
 const GSC = 'genestealer-cults'
 const LOV = 'leagues-of-votann'
 const DRK = 'drukhari'
+const ADM = 'adeptus-mechanicus'
 
 /** The engine faction id a weapon's own id prefix belongs to. */
-const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : id.startsWith('lov.') ? LOV : id.startsWith('drk.') ? DRK : id.startsWith('ael.') ? 'aeldari' : SM)
+const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : id.startsWith('lov.') ? LOV : id.startsWith('drk.') ? DRK : id.startsWith('ael.') ? 'aeldari' : id.startsWith('adm.') ? ADM : SM)
 
 function lookupFor(faction: string): SoundLookup {
   return { weapon: (id) => bundle.weapons[id], factionOfUnit: () => faction }
@@ -290,6 +291,25 @@ const EXPECTED: Record<string, WeaponFlavour> = {
   'ael.w.shuriken-catapult-wraithlord-2': 'shoota',
   'ael.w.ghostglaive-strike': 'chain',
   'ael.w.ghostglaive-sweep': 'chain',
+  'adm.w.transonic-cannon': 'flame',
+  'adm.w.omnissian-staff': 'force',
+  'adm.w.mechanicus-pistol': 'bolter',
+  'adm.w.arc-rifle': 'psychic',
+  'adm.w.plasma-caliver-standard': 'heavy',
+  'adm.w.plasma-caliver-supercharge': 'heavy',
+  'adm.w.radium-carbine': 'bolter',
+  'adm.w.alpha-combat-weapon': 'chain',
+  'adm.w.close-combat-weapon': 'chain',
+  'adm.w.phosphor-blast-carbine': 'flame',
+  'adm.w.phosphor-pistol': 'flame',
+  'adm.w.paired-phosphor-pistols': 'flame',
+  'adm.w.sulphur-breath': 'flame',
+  'adm.w.cavalry-arc-maul': 'crush',
+  'adm.w.clawed-limbs': 'crush',
+  'adm.w.flechette-blaster': 'shoota',
+  'adm.w.phosphor-torch': 'flame',
+  'adm.w.pteraxii-talons': 'chain',
+  'adm.w.taser-goad': 'force',
 }
 
 // Adepta Sororitas weapons, by datasheet NAME (lower-cased) so the check holds whatever id spelling the data uses.

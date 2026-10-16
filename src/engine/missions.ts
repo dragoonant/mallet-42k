@@ -12,6 +12,7 @@ import { murderousMonsterAmount } from './factions/drukhari'
 import { alphaPredationAmount, alphaXenoformAmount, chitinousTideAmount, leftToLastAmount } from './factions/tyranids'
 import type { AttackKind } from './types'
 import type { MissionRule, ScoringRule, TimingWindowId } from '../data/types'
+import { prescribedExcoriationAmount } from './factions/adeptus-mechanicus'
 import { etherealEdictAmount, etherealEdictOffer, kauyonLureAmount, leadershipCasteAmount, surpriseAttackAmount } from './factions/tau-empire'
 import { riseUpAmount, willOfThePatriarchAmount, infiltrationAgendaAmount, safeguardTheSanctuaryAmount } from './factions/genestealer-cults'
 import { holdTheLineAmount, methodicalDestructionAmount, methodicalDestructionOffer } from './factions/astra-militarum'
@@ -203,7 +204,7 @@ function rulesFor(s: GameState, pid: PlayerId): ScoringRule[] {
 }
 
 // ScoringRule-shaped "pick" instances (pointsPer 0): raise a decision instead of computing an amount
-const PICK_CODES = new Set(['stompEmPick', 'bagPick', 'treasuresOfAeonsPick', 'methodicalDestructionPick', 'etherealEdictPick', 'divineJudgementPick', 'toilEarnsPick', 'holyApparatusPick'])
+const PICK_CODES = new Set(['stompEmPick', 'bagPick', 'treasuresOfAeonsPick', 'methodicalDestructionPick', 'etherealEdictPick', 'targetedPurgePick', 'divineJudgementPick', 'toilEarnsPick', 'holyApparatusPick'])
 
 // ---------- generic ScoringRule.rule amounts ----------
 function tierPoints(tiers: Record<string, number>, die: number): number {
@@ -550,6 +551,8 @@ function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): num
     case 'leadershipCaste': return leadershipCasteAmount(s, rule, pid)
     case 'surpriseAttack': return surpriseAttackAmount(s, rule, pid, (id) => holds(ctx, id, pid))
     case 'etherealEdictScore': return etherealEdictAmount(s, rule, pid)
+    case 'targetedPurgeScore': return etherealEdictAmount(s, rule, pid) // same secondaryState['tau:edict'] storage (a player has one secondary)
+    case 'prescribedExcoriation': return prescribedExcoriationAmount(s, rule, pid)
     case 'divineJudgementScore': return divineJudgementAmount(s, rule, pid)
     case 'riseUp': return riseUpAmount(ctx, rule, pid, (id) => holds(ctx, id, pid))
     case 'willOfThePatriarch': return willOfThePatriarchAmount(s, rule, pid)
@@ -673,6 +676,12 @@ function runPick(ctx: EngineContext, rule: ScoringRule, pid: PlayerId, key: stri
   else if (rule.code === 'bagPick') bagPickRule(ctx, rule, pid, key)
   else if (rule.code === 'methodicalDestructionPick') methodicalDestructionOffer(ctx, pid, rule.when, key)
   else if (rule.code === 'etherealEdictPick') etherealEdictOffer(ctx, pid, rule.when, key)
+  else if (rule.code === 'targetedPurgePick') {
+    etherealEdictOffer(ctx, pid, rule.when, key, {
+      code: 'targetedPurgePick', abilityId: 'adm.sec.targeted-purge', label: 'Targeted Purge',
+      excludeKeywords: (rule.params?.excludeKeywords as string[] | undefined) ?? [],
+    })
+  }
   else if (rule.code === 'divineJudgementPick') divineJudgementOffer(ctx, pid, rule.when, key)
   else if (rule.code === 'toilEarnsPick') toilEarnsOffer(ctx, pid, rule.when, key)
   else if (rule.code === 'holyApparatusPick') holyApparatusOffer(ctx, pid, rule.when, key)

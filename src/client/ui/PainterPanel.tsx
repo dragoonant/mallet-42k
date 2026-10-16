@@ -29,6 +29,7 @@ const PREVIEW: Record<string, { datasheetId: string; modelId?: string }> = {
   'leagues-of-votann': { datasheetId: 'lov.hearthkyn-warriors', modelId: 'warrior' },
   drukhari: { datasheetId: 'drk.kabalite-warriors', modelId: 'sybarite' },
   aeldari: { datasheetId: 'ael.guardian-defenders' },
+  'adeptus-mechanicus': { datasheetId: 'adm.skitarii-vanguard', modelId: 'vanguard' },
 }
 
 const backdrop: CSSProperties = { position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'auto', zIndex: 60 }

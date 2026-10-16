@@ -1,0 +1,37 @@
+[
+  {
+    "id": "adm.e.aspergilla-of-tarentum",
+    "faction": "adeptus-mechanicus",
+    "name": "Aspergilla of Tarentum",
+    "text": "Each attack that targets the bearer's unit suffers -1 to its wound roll.",
+    "cost": 0,
+    "restriction": { "keyword": ["MANIPULUS SKAND"] },
+    "effect": {
+      "id": "adm.e.aspergilla-of-tarentum.effect",
+      "name": "Aspergilla of Tarentum",
+      "text": "Each attack that targets the bearer's unit suffers -1 to its wound roll.",
+      "trigger": "woundRoll",
+      "effect": { "modifyRoll": { "roll": "wound", "value": -1 } },
+      "scope": { "who": "attacker" }
+    }
+  },
+  {
+    "id": "adm.e.overcharged-electropositors",
+    "faction": "adeptus-mechanicus",
+    "name": "Overcharged Electropositors",
+    "text": "Ranged weapons carried by models in the bearer's unit have 6 inches added to their Range and gain [IGNORES COVER].",
+    "cost": 0,
+    "restriction": { "keyword": ["MANIPULUS SKAND"] },
+    "effect": {
+      "id": "adm.e.overcharged-electropositors.effect",
+      "name": "Overcharged Electropositors",
+      "text": "Ranged weapons carried by models in the bearer's unit have +6 inches Range and [IGNORES COVER].",
+      "trigger": "always",
+      "effect": [
+        { "when": { "weaponType": "ranged" }, "modifyStat": { "stat": "range", "value": 6 } },
+        { "when": { "weaponType": "ranged" }, "grantWeaponAbility": { "ability": "IGNORES_COVER" } }
+      ],
+      "scope": { "who": "self" }
+    }
+  }
+]
