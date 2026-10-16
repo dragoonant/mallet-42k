@@ -1,0 +1,80 @@
+[
+  {
+    "id": "ork.beastboss-morgrim",
+    "faction": "ork",
+    "name": "Beastboss Morgrim",
+    "keywords": [
+      "INFANTRY",
+      "CHARACTER",
+      "BEAST SNAGGA",
+      "WARBOSS",
+      "BEASTBOSS",
+      "MORGRIM"
+    ],
+    "factionKeywords": [
+      "ORKS"
+    ],
+    "stats": {
+      "M": 6,
+      "T": 5,
+      "Sv": 4,
+      "W": 6,
+      "Ld": 6,
+      "OC": 1
+    },
+    "invuln": 5,
+    "composition": [
+      {
+        "modelId": "beastboss",
+        "name": "Beastboss Morgrim",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 50
+        },
+        "weapons": {
+          "default": [
+            "ork.w.shoota-beastboss",
+            "ork.w.beastchoppa",
+            "ork.w.beast-snagga-klaw"
+          ]
+        },
+        "figure": {
+          "archetype": "heavy",
+          "kit": "ork-warboss"
+        }
+      }
+    ],
+    "abilities": [
+      "ork.a.waaagh",
+      "ork.a.beastboss"
+    ],
+    "coreAbilities": [
+      {
+        "ability": "FEEL_NO_PAIN",
+        "value": 6
+      },
+      {
+        "ability": "LEADER"
+      }
+    ],
+    "leader": {
+      "attachTo": [
+        "ork.beast-snagga-boyz"
+      ],
+      "effects": []
+    },
+    "points": [
+      {
+        "models": 1,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "heavy",
+      "kit": "ork-warboss"
+    }
+  }
+]

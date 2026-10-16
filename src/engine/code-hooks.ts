@@ -24,6 +24,7 @@ import { hookService, type HookSourceEntry } from './hooks-impl'
 import { leaderService } from './leaders'
 import type { EngineContext, Services, WindowTrigger } from './modules'
 import * as tyr from './factions/tyranids'
+import * as ork from './factions/orks'
 import { answerReanimation } from './factions/necrons'
 import { keywordsOf, modelStats, mortalCredit, unitModels, type MortalCreditBy } from './state'
 import { isTeleporting } from './teleport'
@@ -751,6 +752,13 @@ const rapidRepositioning: EngineCodeHook = {
   apply: (ctx, env, t) => env.stratagem.id.startsWith('sm.') ? smRapidRepositioningApply(ctx, env, t) : tauHooks.rapidRepositioning.apply?.(ctx, env, t),
 }
 
+// orks (docs/spec/factions/orks--morgrim-s-butchas.md §7); bodies in factions/orks.ts
+const bestialBellow: EngineCodeHook = {
+  name: 'bestialBellow', kind: 'stratagem', hook: 'onPhaseStart', run: noop,
+  check: (e, t) => ork.bestialBellowCheck(e, t),
+  apply: (c, e, t) => ork.bestialBellowApply(c, e, t),
+}
+
 export const codeHooks: Record<string, EngineCodeHook> = {
   oathOfMomentPick, waaaghCall, deadArdFeelNoPain, pistonDrivenBrutality, tellyportaGrant, veteranInstincts,
   fireOverwatch, heroicInterventionCharge, rapidIngressArrival, counterOffensive, epicChallenge, tankShockMortalWounds,
@@ -775,6 +783,10 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   claimSites: missionHook('claimSites'),
   irradiatedPowerCells: missionHook('irradiatedPowerCells'),
   properLootin: missionHook('properLootin'),
+  bagPick: missionHook('bagPick'),
+  bagTheBigUnScore: missionHook('bagTheBigUnScore'),
+  krumpinSpreeScore: missionHook('krumpinSpreeScore', 'onTurnEnd'),
+  bestialBellow,
   reclaimAndDominate: missionHook('reclaimAndDominate', 'onTurnEnd'),
   treasuresOfAeonsPick: missionHook('treasuresOfAeonsPick'),
   treasuresOfAeonsScore: missionHook('treasuresOfAeonsScore', 'onUnitDestroyed'),

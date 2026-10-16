@@ -442,7 +442,7 @@ function resultFor(ctx: EngineContext | null, state: GameState, hook: HookName, 
   const holder = state.units[m.entry.holderUnitId]
   switch (m.key) {
     case 'reroll': return { kind: 'roll', reroll: e.reroll }
-    case 'modifyRoll': return { kind: 'roll', modifier: e.modifyRoll!.value }
+    case 'modifyRoll': return { kind: 'roll', modifier: e.modifyRoll!.value, ...(e.modifyRoll!.armourOnly ? { armourOnly: true } : {}) }
     case 'autoResult': return e.autoResult!.outcome === 'pass' ? { kind: 'roll', autoPass: true } : { kind: 'roll', autoFail: true }
     case 'ignoreModifiers': return { kind: 'roll', ignoreModifiers: true }
     case 'invuln': return { kind: 'roll', invuln: e.invuln }

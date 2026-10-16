@@ -757,20 +757,21 @@ function saveSetup(ctx: EngineContext, group: AttackGroup, attackerModelId: Mode
 
   // Modifiers from the pre-pass. These don't depend on the die's value (the impossibility check relies on the same thing).
   let hookPositive = 0
+  let hookPositiveArmour = 0
   let preNegative = 0
   for (const r of preResults) {
     if (r.modifier === undefined) continue
-    if (r.modifier > 0) hookPositive += r.modifier
+    if (r.modifier > 0) { if (r.armourOnly) hookPositiveArmour += r.modifier; else hookPositive += r.modifier }
     else preNegative += r.modifier
   }
   const sv = ctx.services.hooks.statFor ? ctx.services.hooks.statFor(s, { unitId: model.unitId, modelId, weapon: null, stat: 'Sv' }, modelStats(s, model).Sv) : modelStats(s, model).Sv
   // Cover only ever helps an armour save (R-3.11); AP only ever hurts one.
-  const armourTarget = saveTarget(sv, weapon.AP, hookPositive + (cover ? 1 : 0), preNegative)
+  const armourTarget = saveTarget(sv, weapon.AP, hookPositive + hookPositiveArmour + (cover ? 1 : 0), preNegative)
   const invulnTarget = invuln === null ? null : saveTarget(invuln, 0, hookPositive, preNegative)
   const kind: 'armour' | 'invuln' = invulnTarget !== null && invulnTarget < armourTarget ? 'invuln' : 'armour'
   const needed = kind === 'armour' ? sv : (invuln as number)
   const ap = kind === 'armour' ? weapon.AP : 0
-  const prePositive = hookPositive + (kind === 'armour' && cover ? 1 : 0)
+  const prePositive = hookPositive + (kind === 'armour' ? hookPositiveArmour + (cover ? 1 : 0) : 0)
   const bestPossible = 6 + ap + Math.min(1, prePositive) + preNegative
   return {
     actx, kind, needed, ap, cover, impossible: bestPossible < needed,
@@ -786,6 +787,7 @@ function evaluateSave(ctx: EngineContext, setup: SaveSetup, roll: DiceRoll, dieI
   let negative = 0
   for (const r of results) {
     if (r.modifier === undefined) continue
+    if (r.armourOnly && setup.kind === 'invuln') continue
     if (r.modifier > 0) positive += r.modifier
     else negative += r.modifier
   }

@@ -325,3 +325,12 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Verification | typecheck, validate:data, build green; `npm test` 1897 passing (84 files); `tests/e2e/tristraens-gilded-blades.spec.ts` picks the patrol, deploys, reaches round 1 Shooting (`e2e-out/m10-adeptus-custodes-tristraen-s-gilded-blades-0{1,2,3}-*.png`, figures visible) |
 | Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, 6 games finished; adeptus-custodes 1 win (astra-militarum 1, adepta-sororitas 3, genestealer-cults 1) |
 | Known gaps | New units reuse existing Custodes kits; borrowed SFX; Raise the Vexillas end-of-turn scoring has no unit test; rulings TRI-R01..07 in `docs/needs-rules-check.md` |
+
+### M10 orks - Morgrim's Butchas (second Ork patrol)
+| Item | State |
+|---|---|
+| Patrol | Morgrim's Butchas: Beastboss Morgrim, 2x Beast Snagga Boyz, Squighog Boyz (4 units, 25 models). Data `src/data/factions/orks/patrols/morgrim-s-butchas.json` plus new datasheets/weapons/abilities/stratagems/enhancement appended to the orks files. Spec `docs/spec/factions/orks--morgrim-s-butchas.md` |
+| Engine hooks | New `src/engine/factions/orks.ts` (Bag the Big 'Un, Krumpin' Spree, Half-chewed armour-only save, Squig-hide, Bestial Bellow, Get In There!); `armourOnly` save modifier added to the contracts and `00-architecture.md`. Gitstompas hooks stay in `code-hooks.ts` |
+| Verification | typecheck, `validate:data`, `build` green; `npm test` 1896 passing (83 files); e2e `orks-morgrim-s-butchas.spec.ts` (picker) and `-play.spec.ts` (deploy, round 1; `e2e-out/m10-orks-morgrim-s-butchas-0{1,2,3}-*.png`, figures visible) |
+| Sim | `SIM_PATROL=ork.cp.morgrims-butchas npm run sim -- --games 6 --seed 5`: 0 violations, 6/6 finished, orks won 4 |
+| Known gaps | Mounted Squighog/Morgrim use borrowed kits, borrowed SFX; rulings in `docs/needs-rules-check.md` under "orks build" |

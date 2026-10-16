@@ -1,0 +1,108 @@
+{
+  "id": "ork.cp.morgrims-butchas",
+  "faction": "ork",
+  "name": "Morgrim's Butchas",
+  "units": [
+    {
+      "ref": "beastboss",
+      "datasheet": "ork.beastboss-morgrim",
+      "size": 1,
+      "enhancement": "ork.e.half-chewed",
+      "attachTo": "snaggas-a"
+    },
+    {
+      "ref": "snaggas-a",
+      "datasheet": "ork.beast-snagga-boyz",
+      "size": 10
+    },
+    {
+      "ref": "snaggas-b",
+      "datasheet": "ork.beast-snagga-boyz",
+      "size": 10
+    },
+    {
+      "ref": "squighogs",
+      "datasheet": "ork.squighog-boyz",
+      "size": 4
+    }
+  ],
+  "stratagems": [
+    "ork.s.tough-as-squig-hide",
+    "ork.s.bestial-bellow",
+    "ork.s.get-in-there"
+  ],
+  "enhancements": [
+    {
+      "id": "ork.e.half-chewed",
+      "default": true
+    },
+    {
+      "id": "ork.e.bosskilla",
+      "default": false
+    }
+  ],
+  "secondaries": [
+    {
+      "id": "ork.sec.bag-the-big-un",
+      "name": "Bag the Big 'Un",
+      "text": "At the start of round 1, pick one enemy MONSTER or VEHICLE model (the enemy WARLORD if there is none). At the end of the battle: 8 victory points if it was destroyed, or 12 if your BEASTBOSS destroyed it.",
+      "default": true,
+      "scoring": [
+        {
+          "id": "bag-pick",
+          "when": "round.start",
+          "rounds": {
+            "from": 1,
+            "to": 1
+          },
+          "rule": "custom",
+          "pointsPer": 0,
+          "cap": 0,
+          "code": "bagPick"
+        },
+        {
+          "id": "bag-score",
+          "when": "battle.end",
+          "rounds": {
+            "from": 5,
+            "to": 5
+          },
+          "rule": "custom",
+          "pointsPer": 0,
+          "cap": 12,
+          "code": "bagTheBigUnScore",
+          "params": {
+            "beastbossPoints": 12,
+            "unitPoints": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "ork.sec.krumpin-spree",
+      "name": "Krumpin' Spree",
+      "text": "At the end of each of your turns: 3 victory points if you control the objective marker nearest your opponent's battlefield edge, plus 1 for each other marker you control outside your own deployment zone.",
+      "default": false,
+      "scoring": [
+        {
+          "id": "krumpin-spree",
+          "when": "turn.end",
+          "who": "active",
+          "rounds": {
+            "from": 1,
+            "to": 5
+          },
+          "rule": "custom",
+          "pointsPer": 3,
+          "cap": 99,
+          "code": "krumpinSpreeScore",
+          "params": {
+            "nearestPoints": 3,
+            "otherPoints": 1
+          }
+        }
+      ]
+    }
+  ],
+  "warlord": "beastboss"
+}

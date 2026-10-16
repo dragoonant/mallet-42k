@@ -436,3 +436,25 @@ Rulings made while landing the Space Marines Strike Team Solarien patrol (M10); 
 | SOL-R10 | Solarien weapon sounds | Bolt carbines use wpn-boltgun, the accelerator autocannon wpn-assault-cannon, paired combat blades wpn-power-weapon. | No new audio generated. Presentation only. | open |
 | SOL-R11 | Scouts for attached units | Leader + bodyguard are one unit for Scouts: an attached unit gets a pre-battle Scouts move only if every half has Scouts, so attached Solarien + Infiltrators get none. Applied in setup.ts, mirroring the Infiltrators combo rule. | Interpretation. | open |
 | SOL-R12 | Suppression Fire prompt text | Prompt assumes the datasheet ability gives -1 to hit on all the picked unit's attacks until your next turn while the Suppressors live. | Taken from the task description; not re-checked against the spec. | open |
+
+
+## orks build
+
+Rulings made while landing the Orks Morgrim's Butchas patrol (M10), from the spec and the build notes. Ids use the `MOR-R` prefix.
+
+| ID | Rule | What the game does | Why / source | Status |
+|---|---|---|---|---|
+| MOR-R01 | Build ruling | Squighog jaws are [EXTRA ATTACKS], so Waaagh! gives +1 S but not +1 A, per the existing waaagh encoding. | orks build ruling | open |
+| MOR-R02 | Build ruling | Krumpin' Spree ties for the nearest marker count as nearest (3 VP once), and further tied held markers count as others at 1 VP each. No VP cap (cap 99 is a placeholder). | orks build ruling | open |
+| MOR-R03 | Build ruling | Bag the Big 'Un picks a model, not a unit. Reserves that never arrive count as destroyed (8 VP). Data only declares the hooks; the engine does the logic. | orks build ruling | open |
+| MOR-R04 | Build ruling | Half-chewed enhancement restriction is keyword BEASTBOSS (only Morgrim). The spec says no other restriction. | orks build ruling | open |
+| MOR-R05 | Build ruling | Squighog and Morgrim figures reuse existing kits (generic-monster, ork-warboss, ork-boy) since the data layer does not validate kits. Client needs dedicated kits and figures later, per spec section 9. | orks build ruling | open |
+| MOR-R06 | Build ruling | Half-chewed +1 armour save is armour-only; the bonus never improves an invulnerable save. Total positive save modifier stays capped at +1 (armourOnly + cover + general bonuses sum then cap), matching existing cover handling. | orks build ruling | open |
+| MOR-R07 | Build ruling | Bestial Bellow check requires the first target to be a board model of a unit with keyword BEASTBOSS or SQUIGHOG BOYZ and the second to be an enemy board unit. Reason: the data filter takes only one keyword (BEAST SNAGGA). The 3" range is enforced by the existing within/previousTarget filter, which resolves model ids. | orks build ruling | open |
+| MOR-R08 | Build ruling | Bestial Bellow's forced test uses hookService.battleShockTest(ctx, enemyCanonicalUnit, stratagemId, -1). For an attached unit this tests the combined unit with its best Leadership, per R-4.7. | orks build ruling | open |
+| MOR-R09 | Build ruling | Test fixture stand-ins: the Bag the Big 'Un and Krumpin' Spree tests run on the synthetic red/blu fixture, and the stratagem tests use the real Butchas vs Gitstompas data. The Squig-hide wound modifier is checked through hookService.collect with the weapon S overridden to 6 and 5. | orks build ruling | open |
+| MOR-R10 | Build ruling | New weapons borrow existing sound files, since no new audio was generated. Beast klaw uses the power-klaw crunch; snappa and jaws use claws-and-teeth; thump gun uses the grenade-launcher sound and the missile VFX family; saddlegit and thrown stikka use the shoota; melee stikka uses the close-combat sound. Replace with dedicated audio later. | orks build ruling | open |
+| MOR-R11 | Build ruling | Bag the Big 'Un now offers one option per model, so single-model units offer 'unit#0' instead of the unit id. MISSION-036 in tests/engine/missions.test.ts was updated to expect 'A:walker#0' and 'A:boss#0'. A unit id is still accepted as an answer. | orks build ruling | open |
+| MOR-R12 | Build ruling | Krumpin' Spree measures distance to the opponent's battlefield edge line. Markers tied within 0.01" for nearest pay 3 once; every other held tied marker counts as an 'other' marker, 1 VP each if outside the scorer's own deployment zone. | orks build ruling | open |
+| MOR-R13 | Build ruling | Bestial Bellow AI gain is P(fail) times (objective weight x1.5 + 2% of unit value), with P(fail) = 1 - P(2D6 >= Ld+1). Get In There! is valued like Get Stuck In, but only when the enemy sits beyond 3" + ER and within 6" + ER, or a weighted objective lies 3-6" away. These are heuristics, not rules. | orks build ruling | open |
+| MOR-R14 | Build ruling | No mounted-Ork kit exists, so Squighog Boyz borrow ork-boy (rider) and ork-warboss (Nob on Smasha Squig) kits, with the spec 1.7 in height applied via a client-side override. Their datasheet figure data still says generic-monster; a dedicated mounted kit would be better later. | orks build ruling | open |

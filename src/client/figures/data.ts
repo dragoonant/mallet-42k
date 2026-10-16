@@ -73,6 +73,9 @@ const KNOWN_KIT: Record<string, KitId> = {
   'sm.suppressor-squad': 'sm-tacticus',
   'ork.boyz': 'ork-boy',
   'ork.warboss-gordrang': 'ork-warboss',
+  'ork.beast-snagga-boyz': 'ork-boy',
+  'ork.beastboss-morgrim': 'ork-warboss',
+  'ork.squighog-boyz': 'ork-boy',
   'ork.deff-dread': 'ork-deff-dread',
   'ork.deffkoptas': 'ork-deffkopta',
   'nec.necron-warriors': 'nec-warrior',
@@ -125,6 +128,8 @@ const KNOWN_KIT: Record<string, KitId> = {
 /** Models of a mixed unit that look different from the rest of it (a flamer sister is not a rifle sister), keyed
  *  `<datasheet id>/<datasheet modelId>`. A model not listed here takes its datasheet's kit above. */
 const KNOWN_KIT_BY_MODEL: Record<string, KitId> = {
+  'ork.squighog-boyz/squighog-boy': 'ork-boy',
+  'ork.squighog-boyz/nob-smasha-squig': 'ork-warboss',
   'ade.canoness-adalya/canoness': 'ade-canoness',
   'ade.battle-sisters-squad/superior': 'ade-sister-superior',
   'ade.battle-sisters-squad/sister-flamer': 'ade-sister-flamer',
@@ -279,11 +284,20 @@ export interface ResolvedBase {
 
 const DEFAULT_BASE_MM = 32
 
-export function resolveBase(datasheet: DatasheetData | undefined, archetype: ArchetypeKind): ResolvedBase {
-  const base = datasheet?.composition[0]?.base
+/** Mounted Orks have no mounted kit yet: they borrow a biped kit scaled up to the spec's figure height
+ *  (orks--morgrim-s-butchas §9). Only applies when the datasheet carries no explicit figure.scale. */
+const HEIGHT_BY_DATASHEET: Record<string, number> = {
+  'ork.squighog-boyz': 1.7,
+  'ork.squighog-boyz/squighog-boy': 1.7,
+  'ork.squighog-boyz/nob-smasha-squig': 1.9,
+}
+
+export function resolveBase(datasheet: DatasheetData | undefined, archetype: ArchetypeKind, modelId?: string): ResolvedBase {
+  const entry = (modelId ? datasheet?.composition.find((c) => c.modelId === modelId) : undefined) ?? datasheet?.composition[0]
+  const base = entry?.base
   const mm = base?.mm ?? DEFAULT_BASE_MM
   const mm2 = base?.shape === 'oval' ? (base.mm2 ?? mm) : mm
-  const height = datasheet?.figure.scale ?? DEFAULT_HEIGHT_BY_ARCHETYPE[archetype]
+  const height = datasheet?.figure.scale ?? (datasheet ? (modelId ? HEIGHT_BY_DATASHEET[`${datasheet.id}/${modelId}`] : undefined) ?? HEIGHT_BY_DATASHEET[datasheet.id] : undefined) ?? DEFAULT_HEIGHT_BY_ARCHETYPE[archetype]
   // the engine's `mm` is front-to-back and figures face local +Z, so the long axis of an oval is Z
   return {
     radiusX: mm2 / 2 / MM_PER_INCH,

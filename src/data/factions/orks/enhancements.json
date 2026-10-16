@@ -32,5 +32,99 @@
       "scope": { "who": "bearer" },
       "code": "tellyportaGrant"
     }
+  },
+  {
+    "id": "ork.e.half-chewed",
+    "faction": "ork",
+    "name": "Half-chewed",
+    "text": "The bearer's unit has Feel No Pain 5+. Ranged attacks allocated to its models face an armour save improved by 1 (never the invulnerable save).",
+    "cost": 0,
+    "restriction": {
+      "keyword": [
+        "BEASTBOSS"
+      ]
+    },
+    "effect": [
+      {
+        "id": "ork.e.half-chewed.fnp",
+        "name": "Half-chewed",
+        "text": "The bearer's unit has Feel No Pain 5+.",
+        "trigger": "feelNoPainRoll",
+        "effect": {
+          "feelNoPain": 5
+        },
+        "scope": {
+          "who": "self"
+        }
+      },
+      {
+        "id": "ork.e.half-chewed.save",
+        "name": "Half-chewed",
+        "text": "Add 1 to the armour save against ranged attacks allocated to models in the bearer's unit.",
+        "trigger": "saveRoll",
+        "when": {
+          "weaponType": "ranged"
+        },
+        "effect": {
+          "modifyRoll": {
+            "roll": "save",
+            "value": 1,
+            "armourOnly": true
+          }
+        },
+        "scope": {
+          "who": "self"
+        }
+      }
+    ]
+  },
+  {
+    "id": "ork.e.bosskilla",
+    "faction": "ork",
+    "name": "Bosskilla",
+    "text": "The bearer's melee weapons gain [PRECISION] and [SUSTAINED HITS 1].",
+    "cost": 0,
+    "restriction": {
+      "keyword": [
+        "BEASTBOSS"
+      ]
+    },
+    "effect": [
+      {
+        "id": "ork.e.bosskilla.precision",
+        "name": "Bosskilla",
+        "text": "The bearer's melee weapons gain [PRECISION].",
+        "trigger": "always",
+        "effect": {
+          "when": {
+            "weaponType": "melee"
+          },
+          "grantWeaponAbility": {
+            "ability": "PRECISION"
+          }
+        },
+        "scope": {
+          "who": "bearer"
+        }
+      },
+      {
+        "id": "ork.e.bosskilla.sustained",
+        "name": "Bosskilla",
+        "text": "The bearer's melee weapons gain [SUSTAINED HITS 1].",
+        "trigger": "always",
+        "effect": {
+          "when": {
+            "weaponType": "melee"
+          },
+          "grantWeaponAbility": {
+            "ability": "SUSTAINED_HITS",
+            "value": 1
+          }
+        },
+        "scope": {
+          "who": "bearer"
+        }
+      }
+    ]
   }
 ]

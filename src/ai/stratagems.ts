@@ -94,7 +94,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
   } else if (id.endsWith('smokescreen')) {
     if (melee) return -Infinity
     withIt = incomingDamage(state, attackerId, mineId, false, { ...base, cover: true, hitMod: -1 })
-  } else if (id.endsWith('gene-wrought-resilience')) {
+  } else if (id.endsWith('gene-wrought-resilience') || id.endsWith('tough-as-squig-hide')) {
     withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, woundModHighS: -1 })
   } else if (id.endsWith('holy-radiance')) {
     if (melee) return -Infinity
@@ -113,7 +113,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
   return g > 0 ? g : -Infinity
 }
 
-const DEFENSIVE = ['go-to-ground', 'smokescreen', 'gene-wrought-resilience', 'holy-radiance', 'hyper-reactive',
+const DEFENSIVE = ['go-to-ground', 'smokescreen', 'gene-wrought-resilience', 'tough-as-squig-hide', 'holy-radiance', 'hyper-reactive',
   'mercurial-resilience', 'a-martyrs-death', 'daemonic-fervour', 'lurking-killers']
 
 // Fire Overwatch: hits only on an unmodified 6, the bound unit only (picked within 24"), each weapon within its own range, with line of sight.
@@ -392,6 +392,37 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
     if (bestWeight <= 1 || !threatened) return -Infinity
     return bestWeight * 2
   }
+  // Morgrim's Butchas Bestial Bellow: forced Battle-shock test at -1 on a nearby enemy unit - worth P(fail) times what the
+  // shock costs it (OC lost on objectives it is holding, plus a small share of its value).
+  if (id.endsWith('bestial-bellow')) {
+    const enemyId = targets.unitIds?.[0]
+    const enemy = enemyId ? state.units[enemyId] : undefined
+    if (!enemyId || !enemy || enemy.player === player || enemy.battleShocked) return -Infinity
+    const models = unitModels(state, enemyId)
+    if (models.length === 0) return -Infinity
+    const ld = Math.min(...models.map((m) => modelStats(state, m).Ld))
+    const pFail = 1 - chargeProb(ld + 1) // 2D6 - 1 must reach Leadership
+    if (pFail < 0.05) return -Infinity
+    let objValue = 0
+    for (const o of Object.values(state.objectives)) {
+      if (o.removed || !models.some((m) => withinObjectiveRange(m, o))) continue
+      objValue += objectiveScoreWeight(state, player, o.id)
+    }
+    return pFail * (objValue * 1.5 + unitValue(state, enemyId) * 0.02)
+  }
+  // Morgrim's Butchas Get In There!: PILE-IN ONLY goes to 6" (consolidation stays 3"; a pile-in must end closer to the
+  // nearest enemy so it never reaches an objective): worth it only when the enemy sits beyond a normal 3" pile-in.
+  if (id.endsWith('get-in-there')) {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId || !hasAnyMeleeWeapon(state, unitId)) return -Infinity
+    let extraReach = false
+    for (const u of boardUnitsOf(state, other(player))) {
+      const gap = minGapBetweenUnits(state, unitId, u.id)
+      if (gap > 3 + ENGAGEMENT_H && gap <= 6 + ENGAGEMENT_H) extraReach = true
+    }
+    if (!extraReach) return -Infinity
+    return unitValue(state, unitId) * 0.02
+  }
   // Get Stuck In: extends this unit's pile-in/consolidate to 6" — worth it when that extra reach can drag it
   // into a second fight or onto a valuable objective it couldn't reach with the normal 3".
   if (id.endsWith('get-stuck-in')) {
@@ -523,7 +554,8 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
     if (trigger && state.units[trigger]?.location === 'board' && minGapBetweenUnits(state, unitId, trigger) <= move + 2) best = Math.max(best, 0.8 + unitValue(state, trigger) * 0.005)
     return best > 0 ? best : -Infinity
   }
-  return -Infinity // unmodelled stratagem: hold CP}
+  return -Infinity // unmodelled stratagem: hold CP
+}
 
 // exported for tests: the stratagem's full score (HOLD_CP_SCORE + gain - cpThreshold), or -Infinity when it is not worth considering
 export function stratagemScore(state: GameState, player: PlayerId, pending: PendingDecision, action: UseStratagemAction, cost: number): number {

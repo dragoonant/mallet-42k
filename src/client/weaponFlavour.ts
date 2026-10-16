@@ -47,7 +47,7 @@ export function weaponFlavour(weaponId: string, weapon: WeaponData | undefined, 
     // Tyranid claws, talons and teeth rend and slash, so they voice as the cutting sound; only a klaw/fist
     // (or a plain crushing profile) is the heavy crunch.
     if (/fist|klaw|hammer|maul|mace|crush|limbs|mutation|sentinel(?![- ]blade)|mining|improvised|dozer/.test(text)) return 'crush'
-    if (/choppa|chain|sword|blade|axe|knife|claw|talon|teeth|maw|hyperphase|mandible|flail|whip/.test(text)) return 'chain'
+    if (/choppa|chain|sword|blade|axe|knife|claw|talon|teeth|jaws|snappa|stikka|maw|hyperphase|mandible|flail|whip/.test(text)) return 'chain'
     return strength >= 8 ? 'crush' : 'chain'
   }
 
@@ -57,7 +57,7 @@ export function weaponFlavour(weaponId: string, weapon: WeaponData | undefined, 
   if (/burst.cannon/.test(text)) return 'shoota' // a rattling gun, not an artillery piece
   // BLAST marks the explosive/ordnance profiles; the keywords catch the rest of the big guns, and
   // S7+ catches a heavy profile whose name says nothing (nothing in the current bundle needs it).
-  if (hasAbility(weapon, 'BLAST') || /cannon|kannon|rokkit|rocket|missile|mega|lascannon|plasma|blasta|blaster|tachyon|heavy bolter|heavy-bolter|launcher|field-gun|field gun|howitzer|hunter-killer|bombast|malleus|raker/.test(text)) return 'heavy'
+  if (hasAbility(weapon, 'BLAST') || /cannon|kannon|rokkit|rocket|missile|thump|mega|lascannon|plasma|blasta|blaster|tachyon|heavy bolter|heavy-bolter|launcher|field-gun|field gun|howitzer|hunter-killer|bombast|malleus|raker/.test(text)) return 'heavy'
   // Guard small arms (lasgun, laspistol, autogun) fall through to 'bolter': a rifle crack with a warm orange tracer.
   if (/bolt/.test(text)) return 'bolter'
   // Cultist autoguns are cheap rattling cracks, not bolter thumps. Spat or flung biomass (fleshborers, spore-guns)
@@ -104,10 +104,10 @@ export function classifyVfxFamily(weaponId: string, weapon: WeaponData | undefin
   if (hasAbility(weapon, 'TORRENT') || /flame|flamer|burna|pyre|incinerat/.test(text)) return kw('flamer')
   if (/pulse|ion.?raker|railgun|rail.?rifle|burst.?cannon|markerlight/.test(text)) return kw('pulse')
   if (/grenade|krak|frag|demolition|charge cache|satchel/.test(text)) return kw('grenade')
-  if (/rokkit|rocket|missile|hunter.?killer|bombast|field.?gun|howitzer|launcher|mortar|malleus|kannon/.test(text)) return kw('missile')
+  if (/rokkit|rocket|missile|thump|hunter.?killer|bombast|field.?gun|howitzer|launcher|mortar|malleus|kannon/.test(text)) return kw('missile')
   if (/lascannon|las.?cannon|laser|beam/.test(text)) return kw('lascannon')
   if (/plasma|blaster|blasta|supercharge/.test(text)) return kw(fac === 'ork' || fac === 'orks' ? 'dakka' : 'plasma')
-  if (/shoota|slugga|dakka|stikk|big.?shoota|kopta/.test(text)) return kw('dakka')
+  if (/shoota|slugga|dakka|stikk|big.?shoota|kopta|saddlegit/.test(text)) return kw('dakka')
   if (/autocannon|assault cannon|assault-cannon|heavy.?bolter|heavy.?stubber|stubber|seismic|cannon/.test(text)) return kw('autocannon')
   if (/lasgun|laspistol|lascarbine|las.?pistol/.test(text)) return kw('las')
   if (/bolt|combi|storm|hurricane|spear|castellan|sentinel blade|sentinel-blade|autogun|autopistol|hybrid firearm|pistol/.test(text)) return kw('bolt')

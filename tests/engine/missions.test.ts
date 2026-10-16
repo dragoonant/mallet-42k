@@ -629,7 +629,7 @@ describe('secondaries', () => {
     modules.services.missions.onWindow(ctx, 'round.start', '1')
     expect(ctx.state.pending?.kind).toBe('chooseOption') // A's Red Walker is VEHICLE → offered ahead of the Warlord fallback
     const pending = ctx.state.pending as ChooseOptionDecision
-    expect(pending.options.map((o) => o.id)).toEqual(['A:walker'])
+    expect(pending.options.map((o) => o.id)).toEqual(['A:walker#0']) // per-model options (MOR B3); the unit id is still accepted as an answer
     answer(ctx, 'A:walker')
     expect(s.players.B.secondaryState.bagTargetUnitId).toBe('A:walker')
 
@@ -655,7 +655,7 @@ describe('secondaries', () => {
     const { ctx: ctx2 } = ctxFor(s2)
     modules.services.missions.onWindow(ctx2, 'round.start', '1')
     const pending2 = ctx2.state.pending as ChooseOptionDecision
-    expect(pending2.options.map((o) => o.id)).toEqual(['A:boss'])
+    expect(pending2.options.map((o) => o.id)).toEqual(['A:boss#0'])
   })
 
   it('MISSION-037 CP-1.5: secondary VP is added on top of primary VP, each with its own VpScored source', () => {

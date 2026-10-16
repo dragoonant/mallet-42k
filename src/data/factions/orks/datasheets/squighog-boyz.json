@@ -1,0 +1,95 @@
+[
+  {
+    "id": "ork.squighog-boyz",
+    "faction": "ork",
+    "name": "Squighog Boyz",
+    "keywords": [
+      "MOUNTED",
+      "BEAST SNAGGA",
+      "SQUIGHOG BOYZ"
+    ],
+    "factionKeywords": [
+      "ORKS"
+    ],
+    "stats": {
+      "M": 10,
+      "T": 7,
+      "Sv": 4,
+      "W": 3,
+      "Ld": 7,
+      "OC": 2
+    },
+    "composition": [
+      {
+        "modelId": "nob-smasha-squig",
+        "name": "Nob on Smasha Squig",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "champion": true,
+        "base": {
+          "shape": "oval",
+          "mm": 90,
+          "mm2": 52
+        },
+        "statsOverride": {
+          "W": 4
+        },
+        "weapons": {
+          "default": [
+            "ork.w.slugga",
+            "ork.w.big-choppa-squighog",
+            "ork.w.squighog-jaws"
+          ]
+        },
+        "figure": {
+          "archetype": "monster",
+          "kit": "generic-monster"
+        }
+      },
+      {
+        "modelId": "squighog-boy",
+        "name": "Squighog Boy",
+        "min": 3,
+        "max": 3,
+        "default": 3,
+        "base": {
+          "shape": "oval",
+          "mm": 75,
+          "mm2": 42
+        },
+        "weapons": {
+          "default": [
+            "ork.w.saddlegit-weapons",
+            "ork.w.stikka-ranged",
+            "ork.w.stikka",
+            "ork.w.squighog-jaws"
+          ]
+        },
+        "figure": {
+          "archetype": "monster",
+          "kit": "generic-monster"
+        }
+      }
+    ],
+    "abilities": [
+      "ork.a.waaagh"
+    ],
+    "coreAbilities": [
+      {
+        "ability": "FEEL_NO_PAIN",
+        "value": 5
+      }
+    ],
+    "points": [
+      {
+        "models": 4,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "monster",
+      "kit": "generic-monster"
+    }
+  }
+]

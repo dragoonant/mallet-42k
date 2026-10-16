@@ -73,6 +73,14 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ['accelerator-autocannon', 'wpn-assault-cannon'] as const,
   ['paired-combat-blades', 'wpn-power-weapon'] as const,
   ['power-klaw', 'power-klaw-crunch'] as const,
+  // Morgrim's Butchas: the beast klaw crunches like a power klaw, snappa and jaws bite, the thump gun lobs a shell.
+  ['beast-snagga-klaw', 'power-klaw-crunch'] as const,
+  ['power-snappa', 'wpn-claws-and-teeth'] as const,
+  ['squighog-jaws', 'wpn-claws-and-teeth'] as const,
+  ['thump-gun', 'wpn-grenade-launcher'] as const,
+  ['saddlegit-weapons', 'wpn-shoota'] as const,
+  ['stikka-ranged', 'wpn-shoota'] as const,
+  ['stikka', 'wpn-close-combat-weapon'] as const,
   // Grey Knights have their own generated sounds (public/audio: purge-soul, psilencer-burst, psycannon-burst, nemesis-force-swing).
   ['purge-soul', 'purge-soul'] as const,
   ['psilencer', 'psilencer-burst'] as const,

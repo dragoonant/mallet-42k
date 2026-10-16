@@ -26,5 +26,227 @@
   { "id": "ork.w.spinnin-blades", "name": "Spinnin' blades", "type": "melee", "range": 0, "A": 6, "skill": 3, "S": 5, "AP": 0, "D": 1,
     "abilities": [], "figure": { "part": "ork.weapon.spinnin-blades" } },
   { "id": "ork.w.dread-klaw", "name": "Dread klaw", "type": "melee", "range": 0, "A": 6, "skill": 3, "S": 12, "AP": -2, "D": 3,
-    "abilities": [], "figure": { "part": "ork.weapon.dread-klaw" } }
+    "abilities": [], "figure": { "part": "ork.weapon.dread-klaw" } },
+  {
+    "id": "ork.w.shoota-beastboss",
+    "name": "Shoota",
+    "type": "ranged",
+    "range": 18,
+    "A": 2,
+    "skill": 4,
+    "S": 4,
+    "AP": 0,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "RAPID_FIRE",
+        "value": 1
+      }
+    ]
+  },
+  {
+    "id": "ork.w.beastchoppa",
+    "name": "Beastchoppa",
+    "type": "melee",
+    "range": 0,
+    "A": 6,
+    "skill": 2,
+    "S": 6,
+    "AP": -1,
+    "D": 2,
+    "abilities": [
+      {
+        "ability": "ANTI",
+        "keyword": "MONSTER",
+        "value": 4
+      },
+      {
+        "ability": "ANTI",
+        "keyword": "VEHICLE",
+        "value": 4
+      }
+    ]
+  },
+  {
+    "id": "ork.w.beast-snagga-klaw",
+    "name": "Beast Snagga klaw",
+    "type": "melee",
+    "range": 0,
+    "A": 4,
+    "skill": 3,
+    "S": 10,
+    "AP": -2,
+    "D": 2,
+    "abilities": [
+      {
+        "ability": "ANTI",
+        "keyword": "MONSTER",
+        "value": 4
+      },
+      {
+        "ability": "ANTI",
+        "keyword": "VEHICLE",
+        "value": 4
+      }
+    ]
+  },
+  {
+    "id": "ork.w.thump-gun",
+    "name": "Thump gun",
+    "type": "ranged",
+    "range": 18,
+    "A": "D3",
+    "skill": 5,
+    "S": 6,
+    "AP": 0,
+    "D": 2,
+    "abilities": [
+      {
+        "ability": "BLAST"
+      }
+    ]
+  },
+  {
+    "id": "ork.w.choppa-snagga",
+    "name": "Choppa",
+    "type": "melee",
+    "range": 0,
+    "A": 3,
+    "skill": 3,
+    "S": 5,
+    "AP": -1,
+    "D": 1,
+    "abilities": []
+  },
+  {
+    "id": "ork.w.close-combat-weapon-snagga",
+    "name": "Close combat weapon",
+    "type": "melee",
+    "range": 0,
+    "A": 2,
+    "skill": 3,
+    "S": 5,
+    "AP": 0,
+    "D": 1,
+    "abilities": []
+  },
+  {
+    "id": "ork.w.power-snappa",
+    "name": "Power snappa",
+    "type": "melee",
+    "range": 0,
+    "A": 4,
+    "skill": 3,
+    "S": 7,
+    "AP": -1,
+    "D": 2,
+    "abilities": []
+  },
+  {
+    "id": "ork.w.saddlegit-weapons",
+    "name": "Saddlegit weapons",
+    "type": "ranged",
+    "range": 9,
+    "A": 1,
+    "skill": 4,
+    "S": 3,
+    "AP": 0,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "ASSAULT"
+      }
+    ]
+  },
+  {
+    "id": "ork.w.stikka-ranged",
+    "name": "Stikka (thrown)",
+    "type": "ranged",
+    "range": 9,
+    "A": 1,
+    "skill": 5,
+    "S": 5,
+    "AP": -1,
+    "D": 2,
+    "abilities": [
+      {
+        "ability": "ASSAULT"
+      },
+      {
+        "ability": "ANTI",
+        "keyword": "MONSTER",
+        "value": 4
+      },
+      {
+        "ability": "ANTI",
+        "keyword": "VEHICLE",
+        "value": 4
+      }
+    ]
+  },
+  {
+    "id": "ork.w.stikka",
+    "name": "Stikka",
+    "type": "melee",
+    "range": 0,
+    "A": 3,
+    "skill": 3,
+    "S": 5,
+    "AP": -1,
+    "D": 2,
+    "abilities": [
+      {
+        "ability": "ANTI",
+        "keyword": "MONSTER",
+        "value": 4
+      },
+      {
+        "ability": "ANTI",
+        "keyword": "VEHICLE",
+        "value": 4
+      },
+      {
+        "ability": "LANCE"
+      }
+    ]
+  },
+  {
+    "id": "ork.w.big-choppa-squighog",
+    "name": "Big choppa",
+    "type": "melee",
+    "range": 0,
+    "A": 4,
+    "skill": 3,
+    "S": 6,
+    "AP": -1,
+    "D": 2,
+    "abilities": [
+      {
+        "ability": "ANTI",
+        "keyword": "MONSTER",
+        "value": 4
+      },
+      {
+        "ability": "ANTI",
+        "keyword": "VEHICLE",
+        "value": 4
+      }
+    ]
+  },
+  {
+    "id": "ork.w.squighog-jaws",
+    "name": "Squighog jaws",
+    "type": "melee",
+    "range": 0,
+    "A": 3,
+    "skill": 4,
+    "S": 6,
+    "AP": -1,
+    "D": 2,
+    "abilities": [
+      {
+        "ability": "EXTRA_ATTACKS"
+      }
+    ]
+  }
 ]

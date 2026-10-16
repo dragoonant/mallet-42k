@@ -101,7 +101,7 @@ const CHOOSE_OPTION_INFO: Partial<Record<ChooseOptionTopic, { title: string; hin
   recoverObjective: { title: 'Recover intelligence?', hint: 'Search one marker you control for intel to gain 1 Command Point (needs your Warlord on the battlefield). Each marker can be searched only once per battle (by either side), and it keeps scoring VP as normal. Pass to save the marker for later.' },
   treasureObjective: { title: 'Choose the treasure marker', hint: "Pick a marker in no man's land. If a Necron model destroys an enemy that was near it (or near the marker in your own zone) when the phase began, you score 3 VP." },
   stompTarget: { title: "Pick a Stomp 'Em target", hint: "Name a surviving enemy unit now — score if an ORKS model destroys it in melee by the end of this round." },
-  bagTarget: { title: "Pick a Bag the Big 'Un target", hint: 'Name an enemy model now — score if it is destroyed by the end of this round.' },
+  bagTarget: { title: "Pick a Bag the Big 'Un target", hint: 'Name an enemy model now. If it is destroyed by the end of the battle you score 8 VP, or 12 VP if your Beastboss made the kill.' },
   battleShockOrder: { title: 'Order battle-shock tests', hint: 'Choose which of your affected units tests for battle shock next.' },
   desperateEscapeCasualty: { title: 'Desperate Escape casualty', hint: 'Choose which model is removed after a failed Desperate Escape roll.' },
   coherencyCull: { title: 'Unit coherency', hint: 'Choose which model(s) to remove so the rest of the unit stays within coherency.' },

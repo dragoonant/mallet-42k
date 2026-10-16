@@ -422,6 +422,9 @@
             },
             "value": {
               "type": "integer"
+            },
+            "armourOnly": {
+              "type": "boolean"
             }
           },
           "required": [

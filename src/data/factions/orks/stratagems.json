@@ -54,5 +54,135 @@
     "scope": { "who": "self" },
     "duration": "instant",
     "limit": "oncePerPhase"
+  },
+  {
+    "id": "ork.s.tough-as-squig-hide",
+    "faction": "ork",
+    "name": "Tough As Squig-hide",
+    "text": "Use when one of your ORKS INFANTRY units is chosen as a target in the opponent's Shooting phase or either player's Fight phase. Until the phase ends, attacks against it whose Strength exceeds its Toughness suffer -1 to wound.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": [
+      "shooting",
+      "fight"
+    ],
+    "window": [
+      "shooting.targetsDeclared",
+      "fight.targetsDeclared"
+    ],
+    "who": "either",
+    "condition": {
+      "any": [
+        {
+          "phase": "shooting",
+          "ownTurn": false
+        },
+        {
+          "phase": "fight"
+        }
+      ]
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "INFANTRY"
+        },
+        "state": "targetedByAttack",
+        "count": 1
+      }
+    ],
+    "when": {
+      "strengthVsToughness": "gt"
+    },
+    "effect": {
+      "modifyRoll": {
+        "roll": "wound",
+        "value": -1
+      }
+    },
+    "scope": {
+      "who": "attacker"
+    },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "ork.s.bestial-bellow",
+    "faction": "ork",
+    "name": "Bestial Bellow",
+    "text": "Use at the start of the Fight phase. Pick one of your BEASTBOSS or SQUIGHOG BOYZ models, then an enemy unit within 3\" of it. That unit takes a Battle-shock test with 1 subtracted from the roll.",
+    "cost": 1,
+    "category": "epicDeed",
+    "phases": [
+      "fight"
+    ],
+    "window": [
+      "fight.start"
+    ],
+    "who": "either",
+    "condition": {
+      "phase": "fight"
+    },
+    "targets": [
+      {
+        "role": "model",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "BEAST SNAGGA"
+        },
+        "count": 1
+      },
+      {
+        "role": "unit",
+        "owner": "enemy",
+        "filter": {
+          "within": {
+            "of": "previousTarget",
+            "inches": 3
+          }
+        },
+        "count": 1
+      }
+    ],
+    "code": "bestialBellow",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "ork.s.get-in-there",
+    "faction": "ork",
+    "name": "Get In There!",
+    "text": "Use in the Fight phase after one of your ORKS units is picked to fight, before it Piles In. Until the phase ends, its Pile-in moves may be up to 6\" instead of 3\". Consolidation is unchanged.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": [
+      "fight"
+    ],
+    "window": [
+      "fight.unitSelected"
+    ],
+    "who": "either",
+    "condition": {
+      "phase": "fight"
+    },
+    "targets": [
+      {
+        "role": "unit",
+        "owner": "friendly",
+        "filter": {
+          "keyword": "ORKS"
+        },
+        "state": "selectedToFight",
+        "count": 1
+      }
+    ],
+    "code": "getStuckInDistance",
+    "params": {
+      "pileIn": 6,
+      "pileInOnly": true
+    },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase"
   }
 ]

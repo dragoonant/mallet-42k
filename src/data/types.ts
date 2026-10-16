@@ -94,7 +94,7 @@ export interface Effect {
   // per-entry gate, AND-ed with the descriptor's `when` (lets one descriptor carry differently conditioned effects)
   when?: Condition
   reroll?: 'ones' | 'fails' | 'all' | 'oneDie'
-  modifyRoll?: { roll: RollName; value: number }
+  modifyRoll?: { roll: RollName; value: number; armourOnly?: boolean }
   modifyStat?: { stat: StatName; value: number; cap?: number }
   // C6 (Astra Militarum Artillery Strike): halve a stat (rounded up, before additive modifiers), halve an Advance roll, forbid a charge
   halveStat?: StatName

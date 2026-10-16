@@ -87,6 +87,7 @@ export interface RollModifierResult {
   ignoreModifiers?: boolean
   critThreshold?: number
   ignoreCover?: boolean
+  armourOnly?: boolean // onSaveRoll only: the modifier applies to an armour save, never to an invulnerable save (Half-chewed)
   invuln?: number
   feelNoPain?: number
   // honoured for onBattleShockTest only: extra dice rolled on top of the usual 2D6 (Tyranid Synapse)

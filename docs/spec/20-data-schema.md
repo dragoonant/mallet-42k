@@ -80,7 +80,7 @@ Effect keys (any subset; unknown keys rejected):
 |---|---|---|
 | `when` | Condition | per-entry gate (see `effect` above); not an effect on its own |
 | `reroll` | `ones \| fails \| all \| oneDie` | re-roll for the triggering roll; `all` = optional re-roll of successes via `rerollOffer` (10-rules R-6.24), fails auto-re-rolled |
-| `modifyRoll` | `{roll, value}` | roll ∈ hit wound save charge advance battleShock damage; engine applies ±1 cap for hit/wound |
+| `modifyRoll` | `{roll, value, armourOnly?}` | roll ∈ hit wound save charge advance battleShock damage; engine applies ±1 cap for hit/wound; `armourOnly` is honoured for `roll:'save'` only (the bonus never improves an invulnerable save, Half-chewed MOR-3.1) |
 | `modifyStat` | `{stat, value, cap?}` | stat ∈ A S AP D M T Sv W Ld OC BS WS range; `cap`: the modifier never takes the stat past it (Sv/BS/WS/Ld: not lower; others: not higher) |
 | `halveStat` / `halveRoll` / `forbid` | StatName / `'advance'` / `'charge'` | stat halved (rounded up) before additive modifiers; Advance roll halved; charge declaration forbidden |
 | `setStat` | `{stat, value}` | |

@@ -34,5 +34,42 @@
     "trigger": "phaseStart",
     "when": { "phase": "fight" },
     "code": "pistonDrivenBrutality"
+  },
+  {
+    "id": "ork.a.beastboss",
+    "name": "Beastboss",
+    "text": "While this model leads a unit, every melee attack made by a model in that unit adds 1 to its hit roll.",
+    "trigger": "hitRoll",
+    "when": {
+      "weaponType": "melee",
+      "leaderAttached": true
+    },
+    "effect": {
+      "modifyRoll": {
+        "roll": "hit",
+        "value": 1
+      }
+    },
+    "scope": {
+      "who": "self"
+    }
+  },
+  {
+    "id": "ork.a.monster-hunters",
+    "name": "Monster Hunters",
+    "text": "Attacks made by models in this unit against a MONSTER or VEHICLE unit may re-roll the hit roll.",
+    "trigger": "hitRoll",
+    "when": {
+      "targetKeyword": [
+        "MONSTER",
+        "VEHICLE"
+      ]
+    },
+    "effect": {
+      "reroll": "all"
+    },
+    "scope": {
+      "who": "self"
+    }
   }
 ]

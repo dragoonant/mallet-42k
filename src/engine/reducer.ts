@@ -327,6 +327,7 @@ function coherencyCullHandler(): DecisionHandler {
       const destroyed = removeModel(ctx.state, modelId)
       ctx.emit({ type: 'CoherencyCulled', unitId, modelIds: [modelId], player: pending.player })
       ctx.emit({ type: 'ModelDestroyed', unitId, modelId, byPlayer: null, byUnitId: null, byModelId: null, kind: 'other', player: pending.player })
+      ctx.services.missions.modelDestroyed?.(ctx, { unitId, modelId, byPlayer: null, byUnitId: null, byModelId: null })
       if (destroyed) ctx.emit({ type: 'UnitDestroyed', unitId, byPlayer: null, byUnitId: null, byModelId: null, kind: 'other', player: pending.player })
     },
   }

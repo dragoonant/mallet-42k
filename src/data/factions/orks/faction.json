@@ -19,5 +19,5 @@
     "metal": "#8c8c8c",
     "decal": "#f5f1e6"
   },
-  "combatPatrols": ["ork.cp.gordrangs-gitstompas"]
+  "combatPatrols": ["ork.cp.gordrangs-gitstompas", "ork.cp.morgrims-butchas"]
 }

@@ -13,7 +13,7 @@ import type { MissionRule, ScoringRule, TimingWindowId } from '../data/types'
 import { kauyonLureAmount, leadershipCasteAmount } from './factions/tau-empire'
 import { riseUpAmount, willOfThePatriarchAmount } from './factions/genestealer-cults'
 import { holdTheLineAmount, methodicalDestructionAmount, methodicalDestructionOffer } from './factions/astra-militarum'
-import { OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE, pointInPolygon, whollyWithinPolygon, withinObjectiveRange } from './geometry'
+import { OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE, playerBattlefieldEdge, pointInPolygon, whollyWithinPolygon, withinObjectiveRange } from './geometry'
 import { consecratedGroundAmount, hallowedRetributionAmount } from './factions/adepta-sororitas'
 import { pinpointPurgeAmount, reconnaissanceInForceAmount } from './factions/space-marines'
 import { hookService } from './hooks-impl'
@@ -282,6 +282,8 @@ function properLootinAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId
 // Bag the Big 'Un (11-combat-patrol §6 appendix roster, not present in current data — exercised only by synthetic
 // tests; see issues). `secondaryState.bagTargetUnitId` is the enemy unit whose (single) model was picked.
 function bagTheBigUnAmount(s: GameState, rule: ScoringRule, pid: PlayerId): number {
+  const modelTarget = s.players[pid].secondaryState.bagTargetModelId as ModelId | undefined
+  if (modelTarget) return bagByModelAmount(s, rule, pid, modelTarget)
   const targetId = s.players[pid].secondaryState.bagTargetUnitId as UnitId | undefined
   if (!targetId) return 0
   const unit = s.units[targetId]
@@ -301,6 +303,49 @@ function bagTheBigUnAmount(s: GameState, rule: ScoringRule, pid: PlayerId): numb
   const beastbossModelId = warlord?.models[0] ?? null
   const byBeastboss = unit.destroyedBy.modelId === beastbossModelId || unit.destroyedBy.unitId === warlordUnitId
   return byBeastboss ? beastbossPoints : unitPoints
+}
+
+// Bag the Big 'Un by model (Morgrim's Butchas, spec 7.1 B3): one picked model; its own death scores, not its unit's
+function bagByModelAmount(s: GameState, rule: ScoringRule, pid: PlayerId, modelId: ModelId): number {
+  const sec = s.players[pid].secondaryState
+  const unitPoints = (rule.params?.unitPoints as number | undefined) ?? 8
+  const beastbossPoints = (rule.params?.beastbossPoints as number | undefined) ?? 12
+  if (sec.bagKilled) {
+    const warlordModel = s.units[s.players[pid].warlordUnitId]?.models[0] ?? null
+    return sec.bagKilledByModelId && sec.bagKilledByModelId === warlordModel ? beastbossPoints : unitPoints
+  }
+  const unitId = (sec.bagTargetUnitId as UnitId | undefined) ?? s.models[modelId]?.unitId
+  const unit = unitId ? s.units[unitId] : undefined
+  if (!unit) return 0
+  if (unit.location === 'reserves') return unitPoints // R-5.16 [interp]: never-arrived Reserves count as destroyed
+  if (unit.location === 'destroyed' && !unit.destroyedBy) return unitPoints // stranded-Reserves cull credits no killer
+  return 0
+}
+
+function bagTheBigUnModelDestroyed(ctx: EngineContext, info: ModelDestroyedInfo): void {
+  for (const pid of ['A', 'B'] as PlayerId[]) {
+    const sec = ctx.state.players[pid].secondaryState
+    if (sec.bagTargetModelId === info.modelId) { sec.bagKilled = true; sec.bagKilledByModelId = info.byModelId }
+  }
+}
+
+// Krumpin' Spree (Morgrim's Butchas, spec 7.1 B2): marker(s) nearest the opponent's battlefield edge, plus others outside own zone
+function krumpinSpreeAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): number {
+  const s = ctx.state
+  const nearestPoints = (rule.params?.nearestPoints as number | undefined) ?? 3
+  const otherPoints = (rule.params?.otherPoints as number | undefined) ?? 1
+  const edge = playerBattlefieldEdge(s.board, deploymentZone(s, otherPlayer(pid)))
+  const hw = s.board.w / 2, hh = s.board.h / 2
+  const dist = (o: { pos: { x: number; z: number } }): number =>
+    edge === 'L' ? o.pos.x + hw : edge === 'R' ? hw - o.pos.x : edge === 'T' ? o.pos.z + hh : hh - o.pos.z
+  const live = Object.values(s.objectives).filter((o) => !o.removed)
+  if (live.length === 0) return 0
+  const min = Math.min(...live.map(dist))
+  const nearest = live.filter((o) => dist(o) <= min + 0.01)
+  const paying = nearest.find((o) => holds(ctx, o.id, pid))
+  const ownZone = deploymentZone(s, pid)
+  const others = live.filter((o) => o !== paying && holds(ctx, o.id, pid) && !pointInPolygon(o.pos, ownZone)).length
+  return (paying ? nearestPoints : 0) + others * otherPoints
 }
 
 // Reclaim and Dominate (NEC-4): flat award when at least one non-Battle-shocked NECRONS unit (attached pair = one unit) has
@@ -467,6 +512,7 @@ function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): num
     case 'stompEmScore': return stompEmScoreAmount(s, rule, pid)
     case 'properLootin': return properLootinAmount(ctx, rule, pid)
     case 'bagTheBigUnScore': return bagTheBigUnAmount(s, rule, pid)
+    case 'krumpinSpreeScore': return krumpinSpreeAmount(ctx, rule, pid)
     case 'consecratedGround': return consecratedGroundAmount(s, pid, rule.pointsPer)
     case 'holdTheLine': return holdTheLineAmount(s, rule, pid)
     case 'kauyonLure': return kauyonLureAmount(s, rule, pid)
@@ -573,7 +619,13 @@ function bagPickRule(ctx: EngineContext, rule: ScoringRule, pid: PlayerId, key: 
   const big = Object.values(s.units).filter((u) => u.player === opp && u.location !== 'destroyed' && (keywordsOf(s, u.id).includes('MONSTER') || keywordsOf(s, u.id).includes('VEHICLE')))
   const candidates = big.length > 0 ? big : ([s.units[s.players[opp].warlordUnitId]].filter((u): u is Unit => !!u))
   if (candidates.length === 0) return
-  offerChoice(ctx, pid, rule.when, key, 'bagTarget', candidates.map((u) => ({ id: u.id, label: u.name })), { ruleId: rule.id }, false)
+  // one option per model (spec 7.1 B3); multi-model units get a "#n" label suffix
+  const options = candidates.flatMap((u) => {
+    const ms = unitModels(s, u.id)
+    return ms.map((m, i) => ({ id: m.id, label: ms.length > 1 ? `${u.name} #${i + 1}` : u.name }))
+  })
+  if (options.length === 0) return
+  offerChoice(ctx, pid, rule.when, key, 'bagTarget', options, { ruleId: rule.id }, false)
 }
 
 function runPick(ctx: EngineContext, rule: ScoringRule, pid: PlayerId, key: string): void {
@@ -769,8 +821,15 @@ function handleStompTarget(ctx: EngineContext, action: Action, pending: ChooseOp
 
 function handleBagTarget(ctx: EngineContext, action: Action, pending: ChooseOptionDecision): Rejection | void {
   if (action.type !== 'chooseOption') return { code: 'E_NOT_AN_OPTION', reason: 'bagTarget expects chooseOption' }
-  if (!ctx.state.units[action.optionId]) return { code: 'E_NOT_AN_OPTION', reason: `unit ${action.optionId} not found` }
-  ctx.state.players[pending.player].secondaryState.bagTargetUnitId = action.optionId
+  const sec = ctx.state.players[pending.player].secondaryState
+  const model = ctx.state.models[action.optionId]
+  if (model) {
+    sec.bagTargetModelId = model.id
+    sec.bagTargetUnitId = model.unitId
+    return
+  }
+  if (!ctx.state.units[action.optionId]) return { code: 'E_NOT_AN_OPTION', reason: `unit or model ${action.optionId} not found` }
+  sec.bagTargetUnitId = action.optionId
 }
 
 export const missionService: MissionService = {
@@ -783,6 +842,7 @@ export const missionService: MissionService = {
     championOfTitanModelDestroyed(ctx, info)
     guardianOfTheRealmModelDestroyed(ctx, info)
     tgbConsecratedGroundModelDestroyed(ctx, info)
+    bagTheBigUnModelDestroyed(ctx, info)
   },
   isTabled(state) { return !hasForces(state, 'A') && !hasForces(state, 'B') },
   finalResult(state, reason) {
