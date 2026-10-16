@@ -53,6 +53,8 @@ export function weaponFlavour(weaponId: string, weapon: WeaponData | undefined, 
   }
 
   if (psychic || gauss) return 'psychic'
+  // A macro plasma *incinerator* is a plasma gun, not a flame template.
+  if (/plasma.*incinerat/.test(text)) return 'heavy'
   // TORRENT is the rules-level marker for a flame template (no hit roll, auto-hits).
   if (hasAbility(weapon, 'TORRENT') || /flame|flamer|burna|pyre|melta|incinerat|fusion|phosphor|sulphur/.test(text)) return 'flame'
   if (/flechette/.test(text)) return 'shoota' // a rattling needle gun, whatever its blaster name
@@ -93,7 +95,7 @@ export interface VfxClassification {
 /** Engine faction ids by the prefix of a weapon id ('ork.w.shoota'), for weapons classified with no faction given. */
 const ID_PREFIX_FACTION: [string, string][] = [
   ['ork.', 'ork'], ['nec', 'necrons'], ['tyr', 'tyranids'], ['gsc.', 'genestealer-cults'], ['tau.', 'tau-empire'],
-  ['am.', 'astra-militarum'], ['lov.', 'leagues-of-votann'], ['gk.', 'grey-knights'], ['csm', 'chaos-space-marines'], ['we.', 'world-eaters'], ['ade', 'adepta-sororitas'], ['cus.', 'adeptus-custodes'], ['drk.', 'drukhari'], ['ael.', 'aeldari'], ['adm.', 'adeptus-mechanicus'], ['dg.', 'death-guard'], ['ths.', 'thousand-sons'], ['sw.', 'space-wolves'],
+  ['am.', 'astra-militarum'], ['lov.', 'leagues-of-votann'], ['gk.', 'grey-knights'], ['csm', 'chaos-space-marines'], ['we.', 'world-eaters'], ['ade', 'adepta-sororitas'], ['cus.', 'adeptus-custodes'], ['drk.', 'drukhari'], ['ael.', 'aeldari'], ['adm.', 'adeptus-mechanicus'], ['dg.', 'death-guard'], ['ths.', 'thousand-sons'], ['sw.', 'space-wolves'], ['da.', 'dark-angels'],
 ]
 
 export function classifyVfxFamily(weaponId: string, weapon: WeaponData | undefined, faction: string): VfxClassification {
@@ -106,6 +108,7 @@ export function classifyVfxFamily(weaponId: string, weapon: WeaponData | undefin
   if (/fleshborer|barb|devourer|venom|spine|spore|acid|borer|webber|web/.test(text) || (fac === 'tyranids' && !/torrent/.test(text))) return kw('bio')
   if (/gauss|tachyon|doomsday|necron|\barc\b/.test(text)) return kw('gauss')
   if (/melta|fusion/.test(text) || hasAbility(weapon, 'MELTA')) return kw('melta')
+  if (/plasma.*incinerat/.test(text)) return kw('plasma')
   if (hasAbility(weapon, 'TORRENT') || /flame|flamer|burna|pyre|incinerat|phosphor|sulphur/.test(text)) return kw('flamer')
   // Drukhari: splinter weapons are streams of crystal needles, dark lances are heavy beams, disintegrators a bright pulse.
   if (/splinter/.test(text)) return kw('dakka')

@@ -1,0 +1,46 @@
+[
+  {
+    "id": "da.e.stoic-exemplar",
+    "faction": "dark-angels",
+    "name": "Stoic Exemplar",
+    "text": "Whenever a melee attack targets the bearer's unit (an attached unit included), and an enemy unit has finished a Charge move this turn within Engagement Range of the bearer's unit, that attack suffers -1 to its wound roll. Once the condition holds it applies to every melee attacker, including ones that did not charge.",
+    "cost": 0,
+    "restriction": { "keyword": ["CHAPLAIN"] },
+    "effect": {
+      "id": "da.e.stoic-exemplar.effect",
+      "name": "Stoic Exemplar",
+      "text": "Melee attacks against the bearer's unit suffer -1 to the wound roll once an enemy unit has ended a Charge move in Engagement Range of it this turn.",
+      "trigger": "woundRoll",
+      "when": { "weaponType": "melee" },
+      "effect": { "modifyRoll": { "roll": "wound", "value": -1 } },
+      "scope": { "who": "attacker" },
+      "code": "stoicExemplar"
+    }
+  },
+  {
+    "id": "da.e.zealous-wrath",
+    "faction": "dark-angels",
+    "name": "Zealous Wrath",
+    "text": "Advance rolls and Charge rolls made for the bearer's unit (an attached unit included) may be re-rolled.",
+    "cost": 0,
+    "restriction": { "keyword": ["CHAPLAIN"] },
+    "effect": [
+      {
+        "id": "da.e.zealous-wrath.advance",
+        "name": "Zealous Wrath",
+        "text": "The bearer's unit may re-roll its Advance rolls.",
+        "trigger": "advanceRoll",
+        "effect": { "reroll": "all" },
+        "scope": { "who": "self" }
+      },
+      {
+        "id": "da.e.zealous-wrath.charge",
+        "name": "Zealous Wrath",
+        "text": "The bearer's unit may re-roll its Charge rolls.",
+        "trigger": "chargeRoll",
+        "effect": { "reroll": "all" },
+        "scope": { "who": "self" }
+      }
+    ]
+  }
+]

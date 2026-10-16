@@ -71,6 +71,10 @@ const KNOWN_KIT: Record<string, KitId> = {
   'sm.librarian-xarius': 'sm-tacticus',
   'sm.infiltrator-squad': 'sm-tacticus',
   'sm.suppressor-squad': 'sm-tacticus',
+  'da.intercessor-squad': 'da-intercessor',
+  'da.chaplain-mordekai': 'da-chaplain',
+  'da.inceptor-squad': 'da-inceptor',
+  'da.redemptor-dreadnought': 'da-redemptor',
   'ork.boyz': 'ork-boy',
   'ork.warboss-gordrang': 'ork-warboss',
   'ork.beast-snagga-boyz': 'ork-boy',
@@ -189,6 +193,11 @@ const KNOWN_KIT: Record<string, KitId> = {
 /** Models of a mixed unit that look different from the rest of it (a flamer sister is not a rifle sister), keyed
  *  `<datasheet id>/<datasheet modelId>`. A model not listed here takes its datasheet's kit above. */
 const KNOWN_KIT_BY_MODEL: Record<string, KitId> = {
+  'da.intercessor-squad/sergeant': 'da-sergeant',
+  'da.intercessor-squad/intercessor': 'da-intercessor',
+  'da.chaplain-mordekai/mordekai': 'da-chaplain',
+  'da.inceptor-squad/inceptor': 'da-inceptor',
+  'da.redemptor-dreadnought/redemptor': 'da-redemptor',
   'we.khorne-berzerkers/champion': 'we-berzerker-champion',
   'we.khorne-berzerkers/plasma': 'we-berzerker-plasma',
   'we.khorne-berzerkers/icon': 'we-berzerker-icon',
@@ -345,6 +354,11 @@ const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
   'ael-platform': 'vehicle',
   'sm-tacticus': 'infantry',
   'sm-terminator': 'heavy',
+  'da-intercessor': 'infantry',
+  'da-sergeant': 'infantry',
+  'da-chaplain': 'infantry',
+  'da-inceptor': 'heavy',
+  'da-redemptor': 'monster',
   'ork-boy': 'infantry',
   'ork-warboss': 'heavy',
   'ork-deff-dread': 'monster',
@@ -547,6 +561,9 @@ const HEIGHT_BY_DATASHEET: Record<string, number> = {
   'cdm.bloodcrushers': 2.0,
   // Maniple Verask-Alpha: the Dunecrawler is a hulking walker on a 130mm base, the Kataphrons stout servitor constructs.
   'adm.onager-dunecrawler': 2.6,
+  // Dark Angels: a Redemptor is a hulking walker on a 90mm base; Inceptors are Gravis-sized, hovering on their packs.
+  'da.redemptor-dreadnought': 2.5,
+  'da.inceptor-squad': 1.3,
   'adm.kataphron-destroyers': 1.45,
   'ork.squighog-boyz': 1.7,
   // Space Wolves: the Invictor Tactical Warsuit is a tall bipedal walker on a 90mm base.

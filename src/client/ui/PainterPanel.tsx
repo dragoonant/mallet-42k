@@ -35,6 +35,7 @@ const PREVIEW: Record<string, { datasheetId: string; modelId?: string }> = {
   'thousand-sons': { datasheetId: 'ths.scarab-occult-terminators', modelId: 'combi' },
   'chaos-daemons': { datasheetId: 'cdm.bloodletters', modelId: 'bloodletter' },
   'space-wolves': { datasheetId: 'sw.intercessor-squad', modelId: 'sergeant' },
+  'dark-angels': { datasheetId: 'da.intercessor-squad', modelId: 'intercessor' },
 }
 
 const backdrop: CSSProperties = { position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'auto', zIndex: 60 }

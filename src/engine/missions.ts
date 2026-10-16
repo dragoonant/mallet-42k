@@ -19,6 +19,7 @@ import { riseUpAmount, willOfThePatriarchAmount, infiltrationAgendaAmount, safeg
 import { holdTheLineAmount, methodicalDestructionAmount, methodicalDestructionOffer } from './factions/astra-militarum'
 import { OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE, playerBattlefieldEdge, pointInPolygon, whollyWithinPolygon, withinObjectiveRange } from './geometry'
 import { consecratedGroundAmount, divineJudgementAmount, divineJudgementOffer, hallowedRetributionAmount } from './factions/adepta-sororitas'
+import { archeotechReliquaryAmount, archeotechReliquaryOffer, endlessHuntAmount } from './factions/dark-angels'
 import { pinpointPurgeAmount, reconnaissanceInForceAmount } from './factions/space-marines'
 import { ineffableAgendaAmount } from './factions/aeldari'
 import { contaminateGroundAmount, spreadTheBlightGain, spreadTheBlightSnapshot } from './factions/death-guard'
@@ -208,7 +209,7 @@ function rulesFor(s: GameState, pid: PlayerId): ScoringRule[] {
 }
 
 // ScoringRule-shaped "pick" instances (pointsPer 0): raise a decision instead of computing an amount
-const PICK_CODES = new Set(['stompEmPick', 'bagPick', 'treasuresOfAeonsPick', 'methodicalDestructionPick', 'etherealEdictPick', 'targetedPurgePick', 'divineJudgementPick', 'toilEarnsPick', 'holyApparatusPick'])
+const PICK_CODES = new Set(['stompEmPick', 'bagPick', 'treasuresOfAeonsPick', 'methodicalDestructionPick', 'etherealEdictPick', 'targetedPurgePick', 'divineJudgementPick', 'toilEarnsPick', 'holyApparatusPick', 'archeotechReliquaryPick'])
 
 // ---------- generic ScoringRule.rule amounts ----------
 function tierPoints(tiers: Record<string, number>, die: number): number {
@@ -607,6 +608,8 @@ function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): num
     case 'prescribedExcoriation': return prescribedExcoriationAmount(s, rule, pid)
     case 'exploratorAcquisition': return exploratorAcquisitionAmount(ctx, rule, pid, (id) => holds(ctx, id, pid))
     case 'mvaHolyApparatus': return mvaHolyApparatusAmount(s, rule, pid)
+    case 'endlessHunt': return endlessHuntAmount(ctx, rule, pid, (id) => holds(ctx, id, pid))
+    case 'archeotechReliquaryScore': return archeotechReliquaryAmount(s, rule, pid, (id) => holds(ctx, id, pid))
     case 'divineJudgementScore': return divineJudgementAmount(s, rule, pid)
     case 'riseUp': return riseUpAmount(ctx, rule, pid, (id) => holds(ctx, id, pid))
     case 'willOfThePatriarch': return willOfThePatriarchAmount(s, rule, pid)
@@ -746,6 +749,7 @@ function runPick(ctx: EngineContext, rule: ScoringRule, pid: PlayerId, key: stri
   else if (rule.code === 'divineJudgementPick') divineJudgementOffer(ctx, pid, rule.when, key)
   else if (rule.code === 'toilEarnsPick') toilEarnsOffer(ctx, pid, rule.when, key)
   else if (rule.code === 'holyApparatusPick') holyApparatusOffer(ctx, pid, rule.when, key)
+  else if (rule.code === 'archeotechReliquaryPick') archeotechReliquaryOffer(ctx, pid, rule.when, key)
 }
 
 // ---------- MissionRule (non-scoring) codes ----------

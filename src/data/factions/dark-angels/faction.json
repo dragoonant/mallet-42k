@@ -1,0 +1,23 @@
+{
+  "id": "dark-angels",
+  "name": "Dark Angels",
+  "factionKeyword": "ADEPTUS ASTARTES",
+  "armyRule": "sm.a.oath-of-moment",
+  "detachments": [
+    {
+      "id": "da.d.mordekais-judgement",
+      "name": "Mordekai's Judgement",
+      "rule": "sm.a.oath-of-moment",
+      "stratagems": ["da.s.mj-unyielding", "da.s.mj-march-of-vengeance", "da.s.mj-relic-munitions"],
+      "enhancements": ["da.e.stoic-exemplar", "da.e.zealous-wrath"]
+    }
+  ],
+  "paintScheme": {
+    "primary": "#1f3b2a",
+    "secondary": "#d9cfb4",
+    "trim": "#8e1b1b",
+    "metal": "#8a8f98",
+    "decal": "#d9cfb4"
+  },
+  "combatPatrols": ["da.cp.mordekais-judgement"]
+}

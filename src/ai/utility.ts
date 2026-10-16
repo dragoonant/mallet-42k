@@ -547,6 +547,19 @@ function scoreChooseOption(state: GameState, pending: PendingDecision, action: A
     const rendax = katahPrefersRendax(state, pending.player, pending.context.unitId ?? null)
     score += (action.optionId === 'rendax') === rendax ? 2 : 0
   }
+  // Dark Angels Archeotech Reliquary: the opponent picks the marker the owner must hold at battle end; choose the one nearest our
+  // own models and farthest from theirs, so it is the easiest to deny.
+  if (code === 'archeotechReliquaryPick') {
+    const o = state.objectives[action.optionId]
+    if (o) {
+      const nearest = (p: PlayerId): number => {
+        let best = 60
+        for (const u of boardUnitsOf(state, p)) for (const m of unitModels(state, u.id)) best = Math.min(best, Math.hypot(m.pos.x - o.pos.x, m.pos.z - o.pos.z))
+        return best
+      }
+      score += (60 - nearest(pending.player)) * 0.04 + nearest(other(pending.player)) * 0.02
+    }
+  }
   // Astra Militarum Voice of Command: prefer Take Aim! on gunlines, Move! Move! Move! on units that need to cross the board,
   // Take Cover! on units with a poor save under fire; an Order to every unit (Command Laurels) is always good value.
   if (code === 'voiceOfCommand' && action.optionId !== 'decline') {

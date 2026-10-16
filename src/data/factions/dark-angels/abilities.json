@@ -1,0 +1,11 @@
+[
+  {
+    "id": "da.a.litany-of-hate",
+    "name": "Litany of Hate",
+    "text": "While this model leads a unit, every melee attack made by a model in that unit, the leader included, adds 1 to its wound roll.",
+    "trigger": "woundRoll",
+    "when": { "weaponType": "melee" },
+    "effect": { "modifyRoll": { "roll": "wound", "value": 1 } },
+    "scope": { "who": "self" }
+  }
+]

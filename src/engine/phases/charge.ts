@@ -53,7 +53,7 @@ import type { Action, ModelPlacement } from '../actions'
 import {
   EngineInvariantError,
   type ChargeState, type DeclaredTarget, type GameState, type Model, type Path, type PendingDecision,
-  type Rejection, type UnitId, type Vec3,
+  type PlayerId, type Rejection, type UnitId, type Vec3,
 } from '../types'
 
 // ---------- boolean progress markers (phaseState.marks; unit ids are unique per game so these never collide across
@@ -624,6 +624,37 @@ function doChargeMove(ctx: EngineContext, charge: ChargeState): 'pending' {
   return 'pending'
 }
 
+// E1 (DA Stoic Exemplar): turn-scoped log of completed Charge moves (normal charges and Heroic Interventions)
+// stored in state.mission.custom[CHARGE_LOG_KEY]; a log whose round/turn differ from the current ones is stale and empty
+export const CHARGE_LOG_KEY = 'chargeLog'
+export interface ChargeLog { round: number; turn: PlayerId; pairs: { charger: UnitId; target: UnitId }[] }
+
+function peekChargeLog(state: GameState): ChargeLog | null {
+  const log = (state.mission.custom as Record<string, unknown>)[CHARGE_LOG_KEY] as ChargeLog | undefined
+  if (!log || log.round !== state.round || log.turn !== state.activePlayer) return null
+  return log
+}
+
+// canonical ids of every unit that ended a Charge move this turn with `unitId` (either half) among its charge targets
+export function chargersIntoThisTurn(state: GameState, unitId: UnitId): UnitId[] {
+  const log = peekChargeLog(state)
+  if (!log) return []
+  const out: UnitId[] = []
+  for (const p of log.pairs) {
+    if (leaderService.sameUnit(state, p.target, unitId) && !out.includes(p.charger)) out.push(p.charger)
+  }
+  return out
+}
+
+// called from applyChargeMove after the models are placed
+function recordChargeTargets(state: GameState, chargerUnitId: UnitId, targetUnitIds: UnitId[]): void {
+  const custom = state.mission.custom as Record<string, unknown>
+  let log = peekChargeLog(state)
+  if (!log) { log = { round: state.round, turn: state.activePlayer, pairs: [] }; custom[CHARGE_LOG_KEY] = log }
+  const charger = leaderService.canonicalUnitId(state, chargerUnitId)
+  for (const t of targetUnitIds) log.pairs.push({ charger, target: leaderService.canonicalUnitId(state, t) })
+}
+
 function applyChargeMove(ctx: EngineContext, charge: ChargeState, action: Extract<Action, { type: 'chargeMove' }>): Rejection | void {
   const s = ctx.state
   const geo = chargeGeometry(s, charge.unitId, charge.targetUnitIds)
@@ -642,6 +673,7 @@ function applyChargeMove(ctx: EngineContext, charge: ChargeState, action: Extrac
     type: 'ChargeMoved', unitId: charge.unitId,
     paths: Object.fromEntries(check.resolved.filter((r) => r.distance > EPS).map((r) => [r.model.id, r.path])),
   })
+  recordChargeTargets(s, charge.unitId, charge.targetUnitIds)
   cultAmbushOnMoveEnded(ctx, charge.unitId)
   ctx.once(`ch:applied:${charge.unitId}`)
 }

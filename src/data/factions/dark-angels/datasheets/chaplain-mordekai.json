@@ -1,0 +1,26 @@
+[
+  {
+    "id": "da.chaplain-mordekai",
+    "faction": "dark-angels",
+    "name": "Chaplain Mordekai",
+    "keywords": ["CHARACTER", "IMPERIUM", "TACTICUS", "CHAPLAIN", "MORDEKAI"],
+    "factionKeywords": ["ADEPTUS ASTARTES", "DARK ANGELS"],
+    "stats": { "M": 6, "T": 4, "Sv": 3, "W": 4, "Ld": 5, "OC": 1 },
+    "invuln": 4,
+    "composition": [
+      {
+        "modelId": "mordekai",
+        "name": "Chaplain Mordekai",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "round", "mm": 40 },
+        "weapons": { "default": ["da.w.absolvor-bolt-pistol", "da.w.crozius-arcanum"] },
+        "figure": { "archetype": "infantry", "kit": "sm-tacticus" }
+      }
+    ],
+    "abilities": ["sm.a.oath-of-moment"],
+    "coreAbilities": [ { "ability": "LEADER" } ],
+    "leader": { "attachTo": ["da.intercessor-squad"], "effects": ["da.a.litany-of-hate"] },
+    "points": [ { "models": 1, "points": 0 } ],
+    "figure": { "archetype": "infantry", "kit": "sm-tacticus" }
+  }
+]

@@ -101,7 +101,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
     withIt = incomingDamage(state, attackerId, mineId, false, { ...base, hitMod: -1, fnp: 5 })
   } else if (id.endsWith('hyper-reactive') || id.endsWith('lurking-killers') || id.endsWith('quicksilver-reactions') || id.endsWith('whip-fast-reactions')) {
     withIt = incomingDamage(state, attackerId, mineId, melee, { ...base, hitMod: -1 })
-  } else if (id.endsWith('lives-before-territory') || id.endsWith('mutant-cunning')) {
+  } else if (id.endsWith('lives-before-territory') || id.endsWith('mutant-cunning') || id.endsWith('mj-relic-munitions')) {
     if (melee) return -Infinity
     withIt = incomingDamage(state, attackerId, mineId, false, { ...base, cover: true })
   } else if (id.endsWith('skeinwrought-physiology')) {
@@ -132,7 +132,7 @@ function defensiveGain(state: GameState, player: PlayerId, pending: PendingDecis
 }
 
 const DEFENSIVE = ['skeinwrought-physiology', 'go-to-ground', 'smokescreen', 'gene-wrought-resilience', 'tough-as-squig-hide', 'holy-radiance', 'hyper-reactive',
-  'mercurial-resilience', 'reactive-field-shroud', 'a-martyrs-death', 'a-warriors-death', 'daemonic-fervour', 'blood-maddened-banishment', 'manifest-hate', 'lurking-killers', 'lives-before-territory', 'quicksilver-reactions', 'whip-fast-reactions', 'evaluation-of-mettle', 'disgustingly-resilient', 'mutant-cunning']
+  'mercurial-resilience', 'reactive-field-shroud', 'a-martyrs-death', 'a-warriors-death', 'daemonic-fervour', 'blood-maddened-banishment', 'manifest-hate', 'lurking-killers', 'lives-before-territory', 'quicksilver-reactions', 'whip-fast-reactions', 'evaluation-of-mettle', 'disgustingly-resilient', 'mutant-cunning', 'mj-relic-munitions']
 
 // Fire Overwatch: hits only on an unmodified 6, the bound unit only (picked within 24"), each weapon within its own range, with line of sight.
 function overwatchGain(state: GameState, player: PlayerId, action: UseStratagemAction, enemyId: UnitId): number {
@@ -236,8 +236,8 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
   }
   // Necron Will of the Overlord: +1 OC for a unit on a scoring objective that is contested or about to be. Custodes Inescapable
   // Vengeance (Command phase, lasts through the opponent's turn) is the same play, also for a unit within a move (6") of such an objective.
-  if (id.endsWith('will-of-the-overlord') || id.endsWith('inescapable-vengeance')) {
-    const slack = id.endsWith('inescapable-vengeance') ? 6 : 0
+  if (id.endsWith('will-of-the-overlord') || id.endsWith('inescapable-vengeance') || id.endsWith('mj-unyielding')) {
+    const slack = id.endsWith('inescapable-vengeance') || id.endsWith('mj-unyielding') ? 6 : 0
     const unitId = targets.unitIds?.[0]
     if (!unitId) return -Infinity
     const models = unitModels(state, unitId)
@@ -314,7 +314,7 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
     return best > 0.3 ? best : -Infinity
   }
   // T'au Fight by the Code / Adeptus Mechanicus Optimised Efficiency: a unit that Fell Back may still shoot (and charge); worth its best volley at any enemy it can reach.
-  if (id.endsWith('fight-by-the-code') || id.endsWith('optimised-efficiency') || id.endsWith('retrogradial-targeting')) {
+  if (id.endsWith('fight-by-the-code') || id.endsWith('optimised-efficiency') || id.endsWith('retrogradial-targeting') || id.endsWith('mj-march-of-vengeance')) {
     const unitId = targets.unitIds?.[0]
     if (!unitId || state.units[unitId]?.turn.moveType !== 'fallBack' || !hasAnyRangedWeapon(state, unitId)) return -Infinity
     let best = 0

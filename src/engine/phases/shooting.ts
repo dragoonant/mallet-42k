@@ -44,6 +44,27 @@ import {
   type Rejection, type RuntimeWeapon, type UnitId, type WeaponId,
 } from '../types'
 
+// E2 (DA March of Vengeance): turn-scoped list of canonical unit ids selected to shoot this turn (not Overwatch),
+// stored in state.mission.custom[SHOT_LOG_KEY]; stale when round/turn differ
+export const SHOT_LOG_KEY = 'shotLog'
+export interface ShotLog { round: number; turn: PlayerId; unitIds: UnitId[] }
+
+function peekShotLog(state: GameState): ShotLog | null {
+  const log = (state.mission.custom as Record<string, unknown>)[SHOT_LOG_KEY] as ShotLog | undefined
+  if (!log || log.round !== state.round || log.turn !== state.activePlayer) return null
+  return log
+}
+export function shotThisTurn(state: GameState, unitId: UnitId): boolean {
+  const log = peekShotLog(state)
+  return !!log && log.unitIds.includes(leaderService.canonicalUnitId(state, unitId))
+}
+function recordShot(state: GameState, unitId: UnitId): void {
+  let log = peekShotLog(state)
+  if (!log) { log = { round: state.round, turn: state.activePlayer, unitIds: [] }; (state.mission.custom as Record<string, unknown>)[SHOT_LOG_KEY] = log }
+  const id = leaderService.canonicalUnitId(state, unitId)
+  if (!log.unitIds.includes(id)) log.unitIds.push(id)
+}
+
 // ---------- single-value progress markers (phaseState.marks; reset every time the phase is entered) ----------
 function readMark(state: GameState, key: string): string | null {
   const prefix = `${key}=`
@@ -567,6 +588,7 @@ export const shootingModule: PhaseModule = {
       if (action.targets.length === 0) { s.step = 'selectUnit'; return }
       // R-6.1: each unit shoots at most once per phase
       for (const id of leaderService.halves(s, action.unitId)) s.units[id].turn.shotThisPhase = true
+      recordShot(s, action.unitId)
       // E-PEN2: Firing Deck passengers fired through the transport; their units are spent for the phase
       for (const t of action.targets) {
         const mu = s.models[t.modelId]?.unitId
@@ -576,6 +598,7 @@ export const shootingModule: PhaseModule = {
             if (saved) s.phaseState.marks.push(`${ANCHOR_PREFIX}${t.modelId}=${JSON.stringify(saved)}`)
           }
           for (const id of leaderService.halves(s, mu)) s.units[id].turn.shotThisPhase = true
+          recordShot(s, mu)
         }
       }
       const targets: DeclaredTarget[] = action.targets.map((t) => ({ modelId: t.modelId, weaponId: t.weaponId, targetUnitId: t.targetUnitId, profileGroup: t.profileGroup ?? null, attacks: null }))

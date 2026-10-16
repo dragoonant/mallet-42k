@@ -1,0 +1,85 @@
+{
+  "id": "da.cp.mordekais-judgement",
+  "faction": "dark-angels",
+  "name": "Mordekai's Judgement",
+  "detachment": "da.d.mordekais-judgement",
+  "units": [
+    {
+      "ref": "chaplain-mordekai",
+      "datasheet": "da.chaplain-mordekai",
+      "size": 1,
+      "enhancement": "da.e.stoic-exemplar",
+      "attachTo": "intercessor-squad"
+    },
+    {
+      "ref": "intercessor-squad",
+      "datasheet": "da.intercessor-squad",
+      "size": 5
+    },
+    {
+      "ref": "inceptor-squad",
+      "datasheet": "da.inceptor-squad",
+      "size": 3
+    },
+    {
+      "ref": "redemptor-dreadnought",
+      "datasheet": "da.redemptor-dreadnought",
+      "size": 1
+    }
+  ],
+  "stratagems": ["da.s.mj-unyielding", "da.s.mj-march-of-vengeance", "da.s.mj-relic-munitions"],
+  "enhancements": [
+    { "id": "da.e.stoic-exemplar", "default": true },
+    { "id": "da.e.zealous-wrath", "default": false }
+  ],
+  "secondaries": [
+    {
+      "id": "da.sec.endless-hunt",
+      "name": "Endless Hunt",
+      "text": "From battle round 2, at the end of each of your turns, consider each objective marker you control outside your deployment zone that a non-Battle-shocked INTERCESSOR SQUAD unit of yours is within range of (an attached leader in range counts). Score 5 victory points if one is in your opponent's deployment zone, otherwise 3 if there is one. One award per turn.",
+      "default": true,
+      "scoring": [
+        {
+          "id": "endless-hunt",
+          "when": "turn.end",
+          "rounds": { "from": 2, "to": 5 },
+          "who": "active",
+          "rule": "custom",
+          "pointsPer": 3,
+          "cap": 5,
+          "code": "endlessHunt",
+          "params": { "enemyZonePoints": 5, "keyword": "INTERCESSOR SQUAD" }
+        }
+      ]
+    },
+    {
+      "id": "da.sec.archeotech-reliquary",
+      "name": "Archeotech Reliquary",
+      "text": "At the start of battle round 1 your opponent picks one objective marker on the board. At the end of the battle, score 10 victory points if you control that marker; otherwise nothing.",
+      "default": false,
+      "scoring": [
+        {
+          "id": "archeotech-reliquary-pick",
+          "when": "round.start",
+          "rounds": { "from": 1, "to": 1 },
+          "who": "both",
+          "rule": "custom",
+          "pointsPer": 0,
+          "cap": 0,
+          "code": "archeotechReliquaryPick"
+        },
+        {
+          "id": "archeotech-reliquary",
+          "when": "battle.end",
+          "rounds": { "from": 1, "to": 5 },
+          "who": "both",
+          "rule": "custom",
+          "pointsPer": 10,
+          "cap": 10,
+          "code": "archeotechReliquaryScore"
+        }
+      ]
+    }
+  ],
+  "warlord": "chaplain-mordekai"
+}

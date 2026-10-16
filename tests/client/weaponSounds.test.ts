@@ -33,7 +33,7 @@ const WE = 'world-eaters'
 const CDM = 'chaos-daemons'
 
 /** The engine faction id a weapon's own id prefix belongs to. */
-const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : id.startsWith('lov.') ? LOV : id.startsWith('drk.') ? DRK : id.startsWith('ael.') ? 'aeldari' : id.startsWith('adm.') ? ADM : id.startsWith('dg.') ? 'death-guard' : id.startsWith('we.') ? WE : id.startsWith('ths.') ? 'thousand-sons' : id.startsWith('cdm.') ? CDM : id.startsWith('sw.') ? 'space-wolves' : SM)
+const factionOfWeapon = (id: string): string => (id.startsWith('ork') ? ORK : id.startsWith('nec') ? NEC : id.startsWith('csm') ? CSM : id.startsWith('tyr') ? TYR : id.startsWith('ade') ? ADE : id.startsWith('am.') ? AM : id.startsWith('gk.') ? GK : id.startsWith('tau.') ? TAU : id.startsWith('gsc.') ? GSC : id.startsWith('cus.') ? 'adeptus-custodes' : id.startsWith('lov.') ? LOV : id.startsWith('drk.') ? DRK : id.startsWith('ael.') ? 'aeldari' : id.startsWith('adm.') ? ADM : id.startsWith('dg.') ? 'death-guard' : id.startsWith('we.') ? WE : id.startsWith('ths.') ? 'thousand-sons' : id.startsWith('cdm.') ? CDM : id.startsWith('sw.') ? 'space-wolves' : id.startsWith('da.') ? 'dark-angels' : SM)
 function lookupFor(faction: string): SoundLookup {
   return { weapon: (id) => bundle.weapons[id], factionOfUnit: () => faction }
 }
@@ -71,6 +71,17 @@ const EXPECTED: Record<string, WeaponFlavour> = {
   'sm.w.marksman-bolt-carbine': 'bolter',
   'sm.w.accelerator-autocannon': 'heavy',
   'sm.w.paired-combat-blades': 'chain',
+  // Dark Angels (da.*): the Redemptor's macro plasma incinerator is a plasma gun, not a flame template.
+  'da.w.absolvor-bolt-pistol': 'bolter',
+  'da.w.crozius-arcanum': 'chain',
+  'da.w.bolt-rifle': 'bolter',
+  'da.w.assault-bolters': 'bolter',
+  'da.w.icarus-rocket-pod': 'heavy',
+  'da.w.macro-plasma-incinerator': 'heavy',
+  'da.w.macro-plasma-incinerator-supercharge': 'heavy',
+  'da.w.onslaught-gatling-cannon': 'heavy',
+  'da.w.twin-fragstorm-grenade-launcher': 'heavy',
+  'da.w.redemptor-fist': 'crush',
   'ork.w.shoota': 'shoota',
   'ork.w.big-shoota': 'shoota',
   'ork.w.big-shoota-gordrang': 'shoota',

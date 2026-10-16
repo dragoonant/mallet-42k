@@ -61,6 +61,7 @@ const FACTION_COLOR: Record<string, string> = {
   'space-wolves': '#8fb3d9',
   'thousand-sons': '#5ad1e6',
   'chaos-daemons': '#e0362a',
+  'dark-angels': '#4fdc8a',
 }
 
 const NEUTRAL_MELEE_COLOR = '#e8e8f0'

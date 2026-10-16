@@ -1,0 +1,24 @@
+[
+  {
+    "id": "da.inceptor-squad",
+    "faction": "dark-angels",
+    "name": "Inceptor Squad",
+    "keywords": ["INFANTRY", "JUMP PACK", "FLY", "IMPERIUM", "GRAVIS", "INCEPTOR SQUAD"],
+    "factionKeywords": ["ADEPTUS ASTARTES", "DARK ANGELS"],
+    "stats": { "M": 10, "T": 6, "Sv": 3, "W": 3, "Ld": 6, "OC": 1 },
+    "composition": [
+      {
+        "modelId": "inceptor",
+        "name": "Inceptor",
+        "min": 3, "max": 3, "default": 3,
+        "base": { "shape": "round", "mm": 40 },
+        "weapons": { "default": ["da.w.assault-bolters", "sm.w.close-combat-weapon"] },
+        "figure": { "archetype": "heavy", "kit": "sm-terminator" }
+      }
+    ],
+    "abilities": ["sm.a.oath-of-moment"],
+    "coreAbilities": [ { "ability": "DEEP_STRIKE" } ],
+    "points": [ { "models": 3, "points": 0 } ],
+    "figure": { "archetype": "heavy", "kit": "sm-terminator" }
+  }
+]

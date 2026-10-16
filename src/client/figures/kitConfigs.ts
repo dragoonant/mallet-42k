@@ -5,6 +5,11 @@ import type { ArtilleryConfig, BipedConfig, HoundConfig, KitId, VehicleConfig } 
 export const BODY_KIND: Record<KitId, 'biped' | 'vehicle' | 'swarm' | 'artillery' | 'hound'> = {
   'sm-tacticus': 'biped',
   'sm-terminator': 'biped',
+  'da-intercessor': 'biped',
+  'da-sergeant': 'biped',
+  'da-chaplain': 'biped',
+  'da-inceptor': 'biped',
+  'da-redemptor': 'biped',
   'ork-boy': 'biped',
   'ork-warboss': 'biped',
   'ork-deff-dread': 'biped',
@@ -196,6 +201,14 @@ export const BIPED_CONFIG: Partial<Record<KitId, BipedConfig>> = {
     hasCape: false,
     skin: 'none',
   },
+  // Dark Angels (deep green plate, bone secondary, red trim): Intercessors are plain bolt-rifle marines, the Sergeant a caped
+  // power-sword leader, Chaplain Mordekai a bone-vestmented crozius bearer, Inceptors hulking jump-pack Gravis marines with twin
+  // assault bolters, and the Redemptor a walking suit with a macro plasma incinerator and a crushing fist.
+  'da-intercessor': { headShape: 'marine-helmet', rightWeapon: 'bolt-rifle', leftWeapon: 'none', bulk: 1, hasBackpack: true, shoulderPads: 'small', hasCape: false, skin: 'none' },
+  'da-sergeant': { headShape: 'marine-helmet', rightWeapon: 'power-sword', leftWeapon: 'plasma-pistol', bulk: 1.05, hasBackpack: true, shoulderPads: 'large', hasCape: true, capeColor: 'trim', skin: 'none' },
+  'da-chaplain': { headShape: 'marine-helmet', rightWeapon: 'mace', leftWeapon: 'plasma-pistol', bulk: 1.1, hasBackpack: true, shoulderPads: 'large', hasCape: true, capeColor: 'secondary', tabard: true, skin: 'none' },
+  'da-inceptor': { headShape: 'marine-helmet', rightWeapon: 'storm-bolter', leftWeapon: 'storm-bolter', bulk: 1.35, hasBackpack: false, jumpPack: true, shoulderPads: 'large', hasCape: false, skin: 'none' },
+  'da-redemptor': { headShape: 'sentinel-cab', rightWeapon: 'power-fist', leftWeapon: 'plasma-cannon', bulk: 2.4, hasBackpack: true, shoulderPads: 'large', hasCape: false, skin: 'none', limbColor: 'primary', chestCore: true },
   'ork-boy': {
     headShape: 'ork-head',
     rightWeapon: 'choppa',

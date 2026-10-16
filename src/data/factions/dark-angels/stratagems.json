@@ -1,0 +1,60 @@
+[
+  {
+    "id": "da.s.mj-unyielding",
+    "faction": "dark-angels",
+    "name": "Unyielding",
+    "text": "Use in your Command phase, targeting one ADEPTUS ASTARTES INFANTRY unit from your army. Until the start of your next Command phase, add 1 to the Objective Control characteristic of every model in that unit.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["command"],
+    "window": ["command.start", "command.end"],
+    "who": "active",
+    "condition": { "phase": "command", "ownTurn": true },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "INFANTRY" }, "count": 1 }
+    ],
+    "effect": { "modifyStat": { "stat": "OC", "value": 1 } },
+    "scope": { "who": "self" },
+    "duration": "untilNextTurn",
+    "limit": "oncePerPhase"
+  },
+  {
+    "id": "da.s.mj-march-of-vengeance",
+    "faction": "dark-angels",
+    "name": "March of Vengeance",
+    "text": "Use in your Movement phase, just after an ADEPTUS ASTARTES INFANTRY unit from your army Falls Back. Until the end of the turn that unit is eligible to shoot or to declare a charge despite having Fallen Back, but not both: once it has been selected to shoot it may not declare a charge this turn.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["movement"],
+    "window": "movement.unitMoved",
+    "who": "active",
+    "condition": { "phase": "movement", "ownTurn": true },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "INFANTRY" }, "state": "justMoved", "count": 1 }
+    ],
+    "effect": [ { "shootAfterFallBack": true }, { "chargeAfterFallBack": true } ],
+    "scope": { "who": "self" },
+    "duration": "untilEndOfTurn",
+    "limit": "oncePerPhase",
+    "code": "marchOfVengeance"
+  },
+  {
+    "id": "da.s.mj-relic-munitions",
+    "faction": "dark-angels",
+    "name": "Relic Munitions",
+    "text": "Use in your opponent's Shooting phase, just after an enemy unit has chosen its targets. Pick one ADEPTUS ASTARTES INFANTRY unit from your army that was chosen as a target and is within range of an objective marker you control. Until the end of the phase, every attack against that unit has the Benefit of Cover.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["shooting"],
+    "window": "shooting.targetsDeclared",
+    "who": "reactive",
+    "condition": { "phase": "shooting", "ownTurn": false },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "INFANTRY", "within": { "of": "controlledObjective", "inches": 3 } }, "state": "targetedByAttack", "count": 1 }
+    ],
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase",
+    "code": "relicMunitions"
+  }
+]

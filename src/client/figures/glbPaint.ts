@@ -27,6 +27,7 @@ const SOURCE_HUES: Record<string, { major: string | null; minor: string | null }
   'world-eaters': { major: '#62252b', minor: '#7a6140' },
   'adeptus-mechanicus': { major: '#a4492f', minor: null },
   'chaos-daemons': { major: '#7b342d', minor: '#77603f' },
+  'dark-angels': { major: '#1f3b2a', minor: '#d9cfb4' },
 }
 
 function hsv(hex: string): [number, number, number] {

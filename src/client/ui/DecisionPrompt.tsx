@@ -494,6 +494,13 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
     },
   },
   {
+    match: /archeotech-reliquary/,
+    info: {
+      title: 'Archeotech Reliquary: name the relic site',
+      hint: 'Your opponent holds a secret relic objective, and you pick which objective marker it is. At the end of the battle they score 10 VP if they control that marker, so name the one they are least likely to hold.',
+    },
+  },
+  {
     match: /holy-apparatus-pick/,
     info: {
       title: 'Holy Apparatus: choose this round’s target',
@@ -606,7 +613,7 @@ function chooseOptionInfoFor(
   }
   const choice = context.data && typeof context.data.choice === 'string' ? CHOICE_PROMPT_KEYS[context.data.choice] : undefined
   // Both Cult Ambush steps (marker, return) carry the code; the return step has no ability id.
-  const key = context.data?.code === 'toilEarnsPick' ? 'toil-earns-pick' : context.data?.code === 'holyApparatusPick' ? 'holy-apparatus-pick' : context.data?.code === 'cultAmbush' ? 'cult-ambush' : context.data?.code === 'etherealEdictPick' ? 'ethereal-edict' : context.data?.code === 'divineJudgementPick' ? 'divine-judgement' : context.data?.code === 'targetedPurgePick' ? 'targeted-purge' : context.data?.code === 'doctrinaImperatives' ? 'doctrina' : context.data?.code === 'blessingsOfKhorne' ? 'blessings-of-khorne' : context.data?.code === 'lineBreakers' ? 'line-breakers' : context.data?.code === 'tirelessHunter' ? 'tireless-hunter' : context.abilityId ?? choice ?? null
+  const key = context.data?.code === 'toilEarnsPick' ? 'toil-earns-pick' : context.data?.code === 'archeotechReliquaryPick' ? 'archeotech-reliquary' : context.data?.code === 'holyApparatusPick' ? 'holy-apparatus-pick' : context.data?.code === 'cultAmbush' ? 'cult-ambush' : context.data?.code === 'etherealEdictPick' ? 'ethereal-edict' : context.data?.code === 'divineJudgementPick' ? 'divine-judgement' : context.data?.code === 'targetedPurgePick' ? 'targeted-purge' : context.data?.code === 'doctrinaImperatives' ? 'doctrina' : context.data?.code === 'blessingsOfKhorne' ? 'blessings-of-khorne' : context.data?.code === 'lineBreakers' ? 'line-breakers' : context.data?.code === 'tirelessHunter' ? 'tireless-hunter' : context.abilityId ?? choice ?? null
   if (choice === 'patrol-squads' && Array.isArray(context.data?.sizes)) {
     const sizes = (context.data.sizes as number[]).filter((n) => typeof n === 'number')
     if (sizes.length > 0) {
@@ -826,7 +833,7 @@ function labelForOption(pending: PendingDecision, state: GameState, events: read
         if (tr) return `Embark ${pending.context.unitId ? groupLabel(state, pending.context.unitId) : 'the unit'} into ${tr.name}`
       }
       if ((pending.context.data?.code === 'divineJudgementPick' || pending.context.data?.code === 'holyApparatusPick' || pending.context.data?.code === 'targetedPurgePick' || pending.context.data?.code === 'lineBreakers') && state.units[o.id]) return state.units[o.id].name
-      if (pending.context.data?.code === 'toilEarnsPick') return objectiveLabel(o.id)
+      if (pending.context.data?.code === 'toilEarnsPick' || pending.context.data?.code === 'archeotechReliquaryPick') return objectiveLabel(o.id)
       if (pending.context.abilityId && /grim-efficiency|outflanking-mag-riders/i.test(pending.context.abilityId) && state.units[o.id]) return state.units[o.id].name
       const pairLabel = pairOptionLabel(state, pending.context.abilityId, o.id)
       if (pairLabel) return pairLabel

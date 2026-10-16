@@ -272,6 +272,18 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ['hellblade', 'wpn-power-weapon'] as const,
   ['gore-drenched-fangs', 'wpn-talons'] as const,
   ['burning-roar', 'wpn-flamer'] as const,
+  // Dark Angels (Mordekai's Judgement): the absolvor barks like a bolt pistol, the bolt rifle like a boltgun, the crozius rings like a power weapon, assault bolters like storm bolters,
+  // the Redemptor's Icarus pod borrows the hunter-killer, its macro plasma thumps like a plasma cannon, the gatling rattles like an assault cannon,
+  // the fragstorm launcher pops like a grenade launcher and its fist crunches.
+  ['absolvor-bolt-pistol', 'wpn-bolt-pistol'] as const,
+  ['bolt-rifle', 'wpn-boltgun'] as const,
+  ['crozius-arcanum', 'wpn-power-weapon'] as const,
+  ['assault-bolters', 'wpn-storm-bolter'] as const,
+  ['icarus-rocket-pod', 'wpn-hunter-killer-missile'] as const,
+  ['macro-plasma-incinerator', 'wpn-plasma-cannon'] as const,
+  ['onslaught-gatling-cannon', 'wpn-assault-cannon'] as const,
+  ['fragstorm-grenade-launcher', 'wpn-grenade-launcher'] as const,
+  ['redemptor-fist', 'wpn-power-fist'] as const,
 ].sort((a, b) => b[0].length - a[0].length)
 
 const WEAPON_TRIM: Partial<Record<SfxId, number>> = {
@@ -373,6 +385,8 @@ const DEATH_SOUND: Record<string, SfxId> = {
   'chaos-daemons': 'death-chaos-space-marines',
   // Space Wolves fall with the same armoured-warrior cry as the Ultramarines-style Marines.
   'space-wolves': 'death-space-marines',
+  // Dark Angels are Space Marines and die like them.
+  'dark-angels': 'death-space-marines',
 }
 
 /** Measured decoded RMS runs 0.05-0.40 across these; the loud three are pulled back toward ~0.15. */
