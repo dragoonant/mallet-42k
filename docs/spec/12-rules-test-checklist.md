@@ -1090,3 +1090,33 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | PEN-025 | PEN-6.8 | (E-PEN2) Firing Deck 2: the Rhino shoots with up to 2 embarked models' ranged weapons; those passenger units cannot shoot afterwards |
 | PEN-026 | PEN-6 | weapons: plasma supercharge profile is Hazardous (Ellyrine BS 2+, Seraphim BS 3+); artificer storm bolter D2 Rapid Fire 2; neural whips Anti-Infantry 4+ (unmodified 4 vs INFANTRY is a critical wound); penitent eviscerator S6 AP−2 D2 |
 | PEN-027 | E-PEN3 | `unitHasModel` condition: true while a matching live model exists in the holder unit (attached halves included), false otherwise and for non-matching keys |
+
+## BLO — Blood Angels: Strike Force Marcellos (docs/spec/factions/blood-angels.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| BLO-001 | BLO-1 | patrol `ba.cp.strike-force-marcellos` loads under faction `blood-angels`: 5 units, 15 models; Marcellos WARLORD with Baalite Bladesman, attached to the Intercessors; start screen lists Blood Angels as its own faction |
+| BLO-002 | BLO-1.3 | data: no existing `sm.*` record changes; reused ids (`sm.a.oath-of-moment`, bolt pistol, Smite ×2, force weapon, ccw, storm bolter) resolve from the `ba` patrol; Octavius and Solarien still load unchanged |
+| BLO-003 | BLO-1.1 | Marcellos may attach only to `ba.intercessor-squad` (Incursors / Aggressors refused) |
+| BLO-004 | BLO-2.1 | Oath of Moment: Blood Angels player picks a target at own Command start; an Impulsor storm bolter attack against it may re-roll the hit |
+| BLO-005 | BLO-3.1 | Baalite Bladesman: attached Intercessor chainsword AP −2, ccw AP −1, Marcellos force weapon AP −2; ranged AP unchanged; unattached Intercessors unaffected |
+| BLO-006 | BLO-3.2 | Radiant Wrath: Smite (both profiles) critical-wounds a VEHICLE on 5+; an INFANTRY target still needs the normal roll; force weapon gains nothing |
+| BLO-007 | BLO-4.1 | Angelic Wrath: end of opponent's turn, controlled marker 5" from enemy zone → 4 VP; marker 7" away → 0; two qualifying markers → still 4; end of own turn → 0 |
+| BLO-008 | BLO-4.2 | Strategic Aggression pick at round 1 start: candidates are enemy MONSTER/VEHICLE models; with none, enemy CHARACTER models (not just the WARLORD); with none of either, no decision |
+| BLO-009 | BLO-4.2 | Strategic Aggression score at battle end only: picked model destroyed → 10 VP whoever killed it; alive → 0; Morgrim's Bag the Big 'Un unchanged (no `fallbackKeyword` → WARLORD fallback, 8/12 VP) |
+| BLO-010 | BLO-5.1 | Controlled Ferocity: enemy picks the Intercessors in the Fight phase (either turn) → offered; attacks against them −1 to hit; Impulsor not a legal target |
+| BLO-011 | BLO-5.2 | Harness the Flaw: not-yet-fought Aggressors re-roll wound 1s; vs a VEHICLE re-roll any failed wound; unit that already fought not offered; Impulsor never a target |
+| BLO-012 | BLO-5.3 | Rapid Strike: end of own Shooting, Incursors (or Intercessors + Marcellos) out of Engagement Range → Normal move up to 6"; Aggressors not offered; unit in Engagement Range not offered |
+| BLO-013 | BLO-5.3 | Rapid Strike restriction: the moved unit cannot declare a charge that turn; no embark offer at the end of the move |
+| BLO-014 | BLO-6 | Datasheet stats exact: Marcellos M6 T4 Sv3+ W4 Ld6+ OC1; Intercessors OC2 BATTLELINE; Aggressors M5 T6 W3; Impulsor M12 T9 W11 OC2 |
+| BLO-015 | BLO-6.1 | Mental Fortress: attached Intercessors and Marcellos save on 4+ invuln vs AP −3; unattached Marcellos has no invuln |
+| BLO-016 | BLO-6.2 | Multi-spectrum Array: Incursors hit one enemy → it is auto-marked; a later Aggressor/Intercessor attack on it this phase gets +1 to hit; next phase gone |
+| BLO-017 | BLO-6.2 | Multi-spectrum Array: two hit units → choice offered; an unhit unit is never a candidate; ±1 cap holds against a −1 to-hit defender; not triggered by Overwatch |
+| BLO-018 | BLO-6.3 | Impulsor transport: Intercessors (5) and Incursors (5) may embark; Aggressors (GRAVIS) refused; capacity 6 counts models (Intercessors + Incursors together refused) |
+| BLO-019 | BLO-6.3 | Firing Deck 6: Impulsor fires up to 6 embarked models' ranged weapons; those passenger units cannot shoot afterwards |
+| BLO-020 | BLO-6.3 | Impulsor Deadly Demise D3: on destruction a 6 deals D3 mortal wounds to each unit within 6"; passengers emergency-disembark |
+| BLO-021 | BLO-6.4 | Haywire Mine: start of a phase, enemy within 3" of the haywire Incursor → offer; 2+ deals D3 MW (2D3 to a VEHICLE); a 1 deals nothing and spends it; never offered again |
+| BLO-022 | BLO-6.4 | Haywire Mine: decline → offered again next phase; haywire model dead (other Incursors alive) → never offered; enemy 4" away → not offered |
+| BLO-023 | BLO-6 | Weapons: flamestorm gauntlets D6+1 Torrent Twin-linked Ignores Cover; bolt rifle Assault + Heavy AP −1; occulus carbine Assault Ignores Cover; paired blades Sustained Hits 1 A3 WS3+ |
+| BLO-024 | BLO-6 | Bellicatus array: exactly one of frag (Blast) / icarus (Anti-FLY 2+) / krak (D6 damage) per shooting; twin power fists WS4+ Twin-linked |
+| BLO-025 | BLO-6 | Incursor Scouts 6": pre-battle Scout move offered; Intercessors not offered |
+| BLO-026 | BLO-7 | Sim: a full Blood Angels vs Space Marines (and vs Orks) game runs to battle end with no invariant errors |
