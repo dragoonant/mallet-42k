@@ -233,6 +233,16 @@ export function startReactiveMove(ctx: EngineContext, unitId: UnitId, distance: 
   })
 }
 
+// CLA-6.1: an ability whose params carry forfeitCharge loses the unit's charge only when the reactive move is actually taken (passing keeps it)
+function forfeitChargeAfterReactiveMove(ctx: EngineContext, rv: ReactiveMove): void {
+  const s = ctx.state
+  if (!s.abilities[rv.source]?.params?.forfeitCharge) return
+  for (const half of leaderService.halves(s, rv.unitId)) {
+    if (s.units[half]?.location !== 'board') continue
+    ctx.services.effects.grant(ctx, half, [{ forbid: 'charge' }], { sourceAbilityId: rv.source, sourceUnitId: rv.unitId, scope: { who: 'self' }, duration: 'untilEndOfTurn', when: null })
+  }
+}
+
 // C6: legal actions for a reactive move decision, or null when the pending decision is not one (callers fall through)
 export function reactiveMoveLegalActions(state: GameState, pending: PendingDecision): Action[] | null {
   if (pending.kind !== 'moveUnit') return null
@@ -267,6 +277,7 @@ export function handleReactiveMove(ctx: EngineContext, action: Action, pending: 
     paths: Object.fromEntries(result.resolved.filter((r) => r.distance > EPS).map((r) => [r.model.id, r.path])), player: pending.player,
   })
   cultAmbushOnMoveEnded(ctx, rv.unitId)
+  forfeitChargeAfterReactiveMove(ctx, rv)
 }
 
 function reactiveCandidates(state: GameState, pending: Extract<PendingDecision, { kind: 'moveUnit' }>, rv: ReactiveMove): Action[] {
@@ -1242,6 +1253,7 @@ export const movementModule: PhaseModule = {
           paths: Object.fromEntries(result.resolved.filter((r) => r.distance > EPS).map((r) => [r.model.id, r.path])), player: pending.player,
         })
         cultAmbushOnMoveEnded(ctx, rv.unitId)
+        forfeitChargeAfterReactiveMove(ctx, rv)
         return
       }
       writeMark(s, 'mv:placements', JSON.stringify(action.placements))

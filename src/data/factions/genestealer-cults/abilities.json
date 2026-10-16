@@ -85,7 +85,7 @@
     "trigger": "always",
     "scope": { "who": "self" },
     "code": "masterOutrider",
-    "params": { "distance": 6 }
+    "params": { "distance": 6, "forfeitCharge": true }
   },
   {
     "id": "gsc.a.crossfire",

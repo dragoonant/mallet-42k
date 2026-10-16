@@ -13,8 +13,10 @@ import { stratagemService } from '../../src/engine/stratagems'
 import { weaponService } from '../../src/engine/weapons'
 import { attackService } from '../../src/engine/attack'
 import { fightOnDeathThreshold } from '../../src/engine/fight-on-death'
-import { isDeferredDead } from '../../src/engine/state'
+import { isDeferredDead, unitModelsForCoherency } from '../../src/engine/state'
 import { infiltrationAgendaAmount, safeguardTheSanctuaryAmount } from '../../src/engine/factions/genestealer-cults'
+import { handleReactiveMove } from '../../src/engine/phases/movement'
+import { translatePlacements } from '../../src/engine/phases/legal'
 import { placeUnit } from '../fixtures'
 
 let bundle: DataBundle
@@ -279,7 +281,7 @@ describe('Master Outrider', () => {
     answerOption(c.ctx, 'move')
     expect(s.pending?.kind).toBe('moveUnit')
     expect((s.pending as { constraints: { maxDistance: number } }).constraints.maxDistance).toBe(6)
-    expect(hookService.chargeForbidden(s, JACKALS)).toBe(true)
+    expect(hookService.chargeForbidden(s, JACKALS)).toBe(false)
 
     const d = makeState()
     deployShooters(d)
@@ -289,6 +291,32 @@ describe('Master Outrider', () => {
     answerOption(dc.ctx, 'decline')
     expect(d.pending).toBeNull()
     expect(hookService.chargeForbidden(d, JACKALS)).toBe(false)
+  })
+  it('CLA-025 the charge is lost only if the Outrider actually moves: pass keeps it, a real move forfeits it', () => {
+    const run = (move: boolean) => {
+      const s = makeState()
+      s.board = { ...s.board, pieces: {} }
+      deployShooters(s)
+      placeUnit(s, ENEMY, { x: 10, z: 0, gap: 0.3 })
+      const c = ctxOf(s)
+      hookService.offerPicks(c.ctx, 'shooting.attacksResolved', JACKALS)
+      answerOption(c.ctx, 'move')
+      const pending = s.pending as PendingDecision
+      expect(pending.kind).toBe('moveUnit')
+      expect(hookService.chargeForbidden(s, JACKALS)).toBe(false)
+      const unitId = (pending as { context: { unitId: string } }).context.unitId
+      s.pending = null
+      const pass = { type: 'pass', player: pending.player, decisionId: pending.id } as Action
+      if (!move) expect(handleReactiveMove(c.ctx, pass, pending)).toBeUndefined()
+      else {
+        expect(handleReactiveMove(c.ctx, {
+          type: 'moveUnit', player: pending.player, decisionId: pending.id, unitId, placements: translatePlacements(unitModelsForCoherency(s, unitId), 0, 4),
+        } as Action, pending)).toBeUndefined()
+      }
+      return hookService.chargeForbidden(s, JACKALS)
+    }
+    expect(run(false)).toBe(false)
+    expect(run(true)).toBe(true)
   })
   it('CLA-026 not offered while within Engagement Range, in the opponent\'s turn, or for a unit without the ability', () => {
     const engaged = makeState()

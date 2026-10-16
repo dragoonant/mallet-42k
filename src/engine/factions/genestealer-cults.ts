@@ -335,10 +335,7 @@ export function genestealerCultsHooks(): Record<string, EngineCodeHook> {
         const distance = (s.abilities[abilityId]?.params?.distance as number | undefined) ?? 6
         ctx.emit({ type: 'AbilityTriggered', abilityId, sourceUnitId: cu, targetUnitId: null, summary: `Master Outrider: ${s.units[cu].name} moves up to ${distance}"`, player: pending.player })
         startReactiveMove(ctx, cu, distance, abilityId, 'shooting.attacksResolved')
-        // CLA-6.1: passing the reactive move still leaves the no-charge cost in place (conservative; a unit with no legal placement can always pass)
-        for (const half of boardHalves(s, cu)) {
-          ctx.services.effects.grant(ctx, half, [{ forbid: 'charge' }], { sourceAbilityId: abilityId, sourceUnitId: cu, scope: { who: 'self' }, duration: 'untilEndOfTurn', when: null })
-        }
+        // CLA-6.1: the no-charge cost is applied by the reactive move's resolution (params.forfeitCharge), so passing keeps the charge
       },
     },
   }
