@@ -1120,3 +1120,33 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | BLO-024 | BLO-6 | Bellicatus array: exactly one of frag (Blast) / icarus (Anti-FLY 2+) / krak (D6 damage) per shooting; twin power fists WS4+ Twin-linked |
 | BLO-025 | BLO-6 | Incursor Scouts 6": pre-battle Scout move offered; Intercessors not offered |
 | BLO-026 | BLO-7 | Sim: a full Blood Angels vs Space Marines (and vs Orks) game runs to battle end with no invariant errors |
+
+## SPA — Space Wolves: Thoryk's Void Hunters (docs/spec/factions/space-wolves.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| SPA-001 | SPA-1 | patrol `sw.cp.thoryks-void-hunters` loads (default): faction `space-wolves`, 4 units, 17 models; Thoryk is WARLORD with Tireless Hunter, attached to the Intercessor Squad; default secondary Mighty Saga; stratagems are the three `sw.s.*` ids; SM patrols still load unchanged |
+| SPA-002 | SPA-1.2, 6.6 | Patrol Squads split → Intercessors become two 5-model units (sergeant in half A); Thoryk may attach to either half |
+| SPA-003 | SPA-6 | data: every stat/profile row of §6 matches (Intercessor OC 2; Invictor T8 W12 OC4; twin ironhail autocannon S9 D3 Twin-linked); reused `sm.*` ids are unchanged; every `sw.*` id is unique |
+| SPA-004 | SPA-2.1 | Oath of Moment: an Invictor or Intercessor attack vs the Oath target re-rolls the hit roll (shared `sm.a.oath-of-moment`) |
+| SPA-005 | SPA-1.4 | start screen lists Space Wolves as its own faction; a Space Wolves player can face a Space Marines player |
+| SPA-006 | SPA-6.5 | Scouts: Reivers offered a 6" Scouts move, the Invictor an 8" one; Reivers in Reserves (Deep Strike) are not offered Scouts |
+| SPA-007 | SPA-6.3 | Deep Strike: Reivers may be set up in Reserves and arrive >9" from enemies from round 2; Intercessors, Thoryk, Invictor may not |
+| SPA-008 | SPA-3.1 | Tireless Hunter: round 1 start → pick offered to the SW player (one option per enemy unit); Thoryk's attack vs the picked unit gets +1 to wound (S4 vs T4: 3+ instead of 4+), ranged and melee |
+| SPA-009 | SPA-3.1 | Tireless Hunter: Intercessor attacks vs the picked unit get no bonus; Thoryk vs another unit gets none; not offered again in round 2; bonus still live in round 3 |
+| SPA-010 | SPA-3.2 | Ferocious: Heroic Intervention on Thoryk's unit costs 0 CP and is allowed after HI was already used on another unit this phase; on another unit it costs 1 CP |
+| SPA-011 | SPA-4.1 | Mighty Saga: round 1 start pick lists only enemy CHARACTER/MONSTER/VEHICLE models; picked model destroyed by Reivers → 8 VP at battle end; not destroyed → 0 |
+| SPA-012 | SPA-4.1 | Mighty Saga: picked model's unit destroyed by Thoryk's own attack → 12 VP; destroyed by an Intercessor of Thoryk's attached unit → 8 VP; Morgrim's Bag the Big 'Un unchanged |
+| SPA-013 | SPA-4.2 | Reiving Conquerors: end of the opponent's turn, 1 v 1 No Man's Land markers → 3 VP; 2 v 1 → 3; 1 v 2 → 0; 0 v 0 → 0; home markers ignored; round 1 counts |
+| SPA-014 | SPA-4.2 | Reiving Conquerors: end of the SW player's own turn → 0 |
+| SPA-015 | SPA-5.1 | A Warrior's Death: enemy fights the targeted Intercessors; destroyed not-yet-fought model rolls 4+ → stays, fights after the enemy unit finishes, then is removed; roll 3 → removed at once; no Miracle-die prompt |
+| SPA-016 | SPA-5.1 | A Warrior's Death not offered in the Shooting phase; a model whose unit already fought this phase gets no roll |
+| SPA-017 | SPA-5.2 | Keen Senses: target in cover gets no +1 save vs the unit's ranged attacks; hit roll of 1 vs a CHARACTER unit is re-rolled; vs a non-CHARACTER unit it is not; not offered for a unit that already shot; expires at phase end |
+| SPA-018 | SPA-5.3 | Pack Ambush: after Reivers shoot and hit an enemy unit → offered; enemy Battle-shock test subtracts 2 (2D6 = 8 vs Ld 6+ with −2 → 6 → passes; 7 −2 → 5 → fails) |
+| SPA-019 | SPA-5.3 | Pack Ambush not offered: enemy not hit by the Reivers; enemy within Engagement Range of the Reivers; after a non-Reiver unit shoots |
+| SPA-020 | SPA-6.1 | Target Priority: Thoryk's unit Falls Back, then may shoot and declare a charge that turn; Intercessors alone may not |
+| SPA-021 | SPA-6.2 | Fearsome Assault: at the start of either Fight phase each enemy unit in Engagement Range of the Reivers takes one Battle-shock test; unengaged enemies do not |
+| SPA-022 | SPA-6.4 | Damaged: Invictor at 4 W hits on 4+ with BS 3+ weapons; at 5 W on 3+ |
+| SPA-023 | SPA-6 | weapons: twin ironhail heavy stubber at half range → 6 shots, failed wound rolls re-rolled (Twin-linked); fragstorm Blast +1 A per 5 target models; Reiver pistol and knife Precision allocate to a visible CHARACTER |
+| SPA-024 | SPA-6 | bolt rifle: Intercessors Advance and still shoot (Assault); stationary → +1 to hit (Heavy) |
+| SPA-025 | SPA-6.5 | Invictor Deadly Demise D3: on death roll 6 → D3 mortal wounds to each unit within 6" |
+| SPA-026 | E1 | Pouncing Leap (Tyranids) cost override unchanged; an enhancement override applies only while its bearer is alive and in the target unit |
