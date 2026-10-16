@@ -916,3 +916,39 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | TRI-018 | TRI-6.3 | balistus grenade launcher: D6 attacks +2 against a 10-model unit (Blast); cannot target a unit engaged with a friendly unit |
 | TRI-019 | TRI-6 | Wardens wargear as built: axe model has castellan axe ranged 24" A2 and melee A4 S9 AP−1 D3; spear models use reused guardian spear profiles |
 | TRI-020 | TRI-6 | Dacatarai on Hurricanus does not stack a second Sustained Hits; Rendax on Hurricanus gives both Lethal and Sustained |
+
+## SDC — T'au Empire: Sudden Dawn Cadre (docs/spec/factions/tau-empire--sudden-dawn-cadre.md)
+| ID | Ref | Scenario → expected |
+|---|---|---|
+| SDC-001 | SDC-1 | patrol loads: 4 units, 22 models; Cloudspear WARLORD with Electro-static Flares; default secondary Surprise Attack; first patrol's data unchanged |
+| SDC-002 | SDC-1.1 | Patrol Squads split: half A = Shas'ui + 4 carbines (has grav-inhibitor), half B = 3 rail rifles + 2 carbines |
+| SDC-003 | SDC-2.1 | FtGG: Breachers observing for Pathfinders → Guided attacks vs Spotted gain Ignores Cover; Devilfish observing → no Ignores Cover |
+| SDC-004 | SDC-2.2 | an embarked unit is never offered as Observer nor gets an FtGG pick |
+| SDC-005 | SDC-3 | Flares: Cloudspear has 4+ invuln; ranged attacks vs Breachers within 6" of Cloudspear −1 to hit; at 6.1" no penalty; Devilfish within 6" no penalty |
+| SDC-006 | SDC-3.1 | Flares −1 plus target Stealth/Go to Ground-style −1 still capped at −1 |
+| SDC-007 | SDC-3.2 | Flares: Fire Overwatch not offered against a T'au unit moving/charging within 6" of Cloudspear; offered against the Devilfish and against units beyond 6" |
+| SDC-008 | SDC-3 | Prototype Systems: 4+ invuln; one failed hit die re-rolled per activation (second batch gets no offer after use); one failed wound die likewise |
+| SDC-009 | SDC-3.3 | Prototype Systems: declining the hit re-roll in the projector batch keeps it for the plasma rifle batch of the same activation; next phase it is available again |
+| SDC-010 | SDC-3 | Prototype Systems: the projector's D6 Attacks roll may be re-rolled; plasma rifle has no attacks roll offer |
+| SDC-011 | SDC-4.1 | Surprise Attack: end of own turn round 1 controlling 2 NML markers → 8 VP; a home-DZ marker scores nothing; opponent's turn end scores nothing |
+| SDC-012 | SDC-4.2 | Surprise Attack: round 3 with 2 NML markers → 4 VP; round 5 with 3 NML markers → 5 VP (cap) |
+| SDC-013 | SDC-4.3 | Ethereal Edict: start of round 1 the opponent (not the owner) gets the pick over their own canonical units (attached pair once, Reserves included) |
+| SDC-014 | SDC-4.3 | Ethereal Edict: chosen unit destroyed by battle end → +12 VP; alive → 0; attached pair with only the bodyguard dead → 0 |
+| SDC-015 | SDC-5.1 | Fight by the Code: a unit that Fell Back shoots after the stratagem; not offered for a unit that did not Fall Back; without it a Fell-Back unit cannot shoot |
+| SDC-016 | SDC-5.2 | Rampart of Fire: pulse carbine vs a target 9" away resolves AP −1; vs a target 11" away AP 0; not offered for a unit that already shot |
+| SDC-017 | SDC-5 | Lives Before Territory: after an enemy declares shots at the Pathfinders, they move up to the rolled D6" and every attack against them that phase gets Benefit of Cover (AP 0 vs Sv 4+ → saves on 3+) |
+| SDC-018 | SDC-5.3 | Lives Before Territory: not offered for the Devilfish, for an untargeted unit, for a unit in Engagement Range, or in own turn |
+| SDC-019 | SDC-5.4 | Lives Before Territory: target moves out of a pulse rifle's range → that model's attacks are dropped; models still in range resolve normally; Indirect Fire attacks are not dropped for lost visibility |
+| SDC-020 | SDC-6.1 | Cloudspear starts at W 8 |
+| SDC-021 | SDC-6.2 | Weapon Support System: Cloudspear vs a −1-to-hit target hits on its BS unmodified; Indirect projector vs unseen target ignores the −1 but an unmodified 1–3 still fails |
+| SDC-022 | SDC-6.3 | Grav-inhibitor: enemy charges half A → 2D6 9 becomes 7; charging half B (no drone) → 9 |
+| SDC-023 | SDC-6.3 | Grav-inhibitor not cumulative: plus Laser-Marked-style −2 → total −2; with a −1 → −2; positive +1 still added (−2 + 1 = −1) |
+| SDC-024 | SDC-6.3 | Grav-inhibitor ends once the Shas'ui is destroyed |
+| SDC-025 | SDC-6.4 | Breach and Clear: Breacher ranged attack vs a unit within range of a marker re-rolls failed wounds (and may re-roll a success); vs a unit off-marker no re-roll; melee unaffected |
+| SDC-026 | SDC-6.5 | Scouts 7": Pathfinders make a pre-battle move ending > 9" from enemies; embarked alone in the Devilfish → the Devilfish may make it instead |
+| SDC-027 | SDC-6.7 | Transport setup: Breachers start embarked (not offered in deployment); 10 Breachers + 5 Pathfinders rejected (15 > 12); Cloudspear (BATTLESUIT) rejected |
+| SDC-028 | SDC-6.7 | Disembark: Devilfish not yet moved → Breachers placed wholly within 3", then must move (no Remain Stationary); after the Devilfish moved → counts as Normal move, cannot charge; Devilfish Advanced → no disembark |
+| SDC-029 | SDC-6.7 | Embark: Pathfinders end a Normal move with every model within 3" of the Devilfish → embark offered; one model at 3.1" → not offered; embarked units give no OC |
+| SDC-030 | SDC-6.8 | Devilfish destroyed with passengers: Deadly Demise first, then passengers placed within 3", D6 per model (1 = MW), unit Battle-shocked and cannot charge |
+| SDC-031 | SDC-6 | weapons: rail rifle Heavy +1 hit when stationary and Devastating Wounds on a crit wound; pulse blaster Assault after Advance; twin pulse carbine Twin-linked wound re-roll; projector Blast +1 A per 5 models |
+| SDC-032 | SDC-6 | Deep Strike: Cloudspear may start in Reserves (not round 1, >9" from enemies); Devilfish may not |
