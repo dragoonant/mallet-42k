@@ -83,6 +83,12 @@ export const BODY_KIND: Record<KitId, 'biped' | 'vehicle' | 'swarm' | 'artillery
   'ade-sister-simulacrum': 'biped',
   'ade-sacresant': 'biped',
   'ade-arco': 'biped',
+  'ade-seraphim': 'biped',
+  'ade-seraphim-superior': 'biped',
+  'ade-repentia': 'biped',
+  'ade-repentia-superior': 'biped',
+  'ade-penitent-engine': 'biped',
+  'ade-rhino': 'vehicle',
 }
 
 export const BIPED_CONFIG: Partial<Record<KitId, BipedConfig>> = {
@@ -968,6 +974,30 @@ export const BIPED_CONFIG: Partial<Record<KitId, BipedConfig>> = {
     bareTorso: true,
     legColor: 'trim',
   },
+  // Seraphim: light-armoured sisters with a jump pack, paired pistols (right) and a blade (left); the Superior
+  // adds a halo-free crimson cape.
+  'ade-seraphim': {
+    headShape: 'sister-bob', rightWeapon: 'plasma-pistol', leftWeapon: 'plasma-pistol', bulk: 1.0, hasBackpack: true,
+    shoulderPads: 'small', hasCape: false, skin: 'pale', limbColor: 'primary', tabard: true,
+  },
+  'ade-seraphim-superior': {
+    headShape: 'sister-bob', rightWeapon: 'plasma-pistol', leftWeapon: 'power-sword', bulk: 1.0, hasBackpack: true,
+    shoulderPads: 'small', hasCape: true, skin: 'pale', limbColor: 'primary', tabard: true, capeColor: 'trim',
+  },
+  // Sisters Repentia: bare-chested penitents in crimson, a huge two-handed blade (power-sword shape) in each fist.
+  'ade-repentia': {
+    headShape: 'arco-mask', rightWeapon: 'power-sword', leftWeapon: 'none', bulk: 1.0, hasBackpack: false,
+    shoulderPads: 'none', hasCape: false, skin: 'pale', limbColor: 'skin', bareTorso: true, legColor: 'trim',
+  },
+  'ade-repentia-superior': {
+    headShape: 'sister-bob', rightWeapon: 'power-sword', leftWeapon: 'none', bulk: 1.1, hasBackpack: false,
+    shoulderPads: 'small', hasCape: true, skin: 'pale', limbColor: 'primary', tabard: true, capeColor: 'trim',
+  },
+  // Penitent Engine: a hulking walker, flamers on one arm and a crushing blade-fist on the other.
+  'ade-penitent-engine': {
+    headShape: 'arco-mask', rightWeapon: 'power-fist', leftWeapon: 'heavy-flamer', bulk: 2.2, hasBackpack: false,
+    shoulderPads: 'large', hasCape: false, skin: 'none', chestPlate: true,
+  },
 }
 
 export const ARTILLERY_CONFIG: Partial<Record<KitId, ArtilleryConfig>> = {
@@ -980,4 +1010,5 @@ export const VEHICLE_CONFIG: Partial<Record<KitId, VehicleConfig>> = {
   'generic-vehicle': { weapon: 'none', hasRotor: false },
   'tau-devilfish': { weapon: 'none', hasRotor: false, style: 'hover' },
   'gsc-rockgrinder': { weapon: 'none', hasRotor: false, style: 'dozer' },
+  'ade-rhino': { weapon: 'none', hasRotor: false, style: 'dozer' },
 }

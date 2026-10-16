@@ -265,6 +265,23 @@ const ADE_BY_NAME: Record<string, WeaponFlavour> = {
   'close combat weapon': 'chain',
   'hallowed mace': 'crush',
   'arco-flails': 'chain',
+  'arco-flails (penitent host)': 'chain',
+  'plasma pistol (ellyrine, standard)': 'heavy',
+  'plasma pistol (ellyrine, supercharge)': 'heavy',
+  'plasma pistol (seraphim, standard)': 'heavy',
+  'plasma pistol (seraphim, supercharge)': 'heavy',
+  'power weapon (ellyrine)': 'chain',
+  'power weapon (seraphim)': 'chain',
+  'close combat weapon (seraphim)': 'chain',
+  'artificer-crafted storm bolter': 'bolter',
+  chainsword: 'chain',
+  'paired bolt pistols': 'bolter',
+  'neural whips': 'chain',
+  'penitent eviscerator': 'chain',
+  'penitent flamers': 'flame',
+  'twin penitent buzz-blades': 'chain',
+  'storm bolter (rhino)': 'bolter',
+  'armoured tracks': 'crush',
 }
 const adeWeapons = Object.entries(bundle.weapons).filter(([id]) => id.startsWith('ade.'))
 

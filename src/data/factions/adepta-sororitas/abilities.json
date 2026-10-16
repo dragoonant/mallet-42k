@@ -59,5 +59,9 @@
       "scope": "self",
       "duration": "untilEndOfPhase"
     }
-  }
+  },
+  {"id": "ade.a.angelic-ascent", "name": "Angelic Ascent", "text": "In your Shooting phase, just after this unit has shot, if it is not within Engagement Range of any enemy unit it may make a Normal move of up to 6 inches. If it does, it cannot declare a charge this turn.", "trigger": "unitSelectedToShoot", "code": "angelicAscent", "params": {"pickWindow": "shooting.attacksResolved", "pickTopic": "abilityChoice", "distance": 6, "forbidCharge": true, "forfeitCharge": true}},
+  {"id": "ade.a.overseer-of-redemption.hit", "name": "Overseer of Redemption", "text": "While the Repentia Superior is alive, melee hit rolls for models in this unit may be re-rolled.", "trigger": "hitRoll", "when": {"unitHasModel": "superior", "weaponType": "melee"}, "effect": {"reroll": "all"}, "scope": {"who": "self"}},
+  {"id": "ade.a.overseer-of-redemption.wound", "name": "Overseer of Redemption (charge)", "text": "While the Repentia Superior is alive, if this unit made a Charge move this turn, its melee wound rolls may be re-rolled too.", "trigger": "woundRoll", "when": {"unitHasModel": "superior", "weaponType": "melee", "unitCharged": true}, "effect": {"reroll": "all"}, "scope": {"who": "self"}},
+  {"id": "ade.a.endless-suffering", "name": "Endless Suffering", "text": "This unit can declare a charge in a turn in which it Advanced.", "trigger": "always", "effect": {"chargeAfterAdvance": true}, "scope": {"who": "self"}}
 ]

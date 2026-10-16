@@ -1,0 +1,75 @@
+[
+  {
+    "id": "ade.canoness-ellyrine",
+    "faction": "adepta-sororitas",
+    "name": "Canoness Ellyrine",
+    "keywords": [
+      "INFANTRY",
+      "CHARACTER",
+      "IMPERIUM",
+      "CANONESS",
+      "ELLYRINE"
+    ],
+    "factionKeywords": [
+      "ADEPTA SORORITAS"
+    ],
+    "stats": {
+      "M": 6,
+      "T": 3,
+      "Sv": 3,
+      "W": 4,
+      "Ld": 7,
+      "OC": 1
+    },
+    "invuln": 4,
+    "composition": [
+      {
+        "modelId": "canoness",
+        "name": "Canoness Ellyrine",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 32
+        },
+        "weapons": {
+          "default": [
+            "ade.w.ellyrine-plasma-pistol",
+            "ade.w.ellyrine-plasma-pistol-supercharge",
+            "ade.w.ellyrine-power-weapon"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "generic-infantry"
+        }
+      }
+    ],
+    "abilities": [
+      "ade.a.acts-of-faith",
+      "ade.a.lead-the-righteous"
+    ],
+    "coreAbilities": [
+      {
+        "ability": "LEADER"
+      }
+    ],
+    "leader": {
+      "attachTo": [
+        "ade.pen.battle-sisters-squad"
+      ],
+      "effects": []
+    },
+    "points": [
+      {
+        "models": 1,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "infantry",
+      "kit": "generic-infantry"
+    }
+  }
+]

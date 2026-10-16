@@ -607,6 +607,12 @@ function scoreChooseOption(state: GameState, pending: PendingDecision, action: A
     for (const m of unitModels(state, hintUnitId)) { const st = modelStats(state, m); hardness += st.W * st.T }
     score = hardness * 0.01
   }
+  // Divine Judgement (Sororitas secondary): the opponent (us) names the unit hardest to kill, by total wounds (tie: better save)
+  if (code === 'divineJudgementPick' && hintUnitId) {
+    let wounds = 0, sv = 0
+    for (const m of unitModels(state, hintUnitId)) { const st = modelStats(state, m); wounds += st.W; sv = Math.max(sv, 7 - st.Sv) }
+    score = wounds + sv * 0.01
+  }
   return score
 }
 

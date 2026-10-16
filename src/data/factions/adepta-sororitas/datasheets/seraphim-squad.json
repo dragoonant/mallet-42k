@@ -1,0 +1,91 @@
+[
+  {
+    "id": "ade.seraphim-squad",
+    "faction": "adepta-sororitas",
+    "name": "Seraphim Squad",
+    "keywords": [
+      "INFANTRY",
+      "JUMP PACK",
+      "FLY",
+      "IMPERIUM",
+      "SERAPHIM SQUAD"
+    ],
+    "factionKeywords": [
+      "ADEPTA SORORITAS"
+    ],
+    "stats": {
+      "M": 12,
+      "T": 3,
+      "Sv": 3,
+      "W": 1,
+      "Ld": 7,
+      "OC": 1
+    },
+    "invuln": 5,
+    "composition": [
+      {
+        "modelId": "superior",
+        "name": "Seraphim Superior",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "champion": true,
+        "base": {
+          "shape": "round",
+          "mm": 32
+        },
+        "weapons": {
+          "default": [
+            "ade.w.seraphim-plasma-pistol",
+            "ade.w.seraphim-plasma-pistol-supercharge",
+            "ade.w.seraphim-power-weapon"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "generic-infantry"
+        }
+      },
+      {
+        "modelId": "seraphim",
+        "name": "Seraphim",
+        "min": 4,
+        "max": 4,
+        "default": 4,
+        "base": {
+          "shape": "round",
+          "mm": 32
+        },
+        "weapons": {
+          "default": [
+            "ade.w.paired-bolt-pistols",
+            "ade.w.seraphim-ccw"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "generic-infantry"
+        }
+      }
+    ],
+    "abilities": [
+      "ade.a.acts-of-faith",
+      "ade.a.angelic-ascent"
+    ],
+    "coreAbilities": [
+      {
+        "ability": "DEEP_STRIKE"
+      }
+    ],
+    "points": [
+      {
+        "models": 5,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "infantry",
+      "kit": "generic-infantry"
+    }
+  }
+]

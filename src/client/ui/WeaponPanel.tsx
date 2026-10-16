@@ -9,7 +9,7 @@ import { useUiStore } from './uiStore'
 import { buttonBase, buttonPrimary, colors, mutedText } from './theme'
 import { Tooltip } from './Tooltip'
 import {
-  groupWeapons, initialPlan, resolvePlan, retarget, reachingEntries, setRowFire, weaponTags, modeOf, weaponHasAbility,
+  groupWeapons, initialPlan, deckCap, deckFiring, resolvePlan, retarget, reachingEntries, setRowFire, weaponTags, modeOf, weaponHasAbility,
   type DeclarePending, type ShootPlan, type WeaponGroup,
 } from '../interaction/shootPlan'
 
@@ -31,7 +31,7 @@ export function WeaponPanel({ state, pending, passAction, dispatch }: Props) {
   const hoverUnit = useUiStore((s) => s.hoverUnit)
   const unitName = (id: string) => state.units[id]?.name ?? id
 
-  const groups = useMemo(() => groupWeapons(state, pending.context.weapons), [state, pending])
+  const groups = useMemo(() => groupWeapons(state, pending.context.weapons, pending.context.unitId), [state, pending])
   const [plan, setPlan] = useState<ShootPlan>(() => initialPlan(groups, stage!.targetUnitId))
   const lastNonce = useRef(stage?.nonce ?? 0)
 
@@ -86,8 +86,12 @@ export function WeaponPanel({ state, pending, passAction, dispatch }: Props) {
     // the tick shows what will actually fire, not what was last clicked
     const ticked = c.fire && firing > 0
     const isPistolRow = weaponHasAbility(state, c.variant, 'PISTOL')
-    const blind = reach === 0
-    const reason = blind
+    const isDeck = !!g.deckModelId
+    const deckFull = isDeck && !ticked && deckFiring(groups, plan) >= deckCap(state, pending.context.unitId)
+    const blind = reach === 0 || deckFull
+    const reason = deckFull
+      ? `Firing Deck: only ${deckCap(state, pending.context.unitId)} embarked models can fire. Untick another passenger first.`
+      : blind
       ? `No model can see ${unitName(c.target)} with this one.`
       : c.fire && lost > 0 && firing === 0
         ? `Not firing: ${lost === 1 ? 'that model uses' : 'those models use'} their ${isPistolRow ? 'other weapons' : 'Pistol'} instead. Tick to switch.`
@@ -140,7 +144,15 @@ export function WeaponPanel({ state, pending, passAction, dispatch }: Props) {
       <div style={{ ...mutedText, fontSize: 11.5 }}>
         Tick the weapons that fire and pick a target for each. Click another enemy on the board to retarget the highlighted row.
       </div>
-      <div style={list}>{groups.map(renderRow)}</div>
+      <div style={list}>{groups.filter((g) => !g.deckModelId).map(renderRow)}</div>
+      {groups.some((g) => g.deckModelId) && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }} data-testid="firing-deck-section">
+          <div style={{ ...mutedText, fontSize: 11.5 }}>
+            Firing Deck: up to {deckCap(state, pending.context.unitId)} embarked models ({deckFiring(groups, plan)} chosen) may fire one ranged weapon each through this transport.
+          </div>
+          <div style={list}>{groups.filter((g) => g.deckModelId).map(renderRow)}</div>
+        </div>
+      )}
       {resolved.conflicts.length > 0 && (
         <div style={{ ...mutedText, background: 'rgba(245,217,90,0.08)', borderRadius: 6, padding: '5px 7px', fontSize: 11.5, display: 'flex', flexDirection: 'column', gap: 4 }} data-testid="pistol-conflict">
           <div>A model fires either its Pistol or its other guns in one activation, never both. Pick which for:</div>

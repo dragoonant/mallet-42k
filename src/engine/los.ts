@@ -81,8 +81,16 @@ function segmentBlocked(
 // `extraExcludeUnitIds`: additional unit ids whose models never block (fullyVisible also excludes the observed
 // unit's own (possibly attached) halves per R-3.4/LOS-031b; plain visible() passes none, per LOS-031's "visible()
 // keeps the current behaviour").
+// E-PEN2 Firing Deck: an embarked observer fires from inside its transport, whose hull never blocks it
+function transportOfObserver(state: GameState, from: Model): UnitId[] {
+  const owner = state.units[from.unitId]?.player
+  const map = owner ? (state.players[owner].secondaryState.embarked as Record<UnitId, UnitId> | undefined) : undefined
+  const t = map?.[from.unitId]
+  return t ? [t] : []
+}
+
 function anyClearPair(state: GameState, from: Model, to: Model, extraExcludeUnitIds: Iterable<UnitId> = []): boolean {
-  const exclude = new Set([...leaderService.halves(state, from.unitId), ...extraExcludeUnitIds])
+  const exclude = new Set([...leaderService.halves(state, from.unitId), ...transportOfObserver(state, from), ...extraExcludeUnitIds])
   const fromPts = losService.samplePoints(from), toPts = losService.samplePoints(to)
   return fromPts.some((fp) => toPts.some((tp) => !segmentBlocked(state, fp, tp, from, to.id, exclude)))
 }
@@ -90,7 +98,7 @@ function anyClearPair(state: GameState, from: Model, to: Model, extraExcludeUnit
 // every one of `to`'s sample points is visible from at least one of `from`'s ([interp] above); R-3.4: neither the
 // observer's nor the observed unit's own (possibly attached) models may block this.
 function everyPointFullyVisible(state: GameState, from: Model, to: Model): boolean {
-  const exclude = new Set([...leaderService.halves(state, from.unitId), ...leaderService.halves(state, to.unitId)])
+  const exclude = new Set([...leaderService.halves(state, from.unitId), ...transportOfObserver(state, from), ...leaderService.halves(state, to.unitId)])
   const fromPts = losService.samplePoints(from), toPts = losService.samplePoints(to)
   return toPts.every((tp) => fromPts.some((fp) => !segmentBlocked(state, fp, tp, from, to.id, exclude)))
 }

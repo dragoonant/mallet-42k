@@ -12,7 +12,7 @@ import {
 } from './modules'
 import { flushDeferredRemovals } from './deferred'
 import { onCultAmbushUnitDestroyed, raisePendingCultAmbushMarker } from './cult-ambush'
-import { clearActsOfFaithPhase, miracleGate, onOwnUnitDestroyed, runActsOfFaithTurnStart } from './miracle'
+import { clearActsOfFaithPhase, miracleGate, offerMiracleRerolls, onOwnUnitDestroyed, runActsOfFaithTurnStart } from './miracle'
 import { restoreRng, type Rng } from './rng'
 import { cloneForStep, createGameState, emptyPhaseState, emptyTurnState, hashState, removeModel, unitModelsForCoherency } from './state'
 import {
@@ -138,6 +138,8 @@ function makeContext(draft: GameState, rng: Rng, modules: ModuleTable, rt: StepR
       return pending
     },
     window(id, key, order, trigger) {
+      // E-PEN1: queued Saintly Relic re-roll offers come first (idempotent: re-entered after each answer)
+      if (!s.pending && offerMiracleRerolls(ctx, id, key)) return true
       const occurrence = `window:${id}|${key}`
       if (ctx.once(occurrence)) {
         services.missions.onWindow(ctx, id, key, trigger)

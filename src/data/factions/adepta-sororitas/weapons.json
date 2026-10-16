@@ -20,5 +20,22 @@
   { "id": "ade.w.hallowed-mace", "name": "Hallowed mace", "type": "melee", "range": 0, "A": 3, "skill": 3, "S": 4, "AP": -1, "D": 2,
     "abilities": [ { "ability": "LETHAL_HITS" } ] },
   { "id": "ade.w.arco-flails", "name": "Arco-flails", "type": "melee", "range": 0, "A": 4, "skill": 4, "S": 5, "AP": 0, "D": 1,
-    "abilities": [ { "ability": "SUSTAINED_HITS", "value": 1 } ] }
+    "abilities": [ { "ability": "SUSTAINED_HITS", "value": 1 } ] },
+  {"id": "ade.w.ellyrine-plasma-pistol", "name": "Plasma pistol (Ellyrine, standard)", "type": "ranged", "range": 12, "A": 1, "skill": 2, "S": 7, "AP": -2, "D": 1, "abilities": [{"ability": "PISTOL"}], "profileGroup": "ade.w.ellyrine-plasma-pistol"},
+  {"id": "ade.w.ellyrine-plasma-pistol-supercharge", "name": "Plasma pistol (Ellyrine, supercharge)", "type": "ranged", "range": 12, "A": 1, "skill": 2, "S": 8, "AP": -3, "D": 2, "abilities": [{"ability": "PISTOL"}, {"ability": "HAZARDOUS"}], "profileGroup": "ade.w.ellyrine-plasma-pistol"},
+  {"id": "ade.w.ellyrine-power-weapon", "name": "Power weapon (Ellyrine)", "type": "melee", "range": 0, "A": 4, "skill": 2, "S": 4, "AP": -2, "D": 1, "abilities": []},
+  {"id": "ade.w.artificer-storm-bolter", "name": "Artificer-crafted storm bolter", "type": "ranged", "range": 24, "A": 2, "skill": 3, "S": 4, "AP": 0, "D": 2, "abilities": [{"ability": "RAPID_FIRE", "value": 2}]},
+  {"id": "ade.w.chainsword", "name": "Chainsword", "type": "melee", "range": 0, "A": 3, "skill": 4, "S": 3, "AP": 0, "D": 1, "abilities": []},
+  {"id": "ade.w.seraphim-plasma-pistol", "name": "Plasma pistol (Seraphim, standard)", "type": "ranged", "range": 12, "A": 1, "skill": 3, "S": 7, "AP": -2, "D": 1, "abilities": [{"ability": "PISTOL"}], "profileGroup": "ade.w.seraphim-plasma-pistol"},
+  {"id": "ade.w.seraphim-plasma-pistol-supercharge", "name": "Plasma pistol (Seraphim, supercharge)", "type": "ranged", "range": 12, "A": 1, "skill": 3, "S": 8, "AP": -3, "D": 2, "abilities": [{"ability": "PISTOL"}, {"ability": "HAZARDOUS"}], "profileGroup": "ade.w.seraphim-plasma-pistol"},
+  {"id": "ade.w.paired-bolt-pistols", "name": "Paired bolt pistols", "type": "ranged", "range": 12, "A": 2, "skill": 3, "S": 4, "AP": 0, "D": 1, "abilities": [{"ability": "PISTOL"}]},
+  {"id": "ade.w.seraphim-power-weapon", "name": "Power weapon (Seraphim)", "type": "melee", "range": 0, "A": 3, "skill": 3, "S": 4, "AP": -2, "D": 1, "abilities": []},
+  {"id": "ade.w.seraphim-ccw", "name": "Close combat weapon (Seraphim)", "type": "melee", "range": 0, "A": 2, "skill": 3, "S": 3, "AP": 0, "D": 1, "abilities": []},
+  {"id": "ade.w.neural-whips", "name": "Neural whips", "type": "melee", "range": 0, "A": 4, "skill": 3, "S": 3, "AP": -1, "D": 1, "abilities": [{"ability": "ANTI", "keyword": "INFANTRY", "value": 4}]},
+  {"id": "ade.w.penitent-eviscerator", "name": "Penitent eviscerator", "type": "melee", "range": 0, "A": 2, "skill": 4, "S": 6, "AP": -2, "D": 2, "abilities": []},
+  {"id": "ade.w.pen-arco-flails", "name": "Arco-flails (Penitent Host)", "type": "melee", "range": 0, "A": 4, "skill": 4, "S": 5, "AP": 0, "D": 1, "abilities": [{"ability": "SUSTAINED_HITS", "value": 1}, {"ability": "TWIN_LINKED"}]},
+  {"id": "ade.w.penitent-flamers", "name": "Penitent flamers", "type": "ranged", "range": 12, "A": "2D6", "skill": null, "S": 5, "AP": 0, "D": 1, "abilities": [{"ability": "ASSAULT"}, {"ability": "IGNORES_COVER"}, {"ability": "TORRENT"}, {"ability": "TWIN_LINKED"}]},
+  {"id": "ade.w.penitent-buzz-blades", "name": "Twin penitent buzz-blades", "type": "melee", "range": 0, "A": 4, "skill": 4, "S": 10, "AP": -3, "D": 2, "abilities": [{"ability": "SUSTAINED_HITS", "value": 1}, {"ability": "TWIN_LINKED"}]},
+  {"id": "ade.w.rhino-storm-bolter", "name": "Storm bolter (Rhino)", "type": "ranged", "range": 24, "A": 2, "skill": 3, "S": 4, "AP": 0, "D": 1, "abilities": [{"ability": "RAPID_FIRE", "value": 2}]},
+  {"id": "ade.w.armoured-tracks", "name": "Armoured tracks", "type": "melee", "range": 0, "A": 3, "skill": 4, "S": 6, "AP": 0, "D": 1, "abilities": []}
 ]

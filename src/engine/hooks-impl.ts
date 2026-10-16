@@ -257,6 +257,13 @@ export function evaluateCondition(env: ConditionEnv, c: Condition | null | undef
   // GRE-6.1: a Psychic attack = a [PSYCHIC] weapon (also its devastating mortals) or a Psychic-tagged ability's mortal wounds
   if (c.sourcePsychic !== undefined && ((env.fnpHook ? env.psychicSource === true : (env.psychicSource === true || !!weapon?.abilities.some((a) => a.ability === 'PSYCHIC'))) !== c.sourcePsychic)) return false
   if (c.mortalWound !== undefined && (env.mortal === true) !== c.mortalWound) return false
+  // E-PEN3: the holder unit (or its attached partner) must still have a live model of that datasheet model id
+  if (c.unitHasModel !== undefined) {
+    const want = c.unitHasModel
+    if (!h) return false
+    const found = leaderService.halves(state, h.id).some((id) => state.units[id] && unitModels(state, id).some((m) => m.datasheetModelId === want || m.datasheetModelId.endsWith(`/${want}`)))
+    if (!found) return false
+  }
   if (c.leaderAttached !== undefined && !(h && leaderService.isAttached(state, h.id) === c.leaderAttached)) return false
   // [interp] roll bounds compare the unmodified die (modifiers are folded by the caller after collection)
   if (c.roll !== undefined && !(env.roll && bound(env.roll.unmodified, c.roll))) return false

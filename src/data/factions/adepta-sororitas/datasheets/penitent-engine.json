@@ -1,0 +1,71 @@
+[
+  {
+    "id": "ade.penitent-engine",
+    "faction": "adepta-sororitas",
+    "name": "Penitent Engine",
+    "keywords": [
+      "VEHICLE",
+      "WALKER",
+      "IMPERIUM",
+      "PENITENT ENGINES"
+    ],
+    "factionKeywords": [
+      "ADEPTA SORORITAS"
+    ],
+    "stats": {
+      "M": 8,
+      "T": 6,
+      "Sv": 4,
+      "W": 5,
+      "Ld": 7,
+      "OC": 2
+    },
+    "composition": [
+      {
+        "modelId": "engine",
+        "name": "Penitent Engine",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 50
+        },
+        "weapons": {
+          "default": [
+            "ade.w.penitent-flamers",
+            "ade.w.penitent-buzz-blades"
+          ]
+        },
+        "figure": {
+          "archetype": "vehicle",
+          "kit": "generic-vehicle"
+        }
+      }
+    ],
+    "abilities": [
+      "ade.a.acts-of-faith",
+      "ade.a.endless-suffering"
+    ],
+    "coreAbilities": [
+      {
+        "ability": "DEADLY_DEMISE",
+        "value": 1
+      },
+      {
+        "ability": "FEEL_NO_PAIN",
+        "value": 5
+      }
+    ],
+    "points": [
+      {
+        "models": 1,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "vehicle",
+      "kit": "generic-vehicle"
+    }
+  }
+]

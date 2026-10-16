@@ -1,0 +1,64 @@
+[
+  {
+    "id": "ade.pen.arco-flagellants",
+    "faction": "adepta-sororitas",
+    "name": "Arco-flagellants",
+    "keywords": [
+      "INFANTRY",
+      "IMPERIUM",
+      "ARCO-FLAGELLANTS"
+    ],
+    "factionKeywords": [
+      "ADEPTA SORORITAS"
+    ],
+    "stats": {
+      "M": 7,
+      "T": 3,
+      "Sv": 7,
+      "W": 2,
+      "Ld": 8,
+      "OC": 1
+    },
+    "composition": [
+      {
+        "modelId": "arco",
+        "name": "Arco-flagellant",
+        "min": 3,
+        "max": 3,
+        "default": 3,
+        "base": {
+          "shape": "round",
+          "mm": 25
+        },
+        "weapons": {
+          "default": [
+            "ade.w.pen-arco-flails"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "generic-infantry"
+        }
+      }
+    ],
+    "abilities": [
+      "ade.a.acts-of-faith"
+    ],
+    "coreAbilities": [
+      {
+        "ability": "FEEL_NO_PAIN",
+        "value": 4
+      }
+    ],
+    "points": [
+      {
+        "models": 3,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "infantry",
+      "kit": "generic-infantry"
+    }
+  }
+]

@@ -31,7 +31,7 @@ describe('adepta-sororitas data', () => {
   it('ADE-001 faction and patrol load: 4 units, 26 models, Canoness WARLORD with Defender of the Faith attached to Sacresants', () => {
     const faction = bundle.factions[FACTION]
     expect(faction.factionKeyword).toBe('ADEPTA SORORITAS')
-    expect(faction.combatPatrols).toEqual([PATROL])
+    expect(faction.combatPatrols).toEqual([PATROL, 'ade.cp.the-penitent-host'])
     expect(patrol.faction).toBe(FACTION)
     expect(patrol.units.map((u) => u.ref)).toEqual(['canoness', 'sisters', 'sacresants', 'arcos'])
     expect(patrol.units.reduce((n, u) => n + modelCount(bundle.datasheets[u.datasheet]), 0)).toBe(26)

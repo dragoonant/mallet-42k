@@ -154,6 +154,12 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ['interceptor-lance', 'wpn-relic-weapon'] as const,
   ['executioner-greatblade', 'wpn-relic-weapon'] as const,
   ['balistus-grenade-launcher', 'wpn-grenade-launcher'] as const,
+  // The Penitent Host: Seraphim blades and whips ring like power weapons, the eviscerator and buzz-blades rev and bite, tracks crunch.
+  ['seraphim-ccw', 'wpn-close-combat-weapon'] as const,
+  ['neural-whips', 'wpn-power-weapon'] as const,
+  ['penitent-eviscerator', 'wpn-brutal-assault-weapon'] as const,
+  ['penitent-buzz-blades', 'wpn-spinnin-blades'] as const,
+  ['armoured-tracks', 'wpn-brutal-assault-weapon'] as const,
 ].sort((a, b) => b[0].length - a[0].length)
 
 const WEAPON_TRIM: Partial<Record<SfxId, number>> = {

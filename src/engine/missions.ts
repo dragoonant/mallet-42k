@@ -15,7 +15,7 @@ import { etherealEdictAmount, etherealEdictOffer, kauyonLureAmount, leadershipCa
 import { riseUpAmount, willOfThePatriarchAmount, infiltrationAgendaAmount, safeguardTheSanctuaryAmount } from './factions/genestealer-cults'
 import { holdTheLineAmount, methodicalDestructionAmount, methodicalDestructionOffer } from './factions/astra-militarum'
 import { OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE, playerBattlefieldEdge, pointInPolygon, whollyWithinPolygon, withinObjectiveRange } from './geometry'
-import { consecratedGroundAmount, hallowedRetributionAmount } from './factions/adepta-sororitas'
+import { consecratedGroundAmount, divineJudgementAmount, divineJudgementOffer, hallowedRetributionAmount } from './factions/adepta-sororitas'
 import { pinpointPurgeAmount, reconnaissanceInForceAmount } from './factions/space-marines'
 import { hookService } from './hooks-impl'
 import { leaderService } from './leaders'
@@ -200,7 +200,7 @@ function rulesFor(s: GameState, pid: PlayerId): ScoringRule[] {
 }
 
 // ScoringRule-shaped "pick" instances (pointsPer 0): raise a decision instead of computing an amount
-const PICK_CODES = new Set(['stompEmPick', 'bagPick', 'treasuresOfAeonsPick', 'methodicalDestructionPick', 'etherealEdictPick'])
+const PICK_CODES = new Set(['stompEmPick', 'bagPick', 'treasuresOfAeonsPick', 'methodicalDestructionPick', 'etherealEdictPick', 'divineJudgementPick'])
 
 // ---------- generic ScoringRule.rule amounts ----------
 function tierPoints(tiers: Record<string, number>, die: number): number {
@@ -523,6 +523,7 @@ function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): num
     case 'leadershipCaste': return leadershipCasteAmount(s, rule, pid)
     case 'surpriseAttack': return surpriseAttackAmount(s, rule, pid, (id) => holds(ctx, id, pid))
     case 'etherealEdictScore': return etherealEdictAmount(s, rule, pid)
+    case 'divineJudgementScore': return divineJudgementAmount(s, rule, pid)
     case 'riseUp': return riseUpAmount(ctx, rule, pid, (id) => holds(ctx, id, pid))
     case 'willOfThePatriarch': return willOfThePatriarchAmount(s, rule, pid)
     case 'infiltrationAgenda': return infiltrationAgendaAmount(s, rule, pid)
@@ -642,6 +643,7 @@ function runPick(ctx: EngineContext, rule: ScoringRule, pid: PlayerId, key: stri
   else if (rule.code === 'bagPick') bagPickRule(ctx, rule, pid, key)
   else if (rule.code === 'methodicalDestructionPick') methodicalDestructionOffer(ctx, pid, rule.when, key)
   else if (rule.code === 'etherealEdictPick') etherealEdictOffer(ctx, pid, rule.when, key)
+  else if (rule.code === 'divineJudgementPick') divineJudgementOffer(ctx, pid, rule.when, key)
 }
 
 // ---------- MissionRule (non-scoring) codes ----------

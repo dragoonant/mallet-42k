@@ -315,6 +315,16 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Sim | `SIM_PATROL=sm.cp.strike-team-solarien npm run sim -- --games 6 --seed 5`: 6 games, all finished (round 5), 0 violations; Solarien won 1 |
 | Known gaps | Placeholder figures (reused sm-tacticus / sm-terminator kits), borrowed weapon sounds; bot ignores the new abilities; rulings under "space-marines build" in `docs/needs-rules-check.md` |
 
+## Adepta Sororitas - The Penitent Host (M10 - second patrol, playable)
+
+| | |
+|---|---|
+| Patrol | The Penitent Host: Canoness Ellyrine, Battle Sisters, Seraphim, Repentia, Arco-flagellants, Penitent Engine, Sororitas Rhino. Patrol file `src/data/factions/adepta-sororitas/patrols/the-penitent-host.json` plus new `ade.pen.*` datasheets and patrol-scoped abilities/stratagems/enhancements; spec `docs/spec/factions/adepta-sororitas--the-penitent-host.md` |
+| Engine hooks | Extended `src/engine/factions/adepta-sororitas.ts`: Divine Judgement secondary, Saintly Relic re-roll (E-PEN1, offered from reducer `ctx.window()`), Holy Radiance, Angelic Ascent, Ascetic Discipline. Generic Firing Deck on the existing transport system (E-PEN2; `attack.ts`, `los.ts`, `phases/shooting.ts`) |
+| Verification | typecheck, `validate:data`, `build` green; `npm test` 2279 passing (106 files, incl. `tests/engine/adepta-sororitas-the-penitent-host*.test.ts`, `tests/data/adepta-sororitas-the-penitent-host.test.ts`); e2e `adepta-sororitas-the-penitent-host.spec.ts` picks the patrol in the picker, deploys through the UI and fires Overwatch (`e2e-out/m10-adepta-sororitas-the-penitent-host-0*.png`) |
+| Sim | `SIM_FACTION=adepta-sororitas npm run sim -- --games 6 --seed 5`: 0 violations, all finished (round 5); adepta-sororitas 3 wins (astra-militarum 1, adeptus-custodes 1, 1 draw). Default rotation does not field the Sororitas that seed. No balance tuning |
+| Known gaps | Seraphim/Repentia/Penitent Engine/Rhino reuse existing figure parts; no client embark/disembark UI from this patrol (Sudden Dawn worktree); no AI policy for Saintly Relic re-rolls; rulings in `docs/needs-rules-check.md` under "adepta-sororitas build" (RC-PEN-01 to 20) |
+
 ## Client+engine (units stand on terrain and ruin floors; cover badge)
 - Engine: `surfaceY` (terrain.ts) snaps placement y to the surface under the base; `checkPlacements` (geometry.ts) applies it to move, charge, pile-in, consolidate, deployment and reserves. A mid-air y that differs from the model's current y is still rejected by `canEndAt`.
 - Client: ruin floor selector (Ground/1/2, PageUp/PageDown) sets placement y; ghosts and previews draw at the chosen height. Fixed: the picker now shows on hover (not only once staged) and stays after the pointer leaves the board; the selected floor is applied to every formation the client builds (before, y never changed). A one-model nudge keeps its floor while still on that floor polygon (else selected floor, else ground) and drags track the pointer on the floor plane.

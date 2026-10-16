@@ -1,0 +1,93 @@
+[
+  {
+    "id": "ade.repentia-squad",
+    "faction": "adepta-sororitas",
+    "name": "Repentia Squad",
+    "keywords": [
+      "INFANTRY",
+      "IMPERIUM",
+      "REPENTIA SQUAD"
+    ],
+    "factionKeywords": [
+      "ADEPTA SORORITAS"
+    ],
+    "stats": {
+      "M": 7,
+      "T": 3,
+      "Sv": 3,
+      "W": 1,
+      "Ld": 7,
+      "OC": 1
+    },
+    "invuln": 6,
+    "composition": [
+      {
+        "modelId": "superior",
+        "name": "Repentia Superior",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "champion": true,
+        "base": {
+          "shape": "round",
+          "mm": 28
+        },
+        "weapons": {
+          "default": [
+            "ade.w.bolt-pistol",
+            "ade.w.neural-whips"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "generic-infantry"
+        }
+      },
+      {
+        "modelId": "repentia",
+        "name": "Sister Repentia",
+        "min": 4,
+        "max": 4,
+        "default": 4,
+        "statsOverride": {
+          "Sv": 7,
+          "Ld": 8
+        },
+        "base": {
+          "shape": "round",
+          "mm": 28
+        },
+        "weapons": {
+          "default": [
+            "ade.w.penitent-eviscerator"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "generic-infantry"
+        }
+      }
+    ],
+    "abilities": [
+      "ade.a.acts-of-faith",
+      "ade.a.overseer-of-redemption.hit",
+      "ade.a.overseer-of-redemption.wound"
+    ],
+    "coreAbilities": [
+      {
+        "ability": "FEEL_NO_PAIN",
+        "value": 5
+      }
+    ],
+    "points": [
+      {
+        "models": 5,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "infantry",
+      "kit": "generic-infantry"
+    }
+  }
+]

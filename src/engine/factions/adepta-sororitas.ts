@@ -10,11 +10,14 @@ import type { Effect } from '../../data/types'
 import { signedDistanceToBase, OBJECTIVE_MARKER_RADIUS, OBJECTIVE_RANGE, withinObjectiveRange } from '../geometry'
 import type { EngineCodeHook } from '../code-hooks'
 import { leaderService } from '../leaders'
+import { transportService } from '../transports'
 import type { EngineContext } from '../modules'
 import { boardUnitsOf, hasKeyword, keywordsOf, unitModels } from '../state'
 import type { ChooseOptionDecision, GameState, ModelId, PlayerId, Rejection, UnitId } from '../types'
 import type { Action } from '../actions'
 import type { StratagemEnv, StratagemTuple } from '../code-hooks'
+import { startReactiveMove } from '../phases/movement'
+import type { PendingDecision, TimingWindowId, Unit } from '../types'
 import { discardMiracleDie, gainMiracleDie } from '../miracle'
 
 export {
@@ -254,6 +257,8 @@ const aMartyrsDeath: EngineCodeHook = {
     ctx.services.effects.grant(ctx, unitId, [], {
       sourceAbilityId: env.stratagem.id, sourceUnitId: unitId, scope: { who: 'self' }, duration: env.stratagem.duration ?? 'untilEndOfPhase',
     })
+    // PEN Holy Radiance: no Miracle die is discarded, so no prompt
+    if (env.stratagem.params?.discardsMiracleDie === false) return
     const dice = pool(s, env.player)
     if (dice.length === 0) return
     const values = [...new Set(dice)].sort((a, b) => a - b)
@@ -302,10 +307,17 @@ const aMartyrsDeath: EngineCodeHook = {
       const bonus = s.phaseState.marks.includes(martyrBonusMark(holder.id)) || s.phaseState.marks.includes(martyrBonusMark(leaderService.canonicalUnitId(s, holder.id)))
         ? ((params.discardBonus as number | undefined) ?? 1) : 0
       const player = holder.player
-      const roll = ctx.rollExpr('D6', { purpose: 'ability', player, unitId: holder.id, commandRerollable: false }).total
-      success = roll + bonus >= threshold
-      s.phaseState.marks.push(`${markKey}=${success ? 1 : 0}`)
-      ctx.emit({ type: 'AbilityTriggered', abilityId: entry.source.id, sourceUnitId: holder.id, targetUnitId: byUnitId, summary: `A Martyr's Death: rolled ${roll}${bonus ? ` +${bonus}` : ''} for ${modelId}: ${success ? 'fights on' : 'falls'}`, player })
+      if (params.roll === false) {
+        // PEN Holy Radiance: every not-yet-acted model fights on, no D6
+        success = true
+        s.phaseState.marks.push(`${markKey}=1`)
+        ctx.emit({ type: 'AbilityTriggered', abilityId: entry.source.id, sourceUnitId: holder.id, targetUnitId: byUnitId, summary: `Holy Radiance: ${modelId} fights on before falling`, player })
+      } else {
+        const roll = ctx.rollExpr('D6', { purpose: 'ability', player, unitId: holder.id, commandRerollable: false }).total
+        success = roll + bonus >= threshold
+        s.phaseState.marks.push(`${markKey}=${success ? 1 : 0}`)
+        ctx.emit({ type: 'AbilityTriggered', abilityId: entry.source.id, sourceUnitId: holder.id, targetUnitId: byUnitId, summary: `A Martyr's Death: rolled ${roll}${bonus ? ` +${bonus}` : ''} for ${modelId}: ${success ? 'fights on' : 'falls'}`, player })
+      }
     }
     if (!success) return null
     return { kind: 'request', deferRemoval: { kind: s.phase === 'shooting' ? 'ranged' : 'melee', afterUnitId: byUnitId } }
@@ -347,7 +359,139 @@ export function consecratedGroundAmount(s: GameState, pid: PlayerId, base: numbe
   return best
 }
 
+// ---------- Saintly Relic (PEN-3.1): gain one Miracle die at the end of the owner's Command phase ----------
+// (the re-roll-on-gain half, `saintlyRelic`, is a marker read by miracle.ts, E-PEN1)
+const saintlyRelic: EngineCodeHook = { name: 'saintlyRelic', kind: 'ability', hook: 'onTurnStart', run: noop }
+
+const saintlyRelicGain: EngineCodeHook = {
+  name: 'saintlyRelicGain', kind: 'ability', hook: 'onPhaseEnd', run: noop,
+  runAt(ctx, entry) {
+    const s = ctx.state
+    const holder = s.units[entry.holderUnitId]
+    if (!holder) return
+    const player = holder.player
+    if (s.activePlayer !== player || s.phase !== 'command') return
+    const bearer = enhancementBearer(s, player, 'saintlyRelicGain')
+    if (!bearer) return
+    const mark = `relicGain:${s.round}:${player}`
+    if (s.phaseState.marks.includes(mark)) return
+    if (boardHalves(s, bearer.unitId).some((h) => s.units[h].battleShocked)) return
+    const model = s.models[bearer.modelId]
+    if (!model) return
+    const range = s.mission.data.objectiveRange ?? OBJECTIVE_RANGE
+    const radius = s.mission.data.objectiveMarkerRadius ?? OBJECTIVE_MARKER_RADIUS
+    const ok = Object.values(s.objectives).some((o) => !o.removed && controlsNow(ctx, o.id, player) && withinObjectiveRange(model, o, 0, range, radius))
+    if (!ok) return
+    s.phaseState.marks.push(mark)
+    gainMiracleDie(ctx, player, bearer.abilityId)
+  },
+}
+
+// ---------- Angelic Ascent (PEN-6.3): after shooting, outside Engagement Range, a Normal move of up to 6"; no charge ----------
+const angelicAscent: EngineCodeHook = {
+  name: 'angelicAscent', kind: 'ability', hook: 'onUnitSelectedToShoot', run: noop,
+  pick: {
+    window: 'shooting.attacksResolved', topic: 'abilityChoice',
+    offer(ctx, window, key) {
+      const s = ctx.state
+      if (s.phase !== 'shooting') return false
+      const unit = s.units[key]
+      if (!unit || unit.location !== 'board' || unit.player !== s.activePlayer) return false
+      const abilityId = abilityWithCode(s, unit.id, 'angelicAscent')
+      if (!abilityId) return false
+      const mark = `pick:angelic:${unit.id}`
+      if (s.phaseState.marks.includes(mark)) return false
+      s.phaseState.marks.push(mark)
+      if (leaderService.inEngagementWithEnemy(s, unit.id)) return false
+      const distance = (s.abilities[abilityId]?.params?.distance as number | undefined) ?? 6
+      ctx.decide({
+        kind: 'chooseOption', player: unit.player, window, canPass: false,
+        context: { topic: 'abilityChoice', unitId: unit.id, abilityId, data: { window, key, code: 'angelicAscent' } },
+        options: [
+          { id: 'use', label: `Angelic Ascent: Normal move of up to ${distance}" (no charge this turn)`, action: optionAction(unit.player, 'use'), hint: { unitId: unit.id, priority: 1 } },
+          { id: 'decline', label: 'Decline', action: optionAction(unit.player, 'decline') },
+        ],
+      })
+      return true
+    },
+    handle(ctx, action, pending) {
+      if (action.type !== 'chooseOption' || pending.kind !== 'chooseOption') return { code: 'E_NOT_AN_OPTION', reason: 'Angelic Ascent expects chooseOption' }
+      if (action.optionId === 'decline') return
+      if (action.optionId !== 'use') return { code: 'E_NOT_AN_OPTION', reason: 'Angelic Ascent: use or decline' }
+      const s = ctx.state
+      const unitId = pending.context.unitId as UnitId
+      const abilityId = pending.context.abilityId
+      if (!abilityId || !s.units[unitId] || s.units[unitId].location !== 'board') return { code: 'E_NOT_AN_OPTION', reason: 'Angelic Ascent: the unit is no longer on the battlefield' }
+      if (leaderService.inEngagementWithEnemy(s, unitId)) return { code: 'E_ENGAGEMENT', reason: 'Angelic Ascent cannot be used while within Engagement Range of an enemy unit' }
+      const distance = (s.abilities[abilityId]?.params?.distance as number | undefined) ?? 6
+      ctx.emit({ type: 'AbilityTriggered', abilityId, sourceUnitId: unitId, targetUnitId: null, summary: `Angelic Ascent: ${s.units[unitId].name} moves up to ${distance}" and cannot charge this turn`, player: pending.player })
+      // PEN-6.3: the no-charge cost is applied only when the move is actually taken (params.forfeitCharge, see movement.ts)
+      startReactiveMove(ctx, unitId, distance, abilityId, 'shooting.attacksResolved')
+    },
+  },
+}
+
+// ---------- Divine Judgement (PEN-4.1 / 4.2) ----------
+const DJ_KEY = 'divineJudgementUnitId'
+
+// the OPPONENT of the secondary's owner picks one of their own units that is neither a MONSTER nor a VEHICLE
+export function divineJudgementOffer(ctx: EngineContext, owner: PlayerId, window: TimingWindowId, key: string): void {
+  const s = ctx.state
+  const picker: PlayerId = owner === 'A' ? 'B' : 'A'
+  const candidates: Unit[] = []
+  for (const u of Object.values(s.units)) {
+    if (u.player !== picker || u.location === 'destroyed') continue
+    // PEN-4.2: each half of an attached unit is its own candidate
+    if (hasKeyword(s, u.id, 'MONSTER') || hasKeyword(s, u.id, 'VEHICLE')) continue
+    candidates.push(u)
+  }
+  if (candidates.length === 0) return
+  ctx.decide({
+    kind: 'chooseOption', player: picker, window, canPass: false,
+    context: { topic: 'abilityChoice', unitId: null, abilityId: null, data: { window, key, code: 'divineJudgementPick', owner } },
+    options: candidates.map((u) => ({
+      id: u.id, label: u.name, action: optionAction(picker, u.id), hint: { unitId: u.id },
+    })),
+  })
+}
+
+function answerDivineJudgement(ctx: EngineContext, action: Action, pending: PendingDecision): Rejection | void {
+  if (action.type !== 'chooseOption' || pending.kind !== 'chooseOption') return { code: 'E_NOT_AN_OPTION', reason: 'Divine Judgement expects chooseOption' }
+  const s = ctx.state
+  const unit = s.units[action.optionId]
+  if (!unit || unit.player !== pending.player || unit.location === 'destroyed') return { code: 'E_INVALID_TARGET', reason: 'pick one of your own units that is not destroyed' }
+  const owner = ((pending.context.data as { owner?: PlayerId }).owner ?? (pending.player === 'A' ? 'B' : 'A')) as PlayerId
+  s.players[owner].secondaryState[DJ_KEY] = unit.id
+  ctx.emit({ type: 'AbilityTriggered', abilityId: 'ade.sec.divine-judgement', sourceUnitId: null, targetUnitId: unit.id, summary: `Divine Judgement: ${unit.name} is marked for judgement`, player: owner })
+  const w = pending.context.data.window as TimingWindowId | undefined
+  const k = pending.context.data.key as string | undefined
+  if (w && k !== undefined && !s.pending) ctx.services.missions.onWindow(ctx, w, k)
+}
+
+const divineJudgementPick: EngineCodeHook = { name: 'divineJudgementPick', kind: 'mission', hook: 'onPhaseStart', run: noop, answer: answerDivineJudgement }
+const divineJudgementScore: EngineCodeHook = { name: 'divineJudgementScore', kind: 'mission', hook: 'onPhaseEnd', run: noop }
+
+// at battle end: meleePoints (10) if the marked unit was destroyed by a melee attack from an own ADEPTA SORORITAS unit,
+// pointsPer (6) for any other destruction (a Reserves unit that never arrived counts as destroyed), 0 if it survives
+export function divineJudgementAmount(s: GameState, rule: { pointsPer: number; params?: Record<string, unknown> }, pid: PlayerId): number {
+  const id = s.players[pid].secondaryState[DJ_KEY] as UnitId | undefined
+  const target = id ? s.units[id] : undefined
+  if (!target) return 0
+  // PEN-4.2: only the exact unit picked has to be destroyed (an embarked unit is not destroyed)
+  const gone = (u: Unit) => u.location === 'destroyed' || (u.location === 'reserves' && transportService.transportOf(s, u.id) === null)
+  if (!gone(target)) return 0
+  const halves = [target]
+  const melee = (rule.params?.meleePoints as number | undefined) ?? 10
+  for (const u of halves) {
+    const by = u.destroyedBy
+    if (!by || by.kind !== 'melee' || by.player !== pid || !by.unitId) continue
+    if (leaderService.halves(s, by.unitId).some((h) => hasKeyword(s, h, ADEPTA_KEYWORD))) return melee
+  }
+  return rule.pointsPer
+}
+
 export const adeptaSororitasHooks: Record<string, EngineCodeHook> = {
+  saintlyRelic, saintlyRelicGain, angelicAscent, divineJudgementPick, divineJudgementScore,
   actsOfFaith, defenderOfTheFaithOc, righteousFuryPick, righteousFuryReroll, simulacrumImperialis, extremisTriggerWord, aMartyrsDeath,
 }
 

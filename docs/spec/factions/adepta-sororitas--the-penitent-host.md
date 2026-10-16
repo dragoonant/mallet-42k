@@ -294,3 +294,5 @@ No real-world or GW iconography.
 - Rhino footprint (page says "use model") and Ascetic Discipline's Fight-phase scope (either turn) are interpretations.
 - Seraphim paired bolt pistols merged into one A2 weapon (see weapon table).
 - Patrol Squads placement of the Superior and the Simulacrum bearer between the halves is not stated.
+
+**E-PEN2 Hazardous ruling:** a failed Hazardous test on a weapon fired through Firing Deck is resolved against the transport (the Rhino takes the 3 mortal wounds), not the passenger. Legal actions always offer the transport-only declaration plus one Firing Deck variant.

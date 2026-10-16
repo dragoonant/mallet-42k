@@ -76,6 +76,8 @@ export interface Condition {
   unitAdvanced?: boolean
   unitFellBack?: boolean
   unitCharged?: boolean
+  // holder unit (attached halves included) has a live model whose datasheet modelId equals this value (E-PEN3)
+  unitHasModel?: string
   unitBattleShocked?: boolean
   leaderAttached?: boolean
   // onFeelNoPainRoll only: the point being saved is a mortal wound

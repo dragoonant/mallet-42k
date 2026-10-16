@@ -10,6 +10,13 @@
       "rule": "ade.a.acts-of-faith",
       "stratagems": ["ade.s.ascetic-discipline", "ade.s.a-martyrs-death", "ade.s.holy-radiance"],
       "enhancements": ["ade.e.defender-of-the-faith", "ade.e.righteous-fury"]
+    },
+    {
+      "id": "ade.d.the-penitent-host",
+      "name": "The Penitent Host",
+      "rule": "ade.a.acts-of-faith",
+      "stratagems": ["ade.s.pen.ascetic-discipline", "ade.s.pen.a-martyrs-death", "ade.s.pen.holy-radiance"],
+      "enhancements": ["ade.e.armour-of-faith", "ade.e.saintly-relic"]
     }
   ],
   "paintScheme": {
@@ -19,5 +26,5 @@
     "metal": "#b9a36a",
     "decal": "#f2efe6"
   },
-  "combatPatrols": ["ade.cp.sanctuary-guardians"]
+  "combatPatrols": ["ade.cp.sanctuary-guardians", "ade.cp.the-penitent-host"]
 }

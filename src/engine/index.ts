@@ -25,7 +25,7 @@ import { weaponService } from './weapons'
 import { transportService } from './transports'
 import { objectiveService } from './objectives'
 import { missionService } from './missions'
-import { miracleHandler } from './miracle'
+import { answerMiracleReroll, miracleHandler } from './miracle'
 
 export * from './types'
 export * from './actions'
@@ -90,7 +90,13 @@ export const DEFAULT_MODULES: ModuleTable = {
   topics: {
     oathTarget: hookService.handler,
     waaagh: hookService.handler,
-    abilityChoice: hookService.handler,
+    abilityChoice: {
+      validate: (state, action, pending) => hookService.handler.validate?.(state, action, pending) ?? null,
+      handle(ctx, action, pending) {
+        if (pending.kind === 'chooseOption' && pending.context.data.code === 'saintlyRelicReroll') return answerMiracleReroll(ctx, action, pending)
+        return hookService.handler.handle(ctx, action, pending)
+      },
+    },
     razeObjective: missionService.handler,
     recoverObjective: missionService.handler,
     stompTarget: missionService.handler,

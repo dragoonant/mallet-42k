@@ -128,6 +128,20 @@ const METHODICAL_INFO = {
  *  prefix or a variant of the same rule still reads right. */
 const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string } }[] = [
   {
+    match: /saintly-?relic/i,
+    info: {
+      title: 'Saintly Relic: re-roll the new Miracle die?',
+      hint: 'You just gained a Miracle die. The relic lets you throw that one die again and keep the new number, even if it is worse. Keep it if you like the number you got.',
+    },
+  },
+  {
+    match: /^divine-?judgement$/i,
+    info: {
+      title: 'Divine Judgement: choose the judged unit',
+      hint: 'The Sororitas player earns points for destroying the unit you name here, and more if it falls in melee. Name the unit the Sororitas will find hardest to destroy, ideally one that stays out of melee. Monsters and vehicles cannot be chosen.',
+    },
+  },
+  {
     match: /martial-?katah-tgb/i,
     info: {
       title: "Choose a Ka'tah stance",
@@ -380,7 +394,7 @@ function chooseOptionInfoFor(
   }
   const choice = context.data && typeof context.data.choice === 'string' ? CHOICE_PROMPT_KEYS[context.data.choice] : undefined
   // Both Cult Ambush steps (marker, return) carry the code; the return step has no ability id.
-  const key = context.data?.code === 'cultAmbush' ? 'cult-ambush' : context.data?.code === 'etherealEdictPick' ? 'ethereal-edict' : context.abilityId ?? choice ?? null
+  const key = context.data?.code === 'cultAmbush' ? 'cult-ambush' : context.data?.code === 'etherealEdictPick' ? 'ethereal-edict' : context.data?.code === 'divineJudgementPick' ? 'divine-judgement' : context.abilityId ?? choice ?? null
   if (choice === 'patrol-squads' && Array.isArray(context.data?.sizes)) {
     const sizes = (context.data.sizes as number[]).filter((n) => typeof n === 'number')
     if (sizes.length > 0) {
@@ -576,6 +590,7 @@ function labelForOption(pending: PendingDecision, state: GameState, events: read
         const un = pending.context.unitId ? state.units[pending.context.unitId] : undefined
         if (tr) return `Embark ${un?.name ?? 'the unit'} into ${tr.name}`
       }
+      if (pending.context.data?.code === 'divineJudgementPick' && state.units[o.id]) return state.units[o.id].name
       const pairLabel = pairOptionLabel(state, pending.context.abilityId, o.id)
       if (pairLabel) return pairLabel
       const orderLabel = orderOptionLabel(state, o.id)
@@ -601,6 +616,10 @@ function abilityOptionLabel(abilityId: string | null, o: { id: string; label: st
   }
   if (/teleport-?assault/i.test(abilityId)) {
     if (/^(decline|skip|pass|none|stay)$/.test(o.id)) return 'Stay where they are'
+  }
+  if (/saintly-?relic/i.test(abilityId)) {
+    if (o.id === 'reroll') return 'Re-roll the new Miracle die'
+    if (o.id === 'keep') return 'Keep the die as rolled'
   }
   if (/sacrificial-?dagger/i.test(abilityId)) {
     if (o.id === 'use') return 'Use the dagger (1 mortal wound)'

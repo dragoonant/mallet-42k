@@ -181,6 +181,28 @@ function stratagemGain(state: GameState, player: PlayerId, pending: PendingDecis
     for (const u of candidates) if (hasAnyMeleeWeapon(state, u)) best = Math.max(best, unitMeleeDamage(state, u, trigger, {}))
     return best * unitValue(state, trigger) * 0.025
   }
+  // The Penitent Host stratagems (ade.s.pen.*): Ascetic Discipline is a 4+/5+ invulnerable save in either player's phase,
+  // A Martyr's Death is an own-Shooting Lethal Hits buff, Holy Radiance a Fight-phase last stand with no roll.
+  if (id === 'ade.s.pen.ascetic-discipline' || id === 'ade.s.pen.holy-radiance') {
+    const unitId = mineOf(state, player, targets.unitIds) ?? targetTrigger
+    if (!unitId || state.units[unitId]?.player !== player || pending.kind !== 'stratagemWindow') return -Infinity
+    const attackerId = pending.context.trigger.unitId
+    if (!attackerId || state.units[attackerId]?.player === player) return -Infinity
+    const melee = state.phase === 'fight'
+    if (id.endsWith('holy-radiance')) return melee ? dyingStrikeValue(state, unitId, attackerId, true, 0.9) : -Infinity
+    const strong = hasKeyword(state, unitId, 'BATTLE SISTERS SQUAD') || hasKeyword(state, unitId, 'SERAPHIM SQUAD')
+    const without = incomingDamage(state, attackerId, unitId, melee, {})
+    if (without <= 0) return -Infinity
+    const g = savedValue(state, unitId, without, incomingDamage(state, attackerId, unitId, melee, { invuln: strong ? 4 : 5 }))
+    return g > 0 ? g : -Infinity
+  }
+  if (id === 'ade.s.pen.a-martyrs-death') {
+    const unitId = targets.unitIds?.[0]
+    if (!unitId || state.phase !== 'shooting' || !hasAnyRangedWeapon(state, unitId)) return -Infinity
+    const enemy = nearestEnemyUnit(state, player, unitId)
+    if (!enemy) return -Infinity
+    return unitRangedDamage(state, unitId, enemy.unitId, {}) * 0.15 * unitValue(state, enemy.unitId) * 0.03
+  }
   if (DEFENSIVE.some((d) => id.endsWith(d))) {
     const unitId = mineOf(state, player, targets.unitIds) ?? targetTrigger
     if (!unitId || state.units[unitId]?.player !== player) return -Infinity

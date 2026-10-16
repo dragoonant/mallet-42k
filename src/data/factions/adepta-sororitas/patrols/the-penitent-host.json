@@ -1,0 +1,191 @@
+{
+  "id": "ade.cp.the-penitent-host",
+  "faction": "adepta-sororitas",
+  "name": "The Penitent Host",
+  "units": [
+    {
+      "ref": "canoness",
+      "datasheet": "ade.canoness-ellyrine",
+      "size": 1,
+      "enhancement": "ade.e.armour-of-faith",
+      "attachTo": "sisters"
+    },
+    {
+      "ref": "sisters",
+      "datasheet": "ade.pen.battle-sisters-squad",
+      "size": 10,
+      "patrolSquads": [
+        {
+          "ref": "sisters-a",
+          "size": 5,
+          "wargear": [
+            {
+              "modelId": "superior",
+              "count": 1,
+              "weapons": [
+                "ade.w.bolt-pistol",
+                "ade.w.boltgun",
+                "ade.w.chainsword"
+              ]
+            },
+            {
+              "modelId": "sister-flamer",
+              "count": 1,
+              "weapons": [
+                "ade.w.bolt-pistol",
+                "ade.w.ministorum-flamer",
+                "ade.w.close-combat-weapon"
+              ]
+            },
+            {
+              "modelId": "sister",
+              "count": 3,
+              "weapons": [
+                "ade.w.bolt-pistol",
+                "ade.w.boltgun",
+                "ade.w.close-combat-weapon"
+              ]
+            }
+          ]
+        },
+        {
+          "ref": "sisters-b",
+          "size": 5,
+          "wargear": [
+            {
+              "modelId": "sister-storm-bolter",
+              "count": 1,
+              "weapons": [
+                "ade.w.bolt-pistol",
+                "ade.w.artificer-storm-bolter",
+                "ade.w.close-combat-weapon"
+              ]
+            },
+            {
+              "modelId": "sister-simulacrum",
+              "count": 1,
+              "weapons": [
+                "ade.w.bolt-pistol",
+                "ade.w.boltgun",
+                "ade.w.close-combat-weapon"
+              ]
+            },
+            {
+              "modelId": "sister",
+              "count": 3,
+              "weapons": [
+                "ade.w.bolt-pistol",
+                "ade.w.boltgun",
+                "ade.w.close-combat-weapon"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ref": "seraphim",
+      "datasheet": "ade.seraphim-squad",
+      "size": 5
+    },
+    {
+      "ref": "repentia",
+      "datasheet": "ade.repentia-squad",
+      "size": 5
+    },
+    {
+      "ref": "arcos",
+      "datasheet": "ade.pen.arco-flagellants",
+      "size": 3
+    },
+    {
+      "ref": "engine",
+      "datasheet": "ade.penitent-engine",
+      "size": 1
+    },
+    {
+      "ref": "rhino",
+      "datasheet": "ade.sororitas-rhino",
+      "size": 1
+    }
+  ],
+  "stratagems": [
+    "ade.s.pen.ascetic-discipline",
+    "ade.s.pen.a-martyrs-death",
+    "ade.s.pen.holy-radiance"
+  ],
+  "enhancements": [
+    {
+      "id": "ade.e.armour-of-faith",
+      "default": true
+    },
+    {
+      "id": "ade.e.saintly-relic",
+      "default": false
+    }
+  ],
+  "secondaries": [
+    {
+      "id": "ade.sec.divine-judgement",
+      "name": "Divine Judgement",
+      "text": "At the start of battle round 1 your opponent picks one unit in their army that is neither a MONSTER nor a VEHICLE. At the end of the battle, score 10 victory points if that unit was destroyed by a melee attack from one of your ADEPTA SORORITAS models, or 6 if it was destroyed any other way. Score nothing if it survives.",
+      "default": true,
+      "scoring": [
+        {
+          "id": "divine-judgement-pick",
+          "when": "round.start",
+          "rounds": {
+            "from": 1,
+            "to": 1
+          },
+          "who": "both",
+          "rule": "custom",
+          "pointsPer": 0,
+          "cap": 0,
+          "code": "divineJudgementPick"
+        },
+        {
+          "id": "divine-judgement",
+          "when": "battle.end",
+          "rounds": {
+            "from": 1,
+            "to": 5
+          },
+          "who": "both",
+          "rule": "custom",
+          "pointsPer": 6,
+          "cap": 10,
+          "code": "divineJudgementScore",
+          "params": {
+            "meleePoints": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "ade.sec.rites-of-reconsecration",
+      "name": "Rites of Reconsecration",
+      "text": "From battle round 2, at the end of each of your turns, score 3 victory points if at least one of your ADEPTA SORORITAS units that is not Battle-shocked has every model wholly within your opponent's deployment zone. The award is flat, once per turn.",
+      "default": false,
+      "scoring": [
+        {
+          "id": "rites-of-reconsecration",
+          "when": "turn.end",
+          "rounds": {
+            "from": 2,
+            "to": 5
+          },
+          "who": "active",
+          "rule": "custom",
+          "pointsPer": 3,
+          "cap": 3,
+          "code": "reclaimAndDominate",
+          "params": {
+            "keyword": "ADEPTA SORORITAS"
+          }
+        }
+      ]
+    }
+  ],
+  "warlord": "canoness"
+}

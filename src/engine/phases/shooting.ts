@@ -33,6 +33,7 @@ import { attackService, pruneUnreachableTargets } from '../attack'
 import { consumeReaction } from '../code-hooks'
 import { handleReactiveMove, resolveSurgeMove, reactiveMoveLegalActions, validateReactiveMove } from './movement'
 import { weaponService } from '../weapons'
+import { transportService } from '../transports'
 import { notImplementedHandle, otherPlayer, type AdvanceResult, type EngineContext, type PhaseModule } from '../modules'
 import { boardUnitsOf, datasheetOf, hasCoreAbility, hasKeyword, unitModels } from '../state'
 import type { Action } from '../actions'
@@ -156,6 +157,66 @@ function weaponUsableThisActivation(state: GameState, firingUnitId: UnitId, weap
   return true
 }
 
+// ---------- E-PEN2 Firing Deck (R-5.19): embarked models' ranged weapons fire through the transport ----------
+// the Firing Deck value of a transport (datasheet.transport.firingDeck, else the FIRING_DECK core ability), 0 when none
+export function firingDeckValue(state: GameState, unitId: UnitId): number {
+  const ds = datasheetOf(state, unitId)
+  if (ds.transport?.firingDeck) return ds.transport.firingDeck
+  return Number(ds.coreAbilities.find((c) => c.ability === 'FIRING_DECK')?.value ?? 0) || 0
+}
+
+// the embarked models that could fire through `transportUnitId` right now, with their eligible ranged weapons: the
+// passenger unit has not shot this phase and is genuinely embarked; [ONE SHOT] weapons never qualify
+export function firingDeckWeapons(state: GameState, transportUnitId: UnitId): { modelId: ModelId; weaponIds: WeaponId[] }[] {
+  if (firingDeckValue(state, transportUnitId) <= 0) return []
+  const out: { modelId: ModelId; weaponIds: WeaponId[] }[] = []
+  for (const pid of transportService.embarkedIn(state, transportUnitId)) {
+    const pu = state.units[pid]
+    if (!pu || pu.turn.shotThisPhase || state.phaseState.activated.includes(pid)) continue
+    for (const mid of pu.models) {
+      const m = state.models[mid]
+      if (!m) continue
+      const weaponIds = m.weapons.filter((wid) => {
+        const w = weaponService.effectiveWeapon(state, mid, wid)
+        return !!w && w.kind === 'ranged' && !weaponService.hasAbility(w, 'ONE_SHOT')
+      })
+      if (weaponIds.length > 0) out.push({ modelId: mid, weaponIds })
+    }
+  }
+  return out
+}
+
+// an embarked model has no meaningful position: fire from the transport's hull instead.
+// The passenger is never permanently changed: the original pos/facing/base are returned (or parked in a mark) and restored.
+type Anchor = { pos: Model['pos']; facing: Model['facing']; base: Model['base'] }
+function anchorToTransport(state: GameState, modelId: ModelId, transportUnitId: UnitId): Anchor | null {
+  const m = state.models[modelId]
+  const hull = state.units[transportUnitId].models.map((id) => state.models[id]).find((x) => !!x)
+  if (!m || !hull) return null
+  const saved: Anchor = { pos: m.pos, facing: m.facing, base: m.base }
+  m.pos = { ...hull.pos }
+  m.facing = hull.facing
+  m.base = hull.base
+  return saved
+}
+function restoreAnchor(state: GameState, modelId: ModelId, a: Anchor | null): void {
+  const m = state.models[modelId]
+  if (!m || !a) return
+  m.pos = a.pos
+  m.facing = a.facing
+  m.base = a.base
+}
+const ANCHOR_PREFIX = 'sh:anch:'
+function restoreAnchoredPassengers(state: GameState): void {
+  for (const mark of [...state.phaseState.marks]) {
+    if (!mark.startsWith(ANCHOR_PREFIX)) continue
+    const rest = mark.slice(ANCHOR_PREFIX.length)
+    const eq = rest.indexOf('=')
+    restoreAnchor(state, rest.slice(0, eq) as ModelId, JSON.parse(rest.slice(eq + 1)) as Anchor)
+    state.phaseState.marks = state.phaseState.marks.filter((x) => x !== mark)
+  }
+}
+
 // `models` overrides the firing models (E4: a unit's deferred last-stand models shoot alone)
 export function buildShootingWeaponEntries(ctx: EngineContext, firingUnitId: UnitId, models?: Model[], opts?: { ignoreAdvance?: boolean }): ShootingWeaponEntry[] {
   const s = ctx.state
@@ -171,6 +232,21 @@ export function buildShootingWeaponEntries(ctx: EngineContext, firingUnitId: Uni
       if (!weaponUsableThisActivation(s, firingUnitId, w, opts?.ignoreAdvance)) continue
       const legalTargets = candidates.filter((t) => targetLegality(s, firingUnitId, m.id, w, t) === null)
       out.push({ modelId: m.id, weaponId: wid, profileGroup: w.profileGroup, legalTargets, attacks: null })
+    }
+  }
+  // E-PEN2: Firing Deck passengers (not for a deferred last-stand activation)
+  if (!models) {
+    for (const { modelId, weaponIds } of firingDeckWeapons(s, firingUnitId)) {
+      const saved = anchorToTransport(s, modelId, firingUnitId)
+      const m = s.models[modelId]
+      for (const wid of weaponIds) {
+        const w = weaponService.effectiveWeapon(s, modelId, wid)
+        if (!w || !weaponService.isAvailable(s, modelId, wid)) continue
+        if (!weaponUsableThisActivation(s, firingUnitId, w, opts?.ignoreAdvance)) continue
+        const legalTargets = candidates.filter((t) => targetLegality(s, firingUnitId, m.id, w, t) === null)
+        out.push({ modelId, weaponId: wid, profileGroup: w.profileGroup, legalTargets, attacks: null })
+      }
+      restoreAnchor(s, modelId, saved)
     }
   }
   return out
@@ -261,6 +337,20 @@ function validateDeclareTargets(state: GameState, action: Action, pending: Pendi
     if (weaponService.hasAbility(w, 'PISTOL')) pistolUsed.add(t.modelId)
     else nonPistolUsed.add(t.modelId)
   }
+  // E-PEN2 (R-5.19): at most FIRING_DECK passenger models fire, one ranged weapon each
+  const deckModels = new Map<ModelId, Set<WeaponId>>()
+  for (const t of action.targets) {
+    const mu = state.models[t.modelId]?.unitId
+    if (mu && mu !== action.unitId && transportService.transportOf(state, mu) === action.unitId) {
+      const set = deckModels.get(t.modelId) ?? new Set<WeaponId>()
+      set.add(t.weaponId)
+      deckModels.set(t.modelId, set)
+    }
+  }
+  if (deckModels.size > 0) {
+    if (deckModels.size > firingDeckValue(state, action.unitId)) return { code: 'E_INVALID_TARGET', reason: `Firing Deck allows at most ${firingDeckValue(state, action.unitId)} embarked models to fire`, details: { models: [...deckModels.keys()] } }
+    for (const [modelId, ws] of deckModels) if (ws.size > 1) return { code: 'E_INVALID_TARGET', reason: 'an embarked model fires only one ranged weapon through Firing Deck', details: { modelId } }
+  }
   // SHOOT-003-one-unit (R-6.7): an engaged, non-MONSTER/VEHICLE unit's Pistols may all fire at only ONE of the
   // enemy units it is in Engagement Range of
   if (!isBigGunsUnit(state, action.unitId) && leaderService.inEngagementWithEnemy(state, action.unitId)) {
@@ -297,6 +387,7 @@ function doResolve(ctx: EngineContext): 'pending' | 'selectUnit' {
   for (let r = consumeReaction(s, 'surge'); r; r = consumeReaction(s, 'surge')) resolveSurgeMove(ctx, r.unitId, r.distance ?? 0, r.enemyUnitId)
   // E4: models kept on the table by A Martyr's Death shoot now, then leave
   if (resolveDeferredActivations(ctx, unitId) === 'awaiting') return 'pending'
+  restoreAnchoredPassengers(s)
   writeMark(s, 'sh:resolveUnit', null)
   return 'selectUnit'
 }
@@ -335,12 +426,27 @@ function shootingLegalActions(state: GameState, pending: PendingDecision): Actio
   const bigGuns = state.units[unitId] ? isBigGunsUnit(state, unitId) : false
   const all = [...new Set(weapons.flatMap((w) => w.legalTargets))]
   const candidates: Action[] = []
-  for (const target of all) {
+  // E-PEN2: embarked passengers' weapons (Firing Deck) are kept apart from the transport's own so the transport-only
+  // declaration is always offered, plus one Firing Deck variant (best <= deck-value passengers, one non-pistol weapon each)
+  const isPassenger = (modelId: ModelId): boolean => {
+    const mu = state.models[modelId]?.unitId
+    return !!mu && mu !== unitId && transportService.transportOf(state, mu) === unitId
+  }
+  const deckCap = firingDeckValue(state, unitId)
+  const build = (target: UnitId, entries0: typeof weapons, deckVariant: boolean): WeaponTarget[] => {
     const byModel = new Map<ModelId, typeof weapons>()
-    for (const w of weapons) if (w.legalTargets.includes(target)) byModel.set(w.modelId, [...(byModel.get(w.modelId) ?? []), w])
+    for (const w of entries0) if (w.legalTargets.includes(target)) byModel.set(w.modelId, [...(byModel.get(w.modelId) ?? []), w])
     const targets: WeaponTarget[] = []
+    const deckPicks: { modelId: ModelId; entry: (typeof weapons)[number]; score: number }[] = []
     for (const [modelId, entries] of byModel) {
       const isPistol = (e: (typeof weapons)[number]): boolean => weaponService.hasAbility(weaponService.effectiveWeapon(state, e.modelId, e.weaponId), 'PISTOL')
+      if (deckVariant) {
+        const pool = entries.filter((e) => !isPistol(e))
+        const use = pool.length > 0 ? pool : entries
+        const best = use[0]
+        if (best) deckPicks.push({ modelId, entry: best, score: weaponService.effectiveWeapon(state, best.modelId, best.weaponId).S ?? 0 })
+        continue
+      }
       const others = entries.filter((e) => !isPistol(e))
       const chosen = bigGuns ? entries : others.length > 0 ? others : entries.filter(isPistol)
       const groups = new Set<string>()
@@ -349,7 +455,19 @@ function shootingLegalActions(state: GameState, pending: PendingDecision): Actio
         targets.push({ modelId, weaponId: e.weaponId, targetUnitId: target, ...(e.profileGroup ? { profileGroup: e.profileGroup } : {}) })
       }
     }
-    if (targets.length > 0) candidates.push({ type: 'declareTargets', player: pending.player, decisionId: pending.id, unitId, targets })
+    deckPicks.sort((a, b) => b.score - a.score)
+    for (const d of deckPicks.slice(0, deckCap)) targets.push({ modelId: d.modelId, weaponId: d.entry.weaponId, targetUnitId: target, ...(d.entry.profileGroup ? { profileGroup: d.entry.profileGroup } : {}) })
+    return targets
+  }
+  const own = weapons.filter((w) => !isPassenger(w.modelId))
+  const deck = weapons.filter((w) => isPassenger(w.modelId))
+  for (const target of all) {
+    const base = build(target, own, false)
+    if (base.length > 0) candidates.push({ type: 'declareTargets', player: pending.player, decisionId: pending.id, unitId, targets: base })
+    if (deck.length > 0 && deckCap > 0) {
+      const d = build(target, deck, true)
+      if (d.length > 0) candidates.push({ type: 'declareTargets', player: pending.player, decisionId: pending.id, unitId, targets: [...base, ...d] })
+    }
   }
   const out = filterValid(candidates, (a) => validateDeclareTargets(state, a, pending), 6)
   if (pending.canPass) out.push(passAction(pending))
@@ -439,6 +557,17 @@ export const shootingModule: PhaseModule = {
       if (action.targets.length === 0) { s.step = 'selectUnit'; return }
       // R-6.1: each unit shoots at most once per phase
       for (const id of leaderService.halves(s, action.unitId)) s.units[id].turn.shotThisPhase = true
+      // E-PEN2: Firing Deck passengers fired through the transport; their units are spent for the phase
+      for (const t of action.targets) {
+        const mu = s.models[t.modelId]?.unitId
+        if (mu && mu !== action.unitId && transportService.transportOf(s, mu) === action.unitId) {
+          if (!s.phaseState.marks.some((x) => x.startsWith(`${ANCHOR_PREFIX}${t.modelId}=`))) {
+            const saved = anchorToTransport(s, t.modelId, action.unitId)
+            if (saved) s.phaseState.marks.push(`${ANCHOR_PREFIX}${t.modelId}=${JSON.stringify(saved)}`)
+          }
+          for (const id of leaderService.halves(s, mu)) s.units[id].turn.shotThisPhase = true
+        }
+      }
       const targets: DeclaredTarget[] = action.targets.map((t) => ({ modelId: t.modelId, weaponId: t.weaponId, targetUnitId: t.targetUnitId, profileGroup: t.profileGroup ?? null, attacks: null }))
       attackService.begin(ctx, { kind: 'ranged', attackerUnitId: action.unitId, overwatch: false, targets })
       writeMark(s, 'sh:resolveUnit', action.unitId)

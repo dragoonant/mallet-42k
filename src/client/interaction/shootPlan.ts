@@ -4,7 +4,7 @@
 // (src/engine/phases/shooting.ts) so the Fire button is never offered for something the engine rejects.
 import type { GameState, ModelId, PendingDecision, UnitId, WeaponId } from '@/engine'
 import type { WeaponAbilityName } from '@/data/types'
-import { isBigGunsUnit } from '@/engine/phases/shooting'
+import { isBigGunsUnit, firingDeckValue } from '@/engine/phases/shooting'
 
 export type DeclarePending = Extract<PendingDecision, { kind: 'declareTargets' }>
 export type WeaponEntry = DeclarePending['context']['weapons'][number]
@@ -20,6 +20,8 @@ export interface WeaponGroup {
   variants: WeaponVariant[]
   /** union of every entry's legal targets */
   legalTargets: UnitId[]
+  /** Firing Deck: set when this row is one embarked passenger model's one weapon (never merged with other models) */
+  deckModelId?: ModelId
 }
 
 export type PistolMode = 'other' | 'pistol'
@@ -37,8 +39,22 @@ export function weaponHasAbility(state: GameState, weaponId: WeaponId, ability: 
   return !!state.weapons[weaponId]?.abilities.some((a) => a.ability === ability)
 }
 
-export function groupWeapons(state: GameState, entries: WeaponEntry[]): WeaponGroup[] {
+/** Firing Deck: the number of embarked models allowed to fire through the active unit (0 = not a transport with a deck). */
+export function deckCap(state: GameState, activeUnitId: UnitId): number {
+  return firingDeckValue(state, activeUnitId)
+}
+
+/** Firing Deck rows currently ticked (each is one passenger model). */
+export function deckFiring(groups: WeaponGroup[], plan: ShootPlan): number {
+  return groups.filter((g) => g.deckModelId && plan.groups[g.key]?.fire).length
+}
+
+export function groupWeapons(state: GameState, entries: WeaponEntry[], activeUnitId?: UnitId): WeaponGroup[] {
   const map = new Map<string, WeaponGroup>()
+  const isPassenger = (e: WeaponEntry) => !!activeUnitId && state.models[e.modelId]?.unitId !== activeUnitId
+  // Passengers get one row per model+weapon; the rest of the logic below only sees the transport's own entries
+  const deckEntries = entries.filter(isPassenger)
+  entries = entries.filter((e) => !isPassenger(e))
   // A profile group is one radio choice per model. When models of the unit offer different alternatives of it
   // (e.g. the sergeant has a profile the troopers lack), each distinct set of alternatives gets its own row.
   const offered = new Map<string, Map<ModelId, Set<WeaponId>>>()
@@ -65,7 +81,23 @@ export function groupWeapons(state: GameState, entries: WeaponEntry[]): WeaponGr
     if (!g.variants.some((v) => v.weaponId === e.weaponId)) g.variants.push({ weaponId: e.weaponId, name: state.weapons[e.weaponId]?.name ?? e.weaponId })
     for (const t of e.legalTargets) if (!g.legalTargets.includes(t)) g.legalTargets.push(t)
   }
-  return [...map.values()].filter((g) => g.legalTargets.length > 0)
+  const rows = [...map.values()]
+  for (const e of deckEntries) {
+    const w = state.weapons[e.weaponId]
+    const mname = state.models[e.modelId]
+    const unit = mname && state.units[mname.unitId]
+    const kind = (unit && state.datasheets[unit.datasheetId]?.models.find((p) => p.modelId === mname.datasheetModelId)?.name) ?? 'Passenger'
+    rows.push({
+      key: `deck:${e.modelId}:${e.weaponId}`,
+      name: `${kind} (${unit?.name ?? 'embarked'}): ${w?.name ?? e.weaponId}`,
+      range: w?.range ?? 0,
+      entries: [e],
+      variants: [{ weaponId: e.weaponId, name: w?.name ?? e.weaponId }],
+      legalTargets: [...e.legalTargets],
+      deckModelId: e.modelId,
+    })
+  }
+  return rows.filter((g) => g.legalTargets.length > 0)
 }
 
 /** Entries of a group that would fire at `target` with the group's chosen profile. */
@@ -79,7 +111,7 @@ export function initialPlan(groups: WeaponGroup[], target: UnitId): ShootPlan {
   for (const g of groups) {
     const variant = g.variants.find((v) => g.entries.some((e) => e.weaponId === v.weaponId && e.legalTargets.includes(target)))?.weaponId ?? g.variants[0].weaponId
     const reach = g.entries.some((e) => e.legalTargets.includes(target))
-    plan.groups[g.key] = { fire: reach, target: reach ? target : g.legalTargets[0], variant }
+    plan.groups[g.key] = { fire: reach && !g.deckModelId, target: reach ? target : g.legalTargets[0], variant }
   }
   return plan
 }
@@ -88,7 +120,8 @@ export function initialPlan(groups: WeaponGroup[], target: UnitId): ShootPlan {
  *  otherwise every row that can (and switch those rows on). */
 export function retarget(groups: WeaponGroup[], plan: ShootPlan, unitId: UnitId): ShootPlan {
   const next: ShootPlan = { ...plan, groups: { ...plan.groups } }
-  const canReach = (g: WeaponGroup) => g.legalTargets.includes(unitId)
+  // Firing Deck rows only follow a click once the player has chosen them
+  const canReach = (g: WeaponGroup) => g.legalTargets.includes(unitId) && (!g.deckModelId || plan.groups[g.key]?.fire)
   const apply = (g: WeaponGroup) => {
     const c = plan.groups[g.key]
     const variant = g.variants.find((v) => g.entries.some((e) => e.weaponId === v.weaponId && e.legalTargets.includes(unitId)))?.weaponId ?? c.variant
@@ -163,6 +196,8 @@ export function modeOf(plan: ShootPlan, sig: string): PistolMode {
   return plan.pistolMode[sig] ?? 'other'
 }
 
+const resolvedKeys = (firing: Record<string, number>, key: string) => (firing[key] ?? 0) > 0
+
 export function resolvePlan(state: GameState, pending: DeclarePending, groups: WeaponGroup[], plan: ShootPlan): ResolvedPlan {
   type Cand = { modelId: ModelId; weaponId: WeaponId; targetUnitId: UnitId; key: string; pistol: boolean }
   const cands: Cand[] = []
@@ -200,6 +235,8 @@ export function resolvePlan(state: GameState, pending: DeclarePending, groups: W
   for (const c of kept) firing[c.key] = (firing[c.key] ?? 0) + 1
   const targets = kept.map(({ modelId, weaponId, targetUnitId }) => ({ modelId, weaponId, targetUnitId }))
   const errors: string[] = []
+  const deckModels = new Set(groups.filter((g) => g.deckModelId && (resolvedKeys(firing, g.key))).map((g) => g.deckModelId))
+  if (deckModels.size > deckCap(state, pending.context.unitId)) errors.push(`Firing Deck allows at most ${deckCap(state, pending.context.unitId)} embarked models to fire.`)
   if (targets.length === 0) errors.push('Tick at least one weapon, or choose Fire nothing.')
   if (pending.context.engagedWith.length > 0 && !bigGuns && new Set(targets.map((t) => t.targetUnitId)).size > 1) {
     errors.push('This unit is locked in melee, so all of its guns must pick the same enemy unit.')
@@ -214,6 +251,12 @@ export function setRowFire(state: GameState, pending: DeclarePending, groups: We
   const c = plan.groups[key]
   const next: ShootPlan = { ...plan, selectedKey: key, groups: { ...plan.groups, [key]: { ...c, fire: on } }, pistolMode: { ...plan.pistolMode } }
   if (!g || !on) return next
+  if (g.deckModelId) {
+    // Firing Deck: one weapon per passenger model, and at most `deckCap` passenger models in total
+    if (!c.fire && deckFiring(groups, plan) >= deckCap(state, pending.context.unitId)) return plan
+    for (const o of groups) if (o.deckModelId === g.deckModelId && o.key !== key) next.groups[o.key] = { ...plan.groups[o.key], fire: false }
+    return next
+  }
   const rowIsPistol = weaponHasAbility(state, c.variant, 'PISTOL')
   const groupOfModel = new Map<ModelId, PistolGroup>()
   for (const pg of pistolGroups(state, pending, groups)) for (const id of pg.modelIds) groupOfModel.set(id, pg)

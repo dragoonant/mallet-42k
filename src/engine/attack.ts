@@ -47,6 +47,7 @@ import type { AdvanceResult, DecisionHandler, EngineContext } from './modules'
 import { tryDeathBlow } from './deathblow'
 import { datasheetOf, hasKeyword, keywordsOf, modelKeywordsOf, modelStats, recordModelAttacked, removeModel, unitModels } from './state'
 import { weaponService } from './weapons'
+import { transportService } from './transports'
 import { fightOnDeathThreshold } from './fight-on-death'
 import type { AttackRollContext } from './events'
 import {
@@ -1106,7 +1107,13 @@ function tickHazardous(ctx: EngineContext): 'pending' | 'progress' | 'none' {
     a.hazardousPending = a.hazardousPending.slice(1)
     return 'progress'
   }
-  const candidates = (leaderService.combinedModels ? leaderService.combinedModels(s, a.attackerUnitId) : unitModels(s, a.attackerUnitId)).filter((m) => m.weapons.includes(weaponId))
+  let candidates = (leaderService.combinedModels ? leaderService.combinedModels(s, a.attackerUnitId) : unitModels(s, a.attackerUnitId)).filter((m) => m.weapons.includes(weaponId))
+  // E-PEN2 Firing Deck: the weapon belongs to an embarked passenger, not the transport, so the pool would be empty —
+  // the transport itself takes the Hazardous casualty (RULING in spec: commentary reading, transport model)
+  if (candidates.length === 0 && firingModelId) {
+    const fm = s.models[firingModelId]
+    if (fm && fm.unitId !== a.attackerUnitId && transportService.transportOf(s, fm.unitId) === a.attackerUnitId) candidates = unitModels(s, a.attackerUnitId)
+  }
   const wounded = candidates.filter((m) => m.woundsRemaining < modelStats(s, m).W)
   const nonChar = candidates.filter((m) => !modelKeywordsOf(s, m.id).includes('CHARACTER'))
   const pool = wounded.length > 0 ? wounded : nonChar.length > 0 ? nonChar : candidates

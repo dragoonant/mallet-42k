@@ -352,6 +352,9 @@
         "unitCharged": {
           "type": "boolean"
         },
+        "unitHasModel": {
+          "type": "string"
+        },
         "unitBattleShocked": {
           "type": "boolean"
         },

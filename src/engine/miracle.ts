@@ -7,7 +7,7 @@ import { leaderService } from './leaders'
 import { neededChargeDistance } from './phases/charge'
 import { keywordsOf } from './state'
 import { EngineInvariantError } from './types'
-import type { GameState, PendingDecision, PlayerId, Rejection, RollPurpose, UnitId } from './types'
+import type { GameState, PendingDecision, PlayerId, Rejection, RollPurpose, TimingWindowId, UnitId } from './types'
 import { netModifier, parseDiceExpr, type RollSpec } from './dice'
 
 export const ACTS_OF_FAITH_CODE = 'actsOfFaith'
@@ -44,7 +44,75 @@ export function gainMiracleDie(ctx: EngineContext, player: PlayerId, source: str
   if (!Number.isInteger(v) || v < 1 || v > 6) throw new EngineInvariantError('gainMiracleDie: value must be 1..6', { value: v })
   pool(s, player).dice.push(v)
   ctx.emit({ type: 'MiracleDieGained', player, value: v, source })
+  // E-PEN1: a Saintly Relic bearer may re-roll each die the moment it is gained (offered at the next timing window)
+  if (source !== MIRACLE_REROLL_SOURCE && miracleRerollOnGain(s, player)) rerollPending(s, player).push(v)
   return v
+}
+
+// ---------- E-PEN1: Saintly Relic - re-roll a Miracle die on gain ----------
+export const SAINTLY_RELIC_CODE = 'saintlyRelic'
+export const MIRACLE_REROLL_SOURCE = 'saintlyRelicReroll'
+
+function relicBearer(s: GameState, player: PlayerId): { abilityId: string; unitId: UnitId } | null {
+  for (const a of Object.values(s.abilities)) {
+    if (a.source !== 'enhancement' || a.code !== SAINTLY_RELIC_CODE || !a.bearerModelId) continue
+    const model = s.models[a.bearerModelId]
+    const unit = model ? s.units[model.unitId] : undefined
+    if (unit && unit.player === player && unit.location === 'board') return { abilityId: a.id, unitId: unit.id }
+  }
+  return null
+}
+
+// true iff `player` has a Saintly Relic bearer alive on the battlefield
+export function miracleRerollOnGain(state: GameState, player: PlayerId): boolean {
+  return relicBearer(state, player) !== null
+}
+
+function rerollPending(state: GameState, player: PlayerId): number[] {
+  const ss = state.players[player].secondaryState
+  if (!Array.isArray(ss.miracleRerollPending)) ss.miracleRerollPending = []
+  return ss.miracleRerollPending as number[]
+}
+
+// Raises ONE keep / reroll decision for the oldest queued gain, if any and none is open. Values whose die was already
+// spent are dropped silently; with the bearer gone the whole queue is cleared. True when a decision was opened.
+export function offerMiracleRerolls(ctx: EngineContext, window: TimingWindowId, key: string): boolean {
+  const s = ctx.state
+  if (s.pending) return false
+  for (const player of Object.keys(s.players) as PlayerId[]) {
+    const queue = rerollPending(s, player)
+    if (queue.length === 0) continue
+    const bearer = relicBearer(s, player)
+    if (!bearer) { queue.length = 0; continue }
+    while (queue.length > 0 && !pool(s, player).dice.includes(queue[0])) queue.shift()
+    if (queue.length === 0) continue
+    const value = queue[0]
+    ctx.decide({
+      kind: 'chooseOption', player, window, canPass: false,
+      context: { topic: 'abilityChoice', unitId: bearer.unitId, abilityId: bearer.abilityId, data: { code: 'saintlyRelicReroll', value, window, key } },
+      options: [
+        { id: 'keep', label: `Keep the Miracle die (${value})`, action: { type: 'chooseOption', player, decisionId: '', optionId: 'keep' }, hint: { value: value >= 4 ? 1 : 0 } },
+        { id: 'reroll', label: `Re-roll the Miracle die (${value})`, action: { type: 'chooseOption', player, decisionId: '', optionId: 'reroll' }, hint: { value: value <= 3 ? 1 : 0 } },
+      ],
+    })
+    return true
+  }
+  return false
+}
+
+export function answerMiracleReroll(ctx: EngineContext, action: Action, pending: PendingDecision): Rejection | void {
+  if (action.type !== 'chooseOption' || pending.kind !== 'chooseOption') return { code: 'E_NOT_AN_OPTION', reason: 'a Saintly Relic offer is answered with chooseOption' }
+  if (action.optionId !== 'keep' && action.optionId !== 'reroll') return { code: 'E_NOT_AN_OPTION', reason: `option ${action.optionId} is not offered` }
+  const s = ctx.state
+  const player = pending.player
+  const queue = rerollPending(s, player)
+  const value = queue.shift()
+  if (value === undefined || action.optionId === 'keep') return
+  const dice = pool(s, player).dice
+  const i = dice.indexOf(value)
+  if (i < 0) return
+  dice.splice(i, 1) // replaced, not spent: no MiracleDieSpent
+  gainMiracleDie(ctx, player, MIRACLE_REROLL_SOURCE)
 }
 
 // removes pool[index]; emits MiracleDieSpent mode 'discard'; returns its value; throws EngineInvariantError if out of range
