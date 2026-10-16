@@ -182,6 +182,27 @@ export const ENABLED_GLB_SLUGS: readonly string[] = [
   'bloodcrusher',
   'flesh-hound',
   'gore-hound',
+  // Drukhari Kabal patrol.
+  'archon',
+  'kabalite-sybarite',
+  'kabalite-warrior',
+  'kabalite-shredder',
+  'kabalite-splinter-cannon',
+  'incubi-klaivex',
+  'incubus',
+  'raider',
+  'ravager',
+  // Adeptus Mechanicus Purge Corps Deltic-9 (the Maniple Verask-Alpha units have no GLBs yet).
+  'manipulus-skand',
+  'skitarii-vanguard-alpha',
+  'skitarii-vanguard-arc-rifle',
+  'skitarii-vanguard-plasma-caliver',
+  'skitarii-vanguard',
+  'sulphurhound-alpha',
+  'sulphurhound-carbine',
+  'sulphurhound-pistols',
+  'pteraxii-sterylizor-alpha',
+  'pteraxii-sterylizor',
 ]
 
 export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
@@ -354,7 +375,7 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'tau.breacher-team/breacher': 'breacher',
   'tau.devilfish/devilfish': 'devilfish',
 
-  // Drukhari: no GLBs yet (slugs unlisted in ENABLED_GLB_SLUGS), so the procedural kits draw them until a file lands.
+  // Drukhari (MGSD GLBs).
   'drk.archon/archon': 'archon',
   'drk.kabalite-warriors/sybarite': 'kabalite-sybarite',
   'drk.kabalite-warriors/warrior': 'kabalite-warrior',
@@ -364,6 +385,18 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'drk.incubi/incubus': 'incubus',
   'drk.raider/raider': 'raider',
   'drk.ravager/ravager': 'ravager',
+
+  // Adeptus Mechanicus Purge Corps Deltic-9 (MGSD GLBs). Maniple Verask-Alpha units (Enginseer, Rangers, Kataphrons, Dunecrawler) stay procedural.
+  'adm.manipulus-skand/skand': 'manipulus-skand',
+  'adm.skitarii-vanguard/alpha': 'skitarii-vanguard-alpha',
+  'adm.skitarii-vanguard/arc-rifle': 'skitarii-vanguard-arc-rifle',
+  'adm.skitarii-vanguard/plasma-caliver': 'skitarii-vanguard-plasma-caliver',
+  'adm.skitarii-vanguard/vanguard': 'skitarii-vanguard',
+  'adm.serberys-sulphurhounds/alpha': 'sulphurhound-alpha',
+  'adm.serberys-sulphurhounds/carbine': 'sulphurhound-carbine',
+  'adm.serberys-sulphurhounds/pistols': 'sulphurhound-pistols',
+  'adm.pteraxii-sterylizors/alpha': 'pteraxii-sterylizor-alpha',
+  'adm.pteraxii-sterylizors/sterylizor': 'pteraxii-sterylizor',
 
   // Wave 2 patrols (MGSD GLBs). Riders/vehicles render at baked GLB scale; icon/musician/plasma variants share a base slug.
   'ael.farseer-iraneth/farseer': 'farseer-iraneth',
