@@ -274,6 +274,16 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, all finished; plain rotation never pairs tau-empire, so `SIM_FACTION=tau-empire` run: 6 games, 0 violations, all finished (round 5), tau-empire 5 wins (adepta-sororitas 1). No balance tuning |
 | Known gaps | No GLB models or generated weapon sounds; bot never plays Rapid Repositioning; Strike Team marker drone and Stealth support system cosmetic; rulings in `docs/needs-rules-check.md` under "tau-empire build" (TAU-01 to TAU-23) |
 
+## T'au Empire (M10 - Sudden Dawn Cadre patrol, playable)
+
+| Area | State |
+|---|---|
+| Patrol | Commander Cloudspear, Pathfinder Team, Breacher Team, Devilfish (carries the Breachers); secondaries Surprise Attack / Ethereal Edict. Spec `docs/spec/factions/tau-empire--sudden-dawn-cadre.md`, data `patrols/sudden-dawn-cadre.json` plus new datasheets/weapons/abilities/stratagems |
+| Engine | Generic transports in `src/engine/transports.ts` (capacity, firing deck, disembark, emergency disembark); `PlayerSetup.embarked`; T'au hooks extended in `factions/tau-empire.ts` (Prototype Systems oneDie, Fight by the Code, Rampart of Fire, Lives Before Territory, Electro-static Flares, Grav-inhibitor) |
+| Verification | typecheck, `validate:data` (152 files), `build` green; `npm test` 2198 passing (103 files); `tests/e2e/tau-empire-sudden-dawn-cadre.spec.ts` starts as this patrol via the picker, deploys and reaches round 1 shooting (screenshots `e2e-out/m10-tau-empire-sudden-dawn-cadre-0N-*.png`) |
+| Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, 5 won + 1 draw (tau-empire 1 win) |
+| Known gaps | No GLB models; new weapon figure shapes and sounds reuse existing ones; no combined leader+bodyguard embark; rulings in `docs/needs-rules-check.md` (tau-empire build, SDC-R1..R26) |
+
 ## Genestealer Cults (M10 - Hand of the Magus patrol, playable)
 
 | Area | State |

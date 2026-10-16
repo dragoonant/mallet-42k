@@ -198,7 +198,7 @@ const EXPECTED: Record<string, WeaponFlavour> = {
   'tau.w.accelerator-burst-cannon': 'shoota',
   'tau.w.twin-pulse-carbine': 'psychic',
   'tau.w.twin-pulse-carbine-2': 'psychic',
-  'tau.w.armoured-hull': 'chain',
+  'tau.w.armoured-hull': 'crush',
   'gsc.w.autopistol-magus': 'shoota',
   'gsc.w.autopistol': 'shoota',
   'gsc.w.hybrid-firearm': 'shoota',
