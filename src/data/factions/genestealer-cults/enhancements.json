@@ -35,5 +35,39 @@
       ],
       "scope": { "who": "bearer" }
     }
+  },
+  {
+    "id": "gsc.e.priority-kill-order",
+    "faction": "genestealer-cults",
+    "name": "Priority Kill Order",
+    "text": "At the start of your Shooting phase, pick one enemy unit visible to the bearer. Until the end of the phase, attacks by your GENESTEALER CULTS models against it may re-roll the hit roll.",
+    "cost": 0,
+    "restriction": { "keyword": ["JACKAL ALPHUS"] },
+    "effect": {
+      "id": "gsc.e.priority-kill-order.effect",
+      "name": "Priority Kill Order",
+      "text": "Start of your Shooting phase: pick an enemy unit the bearer can see; your GENESTEALER CULTS attacks against it may re-roll hit rolls until the end of the phase.",
+      "trigger": "hitRoll",
+      "effect": { "reroll": "all" },
+      "scope": { "who": "attacker" },
+      "code": "priorityKillOrder",
+      "params": { "pickWindow": "shooting.start" }
+    }
+  },
+  {
+    "id": "gsc.e.master-of-suppression",
+    "faction": "genestealer-cults",
+    "name": "Master of Suppression",
+    "text": "After the bearer's unit has shot in your Shooting phase, pick one enemy unit it hit. Until the start of your next Shooting phase, subtract 1 from the hit roll of every attack made by that enemy unit.",
+    "cost": 0,
+    "restriction": { "keyword": ["JACKAL ALPHUS"] },
+    "effect": {
+      "id": "gsc.e.master-of-suppression.effect",
+      "name": "Master of Suppression",
+      "text": "After the bearer's unit shoots, one enemy unit it hit takes -1 to hit with all its attacks until the start of your next Shooting phase.",
+      "trigger": "always",
+      "scope": { "who": "self" },
+      "code": "masterOfSuppression"
+    }
   }
 ]

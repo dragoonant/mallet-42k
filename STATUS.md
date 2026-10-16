@@ -285,6 +285,16 @@ Maintained by agents as work lands. Orient from this file instead of exploring t
 | Sim | `npm run sim -- --games 6 --seed 5`: 0 violations, 6 games all finished (mean 5 rounds), genestealer-cults 1 win, no draws |
 | Known gaps | No GLB models or bespoke sounds; marker option labels not customised; rulings in `docs/needs-rules-check.md` under "genestealer-cults build" (GSC-01 to GSC-22) |
 
+**M10: genestealer-cults, second patrol (Claw of Ascension)**
+
+| Area | State |
+|---|---|
+| Patrol | Shanus Daskovian (leads Atalan Jackals), 2x Hybrid Metamorphs, Atalan Jackals, Achilles Ridgerunner; picker entry beside Hand of the Magus. Spec `docs/spec/factions/genestealer-cults--claw-of-ascension.md`, data `patrols/claw-of-ascension.json` |
+| Engine hooks | Extended `src/engine/factions/genestealer-cults.ts` and `cult-ambush.ts`: patrol-scoped Claw Cult Ambush (per-datasheet params, pool counted as Reserves at end of round 3, 3" return region), Priority Kill Order, Master of Suppression, Crossfire, Master Outrider, Point-Blank Ambush, Infiltration Agenda, Safeguard the Sanctuary, Swarm the Oppressors |
+| Verification | typecheck, validate:data, build green; npm test 2005 passing (92 files, CLA- tests 84); `tests/e2e/genestealer-cults-claw-of-ascension.spec.ts` starts the patrol via the picker, deploys and reaches round 1 Shooting (`e2e-out/m10-genestealer-cults-claw-of-ascension-0{1,2,3}-*.png`) |
+| Sim | `--games 6 --seed 5` had no GSC games (0 violations); `--games 40 --seed 5`: 0 violations, genestealer-cults 6 wins in 9 games |
+| Known gaps | Figures reuse existing GSC kits (no mounted silhouette); Master Outrider move can be passed (charge still barred); rulings CLA-R01 to CLA-R18 in `docs/needs-rules-check.md` |
+
 ## Space Marines - Strike Team Solarien (M10 - second patrol, playable)
 
 | Area | State |

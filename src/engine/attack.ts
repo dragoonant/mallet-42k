@@ -606,7 +606,7 @@ function coverFor(ctx: EngineContext, group: AttackGroup, attackerModelId: Model
   const a = attackSeq(ctx)
   const s = ctx.state
   const model = s.models[modelId]
-  const weapon = weaponService.effectiveWeapon(s, attackerModelId, group.weaponId)
+  const weapon = targetedWeapon(ctx, a, attackerModelId, group, modelId)
   // R-3.14: terrain-derived cover (los.benefitOfCover, which already denies itself for melee/[IGNORES COVER]) OR a
   // granted Benefit of Cover (Go to Ground, Smokescreen) — the latter isn't weapon-aware, so gate it on Ignores Cover here
   const terrainCover = ctx.services.los.benefitOfCover(s, modelId, a.attackerUnitId, weapon)

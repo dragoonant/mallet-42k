@@ -19,5 +19,5 @@
     "metal": "#8b8f94",
     "decal": "#e9e2c8"
   },
-  "combatPatrols": ["gsc.cp.hand-of-the-magus"]
+  "combatPatrols": ["gsc.cp.hand-of-the-magus", "gsc.cp.claw-of-ascension"]
 }

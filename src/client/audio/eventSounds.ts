@@ -129,6 +129,15 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   ['heavy-improvised-weapon', 'wpn-brutal-assault-weapon'] as const,
   ['hypermorph-tail', 'wpn-talons'] as const,
   ['drilldozer-blade', 'rock-drill-grind'] as const,
+  // Claw of Ascension: sniper and Atalan small arms crack like cult autoguns, the mining laser melts, the Ridgerunner's launcher borrows the missile.
+  ['cult-sniper-rifle', 'wpn-lasgun'] as const,
+  ['atalan-small-arms', 'cult-autogun-burst'] as const,
+  ['mining-laser', 'wpn-meltagun'] as const,
+  ['achilles-missile-launcher', 'wpn-hunter-killer-missile'] as const,
+  ['ccw-', 'wpn-close-combat-weapon'] as const,
+  ['leaders-bio-weapons', 'wpn-claws-and-teeth'] as const,
+  ['metamorph-mutations', 'wpn-brutal-assault-weapon'] as const,
+  ['armoured-hull', 'wpn-brutal-assault-weapon'] as const,
   // Adeptus Custodes borrow too: the guardian's storm-bolter-in-a-blade barks like a storm bolter, spear and blades ring like power weapons.
   ['sentinel-blade-ranged', 'wpn-storm-bolter'] as const,
   ['guardian-spear-ranged', 'wpn-boltgun'] as const,

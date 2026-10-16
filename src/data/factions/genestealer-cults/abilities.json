@@ -57,5 +57,42 @@
     "scope": {
       "who": "self"
     }
+  },
+  {
+    "id": "gsc.a.cult-ambush-claw",
+    "name": "Cult Ambush",
+    "text": "When this unit is destroyed, roll a D6, adding 1 in rounds 1 and 2. On a 5+ it joins your Cult Ambush pool and you place a marker over 9 inches from all enemies. From round 2, after your opponent's Reinforcements step, it returns as a fresh copy wholly within 3 inches of the marker, over 9 inches from enemies. While pooled it counts as in Reserves, so units still waiting after round 3 are lost.",
+    "trigger": "unitDestroyed",
+    "scope": { "who": "self" },
+    "code": "cultAmbush",
+    "params": {
+      "battlelineBonus": 0,
+      "earlyRoundBonus": 1,
+      "earlyRoundsTo": 2,
+      "success": 5,
+      "markerGap": 9,
+      "firstRound": 2,
+      "lastRound": 3,
+      "whollyWithin": 3,
+      "resetOneShot": true,
+      "poolIsReserves": true
+    }
+  },
+  {
+    "id": "gsc.a.master-outrider",
+    "name": "Master Outrider",
+    "text": "After this unit has shot in your Shooting phase, if it is not within Engagement Range of any enemy, it may make a Normal move of up to 6 inches. If it does, it cannot declare a charge this turn.",
+    "trigger": "always",
+    "scope": { "who": "self" },
+    "code": "masterOutrider",
+    "params": { "distance": 6 }
+  },
+  {
+    "id": "gsc.a.crossfire",
+    "name": "Crossfire",
+    "text": "After this unit has shot in your Shooting phase, pick one enemy unit it hit. Until the end of the turn, attacks by your GENESTEALER CULTS units against that unit improve their Armour Penetration by 1. Each enemy unit can be picked once per turn.",
+    "trigger": "always",
+    "scope": { "who": "self" },
+    "code": "crossfire"
   }
 ]

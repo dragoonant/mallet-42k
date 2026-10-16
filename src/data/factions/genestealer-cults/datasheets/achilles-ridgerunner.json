@@ -1,0 +1,24 @@
+[
+  {
+    "id": "gsc.achilles-ridgerunner",
+    "faction": "genestealer-cults",
+    "name": "Achilles Ridgerunner",
+    "keywords": ["VEHICLE", "GREAT DEVOURER", "ACHILLES RIDGERUNNERS"],
+    "factionKeywords": ["GENESTEALER CULTS"],
+    "stats": { "M": 12, "T": 7, "Sv": 3, "W": 8, "Ld": 7, "OC": 3 },
+    "composition": [
+      {
+        "modelId": "ridgerunner",
+        "name": "Achilles Ridgerunner",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "oval", "mm": 120, "mm2": 92 },
+        "weapons": { "default": ["gsc.w.achilles-missile-launcher", "gsc.w.twin-heavy-stubber", "gsc.w.armoured-hull"] },
+        "figure": { "archetype": "vehicle", "kit": "generic-heavy" }
+      }
+    ],
+    "abilities": ["gsc.a.crossfire"],
+    "coreAbilities": [ { "ability": "DEADLY_DEMISE", "value": 1 }, { "ability": "SCOUTS", "value": 9 } ],
+    "points": [ { "models": 1, "points": 0 } ],
+    "figure": { "archetype": "vehicle", "kit": "generic-heavy" }
+  }
+]

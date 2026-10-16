@@ -1,0 +1,25 @@
+[
+  {
+    "id": "gsc.shanus-daskovian",
+    "faction": "genestealer-cults",
+    "name": "Shanus Daskovian",
+    "keywords": ["MOUNTED", "CHARACTER", "GREAT DEVOURER", "JACKAL ALPHUS", "SHANUS DASKOVIAN"],
+    "factionKeywords": ["GENESTEALER CULTS"],
+    "stats": { "M": 12, "T": 4, "Sv": 5, "W": 4, "Ld": 7, "OC": 1 },
+    "composition": [
+      {
+        "modelId": "shanus",
+        "name": "Shanus Daskovian",
+        "min": 1, "max": 1, "default": 1,
+        "base": { "shape": "oval", "mm": 60, "mm2": 35 },
+        "weapons": { "default": ["gsc.w.autopistol-magus", "gsc.w.cult-sniper-rifle", "gsc.w.ccw-shanus"] },
+        "figure": { "archetype": "heavy", "kit": "generic-infantry" }
+      }
+    ],
+    "abilities": ["gsc.a.master-outrider"],
+    "coreAbilities": [ { "ability": "LEADER" }, { "ability": "SCOUTS", "value": 9 }, { "ability": "STEALTH" } ],
+    "leader": { "attachTo": ["gsc.atalan-jackals"], "effects": [] },
+    "points": [ { "models": 1, "points": 0 } ],
+    "figure": { "archetype": "heavy", "kit": "generic-infantry" }
+  }
+]

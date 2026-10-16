@@ -97,6 +97,10 @@ const GALLERY_ENTRIES: GalleryEntry[] = [
   { datasheetId: 'gsc.aberrants', modelId: 'hypermorph', faction: 'genestealer-cults', label: 'Hypermorph' },
   { datasheetId: 'gsc.magus-veridielle', modelId: 'magus', faction: 'genestealer-cults', label: 'Magus Veridielle' },
   { datasheetId: 'gsc.goliath-rockgrinder', modelId: 'rockgrinder', faction: 'genestealer-cults', label: 'Goliath Rockgrinder' },
+  { datasheetId: 'gsc.shanus-daskovian', modelId: 'shanus', faction: 'genestealer-cults', label: 'Shanus Daskovian' },
+  { datasheetId: 'gsc.hybrid-metamorphs', modelId: 'mutant', faction: 'genestealer-cults', label: 'Hybrid Metamorph' },
+  { datasheetId: 'gsc.atalan-jackals', modelId: 'rider', faction: 'genestealer-cults', label: 'Atalan Jackal' },
+  { datasheetId: 'gsc.achilles-ridgerunner', modelId: 'ridgerunner', faction: 'genestealer-cults', label: 'Achilles Ridgerunner' },
 ]
 
 // Figures are true tabletop-miniature scale (~1-2 world-inches tall — see resolveBase), so packing

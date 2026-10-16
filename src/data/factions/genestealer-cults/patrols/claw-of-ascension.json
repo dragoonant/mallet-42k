@@ -1,0 +1,38 @@
+{
+  "id": "gsc.cp.claw-of-ascension",
+  "faction": "genestealer-cults",
+  "name": "Claw of Ascension",
+  "units": [
+    { "ref": "shanus", "datasheet": "gsc.shanus-daskovian", "size": 1, "enhancement": "gsc.e.priority-kill-order", "attachTo": "jackals" },
+    { "ref": "metamorphs-a", "datasheet": "gsc.hybrid-metamorphs", "size": 5 },
+    { "ref": "metamorphs-b", "datasheet": "gsc.hybrid-metamorphs", "size": 5 },
+    { "ref": "jackals", "datasheet": "gsc.atalan-jackals", "size": 5 },
+    { "ref": "ridgerunner", "datasheet": "gsc.achilles-ridgerunner", "size": 1 }
+  ],
+  "stratagems": ["gsc.s.metamorphic-spasm", "gsc.s.point-blank-ambush", "gsc.s.swarm-the-oppressors"],
+  "enhancements": [
+    { "id": "gsc.e.priority-kill-order", "default": true },
+    { "id": "gsc.e.master-of-suppression", "default": false }
+  ],
+  "secondaries": [
+    {
+      "id": "gsc.sec.infiltration-agenda",
+      "name": "Infiltration Agenda",
+      "text": "At the end of your turn, score 4 victory points if at least one of your GENESTEALER CULTS units that is not Battle-shocked is within your opponent's deployment zone.",
+      "default": true,
+      "scoring": [
+        { "id": "infiltration-agenda", "when": "turn.end", "rounds": { "from": 1, "to": 5 }, "who": "active", "rule": "custom", "pointsPer": 4, "cap": 99, "code": "infiltrationAgenda" }
+      ]
+    },
+    {
+      "id": "gsc.sec.safeguard-the-sanctuary",
+      "name": "Safeguard the Sanctuary",
+      "text": "At the end of the battle, score 10 victory points if you control the objective marker closest to your battlefield edge.",
+      "default": false,
+      "scoring": [
+        { "id": "safeguard-the-sanctuary", "when": "battle.end", "rounds": { "from": 1, "to": 5 }, "who": "both", "rule": "custom", "pointsPer": 10, "cap": 10, "code": "safeguardTheSanctuary" }
+      ]
+    }
+  ],
+  "warlord": "shanus"
+}

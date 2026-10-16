@@ -34,7 +34,7 @@ import { hookService } from '../hooks-impl'
 import { leaderService } from '../leaders'
 import { pendingReactions, consumeReaction } from '../code-hooks'
 import {
-  CULT_AMBUSH_MARKER_RADIUS, CULT_AMBUSH_REACTION_KIND, cultAmbushArrivalPlacements, cultAmbushOnMoveEnded, cultAmbushReactionMarker, cultAmbushReturnStep,
+  CULT_AMBUSH_MARKER_RADIUS, CULT_AMBUSH_REACTION_KIND, cultAmbushArrivalPlacements, cultAmbushCullPool, cultAmbushParams, cultAmbushReturnRegion, cultAmbushOnMoveEnded, cultAmbushReactionMarker, cultAmbushReturnStep,
   pendingCultAmbushReactions,
 } from '../cult-ambush'
 import { attackService } from '../attack'
@@ -584,6 +584,7 @@ function eligibleArrivals(state: GameState, player: PlayerId): UnitId[] {
 function cullStrandedReserves(ctx: EngineContext, endOfRound3 = false): void {
   const s = ctx.state
   if (s.round < 4 && !(endOfRound3 && s.round === 3)) return
+  if (endOfRound3 && s.round === 3) cultAmbushCullPool(ctx) // CLA-2.5b: Claw pool units count as Reserves
   const destroyStrandedUnit = (unitId: UnitId): void => {
     const u = s.units[unitId]
     if (!u || u.location !== 'reserves') return
@@ -629,8 +630,11 @@ function arrivalMarker(state: GameState): Vec3 | null {
   const raw = readMark(state, 'mv:arriveMarker')
   return raw === null ? null : (JSON.parse(raw) as Vec3)
 }
-function cultAmbushArrivalConstraints(marker: Vec3 | null): MoveConstraints {
-  return emptyMoveConstraints(9999, { minDistanceFromEnemies: 9, coherency: false, mustTouch: marker ? { pos: marker, radius: CULT_AMBUSH_MARKER_RADIUS } : null })
+function cultAmbushArrivalConstraints(state: GameState, marker: Vec3 | null, unitId?: UnitId): MoveConstraints {
+  const u = unitId ? state.units[unitId] : undefined
+  const p = u ? cultAmbushParams(state, u) : null
+  const region = marker && p && p.whollyWithin !== null ? cultAmbushReturnRegion(state, marker, p.whollyWithin) : null // CLA-2.3
+  return emptyMoveConstraints(9999, { minDistanceFromEnemies: p?.markerGap ?? 9, coherency: false, region, mustTouch: marker ? { pos: marker, radius: CULT_AMBUSH_MARKER_RADIUS } : null })
 }
 
 // E2 (Omni-scramblers): polygons (32-gon circles, radius = distance + the model's base radius, circumscribed) that units
@@ -665,7 +669,7 @@ function resolveArrival(state: GameState, groupIds: UnitId[], placements: ModelP
     : via === 'nextWave'
       ? emptyMoveConstraints(9999, { region: nextWaveZone(state, player), mustEndOutsideEngagement: true, coherency: false })
       : via === 'cultAmbush'
-        ? cultAmbushArrivalConstraints(arrivalMarker(state))
+        ? cultAmbushArrivalConstraints(state, arrivalMarker(state), groupIds[0])
         : emptyMoveConstraints(9999, { minDistanceFromEnemies: 9, coherency: false })
   const result = checkPlacements({ unitModels: models, placements, constraints, otherFriendly, enemies, board: state.board })
   if (result.rejection) return result
@@ -739,7 +743,7 @@ function raiseArrivalDecision(ctx: EngineContext, unitId: UnitId, player: Player
     ctx.decide({
       kind: 'deployUnit', player, window: 'movement.reinforcements', canPass: false,
       context: { unitIds: [unitId], zone: boardPolygon(s), infiltrators: [], reservesAllowed: [] },
-      constraints: withReserveExclusion(s, player, cultAmbushArrivalConstraints(marker)),
+      constraints: withReserveExclusion(s, player, cultAmbushArrivalConstraints(s, marker, unitId)),
     })
     return
   }
@@ -1125,7 +1129,7 @@ function arrivalCandidates(state: GameState, pending: Extract<PendingDecision, {
   const out: Action[] = []
   if (readMark(state, 'mv:arriveVia') === 'cultAmbush') {
     const marker = arrivalMarker(state)
-    const auto = marker ? cultAmbushArrivalPlacements(state, models, pending.player, marker) : null
+    const auto = marker ? cultAmbushArrivalPlacements(state, models, pending.player, marker, cultAmbushParams(state, state.units[groupIds[0]])) : null
     if (auto) {
       const action: Action = { type: 'deployUnit', player: pending.player, decisionId: pending.id, unitId: groupIds[0], placements: auto }
       if (validateArrival(state, action, pending) === null) return [action]

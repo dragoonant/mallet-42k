@@ -101,11 +101,17 @@ export function signedDistanceToBase(p: Vec2, m: Footprint, edgeHint?: Vec2[]): 
 // R-2.1 / 00-arch §7: horizontal gap between base edges, 0 when overlapping
 export function horizontalGap(a: Footprint, b: Footprint): number {
   if (isRound(a.base) && isRound(b.base)) return Math.max(0, dist2D(a.pos, b.pos) - a.base.radius - b.base.radius)
+  // a circle against an oval: the gap is the circle centre's distance to the oval outline minus the radius (O(n), exact)
+  if (isRound(a.base)) return Math.max(0, signedDistanceToBase(a.pos, b) - a.base.radius)
+  if (isRound(b.base)) return Math.max(0, signedDistanceToBase(b.pos, a) - b.base.radius)
   if (signedDistanceToBase(a.pos, b) < 0 || signedDistanceToBase(b.pos, a) < 0) return 0
   let best = Infinity
   const ea = baseEdgePoints(a), eb = baseEdgePoints(b)
-  for (const p of ea) best = Math.min(best, signedDistanceToBase(p, b, eb))
-  for (const p of eb) best = Math.min(best, signedDistanceToBase(p, a, ea))
+  // an outline point whose distance to the other centre minus that base's bounding radius already reaches `best`
+  // cannot lower it, so the O(n) point-to-outline scan is skipped for most samples
+  const ra = boundRadius(a.base), rb = boundRadius(b.base)
+  for (const p of ea) if (dist2D(p, b.pos) - rb < best) best = Math.min(best, signedDistanceToBase(p, b, eb))
+  for (const p of eb) if (dist2D(p, a.pos) - ra < best) best = Math.min(best, signedDistanceToBase(p, a, ea))
   return Math.max(0, best)
 }
 

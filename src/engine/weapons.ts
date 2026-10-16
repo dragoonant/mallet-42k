@@ -33,7 +33,7 @@ export const weaponService: WeaponService = {
     if (!base || !model) return base
     const abilities = hookService.weaponAbilitiesFor ? hookService.weaponAbilitiesFor(state, modelId, base, attack) : base.abilities
     const q = (stat: 'BS' | 'WS' | 'S' | 'AP' | 'range' | 'A', v: number) =>
-      hookService.statFor ? hookService.statFor(state, { unitId: model.unitId, modelId, weapon: base, stat }, v) : v
+      hookService.statFor ? hookService.statFor(state, { unitId: model.unitId, modelId, weapon: base, stat, attack }, v) : v
     const skillStat = base.kind === 'ranged' ? 'BS' as const : 'WS' as const
     const skill = base.skill === null ? null : q(skillStat, base.skill)
     const S = q('S', base.S)

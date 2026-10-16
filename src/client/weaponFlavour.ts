@@ -46,7 +46,7 @@ export function weaponFlavour(weaponId: string, weapon: WeaponData | undefined, 
     if (psychic || /force|stave/.test(text)) return 'force'
     // Tyranid claws, talons and teeth rend and slash, so they voice as the cutting sound; only a klaw/fist
     // (or a plain crushing profile) is the heavy crunch.
-    if (/fist|klaw|hammer|maul|mace|crush|limbs|mutation|sentinel(?![- ]blade)|mining|improvised|dozer/.test(text)) return 'crush'
+    if (/fist|klaw|hammer|maul|mace|crush|limbs|mutation|sentinel(?![- ]blade)|mining|improvised|dozer|armoured hull|armoured-hull/.test(text)) return 'crush'
     if (/choppa|chain|sword|blade|axe|knife|claw|talon|teeth|jaws|snappa|stikka|maw|hyperphase|mandible|flail|whip/.test(text)) return 'chain'
     return strength >= 8 ? 'crush' : 'chain'
   }
@@ -57,7 +57,7 @@ export function weaponFlavour(weaponId: string, weapon: WeaponData | undefined, 
   if (/burst.cannon/.test(text)) return 'shoota' // a rattling gun, not an artillery piece
   // BLAST marks the explosive/ordnance profiles; the keywords catch the rest of the big guns, and
   // S7+ catches a heavy profile whose name says nothing (nothing in the current bundle needs it).
-  if (hasAbility(weapon, 'BLAST') || /cannon|kannon|rokkit|rocket|missile|thump|mega|lascannon|plasma|blasta|blaster|tachyon|heavy bolter|heavy-bolter|launcher|field-gun|field gun|howitzer|hunter-killer|bombast|malleus|raker/.test(text)) return 'heavy'
+  if (hasAbility(weapon, 'BLAST') || /cannon|kannon|rokkit|rocket|missile|thump|mega|lascannon|plasma|blasta|blaster|tachyon|heavy bolter|heavy-bolter|launcher|field-gun|field gun|howitzer|hunter-killer|bombast|malleus|raker|mining.laser/.test(text)) return 'heavy'
   // Guard small arms (lasgun, laspistol, autogun) fall through to 'bolter': a rifle crack with a warm orange tracer.
   if (/bolt/.test(text)) return 'bolter'
   // Cultist autoguns are cheap rattling cracks, not bolter thumps. Spat or flung biomass (fleshborers, spore-guns)
@@ -110,7 +110,7 @@ export function classifyVfxFamily(weaponId: string, weapon: WeaponData | undefin
   if (/shoota|slugga|dakka|stikk|big.?shoota|kopta|saddlegit/.test(text)) return kw('dakka')
   if (/autocannon|assault cannon|assault-cannon|heavy.?bolter|heavy.?stubber|stubber|seismic|cannon/.test(text)) return kw('autocannon')
   if (/lasgun|laspistol|lascarbine|las.?pistol/.test(text)) return kw('las')
-  if (/bolt|combi|storm|hurricane|spear|castellan|sentinel blade|sentinel-blade|autogun|autopistol|hybrid firearm|pistol/.test(text)) return kw('bolt')
+  if (/bolt|combi|storm|hurricane|spear|castellan|sentinel blade|sentinel-blade|autogun|autopistol|hybrid firearm|pistol|sniper|small.?arms/.test(text)) return kw('bolt')
   switch (fac) {
     case 'ork': case 'orks': return { family: 'dakka', via: 'faction' }
     case 'tyranids': return { family: 'bio', via: 'faction' }

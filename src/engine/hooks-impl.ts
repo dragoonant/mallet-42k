@@ -33,7 +33,7 @@ import type { ActiveEffect, DiceRoll, GameState, ModelId, PlayerId, RuntimeAbili
 type ContextOf<K extends HookName> = HookContext extends infer C ? (C extends { hook: infer H } ? (K extends H ? C : never) : never) : never
 export type HookData<K extends HookName> = Omit<ContextOf<K>, keyof HookContextBase | 'hook'>
 
-export interface StatQuery { unitId: UnitId; modelId: ModelId | null; weapon: RuntimeWeapon | null; stat: StatName }
+export interface StatQuery { unitId: UnitId; modelId: ModelId | null; weapon: RuntimeWeapon | null; stat: StatName; attack?: AttackContext | null }
 
 export interface HookService {
   // bespoke `code` hooks by name (20-data §12 validates data against these keys)
@@ -638,7 +638,7 @@ export const hookService: HookService & HookQueries = {
   },
 
   statFor(state, q, base) {
-    const data: Data = { queryUnitId: q.unitId, queryModelId: q.modelId, weapon: q.weapon, stat: q.stat }
+    const data: Data = { queryUnitId: q.unitId, queryModelId: q.modelId, weapon: q.weapon, stat: q.stat, attack: q.attack ?? null }
     let set: number | null = null
     let delta = 0
     let halve = false

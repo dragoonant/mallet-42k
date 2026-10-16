@@ -59,5 +59,64 @@
     "code": "returnToTheShadows",
     "params": { "range": 9, "magusKeyword": "MAGUS", "magusDistance": 6, "dice": "D6" },
     "limit": "oncePerPhase"
+  },
+  {
+    "id": "gsc.s.metamorphic-spasm",
+    "faction": "genestealer-cults",
+    "name": "Metamorphic Spasm",
+    "text": "Use in a Fight phase just after an enemy unit selects its targets, when one of your HYBRID METAMORPHS units is a target. Until the end of the phase, each time a model in that unit is destroyed before the unit has fought, roll a D6: on a 4+ it is not removed yet, and once the enemy unit finishes its attacks it fights, then is removed.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["fight"],
+    "window": "fight.targetsDeclared",
+    "who": "either",
+    "condition": { "phase": "fight" },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "HYBRID METAMORPHS" }, "state": "targetedByAttack", "count": 1 }
+    ],
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase",
+    "code": "daemonicFervour",
+    "params": { "threshold": 4 }
+  },
+  {
+    "id": "gsc.s.point-blank-ambush",
+    "faction": "genestealer-cults",
+    "name": "Point-Blank Ambush",
+    "text": "Use in your Shooting phase, or in the Fight phase, for one of your GENESTEALER CULTS units that has not yet been selected to shoot (or to fight). Until the end of the phase, that unit's weapons gain Lethal Hits against enemy units within 12 inches.",
+    "cost": 1,
+    "category": "battleTactic",
+    "phases": ["shooting", "fight"],
+    "window": ["shooting.start", "shooting.attacksResolved", "fight.start", "fight.attacksResolved"],
+    "who": "either",
+    "condition": { "any": [ { "phase": "shooting", "ownTurn": true }, { "phase": "fight" } ] },
+    "targets": [
+      { "role": "unit", "owner": "friendly", "filter": { "keyword": "GENESTEALER CULTS" }, "state": "notYetShot", "count": 1 }
+    ],
+    "effect": { "when": { "range": { "within": 12 } }, "grantWeaponAbility": { "ability": "LETHAL_HITS" } },
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "limit": "oncePerPhase",
+    "params": { "stateByPhase": { "shooting": "notYetShot", "fight": "notYetFought" } }
+  },
+  {
+    "id": "gsc.s.swarm-the-oppressors",
+    "faction": "genestealer-cults",
+    "name": "Swarm the Oppressors",
+    "text": "Use at the start of your Charge phase, picking one enemy unit. Until the end of the phase, each charge by one of your GENESTEALER CULTS units that targets that enemy unit adds 1 to its Charge roll.",
+    "cost": 1,
+    "category": "strategicPloy",
+    "phases": ["charge"],
+    "window": "charge.start",
+    "who": "active",
+    "targets": [
+      { "role": "unit", "owner": "enemy", "count": 1 }
+    ],
+    "effect": { "modifyRoll": { "roll": "charge", "value": 1 } },
+    "scope": { "who": "self" },
+    "duration": "untilEndOfPhase",
+    "code": "swarmTheOppressors",
+    "limit": "oncePerPhase"
   }
 ]

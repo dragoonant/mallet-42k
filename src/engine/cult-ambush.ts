@@ -23,6 +23,7 @@ export interface CultAmbushState {
   pool: Record<PlayerId, UnitId[]> // destroyed (original) unit ids waiting in Cult Ambush
   pendingMarkers: { player: PlayerId; unitId: UnitId }[] // successful rolls awaiting a placement decision
   seq: number // marker id counter -> `ca:<seq>`
+  noRoll?: UnitId[] // CLA-2.5b: pool copies culled at the R-5.14 moment; their destruction does not roll Cult Ambush again
 }
 
 // the reaction kind is not in code-hooks' ReactionRequest union (that file belongs to the faction code-hook stage); the runtime
@@ -30,7 +31,23 @@ export interface CultAmbushState {
 const CA_KIND = CULT_AMBUSH_CODE as ReactionRequest['kind']
 const OFFERED_PREFIX = 'ca:offered:'
 const RETURN_DONE = 'ca:returnDone'
-const DEFAULT_PARAMS = { battlelineBonus: 3, success: 4, markerGap: 9, lastRound: 3 }
+export interface CultAmbushParams {
+  battlelineBonus: number // Hand 3, Claw 0
+  earlyRoundBonus: number // Hand 0, Claw 1: added while state.round <= earlyRoundsTo
+  earlyRoundsTo: number // Claw 2
+  success: number // Hand 4, Claw 5
+  markerGap: number // 9
+  firstRound: number // Hand 1, Claw 2: no return before this round (CLA-2.5a)
+  lastRound: number // 3 for both
+  whollyWithin: number | null // Claw 3: every placed model wholly within this many inches of the marker edge
+  resetOneShot: boolean // Claw true: returned models start with oneShotUsed = [] (CLA-2.4)
+  poolIsReserves: boolean // Claw true: culled at the R-5.14 moment (CLA-2.5b)
+}
+export const DEFAULT_CULT_AMBUSH_PARAMS: CultAmbushParams = {
+  battlelineBonus: 3, earlyRoundBonus: 0, earlyRoundsTo: 2, success: 4, markerGap: 9, firstRound: 1, lastRound: 3,
+  whollyWithin: null, resetOneShot: false, poolIsReserves: false,
+}
+const DEFAULT_PARAMS = DEFAULT_CULT_AMBUSH_PARAMS
 
 const emptyState = (): CultAmbushState => ({ markers: [], pool: { A: [], B: [] }, pendingMarkers: [], seq: 0 })
 
@@ -50,11 +67,13 @@ export function cultAmbushAbilityId(state: GameState, unit: Unit): string | null
   return ds.abilities.find((id) => state.abilities[id]?.code === CULT_AMBUSH_CODE) ?? null
 }
 
-function paramsOf(state: GameState, unit: Unit): typeof DEFAULT_PARAMS {
+// per-datasheet-ability parameters (the Claw variant is a patrol-scoped ability on the Metamorphs datasheet, not the army rule)
+export function cultAmbushParams(state: GameState, unit: Unit): CultAmbushParams {
   const id = cultAmbushAbilityId(state, unit)
-  const p = (id ? state.abilities[id]?.params : undefined) as Partial<typeof DEFAULT_PARAMS> | undefined
+  const p = (id ? state.abilities[id]?.params : undefined) as Partial<CultAmbushParams> | undefined
   return { ...DEFAULT_PARAMS, ...(p ?? {}) }
 }
+const paramsOf = cultAmbushParams
 
 const roundTo = (n: number): number => Math.round(n * 1000) / 1000
 const markerFootprint = (pos: Vec3): Footprint => ({ pos, facing: 0, base: { shape: 'round', radius: CULT_AMBUSH_MARKER_RADIUS } })
@@ -84,13 +103,18 @@ export function onCultAmbushUnitDestroyed(ctx: EngineContext, unitId: UnitId): v
   if (!unit) return
   const abilityId = cultAmbushAbilityId(s, unit)
   if (!abilityId) return
+  // CLA-2.5b: a unit culled while waiting in Reserves never reached the battlefield, so it does not roll again
+  if (unit.location === 'reserves' || peek(s).noRoll?.includes(unitId)) return
   const params = paramsOf(s, unit)
   const battleline = hasKeyword(s, unitId, 'BATTLELINE')
   // the roll must not clobber the attack sequence's phaseState.lastRoll (rollOnce keeps checking it across windows)
   const prev = s.phaseState.lastRoll
   const roll = ctx.roll({
     purpose: 'ability', player: unit.player, sides: 6, count: 1, mode: 'sum', unitId, commandRerollable: false,
-    modifiers: battleline ? [{ source: 'BATTLELINE', value: params.battlelineBonus }] : [],
+    modifiers: [
+      ...(battleline && params.battlelineBonus !== 0 ? [{ source: 'BATTLELINE', value: params.battlelineBonus }] : []),
+      ...(params.earlyRoundBonus !== 0 && s.round <= params.earlyRoundsTo ? [{ source: 'early rounds', value: params.earlyRoundBonus }] : []),
+    ],
   })
   s.phaseState.lastRoll = prev
   const total = rollSum(roll)
@@ -200,9 +224,32 @@ function copyModelsOf(state: GameState, poolUnitId: UnitId): Model[] {
 }
 
 // the one placement search both the AI candidate list and the "is a return possible" test use
-export function cultAmbushArrivalPlacements(state: GameState, models: Model[], player: PlayerId, markerPos: Vec3): ModelPlacement[] | null {
-  const placements = autoDeployPlacements(models, boardPolygonOf(state), boardModelsOf(state, player), enemyModelsOnBoard(state, player), {
-    mustTouch: { pos: markerPos, radius: CULT_AMBUSH_MARKER_RADIUS }, minDistanceFromEnemies: DEFAULT_PARAMS.markerGap,
+// circle of radius (whollyWithin + marker radius) as an inscribed 32-gon, clipped to the board rectangle (CLA-2.3)
+export function cultAmbushReturnRegion(state: GameState, markerPos: Vec3, whollyWithin: number): Polygon {
+  const N = 32, r = whollyWithin + CULT_AMBUSH_MARKER_RADIUS
+  type P = { x: number; z: number }
+  let poly: Polygon = Array.from({ length: N }, (_, i) => ({ x: markerPos.x + r * Math.cos((2 * Math.PI * i) / N), z: markerPos.z + r * Math.sin((2 * Math.PI * i) / N) }))
+  const hw = state.board.w / 2, hh = state.board.h / 2
+  // Sutherland-Hodgman against the four board half-planes (the polygon is convex)
+  const clip = (inside: (p: P) => boolean, cut: (a: P, b: P) => P): void => {
+    const out: Polygon = []
+    poly.forEach((cur, i) => {
+      const prev = poly[(i + poly.length - 1) % poly.length]
+      if (inside(cur)) { if (!inside(prev)) out.push(cut(prev, cur)); out.push(cur) } else if (inside(prev)) out.push(cut(prev, cur))
+    })
+    poly = out
+  }
+  const atX = (x: number) => (a: P, b: P): P => ({ x, z: a.z + ((b.z - a.z) * (x - a.x)) / (b.x - a.x) })
+  const atZ = (z: number) => (a: P, b: P): P => ({ x: a.x + ((b.x - a.x) * (z - a.z)) / (b.z - a.z), z })
+  clip((p) => p.x >= -hw, atX(-hw)); clip((p) => p.x <= hw, atX(hw)); clip((p) => p.z >= -hh, atZ(-hh)); clip((p) => p.z <= hh, atZ(hh))
+  return poly
+}
+
+export function cultAmbushArrivalPlacements(state: GameState, models: Model[], player: PlayerId, markerPos: Vec3,
+  params: Pick<CultAmbushParams, 'markerGap' | 'whollyWithin'> = DEFAULT_PARAMS): ModelPlacement[] | null {
+  const zone = params.whollyWithin === null ? boardPolygonOf(state) : cultAmbushReturnRegion(state, markerPos, params.whollyWithin)
+  const placements = autoDeployPlacements(models, zone, boardModelsOf(state, player), enemyModelsOnBoard(state, player), {
+    mustTouch: { pos: markerPos, radius: CULT_AMBUSH_MARKER_RADIUS }, minDistanceFromEnemies: params.markerGap,
     canPlace: (m, pos) => terrainService.canEndAt(state, m, pos).ok,
   })
   return placements
@@ -211,7 +258,8 @@ export function cultAmbushArrivalPlacements(state: GameState, models: Model[], p
 export function cultAmbushPlacementPossible(state: GameState, poolUnitId: UnitId, marker: CultAmbushMarker): boolean {
   const models = copyModelsOf(state, poolUnitId).map((m) => ({ ...m, pos: { x: 0, y: 0, z: 0 } }))
   if (models.length === 0) return false
-  return cultAmbushArrivalPlacements(state, models, marker.player, marker.pos) !== null
+  const src = state.units[poolUnitId]
+  return cultAmbushArrivalPlacements(state, models, marker.player, marker.pos, src ? paramsOf(state, src) : DEFAULT_PARAMS) !== null
 }
 
 // encode / decode the marker position carried by a `cultAmbush` ReactionRequest (stratagemId) so the arrival decision knows what to touch
@@ -238,7 +286,12 @@ export function cultAmbushReturnStep(ctx: EngineContext): 'pending' | 'done' {
     const marker = peek(s).markers.find((m) => m.player === owner && !marks.includes(OFFERED_PREFIX + m.id))
     if (!marker) return finish()
     marks.push(OFFERED_PREFIX + marker.id)
-    const options = ca.pool[owner].filter((u) => peek(s).pool[owner].includes(u) && cultAmbushPlacementPossible(s, u, marker))
+    const options = ca.pool[owner].filter((u) => {
+      if (!peek(s).pool[owner].includes(u)) return false
+      const src = s.units[u]
+      const p = src ? paramsOf(s, src) : DEFAULT_PARAMS
+      return s.round >= p.firstRound && s.round <= p.lastRound && cultAmbushPlacementPossible(s, u, marker)
+    })
     if (options.length === 0) continue
     ctx.decide({
       kind: 'chooseOption', player: owner, window: 'movement.reinforcements', canPass: false,
@@ -282,11 +335,34 @@ export function answerCultAmbush(ctx: EngineContext, action: Action, pending: Pe
     const sources = copyModelsOf(s, unitId)
     const copy = spawnDestroyedUnitCopy(ctx, unitId)
     // GEN-2.5: the same unit returns, so spent One Shot weapons stay spent
-    copy.models.forEach((mid, i) => { const mm = s.models[mid]; if (mm && sources[i]) mm.oneShotUsed = [...sources[i].oneShotUsed] })
+    // CLA-2.4: the Claw variant returns a new identical unit with every One Shot weapon unspent
+    const keepOneShot = !(s.units[unitId] && paramsOf(s, s.units[unitId]).resetOneShot)
+    if (keepOneShot) copy.models.forEach((mid, i) => { const mm = s.models[mid]; if (mm && sources[i]) mm.oneShotUsed = [...sources[i].oneShotUsed] })
     st.pool[pending.player] = pool.filter((u) => u !== unitId)
     st.markers = st.markers.filter((x) => x.id !== markerId)
     pushReaction(ctx, { kind: CA_KIND, stratagemId: reactionMarkerId(marker.pos), player: pending.player, unitId: copy.id, enemyUnitId: null, window: 'movement.reinforcements', distance: null })
     const src = s.units[unitId]
     ctx.emit({ type: 'AbilityTriggered', abilityId: (src && cultAmbushAbilityId(s, src)) ?? CULT_AMBUSH_CODE, sourceUnitId: unitId, targetUnitId: copy.id, summary: 'Cult Ambush: the unit bursts from hiding', player: pending.player })
+  }
+}
+
+// CLA-2.5b, R-5.14 moment: every pool unit that counts as being in Reserves is announced lost and counted as destroyed once more.
+// Each is replaced by a spawned copy in Reserves (flagged so its destruction does not roll Cult Ambush again); cullStrandedReserves
+// then destroys the copies through its normal path (UnitLostInReserves + UnitDestroyed). Call exactly once, at endOfRound3.
+export function cultAmbushCullPool(ctx: EngineContext): void {
+  const s = ctx.state
+  if (peek(s).pool.A.length + peek(s).pool.B.length === 0) return
+  const st = cultAmbushState(s)
+  for (const pid of ['A', 'B'] as PlayerId[]) {
+    for (const uid of [...st.pool[pid]]) {
+      const src = s.units[uid]
+      if (!src || !paramsOf(s, src).poolIsReserves) continue
+      st.pool[pid] = st.pool[pid].filter((u) => u !== uid)
+      st.markers = st.markers.filter((m) => m.sourceUnitId !== uid)
+      st.pendingMarkers = st.pendingMarkers.filter((p) => p.unitId !== uid)
+      const copy = spawnDestroyedUnitCopy(ctx, uid)
+      copy.location = 'reserves'
+      ;(st.noRoll ??= []).push(copy.id)
+    }
   }
 }
