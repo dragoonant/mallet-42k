@@ -299,7 +299,7 @@ async function startGame(page: Page, mission: string, seed: string) {
   await page.setViewportSize({ width: W, height: H })
   await page.goto('/')
   await expect(page.getByTestId('start-game')).toBeVisible()
-  await page.getByRole('button', { name: 'Orks' }).click()
+  await page.getByTestId('setup-patrol-A').getByRole('button', { name: 'Orks' }).click()
   await page.getByRole('button', { name: 'Bot', exact: true }).click()
   await page.getByTestId('setup-mission').selectOption(mission)
   await page.getByTestId('setup-seed').fill(seed)

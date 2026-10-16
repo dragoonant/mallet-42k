@@ -82,6 +82,29 @@ const row: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap' }
 const select: CSSProperties = { ...buttonBase, cursor: 'pointer', width: '100%' }
 const input: CSSProperties = { ...buttonBase, flex: 1, cursor: 'text' }
 const blurb: CSSProperties = { ...mutedText, marginTop: -8 }
+const factionGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(84px, 1fr))', gap: 8 }
+const factionCard: CSSProperties = { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: 5, fontSize: 11, lineHeight: 1.15, textAlign: 'center', whiteSpace: 'normal', minWidth: 0, overflowWrap: 'anywhere' }
+const factionImg: CSSProperties = { width: '100%', maxWidth: 76, aspectRatio: '1 / 1', objectFit: 'cover', borderRadius: 4, background: '#f2f2f4', display: 'block' }
+const factionRandom: CSSProperties = { ...factionImg, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.08)', color: colors.text, fontSize: 40, fontWeight: 700 }
+// Leader portraits (tools/make-leader-portraits.py). Factions without a file show a name-only card.
+// Portrait file per runtime faction id; two ids differ from their data folder names (sm, ork).
+const LEADER_PORTRAITS: Record<string, string> = {
+  sm: 'space-marines', ork: 'orks', necrons: 'necrons', 'adepta-sororitas': 'adepta-sororitas', 'adeptus-custodes': 'adeptus-custodes',
+  'astra-militarum': 'astra-militarum', 'genestealer-cults': 'genestealer-cults', 'grey-knights': 'grey-knights',
+  'chaos-space-marines': 'chaos-space-marines', 'tau-empire': 'tau-empire', tyranids: 'tyranids',
+}
+const portraitUrl = (id: string) => `${import.meta.env.BASE_URL}assets/ui/leaders/${LEADER_PORTRAITS[id]}.webp`
+
+function FactionCard({ id, name, active, onPick }: { id: string; name: string; active: boolean; onPick: () => void }) {
+  return (
+    <button type="button" style={{ ...(active ? buttonActive : buttonBase), ...factionCard }} aria-pressed={active} onClick={onPick}>
+      {id === '' ? <span style={factionRandom} aria-hidden="true">?</span>
+        : LEADER_PORTRAITS[id] ? <img src={portraitUrl(id)} alt="" style={factionImg} draggable={false} /> : null}
+      <span>{name}</span>
+    </button>
+  )
+}
+
 const errorText: CSSProperties = { color: colors.danger, fontSize: 13 }
 const missionBlurb: CSSProperties = { ...mutedText, marginTop: -6, fontSize: 12 }
 const missionList: CSSProperties = { margin: '2px 0 0', paddingLeft: 16, fontSize: 11.5, color: colors.muted }
@@ -215,11 +238,9 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
         <div className="ss-col">
 
         <div style={label}>Your Faction</div>
-        <div style={row} data-testid="setup-patrol-A">
+        <div style={factionGrid} data-testid="setup-patrol-A">
           {factions.map((f) => (
-            <button key={f.id} style={f.id === factionId ? buttonActive : buttonBase} onClick={() => setFaction(f.id)}>
-              {f.label}
-            </button>
+            <FactionCard key={f.id} id={f.id} name={f.label} active={f.id === factionId} onPick={() => setFaction(f.id)} />
           ))}
         </div>
         {activeFaction?.blurb && <p style={blurb}>{activeFaction.blurb}</p>}
@@ -279,14 +300,12 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
         </div>
 
         <div style={label}>Opponent's Faction</div>
-        <select style={select} value={opponentFaction} data-testid="setup-opponent-faction" onChange={(e) => setOpponentFaction(e.target.value)}>
-          <option value="">Random</option>
+        <div style={factionGrid} data-testid="setup-opponent-faction">
+          <FactionCard id="" name="Random" active={opponentFaction === ''} onPick={() => setOpponentFaction('')} />
           {factions.map((f) => (
-            <option key={f.id} value={f.id}>
-              {f.label}
-            </option>
+            <FactionCard key={f.id} id={f.id} name={f.label} active={f.id === opponentFaction} onPick={() => setOpponentFaction(f.id)} />
           ))}
-        </select>
+        </div>
 
         {opponentFaction && unitChoiceRow(opponentFaction, choicesB, pickB, setPickB, 'B')}
         {canSplitB && (
