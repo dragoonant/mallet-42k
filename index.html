@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mallet 42k</title>
+    <!-- Match the scene's clear colour (Scene.tsx). Without it the page is white, and any frame the WebGL
+         canvas fails to present (first figure/shader upload, GPU context reset) flashes white. -->
+    <style>html, body, #root { background: #0a0a10; margin: 0; }</style>
   </head>
   <body>
     <div id="root"></div>
