@@ -72,6 +72,7 @@ test('transports: start embarked in the Devilfish, then disembark in the Movemen
   let shotEmbarked = false
   const start = Date.now()
   let disembarked = false
+  let declined = false
   while (Date.now() - start < BUDGET_MS) {
     const s = await snap(page)
     if (s.result || s.phase === 'ended') break
@@ -95,6 +96,14 @@ test('transports: start embarked in the Devilfish, then disembark in the Movemen
         const s2 = await waitChange(page, p.id)
         expect(s2.pending?.kind, 'disembark raises a placement decision').toBe('deployUnit')
         await expect(page.getByTestId('prompt')).toContainText(/Disembark/)
+        if (!declined) {
+          // decline once: Pass leaves the unit aboard
+          declined = true
+          await clickPass(page)
+          const s3 = await waitChange(page, s2.pending!.id)
+          expect(s3.units.find((u) => u.id === passenger.id)!.loc, 'declined: Pathfinders stay embarked').not.toBe('board')
+          continue
+        }
         const zone: V2[] = s2.pending!.context.zone
         const cx = zone.reduce((a, v) => a + v.x, 0) / zone.length
         const cz = zone.reduce((a, v) => a + v.z, 0) / zone.length
@@ -103,7 +112,7 @@ test('transports: start embarked in the Devilfish, then disembark in the Movemen
         const ring: V2[] = []
         for (const t of [0.25, 0.15, 0.35]) for (let i = 0; i < zone.length; i++) { ring.push(near(zone[i], t)); const nx = zone[(i + 1) % zone.length]; ring.push(near({ x: (zone[i].x + nx.x) / 2, z: (zone[i].z + nx.z) / 2 }, t)) }
         let ok = false
-        for (const pt of ring.slice(0, 6)) {
+        for (const pt of ring) {
           await clearToast(page)
           if (!(await clickCanvasAt(page, project({ x: pt.x, y: 0, z: pt.z }, cam, W, H), W, H))) continue
           await page.waitForTimeout(150)
@@ -118,12 +127,6 @@ test('transports: start embarked in the Devilfish, then disembark in the Movemen
           await confirm.click()
           ok = (await waitChange(page, s2.pending!.id)).pending?.id !== s2.pending!.id
           if (ok) break
-        }
-        if (!ok) {
-          // the engine's own legal arrangement, offered as a button when a hand-placed drop does not fit around the hull
-          await page.getByTestId('btn-disembark-auto').click()
-          await page.getByTestId('btn-confirm').click()
-          ok = (await waitChange(page, s2.pending!.id)).pending?.id !== s2.pending!.id
         }
         expect(ok, 'placed the disembarking unit with a board click').toBe(true)
         continue
@@ -140,6 +143,7 @@ test('transports: start embarked in the Devilfish, then disembark in the Movemen
     if (p.kind === 'chooseUnitToActivate') { const pb = await promptButton(page, /^Pass$/); if (pb) { await pb.click(); continue } }
     if (!(await clickFirstOption(page, false))) await clickPass(page)
   }
+  expect(declined, 'declined a disembark once').toBe(true)
   expect(shotEmbarked, 'saw the embarked state in play').toBe(true)
   expect(disembarked, 'Pathfinders disembarked onto the board').toBe(true)
   await dismissBanner(page)

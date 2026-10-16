@@ -6,7 +6,7 @@
 // Scene.tsx's own onBoardPointer does the same getState() dance for the same reason (see its comment
 // on stale closures from react-three-fiber's captured-pointer events).
 import type { GameState, Model, PendingDecision, Polygon, UnitId } from '@/engine'
-import { whollyOnBoard, whollyWithinPolygon } from '@/engine'
+import { legalActions, whollyOnBoard, whollyWithinPolygon } from '@/engine'
 import { useUiStore, type PlacementDraft } from '../ui/uiStore'
 import { combinedUnitIds, combinedUnitModels, modelsAnchor, type Anchor2D } from './geometry'
 import { directionFacing, formationPlacementsForUnit, zoneFacing, type FormationKind, type FormationPlacement } from './formations'
@@ -239,6 +239,16 @@ export function computeBoardClickDraft(
     if (!validateDraft(state, models, clamped.placements, null, combinedUnitIds(state, deployTargetUnitId), true).ok) {
       const open = findOpenDeploySpot(state, deployTargetUnitId, models, point, clamped.facing, clamped.kind, pending.context.zone)
       if (open) clamped = open
+      else if (state.phase === 'movement') {
+        // Mid-game disembark: the zone is the transport hull grown by 3", so most clicks next to the hull cannot be
+        // fitted by the formation search. Fall back to the engine's own legal arrangement (within 3", clear of the hull
+        // and of enemies), nearest to the click.
+        const arrival = (legalActions(state, pending) ?? []).find((a) => a.type === 'deployUnit' && !a.toReserves && a.placements.length > 0)
+        if (arrival && arrival.type === 'deployUnit') {
+          const first = arrival.placements[0]
+          return { decisionId: pending.id, unitId: deployTargetUnitId, anchor: { x: first.pos.x, z: first.pos.z }, placements: arrival.placements }
+        }
+      }
     }
     if (clamped.facing !== facing || ui.formationFacingAuto) ui.setFormationFacing(clamped.facing, true)
     if (clamped.kind !== kind) ui.setFormationKind(clamped.kind)
