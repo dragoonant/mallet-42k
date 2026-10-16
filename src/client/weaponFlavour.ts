@@ -39,7 +39,7 @@ export function weaponFlavour(weaponId: string, weapon: WeaponData | undefined, 
   // Gauss weapons flay with a green energy bolt rather than a bullet, so they voice and trace as an energy
   // weapon; the psychic zap is the closest thing in the SFX palette.
   // T'au pulse weapons and the Votann ion blasters, magna-rail rifles and volkanite disintegrators are energy bolts too
-  const gauss = /gauss|pulse|\bion.?blaster|magna.?rail|volkanite|disintegrat/.test(text)
+  const gauss = /gauss|pulse|\bion.?blaster|magna.?rail|volkanite/.test(text)
   const strength = typeof weapon?.S === 'number' ? weapon.S : 0
 
   if (melee) {
@@ -110,7 +110,7 @@ export function classifyVfxFamily(weaponId: string, weapon: WeaponData | undefin
   if (/splinter/.test(text)) return kw('dakka')
   if (/dark.?lance/.test(text)) return kw('lascannon')
   if (/disintegrator/.test(text)) return kw('pulse')
-  if (/pulse|ion.?raker|railgun|rail.?rifle|burst.?cannon|markerlight|\bion.?blaster|magna.?rail|volkanite|disintegrat/.test(text)) return kw('pulse')
+  if (/pulse|ion.?raker|railgun|rail.?rifle|burst.?cannon|markerlight|\bion.?blaster|magna.?rail|volkanite/.test(text)) return kw('pulse')
   if (/grenade|krak|frag|demolition|charge cache|satchel/.test(text)) return kw('grenade')
   if (/rokkit|rocket|missile|thump|hunter.?killer|bombast|field.?gun|howitzer|launcher|mortar|malleus|kannon/.test(text)) return kw('missile')
   if (/lascannon|las.?cannon|laser|beam/.test(text)) return kw('lascannon')
