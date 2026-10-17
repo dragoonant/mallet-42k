@@ -9,17 +9,28 @@
 //
 // Collapse is driven two ways: the player (handle, chevron) and `auto` — whenever `auto` or `autoKey`
 // changes the sheet snaps to `auto` (true = collapsed), so a decision that needs a board tap opens tucked
-// away and a staged move collapses itself. `raise` lifts the sheet clear of the touch Confirm/Cancel bar.
+// away and a staged move collapses itself. While a move is `staged` the sheet becomes a one-line pill on the
+// left of the bottom row and the touch Confirm/Cancel bar takes the right of that same row (see STAGED_BAR_PX),
+// so sheet + bar + formation strip stack to about 116px. The sheet never runs under the right-edge camera column.
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 import { colors, fontStack, panel } from './theme'
 
 const TOUCH_MIN = 44
 const SWIPE_PX = 18
 
+/** Width kept clear at the right edge of the overlay layer for the camera button column (40px + gutters). */
+export const CAMERA_COL_PX = 56
+/** Width of the touch Confirm / Cancel bar while a move is staged (it sits at the right of the bottom row). */
+export const STAGED_BAR_PX = 288
+/** Height of the staged bottom row (bar and collapsed sheet pill) and of the formation strip above it. */
+export const STAGED_ROW_PX = 52
+
 // Every button inside a sheet gets a 44px touch target, whichever component rendered it (WeaponPanel,
 // RerollTray, ...). Inline styles never set min-height, so this wins without touching those files.
 const SHEET_CSS = `
-.m42-sheet { max-height: 45vh; max-height: calc(45dvh - var(--sheet-raise, 0px)); bottom: calc(6px + var(--sheet-raise, 0px)); }
+.m42-sheet { max-height: 45vh; max-height: 45dvh; bottom: 6px; }
+.m42-sheet[data-staged="true"] { right: ${CAMERA_COL_PX + STAGED_BAR_PX + 6}px; min-height: ${STAGED_ROW_PX}px; justify-content: center; }
+.m42-sheet[data-staged="true"][data-collapsed="false"] { z-index: 46; justify-content: flex-start; }
 .m42-sheet button { min-height: ${TOUCH_MIN}px; min-width: ${TOUCH_MIN}px; touch-action: manipulation; }
 .m42-sheet-body { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 `
@@ -28,7 +39,7 @@ const sheet: CSSProperties = {
   ...panel,
   position: 'absolute',
   left: 8,
-  right: 8,
+  right: CAMERA_COL_PX,
   display: 'flex',
   flexDirection: 'column',
   boxSizing: 'border-box',
@@ -80,7 +91,7 @@ export function BottomSheet({
   title,
   auto = false,
   autoKey = '',
-  raise = 0,
+  staged = false,
   summary,
   footer,
   children,
@@ -90,8 +101,8 @@ export function BottomSheet({
   /** Collapsed state to snap to whenever `auto` or `autoKey` changes. */
   auto?: boolean
   autoKey?: string
-  /** px to lift the sheet off the bottom edge (room for the touch Confirm/Cancel bar). */
-  raise?: number
+  /** A move is staged: dock as a narrow pill beside the touch Confirm/Cancel bar instead of stacking above it. */
+  staged?: boolean
   /** Shown beside the title while collapsed: the primary action. */
   summary?: ReactNode
   /** Pinned under the scrolling body while expanded. */
@@ -122,9 +133,8 @@ export function BottomSheet({
     }
   }
 
-  const rootStyle = (raise > 0 ? { ...sheet, ['--sheet-raise' as string]: `${raise}px` } : sheet) as CSSProperties
   return (
-    <div className="m42-sheet" style={rootStyle} data-testid={testId} data-collapsed={collapsed ? 'true' : 'false'}>
+    <div className="m42-sheet" style={sheet} data-testid={testId} data-collapsed={collapsed ? 'true' : 'false'} data-staged={staged ? 'true' : 'false'}>
       <style>{SHEET_CSS}</style>
       <div style={headerRow}>
         <div

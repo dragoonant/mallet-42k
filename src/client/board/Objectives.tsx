@@ -7,6 +7,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { Html } from '@react-three/drei'
 import { unitModels } from '@/engine'
+import { useFormFactor } from '../ui/formFactor'
+import { COMPACT_LABEL_WIDTH_FRAC, DESKTOP_LABEL_MAX, LABEL_DISTANCE_FACTOR, useLabelClamp } from '../interaction/labelScale'
 import { useDisplayState } from '../presentation/presentedStore'
 import { useUiStore } from '../ui/uiStore'
 import { prettifyId } from '../ui/labels'
@@ -23,6 +25,33 @@ const TOKEN_H = 0.08
 const BEACON_H = 5
 const GHOST_MS = 1400
 
+// Floating id + OC readout. Compact: counter-scaled so zooming the phone camera in never balloons it (labelScale.ts).
+function ObjectiveLabel({ id, pos, locked, sticky, a, b, compact }: { id: string; pos: [number, number, number]; locked: boolean; sticky: boolean; a: number; b: number; compact: boolean }) {
+  const clamp = useRef<HTMLDivElement>(null)
+  useLabelClamp(clamp, pos, true, compact ? { origin: '50% 50%', widthFrac: COMPACT_LABEL_WIDTH_FRAC } : { origin: '50% 50%', min: 0, max: DESKTOP_LABEL_MAX })
+  return (
+    <Html zIndexRange={[5, 0]} position={[0, 1.7, 0]} center distanceFactor={LABEL_DISTANCE_FACTOR} style={{ pointerEvents: 'none' }} occlude={false}>
+      <div ref={clamp}>
+        <div
+          data-testid={`objective-label-${id}`}
+          style={{ fontFamily: fontStack, fontSize: compact ? 11 : 12, whiteSpace: 'nowrap', textAlign: 'center', textShadow: '0 1px 2px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.9)' }}
+        >
+          <div style={{ fontWeight: 700, color: colors.text }}>
+            {locked ? '\u{1F512} ' : ''}
+            {prettifyId(id)}
+            {sticky ? ' · sticky' : ''}
+          </div>
+          <div style={{ fontWeight: 600 }}>
+            <span style={{ color: colors.playerA }}>A {a}</span>
+            <span style={{ color: colors.muted }}> : </span>
+            <span style={{ color: colors.playerB }}>B {b}</span>
+          </div>
+        </div>
+      </div>
+    </Html>
+  )
+}
+
 interface Ghost {
   id: string
   pos: { x: number; z: number }
@@ -31,6 +60,7 @@ interface Ghost {
 
 export function Objectives() {
   const state = useDisplayState()
+  const { compact } = useFormFactor()
   const hoveredObjectiveId = useUiStore((s) => s.hoveredObjectiveId)
   const prevRemoved = useRef<Record<string, boolean>>({})
   const [ghosts, setGhosts] = useState<Ghost[]>([])
@@ -96,23 +126,7 @@ export function Objectives() {
           <group key={objective.id} position={[objective.pos.x, 0, objective.pos.z]}>
             <ObjectiveZone zone={zoneR} color={color} owned={!!owner} contested={contested} lit={lit} hovered={hoveredObjectiveId === objective.id} />
             <Token radius={markerRadius} color={color} />
-            <Html zIndexRange={[5, 0]} position={[0, 1.7, 0]} center distanceFactor={18} style={{ pointerEvents: 'none' }} occlude={false}>
-              <div
-                data-testid={`objective-label-${objective.id}`}
-                style={{ fontFamily: fontStack, fontSize: 12, whiteSpace: 'nowrap', textAlign: 'center', textShadow: '0 1px 2px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.9)' }}
-              >
-                <div style={{ fontWeight: 700, color: colors.text }}>
-                  {locked ? '\u{1F512} ' : ''}
-                  {prettifyId(objective.id)}
-                  {objective.stickyBy ? ' · sticky' : ''}
-                </div>
-                <div style={{ fontWeight: 600 }}>
-                  <span style={{ color: colors.playerA }}>A {levels.A}</span>
-                  <span style={{ color: colors.muted }}> : </span>
-                  <span style={{ color: colors.playerB }}>B {levels.B}</span>
-                </div>
-              </div>
-            </Html>
+            <ObjectiveLabel id={objective.id} pos={[objective.pos.x, 1.7, objective.pos.z]} locked={locked} sticky={!!objective.stickyBy} a={levels.A} b={levels.B} compact={compact} />
           </group>
         )
       })}

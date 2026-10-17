@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
+import { screenshotRendered } from './helpers'
 
 // Phone smoke check (M11): runs only in the iphone-se / iphone-pro / pixel projects (see
 // playwright.config.ts). Start screen fits the screen width, a game boots to a visible board + HUD,
@@ -12,7 +13,7 @@ const LOAD_MS = 90_000
 test('phone: start, battle, portrait rotate prompt', async ({ page }, testInfo) => {
   mkdirSync('e2e-out', { recursive: true })
   const name = testInfo.project.name
-  const shot = (n: string) => page.screenshot({ path: `e2e-out/mobile-${name}-${n}.png` })
+  const shot = (n: string) => screenshotRendered(page, `e2e-out/mobile-${name}-${n}.png`, n === '02-battle' || n === '06-sheet-collapsed' || n === '05-drawer' ? 250_000 : 0)
 
   // (a) start screen, no sideways page scroll
   await page.goto('/')

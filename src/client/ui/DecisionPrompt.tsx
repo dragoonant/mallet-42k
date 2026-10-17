@@ -4,7 +4,7 @@
 // Figure via UnitsLayer — renders as a plain clickable list here, so no decision can ever get stuck.
 import { FloorSelector } from '../interaction/FloorSelector'
 import { isClampedMovePending } from '../interaction/moveClamp'
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import {
   unitModels,
   type Action, type ChooseOptionTopic, type DecisionOption, type GameEvent, type GameState, type MoveType, type PendingDecision, type PlayerId, type StratagemId,
@@ -1114,6 +1114,40 @@ const armedChooseBtn: CSSProperties = { flex: '1 1 0', minWidth: 0, overflow: 'h
 const heading: CSSProperties = { fontWeight: 700, fontSize: 14, paddingRight: 30 }
 const hint: CSSProperties = { ...mutedText }
 const infoBlock: CSSProperties = { ...mutedText, background: 'rgba(255,255,255,0.04)', borderRadius: 6, padding: '6px 8px' }
+
+/** Info block under the prompt title. When `collapsible` (phone layout with an action panel such as the weapon panel
+ *  open) it folds to a single ellipsised line with a "More" toggle so the panel's action row keeps the room; the
+ *  whole line is the 44px tap target. Otherwise it renders exactly the original two-part block. It is a div with
+ *  role="button", not a <button>, only so the sheet's blanket button sizing doesn't apply to the expanded text. */
+function CollapsibleInfo({ testId, head, collapsible, children }: { testId: string; head: string; collapsible: boolean; children: ReactNode }) {
+  const [more, setMore] = useState(false)
+  if (!collapsible) {
+    return (
+      <div style={infoBlock} data-testid={testId}>
+        <div style={{ color: colors.text, fontWeight: 600 }}>{head}</div>
+        <div>{children}</div>
+      </div>
+    )
+  }
+  const toggle = () => setMore((m) => !m)
+  return (
+    <div style={{ ...infoBlock, padding: '0 8px' }} data-testid={testId} data-collapsed={more ? 'false' : 'true'}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={more}
+        data-testid={`${testId}-more`}
+        onClick={toggle}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle() } }}
+        style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: TOUCH_MIN, cursor: 'pointer', touchAction: 'manipulation', userSelect: 'none', WebkitUserSelect: 'none' }}
+      >
+        <span style={{ flex: '1 1 auto', minWidth: 0, color: colors.text, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{head}</span>
+        <span style={{ flex: '0 0 auto', color: colors.accent, fontWeight: 600 }}>{more ? 'Less ▴' : 'More ▾'}</span>
+      </div>
+      {more && <div style={{ paddingBottom: 8 }}>{children}</div>}
+    </div>
+  )
+}
 const stratList: CSSProperties = { margin: '4px 0 0 16px', padding: 0, fontSize: 11.5 }
 const row: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap' }
 /** The deploy palette (unit chips + Reserves buttons), laid out for the left-docked deployment panel
@@ -1393,6 +1427,20 @@ function DecisionPromptBody() {
     primeFormation('line', 0, true)
   }, [pending?.id, deployTargetUnitId])
 
+  // Phone: the formation strip and the folded sheet cover the bottom third of the screen, which is exactly where the
+  // default view puts a deployment zone. Once a unit is picked, ease the camera over the zone's centre so the area to
+  // tap sits in the open middle of the screen.
+  useEffect(() => {
+    if (!compact || !pending || pending.kind !== 'deployUnit' || !deployTargetUnitId || pending.player === botSeat) return
+    const zone = pending.context.zone as { x: number; z: number }[] | undefined
+    if (!zone || zone.length === 0) return
+    useUiStore.getState().focusCamera({
+      x: zone.reduce((a, p) => a + p.x, 0) / zone.length,
+      z: zone.reduce((a, p) => a + p.z, 0) / zone.length,
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [compact, pending?.id, deployTargetUnitId])
+
   if (!state || !pending) return null
 
   if (pending.player === botSeat) {
@@ -1579,20 +1627,21 @@ function DecisionPromptBody() {
         )
       })()}
       {pending.kind === 'declareTargets' && (
-        <div style={infoBlock} data-testid="shoot-context">
-          <div style={{ color: colors.text, fontWeight: 600 }}>
-            {state.units[pending.context.unitId]?.name ?? pending.context.unitId} —{' '}
-            {pending.context.overwatch ? 'Fire Overwatch (every hit needs an unmodified 6)' : pending.context.attackKind === 'melee' ? 'pick who to fight' : 'pick a target'}
-          </div>
-          <div>
-            {pending.context.attackKind === 'ranged'
-              ? `${compact ? 'Tap' : 'Click'} an enemy (or Choose weapons…) to pick which weapons fire at whom, or use a Target button to fire everything that can reach it at once. `
-              : 'Every weapon that can see the unit you pick fires at it. '}
-            {compact ? 'Tap an option once' : 'Hover an option'} for its weapons, the target&apos;s Toughness and Save, and what each weapon needs to hit and wound.
-            {pending.context.engagedWith.length > 0 &&
-              ` In Engagement Range of ${pending.context.engagedWith.map((u) => state.units[u]?.name ?? u).join(', ')}.`}
-          </div>
-        </div>
+        <CollapsibleInfo
+          key={weaponPanelOpen ? 'panel' : 'plain'}
+          collapsible={compact && weaponPanelOpen}
+          testId="shoot-context"
+          head={`${state.units[pending.context.unitId]?.name ?? pending.context.unitId} — ${
+            pending.context.overwatch ? 'Fire Overwatch (every hit needs an unmodified 6)' : pending.context.attackKind === 'melee' ? 'pick who to fight' : 'pick a target'
+          }`}
+        >
+          {pending.context.attackKind === 'ranged'
+            ? `${compact ? 'Tap' : 'Click'} an enemy (or Choose weapons…) to pick which weapons fire at whom, or use a Target button to fire everything that can reach it at once. `
+            : 'Every weapon that can see the unit you pick fires at it. '}
+          {compact ? 'Tap an option once' : 'Hover an option'} for its weapons, the target&apos;s Toughness and Save, and what each weapon needs to hit and wound.
+          {pending.context.engagedWith.length > 0 &&
+            ` In Engagement Range of ${pending.context.engagedWith.map((u) => state.units[u]?.name ?? u).join(', ')}.`}
+        </CollapsibleInfo>
       )}
 
       {pending.kind === 'declareTargets' && weaponPanelOpen && (
@@ -1905,7 +1954,7 @@ function DecisionPromptBody() {
           // a decision answered by tapping the board opens tucked away; a staged move collapses itself
           auto={isDeploy ? !!deployTargetUnitId || !!activeDraft : bespoke || !!activeDraft}
           autoKey={pending.id}
-          raise={activeDraft ? 90 : 0}
+          staged={!!activeDraft}
           summary={collapsedPrimary}
           footer={armedBar ?? footerRow}
         >

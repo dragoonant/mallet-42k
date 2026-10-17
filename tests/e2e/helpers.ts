@@ -391,3 +391,20 @@ export async function startGameVsBot(page: Page, seed: string): Promise<void> {
   await expect(page.getByTestId('phase-tracker')).toBeVisible({ timeout: 20_000 })
   await page.waitForFunction(() => !!(window as any).__mallet) // eslint-disable-line @typescript-eslint/no-explicit-any
 }
+
+// ---------- screenshots of the WebGL board ----------
+/** Screenshot that waits for the board to be drawn: the canvas uses a demand-driven frame loop, so a shot taken
+ *  right after a layout change can catch a cleared (black) canvas. Nudges a repaint (the camera hook's lookAt ends
+ *  in invalidate()), lets two animation frames pass, and retries when the PNG is implausibly small for a 3D scene. */
+export async function screenshotRendered(page: Page, path: string, minBytes = 250_000): Promise<void> {
+  for (let i = 0; i < 6; i++) {
+    await page.evaluate(() => {
+      const c = (window as unknown as { __malletCamera?: { get(): { x: number; z: number; distance: number }; lookAt(x: number, z: number, d: number): void } }).__malletCamera
+      if (c) { const g = c.get(); c.lookAt(g.x, g.z, g.distance) }
+      return new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
+    })
+    await page.waitForTimeout(250 + i * 250)
+    const buf = await page.screenshot({ path })
+    if (buf.length >= minBytes) return
+  }
+}

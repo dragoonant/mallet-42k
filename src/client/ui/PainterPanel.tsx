@@ -133,7 +133,7 @@ export function PainterPanel({ factions, initialFaction, onClose }: { factions: 
             Reset to stock
           </button>
         </div>
-        <div style={{ width: 190, height: compact ? 200 : 260, margin: compact ? '0 auto' : undefined, borderRadius: 8, overflow: 'hidden', background: '#0a0a10', flex: 'none', fontFamily: fontStack }}>
+        <div style={{ width: 190, height: compact ? 200 : 260, ...(compact ? { margin: '0 auto', position: 'sticky', top: 0, alignSelf: 'flex-start' } : null), borderRadius: 8, overflow: 'hidden', background: '#0a0a10', flex: 'none', fontFamily: fontStack }}>
           <Canvas camera={{ position: [0, 1.4, 7], fov: 38 }}>
             <hemisphereLight intensity={1.0} groundColor="#2a2a34" />
             <directionalLight position={[6, 8, 4]} intensity={1.2} />

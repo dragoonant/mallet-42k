@@ -6,12 +6,14 @@
 import { useMemo, useRef, type ReactElement } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
-import { Vector3 } from 'three'
+import { Vector3, type PerspectiveCamera } from 'three'
 import { DEFAULT_SERVICES, type GameState, type UnitId } from '@/engine'
 import { useDisplayState } from '../presentation/presentedStore'
 import { useUiStore, type PlacementDraft } from '../ui/uiStore'
 import { Tooltip } from '../ui/Tooltip'
+import { useFormFactor } from '../ui/formFactor'
 import { registerLabelPart } from './labelLayout'
+import { compactLabelScale, DESKTOP_LABEL_MAX, LABEL_DISTANCE_FACTOR, rawLabelScale } from './labelScale'
 import { effectEntries, turnFlagEntries } from './statusIcons'
 
 type CoverKind = 'full' | 'partial'
@@ -85,7 +87,9 @@ const ROW_REF_DISTANCE = 36
 const ROW_MIN_SCALE = 0.64
 const ROW_MAX_SCALE = 1.27
 const ICON_PX = 22
-const LABEL_DISTANCE_FACTOR = 18 // keep in sync with UnitLabels' Html distanceFactor
+const COMPACT_HIT_PX = 32 // compact: secondary-but-tappable hit area around the 22px badge
+const COMPACT_TAG_PX = 15 // compact name tag height in CSS px (11px type)
+const COMPACT_ROW_MIN_SCALE = 1
 
 const BLUE = '#5fb4ff'
 const AMBER = '#ffb84f'
@@ -115,22 +119,28 @@ function glyph(kind: string, tint: string): ReactElement {
   }
 }
 
-function IconBadge({ icon }: { icon: Icon }) {
+function IconBadge({ icon, compact }: { icon: Icon; compact: boolean }) {
+  const outer = ICON_PX + 3 // 22px content + 1.5px border each side, as before
+  const hit = compact ? COMPACT_HIT_PX : outer
+  const pad = (hit - outer) / 2
   return (
     <Tooltip title={icon.title} body={icon.body} placement="top">
       <div
         data-testid={icon.testid ?? `status-icon-${icon.kind}`}
         data-status-icon={icon.kind}
         {...icon.data}
-        style={{ pointerEvents: 'auto', width: ICON_PX, height: ICON_PX, borderRadius: '50%', background: 'rgba(14,30,48,0.88)', border: `1.5px solid ${icon.tint}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help', animation: icon.pulse ? 'm42k-shock-pulse 1.2s ease-in-out infinite' : undefined, boxShadow: icon.pulse ? `0 0 6px ${AMBER}` : undefined }}
+        style={{ pointerEvents: 'auto', width: hit, height: hit, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help' }}
       >
-        <svg width={ICON_PX - 6} height={ICON_PX - 6} viewBox="0 0 14 14" aria-hidden="true">{glyph(icon.kind, icon.tint)}</svg>
+        <div style={{ width: ICON_PX, height: ICON_PX, margin: pad, borderRadius: '50%', background: 'rgba(14,30,48,0.88)', border: `1.5px solid ${icon.tint}`, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: icon.pulse ? 'm42k-shock-pulse 1.2s ease-in-out infinite' : undefined, boxShadow: icon.pulse ? `0 0 6px ${AMBER}` : undefined }}>
+          <svg width={ICON_PX - 6} height={ICON_PX - 6} viewBox="0 0 14 14" aria-hidden="true">{glyph(icon.kind, icon.tint)}</svg>
+        </div>
       </div>
     </Tooltip>
   )
 }
 
 function StatusRow({ id, icons, position }: { id: UnitId; icons: Icon[]; position: [number, number, number] }) {
+  const { compact } = useFormFactor()
   const row = useRef<HTMLDivElement>(null)
   const lift = useRef<HTMLDivElement>(null)
   const camera = useThree((s) => s.camera)
@@ -139,14 +149,16 @@ function StatusRow({ id, icons, position }: { id: UnitId; icons: Icon[]; positio
     const el = row.current
     if (!el) return
     const dist = Math.max(camera.position.distanceTo(anchor.set(...position)), 0.1)
-    const s = Math.min(ROW_MAX_SCALE, Math.max(ROW_MIN_SCALE, ROW_REF_DISTANCE / dist))
+    const s = Math.min(ROW_MAX_SCALE, Math.max(compact ? COMPACT_ROW_MIN_SCALE : ROW_MIN_SCALE, ROW_REF_DISTANCE / dist))
     const scale = `scale(${s.toFixed(3)})`
     if (el.style.transform !== scale) el.style.transform = scale
-    // The name tag scales with distance (drei distanceFactor 18, 12px text) and is not clamped, so lift the row by
-    // the tag's on-screen height to never overlap it.
+    // Lift the row by the name tag's on-screen height to never overlap it. Desktop: the tag scales with distance
+    // (drei distanceFactor 18, 12px text), capped at DESKTOP_LABEL_MAX. Compact: the tag's net scale is clamped (see labelScale.ts).
     const outer = lift.current
     if (outer) {
-      const tag = `translateY(calc(-100% - ${(24 * LABEL_DISTANCE_FACTOR / dist + 4).toFixed(1)}px))`
+      const raw = rawLabelScale(dist, (camera as PerspectiveCamera).fov)
+      const tagPx = compact ? COMPACT_TAG_PX * compactLabelScale(raw) : 24 * LABEL_DISTANCE_FACTOR / dist * Math.min(1, DESKTOP_LABEL_MAX / raw)
+      const tag = `translateY(calc(-100% - ${(tagPx + 4).toFixed(1)}px))`
       if (outer.style.transform !== tag) outer.style.transform = tag
     }
   })
@@ -156,8 +168,8 @@ function StatusRow({ id, icons, position }: { id: UnitId; icons: Icon[]; positio
       <div ref={(el) => registerLabelPart(id, 'rowWrap', el)}>
       <div ref={lift} style={{ transform: 'translateY(calc(-100% - 22px))', pointerEvents: 'none' }}>
         <style>{'@keyframes m42k-shock-pulse { 0%, 100% { opacity: 1; transform: scale(1) } 50% { opacity: 0.6; transform: scale(0.88) } }'}</style>
-        <div ref={row} data-testid={`unit-status-${id}`} style={{ display: 'flex', gap: 4, justifyContent: 'center', transformOrigin: '50% 100%', pointerEvents: 'none' }}>
-          {icons.map((icon, i) => <IconBadge key={`${icon.kind}-${i}`} icon={icon} />)}
+        <div ref={row} data-testid={`unit-status-${id}`} style={{ display: 'flex', gap: compact ? 0 : 4, justifyContent: 'center', transformOrigin: '50% 100%', pointerEvents: 'none' }}>
+          {icons.map((icon, i) => <IconBadge key={`${icon.kind}-${i}`} icon={icon} compact={compact} />)}
         </div>
       </div>
       </div>

@@ -2,11 +2,17 @@
 // cannot press Enter / Esc, so Confirm and Cancel live here, plus a "Whole unit" toggle that stands in for
 // Shift+drag on the next drag. Confirm runs commitStagedDraft() (what Enter and the prompt's Confirm call);
 // Cancel runs cancelStagedDraft() (what Esc calls) — no logic of its own. Renders nothing on desktop.
+//
+// Compact (phone) layout: a slim 52px row at the bottom-right of the overlay layer (which App.tsx already insets by
+// the safe areas — so no --safe-bottom here), sharing the row with the collapsed BottomSheet pill on its left and
+// leaving the camera column clear on its right. A blocking reason floats above the formation strip instead of
+// stretching the bar. Tablets with touch keep the original centred bar.
 import { useEffect, type CSSProperties } from 'react'
 import { useGameStore } from '../store/game'
 import { useUiStore } from './uiStore'
 import { useFormFactor } from './formFactor'
 import { colors, fontStack, panel } from './theme'
+import { CAMERA_COL_PX, STAGED_BAR_PX, STAGED_ROW_PX } from './BottomSheet'
 import { commitStagedDraft, validateStagedDraft } from '../interaction/commitDraft'
 import { cancelStagedDraft } from '../interaction/moveHover'
 import { useWholeUnit } from '../interaction/touchGesture'
@@ -17,7 +23,7 @@ const bar: CSSProperties = {
   ...panel,
   position: 'absolute',
   left: '50%',
-  bottom: 'calc(var(--safe-bottom, 0px) + 10px)',
+  bottom: 10, // the overlay layer is already inset by --safe-bottom
   transform: 'translateX(-50%)',
   display: 'flex',
   flexDirection: 'column',
@@ -32,6 +38,39 @@ const bar: CSSProperties = {
 }
 
 const row: CSSProperties = { display: 'flex', gap: 8, alignItems: 'center' }
+
+const barCompact: CSSProperties = {
+  ...bar,
+  left: 'auto',
+  right: CAMERA_COL_PX,
+  bottom: 6,
+  transform: 'none',
+  width: STAGED_BAR_PX,
+  maxWidth: `calc(100% - ${CAMERA_COL_PX + 8}px)`,
+  height: STAGED_ROW_PX,
+  flexDirection: 'row',
+  justifyContent: 'center',
+  padding: '3px 6px',
+  gap: 0,
+}
+const rowCompact: CSSProperties = { ...row, gap: 6, width: '100%' }
+const btnCompact: CSSProperties = { flex: '1 1 0', minWidth: 0, minHeight: 44, padding: '0 8px', fontSize: 14 }
+// Floats above the 52px formation strip (6 + 52 + 6 + 52 + 6), over the board only; never takes a tap.
+const reasonCompact: CSSProperties = {
+  ...panel,
+  position: 'absolute',
+  right: 0,
+  bottom: `calc(100% + ${6 + STAGED_ROW_PX + 6}px)`,
+  width: 'max-content',
+  maxWidth: `min(360px, calc(100vw - ${CAMERA_COL_PX + 24}px))`,
+  padding: '4px 8px',
+  fontFamily: fontStack,
+  fontSize: 12,
+  lineHeight: 1.3,
+  color: colors.danger,
+  pointerEvents: 'none',
+  boxSizing: 'border-box',
+}
 
 const btn: CSSProperties = {
   fontFamily: fontStack,
@@ -51,7 +90,7 @@ const btn: CSSProperties = {
 const reasonStyle: CSSProperties = { fontFamily: fontStack, fontSize: 12, lineHeight: 1.3, color: colors.danger, maxWidth: 360, textAlign: 'center' }
 
 export function TouchActionBar() {
-  const { touch } = useFormFactor()
+  const { touch, compact } = useFormFactor()
   const state = useGameStore((s) => s.state)
   const pending = useGameStore((s) => s.pending)
   const botSeat = useGameStore((s) => s.botSeat)
@@ -70,18 +109,19 @@ export function TouchActionBar() {
   const blocked = !!validation && !validation.ok
   const reason = blocked ? validation?.reasons[0] : undefined
 
+  const b = compact ? btnCompact : null
   return (
-    <div data-testid="touch-action-bar" style={bar} role="group" aria-label="Staged move actions">
-      {reason && <div style={reasonStyle}>{reason}</div>}
-      <div style={row}>
-        <button type="button" data-testid="touch-cancel" style={btn} onClick={() => cancelStagedDraft()}>
+    <div data-testid="touch-action-bar" style={compact ? barCompact : bar} role="group" aria-label="Staged move actions">
+      {reason && <div style={compact ? reasonCompact : reasonStyle} data-testid="touch-reason">{reason}</div>}
+      <div style={compact ? rowCompact : row}>
+        <button type="button" data-testid="touch-cancel" style={{ ...btn, ...b }} onClick={() => cancelStagedDraft()}>
           Cancel
         </button>
         <button
           type="button"
           data-testid="touch-whole-unit"
           aria-pressed={wholeUnit}
-          style={wholeUnit ? { ...btn, background: colors.accent, color: colors.accentText, border: `1px solid ${colors.accent}` } : btn}
+          style={{ ...btn, ...b, ...(wholeUnit ? { background: colors.accent, color: colors.accentText, border: `1px solid ${colors.accent}` } : null) }}
           onClick={() => setWholeUnit(!wholeUnit)}
         >
           Whole unit
@@ -92,6 +132,7 @@ export function TouchActionBar() {
           disabled={blocked}
           style={{
             ...btn,
+            ...b,
             background: colors.accent,
             color: colors.accentText,
             border: `1px solid ${colors.accent}`,

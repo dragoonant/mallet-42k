@@ -1,11 +1,13 @@
 // Small floating name + wounds tag over each on-board unit — the board otherwise has no way to tell
 // units apart or see how hurt they are at a glance beyond opening the unit card for one at a time.
-import { useMemo } from 'react'
+import { useMemo, useRef, type RefObject } from 'react'
 import { Html } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
 import { applyOffset, clearOffset, easeOffset, labelRegistry, registerLabelPart, screenScale, StaggerSolver, type LayoutBlock } from './labelLayout'
 import { useDisplayState } from '../presentation/presentedStore'
 import { colors, fontStack } from '../ui/theme'
+import { useFormFactor } from '../ui/formFactor'
+import { COMPACT_LABEL_WIDTH_FRAC, DESKTOP_LABEL_MAX, LABEL_DISTANCE_FACTOR, useLabelClamp } from './labelScale'
 
 const SHOCK_COLOR = '#ffb84f'
 
@@ -15,6 +17,46 @@ const labelStyle = {
   fontWeight: 700 as const,
   textShadow: '0 1px 2px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.9)',
   whiteSpace: 'nowrap' as const,
+}
+
+// Compact (phone): smaller type, name truncated with an ellipsis, wounds abbreviated; the zoom clamp lives in
+// useLabelClamp. The tag keeps its data-testid element and the same full text in the accessible label.
+const compactLabelStyle = { ...labelStyle, fontSize: 11, display: 'flex', alignItems: 'baseline', gap: 3 }
+
+// The tag's contents render in drei's separate React root, so the useFrame clamp lives in UnitLabelItem (which owns
+// the Html) and only the ref crosses over.
+function UnitTag({ id, name, wounds, color, clamp, compact }: { id: string; name: string; wounds: number; color: string; clamp: RefObject<HTMLDivElement | null>; compact: boolean }) {
+  if (!compact) {
+    return (
+      <div ref={clamp} style={{ transformOrigin: '50% 100%' }}>
+        <div style={{ ...labelStyle, color }} data-testid={`unit-label-${id}`}>
+          {name} · {wounds} {wounds === 1 ? 'wound' : 'wounds'}
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div ref={clamp} style={{ transformOrigin: '50% 100%' }}>
+      <div style={{ ...compactLabelStyle, color }} data-testid={`unit-label-${id}`} aria-label={`${name}, ${wounds} ${wounds === 1 ? 'wound' : 'wounds'}`}>
+        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+        <span style={{ flexShrink: 0 }}>· {wounds}W</span>
+      </div>
+    </div>
+  )
+}
+
+function UnitLabelItem({ id, name, wounds, color, position, compact }: { id: string; name: string; wounds: number; color: string; position: [number, number, number]; compact: boolean }) {
+  const clamp = useRef<HTMLDivElement>(null)
+  useLabelClamp(clamp, position, true, compact ? { widthFrac: COMPACT_LABEL_WIDTH_FRAC } : { min: 0, max: DESKTOP_LABEL_MAX })
+  return (
+    <Html zIndexRange={[5, 0]} position={position} center distanceFactor={LABEL_DISTANCE_FACTOR} style={{ pointerEvents: 'none' }} occlude={false}>
+      <div style={{ transform: 'translateY(-100%)' }}>
+        <div ref={(el) => registerLabelPart(id, 'tagWrap', el)}>
+          <UnitTag id={id} name={name} wounds={wounds} color={color} clamp={clamp} compact={compact} />
+        </div>
+      </div>
+    </Html>
+  )
 }
 
 function unionRect(els: (Element | null | undefined)[]): { l: number; t: number; r: number; b: number } | null {
@@ -68,6 +110,7 @@ function LabelLayoutDriver() {
 
 export function UnitLabels() {
   const state = useDisplayState()
+  const { compact } = useFormFactor()
   if (!state) return null
   const units = Object.values(state.units).filter((u) => u.location === 'board')
 
@@ -83,15 +126,7 @@ export function UnitLabels() {
         const wounds = models.reduce((sum, m) => sum + m.woundsRemaining, 0)
         const color = unit.battleShocked ? SHOCK_COLOR : unit.player === 'A' ? colors.playerA : colors.playerB
         return (
-          <Html key={unit.id} zIndexRange={[5, 0]} position={[cx, topY, cz]} center distanceFactor={18} style={{ pointerEvents: 'none' }} occlude={false}>
-            <div style={{ transform: 'translateY(-100%)' }}>
-              <div ref={(el) => registerLabelPart(unit.id, 'tagWrap', el)}>
-              <div style={{ ...labelStyle, color }} data-testid={`unit-label-${unit.id}`}>
-                {unit.name} · {wounds} {wounds === 1 ? 'wound' : 'wounds'}
-              </div>
-              </div>
-            </div>
-          </Html>
+          <UnitLabelItem key={unit.id} id={unit.id} name={unit.name} wounds={wounds} color={color} position={[cx, topY, cz]} compact={compact} />
         )
       })}
     </>

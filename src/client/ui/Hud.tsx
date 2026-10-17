@@ -642,8 +642,9 @@ function PlayerBadge({ id, state }: { id: PlayerId; state: GameState }) {
 //   top bar  full width, 44px + safe-top: [A][B] badges | round + phase | ... | Strat | End phase | ⋯ menu
 //   menu     two columns of 44px items: drawers (Mission, Dice log, Event feed, Settings) and board tools
 //   badges   tap for the VP breakdown and the army's special pools (Miracle / Fate / Pain / Cabal)
-//   camera   a 2x3 grid of 44px buttons at the right edge, top-aligned under the bar so the bottom sheet
-//            (up to 45dvh, full width) can never cover it; hidden while a drawer is open
+//   camera   a slim vertical column (40px wide, 44px tall targets) on the right edge under the bar: rotate L/R,
+//            zoom in/out, top-down (just rotate L/R + top-down when the window is under 400px tall). The bottom
+//            sheet, staged-move row and formation strip all stop short of it (CAMERA_COL_PX); hidden while a drawer is open
 // Drawers (Mission / Stratagems / Log / Feed / Settings) live in compactSheets.ts; one open at a time.
 // ---------------------------------------------------------------------------------------------------
 const TOUCH = 44
@@ -723,20 +724,21 @@ const cMenuPanel: CSSProperties = {
 }
 const cMenuItem: CSSProperties = { ...buttonBase, minHeight: TOUCH, padding: '0 8px', fontSize: 13, textAlign: 'center', whiteSpace: 'normal', lineHeight: 1.15 }
 const cMenuItemActive: CSSProperties = { ...cMenuItem, background: colors.accent, color: colors.accentText, border: `1px solid ${colors.accent}` }
+const CAM_W = 40
 const cCamera: CSSProperties = {
   position: 'absolute',
   top: COMPACT_BAR_PX + 8,
   right: 6,
-  display: 'grid',
-  gridTemplateColumns: `${TOUCH}px ${TOUCH}px`,
-  gap: 4,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 3,
   pointerEvents: 'auto',
   zIndex: 25,
   touchAction: 'manipulation',
 }
 const cCamBtn: CSSProperties = {
   ...panel,
-  width: TOUCH,
+  width: CAM_W,
   height: TOUCH,
   padding: 0,
   fontSize: 20,
@@ -748,21 +750,36 @@ const cCamBtn: CSSProperties = {
   borderRadius: 8,
 }
 
-const CAMERA_BUTTONS: { id: string; glyph: string; label: string; run: () => void }[] = [
-  { id: 'rot-left', glyph: '↺', label: 'Rotate view left', run: () => cameraNudge.rotate(-30) },
-  { id: 'rot-right', glyph: '↻', label: 'Rotate view right', run: () => cameraNudge.rotate(30) },
+const CAMERA_BUTTONS: { id: string; glyph: string; label: string; run: () => void; short?: boolean }[] = [
+  { id: 'rot-left', glyph: '↺', label: 'Rotate view left', run: () => cameraNudge.rotate(-30), short: true },
+  { id: 'rot-right', glyph: '↻', label: 'Rotate view right', run: () => cameraNudge.rotate(30), short: true },
   { id: 'zoom-in', glyph: '+', label: 'Zoom in', run: () => cameraNudge.zoom(1.3) },
   { id: 'zoom-out', glyph: '−', label: 'Zoom out', run: () => cameraNudge.zoom(1 / 1.3) },
-  { id: 'top-down', glyph: '⊞', label: 'Top-down view', run: () => cameraNudge.topDown() },
-  { id: 'reset', glyph: '⌂', label: 'Reset view', run: () => cameraNudge.reset() },
+  { id: 'top-down', glyph: '⊞', label: 'Top-down view', run: () => cameraNudge.topDown(), short: true },
 ]
 
+/** Window height, kept fresh on resize / rotation (compact HUD only; cheap, one listener per mount). */
+function useWindowHeight(): number {
+  const [h, setH] = useState(() => (typeof window === 'undefined' ? 800 : window.innerHeight))
+  useEffect(() => {
+    const on = () => setH(window.innerHeight)
+    window.addEventListener('resize', on)
+    window.addEventListener('orientationchange', on)
+    return () => {
+      window.removeEventListener('resize', on)
+      window.removeEventListener('orientationchange', on)
+    }
+  }, [])
+  return h
+}
+
 /** The camera nudge buttons (compact only). Two fingers still do the real camera work; these are the
- *  one-handed alternative. */
+ *  one-handed alternative. Under 400px tall only rotate + top-down remain (pinch covers zoom). */
 function CameraButtons() {
+  const short = useWindowHeight() < 400
   return (
     <div style={cCamera} data-testid="camera-buttons">
-      {CAMERA_BUTTONS.map((b) => (
+      {CAMERA_BUTTONS.filter((b) => !short || b.short).map((b) => (
         <button key={b.id} style={cCamBtn} aria-label={b.label} data-testid={`camera-${b.id}`} onClick={b.run}>
           {b.glyph}
         </button>
