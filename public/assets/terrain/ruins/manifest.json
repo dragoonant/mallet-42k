@@ -103,5 +103,117 @@
       0.3323
     ],
     "shape": "rect"
+  },
+  "t5-barricade-rockcrete": {
+    "size": [
+      1.0,
+      0.1888,
+      0.178
+    ]
+  },
+  "t5-barricade-sandbag": {
+    "size": [
+      1.0,
+      0.2299,
+      0.2737
+    ]
+  },
+  "t5-barricade-tanktrap": {
+    "size": [
+      1.0,
+      0.3056,
+      0.2737
+    ]
+  },
+  "t5-crate-container": {
+    "size": [
+      1.0,
+      0.4844,
+      0.5466
+    ]
+  },
+  "t5-crate-fuel": {
+    "size": [
+      1.0,
+      0.6175,
+      0.8779
+    ]
+  },
+  "t5-crate-pillbox": {
+    "size": [
+      1.0,
+      0.4019,
+      0.8312
+    ]
+  },
+  "t5-crate-supply": {
+    "size": [
+      1.0,
+      0.4668,
+      0.6458
+    ]
+  },
+  "t5-crater-pipe": {
+    "size": [
+      1.0,
+      0.1502,
+      0.9964
+    ]
+  },
+  "t5-crater-scorch": {
+    "size": [
+      1.0,
+      0.1501,
+      0.9991
+    ]
+  },
+  "t5-crater-wreck": {
+    "size": [
+      0.9767,
+      0.1324,
+      1.0
+    ]
+  },
+  "t5-wall-bulkhead": {
+    "size": [
+      1.0,
+      0.6178,
+      0.1768
+    ]
+  },
+  "t5-wall-cathedral": {
+    "size": [
+      1.0,
+      0.6036,
+      0.4079
+    ]
+  },
+  "t5-wall-colonnade": {
+    "size": [
+      1.0,
+      0.8768,
+      0.3399
+    ]
+  },
+  "t5-wall-forge": {
+    "size": [
+      1.0,
+      0.8031,
+      0.3768
+    ]
+  },
+  "t5-wall-hab": {
+    "size": [
+      1.0,
+      0.7199,
+      0.3733
+    ]
+  },
+  "t5-wall-shrine": {
+    "size": [
+      1.0,
+      0.743,
+      0.3836
+    ]
   }
 }
