@@ -18,6 +18,7 @@ import { useUiStore } from '../ui/uiStore'
 import { useCueStore } from '../presentation'
 import { clickableUnitIds, opensWeaponPanel, unitClickAction } from './decisions'
 import { losStatusByUnit } from './lineOfSight'
+import { isUnitClickSuppressed, pressUnit } from './touchGesture'
 
 const POSITION_EASE_PER_SEC = 10
 // Below this remaining distance (world-inches), an eased move counts as "arrived" — matches
@@ -94,6 +95,8 @@ const UnitModel = memo(function UnitModel(p: UnitModelProps) {
   const onClick = useCallback(
     (e: { stopPropagation(): void }) => {
       e.stopPropagation()
+      // a long press already opened this unit's card: the click that follows the lift must not also act on it
+      if (isUnitClickSuppressed()) return
       const { pending, legal, dispatch } = useGameStore.getState()
       if (isClickable && pending) {
         // Ranged targeting opens the weapon panel (choose weapons, then Fire / Enter) instead of firing at once.
@@ -111,25 +114,34 @@ const UnitModel = memo(function UnitModel(p: UnitModelProps) {
     },
     [unitId, isSelected, isClickable],
   )
+  const onTouchDown = useCallback(
+    (e: { pointerType?: string }) => {
+      if (e.pointerType === 'touch') pressUnit(unitId)
+    },
+    [unitId],
+  )
   return (
     <ModelFigure x={p.x} y={p.y} z={p.z}>
       {(moving) => (
         <>
-          <Figure
-            datasheetId={p.datasheetId}
-            modelId={p.modelType}
-            variantKey={p.modelInstanceId}
-            faction={p.faction}
-            seat={p.seat}
-            rotationY={p.rotationY}
-            moving={moving}
-            action={p.action}
-            selected={p.isSelected}
-            highlighted={p.isClickable}
-            hovered={p.isHovered || p.isHoveredModel}
-            glowing={p.isGlowing}
-            onClick={onClick}
-          />
+          {/* touch only: tells the one-finger gesture which unit is under the fingertip (long press opens its card) */}
+          <group onPointerDown={onTouchDown}>
+            <Figure
+              datasheetId={p.datasheetId}
+              modelId={p.modelType}
+              variantKey={p.modelInstanceId}
+              faction={p.faction}
+              seat={p.seat}
+              rotationY={p.rotationY}
+              moving={moving}
+              action={p.action}
+              selected={p.isSelected}
+              highlighted={p.isClickable}
+              hovered={p.isHovered || p.isHoveredModel}
+              glowing={p.isGlowing}
+              onClick={onClick}
+            />
+          </group>
           {p.isSelected && <SelectionRing pos={LOCAL_ORIGIN} baseRadius={p.baseRadius} />}
           {p.isClickable && <TargetRing pos={LOCAL_ORIGIN} baseRadius={p.baseRadius} />}
           {p.los && <LosMarker pos={LOCAL_ORIGIN} baseRadius={p.baseRadius} status={p.los} />}

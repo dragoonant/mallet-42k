@@ -11,6 +11,7 @@ test('start screen renders', async ({ page }) => {
 })
 
 test('starting a game shows the board with figures', async ({ page }) => {
+  test.setTimeout(90_000) // software-GL renders are slow on dev machines
   await page.goto('/')
   // Fixed seed so the roll-offs before deployment resolve the same way every run.
   await page.getByTestId('setup-seed').fill('smoke-test-seed')

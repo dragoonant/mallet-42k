@@ -7,6 +7,8 @@ import { useThree } from '@react-three/fiber'
 import { BATTLEFIELDS, useBattlefieldPBR } from './terrainAssets'
 import { useUiStore } from '../ui/uiStore'
 import { useGameStore } from '../store/game'
+import { isMultiTouchActive, onMultiTouchStart } from './touchCamera'
+import { beginPreviewDrag, cancelOneFinger, canPreviewDrag, getGesture, groundPointAt, installTouchGestures, liftFor, type TouchGesture } from '../interaction/touchGesture'
 import { SIDE_COLOR, type DeploymentZones, type PlayerId } from './types'
 
 export const BOARD_WIDTH_IN = 44
@@ -83,6 +85,18 @@ export function Board({ width: widthProp, depth: depthProp, deploymentZones, att
   const depth = depthProp ?? size.h
   const defender: PlayerId = attacker === 'A' ? 'B' : 'A'
   const dragging = useRef(false)
+  const dom = useThree((s) => s.gl.domElement)
+
+  // Phone layout: one finger belongs to the game (touchGesture.ts tracks it natively); a second finger
+  // hands the touches to the camera and cancels whatever the first one was doing.
+  useEffect(() => {
+    const off = installTouchGestures(dom)
+    const offMulti = onMultiTouchStart(cancelOneFinger)
+    return () => {
+      off()
+      offMulti()
+    }
+  }, [dom])
 
   const zoneGeometries = useMemo(() => {
     if (!deploymentZones) return null
@@ -96,8 +110,45 @@ export function Board({ width: widthProp, depth: depthProp, deploymentZones, att
   // only when no camera-drag modifier (Space/Shift/Alt) is held — those combinations pan/rotate the
   // camera instead (CameraRig.tsx). Right/middle-button events never reach onBoardPointer at all, so
   // a right- or middle-drag orbit/pan can't also read as a click, a Measure drag, or a model nudge.
+  // Touch input (pointerType 'touch'): one finger = tap / drag / measure. A drag over the ground previews a
+  // pending move exactly like mouse hover (the point is lifted above the fingertip so the finger does not
+  // hide it) and lifting leaves the move staged for Confirm / Cancel (TouchActionBar); a drag on a placed
+  // ghost nudges it (PlacementOverlay + useBoardClick); with Measure on it measures. Taps use the point
+  // the finger landed on, so finger jitter never turns a click into a drag. Mouse/pen never come here.
+  const emitTouch = (e: ThreeEvent<PointerEvent>, kind: 'move' | 'down' | 'up' | 'hover' | 'leave') => {
+    if (!onBoardPointer) return
+    if (kind === 'leave') return onBoardPointer({ x: e.point.x, z: e.point.z }, 'leave')
+    const g: TouchGesture | null = getGesture()
+    if (isMultiTouchActive() || !g || g.cancelled || g.id !== e.pointerId) return
+    const raw = { x: e.point.x, z: e.point.z }
+    if (!g.downPoint) g.downPoint = raw
+    const lifted = () => groundPointAt(e.camera, dom, g.x, g.y, liftFor(g)) ?? raw
+    const ui = useUiStore.getState()
+    if (kind === 'down') return onBoardPointer(raw, 'down')
+    if (kind === 'move' || kind === 'hover') {
+      if (!g.dragged) return
+      if (ui.measureOn) return onBoardPointer(raw, 'move')
+      if (ui.nudge) return onBoardPointer(lifted(), 'move')
+      if (canPreviewDrag()) {
+        beginPreviewDrag(g)
+        return onBoardPointer(lifted(), 'hover')
+      }
+      return
+    }
+    // 'up'
+    if (!g.dragged) return onBoardPointer(g.downPoint, 'up')
+    if (ui.measureOn) return onBoardPointer(raw, 'up')
+    if (ui.nudge) return onBoardPointer(lifted(), 'up')
+    if (g.previewDrag) {
+      const p = lifted()
+      onBoardPointer(p, 'down')
+      onBoardPointer(p, 'up')
+    }
+  }
+
   const emit = (e: ThreeEvent<PointerEvent>, kind: 'move' | 'down' | 'up' | 'hover' | 'leave') => {
     if (!onBoardPointer) return
+    if (e.pointerType === 'touch') return emitTouch(e, kind)
     // buttonless movement is a hover (live move preview); leaving the mat clears it
     if (kind === 'leave') return onBoardPointer({ x: e.point.x, z: e.point.z }, 'leave')
     if (kind === 'move' && (e.buttons & 1) === 0) return isCameraDragModifier(e) ? undefined : onBoardPointer({ x: e.point.x, z: e.point.z }, 'hover')

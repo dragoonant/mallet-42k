@@ -54,6 +54,14 @@ export function updateMoveHover(point: { x: number; z: number } | null): void {
     }, wait)
 }
 
+/** Esc (and the touch Cancel button): clears the staged draft for the pending decision and the hover preview. */
+export function cancelStagedDraft(): void {
+  const { pending } = useGameStore.getState()
+  const ui = useUiStore.getState()
+  if (pending && ui.draft?.decisionId === pending.id) ui.setDraft(null)
+  ui.setMovePreview(null)
+}
+
 /** Enter commits the staged move; Esc clears the staged draft and the hover preview. */
 export function useMoveKeys(): void {
   useEffect(() => {
@@ -63,12 +71,10 @@ export function useMoveKeys(): void {
       if (e.metaKey || e.ctrlKey || e.altKey) return
       const { pending } = useGameStore.getState()
       if (!pending || !isClampedMovePending(pending)) return
-      const ui = useUiStore.getState()
       if (e.key === 'Enter') {
         if (commitStagedDraft()) e.preventDefault()
       } else if (e.key === 'Escape') {
-        if (ui.draft?.decisionId === pending.id) ui.setDraft(null)
-        ui.setMovePreview(null)
+        cancelStagedDraft()
       }
     }
     window.addEventListener('keydown', onKeyDown)

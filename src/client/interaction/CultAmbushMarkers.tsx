@@ -3,8 +3,13 @@
 import { create } from 'zustand'
 import { useGameStore } from '../store/game'
 import { colors } from '../ui/theme'
+import { getFormFactor } from '../ui/formFactor'
 
 const MARKER_RADIUS = 0.63
+/** Tap-target radius around a candidate spot on touch screens (inches). */
+const TOUCH_TARGET_RADIUS = 1.3
+/** Pointer type of the latest press on a candidate spot (a click event does not carry it reliably). */
+let lastPointerType = 'mouse'
 
 interface MarkerView { id: string; player: 'A' | 'B'; pos: { x: number; z: number } }
 
@@ -45,6 +50,7 @@ export function CultAmbushMarkers() {
   const dispatch = useGameStore((s) => s.dispatch)
   const botSeat = useGameStore((s) => s.botSeat)
   const hovered = useAmbushHover((s) => s.optionId)
+  const touch = getFormFactor().touch
   const markers = cultAmbushMarkers(state as never)
   const pending = (state as { pending?: { player?: string } | null } | null)?.pending ?? null
   const mine = !!pending && pending.player !== botSeat
@@ -60,10 +66,29 @@ export function CultAmbushMarkers() {
             key={c.id}
             position={[c.x, 0.09, c.z]}
             rotation={[-Math.PI / 2, 0, 0]}
-            onPointerOver={(e) => { e.stopPropagation(); useAmbushHover.getState().set(c.id) }}
-            onPointerOut={() => useAmbushHover.getState().set(null)}
-            onClick={(e) => { e.stopPropagation(); useAmbushHover.getState().set(null); dispatch(c.action) }}
+            onPointerDown={(e) => { lastPointerType = e.pointerType }}
+            onPointerOver={(e) => { if (e.pointerType === 'touch') return; e.stopPropagation(); useAmbushHover.getState().set(c.id) }}
+            onPointerOut={(e) => { if (e.pointerType !== 'touch') useAmbushHover.getState().set(null) }}
+            onClick={(e) => {
+              e.stopPropagation()
+              const hover = useAmbushHover.getState()
+              // Touch has no hover and the discs are tiny: the first tap lights the spot up (same highlight as a
+              // mouse hover), a second tap on the lit spot chooses it.
+              if (lastPointerType === 'touch' && hover.optionId !== c.id) {
+                hover.set(c.id)
+                return
+              }
+              hover.set(null)
+              dispatch(c.action)
+            }}
           >
+            {touch && (
+              // a roomier invisible tap target around the 32 mm disc
+              <mesh>
+                <circleGeometry args={[TOUCH_TARGET_RADIUS, 16]} />
+                <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+              </mesh>
+            )}
             <mesh>
               <circleGeometry args={[on ? MARKER_RADIUS * 1.5 : MARKER_RADIUS, 24]} />
               <meshBasicMaterial color={on ? '#ffe066' : '#9ad1ff'} transparent opacity={on ? 0.9 : 0.4} depthWrite={false} />

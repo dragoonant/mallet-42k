@@ -2,7 +2,7 @@
 // panel style uses backdrop-filter, which would make it the containing block for position:fixed and
 // clip the popup to the card. It is placed to the right of the card (the card hugs the screen's left
 // edge), beside the hovered row, and clamped into the viewport.
-import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type SyntheticEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { colors, panel } from './theme'
 
@@ -63,12 +63,52 @@ export function anchorBesideCard(el: HTMLElement): Anchor {
   return { left: (card?.right ?? row.right) + GAP, top: row.top - 6 }
 }
 
-/** A list row that shows `tip` in a popup beside the unit card while hovered or focused. */
+/**
+ * Hover + touch trigger shared by the unit card's detail popups. Mouse: enter/leave and keyboard focus show and hide
+ * (as before). Touch: a tap toggles it, and a tap anywhere else closes it (same idea as Tooltip.tsx). The browser's
+ * emulated mouse events after a tap are ignored so they cannot flicker the popup. Spread the result onto the element.
+ */
+export function useTipTrigger(open: boolean, onShow: (el: HTMLElement) => void, onHide: () => void) {
+  const lastTouch = useRef(false)
+  const touchOpen = useRef(false)
+  const el = useRef<HTMLElement | null>(null)
+  const show = useRef(onShow)
+  const hide = useRef(onHide)
+  show.current = onShow
+  hide.current = onHide
+
+  useEffect(() => {
+    if (!open) touchOpen.current = false
+    if (!open || !touchOpen.current) return
+    const onDown = (e: PointerEvent) => {
+      if (el.current && el.current.contains(e.target as Node)) return
+      touchOpen.current = false
+      hide.current()
+    }
+    document.addEventListener('pointerdown', onDown, true)
+    return () => document.removeEventListener('pointerdown', onDown, true)
+  }, [open])
+
+  const kind = (e: SyntheticEvent) => { lastTouch.current = (e.nativeEvent as PointerEvent).pointerType === 'touch' }
+  return {
+    onPointerDown: kind,
+    onPointerEnter: kind,
+    onMouseEnter: (e: SyntheticEvent<HTMLElement>) => { if (!lastTouch.current) show.current(e.currentTarget) },
+    onMouseLeave: () => { if (!lastTouch.current) hide.current() },
+    onFocus: (e: SyntheticEvent<HTMLElement>) => { if (!lastTouch.current) show.current(e.currentTarget) },
+    onBlur: () => { if (!touchOpen.current) hide.current() },
+    onClick: (e: SyntheticEvent<HTMLElement>) => {
+      if (!lastTouch.current) return
+      if (touchOpen.current) { touchOpen.current = false; hide.current() }
+      else { touchOpen.current = true; el.current = e.currentTarget; show.current(e.currentTarget) }
+    },
+  }
+}
+
+/** A list row that shows `tip` in a popup beside the unit card while hovered, focused or (on touch) tapped. */
 export function TipItem({ testId, tip, children }: { testId: string; tip: ReactNode; children: ReactNode }) {
   const [anchor, setAnchor] = useState<Anchor | null>(null)
-
-  const show = (el: HTMLElement) => setAnchor(anchorBesideCard(el))
-  const hide = () => setAnchor(null)
+  const trigger = useTipTrigger(anchor !== null, (el) => setAnchor(anchorBesideCard(el)), () => setAnchor(null))
 
   const style: CSSProperties = {
     cursor: 'help',
@@ -81,15 +121,7 @@ export function TipItem({ testId, tip, children }: { testId: string; tip: ReactN
   }
 
   return (
-    <li
-      data-testid={testId}
-      tabIndex={0}
-      style={style}
-      onMouseEnter={(e) => show(e.currentTarget)}
-      onMouseLeave={hide}
-      onFocus={(e) => show(e.currentTarget)}
-      onBlur={hide}
-    >
+    <li data-testid={testId} tabIndex={0} style={style} {...trigger}>
       {children}
       {anchor && <TipPopup anchor={anchor}>{tip}</TipPopup>}
     </li>

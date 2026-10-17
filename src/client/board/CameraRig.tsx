@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { useBoardSize } from './Board'
 import { initCameraModifiers, isSpaceHeld } from './cameraModifiers'
+import { installTouchCamera } from './touchCamera'
 import { installTerrainProbe, probeEnabled } from './terrainProbe'
 
 const OVERVIEW_POLAR = THREE.MathUtils.degToRad(55)
@@ -63,6 +64,10 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
       c0.mouseButtons.MIDDLE = THREE.MOUSE.PAN
       c0.mouseButtons.RIGHT = THREE.MOUSE.ROTATE
       c0.mouseButtons.LEFT = undefined
+      // Touch is driven by touchCamera.ts (two fingers only; one finger belongs to the game), so
+      // switch OrbitControls' own touch handling off with a value no case matches.
+      ;(c0.touches as { ONE: number; TWO: number }).ONE = -1
+      ;(c0.touches as { ONE: number; TWO: number }).TWO = -1
     }
     const cleanupModifiers = initCameraModifiers(dom)
     const onPointerDownCapture = (e: PointerEvent) => {
@@ -90,6 +95,32 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
     c.update()
     invalidate()
   }, [viewFromFar, camera, invalidate])
+
+  // Two-finger touch camera + on-screen nudge buttons (see touchCamera.ts). Ignores mouse/pen input.
+  useEffect(() => {
+    const c = controls.current
+    if (!c) return undefined
+    return installTouchCamera({
+      dom: gl.domElement,
+      camera,
+      controls: c,
+      invalidate,
+      clampTarget: (t) => {
+        t.x = THREE.MathUtils.clamp(t.x, -boardRef.current.w / 2 - TARGET_MARGIN, boardRef.current.w / 2 + TARGET_MARGIN)
+        t.z = THREE.MathUtils.clamp(t.z, -boardRef.current.h / 2 - TARGET_MARGIN, boardRef.current.h / 2 + TARGET_MARGIN)
+        t.y = 0
+      },
+      setPolarGoal: (p) => {
+        targetPolar.current = p
+      },
+      cancelFocus: () => {
+        pendingFocus.current = null
+      },
+      overviewPolar: OVERVIEW_POLAR,
+      topDownPolar: TOP_DOWN_POLAR,
+      getViewFromFar: () => appliedFar.current,
+    })
+  }, [gl, camera, invalidate])
 
   useEffect(() => {
     if (focusTarget) pendingFocus.current = { x: focusTarget.x, z: focusTarget.z }

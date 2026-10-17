@@ -12,6 +12,7 @@ import {
 } from '../interaction'
 import { buttonActive, buttonBase, colors, fontStack, mutedText, panel } from './theme'
 import { Tooltip } from './Tooltip'
+import { useFormFactor } from './formFactor'
 
 // Anchored near the TOP of the screen (under the phase tracker / scoring hint), not stacked above
 // the bottom decision prompt: the prompt's own height varies a lot (a deploy palette row, a hint
@@ -33,6 +34,18 @@ const wrap = {
 
 const kindButton = { ...buttonBase, fontSize: 11.5, padding: '4px 8px', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 1 }
 const kindButtonActive = { ...kindButton, ...buttonActive }
+// Touch (phones): 44px targets, and the strip scrolls sideways when the shape choices outgrow the screen.
+const touchWrap = {
+  ...wrap,
+  top: 'calc(var(--safe-top, 0px) + 56px)',
+  maxWidth: 'calc(100vw - var(--safe-left, 0px) - var(--safe-right, 0px) - 16px)',
+  overflowX: 'auto' as const,
+  touchAction: 'pan-x' as const,
+  boxSizing: 'border-box' as const,
+}
+const touchKind = { ...kindButton, minHeight: 44, minWidth: 44, padding: '4px 10px', flex: '0 0 auto' }
+const touchKindActive = { ...touchKind, ...buttonActive }
+const touchBtn = { ...buttonBase, minHeight: 44, minWidth: 44, padding: '4px 10px', flex: '0 0 auto', fontSize: 18 }
 const keyHint = { fontSize: 9, opacity: 0.7 }
 const divider = { width: 1, alignSelf: 'stretch' as const, background: colors.border }
 const facingReadout = { fontSize: 12, minWidth: 40, textAlign: 'center' as const, ...mutedText }
@@ -56,6 +69,7 @@ function regenerateActiveDraft(kind: FormationKind, facing: number) {
 }
 
 export function FormationPicker() {
+  const { touch } = useFormFactor()
   const state = useGameStore((s) => s.state)
   const pending = useGameStore((s) => s.pending)
   const botSeat = useGameStore((s) => s.botSeat)
@@ -122,7 +136,7 @@ export function FormationPicker() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     // per-model pile-in/consolidate: the wheel zooms the camera (rotate stays on the buttons/keys)
-    if (!hasPreview || perModelDraft) return
+    if (!hasPreview || perModelDraft || touch) return
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
       e.stopPropagation()
@@ -130,7 +144,7 @@ export function FormationPicker() {
     }
     window.addEventListener('wheel', onWheel, { capture: true, passive: false })
     return () => window.removeEventListener('wheel', onWheel, { capture: true })
-  }, [hasPreview, perModelDraft, formationKind, formationFacing])
+  }, [hasPreview, perModelDraft, touch, formationKind, formationFacing])
 
   if (!show) return null
 
@@ -138,33 +152,33 @@ export function FormationPicker() {
   const kinds: FormationKind[] = isMove ? ['keep', ...FORMATION_ORDER] : FORMATION_ORDER
 
   return (
-    <div style={wrap} data-testid="formation-picker">
+    <div style={touch ? touchWrap : wrap} data-testid="formation-picker">
       {kinds.map((kind) => {
         const key = Object.entries(FORMATION_KEYS).find(([, k]) => k === kind)?.[0]
         return (
           <Tooltip key={kind} title={FORMATION_LABELS[kind]} body={FORMATION_HINTS[kind]}>
             <button
               data-testid={`formation-${kind}`}
-              style={kind === formationKind ? kindButtonActive : kindButton}
+              style={touch ? (kind === formationKind ? touchKindActive : touchKind) : kind === formationKind ? kindButtonActive : kindButton}
               onClick={() => pick(kind)}
             >
               <span>{FORMATION_LABELS[kind]}</span>
-              {key && <span style={keyHint}>{key}</span>}
+              {key && !touch && <span style={keyHint}>{key}</span>}
             </button>
           </Tooltip>
         )
       })}
       <span style={divider} />
-      <button style={buttonBase} data-testid="formation-rotate-ccw" onClick={() => rotateBy(-ROTATE_STEP_RAD)}>
+      <button style={touch ? touchBtn : buttonBase} data-testid="formation-rotate-ccw" aria-label="Rotate left" onClick={() => rotateBy(-ROTATE_STEP_RAD)}>
         ↺
       </button>
       <span style={facingReadout} data-testid="formation-facing">
         {facingDeg}°
       </span>
-      <button style={buttonBase} data-testid="formation-rotate-cw" onClick={() => rotateBy(ROTATE_STEP_RAD)}>
+      <button style={touch ? touchBtn : buttonBase} data-testid="formation-rotate-cw" aria-label="Rotate right" onClick={() => rotateBy(ROTATE_STEP_RAD)}>
         ↻
       </button>
-      <button style={buttonBase} data-testid="formation-flip" onClick={flip}>
+      <button style={touch ? touchBtn : buttonBase} data-testid="formation-flip" aria-label="Flip facing" onClick={flip}>
         Flip
       </button>
     </div>

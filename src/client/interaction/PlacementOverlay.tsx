@@ -7,7 +7,7 @@
 // Confirm/Cancel dispatch happens from the DOM decision prompt (src/client/ui/DecisionPrompt.tsx),
 // which reads the same `validateDraft` result to disable Confirm with a reason — this component is
 // purely presentational plus the nudge-drag pointer handlers, never dispatches an Action itself.
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useThree, type ThreeEvent } from '@react-three/fiber'
 import { Html, Line } from '@react-three/drei'
 import { enemyModelsOnBoard, dist2D, type Model, type UnitId } from '@/engine'
@@ -21,6 +21,8 @@ import { placementInfo } from './decisions'
 import { cameraRef } from './floors'
 import { validateDraft, type CoherencyLink } from './formationValidation'
 import { fightersAfter, isApproachPending, validateApproach } from './approachDraft'
+import { takeWholeUnit } from './touchGesture'
+import { getFormFactor } from '../ui/formFactor'
 
 const OK_COLOR = '#f5d95a'
 const BLOCKED_COLOR = colors.danger
@@ -39,6 +41,8 @@ const FRONT_RANK_TOLERANCE_IN = 0.6
 /** Slightly bigger than the visible ring so a nudge-drag is easy to grab without needing pixel
  *  precision — invisible, pointer-events only. */
 const GRAB_RADIUS = 0.85
+/** A fingertip is far blurrier than a cursor: the invisible grab disc is bigger on touch screens. */
+const GRAB_RADIUS_TOUCH = 1.25
 
 function CoherencyLinks({ links }: { links: CoherencyLink[] }) {
   return (
@@ -159,15 +163,19 @@ function DraftMarkers({
                 rotation={[-Math.PI / 2, 0, 0]}
                 onPointerDown={(e) => {
                   e.stopPropagation()
+                  // touch has no hover: pressing a ghost shows its reason / distance label and keeps it up after the lift
+                  if (e.pointerType === 'touch') onHover?.(p.modelId)
                   onModelPointerDown(e, p.modelId)
                 }}
                 onPointerOver={(e) => {
                   e.stopPropagation()
                   onHover?.(p.modelId)
                 }}
-                onPointerOut={() => onHover?.(null)}
+                onPointerOut={(e) => {
+                  if (e.pointerType !== 'touch') onHover?.(null)
+                }}
               >
-                <circleGeometry args={[GRAB_RADIUS, 16]} />
+                <circleGeometry args={[getFormFactor().touch ? GRAB_RADIUS_TOUCH : GRAB_RADIUS, 16]} />
                 {/* transparent+opacity 0 (not visible=false) — R3F skips raycasting on invisible
                     objects, which would silently kill the drag/hover handlers above */}
                 <meshBasicMaterial transparent opacity={0} depthWrite={false} />
@@ -190,6 +198,14 @@ export function PlacementOverlay() {
   const startNudge = useUiStore((s) => s.startNudge)
   cameraRef.current = useThree((s) => s.camera).position // useBoardClick lifts nudge drags onto a ruin floor's plane with it
   const [hoveredModelId, setHoveredModelId] = useState<string | null>(null)
+  // touch: the sticky label above clears when a finger lands anywhere else (a ghost's own pointerdown sets it again right after)
+  useEffect(() => {
+    const clear = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') setHoveredModelId(null)
+    }
+    document.addEventListener('pointerdown', clear, true)
+    return () => document.removeEventListener('pointerdown', clear, true)
+  }, [])
 
   if (!state || !pending || pending.player === botSeat) return null
   const activeDraft = draft && draft.decisionId === pending.id ? draft : null
@@ -204,7 +220,8 @@ export function PlacementOverlay() {
     if (e.button !== 0 || e.altKey || isSpaceHeld()) return
     const model = placements.find((p) => p.modelId === modelId)
     if (!model) return
-    const shift = e.shiftKey
+    // Shift+drag grabs the whole formation; on touch the action bar's "Whole unit" toggle does (for the next drag only)
+    const shift = e.shiftKey || (e.pointerType === 'touch' && takeWholeUnit())
     if (shift) {
       startNudge({
         decisionId: activeDraft.decisionId,

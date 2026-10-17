@@ -9,7 +9,8 @@ import { groupLabel, groupUnitIds } from '../interaction/embarkGroup'
 import { useDisplayState } from '../presentation/presentedStore'
 import { useUiStore } from './uiStore'
 import { prettifyId } from './labels'
-import { anchorBesideCard, TipItem, TipPopup, tipMuted, tipTitle, type Anchor } from './UnitCardTooltip'
+import { anchorBesideCard, TipItem, TipPopup, tipMuted, tipTitle, useTipTrigger, type Anchor } from './UnitCardTooltip'
+import { useFormFactor } from './formFactor'
 import { DATASHEET_WIDTH, UnitDatasheet } from './UnitDatasheet'
 import { WeaponIcon, weaponIconKind } from './weaponIcons'
 import { abilityLine } from './weaponRules'
@@ -111,49 +112,80 @@ function DatasheetPopup({ state, unitId, hover }: { state: GameState; unitId: st
   )
 }
 
-function WoundRows({ state, unitId, rows }: { state: GameState; unitId: string; rows: WoundRow[] }) {
+function WoundRowItem({ state, unitId, r }: { state: GameState; unitId: string; r: WoundRow }) {
   const glowModels = useUiStore((s) => s.glowModels)
   const [sheet, setSheet] = useState<SheetHover | null>(null)
+  const trigger = useTipTrigger(
+    sheet !== null,
+    (el) => {
+      glowModels(r.modelIds)
+      setSheet({ key: r.key, modelIds: r.modelIds, anchor: anchorBesideCard(el) })
+    },
+    () => {
+      glowModels([])
+      setSheet(null)
+    },
+  )
+  const fraction = r.max > 0 ? r.wounds / r.max : 1
+  const damaged = r.wounds < r.max
   return (
-    <div style={woundsBox}>
-      {rows.map((r) => {
-        const fraction = r.max > 0 ? r.wounds / r.max : 1
-        const damaged = r.wounds < r.max
-        return (
-          <div
-            key={r.key}
-            data-testid="unit-card-wound-row"
-            onMouseEnter={(e) => {
-              glowModels(r.modelIds)
-              setSheet({ key: r.key, modelIds: r.modelIds, anchor: anchorBesideCard(e.currentTarget) })
-            }}
-            onMouseLeave={() => {
-              glowModels([])
-              setSheet(null)
-            }}
-            style={{
-              ...woundRowStyle,
-              cursor: 'help',
-              background: sheet?.key === r.key ? 'rgba(255,255,255,0.1)' : damaged ? 'rgba(255,106,95,0.14)' : 'transparent',
-            }}
-          >
-            <span
-              style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: damaged ? colors.text : colors.muted }}
-            >
-              {r.count > 1 ? `${r.count}× ` : ''}
-              {r.name}
-            </span>
-            <span style={barTrack} aria-hidden="true">
-              <span style={{ display: 'block', height: '100%', width: `${Math.max(0, Math.min(1, fraction)) * 100}%`, background: barColor(fraction) }} />
-            </span>
-            <span style={{ width: 28, textAlign: 'right', fontWeight: 600, color: damaged ? barColor(fraction) : colors.text }}>
-              {r.wounds}/{r.max}
-            </span>
-          </div>
-        )
-      })}
+    <div
+      data-testid="unit-card-wound-row"
+      {...trigger}
+      style={{
+        ...woundRowStyle,
+        cursor: 'help',
+        background: sheet ? 'rgba(255,255,255,0.1)' : damaged ? 'rgba(255,106,95,0.14)' : 'transparent',
+      }}
+    >
+      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: damaged ? colors.text : colors.muted }}>
+        {r.count > 1 ? `${r.count}× ` : ''}
+        {r.name}
+      </span>
+      <span style={barTrack} aria-hidden="true">
+        <span style={{ display: 'block', height: '100%', width: `${Math.max(0, Math.min(1, fraction)) * 100}%`, background: barColor(fraction) }} />
+      </span>
+      <span style={{ width: 28, textAlign: 'right', fontWeight: 600, color: damaged ? barColor(fraction) : colors.text }}>
+        {r.wounds}/{r.max}
+      </span>
       <DatasheetPopup state={state} unitId={unitId} hover={sheet} />
     </div>
+  )
+}
+
+function WoundRows({ state, unitId, rows }: { state: GameState; unitId: string; rows: WoundRow[] }) {
+  return (
+    <div style={woundsBox}>
+      {rows.map((r) => (
+        <WoundRowItem key={r.key} state={state} unitId={unitId} r={r} />
+      ))}
+    </div>
+  )
+}
+
+function UnitNameLabel({ state, unit, color }: { state: GameState; unit: { id: string; name: string; models: string[] }; color: string }) {
+  const glowModels = useUiStore((s) => s.glowModels)
+  const [sheet, setSheet] = useState<SheetHover | null>(null)
+  // Never leave figures glowing once the card closes.
+  useEffect(() => () => glowModels([]), [glowModels])
+  const trigger = useTipTrigger(
+    sheet !== null,
+    (el) => {
+      glowModels(unit.models)
+      setSheet({ key: 'unit', modelIds: unit.models, anchor: anchorBesideCard(el) })
+    },
+    () => {
+      glowModels([])
+      setSheet(null)
+    },
+  )
+  return (
+    <>
+      <div style={{ color, fontWeight: 700, cursor: 'help', paddingRight: 18 }} data-testid="unit-card-name" {...trigger}>
+        {unit.name}
+      </div>
+      <DatasheetPopup state={state} unitId={unit.id} hover={sheet} />
+    </>
   )
 }
 
@@ -251,15 +283,12 @@ export function UnitCard() {
   const selectedUnitId = useUiStore((s) => s.selectedUnitId)
   const selectUnit = useUiStore((s) => s.selectUnit)
   const phase = state?.phase
+  const { touch } = useFormFactor()
 
   // A card left open from a previous phase (e.g. selected mid-deployment) stayed put forever with no
   // way to dismiss it — clear the selection whenever the phase moves on.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => selectUnit(null), [phase])
-  const glowModels = useUiStore((s) => s.glowModels)
-  const [nameSheet, setNameSheet] = useState<SheetHover | null>(null)
-  // Never leave figures glowing once the card closes.
-  useEffect(() => () => glowModels([]), [glowModels])
 
   if (!state || !selectedUnitId) return null
   const unit = state.units[selectedUnitId]
@@ -288,24 +317,10 @@ export function UnitCard() {
 
   return (
     <div style={wrap} data-testid="unit-card">
-      <button style={closeButton} data-testid="unit-card-close" aria-label="Close" onClick={() => selectUnit(null)}>
+      <button style={touch ? { ...closeButton, top: 0, right: 0, minWidth: 44, minHeight: 44, fontSize: 18 } : closeButton} data-testid="unit-card-close" aria-label="Close" onClick={() => selectUnit(null)}>
         ✕
       </button>
-      <div
-        style={{ color, fontWeight: 700, cursor: 'help', paddingRight: 18 }}
-        data-testid="unit-card-name"
-        onMouseEnter={(e) => {
-          glowModels(unit.models)
-          setNameSheet({ key: 'unit', modelIds: unit.models, anchor: anchorBesideCard(e.currentTarget) })
-        }}
-        onMouseLeave={() => {
-          glowModels([])
-          setNameSheet(null)
-        }}
-      >
-        {unit.name}
-      </div>
-      <DatasheetPopup state={state} unitId={unit.id} hover={nameSheet} />
+      <UnitNameLabel state={state} unit={unit} color={color} />
       <div style={mutedText}>{state.players[unit.player].name}</div>
       {(() => {
         const aboard = transportService.embarkedIn(state, unit.id)

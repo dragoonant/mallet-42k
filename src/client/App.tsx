@@ -17,6 +17,7 @@ import { spikeMode } from '../spike/flag'
 import { startSpikeGame } from '../spike/driver'
 import { PerfOverlay } from '../spike/PerfOverlay'
 import { RotatePrompt } from './ui/RotatePrompt'
+import { TouchActionBar } from './ui/TouchActionBar'
 import './ui/formFactor'
 
 // zIndex 10 puts every HUD panel above the board's drei <Html> labels (their zIndexRange is capped at 5).
@@ -138,6 +139,7 @@ export function App() {
         <DiceTableOverlay />
         <StratagemPanel />
         <DecisionPrompt />
+        <TouchActionBar />
         <Toast />
         <VpToast />
         <PhaseBanner />
