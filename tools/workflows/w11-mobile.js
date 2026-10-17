@@ -27,7 +27,7 @@ You are the ship agent for M11 stage "${STAGE}". Land it:
 3. Read every screenshot the mobile specs wrote to e2e-out/ (Read tool shows images). If something in this stage's scope is visibly broken (clipped under the notch, unreachable button, overlapping panels that block play), fix once and re-run.
 4. Update STATUS.md: an "M11 mobile" section (create if missing) with one line for this stage and known gaps.
 5. Privacy: grep the staged diff for the home path or a Windows username (C:\\Users\\, /Users/) and remove any.
-6. git add -A src tests tools public index.html playwright.config.ts STATUS.md (never e2e-out/, never node_modules); commit "M11: ${title}" + blank line + "${ATTR}" (retry on .git/index.lock). Then: git fetch origin && git merge origin/main (resolve conflicts keeping both sides' intent; re-run typecheck after a non-trivial merge); git push origin HEAD:${BRANCH} && git push origin HEAD:main. Do not switch branches.
+6. git add -A src tests tools public index.html playwright.config.ts STATUS.md HANDOFF.md .gitignore (never e2e-out/, never node_modules); commit "M11: ${title}" + blank line + "${ATTR}" (retry on .git/index.lock). Then: git fetch origin && git merge origin/main (resolve conflicts keeping both sides' intent; re-run typecheck after a non-trivial merge); git push origin HEAD:${BRANCH} && git push origin HEAD:main. Do not switch branches.
 Return JSON: ok, summary (<=60 words, what a phone player now sees), files (absolute screenshot paths only), issues (<=6, most important first).`
 
 const STAGES = {
@@ -130,6 +130,19 @@ Return JSON: ok, summary (<=60 words), files, issues.` },
     ],
     followUp: null,
     shipExtra: 'Then do ONE phone playthrough: add tests/e2e/mobile-playthrough.spec.ts (iphone-pro project only; test.skip on others) that starts a game vs Bot with fast/instant animations, and drives the human side through deployment and at least one full battle round (command, movement, shooting, charge, fight) using only taps/clicks on visible UI in the compact layout (page.mouse clicks are fine on WebKit; use the bottom sheet, TouchActionBar Confirm and End phase). Screenshot each phase to e2e-out/mobile-play-<nn>-<phase>.png. Every point where the player could not proceed using visible UI is a blocker: fix up to 4 blockers in src (minimal, compact-only), list the rest in issues. Also re-run the iphone-se smoke and confirm its battle screenshot shows the board (not black) — wait for the canvas to render before the screenshot.',
+  },
+  polish2: {
+    title: 'phone polish 2 — labels stay under the HUD, overview camera after deployment, label de-overlap',
+    build: [
+      { key: 'labels2', prompt: `${COMMON}
+You own ONLY: src/client/interaction/UnitLabels.tsx, src/client/interaction/UnitStatusIcons.tsx, src/client/interaction/labelScale.ts, objective label component(s) (grep '<Html' for the objective name/score labels; own those files only), src/client/board/CameraRig.tsx, src/client/ui/DecisionPrompt.tsx (only the compact deploy focusCamera call — grep focusCamera).
+1. drei <Html> labels (unit names, objective "South A4 B0") currently draw OVER the HUD top bar and bottom sheet on phones. Make every in-world label render beneath all HUD UI on every form factor (drei Html zIndexRange e.g. [5, 0] while the HUD overlay is zIndex 10+, or equivalent) and, in compact, hide labels whose screen position is inside the top bar or bottom stack zones.
+2. In compact, picking a unit to deploy calls focusCamera on the zone centroid and leaves the camera ~16" out for the rest of the game. When the deployment phase ends (or the human's last unit is deployed), ease back to the default overview framing — compact only.
+3. In compact, when two unit labels overlap on screen, keep the selected/nearer one and fade the other to 25% (cheap screen-space check, throttled to a few times a second, no per-frame React state). Desktop unchanged.
+Return JSON: ok, summary (<=60 words), files, issues.` },
+    ],
+    followUp: null,
+    shipExtra: 'Also: add tests/e2e/__shots__/ to .gitignore; add a w11-mobile.js row to the HANDOFF.md workflow table (stages shell/touch/hud/polish/polish2 done, args { stage, root, branch, attribution }) and a short "Phones (M11)" note in HANDOFF.md: compact layout gated by src/client/ui/formFactor.ts (?ff=compact to force on desktop), touch camera in src/client/board/touchCamera.ts, mobile Playwright projects iphone-se/iphone-pro/pixel, GLB compression deferred until a real phone crashes. Include HANDOFF.md and .gitignore in the commit. Re-run mobile-playthrough.spec.ts on iphone-pro and confirm no label draws over the top bar in its screenshots.',
   },
 }
 
