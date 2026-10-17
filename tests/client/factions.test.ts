@@ -495,3 +495,23 @@ describe('chaos daemons figures and setup', () => {
     expect(bundle.factions['chaos-daemons'].paintScheme.primary).toBe('#8e1a14')
   })
 })
+
+describe('Blood Angels, Space Wolves and Deathwatch figures', () => {
+  for (const ds of Object.values(bundle.datasheets).filter((d) => ['blood-angels', 'space-wolves', 'deathwatch'].includes(d.faction))) {
+    for (const m of ds.composition) {
+      it(`${ds.id}/${m.modelId} uses its enabled SD figure GLB`, () => {
+        expect(glbSlugFor(ds.id, m.modelId)).toBeDefined()
+      })
+    }
+  }
+})
+
+describe('Black Templars and Dark Angels figures', () => {
+  for (const ds of Object.values(bundle.datasheets).filter((d) => ['black-templars', 'dark-angels'].includes(d.faction))) {
+    for (const m of ds.composition) {
+      it(`${ds.id}/${m.modelId} uses its enabled SD figure GLB`, () => {
+        expect(glbSlugFor(ds.id, m.modelId)).toBeDefined()
+      })
+    }
+  }
+})

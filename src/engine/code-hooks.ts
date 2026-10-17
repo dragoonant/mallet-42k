@@ -32,6 +32,7 @@ import { bloodAngelsHooks } from './factions/blood-angels'
 import { deathwatchHooks } from './factions/deathwatch'
 import { deathGuardHooks } from './factions/death-guard'
 import { darkAngelsHooks } from './factions/dark-angels'
+import { blackTemplarsHooks } from './factions/black-templars'
 import { hookService, type HookSourceEntry } from './hooks-impl'
 import { leaderService } from './leaders'
 import type { EngineContext, Services, WindowTrigger } from './modules'
@@ -895,6 +896,9 @@ export const codeHooks: Record<string, EngineCodeHook> = {
   // deathwatch (docs/spec/factions/deathwatch.md section 7): specialIssueAmmunition, deathwatchTeleportarium, narthecium,
   // huntersInsightPick/Score, headTakerDoctrine, headTakerSweep
   ...deathwatchHooks,
+  // black-templars (docs/spec/factions/black-templars.md §7): righteousDefiance, righteousDefianceFight, assaultVehicle,
+  // pathOfPurgation, sacredVowPick/Score
+  ...blackTemplarsHooks(),
 }
 
 export type { ChooseOptionDecision }

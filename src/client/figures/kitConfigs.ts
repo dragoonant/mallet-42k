@@ -159,6 +159,15 @@ export const BODY_KIND: Record<KitId, 'biped' | 'vehicle' | 'swarm' | 'artillery
   'dw-alphion': 'biped',
   'dw-krenn': 'biped',
   'dw-aggressor': 'biped',
+  'bt-intercessor': 'biped',
+  'bt-initiate-rifle': 'biped',
+  'bt-initiate-chainsword': 'biped',
+  'bt-initiate-pyreblaster': 'biped',
+  'bt-neophyte-firearm': 'biped',
+  'bt-neophyte-chainsword': 'biped',
+  'bt-sword-brother': 'biped',
+  'bt-siguard': 'biped',
+  'bt-impulsor': 'vehicle',
   'generic-infantry': 'biped',
   'generic-heavy': 'biped',
   'generic-monster': 'biped',
@@ -1665,6 +1674,7 @@ export const VEHICLE_CONFIG: Partial<Record<KitId, VehicleConfig>> = {
   'ael-windrider-catapult': { weapon: 'twin-catapult', hasRotor: false, style: 'jetbike' },
   'ael-windrider-scatter': { weapon: 'scatter-laser', hasRotor: false, style: 'jetbike' },
   'ael-platform': { weapon: 'starcannon', hasRotor: false, style: 'platform' },
+  'bt-impulsor': { weapon: 'none', hasRotor: false, style: 'templar-impulsor' },
 }
 
 // Space Wolves (Thoryk's Void Hunters). The grey-and-gold look comes entirely from the faction paintScheme; the silhouettes differ
@@ -1718,4 +1728,39 @@ BIPED_CONFIG['dw-krenn'] = {
 BIPED_CONFIG['dw-aggressor'] = {
   headShape: 'marine-helmet', rightWeapon: 'heavy-flamer', leftWeapon: 'power-fist', bulk: 1.65, hasBackpack: true,
   shoulderPads: 'large', hasCape: false, skin: 'none',
+}
+// Black Templars (Siguard's Crusaders). Black plate with a white cross on the chest and bone tabards come from the faction paintScheme
+// (#141414 / #e6dfc8 / #9b1b1b). Intercessors and Initiates are plain armoured marines, Neophytes a lighter, pack-less build, the Sword
+// Brother a caped tabarded veteran with a power sword, Marshal Siguard a huge cloaked lord, and the Impulsor a hovering troop transport.
+BIPED_CONFIG['bt-intercessor'] = {
+  headShape: 'marine-helmet', rightWeapon: 'bolt-rifle', leftWeapon: 'none', bulk: 1.05, hasBackpack: true,
+  shoulderPads: 'small', hasCape: false, skin: 'none', chestCross: true,
+}
+BIPED_CONFIG['bt-initiate-rifle'] = {
+  headShape: 'marine-helmet', rightWeapon: 'bolt-rifle', leftWeapon: 'none', bulk: 1.05, hasBackpack: true,
+  shoulderPads: 'small', hasCape: false, skin: 'none', chestCross: true,
+}
+BIPED_CONFIG['bt-initiate-chainsword'] = {
+  headShape: 'marine-helmet', rightWeapon: 'rusty-blade', leftWeapon: 'slugga', bulk: 1.05, hasBackpack: true,
+  shoulderPads: 'small', hasCape: false, skin: 'none', chestCross: true,
+}
+BIPED_CONFIG['bt-initiate-pyreblaster'] = {
+  headShape: 'marine-helmet', rightWeapon: 'flamer', leftWeapon: 'none', bulk: 1.1, hasBackpack: true,
+  shoulderPads: 'small', hasCape: false, skin: 'none', chestCross: true,
+}
+BIPED_CONFIG['bt-neophyte-firearm'] = {
+  headShape: 'marine-helmet', rightWeapon: 'lasgun', leftWeapon: 'none', bulk: 0.9, hasBackpack: false,
+  shoulderPads: 'none', hasCape: false, skin: 'none', chestCross: true,
+}
+BIPED_CONFIG['bt-neophyte-chainsword'] = {
+  headShape: 'marine-helmet', rightWeapon: 'rusty-blade', leftWeapon: 'slugga', bulk: 0.9, hasBackpack: false,
+  shoulderPads: 'none', hasCape: false, skin: 'none', chestCross: true,
+}
+BIPED_CONFIG['bt-sword-brother'] = {
+  headShape: 'marine-helmet', rightWeapon: 'power-sword', leftWeapon: 'slugga', bulk: 1.15, hasBackpack: true,
+  shoulderPads: 'large', hasCape: true, capeColor: 'trim', tabard: true, skin: 'none',
+}
+BIPED_CONFIG['bt-siguard'] = {
+  headShape: 'terminator-helmet', rightWeapon: 'power-sword', leftWeapon: 'plasma-pistol', bulk: 1.35, hasBackpack: true,
+  shoulderPads: 'large', hasCape: true, capeColor: 'secondary', tabard: true, skin: 'none', chestCross: true,
 }

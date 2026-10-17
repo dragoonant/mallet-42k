@@ -35,6 +35,13 @@ export function passengerHalves(state: GameState, passengerUnitId: UnitId): Unit
   return halves.length > 0 ? halves : [passengerUnitId]
 }
 
+// E-BT2 (Assault Vehicle): true when the transport's datasheet lists an ability whose code is 'assaultVehicle' - its
+// passengers may disembark after the transport Advanced (they then count as having made a Normal move and cannot charge)
+export function allowsDisembarkAfterAdvance(state: GameState, transportUnitId: UnitId): boolean {
+  const ds = datasheetOf(state, transportUnitId)
+  return ds.abilities.some((id) => state.abilities[id]?.code === 'assaultVehicle')
+}
+
 export interface TransportService {
   embarkedIn(state: GameState, transportUnitId: UnitId): UnitId[]
   capacity(state: GameState, transportUnitId: UnitId): number
@@ -54,7 +61,7 @@ export interface TransportService {
   disembarkedThisPhase(state: GameState, unitId: UnitId): boolean
   disembarkModeThisPhase(state: GameState, unitId: UnitId): DisembarkMode | null
   // R-5.18: null when the embarked unit cannot disembark now (not embarked, embarked this phase, transport not on the
-  // board, or the transport Advanced / Fell Back this turn)
+  // board, or the transport Advanced / Fell Back this turn; an Assault Vehicle transport may disembark after Advancing)
   disembarkMode(state: GameState, passengerUnitId: UnitId): DisembarkMode | null
   // R-5.18: every proposed footprint wholly within 3" of the transport and outside Engagement Range of every enemy
   canDisembarkAt(state: GameState, passengerUnitId: UnitId, footprints: Footprint[]): boolean
@@ -138,7 +145,8 @@ export const transportService: TransportService = {
     const t = embarkedMap(state, unit.player)[passengerUnitId] ?? null
     if (t === null) return null
     const transport = state.units[t]
-    const mode: DisembarkMode = transport?.turn?.moveType === 'normal' ? 'countsAsNormalMove' : 'actsNormally'
+    const mt = transport?.turn?.moveType
+    const mode: DisembarkMode = (mt === 'normal' || (mt === 'advance' && allowsDisembarkAfterAdvance(state, t))) ? 'countsAsNormalMove' : 'actsNormally'
     for (const id of passengerHalves(state, passengerUnitId)) {
       const half = state.units[id]
       delete embarkedMap(state, half.player)[id]
@@ -194,7 +202,8 @@ export const transportService: TransportService = {
     const transport = state.units[t]
     if (!transport || transport.location !== 'board') return null
     const mt = transport.turn?.moveType ?? null
-    if (mt === 'advance' || mt === 'fallBack') return null
+    if (mt === 'fallBack') return null
+    if (mt === 'advance') return allowsDisembarkAfterAdvance(state, t) ? 'countsAsNormalMove' : null
     return mt === 'normal' ? 'countsAsNormalMove' : 'actsNormally'
   },
   canDisembarkAt(state, passengerUnitId, footprints) {

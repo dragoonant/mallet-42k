@@ -1,0 +1,64 @@
+[
+  {
+    "id": "bt.intercessor-squad",
+    "faction": "black-templars",
+    "name": "Intercessor Squad",
+    "keywords": [
+      "INFANTRY",
+      "BATTLELINE",
+      "IMPERIUM",
+      "TACTICUS",
+      "INTERCESSOR SQUAD"
+    ],
+    "factionKeywords": [
+      "ADEPTUS ASTARTES",
+      "BLACK TEMPLARS"
+    ],
+    "stats": {
+      "M": 6,
+      "T": 4,
+      "Sv": 3,
+      "W": 2,
+      "Ld": 6,
+      "OC": 2
+    },
+    "composition": [
+      {
+        "modelId": "intercessor",
+        "name": "Intercessor",
+        "min": 5,
+        "max": 5,
+        "default": 5,
+        "base": {
+          "shape": "round",
+          "mm": 32
+        },
+        "weapons": {
+          "default": [
+            "sm.w.bolt-pistol",
+            "bt.w.bolt-rifle",
+            "sm.w.close-combat-weapon"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "sm-tacticus"
+        }
+      }
+    ],
+    "abilities": [
+      "sm.a.oath-of-moment"
+    ],
+    "coreAbilities": [],
+    "points": [
+      {
+        "models": 5,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "infantry",
+      "kit": "sm-tacticus"
+    }
+  }
+]

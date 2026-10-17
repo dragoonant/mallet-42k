@@ -1,0 +1,32 @@
+{
+  "id": "black-templars",
+  "name": "Black Templars",
+  "factionKeyword": "ADEPTUS ASTARTES",
+  "armyRule": "sm.a.oath-of-moment",
+  "detachments": [
+    {
+      "id": "bt.d.siguards-crusaders",
+      "name": "Siguard's Crusaders",
+      "rule": "sm.a.oath-of-moment",
+      "stratagems": [
+        "bt.s.shield-of-zeal",
+        "bt.s.hate-fuelled-strength",
+        "bt.s.goaded-to-fury"
+      ],
+      "enhancements": [
+        "bt.e.crusaders-fervour",
+        "bt.e.righteous-defiance"
+      ]
+    }
+  ],
+  "paintScheme": {
+    "primary": "#141414",
+    "secondary": "#e6dfc8",
+    "trim": "#9b1b1b",
+    "metal": "#8a8f98",
+    "decal": "#ffffff"
+  },
+  "combatPatrols": [
+    "bt.cp.siguard-s-crusaders"
+  ]
+}

@@ -39,9 +39,9 @@ describe('dark-angels client plumbing', () => {
     expect(resolveFigureKit('da.vb.intercessor-squad', undefined, 'intercessor').kit).toBe('da-intercessor')
   })
 
-  it('figures use the faction paint scheme and fall back to procedural until a GLB is enabled', () => {
+  it('figures use the faction paint scheme and every model resolves to an SD GLB', () => {
     expect(resolvePaintColors(bundle.factions['dark-angels']).primary).toBe('#1f3b2a')
-    for (const sheet of daSheets) for (const m of sheet.composition) expect(glbSlugFor(sheet.id, m.modelId), `${sheet.id}/${m.modelId}`).toBeUndefined()
+    for (const sheet of daSheets) for (const m of sheet.composition) expect(glbSlugFor(sheet.id, m.modelId), `${sheet.id}/${m.modelId}`).toBeDefined()
   })
 
   it('every Dark Angels weapon has its own firing sound', () => {

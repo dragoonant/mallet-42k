@@ -550,6 +550,20 @@ const ABILITY_PROMPT_INFO: { match: RegExp; info: { title: string; hint: string 
     },
   },
   {
+    match: /righteous-defiance/,
+    info: {
+      title: 'Righteous Defiance: stand firm?',
+      hint: 'Your Marshal and his unit are being attacked. Once per battle you may call on this: every model in the unit, the Marshal included, shrugs off each wound on a 4+ until the end of the phase. The Marshal already shrugs off wounds on a 5+ all the time. Spend it on an attack you expect to hurt.',
+    },
+  },
+  {
+    match: /sacred-vow/,
+    info: {
+      title: 'Sacred Vow: name your quarry',
+      hint: 'Swear to destroy one enemy unit this round (one vow per round, from round 2). At the end of the round you score 3 VP if the unit was destroyed this round by a melee attack from one of your Adeptus Astartes models, or 4 VP if that model belongs to the Primaris Crusader Squad. Pick a unit your fighters can reach and finish off in close combat.',
+    },
+  },
+  {
     match: /archeotech-reliquary/,
     info: {
       title: 'Archeotech Reliquary: name the relic site',
@@ -622,7 +636,8 @@ function miraclePool(data: Record<string, unknown> | undefined): number[] {
   return Array.isArray(pool) ? pool.filter((v): v is number => typeof v === 'number') : []
 }
 
-function chooseOptionInfoFor(
+/** Exported for tests/client/blackTemplars.test.ts. */
+export function chooseOptionInfoFor(
   context: { topic: ChooseOptionTopic; abilityId: string | null; unitId?: string | null; data?: Record<string, unknown> },
   options?: readonly { id: string }[],
   state?: GameState,
@@ -669,7 +684,7 @@ function chooseOptionInfoFor(
   }
   const choice = context.data && typeof context.data.choice === 'string' ? CHOICE_PROMPT_KEYS[context.data.choice] : undefined
   // Both Cult Ambush steps (marker, return) carry the code; the return step has no ability id.
-  const key = context.data?.code === 'toilEarnsPick' ? 'toil-earns-pick' : context.data?.code === 'vbTakeTheStrongholdPick' ? 'vb-stronghold-pick' : context.data?.code === 'vbBladeguardPick' ? 'vb-bladeguard-pick' : context.data?.code === 'archeotechReliquaryPick' ? 'archeotech-reliquary' : context.data?.code === 'holyApparatusPick' ? 'holy-apparatus-pick' : context.data?.code === 'cultAmbush' ? 'cult-ambush' : context.data?.code === 'etherealEdictPick' ? 'ethereal-edict' : context.data?.code === 'divineJudgementPick' ? 'divine-judgement' : context.data?.code === 'targetedPurgePick' ? 'targeted-purge' : context.data?.code === 'doctrinaImperatives' ? 'doctrina' : context.data?.code === 'blessingsOfKhorne' ? 'blessings-of-khorne' : context.data?.code === 'lineBreakers' ? 'line-breakers' : context.data?.code === 'tirelessHunter' ? 'tireless-hunter' : context.data?.code === 'huntersInsightPick' ? 'hunters-insight' : context.data?.code === 'specialIssueAmmunition' ? 'special-issue-ammunition' : context.data?.code === 'narthecium' ? 'narthecium' : context.abilityId ?? choice ?? null
+  const key = context.data?.code === 'toilEarnsPick' ? 'toil-earns-pick' : context.data?.code === 'vbTakeTheStrongholdPick' ? 'vb-stronghold-pick' : context.data?.code === 'vbBladeguardPick' ? 'vb-bladeguard-pick' : context.data?.code === 'archeotechReliquaryPick' ? 'archeotech-reliquary' : context.data?.code === 'sacredVowPick' ? 'sacred-vow' : context.data?.code === 'righteousDefiance' || context.data?.code === 'righteousDefianceFight' ? 'righteous-defiance' : context.data?.code === 'holyApparatusPick' ? 'holy-apparatus-pick' : context.data?.code === 'cultAmbush' ? 'cult-ambush' : context.data?.code === 'etherealEdictPick' ? 'ethereal-edict' : context.data?.code === 'divineJudgementPick' ? 'divine-judgement' : context.data?.code === 'targetedPurgePick' ? 'targeted-purge' : context.data?.code === 'doctrinaImperatives' ? 'doctrina' : context.data?.code === 'blessingsOfKhorne' ? 'blessings-of-khorne' : context.data?.code === 'lineBreakers' ? 'line-breakers' : context.data?.code === 'tirelessHunter' ? 'tireless-hunter' : context.data?.code === 'huntersInsightPick' ? 'hunters-insight' : context.data?.code === 'specialIssueAmmunition' ? 'special-issue-ammunition' : context.data?.code === 'narthecium' ? 'narthecium' : context.abilityId ?? choice ?? null
   if (choice === 'patrol-squads' && Array.isArray(context.data?.sizes)) {
     const sizes = (context.data.sizes as number[]).filter((n) => typeof n === 'number')
     if (sizes.length > 0) {
@@ -892,7 +907,7 @@ function labelForOption(pending: PendingDecision, state: GameState, events: read
         const tr = state.units[o.id.replace(/^embark:/, '')]
         if (tr) return `Embark ${pending.context.unitId ? groupLabel(state, pending.context.unitId) : 'the unit'} into ${tr.name}`
       }
-      if ((pending.context.data?.code === 'divineJudgementPick' || pending.context.data?.code === 'holyApparatusPick' || pending.context.data?.code === 'targetedPurgePick' || pending.context.data?.code === 'lineBreakers') && state.units[o.id]) return state.units[o.id].name
+      if ((pending.context.data?.code === 'divineJudgementPick' || pending.context.data?.code === 'holyApparatusPick' || pending.context.data?.code === 'targetedPurgePick' || pending.context.data?.code === 'lineBreakers' || pending.context.data?.code === 'sacredVowPick') && state.units[o.id]) return state.units[o.id].name
       if (pending.context.data?.code === 'toilEarnsPick' || pending.context.data?.code === 'archeotechReliquaryPick') return objectiveLabel(o.id)
       if (pending.context.data?.code === 'huntersInsightPick' && o.id !== 'decline') return objectiveLabel(o.id)
       if (pending.context.data?.code === 'specialIssueAmmunition' || (pending.context.abilityId && /special-?issue-?ammunition/i.test(pending.context.abilityId))) {
@@ -949,6 +964,10 @@ function abilityOptionLabel(abilityId: string | null, o: { id: string; label: st
   if (/saintly-?relic/i.test(abilityId)) {
     if (o.id === 'reroll') return 'Re-roll the new Miracle die'
     if (o.id === 'keep') return 'Keep the die as rolled'
+  }
+  if (/righteous-defiance/i.test(abilityId)) {
+    if (o.id === 'use') return 'Stand firm: Feel No Pain 4+ for the whole unit until the end of the phase (once per battle)'
+    if (o.id === 'decline') return 'Save it for later'
   }
   if (/sacrificial-?dagger/i.test(abilityId)) {
     if (o.id === 'use') return 'Use the dagger (1 mortal wound)'

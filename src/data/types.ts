@@ -58,6 +58,8 @@ export interface Condition {
   // array = any of
   targetKeyword?: Keyword | Keyword[]
   targetNotKeyword?: Keyword
+  // the attacked / save-taking model (attack.targetModelId) has this keyword per modelKeywordsOf; false when no target model is known (Black Templars Shield of Zeal)
+  targetModelKeyword?: Keyword
   weaponType?: 'ranged' | 'melee'
   weaponAbility?: WeaponAbilityName
   weaponId?: Id

@@ -1,0 +1,86 @@
+[
+  {
+    "id": "bt.e.crusaders-fervour",
+    "faction": "black-templars",
+    "name": "Crusaders' Fervour",
+    "text": "Every melee weapon carried by a model in the bearer's unit (an attached unit included) gets +1 to its Attacks characteristic. Ranged weapons are unaffected.",
+    "cost": 0,
+    "restriction": {
+      "keyword": [
+        "MARSHAL"
+      ]
+    },
+    "effect": {
+      "id": "bt.e.crusaders-fervour.effect",
+      "name": "Crusaders' Fervour",
+      "text": "Melee weapons carried by the bearer's unit have +1 Attacks.",
+      "trigger": "always",
+      "scope": {
+        "who": "self"
+      },
+      "effect": {
+        "when": {
+          "weaponType": "melee"
+        },
+        "modifyStat": {
+          "stat": "A",
+          "value": 1
+        }
+      }
+    }
+  },
+  {
+    "id": "bt.e.righteous-defiance",
+    "faction": "black-templars",
+    "name": "Righteous Defiance",
+    "text": "The bearer always shrugs off wounds on a 5+ (Feel No Pain 5+). Once per battle, when the bearer's unit (an attached unit included) is picked as the target of an attack, its owner may invoke this: until the end of that phase every model in the unit, the bearer included, has Feel No Pain 4+.",
+    "cost": 0,
+    "restriction": {
+      "keyword": [
+        "MARSHAL"
+      ]
+    },
+    "effect": [
+      {
+        "id": "bt.e.righteous-defiance.fnp",
+        "name": "Righteous Defiance",
+        "text": "The bearer has Feel No Pain 5+.",
+        "trigger": "feelNoPainRoll",
+        "effect": {
+          "feelNoPain": 5
+        },
+        "scope": {
+          "who": "bearer"
+        }
+      },
+      {
+        "id": "bt.e.righteous-defiance.shoot",
+        "name": "Righteous Defiance",
+        "text": "Once per battle, when the bearer's unit is targeted in the Shooting phase, its models may gain Feel No Pain 4+ until the end of the phase.",
+        "trigger": "targetsDeclared",
+        "scope": {
+          "who": "bearer"
+        },
+        "code": "righteousDefiance",
+        "params": {
+          "pickWindow": "shooting.targetsDeclared",
+          "pickTopic": "abilityChoice"
+        }
+      },
+      {
+        "id": "bt.e.righteous-defiance.fight",
+        "name": "Righteous Defiance",
+        "text": "Once per battle, when the bearer's unit is targeted in the Fight phase, its models may gain Feel No Pain 4+ until the end of the phase.",
+        "trigger": "targetsDeclared",
+        "scope": {
+          "who": "bearer"
+        },
+        "code": "righteousDefianceFight",
+        "params": {
+          "pickWindow": "fight.targetsDeclared",
+          "pickTopic": "abilityChoice"
+        }
+      }
+    ]
+  }
+]

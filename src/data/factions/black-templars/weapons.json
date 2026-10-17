@@ -1,0 +1,215 @@
+[
+  {
+    "id": "bt.w.plasma-pistol-standard",
+    "name": "Plasma pistol (standard)",
+    "type": "ranged",
+    "range": 12,
+    "A": 1,
+    "skill": 2,
+    "S": 7,
+    "AP": -2,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "PISTOL"
+      }
+    ],
+    "figure": {
+      "part": "am.weapon.plasma-pistol",
+      "hands": 1
+    },
+    "profileGroup": "bt.w.plasma-pistol"
+  },
+  {
+    "id": "bt.w.plasma-pistol-supercharge",
+    "name": "Plasma pistol (supercharge)",
+    "type": "ranged",
+    "range": 12,
+    "A": 1,
+    "skill": 2,
+    "S": 8,
+    "AP": -3,
+    "D": 2,
+    "abilities": [
+      {
+        "ability": "PISTOL"
+      },
+      {
+        "ability": "HAZARDOUS"
+      }
+    ],
+    "figure": {
+      "part": "am.weapon.plasma-pistol",
+      "hands": 1
+    },
+    "profileGroup": "bt.w.plasma-pistol"
+  },
+  {
+    "id": "bt.w.master-crafted-power-weapon",
+    "name": "Master-crafted power weapon",
+    "type": "melee",
+    "range": 0,
+    "A": 6,
+    "skill": 2,
+    "S": 5,
+    "AP": -2,
+    "D": 2,
+    "abilities": [],
+    "figure": {
+      "part": "sm.weapon.power-sword",
+      "hands": 1
+    }
+  },
+  {
+    "id": "bt.w.bolt-rifle",
+    "name": "Bolt rifle",
+    "type": "ranged",
+    "range": 24,
+    "A": 2,
+    "skill": 3,
+    "S": 4,
+    "AP": -1,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "ASSAULT"
+      },
+      {
+        "ability": "HEAVY"
+      }
+    ],
+    "figure": {
+      "part": "sm.weapon.boltgun",
+      "hands": 2
+    }
+  },
+  {
+    "id": "bt.w.heavy-bolt-pistol",
+    "name": "Heavy bolt pistol",
+    "type": "ranged",
+    "range": 18,
+    "A": 1,
+    "skill": 3,
+    "S": 4,
+    "AP": -1,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "PISTOL"
+      }
+    ],
+    "figure": {
+      "part": "sm.weapon.bolt-pistol",
+      "hands": 1
+    }
+  },
+  {
+    "id": "bt.w.neophyte-firearm",
+    "name": "Neophyte firearm",
+    "type": "ranged",
+    "range": 18,
+    "A": 2,
+    "skill": 3,
+    "S": 4,
+    "AP": 0,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "ASSAULT"
+      }
+    ],
+    "figure": {
+      "part": "sm.weapon.boltgun",
+      "hands": 2
+    }
+  },
+  {
+    "id": "bt.w.astartes-chainsword",
+    "name": "Astartes chainsword",
+    "type": "melee",
+    "range": 0,
+    "A": 5,
+    "skill": 3,
+    "S": 4,
+    "AP": -1,
+    "D": 1,
+    "abilities": [],
+    "figure": {
+      "part": "csm.weapon.astartes-chainsword",
+      "hands": 1
+    }
+  },
+  {
+    "id": "bt.w.power-weapon",
+    "name": "Power weapon",
+    "type": "melee",
+    "range": 0,
+    "A": 3,
+    "skill": 3,
+    "S": 5,
+    "AP": -2,
+    "D": 1,
+    "abilities": [],
+    "figure": {
+      "part": "sm.weapon.power-sword",
+      "hands": 1
+    }
+  },
+  {
+    "id": "bt.w.multi-melta",
+    "name": "Multi-melta",
+    "type": "ranged",
+    "range": 18,
+    "A": 2,
+    "skill": 3,
+    "S": 9,
+    "AP": -4,
+    "D": "D6",
+    "abilities": [
+      {
+        "ability": "MELTA",
+        "value": 2
+      }
+    ],
+    "figure": {
+      "part": "csm.weapon.meltagun",
+      "hands": 2
+    }
+  },
+  {
+    "id": "bt.w.storm-bolter-2",
+    "name": "Storm bolter",
+    "type": "ranged",
+    "range": 24,
+    "A": 2,
+    "skill": 3,
+    "S": 4,
+    "AP": 0,
+    "D": 1,
+    "abilities": [
+      {
+        "ability": "RAPID_FIRE",
+        "value": 2
+      }
+    ],
+    "figure": {
+      "part": "sm.weapon.storm-bolter",
+      "hands": 1
+    }
+  },
+  {
+    "id": "bt.w.armoured-hull",
+    "name": "Armoured hull",
+    "type": "melee",
+    "range": 0,
+    "A": 3,
+    "skill": 4,
+    "S": 6,
+    "AP": 0,
+    "D": 1,
+    "abilities": [],
+    "figure": {
+      "part": "sm.weapon.none"
+    }
+  }
+]

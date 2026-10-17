@@ -298,6 +298,11 @@ const WEAPON_SLUGS: readonly (readonly [string, SfxId])[] = [
   // Dark Angels (The Vengeful Brethren): Zacharial's boltstorm gauntlet chatters like a storm bolter; the Hellblasters' plasma incinerators thump like a plasma cannon.
   ['boltstorm-gauntlet', 'wpn-storm-bolter'] as const,
   ['plasma-incinerator', 'wpn-plasma-cannon'] as const,
+  // Black Templars (Siguard's Crusaders): the Neophyte firearm is a light carbine that barks like a boltgun, the master-crafted power weapon rings like a power weapon.
+  ['neophyte-firearm', 'wpn-boltgun'] as const,
+  ['master-crafted-power-weapon', 'wpn-power-weapon'] as const,
+  // The Impulsor's multi-melta spits a melta beam like a meltagun.
+  ['multi-melta', 'wpn-meltagun'] as const,
 ].sort((a, b) => b[0].length - a[0].length)
 
 const WEAPON_TRIM: Partial<Record<SfxId, number>> = {
@@ -405,6 +410,8 @@ const DEATH_SOUND: Record<string, SfxId> = {
   'blood-angels': 'death-space-marines',
   // Deathwatch Kill-team veterans fall with the same armoured-warrior cry as the other Space Marines.
   deathwatch: 'death-space-marines',
+  // Black Templars are Space Marines and die like them.
+  'black-templars': 'death-space-marines',
 }
 
 /** Measured decoded RMS runs 0.05-0.40 across these; the loud three are pulled back toward ~0.15. */

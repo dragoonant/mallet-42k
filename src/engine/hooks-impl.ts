@@ -25,7 +25,7 @@ import { frozenClosestEligible, snapshotClosestEligible } from './factions/tyran
 import { leaderService } from './leaders'
 import { shadowBattleShockModifiers } from './shadow'
 import type { DecisionHandler, EngineContext, WindowTrigger } from './modules'
-import { keywordsOf, modelStats, mortalCredit, unitModels } from './state'
+import { keywordsOf, modelKeywordsOf, modelStats, mortalCredit, unitModels } from './state'
 import type { ActiveEffect, DiceRoll, GameState, ModelId, PlayerId, RuntimeAbility, RuntimeWeapon, Unit, UnitId } from './types'
 
 // the hook-specific part of a HookContext; the service fills in state/phase/activePlayer/source/unitId/hook per descriptor.
@@ -255,6 +255,11 @@ export function evaluateCondition(env: ConditionEnv, c: Condition | null | undef
     if (!wanted.some((k) => kws.includes(k))) return false
   }
   if (c.targetNotKeyword !== undefined && !(attack && !unitKeywordsAny(state, attack.targetUnitId).includes(c.targetNotKeyword))) return false
+  // E-BT1 (Shield of Zeal): the attacked / save-taking model itself has this keyword; false when no target model is known
+  if (c.targetModelKeyword !== undefined) {
+    const mid = attack?.targetModelId ?? null
+    if (!mid || !state.models[mid] || !modelKeywordsOf(state, mid).includes(c.targetModelKeyword)) return false
+  }
   if (c.weaponType !== undefined && weapon?.kind !== c.weaponType) return false
   // [interp] weaponAbility tests the weapon's own abilities (granted abilities are derived from conditions themselves)
   if (c.weaponAbility !== undefined && !(weapon && weapon.abilities.some((a) => a.ability === c.weaponAbility))) return false

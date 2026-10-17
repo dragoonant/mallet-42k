@@ -24,6 +24,7 @@ import {
   vbTakeTheStrongholdAmount, vbTakeTheStrongholdOffer,
 } from './factions/dark-angels'
 import { pinpointPurgeAmount, reconnaissanceInForceAmount } from './factions/space-marines'
+import { pathOfPurgationAmount, sacredVowAmount, sacredVowDestroyed, sacredVowOffer } from './factions/black-templars'
 import { ineffableAgendaAmount } from './factions/aeldari'
 import { contaminateGroundAmount, spreadTheBlightGain, spreadTheBlightSnapshot } from './factions/death-guard'
 import { bloodOfferingAward, bloodOfferingSnapshot, ravageAndRansackAmount } from './factions/world-eaters'
@@ -213,7 +214,7 @@ function rulesFor(s: GameState, pid: PlayerId): ScoringRule[] {
 }
 
 // ScoringRule-shaped "pick" instances (pointsPer 0): raise a decision instead of computing an amount
-const PICK_CODES = new Set(['stompEmPick', 'bagPick', 'treasuresOfAeonsPick', 'methodicalDestructionPick', 'etherealEdictPick', 'targetedPurgePick', 'divineJudgementPick', 'toilEarnsPick', 'holyApparatusPick', 'archeotechReliquaryPick', 'vbTakeTheStrongholdPick', 'huntersInsightPick'])
+const PICK_CODES = new Set(['stompEmPick', 'bagPick', 'treasuresOfAeonsPick', 'methodicalDestructionPick', 'etherealEdictPick', 'targetedPurgePick', 'divineJudgementPick', 'toilEarnsPick', 'holyApparatusPick', 'archeotechReliquaryPick', 'vbTakeTheStrongholdPick', 'huntersInsightPick', 'sacredVowPick'])
 
 // ---------- generic ScoringRule.rule amounts ----------
 function tierPoints(tiers: Record<string, number>, die: number): number {
@@ -580,6 +581,7 @@ function unitDestroyedHook(ctx: EngineContext, info: { unitId: UnitId; byPlayer:
   pinpointPurgeDestroyed(ctx, info)
   infiltratorsUnitDestroyed(ctx, info)
   spreadTheBlightDestroyed(ctx, info)
+  sacredVowDestroyed(ctx, info)
 }
 
 function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): number {
@@ -626,6 +628,8 @@ function customAmount(ctx: EngineContext, rule: ScoringRule, pid: PlayerId): num
     case 'toilEarnsScore': return toilEarnsAmount(s, rule, pid, (id) => holds(ctx, id, pid))
     case 'holyApparatusScore': return holyApparatusAmount(s, rule, pid)
     case 'methodicalDestructionScore': return methodicalDestructionAmount(s, rule, pid)
+    case 'pathOfPurgation': return pathOfPurgationAmount(s, rule, pid)
+    case 'sacredVowScore': return sacredVowAmount(s, rule, pid)
     case 'raiseTheVexillas': {
       const v = vexillaObjectiveIds(s, pid)
       return v.own.some((id) => holds(ctx, id, pid)) && v.enemy.some((id) => holds(ctx, id, pid)) ? rule.pointsPer : 0
@@ -767,6 +771,7 @@ function runPick(ctx: EngineContext, rule: ScoringRule, pid: PlayerId, key: stri
   else if (rule.code === 'archeotechReliquaryPick') archeotechReliquaryOffer(ctx, pid, rule.when, key)
   else if (rule.code === 'vbTakeTheStrongholdPick') vbTakeTheStrongholdOffer(ctx, pid, rule.when, key)
   else if (rule.code === 'huntersInsightPick') huntersInsightOffer(ctx, pid, rule.when, key)
+  else if (rule.code === 'sacredVowPick') sacredVowOffer(ctx, pid, rule.when, key)
 }
 
 // ---------- MissionRule (non-scoring) codes ----------

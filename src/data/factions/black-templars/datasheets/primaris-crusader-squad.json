@@ -1,0 +1,199 @@
+[
+  {
+    "id": "bt.primaris-crusader-squad",
+    "faction": "black-templars",
+    "name": "Primaris Crusader Squad",
+    "keywords": [
+      "INFANTRY",
+      "BATTLELINE",
+      "IMPERIUM",
+      "TACTICUS",
+      "PRIMARIS CRUSADER SQUAD"
+    ],
+    "factionKeywords": [
+      "ADEPTUS ASTARTES",
+      "BLACK TEMPLARS"
+    ],
+    "stats": {
+      "M": 6,
+      "T": 4,
+      "Sv": 3,
+      "W": 2,
+      "Ld": 6,
+      "OC": 2
+    },
+    "composition": [
+      {
+        "modelId": "sword-brother",
+        "name": "Sword Brother",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "base": {
+          "shape": "round",
+          "mm": 40
+        },
+        "weapons": {
+          "default": [
+            "bt.w.heavy-bolt-pistol",
+            "bt.w.power-weapon"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "sm-tacticus"
+        }
+      },
+      {
+        "modelId": "initiate-chainsword",
+        "name": "Primaris Initiate (chainsword)",
+        "min": 2,
+        "max": 2,
+        "default": 2,
+        "keywords": [
+          "PRIMARIS INITIATE"
+        ],
+        "base": {
+          "shape": "round",
+          "mm": 32
+        },
+        "weapons": {
+          "default": [
+            "bt.w.heavy-bolt-pistol",
+            "bt.w.astartes-chainsword"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "sm-tacticus"
+        }
+      },
+      {
+        "modelId": "initiate-bolt-rifle",
+        "name": "Primaris Initiate (bolt rifle)",
+        "min": 2,
+        "max": 2,
+        "default": 2,
+        "keywords": [
+          "PRIMARIS INITIATE"
+        ],
+        "base": {
+          "shape": "round",
+          "mm": 32
+        },
+        "weapons": {
+          "default": [
+            "sm.w.bolt-pistol",
+            "bt.w.bolt-rifle",
+            "sm.w.close-combat-weapon"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "sm-tacticus"
+        }
+      },
+      {
+        "modelId": "initiate-pyreblaster",
+        "name": "Primaris Initiate (pyreblaster)",
+        "min": 1,
+        "max": 1,
+        "default": 1,
+        "keywords": [
+          "PRIMARIS INITIATE"
+        ],
+        "base": {
+          "shape": "round",
+          "mm": 32
+        },
+        "weapons": {
+          "default": [
+            "sm.w.pyreblaster",
+            "sm.w.bolt-pistol",
+            "sm.w.close-combat-weapon"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "sm-tacticus"
+        }
+      },
+      {
+        "modelId": "neophyte-chainsword",
+        "name": "Primaris Neophyte (chainsword)",
+        "min": 2,
+        "max": 2,
+        "default": 2,
+        "keywords": [
+          "PRIMARIS NEOPHYTE"
+        ],
+        "statsOverride": {
+          "Sv": 4
+        },
+        "base": {
+          "shape": "round",
+          "mm": 28
+        },
+        "weapons": {
+          "default": [
+            "sm.w.bolt-pistol",
+            "bt.w.astartes-chainsword"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "sm-tacticus"
+        }
+      },
+      {
+        "modelId": "neophyte-firearm",
+        "name": "Primaris Neophyte (firearm)",
+        "min": 2,
+        "max": 2,
+        "default": 2,
+        "keywords": [
+          "PRIMARIS NEOPHYTE"
+        ],
+        "statsOverride": {
+          "Sv": 4
+        },
+        "base": {
+          "shape": "round",
+          "mm": 28
+        },
+        "weapons": {
+          "default": [
+            "bt.w.neophyte-firearm",
+            "sm.w.close-combat-weapon"
+          ]
+        },
+        "figure": {
+          "archetype": "infantry",
+          "kit": "sm-tacticus"
+        }
+      }
+    ],
+    "abilities": [
+      "sm.a.oath-of-moment",
+      "bt.a.righteous-zeal",
+      "bt.a.righteous-zeal-advance",
+      "bt.a.patrol-squads"
+    ],
+    "coreAbilities": [
+      {
+        "ability": "SCOUTS",
+        "value": 6
+      }
+    ],
+    "points": [
+      {
+        "models": 10,
+        "points": 0
+      }
+    ],
+    "figure": {
+      "archetype": "infantry",
+      "kit": "sm-tacticus"
+    }
+  }
+]

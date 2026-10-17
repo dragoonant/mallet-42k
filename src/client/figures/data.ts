@@ -201,6 +201,10 @@ const KNOWN_KIT: Record<string, KitId> = {
   'dw.lieutenant-alphion': 'dw-alphion',
   'dw.apothecary-krenn': 'dw-krenn',
   'dw.aggressor-squad': 'dw-aggressor',
+  'bt.intercessor-squad': 'bt-intercessor',
+  'bt.primaris-crusader-squad': 'bt-initiate-rifle',
+  'bt.marshal-siguard': 'bt-siguard',
+  'bt.impulsor': 'bt-impulsor',
 }
 
 /** Models of a mixed unit that look different from the rest of it (a flamer sister is not a rifle sister), keyed
@@ -291,6 +295,15 @@ const KNOWN_KIT_BY_MODEL: Record<string, KitId> = {
   'dw.intercessor-squad/sergeant': 'dw-sergeant',
   'dw.intercessor-squad/intercessor': 'dw-intercessor',
   'dw.intercessor-squad/grenadier': 'dw-grenadier',
+  'bt.intercessor-squad/intercessor': 'bt-intercessor',
+  'bt.primaris-crusader-squad/sword-brother': 'bt-sword-brother',
+  'bt.primaris-crusader-squad/initiate-chainsword': 'bt-initiate-chainsword',
+  'bt.primaris-crusader-squad/initiate-bolt-rifle': 'bt-initiate-rifle',
+  'bt.primaris-crusader-squad/initiate-pyreblaster': 'bt-initiate-pyreblaster',
+  'bt.primaris-crusader-squad/neophyte-chainsword': 'bt-neophyte-chainsword',
+  'bt.primaris-crusader-squad/neophyte-firearm': 'bt-neophyte-firearm',
+  'bt.marshal-siguard/siguard': 'bt-siguard',
+  'bt.impulsor/impulsor': 'bt-impulsor',
   'tau.strike-team/shasui': 'tau-shasui',
   'tau.strike-team/fire-warrior-rifle': 'tau-fire-warrior',
   'tau.strike-team/fire-warrior-carbine': 'tau-fire-warrior',
@@ -545,6 +558,15 @@ const KIT_ARCHETYPE: Record<KitId, ArchetypeKind> = {
   'dw-alphion': 'infantry',
   'dw-krenn': 'infantry',
   'dw-aggressor': 'heavy',
+  'bt-intercessor': 'infantry',
+  'bt-initiate-rifle': 'infantry',
+  'bt-initiate-chainsword': 'infantry',
+  'bt-initiate-pyreblaster': 'infantry',
+  'bt-neophyte-firearm': 'infantry',
+  'bt-neophyte-chainsword': 'infantry',
+  'bt-sword-brother': 'infantry',
+  'bt-siguard': 'infantry',
+  'bt-impulsor': 'vehicle',
   'generic-infantry': 'infantry',
   'generic-heavy': 'heavy',
   'generic-monster': 'monster',
@@ -620,6 +642,9 @@ const HEIGHT_BY_DATASHEET: Record<string, number> = {
   // Deathwatch: Aggressors are Gravis plate, a head taller than a footsoldier.
   'dw.aggressor-squad': 1.55,
   'dw.lieutenant-alphion': 1.15,
+  // Black Templars: the Marshal is a big armoured lord; the Impulsor is a long hovering transport on a 100mm base.
+  'bt.marshal-siguard': 1.25,
+  'bt.impulsor': 3.0,
   // Death Guard: bloated plate stands a touch taller than a regular footsoldier; Typhus is a Terminator-sized lord.
   'dg.plague-marines': 1.15,
   'dg.folgoth-grelch': 1.15,
