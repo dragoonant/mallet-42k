@@ -32,14 +32,14 @@ const LEGACY_BY_KIND: Record<VariantKind, readonly string[]> = {
 export const LEGACY_TERRAIN_SLUGS: readonly string[] = Object.values(LEGACY_BY_KIND).flat()
 /** Single switch: set to false once NEW_TERRAIN_SLUGS has entries and the legacy models should drop out of every pool
  *  (a kind with no new slug keeps its legacy ones so it never ends up empty). Files are kept either way. */
-export const INCLUDE_LEGACY_TERRAIN_SLUGS = true
+export const INCLUDE_LEGACY_TERRAIN_SLUGS = false
 
-/** New variant slugs per kind (empty until the new art lands). */
+/** New variant slugs per kind: the painted v5 set (Gemini concepts -> Hunyuan3D, art/terrain-concepts-v5). */
 export const NEW_TERRAIN_SLUGS: Record<VariantKind, readonly string[]> = {
-  ruinWall: [],
-  crate: [],
-  barricade: [],
-  crater: [],
+  ruinWall: ['t5-wall-bulkhead', 't5-wall-cathedral', 't5-wall-colonnade', 't5-wall-forge', 't5-wall-hab', 't5-wall-shrine'],
+  crate: ['t5-crate-container', 't5-crate-fuel', 't5-crate-pillbox', 't5-crate-supply'],
+  barricade: ['t5-barricade-rockcrete', 't5-barricade-sandbag', 't5-barricade-tanktrap'],
+  crater: ['t5-crater-pipe', 't5-crater-scorch', 't5-crater-wreck'],
 }
 
 /** Every slug declared for a kind, legacy included (what the fit tests must cover). */

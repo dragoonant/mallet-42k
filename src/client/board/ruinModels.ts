@@ -132,6 +132,8 @@ function request(slug: RuinSlug): Entry {
       .then(([manifest, gltf]) => {
         if (!manifest || !manifest[slug]) throw new Error('no manifest entry')
         const scene = gltf.scene
+        // The painted v5 variants keep their own colours; only the older grey-resin GLBs get the shared tint.
+        const painted = Object.values(NEW_TERRAIN_SLUGS).some((l) => l.includes(slug))
         scene.traverse((o) => {
           const mesh = o as Mesh
           if (!mesh.isMesh) return
@@ -140,7 +142,7 @@ function request(slug: RuinSlug): Entry {
           for (const mat of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
             if (mat instanceof MeshStandardMaterial) {
               mat.metalness = 0 // no env map: metal reads black
-              unifyMaterial(mat)
+              if (!painted) unifyMaterial(mat)
             }
           }
         })
