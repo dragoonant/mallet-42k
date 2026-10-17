@@ -12,6 +12,11 @@ Sources (all accessed 2026-09-12):
 | Orks alternate "Morgrim's Butchas" (appendix) | https://wahapedia.ru/wh40k10ed_cp/factions/morgrim-s-butchas/ | Index, April 2024 |
 | Core rules (mission map key, objective rules) | https://wahapedia.ru/wh40k10ed/the-rules/core-rules/ | — |
 
+2026-10-16: re-checked against the official Combat Patrol rulebook PDF (10th ed; local copy in `docs/sources/`,
+gitignored, never published). All six deployment maps, zone depths and marker positions match the data, as do the
+mission rules and scoring schedules. A White Dwarf "Multiplayer Combat Patrol" supplement (3–4 players, 6 missions)
+sits beside it; it is not implemented.
+
 Mission deployment measurements were read from the map images at `wahapedia.ru/wh40k10ed_cp/img/maps/*.png`
 (1 grid square = 1"); see issues list in the orchestrator return for anything read visually rather than from text.
 

@@ -11,3 +11,6 @@ playwright-report
 elevenlabs.token
 *.token
 .env*
+
+# GW rules PDFs: local reference only, never published (public repo)
+docs/sources/*.pdf
