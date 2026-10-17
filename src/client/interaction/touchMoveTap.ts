@@ -12,7 +12,16 @@ import { COMMIT_CLICK_RADIUS_IN } from './moveHover'
 export const MIN_TAP_MOVE_IN = 0.15
 
 function say(text: string): void {
-  useGameStore.setState({ toast: { id: Date.now(), text } })
+  useGameStore.setState({ toast: { id: Date.now(), text: friendly(text) } })
+}
+
+/** Engine reasons name models by id ("A:terminator-squad#0 would move 6.549\" > 5\""): make them player-facing. */
+export function friendly(text: string): string {
+  return text
+    .replace(/(^|[\s(])[AB]:[\w-]+#\d+/g, (_m, pre: string) => `${pre}a model`)
+    .replace(/(^|[:.]\s)a model/g, (_m, pre: string) => `${pre}A model`)
+    .replace(/would move (\d+(?:\.\d+)?)" > (\d+(?:\.\d+)?)"/g, (_m, d: string, max: string) => `would need ${Number(d).toFixed(1)}" (max ${max}")`)
+    .replace(/(\d+\.\d{2,})/g, (n: string) => Number(n).toFixed(1))
 }
 
 /**
