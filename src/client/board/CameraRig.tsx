@@ -7,59 +7,89 @@ import { useBoardSize } from './Board'
 import { initCameraModifiers, isSpaceHeld } from './cameraModifiers'
 import { installTouchCamera } from './touchCamera'
 import { installTerrainProbe, probeEnabled } from './terrainProbe'
+import {
+  cameraPose,
+  easeInOut,
+  maxDistanceFor,
+  MIN_CAMERA_DISTANCE,
+  TRANSITION_MS,
+  type CameraPresetId,
+} from './cameraPresets'
 
-const OVERVIEW_POLAR = THREE.MathUtils.degToRad(55)
 const TOP_DOWN_POLAR = THREE.MathUtils.degToRad(4)
 const MIN_POLAR = THREE.MathUtils.degToRad(4)
-const MAX_POLAR = THREE.MathUtils.degToRad(82)
+const MAX_POLAR = Math.PI / 2.05
 const TARGET_MARGIN = 4
-/** Pleasant framing distance for the "focus selected unit" button — close enough to read the
- *  model, far enough to still see nearby terrain/enemies for context. */
-const FOCUS_DISTANCE_IN = 16
-const FOCUS_EASE = 0.12
-const FOCUS_DONE_EPS = 0.05
+/** WASD pan speed, inches per second. */
+const PAN_SPEED = 22
+const PAN_KEYS: Record<string, [number, number]> = { w: [0, -1], s: [0, 1], a: [-1, 0], d: [1, 0] }
 
-/** window event that asks the rig to ease back to the default overview framing (board centre, starting distance). */
+/** window event that asks the rig to tween back to the default overview framing (the viewer's home-edge preset). */
 const OVERVIEW_EVENT = 'mallet:camera-overview'
 
-/** Eases the camera back to the default overview framing (centre of the board, the distance it started at, current
- *  heading kept). Used by the phone deployment flow, which zooms in on the zone for each unit and must not leave the
- *  camera there for the rest of the game. */
+/** Tweens the camera back to the default overview framing (the 'edgeA' preset for the viewer's side). Used by the
+ *  phone deployment flow, which zooms in on the zone for each unit and must not leave the camera there for the
+ *  rest of the game. */
 export function requestCameraOverview(): void {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(OVERVIEW_EVENT))
 }
 
 export interface CameraRigProps {
-  /** Ease toward a straight-down view when true, back to the standard overview when false. */
+  /** Mirrors uiStore.topDown. The T key/button already requests the 'top' / 'edgeA' preset through `preset`;
+   *  kept so existing callers compile. */
   topDown?: boolean
-  minDistance?: number
-  maxDistance?: number
-  /** Board point (inches) to smoothly recentre the orbit target on — pass a fresh object each time
-   *  (even for the same point) to retrigger; consumed once and then left alone. */
+  /** Board point (inches) the 'follow' preset centres on — the latest value wins; a fresh object each focus request. */
   focusTarget?: { x: number; z: number } | null
   /** View the board from the -z edge instead of the default +z edge (the viewer's deployment zone sits
    *  on the -z half). Flipping it swings the camera 180° about the board centre; manual orbiting in
    *  between is left alone. */
   viewFromFar?: boolean
+  /** Latest named-preset request (uiStore.cameraPreset); a new `nonce` starts an eased tween to that pose. */
+  preset?: { id: CameraPresetId; nonce: number } | null
 }
 
-/** Orbit camera clamped above the board (never dips below the mat) with a top-down toggle and a
- *  smooth "focus on this point" request (uiStore.focusTarget, driven by the HUD's Focus button/key F). */
-export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150, focusTarget = null, viewFromFar = false }: CameraRigProps) {
+interface Tween {
+  t0: number
+  fromP: THREE.Vector3
+  toP: THREE.Vector3
+  fromT: THREE.Vector3
+  toT: THREE.Vector3
+}
+
+/** Orbit camera clamped above the board (never dips below the mat): crisp (no damping), right-drag orbit,
+ *  middle-drag / WASD pan, wheel zoom, and four named presets (top / edgeA / edgeB / follow) reached by
+ *  eased, interruptible tweens of both the camera position and the orbit target. */
+export function CameraRig({ focusTarget = null, viewFromFar = false, preset = null }: CameraRigProps) {
   const controls = useRef<OrbitControlsImpl | null>(null)
-  const targetPolar = useRef(OVERVIEW_POLAR)
-  const pendingFocus = useRef<{ x: number; z: number; dist?: number } | null>(null)
-  const homeDist = useRef<number | null>(null)
+  const tween = useRef<Tween | null>(null)
+  const keys = useRef(new Set<string>())
   const { camera, gl, scene } = useThree()
   useEffect(() => (probeEnabled() ? installTerrainProbe(scene) : undefined), [scene])
   const invalidate = useThree((s) => s.invalidate)
   const boardSize = useBoardSize()
   const boardRef = useRef(boardSize)
   boardRef.current = boardSize
+  const focusRef = useRef(focusTarget)
+  focusRef.current = focusTarget
+  // The Canvas starts the camera on the edge the viewer sits at; track which edge we last put it on.
+  const appliedFar = useRef(viewFromFar)
 
-  useEffect(() => {
-    targetPolar.current = topDown ? TOP_DOWN_POLAR : OVERVIEW_POLAR
-  }, [topDown])
+  /** Start an eased tween (camera position AND orbit target) to a preset pose. */
+  const startTween = (id: CameraPresetId, focus?: { x: number; z: number }) => {
+    const c = controls.current
+    if (!c) return
+    const pose = cameraPose(id, boardRef.current, focus, appliedFar.current ? -1 : 1)
+    tween.current = {
+      t0: performance.now(),
+      fromP: camera.position.clone(),
+      toP: new THREE.Vector3(...pose.position),
+      fromT: c.target.clone(),
+      toT: new THREE.Vector3(...pose.target),
+    }
+    invalidate()
+  }
+  const startTweenRef = useRef(startTween)
+  startTweenRef.current = startTween
 
   // Mouse remap: left never orbits the camera by itself (it's reserved for picking/measuring/nudging
   // game objects) — middle-drag pans, right-drag orbits, and left only drives the camera when a
@@ -95,12 +125,33 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
     }
   }, [gl])
 
-  // The Canvas starts the camera on the +z edge; track which edge we last put it on.
-  const appliedFar = useRef(false)
+  // Any user camera input (drag, wheel) cancels an in-flight preset tween.
+  useEffect(() => {
+    const c = controls.current
+    if (!c) return undefined
+    const onStart = () => {
+      tween.current = null
+    }
+    c.addEventListener('start', onStart)
+    return () => c.removeEventListener('start', onStart)
+  }, [])
+
+  // Seat the orbit target on the opening pose (the Canvas only supplies the camera position).
+  useEffect(() => {
+    const c = controls.current
+    if (!c) return
+    const pose = cameraPose('edgeA', boardRef.current, undefined, appliedFar.current ? -1 : 1)
+    c.target.set(...pose.target)
+    c.update()
+    invalidate()
+  }, [invalidate])
+
+  // Viewer's edge changed: swing the camera 180° about the board centre.
   useEffect(() => {
     const c = controls.current
     if (!c || appliedFar.current === viewFromFar) return
     appliedFar.current = viewFromFar
+    tween.current = null
     camera.position.set(-camera.position.x, camera.position.y, -camera.position.z)
     c.target.set(-c.target.x, 0, -c.target.z)
     c.update()
@@ -111,6 +162,11 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
   useEffect(() => {
     const c = controls.current
     if (!c) return undefined
+    const home = cameraPose('edgeA', boardRef.current, undefined, 1)
+    const overviewPolar = Math.atan2(
+      Math.hypot(home.position[0] - home.target[0], home.position[2] - home.target[2]),
+      home.position[1] - home.target[1],
+    )
     return installTouchCamera({
       dom: gl.domElement,
       camera,
@@ -121,42 +177,70 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
         t.z = THREE.MathUtils.clamp(t.z, -boardRef.current.h / 2 - TARGET_MARGIN, boardRef.current.h / 2 + TARGET_MARGIN)
         t.y = 0
       },
-      setPolarGoal: (p) => {
-        targetPolar.current = p
-      },
+      // No polar easing any more: tilts apply immediately.
+      setPolarGoal: () => {},
       cancelFocus: () => {
-        pendingFocus.current = null
+        tween.current = null
       },
-      overviewPolar: OVERVIEW_POLAR,
+      overviewPolar,
       topDownPolar: TOP_DOWN_POLAR,
       getViewFromFar: () => appliedFar.current,
     })
   }, [gl, camera, invalidate])
 
-  // Remember the starting distance so "overview" means the same framing the game opened with.
+  // Named preset requests (top / edgeA / edgeB / follow). 'follow' centres on the latest focusTarget, else
+  // wherever the orbit target currently is.
   useEffect(() => {
-    const c = controls.current
-    if (c && homeDist.current === null) homeDist.current = camera.position.distanceTo(c.target)
-    const onOverview = () => {
-      const ctl = controls.current
-      if (!ctl) return
-      pendingFocus.current = { x: 0, z: 0, dist: homeDist.current ?? camera.position.distanceTo(ctl.target) }
-      targetPolar.current = OVERVIEW_POLAR
-      invalidate()
+    if (!preset) return
+    let focus: { x: number; z: number } | undefined
+    if (preset.id === 'follow') {
+      const c = controls.current
+      focus = focusRef.current ?? (c ? { x: c.target.x, z: c.target.z } : undefined)
     }
+    startTweenRef.current(preset.id, focus)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preset?.nonce])
+
+  // Phone "back to overview" event.
+  useEffect(() => {
+    const onOverview = () => startTweenRef.current('edgeA')
     window.addEventListener(OVERVIEW_EVENT, onOverview)
     return () => window.removeEventListener(OVERVIEW_EVENT, onOverview)
-  }, [camera, invalidate])
+  }, [])
 
+  // WASD pan (ignored while typing or with ctrl/meta held).
   useEffect(() => {
-    if (focusTarget) pendingFocus.current = { x: focusTarget.x, z: focusTarget.z }
-  }, [focusTarget])
+    const typing = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null
+      return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)
+    }
+    const down = (e: KeyboardEvent) => {
+      if (typing(e) || e.ctrlKey || e.metaKey) return
+      const k = e.key.toLowerCase()
+      if (k in PAN_KEYS) {
+        keys.current.add(k)
+        tween.current = null
+        invalidate()
+      }
+    }
+    const up = (e: KeyboardEvent) => {
+      keys.current.delete(e.key.toLowerCase())
+    }
+    const clear = () => keys.current.clear()
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    window.addEventListener('blur', clear)
+    return () => {
+      window.removeEventListener('keydown', down)
+      window.removeEventListener('keyup', up)
+      window.removeEventListener('blur', clear)
+    }
+  }, [invalidate])
 
   useEffect(() => {
     // e2e/dev hook: lets Playwright re-point the orbit target and camera distance directly (e.g.
-    // over a group of just-deployed models) without simulating mouse drags/wheel zooms. The
-    // topDown lerp above still owns the viewing angle — this only moves target + distance,
-    // preserving whatever azimuth the camera currently has.
+    // over a group of just-deployed models) without simulating mouse drags/wheel zooms. This only
+    // moves target + distance, preserving whatever azimuth/tilt the camera currently has.
     const w = window as unknown as { __malletCamera?: { lookAt(x: number, z: number, distanceIn: number): void; get(): { distance: number; azimuth: number; x: number; z: number } }; __malletProject?: (x: number, y: number, z: number) => { x: number; y: number } }
     // e2e hook: world point -> page pixel
     w.__malletProject = (x, y, z) => {
@@ -173,9 +257,10 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
       lookAt(x, z, distanceIn) {
         const c = controls.current
         if (!c) return
+        tween.current = null
         const dir = camera.position.clone().sub(c.target)
         dir.y = Math.max(dir.y, 0.1) // avoid a degenerate (near-zero) direction when already ~overhead
-        dir.normalize().multiplyScalar(THREE.MathUtils.clamp(distanceIn, minDistance, maxDistance))
+        dir.normalize().multiplyScalar(THREE.MathUtils.clamp(distanceIn, MIN_CAMERA_DISTANCE, maxDistanceFor(boardRef.current)))
         c.target.set(x, 0, z)
         camera.position.copy(c.target).add(dir)
         c.update()
@@ -186,40 +271,44 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
       delete w.__malletCamera
       delete w.__malletProject
     }
-  }, [camera, gl, invalidate, minDistance, maxDistance])
+  }, [camera, gl, invalidate])
 
-  useFrame((state) => {
+  const fwd = useRef(new THREE.Vector3())
+  const right = useRef(new THREE.Vector3())
+  const move = useRef(new THREE.Vector3())
+  useFrame((state, dt) => {
     const c = controls.current
     if (!c) return
 
-    if (pendingFocus.current) {
+    const tw = tween.current
+    if (tw) {
+      const f = Math.min(1, (performance.now() - tw.t0) / TRANSITION_MS)
+      const e = easeInOut(f)
+      camera.position.lerpVectors(tw.fromP, tw.toP, e)
+      c.target.lerpVectors(tw.fromT, tw.toT, e)
+      if (f >= 1) tween.current = null
       state.invalidate()
-      const { x: tx, z: tz, dist: goalDist } = pendingFocus.current
-      const dir = camera.position.clone().sub(c.target)
-      const curDist = Math.max(dir.length(), 0.001)
-      dir.normalize()
-      const nextTx = THREE.MathUtils.lerp(c.target.x, tx, FOCUS_EASE)
-      const nextTz = THREE.MathUtils.lerp(c.target.z, tz, FOCUS_EASE)
-      const desiredDist = THREE.MathUtils.clamp(goalDist ?? FOCUS_DISTANCE_IN, minDistance, maxDistance)
-      const nextDist = THREE.MathUtils.lerp(curDist, desiredDist, FOCUS_EASE)
-      c.target.set(nextTx, 0, nextTz)
-      camera.position.copy(c.target).add(dir.multiplyScalar(nextDist))
-      if (Math.hypot(nextTx - tx, nextTz - tz) < FOCUS_DONE_EPS && Math.abs(nextDist - desiredDist) < FOCUS_DONE_EPS) {
-        pendingFocus.current = null
+    }
+
+    if (keys.current.size) {
+      camera.getWorldDirection(fwd.current)
+      fwd.current.y = 0
+      fwd.current.normalize()
+      right.current.crossVectors(fwd.current, camera.up).normalize()
+      const speed = PAN_SPEED * Math.min(dt, 0.05)
+      for (const k of keys.current) {
+        const [dx, dz] = PAN_KEYS[k]!
+        move.current.copy(right.current).multiplyScalar(dx * speed).addScaledVector(fwd.current, -dz * speed)
+        camera.position.add(move.current)
+        c.target.add(move.current)
       }
+      state.invalidate()
     }
 
     // Keep the orbit target over (or just past the edge of) the board.
     c.target.x = THREE.MathUtils.clamp(c.target.x, -boardRef.current.w / 2 - TARGET_MARGIN, boardRef.current.w / 2 + TARGET_MARGIN)
     c.target.z = THREE.MathUtils.clamp(c.target.z, -boardRef.current.h / 2 - TARGET_MARGIN, boardRef.current.h / 2 + TARGET_MARGIN)
     c.target.y = 0
-
-    const current = c.getPolarAngle()
-    const next = THREE.MathUtils.lerp(current, targetPolar.current, 0.12)
-    if (Math.abs(next - current) > 0.0005) {
-      c.setPolarAngle(next)
-      state.invalidate()
-    }
 
     c.update()
   })
@@ -228,10 +317,9 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
     <OrbitControls
       ref={controls}
       makeDefault
-      enableDamping
-      dampingFactor={0.12}
-      minDistance={minDistance}
-      maxDistance={maxDistance}
+      enableDamping={false}
+      minDistance={MIN_CAMERA_DISTANCE}
+      maxDistance={maxDistanceFor(boardSize)}
       minPolarAngle={MIN_POLAR}
       maxPolarAngle={MAX_POLAR}
       screenSpacePanning={false}

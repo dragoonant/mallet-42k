@@ -157,7 +157,7 @@ intercept the click it is explaining.
 
 ## 7. Camera
 
-Orbit camera (`OrbitControls`-like, custom): target on board plane, distance 8–60, polar 15°–80°, pan with WASD/middle-drag, clamp target inside board ± 6. Presets: `overview` (default, from player's edge), `topDown`, `focus(unit)` (smooth dolly to unit, 12" distance). Auto-focus on the acting unit during AI turns and on charge/fight resolution (toggle). Camera never blocks input; all transitions ≤ 600 ms and interruptible.
+Orbit camera (three `OrbitControls`, crisp: no damping) on the board plane: right-drag orbits, middle-drag or WASD pans (camera-relative on the ground, 22"/s; ignored while typing), wheel zooms between distance 8" and 2.4× the longer board side, polar angle kept between 4° and just above the table plane (`π/2.05`), target clamped to the board ± 4". Four named presets from `cameraPose` (`src/client/board/cameraPresets.ts`): `top`, `edgeA` (the default, from behind the viewer's own edge), `edgeB` (from the far edge) and `follow` (close on the selected unit / last focus point). Key V cycles top → edgeA → edgeB → follow; T and the top-down button tween between `top` and `edgeA`; F/Focus requests `follow`. Each preset request is an eased tween (≤ 600 ms, 450 ms by default) of both camera position and orbit target, and any user camera input (drag, wheel, WASD, two-finger touch) cancels it. Auto-focus on the acting unit during AI turns and on charge/fight resolution (toggle). Camera never blocks input.
 
 ## 8. E2E hooks
 
