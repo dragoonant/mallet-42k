@@ -3,7 +3,7 @@
 // prompt confirms; unit clicks are handled inside <UnitsLayer/>.
 import { Canvas } from '@react-three/fiber'
 import type { TerrainPieceData } from '@/data/types'
-import { Board, CameraRig, Lighting, Objectives, Ruler, Terrain } from './board'
+import { Board, BOARD_DEPTH_IN, BOARD_WIDTH_IN, CameraRig, Lighting, Objectives, Ruler, Terrain, cameraPose } from './board'
 import { ShadowSync } from './board/Lighting'
 import { BattlefieldAmbience } from './board/BattlefieldAmbience'
 import { usePresentationSettings } from './presentation/settings'
@@ -56,6 +56,7 @@ export function Scene() {
   const botSeat = useGameStore((s) => s.botSeat)
   const topDown = useUiStore((s) => s.topDown)
   const focusTarget = useUiStore((s) => s.focusTarget)
+  const cameraPreset = useUiStore((s) => s.cameraPreset)
   const deployTargetUnitId = useUiStore((s) => s.deployTargetUnitId)
   const setDraft = useUiStore((s) => s.setDraft)
   const selectUnit = useUiStore((s) => s.selectUnit)
@@ -122,7 +123,7 @@ export function Scene() {
   const viewFromFar = !!c && (Math.abs(c.z) > Math.abs(c.x) ? c.z < 0 : c.x > 0)
 
   return (
-    // ~30% closer than the previous [0, 40, 34] start (figures were only ~15px tall at default zoom).
+    // Opens on the 'edgeA' camera preset (see board/cameraPresets.ts).
     // frameloop="demand": nothing renders unless something asks: React prop/state commits, camera controls
     // (OrbitControls change events), and every per-frame animator (figures/anim.ts requestFrame, ModelFigure,
     // CameraRig, VfxLayer) calls invalidate() while it is still moving. Keyed on lowGraphics so the renderer's
@@ -133,7 +134,7 @@ export function Scene() {
       dpr={lowGraphics ? 1 : phone ? [1, 2] : [1, 1.5]}
       onCreated={({ gl, invalidate }) => guardContext(gl, invalidate)}
       shadows={!lowGraphics}
-      camera={{ position: [0, 28, 23.8], fov: 45, near: 0.1, far: 500 }}
+      camera={{ position: cameraPose('edgeA', { w: BOARD_WIDTH_IN, h: BOARD_DEPTH_IN }, undefined, viewFromFar ? -1 : 1).position, fov: 42, near: 0.1, far: 500 }}
       style={{ position: 'absolute', inset: 0, touchAction: 'none' }}
     >
       <color attach="background" args={['#0a0a10']} />
@@ -141,7 +142,7 @@ export function Scene() {
       {spike && <PerfProbe />}
       <BattlefieldAmbience />
       {!lowGraphics && <ShadowSync deps={[displayState?.models, terrainPieces]} />}
-      <CameraRig topDown={topDown} focusTarget={focusTarget} viewFromFar={viewFromFar} />
+      <CameraRig topDown={topDown} focusTarget={focusTarget} viewFromFar={viewFromFar} preset={cameraPreset} />
 
       <Board deploymentZones={zones} attacker={attacker} onBoardPointer={onBoardPointer} />
       <Terrain pieces={terrainPieces} seed={state.seed} />

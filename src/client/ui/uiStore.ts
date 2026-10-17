@@ -4,6 +4,7 @@
 import { create } from 'zustand'
 import type { ModelPlacement } from '@/engine'
 import type { FormationKind } from '../interaction/formations'
+import { PRESET_CYCLE, type CameraPresetId } from '../board/cameraPresets'
 
 const BATTLEFIELD_COUNT = 6
 const BATTLEFIELD_KEY = 'mallet42k.battlefield'
@@ -141,6 +142,12 @@ interface UiState {
   /** Board point the camera should smoothly centre on next — a fresh object every call so
    *  CameraRig's effect fires even when re-focusing the same spot (src/client/board/CameraRig.tsx). */
   focusTarget: Vec2 | null
+  /** Latest named camera preset request (top / edgeA / edgeB / follow); `nonce` bumps on every request so
+   *  re-requesting the same preset still re-tweens (src/client/board/CameraRig.tsx). */
+  cameraPreset: { id: CameraPresetId; nonce: number } | null
+  requestCameraPreset(id: CameraPresetId): void
+  /** Key V: top -> edgeA -> edgeB -> follow -> top (starts at 'top' when nothing was requested yet). */
+  cycleCameraPreset(): void
   /** M4 formation picker: the shape currently selected for the pending placement decision, and its
    *  facing (radians). `formationFacingAuto` is true until the player explicitly rotates (Q/E,
    *  wheel, R, or a remembered facing from a previous formation) — while true, a fresh board click
@@ -222,6 +229,14 @@ export const useUiStore = create<UiState>((set, get) => ({
   settingsOpen: false,
   painterOpen: false,
   focusTarget: null,
+  cameraPreset: null,
+  requestCameraPreset: (id) => set((s) => ({ cameraPreset: { id, nonce: (s.cameraPreset?.nonce ?? 0) + 1 } })),
+  cycleCameraPreset: () =>
+    set((s) => {
+      const cur = s.cameraPreset ? PRESET_CYCLE.indexOf(s.cameraPreset.id) : -1
+      const id = PRESET_CYCLE[(cur + 1) % PRESET_CYCLE.length]!
+      return { cameraPreset: { id, nonce: (s.cameraPreset?.nonce ?? 0) + 1 } }
+    }),
   formationKind: 'line',
   formationFacing: 0,
   formationFacingAuto: true,
@@ -243,7 +258,11 @@ export const useUiStore = create<UiState>((set, get) => ({
   setDraft: (draft) => set({ draft }),
   setPreviewDraft: (previewDraft) => set({ previewDraft }),
   setMovePreview: (movePreview) => set({ movePreview }),
-  toggleTopDown: () => set((s) => ({ topDown: !s.topDown })),
+  toggleTopDown: () =>
+    set((s) => ({
+      topDown: !s.topDown,
+      cameraPreset: { id: s.topDown ? 'edgeA' : 'top', nonce: (s.cameraPreset?.nonce ?? 0) + 1 },
+    })),
   toggleMeasure: () =>
     set((s) => (s.measureOn ? { measureOn: false, measureAnchor: null, measureLine: null } : { measureOn: true })),
   setMeasureAnchor: (p) => set({ measureAnchor: p }),
@@ -259,7 +278,11 @@ export const useUiStore = create<UiState>((set, get) => ({
       saveBattlefield(i)
       return { battlefieldIndex: i }
     }),
-  focusCamera: (pos) => set({ focusTarget: { x: pos.x, z: pos.z } }),
+  focusCamera: (pos) =>
+    set((s) => ({
+      focusTarget: { x: pos.x, z: pos.z },
+      cameraPreset: { id: 'follow', nonce: (s.cameraPreset?.nonce ?? 0) + 1 },
+    })),
   primeFormation: (kind, facing, auto) => set({ formationKind: kind, formationFacing: facing, formationFacingAuto: auto }),
   setFormationKind: (kind) => set({ formationKind: kind }),
   setFormationFacing: (facing, auto) => set({ formationFacing: facing, formationFacingAuto: auto }),

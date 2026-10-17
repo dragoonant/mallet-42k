@@ -11,6 +11,9 @@ export { Lighting } from './Lighting'
 export { CameraRig } from './CameraRig'
 export type { CameraRigProps } from './CameraRig'
 
+export { cameraPose, CAMERA_TRANSITION_MS, TRANSITION_MS, easeInOut, PRESET_CYCLE, maxDistanceFor, MIN_CAMERA_DISTANCE } from './cameraPresets'
+export type { CameraPresetId, CameraPose } from './cameraPresets'
+
 export { Ruler } from './Ruler'
 export type { RulerProps } from './Ruler'
 

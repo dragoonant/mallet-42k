@@ -201,6 +201,8 @@ const SHORTCUTS: { key: string; label: string }[] = [
   { key: 'L', label: 'Toggle Line of sight' },
   { key: 'T', label: 'Top-down / Perspective' },
   { key: 'F', label: 'Focus selected unit' },
+  { key: 'V', label: 'Cycle camera view (top / your edge / far edge / follow)' },
+  { key: 'W A S D', label: 'Pan camera' },
   { key: 'Esc', label: 'Clear measurement' },
   { key: 'Right-drag', label: 'Rotate camera' },
   { key: 'Middle-drag', label: 'Pan camera' },
@@ -213,7 +215,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
 }
 
-/** Keyboard shortcuts for the battlefield tools below — M/L/T/F act on whichever unit is currently
+/** Keyboard shortcuts for the battlefield tools below — M/L/T/F/V act on whichever unit is currently
  *  selected (if any); Esc only clears the ruler, it never closes the tool. Skipped while a text
  *  field has focus or a modifier is held, so it never fights browser/OS shortcuts. */
 function useToolShortcuts() {
@@ -224,6 +226,7 @@ function useToolShortcuts() {
   const toggleTopDown = useUiStore((s) => s.toggleTopDown)
   const clearMeasure = useUiStore((s) => s.clearMeasure)
   const focusCamera = useUiStore((s) => s.focusCamera)
+  const cycleCameraPreset = useUiStore((s) => s.cycleCameraPreset)
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -248,6 +251,16 @@ function useToolShortcuts() {
           if (models.length > 0) focusCamera(modelsAnchor(models))
           break
         }
+        case 'v':
+        case 'V': {
+          cycleCameraPreset()
+          // 'follow' goes to the selected unit when there is one (focusCamera also requests the follow preset).
+          if (useUiStore.getState().cameraPreset?.id === 'follow' && state && selectedUnitId) {
+            const models = unitModels(state, selectedUnitId)
+            if (models.length > 0) focusCamera(modelsAnchor(models))
+          }
+          break
+        }
         case 'Escape':
           clearMeasure()
           break
@@ -257,7 +270,7 @@ function useToolShortcuts() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [state, selectedUnitId, toggleMeasure, toggleLos, toggleTopDown, clearMeasure, focusCamera])
+  }, [state, selectedUnitId, toggleMeasure, toggleLos, toggleTopDown, clearMeasure, focusCamera, cycleCameraPreset])
 }
 
 /** Tracks the viewport width so `ToolButtons` can collapse into a "⋯" menu below `TOOLS_COLLAPSE_PX` —
