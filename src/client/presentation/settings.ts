@@ -6,6 +6,7 @@
 import { create } from 'zustand'
 import { setSpeed as setDiceSpeed, setDiceStyle, type DiceSpeed, type DiceStyle } from '../dice'
 import { audio } from '../audio'
+import { getFormFactor } from '../ui/formFactor'
 
 /** Same vocabulary as the dice tray's own speed (src/client/dice/types.ts) — 'instant' skips both
  *  the dice tumble and the director's own pacing gaps between events. */
@@ -55,11 +56,16 @@ function isCommandRerollSetting(v: unknown): v is CommandRerollSetting {
   return v === 'always' || v === 'onlyWhenItMatters' || v === 'never'
 }
 
+/** Defaults for a first run: phones start on low graphics (no shadows, dpr 1); stored settings always win. */
+function freshDefaults(): PresentationSettings {
+  return { ...DEFAULTS, lowGraphics: getFormFactor().phone }
+}
+
 function load(): PresentationSettings {
-  if (typeof localStorage === 'undefined') return { ...DEFAULTS }
+  if (typeof localStorage === 'undefined') return freshDefaults()
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return { ...DEFAULTS }
+    if (!raw) return freshDefaults()
     const parsed = JSON.parse(raw) as Partial<PresentationSettings>
     return {
       animSpeed: isAnimSpeed(parsed.animSpeed) ? parsed.animSpeed : DEFAULTS.animSpeed,
@@ -71,7 +77,7 @@ function load(): PresentationSettings {
       battlefieldAmbience: parsed.battlefieldAmbience !== false,
     }
   } catch {
-    return { ...DEFAULTS }
+    return freshDefaults()
   }
 }
 

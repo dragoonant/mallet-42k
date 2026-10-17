@@ -16,9 +16,21 @@ import { scenarioFromUrl, startScenario } from './dev/scenarios'
 import { spikeMode } from '../spike/flag'
 import { startSpikeGame } from '../spike/driver'
 import { PerfOverlay } from '../spike/PerfOverlay'
+import { RotatePrompt } from './ui/RotatePrompt'
+import './ui/formFactor'
 
 // zIndex 10 puts every HUD panel above the board's drei <Html> labels (their zIndexRange is capped at 5).
-const overlayLayer: CSSProperties = { position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 10 }
+// Inset by the device safe areas (notch / home indicator; all 0px on desktop) so HUD panels anchored to the
+// edges stay out of those zones.
+const overlayLayer: CSSProperties = {
+  position: 'absolute',
+  top: 'var(--safe-top, 0px)',
+  right: 'var(--safe-right, 0px)',
+  bottom: 'var(--safe-bottom, 0px)',
+  left: 'var(--safe-left, 0px)',
+  pointerEvents: 'none',
+  zIndex: 10,
+}
 
 // Right-hand rail: the Dice Log with the dice tray stacked directly under it. The tray used to sit
 // bottom-centre, i.e. behind the decision prompt — owner playtest: "dice rolls are being done behind
@@ -133,6 +145,7 @@ export function App() {
         {painterOpen && <PainterPanel factions={painterFactions} initialFaction={painterFactions[0]?.id} onClose={togglePainter} />}
       </div>
       <EndScreen onPlayAgain={() => setScreen('start')} />
+      <RotatePrompt />
     </div>
   )
 }

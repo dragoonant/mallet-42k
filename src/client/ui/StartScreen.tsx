@@ -63,7 +63,8 @@ const TITLE_BG = `${import.meta.env.BASE_URL}assets/ui/title-bg.webp`
 const INTRO_MS = 3000
 const layoutCss = `
 .ss-overlay { position: fixed; inset: 0; overflow: hidden; font-family: ${fontStack};
-  color: ${colors.text}; background: #08080c; display: flex; align-items: center; justify-content: center; }
+  color: ${colors.text}; background: #08080c; display: flex; align-items: center; justify-content: center;
+  box-sizing: border-box; padding: var(--safe-top, 0px) var(--safe-right, 0px) var(--safe-bottom, 0px) var(--safe-left, 0px); }
 .ss-overlay::before { content: ''; position: fixed; inset: -40px; pointer-events: none;
   background: url(${TITLE_BG}) center / cover no-repeat; filter: blur(18px) brightness(0.45); }
 .ss-overlay::after { content: ''; position: fixed; inset: 0; pointer-events: none;
@@ -71,7 +72,7 @@ const layoutCss = `
 .ss-scrim { position: fixed; inset: 0; z-index: 1; pointer-events: none; background: rgba(4, 4, 8, 0.55);
   opacity: 0; transition: opacity 900ms ease; }
 .ss-card { position: relative; z-index: 2; width: 1180px; max-width: calc(100% - 32px); box-sizing: border-box;
-  max-height: calc(100vh - 48px); opacity: 0; visibility: hidden; transform: translateY(14px);
+  max-height: calc(100vh - 48px); max-height: calc(100dvh - 48px - var(--safe-top, 0px) - var(--safe-bottom, 0px)); opacity: 0; visibility: hidden; transform: translateY(14px);
   transition: opacity 900ms ease, transform 900ms ease, visibility 0s linear 900ms; }
 .ss-ready .ss-scrim { opacity: 1; }
 .ss-ready .ss-card { opacity: 1; visibility: visible; transform: none; transition: opacity 900ms ease, transform 900ms ease; }
@@ -80,6 +81,10 @@ const layoutCss = `
 .ss-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 @media (max-width: 1100px) { .ss-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 700px) { .ss-grid { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .ss-card { max-width: calc(100% - 16px); } }
+@media (max-height: 460px) {
+  .ss-card { max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px - var(--safe-top, 0px) - var(--safe-bottom, 0px)); }
+}
 @media (max-aspect-ratio: 1/1) {
   .ss-overlay::after { background-size: 100vw auto; background-position: center 30%; }
 }

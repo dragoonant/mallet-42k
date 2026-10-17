@@ -18,6 +18,7 @@ import { VfxLayer } from './vfx'
 import { BoardDice } from './dice/board/BoardDice'
 import { spikeMode } from '../spike/flag'
 import { PerfProbe } from '../spike/PerfProbe'
+import { getFormFactor } from './ui/formFactor'
 
 /** Area centroid of a simple polygon (shoelace). */
 function zoneCentroid(poly: { x: number; z: number }[]): { x: number; z: number } {
@@ -32,8 +33,22 @@ function zoneCentroid(poly: { x: number; z: number }[]): { x: number; z: number 
   return a === 0 ? { x: 0, z: 0 } : { x: x / (3 * a), z: z / (3 * a) }
 }
 
+// iOS drops the WebGL context under memory pressure: without preventDefault the browser never restores it
+// and the board stays black. On restore, ask the demand-driven frameloop for a fresh frame.
+function guardContext(gl: { domElement: HTMLCanvasElement }, invalidate: () => void): void {
+  const el = gl.domElement
+  // OrbitControls.dispose() (StrictMode remount, controls re-created) resets touch-action to 'auto', which
+  // would let the browser scroll/zoom the page under a finger on the board: re-assert it whenever it changes.
+  const lock = () => { if (el.style.touchAction !== 'none') el.style.touchAction = 'none' }
+  lock()
+  new MutationObserver(lock).observe(el, { attributes: true, attributeFilter: ['style'] })
+  el.addEventListener('webglcontextlost', (e) => e.preventDefault())
+  el.addEventListener('webglcontextrestored', () => invalidate())
+}
+
 export function Scene() {
   const spike = spikeMode()
+  const phone = getFormFactor().phone
   const state = useGameStore((s) => s.state)
   const displayState = useDisplayState()
   const lowGraphics = usePresentationSettings((s) => s.lowGraphics)
@@ -115,10 +130,11 @@ export function Scene() {
     <Canvas
       key={lowGraphics ? 'low' : 'hi'}
       frameloop={spike ? 'always' : 'demand'}
-      dpr={lowGraphics ? 1 : [1, 1.5]}
+      dpr={lowGraphics ? 1 : phone ? [1, 2] : [1, 1.5]}
+      onCreated={({ gl, invalidate }) => guardContext(gl, invalidate)}
       shadows={!lowGraphics}
       camera={{ position: [0, 28, 23.8], fov: 45, near: 0.1, far: 500 }}
-      style={{ position: 'absolute', inset: 0 }}
+      style={{ position: 'absolute', inset: 0, touchAction: 'none' }}
     >
       <color attach="background" args={['#0a0a10']} />
       <Lighting />
