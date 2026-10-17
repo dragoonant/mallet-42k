@@ -100,7 +100,8 @@ export const Figure = memo(function Figure({
   // faces local +Z, which three's rotation.y turns to (sin θ, cos θ); θ = π/2 − f lines them up.
   const yaw = rotationY === undefined ? 0 : Math.PI / 2 - rotationY
   const bundle = useDataBundle()
-  const glb = useGlbInstance(glbSlugFor(datasheetId, modelId, variantKey))
+  const glbSlug = glbSlugFor(datasheetId, modelId, variantKey)
+  const glb = useGlbInstance(glbSlug)
   const seedRef = useRef(Math.random() * 100)
   const groupRef = useRef<Group>(null!)
   const easedPos = useRef({ x: position[0], y: position[1], z: position[2] })
@@ -190,7 +191,7 @@ export const Figure = memo(function Figure({
     <group ref={groupRef} onClick={onClick}>
       <BaseDisc radiusX={base.radiusX} radiusZ={base.radiusZ} colors={colors} selected={selected} highlighted={highlighted} hovered={hovered} glbBody={!!glb} baseStyle={baseStyle} />
       {glowing && <GlowAura height={base.height} radius={Math.max(base.radiusX, base.radiusZ)} />}
-      {glb && <GlbBody object={glb} pose={pose} seed={seedRef.current} faction={faction} paint={paint} />}
+      {glb && <GlbBody object={glb} slug={glbSlug} radiusX={base.radiusX} radiusZ={base.radiusZ} pose={pose} seed={seedRef.current} faction={faction} paint={paint} />}
       {!glb && <group position={[0, BASE_THICKNESS, 0]} scale={[base.height, base.height, base.height]}>
         {bodyKind === 'swarm' ? (
           <SwarmBody colors={colors} pose={pose} seed={seedRef.current} />

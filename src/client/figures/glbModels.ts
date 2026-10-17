@@ -553,6 +553,26 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
 }
 
 /** The enabled GLB slug for a model type, or undefined (use the procedural figure). */
+/** Render-time corrections for GLBs whose baked `figure` node came out of the pipeline at the wrong size or facing.
+ *  `scale` multiplies the baked figure (the base node is never scaled with it: GlbBody fits the baked base disc to the
+ *  datasheet base instead). `yaw` is in quarter turns about Y, for hulls that were baked lying across their base
+ *  (figures face +Z, so a bike/skimmer's long axis must run along Z). Sizes are chosen against the real kits: an
+ *  Impulsor/Rhino overhangs its base a little, a bike or juggernaut fills its oval, a Dreadknight stands ~2.7 footsoldiers tall. */
+export const GLB_FIGURE_ADJUST: Readonly<Record<string, { scale?: number; yaw?: number }>> = {
+  'bt-impulsor': { scale: 1.8 },
+  'ba-impulsor': { scale: 1.2 },
+  'sororitas-rhino': { scale: 1.6 },
+  'onager-dunecrawler': { scale: 1.3 },
+  'nemesis-dreadknight': { scale: 1.2 },
+  'bloodcrusher': { scale: 1.3 },
+  'hernkyn-pioneer': { scale: 1.5, yaw: 1 },
+  'atalan-jackal': { scale: 1.2, yaw: -1 },
+  'atalan-jackal-power': { scale: 1.2, yaw: 1 },
+  'shanus-daskovian': { yaw: -1 },
+  'ravager': { yaw: 1 },
+  'raider': { scale: 1.4, yaw: 1 },
+}
+
 export function glbSlugFor(datasheetId: string, modelId: string | undefined, variantKey?: string): string | undefined {
   if (!modelId) return undefined
   let slug = GLB_SLUG_BY_MODEL[`${datasheetId}/${modelId}`]
