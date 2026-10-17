@@ -19,6 +19,10 @@ export interface MoveClampResult {
   /** Inches from the unit's start anchor to the draft's anchor. */
   distance: number
   maxDistance: number
+  /** The requested point was farther than `maxDistance` from the start (so the draft was pulled back along the line). */
+  outOfRange?: boolean
+  /** Engine reason the requested point itself was refused, when the draft stops short of it for a reason other than range. */
+  limitReason?: string
 }
 
 export interface MoveFormation {
@@ -87,7 +91,8 @@ export function clampMoveDraft(state: GameState, pending: PendingDecision, point
   const full = build(at(1))
   if (full.length === 0) return null
   const fullReason = rejectionOf(state, pending, info.unitId, full)
-  if (!fullReason) return wrap(at(1), full, true)
+  const outOfRange = len > limit
+  if (!fullReason) return { ...wrap(at(1), full, true), outOfRange }
   // legality is not monotone along the line (turning to face the cursor can swing an end model off the table edge
   // near the start while farther points are fine), so scan coarsely from far to near first, then bisect the gap
   // between the farthest legal sample and the illegal one just beyond it
@@ -110,8 +115,8 @@ export function clampMoveDraft(state: GameState, pending: PendingDecision, point
       if (placements) { best = { t: mid, placements }; lo = mid } else hi = mid
     }
   }
-  if (best) return wrap(at(best.t), best.placements, true)
+  if (best) return { ...wrap(at(best.t), best.placements, true), outOfRange, limitReason: fullReason }
   // nothing along the line is legal: stay where the unit stands
   const stay: ModelPlacement[] = models.map((m) => ({ modelId: m.id, pos: { ...m.pos }, facing: m.facing }))
-  return wrap(start, stay, false, fullReason)
+  return { ...wrap(start, stay, false, fullReason), outOfRange, limitReason: fullReason }
 }

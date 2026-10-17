@@ -1,7 +1,9 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type CDPSession, type Page } from '@playwright/test'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { centroid, deployZoneCandidates, makeCam, screenshotRendered, snap, type Snap, type V2 } from './helpers'
 
+// Runs on iphone-pro (WebKit: board taps are mouse clicks, the only pointer WebKit's automation can send) and on
+// pixel (Chromium: board taps and the Confirm button are real CDP touch events, pointerType 'touch').
 // Phone playthrough (M11): one iPhone Pro landscape game against the Bot, driven only by taps on the
 // visible compact UI (bottom sheet, unit chips, board taps, the TouchActionBar's Confirm, End phase). It
 // deploys all three units and plays a full battle round: command, movement, shooting, charge, fight.
@@ -27,8 +29,24 @@ async function tapWorld(page: Page, x: number, y: number, z: number): Promise<bo
   if (p.x < 4 || p.y < 4 || p.x > vp.width - 4 || p.y > vp.height - 4) return false
   const tag = await page.evaluate(([px, py]) => document.elementFromPoint(px, py)?.tagName ?? null, [p.x, p.y])
   if (tag !== 'CANVAS') return false
-  await page.mouse.click(p.x, p.y)
+  await tapAt(page, p.x, p.y)
   return true
+}
+
+// One finger tap at a pixel: a real CDP touch on the pixel project, a mouse click on WebKit.
+let cdp: CDPSession | null = null
+let touchMode = false
+async function tapAt(page: Page, x: number, y: number) {
+  if (!touchMode) return page.mouse.click(x, y)
+  cdp ??= await page.context().newCDPSession(page)
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 1 }] })
+  await page.waitForTimeout(70)
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+}
+async function tapEl(page: Page, id: string) {
+  const box = await page.getByTestId(id).boundingBox()
+  if (!box) throw new Error(`no box for ${id}`)
+  await tapAt(page, box.x + box.width / 2, box.y + box.height / 2)
 }
 
 /** Phases the human's own turn has started so far (from the store's event log, so a phase that has nothing to decide still counts). */
@@ -82,7 +100,10 @@ async function tappable(page: Page, id: string): Promise<boolean> {
 }
 
 test('phone playthrough: deploy and play one full battle round with taps only', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== 'iphone-pro', 'one phone form factor is enough for the playthrough')
+  test.skip(testInfo.project.name !== 'iphone-pro' && testInfo.project.name !== 'pixel', 'iphone-pro (mouse taps) and pixel (CDP touch) are the two phone paths')
+  const tag = testInfo.project.name === 'pixel' ? 'pixel-' : ''
+  touchMode = testInfo.project.name === 'pixel'
+  cdp = null
   test.setTimeout(BUDGET_MS + 120_000)
   mkdirSync('e2e-out', { recursive: true })
   page.setDefaultTimeout(6_000) // a tap that cannot land is a finding, not a ten-minute wait
@@ -111,7 +132,7 @@ test('phone playthrough: deploy and play one full battle round with taps only', 
   let shotNo = 0
   const shoot = async (label: string) => {
     shotNo++
-    const f = `e2e-out/mobile-play-${String(shotNo).padStart(2, '0')}-${label}.png`
+    const f = `e2e-out/mobile-play-${tag}${String(shotNo).padStart(2, '0')}-${label}.png`
     await screenshotRendered(page, f)
     shots.push(f)
   }
@@ -120,6 +141,7 @@ test('phone playthrough: deploy and play one full battle round with taps only', 
   let lastId = ''
   let lastChange = start
   let moves = 0
+  let boardMoves = 0
   let usedShot = false
   let turnKey = ''
   let deployShot = false
@@ -166,8 +188,7 @@ test('phone playthrough: deploy and play one full battle round with taps only', 
     }
     if (p.kind === 'moveUnit' && s.phase === 'movement' && moves < 3) {
       moves++
-      if (await stageAndConfirmMove(page, s, note)) continue
-      note('FALLBACK movement: no board tap could stage a move; used the suggested list instead')
+      if (await stageAndConfirmMove(page, s, note)) { boardMoves++; continue }
     }
     if (p.kind === 'declareTargets' && !usedShot) {
       if (await shootViaTaps(page, s, note)) { usedShot = true; continue }
@@ -180,11 +201,12 @@ test('phone playthrough: deploy and play one full battle round with taps only', 
   await page.waitForTimeout(500)
   await shoot('end')
   const final = await snap(page)
-  writeFileSync('e2e-out/mobile-play-log.json', JSON.stringify({ final: { round: final.round, phase: final.phase, active: final.active }, seenPhases: [...seenPhases], humanPhases: [...humanPhases], notes, shots, errors: [...new Set(errors)] }, null, 2))
+  writeFileSync(`e2e-out/mobile-play-${tag}log.json`, JSON.stringify({ final: { round: final.round, phase: final.phase, active: final.active }, seenPhases: [...seenPhases], humanPhases: [...humanPhases], notes, shots, errors: [...new Set(errors)] }, null, 2))
   console.log(JSON.stringify({ round: final.round, seen: [...seenPhases], human: [...humanPhases] }))
 
   expect(errors, 'no console errors').toEqual([])
-  expect(notes.filter((n) => n.startsWith('BLOCKER?')), 'no prompt stalled').toEqual([])
+  expect(notes.filter((n) => n.startsWith('BLOCKER?')), 'no prompt stalled / no movement fallback').toEqual([])
+  expect(boardMoves, 'at least one move staged and confirmed by tapping the board').toBeGreaterThanOrEqual(1)
   const mine = final.units.filter((u) => u.player === final.humanSeat)
   expect(mine.filter((u) => u.loc !== 'board' && u.loc !== 'reserves' && u.loc !== 'destroyed'), 'every unit deployed').toEqual([])
   const started = await humanStartedPhases(page)
@@ -202,14 +224,15 @@ async function deploy(page: Page, s: Snap, cam: ReturnType<typeof makeCam>, note
   const zone: V2[] = p.context.zone
   await settleView(page, centroid(zone))
   const taken = s.units.filter((u) => u.player === p.player && u.loc === 'board').length
-  const pts = deployZoneCandidates(zone, s.pieces, taken, cam, 852, 393)
+  const vp = page.viewportSize()!
+  const pts = deployZoneCandidates(zone, s.pieces, taken, cam, vp.width, vp.height)
   for (const pt of pts) {
     if (await visible(page, 'touch-cancel')) await page.getByTestId('touch-cancel').click()
     if (!(await tapWorld(page, pt.x, 0.1, pt.z))) continue
     await page.waitForTimeout(150)
     const ok = page.getByTestId('touch-confirm')
     if (!(await ok.isVisible().catch(() => false)) || !(await ok.isEnabled().catch(() => false))) continue
-    await ok.click()
+    await (touchMode ? tapEl(page, 'touch-confirm') : ok.click())
     await page.waitForTimeout(250)
     if ((await snap(page)).pending?.id !== p.id) return
   }
@@ -220,31 +243,84 @@ async function deploy(page: Page, s: Snap, cam: ReturnType<typeof makeCam>, note
   await answerOther(page, s, note)
 }
 
+/** Legal destinations for the pending move (the engine's own candidate placements, from the store's legal list). */
+async function legalDestinations(page: Page, unitId: string): Promise<V2[]> {
+  return page.evaluate((uid) => {
+    const g = (window as unknown as { __mallet: { useGameStore: { getState(): { legal: { type: string; unitId?: string; placements?: { pos: { x: number; z: number } }[] }[] | null } } } }).__mallet.useGameStore.getState()
+    const out: V2[] = []
+    for (const a of g.legal ?? []) {
+      if (a.type !== 'moveUnit' || a.unitId !== uid || !a.placements?.length) continue
+      out.push({ x: a.placements.reduce((t, q) => t + q.pos.x, 0) / a.placements.length, z: a.placements.reduce((t, q) => t + q.pos.z, 0) / a.placements.length })
+    }
+    return out
+  }, unitId)
+}
+
+/** Aim the camera so `target` lands on open board (not under the sheet, formation strip or camera column). Returns its pixel, or null. */
+async function frameFor(page: Page, target: V2, start: V2): Promise<{ x: number; y: number } | null> {
+  return page.evaluate(({ target, start }) => {
+    const w = window as unknown as { __malletCamera: { lookAt(x: number, z: number, d: number): void }; __malletProject: (x: number, y: number, z: number) => { x: number; y: number } }
+    const W = window.innerWidth
+    const H = window.innerHeight
+    const open = (p: { x: number; y: number }) => {
+      if (p.x < 50 || p.x > W - 120 || p.y < 70 || p.y > H - 40) return false
+      const el = document.elementFromPoint(p.x, p.y)
+      return !el || el.tagName === 'CANVAS'
+    }
+    const mx = (target.x + start.x) / 2
+    const mz = (target.z + start.z) / 2
+    for (const dist of [18, 24, 14]) {
+      for (const r of [0, 3, 6, 9]) {
+        for (let i = 0; i < (r ? 12 : 1); i++) {
+          w.__malletCamera.lookAt(mx + Math.cos((i / 12) * Math.PI * 2) * r, mz + Math.sin((i / 12) * Math.PI * 2) * r, dist)
+          const p = w.__malletProject(target.x, 0.1, target.z)
+          const s0 = w.__malletProject(start.x, 0.1, start.z)
+          if (open(p) && s0.x > 0 && s0.x < W && s0.y > 0 && s0.y < H) return p
+        }
+      }
+    }
+    return null
+  }, { target, start })
+}
+
 async function stageAndConfirmMove(page: Page, s: Snap, note: (s: string) => void): Promise<boolean> {
   const p = s.pending!
   const u = s.units.find((x) => x.id === p.context.unitId)
-  const enemy = s.units.filter((e) => e.player !== p.player && e.loc === 'board' && e.models.length)
-  if (!u || !enemy.length) return false
+  if (!u || !u.models.length) return false
   const a = centroid(u.models)
-  const t = enemy.map((e) => centroid(e.models)).sort((q, r) => Math.hypot(q.x - a.x, q.z - a.z) - Math.hypot(r.x - a.x, r.z - a.z))[0]
-  const base = Math.atan2(t.z - a.z, t.x - a.x)
   const max = p.constraints?.maxDistance ?? 6
-  for (const frac of [0.7, 0.4]) {
-    for (const da of [0, 0.5, -0.5, 1.0, -1.0]) {
-      const d = Math.max(1, max * frac)
-      if (await visible(page, 'touch-cancel')) await page.getByTestId('touch-cancel').click()
-      if (!(await tapWorld(page, a.x + Math.cos(base + da) * d, 0.1, a.z + Math.sin(base + da) * d))) continue
-      await page.waitForTimeout(200)
-      const ok = page.getByTestId('touch-confirm')
-      if (!(await ok.isVisible().catch(() => false)) || !(await ok.isEnabled().catch(() => false))) continue
-      await screenshotRendered(page, 'e2e-out/mobile-play-staged-move.png')
-      await ok.click()
-      await page.waitForTimeout(250)
-      if ((await snap(page)).pending?.id !== p.id) return true
+  // the engine's own legal destinations first (farthest first), then a ring of guesses
+  const cands = (await legalDestinations(page, u.id)).filter((c) => Math.hypot(c.x - a.x, c.z - a.z) > 1).sort((q, r) => Math.hypot(r.x - a.x, r.z - a.z) - Math.hypot(q.x - a.x, q.z - a.z))
+  for (const frac of [0.8, 0.5]) for (let i = 0; i < 8; i++) cands.push({ x: a.x + Math.cos((i / 8) * Math.PI * 2) * max * frac, z: a.z + Math.sin((i / 8) * Math.PI * 2) * max * frac })
+  const log: string[] = []
+  for (const c of cands.slice(0, 12)) {
+    if (await visible(page, 'touch-cancel')) await tapEl(page, 'touch-cancel')
+    const px = await frameFor(page, c, a)
+    if (!px) { log.push(`(${c.x.toFixed(1)},${c.z.toFixed(1)}) no open pixel`); continue }
+    await page.waitForTimeout(300)
+    const px2 = await project(page, c.x, 0.1, c.z)
+    if (!(await tapWorld(page, c.x, 0.1, c.z))) { log.push(`(${c.x.toFixed(1)},${c.z.toFixed(1)}) pixel ${Math.round(px2.x)},${Math.round(px2.y)} not canvas`); continue }
+    await page.waitForTimeout(300)
+    const staged = await page.evaluate(() => {
+      const d = (window as unknown as { __mallet: { useUiStore: { getState(): { draft: { anchor: { x: number; z: number } } | null } } } }).__mallet.useUiStore.getState().draft
+      return d ? { x: d.anchor.x, z: d.anchor.z } : null
+    })
+    const moved = staged ? Math.hypot(staged.x - a.x, staged.z - a.z) : -1
+    const ok = page.getByTestId('touch-confirm')
+    const enabled = (await ok.isVisible().catch(() => false)) && (await ok.isEnabled().catch(() => false))
+    if (!staged || moved < 0.5 || !enabled) {
+      const why = (await page.getByTestId('touch-reason').textContent().catch(() => null)) ?? 'none'
+      log.push(`(${c.x.toFixed(1)},${c.z.toFixed(1)}) staged=${staged ? moved.toFixed(1) : 'no'} confirm=${enabled} reason=${why}`)
+      continue
     }
+    await screenshotRendered(page, `e2e-out/mobile-play-${touchMode ? 'pixel-' : ''}staged-move.png`)
+    await tapEl(page, 'touch-confirm')
+    await page.waitForTimeout(400)
+    if ((await snap(page)).pending?.id !== p.id) return true
+    log.push(`(${c.x.toFixed(1)},${c.z.toFixed(1)}) Confirm did not advance the decision (toast: ${(await snap(page)).toast})`)
   }
-  if (await visible(page, 'touch-cancel')) await page.getByTestId('touch-cancel').click()
-  note('FALLBACK movement: board-tap move rejected at every candidate')
+  if (await visible(page, 'touch-cancel')) await tapEl(page, 'touch-cancel')
+  note(`BLOCKER? movement: no board tap staged and confirmed a move for ${u.name}: ${log.join(' | ')}`)
   return false
 }
 

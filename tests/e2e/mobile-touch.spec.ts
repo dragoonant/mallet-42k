@@ -172,6 +172,23 @@ test('phone: one-finger tap, drag a model, Confirm from the action bar', async (
 
   // (d) tap Confirm with a real touch at the button's centre
   const confirm = page.getByTestId('touch-confirm')
+  // The drag above proved a model can be pulled by one finger. A drag that happens to push the unit into a wall leaves a
+  // staged move that is rightly blocked (Confirm disabled with a reason); then start over with a plain tap on open
+  // ground and confirm that, so the commit-by-touch path is still proven.
+  if (await confirm.isDisabled()) {
+    await expect(page.getByTestId('touch-reason')).toBeVisible()
+    await page.getByTestId('touch-cancel').click()
+    let restaged = false
+    for (const c of candidates.slice(0, 40)) {
+      await touch('touchStart', c.x, c.y)
+      await page.waitForTimeout(80)
+      await touch('touchEnd')
+      await page.waitForTimeout(500)
+      if ((await stagedDistance()) > 1 && (await confirm.isEnabled().catch(() => false))) { restaged = true; break }
+      if (await page.getByTestId('touch-cancel').isVisible().catch(() => false)) await page.getByTestId('touch-cancel').click()
+    }
+    expect(restaged).toBe(true)
+  }
   await expect(confirm).toBeEnabled()
   const box = (await confirm.boundingBox())!
   expect(box.height).toBeGreaterThanOrEqual(44)
@@ -243,5 +260,52 @@ test('phone: two fingers move the camera (pinch zoom, twist) and never start a s
   const selAfter = await page.evaluate(() => (window as unknown as { __mallet: { useUiStore: { getState(): { selectedUnitId?: string | null } } } }).__mallet.useUiStore.getState().selectedUnitId ?? null)
   expect(selAfter).toBe(selBefore)
   await page.screenshot({ path: 'e2e-out/mobile-pixel-07-two-finger-camera.png' })
+  expect(errors).toEqual([])
+})
+
+test('phone: a tap beyond the move range says why instead of silently doing nothing', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'pixel', 'needs Chromium CDP touch injection')
+  mkdirSync('e2e-out', { recursive: true })
+  const errors: string[] = []
+  page.on('pageerror', (e) => errors.push(String(e)))
+  await page.goto('./?scenario=floor-picker')
+  await page.waitForFunction(() => !!(window as unknown as Partial<Win>).__malletProject, null, { timeout: LOAD_MS })
+  await page.evaluate(() => (window as unknown as { __mallet: { useUiStore: { getState(): { toggleTopDown(): void } } } }).__mallet.useUiStore.getState().toggleTopDown())
+  await settleCamera(page)
+  const unit = await page.evaluate(() => {
+    const w = window as unknown as Win
+    const gs = w.__mallet.useGameStore.getState().state
+    const pend = (w.__mallet.useGameStore.getState() as unknown as { pending: { context: { unitId: string }; constraints: { maxDistance: number } } }).pending
+    const ids = gs.units[pend.context.unitId].models
+    const cx = ids.reduce((a, id) => a + gs.models[id].pos.x, 0) / ids.length
+    const cz = ids.reduce((a, id) => a + gs.models[id].pos.z, 0) / ids.length
+    w.__malletCamera.lookAt(cx, cz + 2, 26)
+    return { cx, cz, max: pend.constraints.maxDistance }
+  })
+  await settleCamera(page)
+  // a spot well past the move allowance, on open canvas (not under a HUD panel)
+  const far = await page.evaluate(({ cx, cz, max }) => {
+    const w = window as unknown as Win
+    for (let i = 0; i < 24; i++) {
+      const x = cx + Math.cos((i / 24) * Math.PI * 2) * (max + 5)
+      const z = cz + Math.sin((i / 24) * Math.PI * 2) * (max + 5)
+      const p = w.__malletProject(x, 0.1, z)
+      if (p.x < 50 || p.x > window.innerWidth - 120 || p.y < 70 || p.y > window.innerHeight - 40) continue
+      const el = document.elementFromPoint(p.x, p.y)
+      if (!el || el.tagName === 'CANVAS') return { x: p.x, y: p.y }
+    }
+    return null
+  }, unit)
+  expect(far).not.toBeNull()
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: far!.x, y: far!.y, id: 1 }] })
+  await page.waitForTimeout(70)
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  // the tap is either staged at the farthest legal spot (with an "Out of range" / "short of" note) or refused with its reason
+  const toast = page.getByText(/Out of range|Can't move there|Staged short/)
+  await expect(toast).toBeVisible({ timeout: 5_000 })
+  const anchor = await page.evaluate(() => (window as unknown as { __mallet: { useUiStore: { getState(): { draft: { anchor: Pt } | null } } } }).__mallet.useUiStore.getState().draft?.anchor ?? null)
+  if (anchor) expect(Math.hypot(anchor.x - unit.cx, anchor.z - unit.cz)).toBeLessThanOrEqual(unit.max + 0.01)
+  await page.screenshot({ path: 'e2e-out/mobile-pixel-08-out-of-range-tap.png' })
   expect(errors).toEqual([])
 })

@@ -8,6 +8,7 @@ import { BATTLEFIELDS, useBattlefieldPBR } from './terrainAssets'
 import { useUiStore } from '../ui/uiStore'
 import { useGameStore } from '../store/game'
 import { isMultiTouchActive, onMultiTouchStart } from './touchCamera'
+import { handleMoveTap } from '../interaction/touchMoveTap'
 import { beginPreviewDrag, cancelOneFinger, canPreviewDrag, getGesture, groundPointAt, installTouchGestures, liftFor, type TouchGesture } from '../interaction/touchGesture'
 import { SIDE_COLOR, type DeploymentZones, type PlayerId } from './types'
 
@@ -136,11 +137,21 @@ export function Board({ width: widthProp, depth: depthProp, deploymentZones, att
       return
     }
     // 'up'
-    if (!g.dragged) return onBoardPointer(g.downPoint, 'up')
+    if (!g.dragged) {
+      // a tap on open ground stages a move, or says why not; a tap on a figure keeps its normal meaning (select / activate)
+      if (handleMoveTap(g.downPoint, !!g.pressUnitId)) return
+      return onBoardPointer(g.downPoint, 'up')
+    }
     if (ui.measureOn) return onBoardPointer(raw, 'up')
     if (ui.nudge) return onBoardPointer(lifted(), 'up')
     if (g.previewDrag) {
       const p = lifted()
+      if (handleMoveTap(p)) {
+        // the drag ended somewhere the unit cannot go: leave things as they were before the finger went down
+        useUiStore.getState().setDraft(g.preDraft)
+        useUiStore.getState().setMovePreview(null)
+        return
+      }
       onBoardPointer(p, 'down')
       onBoardPointer(p, 'up')
     }
