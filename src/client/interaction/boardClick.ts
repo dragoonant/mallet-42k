@@ -13,7 +13,7 @@ import { combinedUnitIds, combinedUnitModels, modelsAnchor, type Anchor2D } from
 import { directionFacing, formationPlacementsForUnit, zoneFacing, type FormationKind, type FormationPlacement } from './formations'
 import { placementInfo } from './decisions'
 import { clampMoveDraft, moveFacing } from './moveClamp'
-import { deployUnitInfiltrates, inInfiltratorArea, validateDraft } from './formationValidation'
+import { deployUnitInfiltrates, inInfiltratorArea, oversizeDeployZone, snapOversizeDeployPlacements, validateDraft } from './formationValidation'
 
 /** Average of a convex polygon's own vertices — always interior for the rectangle/triangle deployment
  *  zones Combat Patrol missions use — used as the "pull toward here" target when a click-drafted
@@ -35,6 +35,7 @@ function formationFitsZone(state: GameState, models: Model[], placements: Format
   for (const p of placements) {
     const m = byId.get(p.modelId)
     if (!m) continue
+    if (oversizeDeployZone(state, m)) continue // snapped onto the battlefield edge afterwards (snapOversizeDeployPlacements)
     const fp = { pos: p.pos, facing: p.facing, base: m.base }
     if (!whollyWithinPolygon(fp, zone)) return false
     if (!whollyOnBoard(fp, state.board)) return false
@@ -172,7 +173,7 @@ function findOpenDeploySpot(
   for (const k of [kind, ...ZONE_FIT_FALLBACK_KINDS.filter((x) => x !== kind)]) for (const f of facings) combos.push({ kind: k, facing: f })
   for (const a of anchors) {
     for (const c of combos) {
-      const placements = formationPlacementsForUnit(state, unitId, a, c.facing, c.kind)
+      const placements = snapOversizeDeployPlacements(state, models, formationPlacementsForUnit(state, unitId, a, c.facing, c.kind))
       if (placements.length === 0 || !formationFitsZone(state, models, placements, zone)) continue
       if (validateDraft(state, models, placements, null, exclude, true).ok) return { anchor: a, placements, facing: c.facing, kind: c.kind }
     }
@@ -300,6 +301,9 @@ export function computeBoardClickDraft(
     }
     let clamped = clampAnchorToZone(state, deployTargetUnitId, models, point, facing, kind, pending.context.zone)
     if (clamped.placements.length === 0) return null
+    // a model too big for the zone snaps onto the battlefield edge (Rules Commentary "Deploying Units")
+    clamped = { ...clamped, placements: snapOversizeDeployPlacements(state, models, clamped.placements) }
+    if (models.length === 1) clamped = { ...clamped, anchor: { x: clamped.placements[0].pos.x, z: clamped.placements[0].pos.z } }
     // Crowded strip: the clamped draft overlaps a unit already deployed — hunt for the nearest spot that really fits.
     if (!validateDraft(state, models, clamped.placements, null, combinedUnitIds(state, deployTargetUnitId), true).ok) {
       const open = findOpenDeploySpot(state, deployTargetUnitId, models, point, clamped.facing, clamped.kind, pending.context.zone)

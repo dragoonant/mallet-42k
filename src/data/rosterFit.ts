@@ -1,7 +1,7 @@
-// Shared by the engine's setup, the client deploy panel and the tests: does a base fit inside a mission's deployment zones?
-// A base wider than the narrowest zone side (Onager Dunecrawler, 130 mm = 5.12", versus cp-01's 5" strips) leaves deployUnit
-// with no legal placement, so such a unit starts the battle in Reserves instead and arrives later as Strategic Reserves
-// (see `oversizeReserveRefs` in src/engine/state.ts). This file only does the geometry; it imports nothing at runtime.
+// Shared by the engine's geometry, the client deploy panel and the tests: does a base fit inside a mission's deployment zones?
+// A base wider than the narrowest zone side (Onager Dunecrawler, 130 mm = 5.12", versus cp-01's 5" strips) cannot be set up wholly
+// within the zone, so by the Rules Commentary "Deploying Units" it is set up touching its player's battlefield edge instead
+// (see `oversizeEdgePlacementOk` in src/engine/geometry.ts). This file only does the geometry; it imports nothing at runtime.
 type Pt = { x: number; z: number }
 
 /** The narrowest side (inches) of the bounding box of any deployment zone: the most room a single base can count on. */

@@ -60,7 +60,7 @@ describe('AI deployment completes', () => {
     const patrols = Object.keys(bundle.patrols).sort()
     const missions = Object.keys(bundle.missions).sort()
     const full = process.env.SWEEP_FULL === '1'
-    // an oversize base (Onager Dunecrawler vs cp-01's 5" strips) is set aside in Reserves at setup, so every pairing deploys
+    // an oversize base (Onager Dunecrawler vs cp-01's 5" strips) deploys touching its battlefield edge, so every pairing deploys
     const deployable = (_m: string, _a: string, _b: string) => true
     for (let m = 0; m < missions.length; m++) {
       if (full) {

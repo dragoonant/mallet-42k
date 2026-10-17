@@ -14,7 +14,7 @@ import {
   isCoherent,
   otherPlayer,
   partlyWithinPolygon,
-  whollyOnBoard, growConvexPolygon,
+  whollyOnBoard, growConvexPolygon, isOversizeForZone, oversizeEdgePlacementOk, snapToBattlefieldEdge,
   whollyWithinPolygon,
   type Footprint,
   type GameState,
@@ -26,6 +26,27 @@ import {
   type UnitId,
   type Vec3,
 } from '@/engine'
+
+/** Rules Commentary "Deploying Units": during pre-battle deployment a model too big for the zone is set up touching the
+ *  player's battlefield edge. Returns that zone when `model` is such a model for the pending deployment (else null). */
+export function oversizeDeployZone(state: GameState, model: Model): Polygon | null {
+  const p = state.pending
+  if (!p || p.kind !== 'deployUnit' || p.window !== 'deployment.unit' || p.constraints.mustTouch) return null
+  return isOversizeForZone(model.base, p.context.zone) ? p.context.zone : null
+}
+
+/** Drag/click snap: moves every oversize model of a deployment draft so its base touches the battlefield edge (engine helper
+ *  `snapToBattlefieldEdge`); every other placement is returned untouched. */
+export function snapOversizeDeployPlacements<T extends { modelId: ModelId; pos: Vec3; facing?: number }>(state: GameState, models: Model[], placements: T[]): T[] {
+  const byId = new Map(models.map((m) => [m.id, m]))
+  return placements.map((p) => {
+    const m = byId.get(p.modelId)
+    const zone = m ? oversizeDeployZone(state, m) : null
+    if (!m || !zone) return p
+    const at = snapToBattlefieldEdge({ pos: p.pos, facing: p.facing ?? m.facing, base: m.base }, zone, state.board)
+    return { ...p, pos: { ...p.pos, x: at.x, z: at.z } }
+  })
+}
 
 export interface DraftPlacement { modelId: ModelId; pos: Vec3; facing?: number }
 
@@ -145,12 +166,25 @@ export function validateDraft(
   // more than 9" from the enemy zone and models. The engine tries the zone first, then that area, for the
   // whole drop, so the same all-or-nothing choice is made here.
   const infiltrates = !!pendingDeploy && !constraints && models.some((m) => pendingDeploy.context.infiltrators.includes(m.unitId))
-  const allInZone = !region || finals.every((f) => whollyWithinPolygon(f.fp, region))
+  // Rules Commentary "Deploying Units": a model too big for the deployment zone is set up touching the battlefield edge instead
+  const edgeRule = !!pendingDeploy && !constraints && pendingDeploy.window === 'deployment.unit'
+  const oversize = (m: ModelId): boolean => {
+    const model = byId.get(m)
+    return edgeRule && !!region && !!model && isOversizeForZone(model.base, region)
+  }
+  const inRegion = (f: { modelId: ModelId; fp: Footprint }): boolean =>
+    !region || (oversize(f.modelId) ? oversizeEdgePlacementOk(f.fp, region, state.board) : whollyWithinPolygon(f.fp, region))
+  const allInZone = !region || finals.every(inRegion)
   const useInfiltration = infiltrates && !allInZone && !!pendingDeploy && inInfiltratorArea(state, pendingDeploy.player, finals.map((f) => f.fp))
   for (const f of finals) {
-    if (region && !useInfiltration && !whollyWithinPolygon(f.fp, region)) {
-      addReason(perModel, f.modelId, `outside ${regionLabel}`)
-      reasonSet.add(`Part of the unit is outside ${regionLabel}`)
+    if (region && !useInfiltration && !inRegion(f)) {
+      if (oversize(f.modelId)) {
+        addReason(perModel, f.modelId, 'too big for the zone: its base must touch your battlefield edge')
+        reasonSet.add('A model too big for the deployment zone must be set up with its base touching your battlefield edge')
+      } else {
+        addReason(perModel, f.modelId, `outside ${regionLabel}`)
+        reasonSet.add(`Part of the unit is outside ${regionLabel}`)
+      }
     }
     if (!whollyOnBoard(f.fp, state.board)) {
       addReason(perModel, f.modelId, 'outside the battlefield')

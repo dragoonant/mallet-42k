@@ -27,7 +27,7 @@ import { commitStagedDraft } from '../interaction/commitDraft'
 import { FormationPicker } from './FormationPicker'
 import { WeaponPanel } from './WeaponPanel'
 import { opensWeaponPanel } from '../interaction/decisions'
-import { baseFitsRoom, deploymentRoom } from '../../data/rosterFit'
+import { isOversizeForZone } from '../../engine/geometry'
 import { groupLabel, groupUnitIds, soleDeployUnit } from '../interaction/embarkGroup'
 import { rerollTrayModel, rollForOffer } from './rerollInfo'
 import { RerollTray } from './RerollTray'
@@ -1645,16 +1645,15 @@ function DecisionPromptBody() {
       )}
 
       {pending.kind === 'deployUnit' && state.phase === 'deployment' && (() => {
-        // a unit whose base is wider than the narrowest deployment zone side was set aside in Reserves when the game was created
-        const room = deploymentRoom(state.mission.data.deploymentZones)
-        const names = Object.values(state.units)
-          .filter((u) => u.player === pending.player && u.location === 'reserves' && state.setup.players[pending.player].reserves.includes(u.ref)
-            && u.models.some((id) => !baseFitsRoom(state.models[id].base, room)))
+        // Rules Commentary "Deploying Units": a model too big for the zone must be set up touching your battlefield edge
+        const names = pending.context.unitIds
+          .map((id) => state.units[id])
+          .filter((u) => u && u.models.some((id) => isOversizeForZone(state.models[id].base, pending.context.zone)))
           .map((u) => u.name)
         if (names.length === 0) return null
         return (
-          <div style={{ fontSize: 12, opacity: 0.85, marginTop: 6 }} data-testid="oversize-reserves-note">
-            {names.join(', ')} starts in Reserves: its base is too wide to stand inside this deployment zone. It joins the battle later, from round 2.
+          <div style={{ fontSize: 12, opacity: 0.85, marginTop: 6 }} data-testid="oversize-edge-note">
+            {names.join(', ')}: too big for this deployment zone, so it has to be set up with its base touching your battlefield edge. Drag it to that edge and it snaps into place.
           </div>
         )
       })()}

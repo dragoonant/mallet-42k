@@ -1,6 +1,7 @@
 // Measurement (W1-A): base-to-base 3D distance, within / wholly within, engagement range, coherency, pivots, paths,
 // placement validation (10-rules §2, 00-arch §7). Pure functions over Model / Vec3 / Polygon; no state mutation.
 import type { Polygon, Vec2 } from '../data/types'
+import { baseFitsRoom, deploymentRoom } from '../data/rosterFit'
 import { surfaceY } from './terrain'
 import type { Board, Model, ModelBase, ModelId, MoveConstraints, Objective, Path, Rejection, Vec3 } from './types'
 
@@ -509,4 +510,54 @@ export function playerBattlefieldEdge(board: Pick<Board, 'w' | 'h'>, zone: Polyg
   const cx = zone.reduce((n, p) => n + p.x, 0) / Math.max(1, zone.length), cz = zone.reduce((n, p) => n + p.z, 0) / Math.max(1, zone.length)
   const d = { L: cx + hw, R: hw - cx, T: cz + hh, B: hh - cz }
   return ([...['L', 'R', 'T', 'B']] as ('L' | 'R' | 'T' | 'B')[]).sort((x, y) => d[x] - d[y])[0]
+}
+
+// Rules Commentary "Deploying Units": a model whose base is too big to be set up wholly within its deployment zone is set up
+// touching its player's battlefield edge instead. "Oversize" = the base's narrow side exceeds the narrowest side of the zone's
+// bounding box (the same test `baseFitsRoom` gives the roster/mission pairing code).
+export function isOversizeForZone(base: ModelBase, zone: Polygon): boolean {
+  return !baseFitsRoom(base, deploymentRoom({ A: zone, B: zone }))
+}
+
+// gap (inches) from the base outline to the given board side; negative when the outline pokes past it
+export function gapToBoardSide(fp: Footprint, board: Pick<Board, 'w' | 'h'>, side: 'L' | 'R' | 'T' | 'B'): number {
+  const hw = board.w / 2, hh = board.h / 2
+  let gap = Infinity
+  for (const e of baseEdgePoints(fp)) {
+    const g = side === 'L' ? e.x + hw : side === 'R' ? hw - e.x : side === 'T' ? e.z + hh : hh - e.z
+    if (g < gap) gap = g
+  }
+  return gap
+}
+
+export const EDGE_TOUCH_TOLERANCE = 0.05
+
+// an oversize model is correctly set up when it is wholly on the board, its outline touches (within 0.05") the player's
+// battlefield edge, and its centre lies in the zone (so it sits at the zone's edge rather than somewhere along the board side)
+export function oversizeEdgePlacementOk(fp: Footprint, zone: Polygon, board: Pick<Board, 'w' | 'h'>): boolean {
+  if (!whollyOnBoard(fp, board)) return false
+  if (!pointInPolygon(fp.pos, zone)) return false
+  return gapToBoardSide(fp, board, playerBattlefieldEdge(board, zone)) <= EDGE_TOUCH_TOLERANCE + EPS
+}
+
+// the centre that puts `fp`'s outline on the player's battlefield edge (0.01" inside it) and keeps the whole outline on the board
+// and the centre within the zone's span along that edge; the free coordinate stays as close to `fp.pos` as those limits allow
+// (client drag snap and AI placement)
+export function snapToBattlefieldEdge(fp: Footprint, zone: Polygon, board: Pick<Board, 'w' | 'h'>): Vec2 {
+  const side = playerBattlefieldEdge(board, zone)
+  const pad = 0.01
+  const gap = gapToBoardSide(fp, board, side) - pad
+  const shift = side === 'L' || side === 'T' ? -gap : gap
+  const alongX = side === 'T' || side === 'B' // the free axis runs along the board side
+  const edge = baseEdgePoints(fp)
+  const free = (p: Vec2): number => (alongX ? p.x : p.z)
+  const half = (alongX ? board.w : board.h) / 2
+  const lo = Math.min(...edge.map(free)) - free(fp.pos), hi = Math.max(...edge.map(free)) - free(fp.pos)
+  const zs = zone.map(free)
+  const zLo = Math.min(...zs) + pad, zHi = Math.max(...zs) - pad
+  let c = free(fp.pos)
+  c = Math.max(Math.min(c, zHi), zLo)
+  c = Math.min(c, half - pad - hi)
+  c = Math.max(c, -half + pad - lo)
+  return alongX ? { x: c, z: fp.pos.z + shift } : { x: fp.pos.x + shift, z: c }
 }
