@@ -19,6 +19,16 @@ const FOCUS_DISTANCE_IN = 16
 const FOCUS_EASE = 0.12
 const FOCUS_DONE_EPS = 0.05
 
+/** window event that asks the rig to ease back to the default overview framing (board centre, starting distance). */
+const OVERVIEW_EVENT = 'mallet:camera-overview'
+
+/** Eases the camera back to the default overview framing (centre of the board, the distance it started at, current
+ *  heading kept). Used by the phone deployment flow, which zooms in on the zone for each unit and must not leave the
+ *  camera there for the rest of the game. */
+export function requestCameraOverview(): void {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(OVERVIEW_EVENT))
+}
+
 export interface CameraRigProps {
   /** Ease toward a straight-down view when true, back to the standard overview when false. */
   topDown?: boolean
@@ -38,7 +48,8 @@ export interface CameraRigProps {
 export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150, focusTarget = null, viewFromFar = false }: CameraRigProps) {
   const controls = useRef<OrbitControlsImpl | null>(null)
   const targetPolar = useRef(OVERVIEW_POLAR)
-  const pendingFocus = useRef<{ x: number; z: number } | null>(null)
+  const pendingFocus = useRef<{ x: number; z: number; dist?: number } | null>(null)
+  const homeDist = useRef<number | null>(null)
   const { camera, gl, scene } = useThree()
   useEffect(() => (probeEnabled() ? installTerrainProbe(scene) : undefined), [scene])
   const invalidate = useThree((s) => s.invalidate)
@@ -122,6 +133,21 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
     })
   }, [gl, camera, invalidate])
 
+  // Remember the starting distance so "overview" means the same framing the game opened with.
+  useEffect(() => {
+    const c = controls.current
+    if (c && homeDist.current === null) homeDist.current = camera.position.distanceTo(c.target)
+    const onOverview = () => {
+      const ctl = controls.current
+      if (!ctl) return
+      pendingFocus.current = { x: 0, z: 0, dist: homeDist.current ?? camera.position.distanceTo(ctl.target) }
+      targetPolar.current = OVERVIEW_POLAR
+      invalidate()
+    }
+    window.addEventListener(OVERVIEW_EVENT, onOverview)
+    return () => window.removeEventListener(OVERVIEW_EVENT, onOverview)
+  }, [camera, invalidate])
+
   useEffect(() => {
     if (focusTarget) pendingFocus.current = { x: focusTarget.x, z: focusTarget.z }
   }, [focusTarget])
@@ -168,13 +194,13 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
 
     if (pendingFocus.current) {
       state.invalidate()
-      const { x: tx, z: tz } = pendingFocus.current
+      const { x: tx, z: tz, dist: goalDist } = pendingFocus.current
       const dir = camera.position.clone().sub(c.target)
       const curDist = Math.max(dir.length(), 0.001)
       dir.normalize()
       const nextTx = THREE.MathUtils.lerp(c.target.x, tx, FOCUS_EASE)
       const nextTz = THREE.MathUtils.lerp(c.target.z, tz, FOCUS_EASE)
-      const desiredDist = THREE.MathUtils.clamp(FOCUS_DISTANCE_IN, minDistance, maxDistance)
+      const desiredDist = THREE.MathUtils.clamp(goalDist ?? FOCUS_DISTANCE_IN, minDistance, maxDistance)
       const nextDist = THREE.MathUtils.lerp(curDist, desiredDist, FOCUS_EASE)
       c.target.set(nextTx, 0, nextTz)
       camera.position.copy(c.target).add(dir.multiplyScalar(nextDist))

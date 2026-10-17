@@ -14,3 +14,6 @@ elevenlabs.token
 
 # GW rules PDFs: local reference only, never published (public repo)
 docs/sources/*.pdf
+
+# Playwright mobile spec scratch screenshots
+tests/e2e/__shots__/

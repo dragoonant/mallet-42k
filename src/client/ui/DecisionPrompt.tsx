@@ -25,6 +25,7 @@ import {
 import { offeredAmbushMarker, useAmbushHover } from '../interaction/CultAmbushMarkers'
 import { commitStagedDraft } from '../interaction/commitDraft'
 import { FormationPicker } from './FormationPicker'
+import { requestCameraOverview } from '../board/CameraRig'
 import { WeaponPanel } from './WeaponPanel'
 import { opensWeaponPanel } from '../interaction/decisions'
 import { isOversizeForZone } from '../../engine/geometry'
@@ -1336,6 +1337,8 @@ function DecisionPromptBody() {
   const draft = useUiStore((s) => s.draft)
   const setDraft = useUiStore((s) => s.setDraft)
   const setPreviewDraft = useUiStore((s) => s.setPreviewDraft)
+  const deployFramed = useRef(false)
+  const humanDeployLeft = useRef(0)
   const deployTargetUnitId = useUiStore((s) => s.deployTargetUnitId)
   const setDeployTarget = useUiStore((s) => s.setDeployTarget)
   const resetForDecision = useUiStore((s) => s.resetForDecision)
@@ -1438,8 +1441,24 @@ function DecisionPromptBody() {
       x: zone.reduce((a, p) => a + p.x, 0) / zone.length,
       z: zone.reduce((a, p) => a + p.z, 0) / zone.length,
     })
+    if (state?.phase === 'deployment') deployFramed.current = true
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [compact, pending?.id, deployTargetUnitId])
+
+  // Phone: that zoom-in must not outlive deployment. Ease back to the overview once the deployment phase is over, or
+  // as soon as the human's last unit is down (the bot may still be deploying). The unit count is read while the
+  // human's own deploy decision is open: a count of 1 means the unit being placed is the last one.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!compact) { deployFramed.current = false; return }
+    if (pending?.kind === 'deployUnit' && pending.player !== botSeat && state?.phase === 'deployment') humanDeployLeft.current = pending.context.unitIds.length
+    if (!deployFramed.current) return
+    const humanDone = state?.phase !== 'deployment' || (pending?.kind === 'deployUnit' && pending.player === botSeat && humanDeployLeft.current <= 1)
+    if (humanDone) {
+      deployFramed.current = false
+      requestCameraOverview()
+    }
+  }, [compact, state?.phase, pending?.id, pending?.kind, pending?.player])
 
   if (!state || !pending) return null
 

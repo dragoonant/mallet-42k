@@ -8,7 +8,7 @@ import * as THREE from 'three'
 import { Html } from '@react-three/drei'
 import { unitModels } from '@/engine'
 import { useFormFactor } from '../ui/formFactor'
-import { COMPACT_LABEL_WIDTH_FRAC, DESKTOP_LABEL_MAX, LABEL_DISTANCE_FACTOR, useLabelClamp } from '../interaction/labelScale'
+import { COMPACT_LABEL_WIDTH_FRAC, DESKTOP_LABEL_MAX, LABEL_DISTANCE_FACTOR, useLabelClamp, useHudCull } from '../interaction/labelScale'
 import { useDisplayState } from '../presentation/presentedStore'
 import { useUiStore } from '../ui/uiStore'
 import { prettifyId } from '../ui/labels'
@@ -29,6 +29,7 @@ const GHOST_MS = 1400
 function ObjectiveLabel({ id, pos, locked, sticky, a, b, compact }: { id: string; pos: [number, number, number]; locked: boolean; sticky: boolean; a: number; b: number; compact: boolean }) {
   const clamp = useRef<HTMLDivElement>(null)
   useLabelClamp(clamp, pos, true, compact ? { origin: '50% 50%', widthFrac: COMPACT_LABEL_WIDTH_FRAC } : { origin: '50% 50%', min: 0, max: DESKTOP_LABEL_MAX })
+  useHudCull(clamp, compact)
   return (
     <Html zIndexRange={[5, 0]} position={[0, 1.7, 0]} center distanceFactor={LABEL_DISTANCE_FACTOR} style={{ pointerEvents: 'none' }} occlude={false}>
       <div ref={clamp}>

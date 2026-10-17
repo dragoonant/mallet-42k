@@ -71,7 +71,14 @@ Workflow `resumeFromRunId` only works in the same session.
 | 5 | W3 client (write it; see below) | | 2 runs | board/terrain + procedural SD figure kit → **stop for owner's figure veto (M3)** → binding, interaction, UI, hotseat |
 | 6 | W4 AI (write it) | | ≤6 | expected-damage math, per-phase utility deciders, role planner, Monte Carlo charges, difficulty, tuning harness (AI beats random bot ≥95%) |
 | 7 | W5 QA (write it) | | ≤10 | Playwright playthrough vs AI, sim fuzz, rules-fidelity audit, loop-until-dry (max 2 dry rounds), deploy, screenshots to owner. **= M5.** |
+| ✅ | `w11-mobile.js` | `{stage, root, branch, attribution}` | ≤8 | M11 phone support, one stage per run; stage = shell, touch, hud, polish, polish2 (all done). Ships to main itself. |
 `w0-foundation.js`, `w1-engine.original.js`, `w2-data.original.js` are the scripts that already ran (reference only).
+
+## Phones (M11)
+- The compact (small touch screen) layout is gated by `src/client/ui/formFactor.ts` (`useFormFactor().compact`); add `?ff=compact` to any URL to force it on desktop, `?ff=desktop` to force it off. Desktop must stay unchanged.
+- Two-finger camera lives in `src/client/board/touchCamera.ts`; one finger always belongs to the game (`src/client/interaction/touchGesture.ts`).
+- Mobile Playwright projects: `iphone-se`, `iphone-pro`, `pixel` run `tests/e2e/mobile-*.spec.ts` (screenshots in `e2e-out/`). Use `PW_PORT=<4400-4499>` so another worktree's preview server is never reused.
+- GLB compression is deferred until a real phone actually crashes on the figure models.
 
 ## Writing W3/W4/W5 (keep the same shape as `w1-stage.js`)
 - Same `COMMON`, `RESULT`/`VERDICT` schemas, `build()` loop (Sonnet implements → session-model verifies → ≤2 fixes → Sonnet commits).

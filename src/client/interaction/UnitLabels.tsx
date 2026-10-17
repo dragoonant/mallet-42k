@@ -1,13 +1,18 @@
 // Small floating name + wounds tag over each on-board unit — the board otherwise has no way to tell
 // units apart or see how hurt they are at a glance beyond opening the unit card for one at a time.
-import { useMemo, useRef, type RefObject } from 'react'
+import { useEffect, useMemo, useRef, type RefObject } from 'react'
 import { Html } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
+import type { Camera } from 'three'
 import { applyOffset, clearOffset, easeOffset, labelRegistry, registerLabelPart, screenScale, StaggerSolver, type LayoutBlock } from './labelLayout'
 import { useDisplayState } from '../presentation/presentedStore'
 import { colors, fontStack } from '../ui/theme'
 import { useFormFactor } from '../ui/formFactor'
-import { COMPACT_LABEL_WIDTH_FRAC, DESKTOP_LABEL_MAX, LABEL_DISTANCE_FACTOR, useLabelClamp } from './labelScale'
+import { useUiStore } from '../ui/uiStore'
+import {
+  COMPACT_LABEL_WIDTH_FRAC, CULL_INTERVAL_MS, DESKTOP_LABEL_MAX, LABEL_DISTANCE_FACTOR, OVERLAP_FADE_OPACITY, coveredByHud, hudZoneRects,
+  intersectionArea, rectArea, setCullOpacity, useLabelClamp, type ScreenRect,
+} from './labelScale'
 
 const SHOCK_COLOR = '#ffb84f'
 
@@ -45,8 +50,16 @@ function UnitTag({ id, name, wounds, color, clamp, compact }: { id: string; name
   )
 }
 
+// World anchor of each on-board unit's tag, so the compact culler can rank overlapping labels by camera distance.
+const unitAnchors = new Map<string, [number, number, number]>()
+
 function UnitLabelItem({ id, name, wounds, color, position, compact }: { id: string; name: string; wounds: number; color: string; position: [number, number, number]; compact: boolean }) {
   const clamp = useRef<HTMLDivElement>(null)
+  const [px, py, pz] = position
+  useEffect(() => {
+    unitAnchors.set(id, [px, py, pz])
+    return () => { unitAnchors.delete(id) }
+  }, [id, px, py, pz])
   useLabelClamp(clamp, position, true, compact ? { widthFrac: COMPACT_LABEL_WIDTH_FRAC } : { min: 0, max: DESKTOP_LABEL_MAX })
   return (
     <Html zIndexRange={[5, 0]} position={position} center distanceFactor={LABEL_DISTANCE_FACTOR} style={{ pointerEvents: 'none' }} occlude={false}>
@@ -108,6 +121,52 @@ function LabelLayoutDriver() {
   return null
 }
 
+// Compact only. A few times a second: fade a unit's whole label block out when it is mostly under the top bar / bottom
+// stack, and when two blocks overlap on screen keep the selected unit's (else the one nearer the camera) and drop the other
+// to 25%. Pure DOM + registry reads on a timer, so no React state and no per-frame cost.
+function CompactLabelCuller() {
+  const camera = useThree((s) => s.camera)
+  useEffect(() => {
+    const tick = () => {
+      const zones = hudZoneRects()
+      const selected = useUiStore.getState().selectedUnitId
+      const live: { id: string; rect: ScreenRect; dist: number; tag?: HTMLElement | null; row?: HTMLElement | null }[] = []
+      for (const [id, e] of labelRegistry) {
+        if (!(e.tagWrap?.isConnected || e.rowWrap?.isConnected)) continue
+        const rect = unionRect([e.tagWrap?.querySelector('[data-testid]'), e.rowWrap?.querySelector('[data-testid]')])
+        if (!rect) continue
+        const a = unitAnchors.get(id)
+        const dist = a ? distanceTo(camera, a) : Infinity
+        const r: ScreenRect = { l: rect.l, t: rect.t, r: rect.r, b: rect.b }
+        if (coveredByHud(r, zones)) { setCullOpacity(e.tagWrap, 0); setCullOpacity(e.rowWrap, 0); continue }
+        live.push({ id, rect: r, dist, tag: e.tagWrap, row: e.rowWrap })
+      }
+      // Highest priority first: the selected unit, then nearest to the camera.
+      live.sort((x, y) => (x.id === selected ? -1 : y.id === selected ? 1 : x.dist - y.dist))
+      const kept: ScreenRect[] = []
+      for (const u of live) {
+        const area = rectArea(u.rect)
+        const clash = kept.some((k) => intersectionArea(u.rect, k) > 0.1 * Math.min(area, rectArea(k)))
+        if (!clash) kept.push(u.rect)
+        const o = clash ? OVERLAP_FADE_OPACITY : 1
+        setCullOpacity(u.tag, o)
+        setCullOpacity(u.row, o)
+      }
+    }
+    const timer = window.setInterval(tick, CULL_INTERVAL_MS)
+    return () => {
+      window.clearInterval(timer)
+      for (const [, e] of labelRegistry) for (const el of [e.tagWrap, e.rowWrap]) if (el) el.style.opacity = ''
+    }
+  }, [camera])
+  return null
+}
+
+function distanceTo(camera: Camera, a: [number, number, number]): number {
+  const p = camera.position
+  return Math.hypot(p.x - a[0], p.y - a[1], p.z - a[2])
+}
+
 export function UnitLabels() {
   const state = useDisplayState()
   const { compact } = useFormFactor()
@@ -117,6 +176,7 @@ export function UnitLabels() {
   return (
     <>
       <LabelLayoutDriver />
+      {compact && <CompactLabelCuller />}
       {units.map((unit) => {
         const models = unit.models.map((id) => state.models[id]).filter((m): m is NonNullable<typeof m> => !!m)
         if (models.length === 0) return null

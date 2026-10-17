@@ -186,7 +186,7 @@ test('phone playthrough: deploy and play one full battle round with taps only', 
   expect(errors, 'no console errors').toEqual([])
   expect(notes.filter((n) => n.startsWith('BLOCKER?')), 'no prompt stalled').toEqual([])
   const mine = final.units.filter((u) => u.player === final.humanSeat)
-  expect(mine.filter((u) => u.loc !== 'board' && u.loc !== 'reserves'), 'every unit deployed').toEqual([])
+  expect(mine.filter((u) => u.loc !== 'board' && u.loc !== 'reserves' && u.loc !== 'destroyed'), 'every unit deployed').toEqual([])
   const started = await humanStartedPhases(page)
   for (const ph of ['command', 'movement', 'shooting', 'charge', 'fight']) expect(started.includes(ph), `the human's ${ph} phase started`).toBe(true)
   expect(reachedRound2 || !!final.result || final.round >= 2, 'a full round was played').toBe(true)
