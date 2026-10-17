@@ -127,6 +127,7 @@ is ambiguous the chosen interpretation is marked **[interp]**. Coordinates follo
 | R-5.14 | Combat Patrol limits: Reserves never arrive in round 1; any Reserves unit not on the battlefield at the end of round 3 is destroyed (and units embarked in it). Rapid Ingress cannot bypass R-5.14. |
 | R-5.15 | Strategic Reserves (not used by CP rosters; retained for scale-up): declared pre-battle, ≤ 25 % of points; arrive round 2+ wholly within 6" of any board edge (round 2: not inside enemy DZ), > 9" horizontally from enemies; Deep Strike units may use either method. |
 | R-5.16 | Reserves units not on the battlefield when the battle ends count as destroyed (for "destroyed" secondary scoring). |
+| R-5.16a | Oversize base at deployment (Rules Commentary: Deploying Units): a model whose base is too big to be set up wholly within its deployment zone is set up with its base touching its player's battlefield edge instead (still wholly on the battlefield, centre inside the zone). The unit's other models deploy wholly within the zone as normal. The "cannot move, shoot or charge this turn" part has no effect at pre-battle deployment (there is no turn). Engine: `oversizeEdgePlacementOk` in `src/engine/geometry.ts`, used by `resolveDeploy`. |
 
 ### 5.3 Transports (no transport in either CP box; implement lazily)
 | Id | Rule |

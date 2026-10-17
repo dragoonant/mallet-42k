@@ -23,6 +23,7 @@ import { effectService } from '../../src/engine/effects'
 import { HOLD_CP_SCORE, stratagemScore } from '../../src/ai/stratagems'
 import { runGame } from '../../tools/sim-core'
 import { baseFitsRoom, deploymentRoom } from '../../src/data/rosterFit'
+import { isOversizeForZone, oversizeEdgePlacementOk, snapToBattlefieldEdge } from '../../src/engine/geometry'
 import { placeUnit } from '../fixtures'
 
 let bundle: DataBundle
@@ -987,7 +988,7 @@ describe('AI (MVA-019)', () => {
     expect(stratagemScore(m, 'A', window('movement.unitMoved', { unitId: VER }), use(RETRO, VER), 2)).toBeGreaterThan(-Infinity)
   })
 
-  it(`MVA-021 (CP-1.9 / R-5.15) the Dunecrawler's 130 mm base cannot stand in cp-01's 5" strips, so it starts in Reserves for both seats and arrives by Strategic Reserves in round 2+`, async () => {
+  it(`MVA-021 (Rules Commentary: Deploying Units) the Dunecrawler's 130 mm base cannot stand in cp-01's 5" strips, so it is set up touching its battlefield edge; nothing starts in Reserves`, async () => {
     const id = 'adm.cp.maniple-verask-alpha'
     // the geometry: 5.12" does not fit cp-01's narrowest zone side, but fits every other mission's
     const room = (m: string) => deploymentRoom(bundle.missions[m].deploymentZones)
@@ -1001,22 +1002,49 @@ describe('AI (MVA-019)', () => {
       players: { A: pl('A'), B: pl('B') }, sides: 'rollOff', firstTurn: 'rollOff', dataVersion: 'test' }
     const deciders = { A: new UtilityDecider('normal', 'mva21A'), B: new UtilityDecider('normal', 'mva21B') }
     let r = createGame(setup, 'mva21', bundle)
-    // both seats' Dunecrawlers are set aside at creation; nothing else is
-    for (const p of ['A', 'B'] as PlayerId[]) expect(r.state.setup.players[p].reserves, p).toEqual(['dunecrawler'])
-    for (const u of Object.values(r.state.units)) expect(u.location === 'reserves' && r.state.setup.players[u.player].reserves.includes(u.ref), u.id).toBe(u.ref === 'dunecrawler')
-    const arrived: Record<string, number> = {}
+    // no workaround: neither seat's Dunecrawler is set aside in Reserves
+    for (const p of ['A', 'B'] as PlayerId[]) expect(r.state.setup.players[p].reserves, p).toEqual([])
+    for (const u of Object.values(r.state.units)) expect(u.location === 'reserves' && r.state.setup.players[u.player].reserves.includes(u.ref), u.id).toBe(false)
+
+    // advance to the first deployment decision and probe it with hand-made placements
     let steps = 0
-    while (r.pending && r.state.phase !== 'ended' && r.state.round <= 3 && Object.keys(arrived).length < 2 && steps++ < 4000) {
+    while (r.pending && !(r.pending.kind === 'deployUnit' && r.pending.window === 'deployment.unit') && steps++ < 200) {
+      r = step(r.state, await deciders[r.pending.player].decide(view(r.state, r.pending.player), r.pending, legalActions(r.state, r.pending)))
+    }
+    const pending = r.pending
+    if (!pending || pending.kind !== 'deployUnit') throw new Error('no deployUnit decision reached')
+    const P = pending.player
+    const dcId = `${P}:dunecrawler`
+    expect(pending.context.unitIds).toContain(dcId)
+    const dcModel = r.state.models[r.state.units[dcId].models[0]]
+    const zone = pending.context.zone
+    const at = snapToBattlefieldEdge({ pos: { x: 0, y: 0, z: 0 }, facing: 0, base: dcModel.base }, zone, r.state.board)
+    const place = (x: number, z: number) => ({ type: 'deployUnit' as const, player: P, decisionId: pending.id, unitId: dcId, placements: [{ modelId: dcModel.id, pos: { x, y: 0, z }, facing: 0 }] })
+    // a human placement touching the battlefield edge is accepted
+    expect(step(r.state, place(at.x, at.z)).rejection).toBeFalsy()
+    // one inch in from the edge is rejected (the base is too big for the zone and no longer touches the edge)
+    const inward = Math.abs(at.x) > Math.abs(at.z) ? { x: at.x - Math.sign(at.x), z: at.z } : { x: at.x, z: at.z - Math.sign(at.z) }
+    expect(step(r.state, place(inward.x, inward.z)).rejection).toBeTruthy()
+    // a normal-size unit placed outside the zone is still rejected
+    const other = pending.context.unitIds.find((u) => u !== dcId && !r.state.units[u].bodyguardUnitId && r.state.units[u].models.every((m) => !isOversizeForZone(r.state.models[m].base, zone)))
+    if (!other) throw new Error('no normal-size unit to test')
+    const outside = { type: 'deployUnit' as const, player: P, decisionId: pending.id, unitId: other, placements: r.state.units[other].models.map((m) => ({ modelId: m, pos: { x: 0, y: 0, z: 0 }, facing: 0 })) }
+    expect(step(r.state, outside).rejection?.code).toBe('E_OUT_OF_RANGE')
+
+    // the AI deploys both Dunecrawlers touching their own battlefield edge, and the game runs on past deployment
+    steps = 0
+    while (r.pending && r.state.phase === 'deployment' && steps++ < 400) {
       const a = await deciders[r.pending.player].decide(view(r.state, r.pending.player), r.pending, legalActions(r.state, r.pending))
-      // deployment must never offer or accept the Dunecrawler
-      if (r.state.phase === 'deployment' && r.pending.kind === 'deployUnit') expect(r.pending.context.unitIds.some((u) => u.endsWith(':dunecrawler'))).toBe(false)
       r = step(r.state, a)
       expect(r.rejection).toBeFalsy()
-      for (const p of ['A', 'B']) if (!(p in arrived) && r.state.units[`${p}:dunecrawler`].location === 'board') arrived[p] = r.state.round
     }
-    // it is still in Reserves through deployment and round 1, and any arrival is round 2 or later
-    for (const [p, round] of Object.entries(arrived)) expect(round, p).toBeGreaterThanOrEqual(2)
-    expect(Object.keys(arrived).length, 'at least one Dunecrawler reached the board by round 3').toBeGreaterThan(0)
+    expect(r.state.phase).not.toBe('deployment')
+    for (const p of ['A', 'B'] as PlayerId[]) {
+      const u = r.state.units[`${p}:dunecrawler`]
+      expect(u.location, p).toBe('board')
+      const m = r.state.models[u.models[0]]
+      expect(oversizeEdgePlacementOk(m, deploymentZone(r.state, p), r.state.board), p).toBe(true)
+    }
   }, 120_000)
 
   it('MVA-019 short sim-bot games with this patrol (odd games take the Surge-wafer and Holy Apparatus variants; the mirror included) finish without a stuck decision', () => {

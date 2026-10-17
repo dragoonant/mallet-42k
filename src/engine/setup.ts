@@ -1,6 +1,6 @@
 // Pre-battle sequence (10-rules §13): phase 'setup' (P4 sides) and phase 'deployment' (P6 deploy, P7 first turn, P8 Scouts).
 // Owner: W1-F.
-import { basesOverlap, checkPlacements, emptyMoveConstraints, growConvexPolygon, horizontalGap, whollyWithinPolygon, type Footprint, type ResolvedPlacement } from './geometry'
+import { basesOverlap, checkPlacements, emptyMoveConstraints, growConvexPolygon, horizontalGap, isOversizeForZone, oversizeEdgePlacementOk, snapToBattlefieldEdge, whollyOnBoard, whollyWithinPolygon, type Footprint, type ResolvedPlacement } from './geometry'
 import type { EngineContext, PhaseModule } from './modules'
 import { otherPlayer } from './modules'
 import { deployTerrainBlock } from './terrain'
@@ -8,7 +8,7 @@ import { transportService } from './transports'
 import { assignSides, boardModelsOf, deploymentZone, hasCoreAbility, hasDeepStrike, unitModels, setModelPos } from './state'
 import type { Action, DeployUnitAction, ModelPlacement } from './actions'
 import type {
-  DeployUnitDecision, GameState, Model, ModelId, MoveConstraints, PendingDecision, PlayerId, Polygon, Rejection, Unit, UnitId, Vec3,
+  Board, DeployUnitDecision, GameState, Model, ModelId, MoveConstraints, PendingDecision, PlayerId, Polygon, Rejection, Unit, UnitId, Vec3,
 } from './types'
 
 // R-1.4: each player rolls 1D6, higher wins, ties re-roll; never modified or re-rolled
@@ -207,6 +207,27 @@ function resolveDeploy(
     const alt = check(infiltratorConstraints(state, pending.player))
     if (!alt.rejection) result = alt
   }
+  // Rules Commentary "Deploying Units": a model whose base is too big to be set up wholly within its zone (Onager Dunecrawler vs
+  // cp-01's 5" strips) is set up touching its player's battlefield edge instead; the unit's other models stay wholly in the zone
+  if (result.rejection && pending.window === 'deployment.unit') {
+    const zone = pending.context.zone
+    const unitModels = comboModels(state, unit)
+    if (unitModels.some((m) => isOversizeForZone(m.base, zone))) {
+      const alt = check({ ...pending.constraints, region: null })
+      if (alt.rejection) return { rejection: alt.rejection }
+      for (const r of alt.resolved) {
+        const fp: Footprint = { pos: r.to, facing: r.facing, base: r.model.base }
+        if (isOversizeForZone(r.model.base, zone)) {
+          if (!oversizeEdgePlacementOk(fp, zone, state.board)) {
+            return { rejection: { code: 'E_OUT_OF_RANGE', reason: `${r.model.id} is too large for the deployment zone: it must be set up with its base touching your battlefield edge`, details: { modelId: r.model.id } } }
+          }
+        } else if (!whollyWithinPolygon(fp, zone)) {
+          return { rejection: { code: 'E_OUT_OF_RANGE', reason: `${r.model.id} must end wholly within the allowed region`, details: { modelId: r.model.id } } }
+        }
+      }
+      result = alt
+    }
+  }
   if (result.rejection) return { rejection: result.rejection }
   for (const r of result.resolved) {
     const blocked = deployTerrainBlock(state, r.model, r.to, r.facing)
@@ -229,7 +250,7 @@ export function deployFacing(zone: Polygon): number {
 // itself; returns null only if the zone genuinely has no room left (raster scan of its bounding box)
 export function autoDeployPlacements(
   models: Model[], zone: Polygon, otherFriendly: Model[], enemies: Model[],
-  opts: { mustTouch?: MoveConstraints['mustTouch']; minDistanceFromEnemies?: number; canPlace?: (model: Model, pos: Vec3, facing?: number) => boolean } = {},
+  opts: { mustTouch?: MoveConstraints['mustTouch']; minDistanceFromEnemies?: number; canPlace?: (model: Model, pos: Vec3, facing?: number) => boolean; board?: Pick<Board, 'w' | 'h'> } = {},
 ): ModelPlacement[] | null {
   if (opts.mustTouch) return touchingPlacements(models, zone, otherFriendly, enemies, opts.mustTouch, opts.minDistanceFromEnemies ?? 0, opts.canPlace)
   const facing = deployFacing(zone)
@@ -243,6 +264,14 @@ export function autoDeployPlacements(
   for (const m of models) {
     const step = Math.max(0.5, m.base.radius * 2 + 0.1)
     let found: { x: number; z: number; facing: number } | null = null
+    // Rules Commentary "Deploying Units": a base too big for the zone goes touching the battlefield edge instead
+    if (opts.board && isOversizeForZone(m.base, zone)) {
+      const edge = edgeDeployPlacement(m, zone, opts.board, [...placedHere, ...otherFriendly, ...enemies], opts.canPlace)
+      if (!edge) return null
+      placedHere.push({ pos: edge.pos, facing: edge.facing, base: m.base })
+      out.push({ modelId: m.id, pos: edge.pos, facing: edge.facing })
+      continue
+    }
     // an oval base is narrower than its long radius: scan with the short radius and also try it turned a quarter, whollyWithinPolygon
     // below decides the fit (a 150x90 mm Rockgrinder does not fit a 5" deep zone broadside but does lengthways)
     const rScan = Math.min(m.base.radius, m.base.radius2 ?? m.base.radius)
@@ -266,6 +295,30 @@ export function autoDeployPlacements(
     out.push({ modelId: m.id, pos: footprint.pos, facing: found.facing })
   }
   return out
+}
+
+// a spot for an oversize model: its base touching the player's battlefield edge, centre inside the zone, clear of `blockers` and
+// terrain; scans along the edge from one end of the zone's span to the other (the bounding box is used, the edge helper decides)
+function edgeDeployPlacement(
+  m: Model, zone: Polygon, board: Pick<Board, 'w' | 'h'>, blockers: Footprint[], canPlace?: (model: Model, pos: Vec3, facing?: number) => boolean,
+): { pos: Vec3; facing: number } | null {
+  const xs = zone.map((p) => p.x), zs = zone.map((p) => p.z)
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minZ = Math.min(...zs), maxZ = Math.max(...zs)
+  const base = deployFacing(zone)
+  const facings = m.base.radius2 !== undefined ? [base, base + Math.PI / 2] : [base]
+  for (const f of facings) {
+    for (let z = minZ; z <= maxZ + 1e-9; z += 0.5) {
+      for (let x = minX; x <= maxX + 1e-9; x += 0.5) {
+        const snapped = snapToBattlefieldEdge({ pos: { x, y: 0, z }, facing: f, base: m.base }, zone, board)
+        const cand: Footprint = { pos: { x: snapped.x, y: 0, z: snapped.z }, facing: f, base: m.base }
+        if (!oversizeEdgePlacementOk(cand, zone, board) || !whollyOnBoard(cand, board)) continue
+        if (blockers.some((o) => basesOverlap(cand, o))) continue
+        if (canPlace && !canPlace(m, cand.pos, f)) continue
+        return { pos: cand.pos, facing: f }
+      }
+    }
+  }
+  return null
 }
 
 // Cult Ambush (GEN-2.3) placement: the first model sits tangent to the marker (tried at 24 angles), the rest grow into a
@@ -536,7 +589,7 @@ export const setupModule: PhaseModule = {
         const zone = pending.constraints.region ?? deploymentZone(state, pending.player)
         const mk = (placements: ModelPlacement[]): DeployUnitAction => ({ type: 'deployUnit', player: pending.player, decisionId: pending.id, unitId, placements })
         const canPlace = (m: Model, pos: Vec3, f?: number): boolean => deployTerrainBlock(state, m, pos, f ?? m.facing) === null
-        const placements = autoDeployPlacements(models, zone, boardModelsOf(state, pending.player), boardModelsOf(state, otherPlayer(pending.player)), { canPlace })
+        const placements = autoDeployPlacements(models, zone, boardModelsOf(state, pending.player), boardModelsOf(state, otherPlayer(pending.player)), { canPlace, board: state.board })
         if (placements) {
           const action = mk(placements)
           if (resolveDeploy(state, action, pending).rejection === null) return [action]

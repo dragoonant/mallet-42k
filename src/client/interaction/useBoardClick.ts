@@ -14,6 +14,8 @@ import { useUiStore } from '../ui/uiStore'
 import { useGameStore } from '../store/game'
 import { updateMoveHover } from './moveHover'
 import { liftToPlane, nudgeY } from './floors'
+import { snapOversizeDeployPlacements } from './formationValidation'
+import { combinedUnitModels } from './geometry'
 
 const CLICK_MAX_DRAG_IN = 0.4
 
@@ -23,6 +25,8 @@ function applyNudge(point: { x: number; z: number }) {
   const draft = ui.draft
   if (!nudge || !draft || draft.decisionId !== nudge.decisionId) return true
   const gs = useGameStore.getState().state
+  // a deployment model too big for the zone stays glued to the battlefield edge while it is dragged
+  const snap = <T extends { modelId: string; pos: { x: number; y: number; z: number }; facing?: number }>(ps: T[]): T[] => (gs ? snapOversizeDeployPlacements(gs, combinedUnitModels(gs, draft.unitId), ps) : ps)
   const yAt = (x: number, z: number, y: number) => (gs ? nudgeY(gs, x, z, y) : y)
   if (nudge.mode === 'model') {
     const cur = draft.placements.find((p) => p.modelId === nudge.modelId)
@@ -30,7 +34,7 @@ function applyNudge(point: { x: number; z: number }) {
     const target = { x: q.x - nudge.grab.x, z: q.z - nudge.grab.z }
     ui.setDraft({
       ...draft,
-      placements: draft.placements.map((p) => (p.modelId === nudge.modelId ? { ...p, pos: { x: target.x, y: yAt(target.x, target.z, p.pos.y), z: target.z } } : p)),
+      placements: snap(draft.placements.map((p) => (p.modelId === nudge.modelId ? { ...p, pos: { x: target.x, y: yAt(target.x, target.z, p.pos.y), z: target.z } } : p))),
     })
   } else {
     const q = liftToPlane(point.x, point.z, nudge.basePlacements[0]?.pos.y ?? 0)
@@ -39,7 +43,7 @@ function applyNudge(point: { x: number; z: number }) {
     ui.setDraft({
       ...draft,
       anchor: { x: draft.anchor.x + dx, z: draft.anchor.z + dz },
-      placements: nudge.basePlacements.map((p) => ({ ...p, pos: { x: p.pos.x + dx, y: yAt(p.pos.x + dx, p.pos.z + dz, p.pos.y), z: p.pos.z + dz } })),
+      placements: snap(nudge.basePlacements.map((p) => ({ ...p, pos: { x: p.pos.x + dx, y: yAt(p.pos.x + dx, p.pos.z + dz, p.pos.y), z: p.pos.z + dz } }))),
     })
   }
   return true

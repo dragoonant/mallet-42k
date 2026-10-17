@@ -105,6 +105,9 @@ const LEADER_PORTRAITS: Record<string, string> = {
   sm: 'space-marines', ork: 'orks', necrons: 'necrons', 'adepta-sororitas': 'adepta-sororitas', 'adeptus-custodes': 'adeptus-custodes',
   'astra-militarum': 'astra-militarum', 'genestealer-cults': 'genestealer-cults', 'grey-knights': 'grey-knights',
   'chaos-space-marines': 'chaos-space-marines', 'tau-empire': 'tau-empire', tyranids: 'tyranids',
+  'adeptus-mechanicus': 'adeptus-mechanicus', aeldari: 'aeldari', 'black-templars': 'black-templars', 'blood-angels': 'blood-angels',
+  'chaos-daemons': 'chaos-daemons', 'dark-angels': 'dark-angels', 'death-guard': 'death-guard', deathwatch: 'deathwatch', drukhari: 'drukhari',
+  'leagues-of-votann': 'leagues-of-votann', 'space-wolves': 'space-wolves', 'thousand-sons': 'thousand-sons', 'world-eaters': 'world-eaters',
 }
 const portraitUrl = (id: string) => `${import.meta.env.BASE_URL}assets/ui/leaders/${LEADER_PORTRAITS[id]}.webp`
 
