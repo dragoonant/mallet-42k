@@ -111,6 +111,26 @@ Return JSON: ok, summary (<=60 words), files, issues.` },
     followUp: null,
     shipExtra: 'Extend tests/e2e/mobile-smoke.spec.ts: in battle, open and close each drawer from the top bar, collapse/expand the decision sheet, and take e2e-out/mobile-<project>-05-drawer.png and -06-sheet-collapsed.png. Also take a desktop screenshot e2e-out/desktop-hud.png in the chromium run and compare it by eye with the layout described in STATUS.md — desktop must be unchanged. Add a two-finger camera check to tests/e2e/mobile-touch.spec.ts (pixel only): CDP Input.dispatchTouchEvent with two touchPoints doing a pinch-out then a twist; assert window.__malletCamera / the camera distance and azimuth changed and that no board selection or move started.',
   },
+  polish: {
+    title: 'phone polish — tidier staged-move stack, camera buttons, label sizes, full-turn phone playthrough',
+    build: [
+      { key: 'stack', prompt: `${COMMON}
+The compact HUD exists (top bar, BottomSheet DecisionPrompt, right drawers in compactSheets.ts, a 2x3 camera button grid top-right, TouchActionBar bottom-centre, FormationPicker strip). Known problems from phone screenshots (852x393 and 667x375):
+- With a staged move, FormationPicker strip + collapsed sheet + TouchActionBar stack up to ~half of a 375px-tall screen, and the strip overlaps the camera grid's bottom-right button.
+- The 2x3 camera grid is bulky.
+- TouchActionBar applies --safe-bottom twice (it sits inside App.tsx's already-inset overlay layer).
+- On 667x375 the DecisionPrompt info block takes ~84px of the ~123px sheet body, clipping WeaponPanel's Fire row.
+You own ONLY: src/client/ui/FormationPicker.tsx, src/client/ui/Hud.tsx, src/client/ui/TouchActionBar.tsx, src/client/ui/DecisionPrompt.tsx (grep, don't read whole), src/client/ui/BottomSheet.tsx, src/client/ui/WeaponPanel.tsx.
+In compact only: (1) while a move/placement is staged, auto-collapse the sheet to its one-line summary and merge the formation controls INTO the TouchActionBar row or a single slim (<= 52px) horizontally-scrolling strip directly above it — total bottom stack <= 120px on 375px-tall screens; (2) camera buttons: a slim vertical column (rotate L, rotate R, zoom in, zoom out, top-down; ~40px wide, 44px tall targets) on the right edge below the top bar, hidden while a drawer is open and never overlapped by bottom UI (shrink to rotate+top-down when height < 400); (3) fix the double safe-bottom; (4) collapse the DecisionPrompt info block to one line with a "more" toggle whenever WeaponPanel (or any action panel) is open so the action row is fully visible at 667x375. Desktop unchanged.
+Return JSON: ok, summary (<=60 words), files, issues.` },
+      { key: 'labels', prompt: `${COMMON}
+You own ONLY: the in-world label/status components that use drei <Html> (grep '<Html' under src/client/board and src/client/figures; take ownership of those files only), src/client/ui/UnitDatasheet.tsx, src/client/ui/PainterPanel.tsx.
+(1) Unit name labels ("Terminator Squad · 9 wounds") grow huge when a phone camera zooms in close: clamp their on-screen size (e.g. distanceFactor with a min/max scale, or a fixed pixel size) so they stay readable but never exceed ~1/3 of screen width; in compact, shorten them (name truncation, smaller font) and keep status icons tappable (>= 32px hit area, they're secondary). Desktop look unchanged at the default camera distance. (2) Open UnitDatasheet and PainterPanel at 852x393 and 667x375 with ?ff=compact (Playwright script in your scratch area, not committed, chromium is fine) — fix anything clipped, unscrollable or under the notch. Keep perf: no per-frame React state.
+Return JSON: ok, summary (<=60 words), files, issues.` },
+    ],
+    followUp: null,
+    shipExtra: 'Then do ONE phone playthrough: add tests/e2e/mobile-playthrough.spec.ts (iphone-pro project only; test.skip on others) that starts a game vs Bot with fast/instant animations, and drives the human side through deployment and at least one full battle round (command, movement, shooting, charge, fight) using only taps/clicks on visible UI in the compact layout (page.mouse clicks are fine on WebKit; use the bottom sheet, TouchActionBar Confirm and End phase). Screenshot each phase to e2e-out/mobile-play-<nn>-<phase>.png. Every point where the player could not proceed using visible UI is a blocker: fix up to 4 blockers in src (minimal, compact-only), list the rest in issues. Also re-run the iphone-se smoke and confirm its battle screenshot shows the board (not black) — wait for the canvas to render before the screenshot.',
+  },
 }
 
 const S = STAGES[STAGE]
