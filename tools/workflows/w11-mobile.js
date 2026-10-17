@@ -144,6 +144,21 @@ Return JSON: ok, summary (<=60 words), files, issues.` },
     followUp: null,
     shipExtra: 'Also: add tests/e2e/__shots__/ to .gitignore; add a w11-mobile.js row to the HANDOFF.md workflow table (stages shell/touch/hud/polish/polish2 done, args { stage, root, branch, attribution }) and a short "Phones (M11)" note in HANDOFF.md: compact layout gated by src/client/ui/formFactor.ts (?ff=compact to force on desktop), touch camera in src/client/board/touchCamera.ts, mobile Playwright projects iphone-se/iphone-pro/pixel, GLB compression deferred until a real phone crashes. Include HANDOFF.md and .gitignore in the commit. Re-run mobile-playthrough.spec.ts on iphone-pro and confirm no label draws over the top bar in its screenshots.',
   },
+  movefix: {
+    title: 'phone movement — tap-to-move works on touch, playthrough uses real touch',
+    build: [
+      { key: 'movefix', prompt: `${COMMON}
+Problem: tests/e2e/mobile-playthrough.spec.ts (iphone-pro, WebKit, page.mouse clicks) could NOT stage a single movement-phase move by tapping a destination on the board in its last run — every candidate was rejected (Confirm never became visible+enabled, see stageAndConfirmMove ~:225) and it fell back to the suggested-move list each time. Deployment by tapping works; dragging a model with CDP touch on the pixel project works (mobile-touch.spec.ts). A phone player must be able to move a unit comfortably.
+You own: src/client/board/Board.tsx, src/client/interaction/**, src/client/ui/TouchActionBar.tsx, tests/e2e/mobile-playthrough.spec.ts, tests/e2e/mobile-touch.spec.ts.
+1. Find out what actually happens on a REAL touch device in the movement phase: reproduce with CDP Input.dispatchTouchEvent on the pixel project (a quick scratch spec is fine): (a) tap a destination near the active unit, (b) tap the unit then tap a destination, (c) drag a model. Also check the iphone-pro mouse-click path. Read the movement interaction code (interaction/moveHover.ts and the touch branch in Board.tsx) to see what a tap is supposed to do in the movement phase.
+2. Decide the intended phone flow and make it work with real touch: with a moveUnit decision pending, tapping a reachable spot on the board stages the whole unit there (same as the desktop hover-preview + click would), showing the ghost and the TouchActionBar Confirm; dragging still works; out-of-range taps show the reason instead of silently doing nothing. Desktop mouse unchanged.
+3. Make mobile-playthrough's movement step use real touch taps (CDP on the pixel project — move the playthrough to run on pixel AND keep the iphone-pro run using mouse clicks, whichever path is the real one for that browser), and choose candidate destinations that are legal (inside maxDistance, off terrain footprints, not within engagement range of enemies — use the store's legal info via window.__mallet if available). The playthrough must stage and confirm at least one move by board tap without fallback; turn the movement FALLBACK note into a test failure.
+4. npm run typecheck; run the two specs on their projects with PW_PORT set to a free port in 4400-4499.
+Return JSON: ok, summary (<=60 words: root cause + fix), files, issues.` },
+    ],
+    followUp: null,
+    shipExtra: 'Confirm mobile-play-log.json from the final run has no movement FALLBACK notes.',
+  },
 }
 
 const S = STAGES[STAGE]
