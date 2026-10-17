@@ -11,6 +11,8 @@ import { useDisplayState, usePresentedStore } from '../presentation/presentedSto
 import { sourceName } from './labels'
 import { colors, mutedText, panel } from './theme'
 import { summariseEvents, turnTotals } from './eventSummary'
+import { useFormFactor } from './formFactor'
+import { CompactDrawer } from './compactSheets'
 
 const wrap: CSSProperties = {
   ...panel,
@@ -58,6 +60,7 @@ export function EventFeed() {
   const [open, setOpen] = useState<Set<string>>(new Set())
   const scrollRef = useRef<HTMLDivElement>(null)
   const stick = useRef(true)
+  const { compact } = useFormFactor()
   const events = allEvents.filter((e) => e.seq <= presentedSeq)
   const notes = allNotes.filter((n) => n.afterSeq <= presentedSeq)
 
@@ -85,8 +88,8 @@ export function EventFeed() {
       return next
     })
 
-  return (
-    <div style={wrap}>
+  const body = (
+    <>
       <div>
         <div style={heading}>Scoring</div>
         <div style={scoringScroll} data-testid="scoring-feed">
@@ -108,10 +111,10 @@ export function EventFeed() {
           </div>
         </div>
       )}
-      <div>
+      <div style={compact ? { flex: '1 1 auto', minHeight: 180, display: 'flex', flexDirection: 'column' } : undefined}>
         <div style={heading}>Events</div>
         <div
-          style={eventsScroll}
+          style={compact ? { ...scroll, flex: '1 1 0', minHeight: 0 } : eventsScroll}
           ref={scrollRef}
           data-testid="events-feed"
           onScroll={(ev) => {
@@ -147,6 +150,16 @@ export function EventFeed() {
           })}
         </div>
       </div>
-    </div>
+    </>
   )
+
+  if (compact) {
+    return (
+      <CompactDrawer id="feed" title="Event feed">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: '1 1 auto', minHeight: 0 }}>{body}</div>
+      </CompactDrawer>
+    )
+  }
+  return <div style={wrap}>{body}</div>
 }
+

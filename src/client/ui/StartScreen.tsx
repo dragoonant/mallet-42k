@@ -88,6 +88,21 @@ const layoutCss = `
 @media (max-aspect-ratio: 1/1) {
   .ss-overlay::after { background-size: 100vw auto; background-position: center 30%; }
 }
+/* Phones (html[data-ff=compact], set by formFactor.ts): one scrolling column, 44px targets, 16px form text so iOS
+   does not zoom on focus. Works in portrait and in landscape down to 667x375. */
+html[data-ff="compact"] .ss-card { max-width: calc(100% - 16px); padding: 12px !important; gap: 10px !important;
+  max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px); }
+html[data-ff="compact"] .ss-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; overflow-y: auto; overflow-x: hidden;
+  overscroll-behavior: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch; padding-right: 0; }
+html[data-ff="compact"] .ss-col { gap: 10px; }
+html[data-ff="compact"] .ss-card button { min-height: 44px; white-space: normal; text-align: center; touch-action: manipulation; }
+html[data-ff="compact"] .ss-card select,
+html[data-ff="compact"] .ss-card input[type="text"] { min-height: 44px; font-size: 16px; box-sizing: border-box; }
+html[data-ff="compact"] .ss-card input[type="checkbox"] { width: 24px; height: 24px; flex: none; margin: 0; }
+html[data-ff="compact"] .ss-check { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+html[data-ff="compact"] .ss-field { display: flex; flex-direction: column; gap: 6px; }
+html[data-ff="compact"] .ss-card button[aria-pressed] { font-size: 12px !important; }
+html[data-ff="compact"] .ss-secondary { font-size: 13px; }
 `
 
 // Automated browsers (Playwright) skip the intro so E2E runs don't wait on it.
@@ -221,7 +236,7 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
       const mine = opts.filter((o) => o.transportRef === t)
       const taken = new Set(Object.entries(pick).filter(([k]) => k !== t).map(([, v]) => v))
       return (
-        <label key={t} style={blurb} data-testid={`setup-embark-${who}-${t}`}>
+        <label key={t} className="ss-field" style={blurb} data-testid={`setup-embark-${who}-${t}`}>
           Start the battle inside your {mine[0].transportName}:{' '}
           <select style={select} value={pick[t] ?? ''} onChange={(e) => { const n = { ...pick }; if (e.target.value) n[t] = e.target.value; else delete n[t]; setPick(n) }}>
             <option value="">Nobody (deploy normally)</option>
@@ -241,7 +256,7 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
   }
   const unitChoiceRow = (factionKey: string, pid: string | undefined, choices: { id: string; refs: string[]; default: string }[], pick: Record<string, string>, setPick: (v: Record<string, string>) => void, who: string) =>
     choices.map((g) => (
-      <label key={g.id} style={blurb} data-testid={`setup-unit-choice-${who}-${g.id}`}>
+      <label key={g.id} className="ss-field" style={blurb} data-testid={`setup-unit-choice-${who}-${g.id}`}>
         {who === 'A' ? 'Your' : opponent === 'bot' ? "The bot's" : "Player B's"} patrol fields:{' '}
         <select style={select} value={pick[g.id] ?? (who === 'B' && opponent === 'bot' ? RANDOM_UNIT_CHOICE : g.default)} onChange={(e) => setPick({ ...pick, [g.id]: e.target.value })}>
           {g.refs.map((r) => <option key={r} value={r}>{refName(factionKey, r, pid)}</option>)}
@@ -334,7 +349,7 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
               ))}
             </div>
             {patrol.secondaries.find((s) => s.id === secondaryId) && (
-              <div style={secondaryCard}>{patrol.secondaries.find((s) => s.id === secondaryId)!.text}</div>
+              <div className="ss-secondary" style={secondaryCard}>{patrol.secondaries.find((s) => s.id === secondaryId)!.text}</div>
             )}
           </>
         )}
@@ -342,7 +357,7 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
         {unitChoiceRow(faction, patrol?.id, choicesA, pickA, setPickA, 'A')}
         {embarkRow(embarkOptsA, embarkA, setEmbarkA, 'A')}
         {canSplitA && (
-          <label style={blurb} data-testid="setup-split-A">
+          <label className="ss-check" style={blurb} data-testid="setup-split-A">
             <input type="checkbox" checked={splitA} onChange={(e) => setSplitA(e.target.checked)} /> Split your {splitName(faction, patrol?.id)} into {splitSizes(faction, patrol?.id)} (Patrol Squads)
           </label>
         )}
@@ -402,7 +417,7 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
         {opponentFaction && unitChoiceRow(opponentFaction, opponentPatrolId || undefined, choicesB, pickB, setPickB, 'B')}
         {embarkRow(embarkOptsB, embarkB, setEmbarkB, 'B')}
         {canSplitB && (
-          <label style={blurb} data-testid="setup-split-B">
+          <label className="ss-check" style={blurb} data-testid="setup-split-B">
             <input type="checkbox" checked={splitB} onChange={(e) => setSplitB(e.target.checked)} /> Split Player B's {splitName(opponentFaction, opponentPatrolId || undefined)} into {splitSizes(opponentFaction, opponentPatrolId || undefined)} (Patrol Squads)
           </label>
         )}

@@ -79,3 +79,21 @@ test('starting a game shows the board with figures', async ({ page }) => {
   }
   await page.screenshot({ path: 'e2e-out/03-closeup.png' })
 })
+
+// Desktop HUD check (M11): the compact phone HUD must never leak into the desktop layout. Phase tracker,
+// the icon tool row and the decision prompt are all present; no phone drawer, top bar or touch bar.
+test('desktop HUD layout is unchanged', async ({ page }) => {
+  test.setTimeout(90_000)
+  await page.goto('/')
+  await page.getByTestId('setup-seed').fill('smoke-test-seed')
+  await page.getByTestId('start-game').click()
+  await expect(page.getByTestId('phase-tracker')).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByTestId('prompt')).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByTestId('btn-mission')).toBeVisible()
+  await expect(page.getByTestId('btn-measure').or(page.getByTestId('btn-tools-menu'))).toBeVisible() // icon row, or the menu button when it collapses
+  await expect(page.getByTestId('hud-bar')).toHaveCount(0)
+  await expect(page.getByTestId('touch-action-bar')).toHaveCount(0)
+  await expect(page.getByTestId('prompt-sheet-toggle')).toHaveCount(0)
+  await page.waitForTimeout(1500)
+  await page.screenshot({ path: 'e2e-out/desktop-hud.png' })
+})

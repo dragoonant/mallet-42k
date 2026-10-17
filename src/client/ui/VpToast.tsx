@@ -3,6 +3,7 @@
 import { useEffect, type CSSProperties } from 'react'
 import { useGameStore } from '../store/game'
 import { colors, fontStack } from './theme'
+import { useFormFactor } from './formFactor'
 
 const wrap: CSSProperties = {
   position: 'absolute',
@@ -21,9 +22,22 @@ const wrap: CSSProperties = {
   pointerEvents: 'auto',
 }
 
+// Compact: centred just above the rejection toast, which itself floats above the bottom sheet's tallest extent
+// (45dvh) — so it never covers the sheet's buttons or the dice tray under the top bar.
+const wrapCompact: CSSProperties = {
+  ...wrap,
+  top: 'auto',
+  bottom: 'calc(45dvh + 52px)',
+  fontSize: 12,
+  padding: '5px 10px',
+  maxWidth: 'min(320px, calc(100% - 200px))',
+  zIndex: 35,
+}
+
 export function VpToast() {
   const vpToast = useGameStore((s) => s.vpToast)
   const clearVpToast = useGameStore((s) => s.clearVpToast)
+  const { compact } = useFormFactor()
 
   useEffect(() => {
     if (!vpToast) return
@@ -33,7 +47,7 @@ export function VpToast() {
 
   if (!vpToast) return null
   return (
-    <div style={wrap} data-testid="vp-toast" onClick={clearVpToast}>
+    <div style={compact ? wrapCompact : wrap} data-testid="vp-toast" onClick={clearVpToast}>
       {vpToast.text}
     </div>
   )

@@ -7,6 +7,7 @@ import type { CoreAbility } from '@/data/types'
 import { prettifyId } from './labels'
 import { abilityLine } from './weaponRules'
 import { colors } from './theme'
+import { useFormFactor } from './formFactor'
 
 export const DATASHEET_WIDTH = 620
 
@@ -103,6 +104,7 @@ function WeaponTable({ weapons, melee }: { weapons: RuntimeWeapon[]; melee: bool
 
 /** Datasheet for `unitId`, narrowed to the profiles and wargear of `modelIds` (pass every model for the whole unit). */
 export function UnitDatasheet({ state, unitId, modelIds }: { state: GameState; unitId: string; modelIds: string[] }) {
+  const { compact } = useFormFactor()
   const unit = state.units[unitId]
   const ds = unit ? state.datasheets[unit.datasheetId] : undefined
   if (!unit || !ds) return <div style={titleText}>{unit?.name ?? prettifyId(unitId)}</div>
@@ -148,7 +150,8 @@ export function UnitDatasheet({ state, unitId, modelIds }: { state: GameState; u
 
   return (
     <div data-testid="unit-datasheet">
-      <div style={header}>
+      {/* Phones show this as a full-screen sheet; keep the title clear of the 48px close button in its corner. */}
+      <div style={compact ? { ...header, margin: '0 0 8px', padding: '10px 56px 8px 12px', borderRadius: 8 } : header}>
         <div style={titleText}>{title}</div>
         <div style={subText}>
           {title !== unit.name && (
@@ -161,7 +164,7 @@ export function UnitDatasheet({ state, unitId, modelIds }: { state: GameState; u
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', ...(compact ? { fontSize: 13 } : null) }}>
         <div style={{ flex: '1 1 360px', minWidth: 0 }}>
           {statLines.map((p) => (
             <div key={p.key} style={{ marginBottom: 6 }}>

@@ -9,6 +9,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { useAnnouncementStore, skipAnnouncement } from '../presentation/announceStore'
 import { colors, fontStack } from './theme'
+import { useFormFactor } from './formFactor'
 
 const wrap: CSSProperties = {
   position: 'absolute',
@@ -41,9 +42,17 @@ const barTrack: CSSProperties = {
   overflow: 'hidden',
 }
 
+// Compact: a slim banner under the top bar, so the board and the bottom sheet stay visible.
+const wrapCompact: CSSProperties = { ...wrap, top: 52, minWidth: 0, maxWidth: 'calc(100% - 220px)', padding: '8px 18px 8px' }
+const titleCompact: CSSProperties = { ...titleStyle, fontSize: 18 }
+const subtitleCompact: CSSProperties = { ...subtitleStyle, fontSize: 12, marginTop: 2 }
+const hintCompact: CSSProperties = { ...hintStyle, fontSize: 10.5, marginTop: 4 }
+const barTrackCompact: CSSProperties = { ...barTrack, marginTop: 6 }
+
 export function PhaseBanner() {
   const current = useAnnouncementStore((s) => s.current)
   const id = current?.id ?? null
+  const { compact } = useFormFactor()
   // Two renders per announcement (full-width bar, then 0) so the CSS transition below has something
   // to animate from — a single render at the target width would just paint it empty.
   const [running, setRunning] = useState(false)
@@ -60,7 +69,7 @@ export function PhaseBanner() {
 
   return (
     <div
-      style={{ ...wrap, borderColor: accent }}
+      style={{ ...(compact ? wrapCompact : wrap), borderColor: accent }}
       data-testid="phase-banner"
       // Per-announcement, so an e2e run can tell "this pause ended" from "the next one took over the
       // banner straight away" — back-to-back announcements are exactly the case this feature exists for.
@@ -70,10 +79,10 @@ export function PhaseBanner() {
       aria-live="polite"
       onClick={skipAnnouncement}
     >
-      <div style={{ ...titleStyle, color: accent }}>{current.title}</div>
-      <div style={subtitleStyle}>{current.subtitle}</div>
-      <div style={hintStyle}>Click anywhere to continue</div>
-      <div style={barTrack}>
+      <div style={{ ...(compact ? titleCompact : titleStyle), color: accent }}>{current.title}</div>
+      <div style={compact ? subtitleCompact : subtitleStyle}>{current.subtitle}</div>
+      <div style={compact ? hintCompact : hintStyle}>{compact ? 'Tap anywhere to continue' : 'Click anywhere to continue'}</div>
+      <div style={compact ? barTrackCompact : barTrack}>
         <div
           style={{
             height: '100%',

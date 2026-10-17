@@ -5,6 +5,8 @@ import { useState, type CSSProperties } from 'react'
 import { useGameStore } from '../store/game'
 import { stratagemEligibility, stratagemTimingLabel, stratagemsFor } from './stratagemInfo'
 import { buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
+import { useFormFactor } from './formFactor'
+import { CompactDrawer } from './compactSheets'
 
 const tabWrap: CSSProperties = { position: 'absolute', left: 12, bottom: 12, pointerEvents: 'auto' }
 const panelStyle: CSSProperties = { ...panel, width: 320, maxHeight: '55vh', display: 'flex', flexDirection: 'column', padding: 12 }
@@ -19,10 +21,37 @@ export function StratagemPanel() {
   const state = useGameStore((s) => s.state)
   const pending = useGameStore((s) => s.pending)
   const [open, setOpen] = useState(false)
+  const { compact } = useFormFactor()
 
   if (!state) return null
   const player = pending?.player ?? state.activePlayer
   const stratagems = stratagemsFor(state, player)
+
+  const cards = stratagems.map((s) => {
+    const elig = stratagemEligibility(state, player, s.id)
+    return (
+      <div key={s.id} style={elig.ok ? card : cardDisabled} data-testid={`stratagem-${s.id}`}>
+        <div style={nameRow}>
+          <span>{s.name}</span>
+          <span>{s.cost} CP</span>
+        </div>
+        <div style={{ ...mutedText, fontFamily: fontStack, marginTop: 2 }}>{stratagemTimingLabel(s)}</div>
+        <div style={{ fontSize: 12, marginTop: 4 }}>{s.text}</div>
+        {!elig.ok && <div style={{ color: colors.danger, fontSize: 11, marginTop: 4, fontWeight: 600 }}>{elig.reason}</div>}
+      </div>
+    )
+  })
+
+  // Compact: the Hud's "Strat" button toggles this drawer; there is no floating tab.
+  if (compact) {
+    return (
+      <CompactDrawer id="stratagems" title={`${state.players[player].name}'s stratagems — ${state.players[player].cp} CP`}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} data-testid="stratagem-panel">
+          {cards}
+        </div>
+      </CompactDrawer>
+    )
+  }
 
   return (
     <div style={tabWrap}>
@@ -42,20 +71,7 @@ export function StratagemPanel() {
             </button>
           </div>
           <div style={list}>
-            {stratagems.map((s) => {
-              const elig = stratagemEligibility(state, player, s.id)
-              return (
-                <div key={s.id} style={elig.ok ? card : cardDisabled} data-testid={`stratagem-${s.id}`}>
-                  <div style={nameRow}>
-                    <span>{s.name}</span>
-                    <span>{s.cost} CP</span>
-                  </div>
-                  <div style={{ ...mutedText, fontFamily: fontStack, marginTop: 2 }}>{stratagemTimingLabel(s)}</div>
-                  <div style={{ fontSize: 12, marginTop: 4 }}>{s.text}</div>
-                  {!elig.ok && <div style={{ color: colors.danger, fontSize: 11, marginTop: 4, fontWeight: 600 }}>{elig.reason}</div>}
-                </div>
-              )
-            })}
+            {cards}
           </div>
         </div>
       )}

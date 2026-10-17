@@ -5,6 +5,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type SyntheticEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { colors, panel } from './theme'
+import { useFormFactor } from './formFactor'
 
 const GAP = 10
 const MARGIN = 8
@@ -21,6 +22,8 @@ const tipBox: CSSProperties = {
   pointerEvents: 'none', // never steals the click the player is about to make
   zIndex: 1000,
   boxSizing: 'border-box',
+  maxHeight: 'calc(100dvh - 16px)',
+  overflow: 'hidden',
 }
 
 export interface Anchor {
@@ -56,6 +59,78 @@ export function TipPopup({ anchor, width, testId = 'unit-card-tooltip', children
   )
 }
 
+/**
+ * Phone version of a datasheet popup: a full-screen sheet with a 44px-plus close button, scrollable inside the safe
+ * areas. Portalled to <body>; events are stopped here so taps inside never reach the row that opened it (which would
+ * toggle it shut). `onClose` must clear whatever state opened it.
+ */
+export function FullScreenSheet({ onClose, testId = 'unit-datasheet-sheet', children }: { onClose: () => void; testId?: string; children: ReactNode }) {
+  const stop = (e: SyntheticEvent) => e.stopPropagation()
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      data-testid={testId}
+      data-tip-sticky=""
+      onClick={stop}
+      onPointerDown={stop}
+      onFocus={stop}
+      onBlur={stop}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1100,
+        background: colors.bgSolid,
+        color: colors.text,
+        boxSizing: 'border-box',
+        paddingTop: 'var(--safe-top, 0px)',
+        paddingRight: 'var(--safe-right, 0px)',
+        paddingBottom: 'var(--safe-bottom, 0px)',
+        paddingLeft: 'var(--safe-left, 0px)',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      <div
+        style={{
+          flex: '1 1 auto',
+          minHeight: 0,
+          overflowY: 'auto',
+          overscrollBehavior: 'contain',
+          touchAction: 'pan-y',
+          WebkitOverflowScrolling: 'touch',
+          padding: '10px 12px 16px',
+        }}
+      >
+        {children}
+      </div>
+      <button
+        type="button"
+        data-testid="unit-datasheet-close"
+        aria-label="Close datasheet"
+        onClick={onClose}
+        style={{
+          position: 'absolute',
+          top: 'calc(var(--safe-top, 0px) + 4px)',
+          right: 'calc(var(--safe-right, 0px) + 4px)',
+          width: 48,
+          height: 48,
+          fontSize: 20,
+          lineHeight: 1,
+          color: colors.text,
+          background: 'rgba(255,255,255,0.12)',
+          border: `1px solid ${colors.border}`,
+          borderRadius: 8,
+          cursor: 'pointer',
+        }}
+      >
+        ✕
+      </button>
+    </div>,
+    document.body,
+  )
+}
+
 /** Where a popup for `el` goes: just right of the unit card, level with the hovered element. */
 export function anchorBesideCard(el: HTMLElement): Anchor {
   const row = el.getBoundingClientRect()
@@ -69,7 +144,11 @@ export function anchorBesideCard(el: HTMLElement): Anchor {
  * emulated mouse events after a tap are ignored so they cannot flicker the popup. Spread the result onto the element.
  */
 export function useTipTrigger(open: boolean, onShow: (el: HTMLElement) => void, onHide: () => void) {
-  const lastTouch = useRef(false)
+  // Compact (phone) layout is tap-only: hover never opens anything, so a mouse used to test it behaves like a finger.
+  const tapOnly = useFormFactor().compact
+  const lastTouch = useRef(tapOnly)
+  const tapOnlyRef = useRef(tapOnly)
+  tapOnlyRef.current = tapOnly
   const touchOpen = useRef(false)
   const el = useRef<HTMLElement | null>(null)
   const show = useRef(onShow)
@@ -82,6 +161,8 @@ export function useTipTrigger(open: boolean, onShow: (el: HTMLElement) => void, 
     if (!open || !touchOpen.current) return
     const onDown = (e: PointerEvent) => {
       if (el.current && el.current.contains(e.target as Node)) return
+      // A full-screen sheet (FullScreenSheet) stays open until its own close button is pressed.
+      if ((e.target as Element | null)?.closest?.('[data-tip-sticky]')) return
       touchOpen.current = false
       hide.current()
     }
@@ -89,7 +170,7 @@ export function useTipTrigger(open: boolean, onShow: (el: HTMLElement) => void, 
     return () => document.removeEventListener('pointerdown', onDown, true)
   }, [open])
 
-  const kind = (e: SyntheticEvent) => { lastTouch.current = (e.nativeEvent as PointerEvent).pointerType === 'touch' }
+  const kind = (e: SyntheticEvent) => { lastTouch.current = tapOnlyRef.current || (e.nativeEvent as PointerEvent).pointerType === 'touch' }
   return {
     onPointerDown: kind,
     onPointerEnter: kind,
@@ -109,11 +190,12 @@ export function useTipTrigger(open: boolean, onShow: (el: HTMLElement) => void, 
 export function TipItem({ testId, tip, children }: { testId: string; tip: ReactNode; children: ReactNode }) {
   const [anchor, setAnchor] = useState<Anchor | null>(null)
   const trigger = useTipTrigger(anchor !== null, (el) => setAnchor(anchorBesideCard(el)), () => setAnchor(null))
+  const { compact } = useFormFactor()
 
   const style: CSSProperties = {
     cursor: 'help',
     borderRadius: 4,
-    padding: '1px 4px',
+    padding: compact ? '12px 4px' : '1px 4px',
     margin: '0 -4px',
     outline: 'none',
     background: anchor ? 'rgba(255,255,255,0.1)' : 'transparent',

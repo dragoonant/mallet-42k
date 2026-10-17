@@ -11,6 +11,7 @@ import { usePresentationSettings, type RerollMute } from '../presentation/settin
 import { rerollSummary, rerollTrayModel } from './rerollInfo'
 import { buttonBase, buttonPrimary, colors, fontStack, mutedText } from './theme'
 import { Tooltip } from './Tooltip'
+import { useFormFactor } from './formFactor'
 
 const heading: CSSProperties = { fontWeight: 700, fontSize: 14 }
 const infoBlock: CSSProperties = { ...mutedText, background: 'rgba(255,255,255,0.04)', borderRadius: 6, padding: '6px 8px' }
@@ -26,6 +27,15 @@ const muteLink: CSSProperties = {
 function dieSize(n: number): number {
   return n > 20 ? 24 : n > 12 ? 30 : n > 6 ? 36 : 44
 }
+
+/** Compact (phone): every die is a tap target, so the face + its 3px padding + 2px border stays near 44px. */
+function dieSizeCompact(n: number): number {
+  return n > 20 ? 36 : 40
+}
+
+const TOUCH = 44
+const muteLinkCompact: CSSProperties = { ...muteLink, minHeight: TOUCH, padding: '0 6px', fontSize: 12 }
+const btnCompact: CSSProperties = { minHeight: TOUCH, padding: '0 16px' }
 
 function slotStyle(picked: boolean, clickable: boolean): CSSProperties {
   return {
@@ -62,6 +72,7 @@ export function RerollTray({ state, events, pending, roll, keepAction }: RerollT
   const muteRerolls = usePresentationSettings((s) => s.muteRerolls)
   const speed = useDiceStore((s) => s.speed)
   const [picked, setPicked] = useState<number[]>([])
+  const { compact } = useFormFactor()
 
   useEffect(() => {
     rerollTrayShown.add(roll.id)
@@ -76,7 +87,7 @@ export function RerollTray({ state, events, pending, roll, keepAction }: RerollT
   const cost = state.stratagems['core.s.command-reroll']?.cost ?? 1
   const cp = state.players[pending.player].cp
   const { tumbleMs, flipMs } = DURATIONS[speed]
-  const size = dieSize(model.dice.length)
+  const size = compact ? dieSizeCompact(model.dice.length) : dieSize(model.dice.length)
   const interactive = model.mode !== 'whole'
   const ability = model.free
 
@@ -115,7 +126,12 @@ export function RerollTray({ state, events, pending, roll, keepAction }: RerollT
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }} data-testid="reroll-tray">
+    <div
+      style={compact
+        ? { display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }
+        : { display: 'flex', flexDirection: 'column', gap: 6 }}
+      data-testid="reroll-tray"
+    >
       <div style={heading}>{summary.title}</div>
       <div style={infoBlock} data-testid="reroll-info">
         <div style={rollLine}>{summary.line}</div>
@@ -173,9 +189,9 @@ export function RerollTray({ state, events, pending, roll, keepAction }: RerollT
         })}
       </div>
 
-      <div style={row}>
+      <div style={compact ? { ...row, position: 'sticky', bottom: 0, background: colors.bgSolid, padding: '6px 0 2px', zIndex: 1 } : row}>
         <button
-          style={confirmDisabled ? { ...buttonPrimary, opacity: 0.45, cursor: 'not-allowed' } : buttonPrimary}
+          style={{ ...(confirmDisabled ? { ...buttonPrimary, opacity: 0.45, cursor: 'not-allowed' } : buttonPrimary), ...(compact ? btnCompact : null) }}
           data-testid="reroll-confirm"
           disabled={confirmDisabled}
           onClick={() => answer(confirmAction)}
@@ -183,22 +199,22 @@ export function RerollTray({ state, events, pending, roll, keepAction }: RerollT
           {confirmLabel}
         </button>
         {failedAction && (
-          <button style={buttonBase} data-testid="reroll-failed" onClick={() => answer(failedAction)}>
+          <button style={compact ? { ...buttonBase, ...btnCompact } : buttonBase} data-testid="reroll-failed" onClick={() => answer(failedAction)}>
             Re-roll all failed
           </button>
         )}
         {keepAction && (
-          <button style={buttonBase} data-testid="reroll-keep" onClick={() => dispatch(keepAction)}>
+          <button style={compact ? { ...buttonBase, ...btnCompact } : buttonBase} data-testid="reroll-keep" onClick={() => dispatch(keepAction)}>
             {model.mode === 'many' ? 'Keep all' : 'Keep'}
           </button>
         )}
       </div>
       {keepAction && (
         <div style={muteRow}>
-          <button style={muteLink} data-testid="btn-reroll-mute-phase" onClick={() => answerAndMute({ scope: 'phase', round: state.round, phase: state.phase })}>
+          <button style={compact ? muteLinkCompact : muteLink} data-testid="btn-reroll-mute-phase" onClick={() => answerAndMute({ scope: 'phase', round: state.round, phase: state.phase })}>
             Keep, and stop asking this phase
           </button>
-          <button style={muteLink} data-testid="btn-reroll-mute-battle" onClick={() => answerAndMute({ scope: 'battle' })}>
+          <button style={compact ? muteLinkCompact : muteLink} data-testid="btn-reroll-mute-battle" onClick={() => answerAndMute({ scope: 'battle' })}>
             …for the rest of the battle
           </button>
         </div>

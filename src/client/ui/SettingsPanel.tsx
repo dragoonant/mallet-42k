@@ -6,6 +6,8 @@ import { audio, useAudioSettings } from '../audio'
 import { usePresentationSettings, type AnimSpeed, type CommandRerollSetting } from '../presentation/settings'
 import { useUiStore } from './uiStore'
 import { buttonActive, buttonBase, colors, fontStack, mutedText, panel } from './theme'
+import { useFormFactor } from './formFactor'
+import { CompactDrawer, useCompactSheets } from './compactSheets'
 
 const wrapBase: CSSProperties = {
   ...panel,
@@ -86,22 +88,36 @@ export function SettingsPanel() {
   const setAmbientOn = usePresentationSettings((s) => s.setAmbientOn)
   const setCommandRerollSetting = usePresentationSettings((s) => s.setCommandRerollSetting)
 
-  if (!open) return null
+  const { compact } = useFormFactor()
+  const compactOpen = useCompactSheets((s) => s.open === 'settings')
+  if (compact ? !compactOpen : !open) return null
   // Sits below the Keys popover when both happen to be open at once (same top-right corner).
   const wrap: CSSProperties = { ...wrapBase, top: helpOpen ? 260 : 56 }
 
-  return (
-    <div style={wrap} data-testid="settings-panel">
+  // Compact (phone): same controls inside the right-edge drawer, with 44px touch targets.
+  const T = compact
+  const cRow: CSSProperties = T ? { ...row, minHeight: 44 } : row
+  const cCheck: CSSProperties = T ? { ...checkboxRow, minHeight: 44 } : checkboxRow
+  const cSlider: CSSProperties = T ? { ...slider, flex: '0 0 130px', width: 130, height: 32 } : slider
+  const cSpeedRow: CSSProperties = T ? { ...speedRow, flexWrap: 'wrap' } : speedRow
+  const cSpeedBtn: CSSProperties = T ? { ...speedBtn, minHeight: 44, flex: '1 1 30%' } : speedBtn
+  const cSpeedBtnActive: CSSProperties = T ? { ...speedBtnActive, minHeight: 44, flex: '1 1 30%' } : speedBtnActive
+  const cReroll: CSSProperties = T ? { ...rerollOptionRow, minHeight: 44, padding: '8px 10px' } : rerollOptionRow
+  const cRerollActive: CSSProperties = T ? { ...rerollOptionRowActive, minHeight: 44, padding: '8px 10px' } : rerollOptionRowActive
+  const cBox: CSSProperties | undefined = T ? { width: 22, height: 22, flex: '0 0 auto' } : undefined
+
+  const controls = (
+    <>
       <div style={sectionTitle}>Audio</div>
-      <label style={checkboxRow}>
-        <input type="checkbox" checked={settings.muted} onChange={(e) => setMuted(e.target.checked)} data-testid="settings-mute" />
+      <label style={cCheck}>
+        <input style={cBox} type="checkbox" checked={settings.muted} onChange={(e) => setMuted(e.target.checked)} data-testid="settings-mute" />
         <span>Mute all sound</span>
       </label>
       {VOLUME_ROWS.map(({ key, label: rowLabel }) => (
-        <div style={row} key={key}>
+        <div style={cRow} key={key}>
           <span style={{ ...label, fontFamily: fontStack }}>{rowLabel}</span>
           <input
-            style={slider}
+            style={cSlider}
             type="range"
             min={0}
             max={1}
@@ -117,11 +133,11 @@ export function SettingsPanel() {
       <div style={sectionTitle}>Presentation</div>
       <div>
         <div style={mutedText}>Animation speed</div>
-        <div style={speedRow}>
+        <div style={cSpeedRow}>
           {SPEED_OPTIONS.map((opt) => (
             <button
               key={opt.key}
-              style={animSpeed === opt.key ? speedBtnActive : speedBtn}
+              style={animSpeed === opt.key ? cSpeedBtnActive : cSpeedBtn}
               onClick={() => setAnimSpeed(opt.key)}
               data-testid={`settings-speed-${opt.key}`}
             >
@@ -132,11 +148,11 @@ export function SettingsPanel() {
       </div>
       <div>
         <div style={mutedText}>Dice rolls</div>
-        <div style={speedRow}>
+        <div style={cSpeedRow}>
           {DICE_STYLE_OPTIONS.map((opt) => (
             <button
               key={opt.key}
-              style={diceStyle === opt.key ? speedBtnActive : speedBtn}
+              style={diceStyle === opt.key ? { ...cSpeedBtnActive, flexBasis: T ? '100%' : undefined } : { ...cSpeedBtn, flexBasis: T ? '100%' : undefined }}
               onClick={() => setDiceStyle(opt.key)}
               data-testid={`settings-dice-style-${opt.key}`}
             >
@@ -145,16 +161,17 @@ export function SettingsPanel() {
           ))}
         </div>
       </div>
-      <label style={checkboxRow}>
-        <input type="checkbox" checked={diceOn} onChange={(e) => setDiceOn(e.target.checked)} data-testid="settings-dice-on" />
+      <label style={cCheck}>
+        <input style={cBox} type="checkbox" checked={diceOn} onChange={(e) => setDiceOn(e.target.checked)} data-testid="settings-dice-on" />
         <span>Dice animation</span>
       </label>
-      <label style={checkboxRow}>
-        <input type="checkbox" checked={ambientOn} onChange={(e) => setAmbientOn(e.target.checked)} data-testid="settings-ambient-on" />
+      <label style={cCheck}>
+        <input style={cBox} type="checkbox" checked={ambientOn} onChange={(e) => setAmbientOn(e.target.checked)} data-testid="settings-ambient-on" />
         <span>Ambient battlefield sound</span>
       </label>
-      <label style={checkboxRow}>
+      <label style={cCheck}>
         <input
+          style={cBox}
           type="checkbox"
           checked={battlefieldAmbience}
           onChange={(e) => setBattlefieldAmbience(e.target.checked)}
@@ -162,8 +179,8 @@ export function SettingsPanel() {
         />
         <span>Battlefield ambience (distant artillery and flares)</span>
       </label>
-      <label style={checkboxRow}>
-        <input type="checkbox" checked={lowGraphics} onChange={(e) => setLowGraphics(e.target.checked)} data-testid="settings-low-graphics" />
+      <label style={cCheck}>
+        <input style={cBox} type="checkbox" checked={lowGraphics} onChange={(e) => setLowGraphics(e.target.checked)} data-testid="settings-low-graphics" />
         <span>Low graphics (no shadows, lower resolution)</span>
       </label>
 
@@ -172,7 +189,7 @@ export function SettingsPanel() {
         {REROLL_OPTIONS.map((opt) => (
           <button
             key={opt.key}
-            style={commandRerollSetting === opt.key ? rerollOptionRowActive : rerollOptionRow}
+            style={commandRerollSetting === opt.key ? cRerollActive : cReroll}
             onClick={() => setCommandRerollSetting(opt.key)}
             data-testid={`settings-reroll-${opt.key}`}
           >
@@ -181,6 +198,22 @@ export function SettingsPanel() {
           </button>
         ))}
       </div>
+    </>
+  )
+
+  if (compact) {
+    return (
+      <CompactDrawer id="settings" title="Settings">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13 }} data-testid="settings-panel">
+          {controls}
+        </div>
+      </CompactDrawer>
+    )
+  }
+
+  return (
+    <div style={wrap} data-testid="settings-panel">
+      {controls}
     </div>
   )
 }

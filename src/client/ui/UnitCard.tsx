@@ -9,7 +9,7 @@ import { groupLabel, groupUnitIds } from '../interaction/embarkGroup'
 import { useDisplayState } from '../presentation/presentedStore'
 import { useUiStore } from './uiStore'
 import { prettifyId } from './labels'
-import { anchorBesideCard, TipItem, TipPopup, tipMuted, tipTitle, useTipTrigger, type Anchor } from './UnitCardTooltip'
+import { anchorBesideCard, FullScreenSheet, TipItem, TipPopup, tipMuted, tipTitle, useTipTrigger, type Anchor } from './UnitCardTooltip'
 import { useFormFactor } from './formFactor'
 import { DATASHEET_WIDTH, UnitDatasheet } from './UnitDatasheet'
 import { WeaponIcon, weaponIconKind } from './weaponIcons'
@@ -29,6 +29,45 @@ const closeButton: CSSProperties = {
   padding: 4,
   lineHeight: 1,
 }
+// Compact (phone) layout: the card is a 44px chip under the top bar that opens into the full card as an overlay.
+const chipPos: CSSProperties = {
+  position: 'absolute',
+  left: 'calc(var(--safe-left, 0px) + 8px)',
+  top: 'calc(var(--safe-top, 0px) + 48px)',
+  pointerEvents: 'auto',
+  zIndex: 40,
+  boxSizing: 'border-box',
+}
+const chipWrap: CSSProperties = { ...panel, ...chipPos, display: 'flex', alignItems: 'stretch', width: 'min(280px, calc(100vw - var(--safe-left, 0px) - var(--safe-right, 0px) - 16px))', height: 44, padding: 0, overflow: 'hidden' }
+const chipMain: CSSProperties = {
+  flex: '1 1 auto',
+  minWidth: 0,
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  padding: '0 10px',
+  background: 'transparent',
+  border: 'none',
+  color: colors.text,
+  font: 'inherit',
+  fontSize: 13,
+  cursor: 'pointer',
+  textAlign: 'left',
+  touchAction: 'manipulation',
+}
+const chipClose: CSSProperties = { flex: '0 0 44px', width: 44, background: 'transparent', border: 'none', borderLeft: `1px solid ${colors.border}`, color: colors.muted, fontSize: 16, cursor: 'pointer', touchAction: 'manipulation' }
+const compactWrap: CSSProperties = {
+  ...panel,
+  ...chipPos,
+  width: 'min(300px, calc(100vw - var(--safe-left, 0px) - var(--safe-right, 0px) - 16px))',
+  maxHeight: '60dvh',
+  overflowY: 'auto',
+  overscrollBehavior: 'contain',
+  touchAction: 'pan-y',
+  padding: '8px 12px 12px',
+  zIndex: 41,
+}
+const compactBtn: CSSProperties = { ...closeButton, top: 0, minWidth: 44, minHeight: 44, fontSize: 18, position: 'absolute' }
 const sectionTitle: CSSProperties = { ...mutedText, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 10, marginBottom: 2 }
 const list: CSSProperties = { margin: 0, paddingLeft: 16, fontSize: 12.5 }
 const warn: CSSProperties = { color: '#ffb84f', fontSize: 12, fontWeight: 600, marginTop: 4 }
@@ -103,8 +142,17 @@ interface SheetHover {
   anchor: Anchor
 }
 
-function DatasheetPopup({ state, unitId, hover }: { state: GameState; unitId: string; hover: SheetHover | null }) {
+function DatasheetPopup({ state, unitId, hover, onClose }: { state: GameState; unitId: string; hover: SheetHover | null; onClose: () => void }) {
+  const { compact } = useFormFactor()
   if (!hover) return null
+  // Phones: the datasheet is a full-screen, scrollable sheet with its own close button.
+  if (compact) {
+    return (
+      <FullScreenSheet onClose={onClose}>
+        <UnitDatasheet state={state} unitId={unitId} modelIds={hover.modelIds} />
+      </FullScreenSheet>
+    )
+  }
   return (
     <TipPopup anchor={hover.anchor} width={DATASHEET_WIDTH} testId="unit-datasheet-popup">
       <UnitDatasheet state={state} unitId={unitId} modelIds={hover.modelIds} />
@@ -115,17 +163,19 @@ function DatasheetPopup({ state, unitId, hover }: { state: GameState; unitId: st
 function WoundRowItem({ state, unitId, r }: { state: GameState; unitId: string; r: WoundRow }) {
   const glowModels = useUiStore((s) => s.glowModels)
   const [sheet, setSheet] = useState<SheetHover | null>(null)
+  const closeSheet = () => {
+    glowModels([])
+    setSheet(null)
+  }
   const trigger = useTipTrigger(
     sheet !== null,
     (el) => {
       glowModels(r.modelIds)
       setSheet({ key: r.key, modelIds: r.modelIds, anchor: anchorBesideCard(el) })
     },
-    () => {
-      glowModels([])
-      setSheet(null)
-    },
+    closeSheet,
   )
+  const { compact } = useFormFactor()
   const fraction = r.max > 0 ? r.wounds / r.max : 1
   const damaged = r.wounds < r.max
   return (
@@ -134,6 +184,7 @@ function WoundRowItem({ state, unitId, r }: { state: GameState; unitId: string; 
       {...trigger}
       style={{
         ...woundRowStyle,
+        ...(compact ? { minHeight: 44, padding: '4px 4px' } : null),
         cursor: 'help',
         background: sheet ? 'rgba(255,255,255,0.1)' : damaged ? 'rgba(255,106,95,0.14)' : 'transparent',
       }}
@@ -148,7 +199,7 @@ function WoundRowItem({ state, unitId, r }: { state: GameState; unitId: string; 
       <span style={{ width: 28, textAlign: 'right', fontWeight: 600, color: damaged ? barColor(fraction) : colors.text }}>
         {r.wounds}/{r.max}
       </span>
-      <DatasheetPopup state={state} unitId={unitId} hover={sheet} />
+      <DatasheetPopup state={state} unitId={unitId} hover={sheet} onClose={closeSheet} />
     </div>
   )
 }
@@ -168,23 +219,29 @@ function UnitNameLabel({ state, unit, color }: { state: GameState; unit: { id: s
   const [sheet, setSheet] = useState<SheetHover | null>(null)
   // Never leave figures glowing once the card closes.
   useEffect(() => () => glowModels([]), [glowModels])
+  const closeSheet = () => {
+    glowModels([])
+    setSheet(null)
+  }
   const trigger = useTipTrigger(
     sheet !== null,
     (el) => {
       glowModels(unit.models)
       setSheet({ key: 'unit', modelIds: unit.models, anchor: anchorBesideCard(el) })
     },
-    () => {
-      glowModels([])
-      setSheet(null)
-    },
+    closeSheet,
   )
+  const { compact } = useFormFactor()
   return (
     <>
-      <div style={{ color, fontWeight: 700, cursor: 'help', paddingRight: 18 }} data-testid="unit-card-name" {...trigger}>
+      <div
+        style={{ color, fontWeight: 700, cursor: 'help', paddingRight: compact ? 96 : 18, ...(compact ? { minHeight: 44, display: 'flex', alignItems: 'center' } : null) }}
+        data-testid="unit-card-name"
+        {...trigger}
+      >
         {unit.name}
       </div>
-      <DatasheetPopup state={state} unitId={unit.id} hover={sheet} />
+      <DatasheetPopup state={state} unitId={unit.id} hover={sheet} onClose={closeSheet} />
     </>
   )
 }
@@ -283,7 +340,10 @@ export function UnitCard() {
   const selectedUnitId = useUiStore((s) => s.selectedUnitId)
   const selectUnit = useUiStore((s) => s.selectUnit)
   const phase = state?.phase
-  const { touch } = useFormFactor()
+  const { touch, compact } = useFormFactor()
+  const [expanded, setExpanded] = useState(false)
+  // Each newly selected unit starts as a chip again.
+  useEffect(() => setExpanded(false), [selectedUnitId])
 
   // A card left open from a previous phase (e.g. selected mid-deployment) stayed put forever with no
   // way to dismiss it — clear the selection whenever the phase moves on.
@@ -315,11 +375,46 @@ export function UnitCard() {
   const move = distinctStat('M')
   const toughness = distinctStat('T')
 
+  if (compact && !expanded) {
+    // Status dot: red = battle-shocked, amber = has taken damage, green = healthy.
+    const woundsNow = rows.reduce((n, r) => n + r.count * r.wounds, 0)
+    const woundsMax = rows.reduce((n, r) => n + r.count * r.max, 0)
+    const dot = unit.battleShocked ? '#ff6a5f' : woundsNow < woundsMax ? '#e8c85a' : '#5fd08a'
+    const status = unit.battleShocked ? 'battle-shocked' : woundsNow < woundsMax ? 'damaged' : 'healthy'
+    return (
+      <div style={chipWrap} data-testid="unit-card" data-compact="chip">
+        <button type="button" style={chipMain} data-testid="unit-card-chip" aria-expanded={false} aria-label={`${unit.name}, ${models.length} of ${unit.startingStrength} models, ${status}. Open unit card`} onClick={() => setExpanded(true)}>
+          <span data-testid="unit-card-status" data-status={status} style={{ width: 10, height: 10, borderRadius: '50%', background: dot, flex: '0 0 auto', boxShadow: `0 0 6px ${dot}` }} aria-hidden="true" />
+          <span style={{ flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 700, color }}>{unit.name}</span>
+          <span style={{ flex: '0 0 auto', ...mutedText, whiteSpace: 'nowrap' }}>
+            {models.length}/{unit.startingStrength} · {woundsNow}/{woundsMax}W
+          </span>
+        </button>
+        <button type="button" style={chipClose} data-testid="unit-card-close" aria-label="Close" onClick={() => selectUnit(null)}>
+          ✕
+        </button>
+      </div>
+    )
+  }
+
   return (
-    <div style={wrap} data-testid="unit-card">
-      <button style={touch ? { ...closeButton, top: 0, right: 0, minWidth: 44, minHeight: 44, fontSize: 18 } : closeButton} data-testid="unit-card-close" aria-label="Close" onClick={() => selectUnit(null)}>
-        ✕
-      </button>
+    <div style={compact ? compactWrap : wrap} data-testid="unit-card" data-compact={compact ? 'open' : undefined}>
+      {/* Phones: the card scrolls, so its collapse / close buttons ride in a zero-height sticky row. */}
+      <div style={compact ? { position: 'sticky', top: 0, height: 0, zIndex: 3 } : undefined}>
+        {compact && (
+          <button style={{ ...compactBtn, top: -8, right: 32 }} data-testid="unit-card-collapse" aria-label="Collapse unit card" onClick={() => setExpanded(false)}>
+            ▴
+          </button>
+        )}
+        <button
+          style={compact ? { ...compactBtn, top: -8, right: -12 } : touch ? { ...closeButton, top: 0, right: 0, minWidth: 44, minHeight: 44, fontSize: 18 } : closeButton}
+          data-testid="unit-card-close"
+          aria-label="Close"
+          onClick={() => selectUnit(null)}
+        >
+          ✕
+        </button>
+      </div>
       <UnitNameLabel state={state} unit={unit} color={color} />
       <div style={mutedText}>{state.players[unit.player].name}</div>
       {(() => {

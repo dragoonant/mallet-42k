@@ -3,7 +3,7 @@
 // current shape"), facing rotate (Q/E/wheel, 15° steps) and flip (R). Picking a shape or rotating
 // re-lays out the *current* draft in place if one already exists (same anchor, new shape/facing);
 // before the first click it only primes what the next click will use.
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useGameStore } from '../store/game'
 import { useUiStore } from './uiStore'
 import {
@@ -34,12 +34,19 @@ const wrap = {
 
 const kindButton = { ...buttonBase, fontSize: 11.5, padding: '4px 8px', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 1 }
 const kindButtonActive = { ...kindButton, ...buttonActive }
-// Touch (phones): 44px targets, and the strip scrolls sideways when the shape choices outgrow the screen.
+// Touch (phones): 44px targets. In the compact layout the strip lives in the BOTTOM zone, stacked just above the
+// touch action bar (Confirm / Cancel) and the decision sheet so it never covers them; the shape choices scroll
+// sideways when they outgrow the screen. `bottom` is measured live (see useBottomClearance).
 const touchWrap = {
   ...wrap,
-  top: 'calc(var(--safe-top, 0px) + 56px)',
-  maxWidth: 'calc(100vw - var(--safe-left, 0px) - var(--safe-right, 0px) - 16px)',
+  top: 'auto' as const,
+  left: 'calc(var(--safe-left, 0px) + 8px)',
+  right: 'calc(var(--safe-right, 0px) + 64px)', // leaves the right-edge camera buttons clear
+  transform: 'none',
+  bottom: 'calc(var(--safe-bottom, 0px) + 10px)',
+  zIndex: 44,
   overflowX: 'auto' as const,
+  overflowY: 'hidden' as const,
   touchAction: 'pan-x' as const,
   boxSizing: 'border-box' as const,
 }
@@ -49,6 +56,39 @@ const touchBtn = { ...buttonBase, minHeight: 44, minWidth: 44, padding: '4px 10p
 const keyHint = { fontSize: 9, opacity: 0.7 }
 const divider = { width: 1, alignSelf: 'stretch' as const, background: colors.border }
 const facingReadout = { fontSize: 12, minWidth: 40, textAlign: 'center' as const, ...mutedText }
+
+/** Bottom-zone elements the compact picker must sit above (their tops are measured, so it follows their real height). */
+const BOTTOM_ZONE_SELECTORS = ['[data-testid="touch-action-bar"]', '[data-testid="prompt"]']
+
+/** Pixels from the bottom of the window to clear so the picker rests just above the touch action bar / decision sheet.
+ *  Null until something is found (use the plain safe-area offset). Polls lightly: those elements change height as
+ *  validation reasons appear and as the sheet opens or collapses. */
+function useBottomClearance(active: boolean): number | null {
+  const [clear, setClear] = useState<number | null>(null)
+  useEffect(() => {
+    if (!active) return
+    const measure = () => {
+      let top = Infinity
+      for (const sel of BOTTOM_ZONE_SELECTORS) {
+        for (const el of Array.from(document.querySelectorAll<HTMLElement>(sel))) {
+          const r = el.getBoundingClientRect()
+          // only things resting in the lower half of the screen, and actually visible
+          if (r.height > 0 && r.width > 0 && r.bottom > window.innerHeight * 0.5) top = Math.min(top, r.top)
+        }
+      }
+      const next = Number.isFinite(top) ? Math.max(0, Math.round(window.innerHeight - top)) + 8 : null
+      setClear((prev) => (prev === next ? prev : next))
+    }
+    measure()
+    const id = window.setInterval(measure, 150)
+    window.addEventListener('resize', measure)
+    return () => {
+      window.clearInterval(id)
+      window.removeEventListener('resize', measure)
+    }
+  }, [active])
+  return clear
+}
 
 function isTypingTarget(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null
@@ -69,7 +109,7 @@ function regenerateActiveDraft(kind: FormationKind, facing: number) {
 }
 
 export function FormationPicker() {
-  const { touch } = useFormFactor()
+  const { touch, compact } = useFormFactor()
   const state = useGameStore((s) => s.state)
   const pending = useGameStore((s) => s.pending)
   const botSeat = useGameStore((s) => s.botSeat)
@@ -85,6 +125,7 @@ export function FormationPicker() {
   const isMove = active && isPlacementDecision(pending)
   const show = isDeploy || isMove
   const perModelDraft = !!pending && (pending.kind === 'pileIn' || pending.kind === 'consolidate')
+  const bottomClear = useBottomClearance(show && compact)
   const hasPreview = show && !!draft && draft.decisionId === pending!.id
 
   const pick = (kind: FormationKind) => {
@@ -152,7 +193,10 @@ export function FormationPicker() {
   const kinds: FormationKind[] = isMove ? ['keep', ...FORMATION_ORDER] : FORMATION_ORDER
 
   return (
-    <div style={touch ? touchWrap : wrap} data-testid="formation-picker">
+    <div
+      style={compact ? { ...touchWrap, ...(bottomClear !== null ? { bottom: bottomClear } : null) } : touch ? { ...touchWrap, top: 'calc(var(--safe-top, 0px) + 56px)', bottom: 'auto', left: '50%', right: 'auto', transform: 'translateX(-50%)', maxWidth: 'calc(100vw - var(--safe-left, 0px) - var(--safe-right, 0px) - 16px)' } : wrap}
+      data-testid="formation-picker"
+    >
       {kinds.map((kind) => {
         const key = Object.entries(FORMATION_KEYS).find(([, k]) => k === kind)?.[0]
         return (

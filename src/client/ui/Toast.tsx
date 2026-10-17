@@ -3,6 +3,7 @@
 import { useEffect, type CSSProperties } from 'react'
 import { useGameStore } from '../store/game'
 import { colors, fontStack } from './theme'
+import { useFormFactor } from './formFactor'
 
 const wrap: CSSProperties = {
   position: 'absolute',
@@ -22,11 +23,23 @@ const wrap: CSSProperties = {
   textAlign: 'center',
 }
 
+// Compact: floats just above the bottom sheet's tallest extent (45dvh), never over its buttons and clear of the
+// dice tray under the top bar.
+const wrapCompact: CSSProperties = {
+  ...wrap,
+  bottom: 'calc(45dvh + 8px)',
+  fontSize: 12,
+  padding: '7px 12px',
+  maxWidth: 'min(420px, calc(100% - 200px))',
+  zIndex: 35,
+}
+
 const codeStyle: CSSProperties = { color: colors.danger, fontWeight: 700, marginRight: 6 }
 
 export function Toast() {
   const toast = useGameStore((s) => s.toast)
   const clearToast = useGameStore((s) => s.clearToast)
+  const { compact } = useFormFactor()
 
   useEffect(() => {
     if (!toast) return
@@ -36,7 +49,7 @@ export function Toast() {
 
   if (!toast) return null
   return (
-    <div style={wrap} onClick={clearToast}>
+    <div style={compact ? wrapCompact : wrap} onClick={clearToast}>
       {toast.code && <span style={codeStyle}>{toast.code}</span>}
       {toast.text}
     </div>

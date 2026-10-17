@@ -131,7 +131,7 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
     // over a group of just-deployed models) without simulating mouse drags/wheel zooms. The
     // topDown lerp above still owns the viewing angle — this only moves target + distance,
     // preserving whatever azimuth the camera currently has.
-    const w = window as unknown as { __malletCamera?: { lookAt(x: number, z: number, distanceIn: number): void }; __malletProject?: (x: number, y: number, z: number) => { x: number; y: number } }
+    const w = window as unknown as { __malletCamera?: { lookAt(x: number, z: number, distanceIn: number): void; get(): { distance: number; azimuth: number; x: number; z: number } }; __malletProject?: (x: number, y: number, z: number) => { x: number; y: number } }
     // e2e hook: world point -> page pixel
     w.__malletProject = (x, y, z) => {
       camera.updateMatrixWorld()
@@ -140,6 +140,10 @@ export function CameraRig({ topDown = false, minDistance = 5, maxDistance = 150,
       return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height }
     }
     w.__malletCamera = {
+      get() {
+        const c = controls.current
+        return { distance: c ? c.getDistance() : camera.position.length(), azimuth: c ? c.getAzimuthalAngle() : 0, x: c ? c.target.x : 0, z: c ? c.target.z : 0 }
+      },
       lookAt(x, z, distanceIn) {
         const c = controls.current
         if (!c) return

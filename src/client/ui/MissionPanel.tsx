@@ -6,6 +6,8 @@ import { useGameStore } from '../store/game'
 import { useDisplayState } from '../presentation/presentedStore'
 import { missionRuleLabel, primaryScoringSummary, secondaryFor } from './labels'
 import { colors, mutedText, panel } from './theme'
+import { useFormFactor } from './formFactor'
+import { CompactDrawer } from './compactSheets'
 
 const wrap: CSSProperties = {
   ...panel,
@@ -26,20 +28,18 @@ const list: CSSProperties = { margin: 0, paddingLeft: 18, fontSize: 12.5 }
 export function MissionPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const state = useDisplayState()
   const bundle = useGameStore((s) => s.bundle)
-  if (!open || !state) return null
+  const { compact } = useFormFactor()
+  // Compact: shown in the right-edge drawer (compactSheets store decides when); `open` only matters on desktop.
+  if (!state || (!compact && !open)) return null
 
   const mission = state.mission.data
   const primary = primaryScoringSummary(mission)
   const secondaryA = secondaryFor(bundle, state, 'A')
   const secondaryB = secondaryFor(bundle, state, 'B')
 
-  return (
-    <div style={wrap} data-testid="mission-panel">
-      <button style={closeButton} aria-label="Close" onClick={onClose}>
-        ✕
-      </button>
-      <div style={{ fontWeight: 700, fontSize: 15 }}>{mission.name}</div>
-      {mission.text && <p style={{ fontSize: 12.5, marginTop: 6 }}>{mission.text}</p>}
+  const content = (
+    <>
+      {mission.text && <p style={{ fontSize: 12.5, marginTop: compact ? 0 : 6 }}>{mission.text}</p>}
 
       <div style={sectionTitle}>Primary scoring</div>
       <ul style={list}>
@@ -72,6 +72,24 @@ export function MissionPanel({ open, onClose }: { open: boolean; onClose: () => 
           {secondary && <div style={{ fontSize: 12 }}>{secondary.text}</div>}
         </div>
       ))}
+    </>
+  )
+
+  if (compact) {
+    return (
+      <CompactDrawer id="mission" title={mission.name}>
+        <div data-testid="mission-panel">{content}</div>
+      </CompactDrawer>
+    )
+  }
+
+  return (
+    <div style={wrap} data-testid="mission-panel">
+      <button style={closeButton} aria-label="Close" onClick={onClose}>
+        ✕
+      </button>
+      <div style={{ fontWeight: 700, fontSize: 15 }}>{mission.name}</div>
+      {content}
     </div>
   )
 }

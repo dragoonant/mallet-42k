@@ -3,7 +3,7 @@
 // phase/Pass button (dispatches whatever `pass` action legalActions() already validated) and the
 // tool buttons, which only ever touch uiStore — never GameState directly.
 import { useEffect, useState, type CSSProperties } from 'react'
-import { unitModels, type GameState, type Phase, type PlayerId } from '@/engine'
+import { unitModels, type Action, type GameState, type Phase, type PlayerId } from '@/engine'
 import { useGameStore } from '../store/game'
 import { useDisplayState, usePresentedStore } from '../presentation/presentedStore'
 import { useUiStore } from './uiStore'
@@ -14,6 +14,9 @@ import { Tooltip } from './Tooltip'
 import { hasFatePool } from './fate'
 import { primaryScoringWindowHint, sourceName } from './labels'
 import { BATTLEFIELDS } from '../board/terrainAssets'
+import { cameraNudge } from '../board/touchCamera'
+import { useFormFactor } from './formFactor'
+import { COMPACT_BAR_PX, useCompactSheets, type SheetId } from './compactSheets'
 import { buttonBase, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 
 const PHASES: { id: Phase; label: string }[] = [
@@ -441,12 +444,14 @@ export function Hud() {
   const presentedSeq = usePresentedStore((s) => s.presentedSeq)
   const deployTargetUnitId = useUiStore((s) => s.deployTargetUnitId)
   const [missionOpen, setMissionOpen] = useState(false)
+  const { compact } = useFormFactor()
   useToolShortcuts()
 
   if (!state) return null
   // Same gate as DecisionPrompt: no passing on a decision whose dice are still being shown.
   const passAction = presentedSeq < pendingSeq ? null : (legal?.find((a) => a.type === 'pass') ?? null)
   const thinking = !!pending && pending.player === botSeat
+  if (compact) return <CompactHud state={state} passAction={passAction} thinking={thinking} dispatch={dispatch} />
   const scoringHint = primaryScoringWindowHint(state.mission.data)
   // The M4 formation picker bar (FormationPicker.tsx) floats just under this HUD row, anchored to the
   // same horizontal centre as this hint — when both are showing, the picker sat visually on top with
@@ -629,5 +634,288 @@ function PlayerBadge({ id, state }: { id: PlayerId; state: GameState }) {
         </div>
       )}
     </div>
+  )
+}
+
+// ---------------------------------------------------------------------------------------------------
+// Compact (phone) HUD (M11). Landscape 852x393 is the design target, 667x375 the tightest case.
+//   top bar  full width, 44px + safe-top: [A][B] badges | round + phase | ... | Strat | End phase | ⋯ menu
+//   menu     two columns of 44px items: drawers (Mission, Dice log, Event feed, Settings) and board tools
+//   badges   tap for the VP breakdown and the army's special pools (Miracle / Fate / Pain / Cabal)
+//   camera   a 2x3 grid of 44px buttons at the right edge, top-aligned under the bar so the bottom sheet
+//            (up to 45dvh, full width) can never cover it; hidden while a drawer is open
+// Drawers (Mission / Stratagems / Log / Feed / Settings) live in compactSheets.ts; one open at a time.
+// ---------------------------------------------------------------------------------------------------
+const TOUCH = 44
+
+const cBar: CSSProperties = {
+  ...panel,
+  position: 'absolute',
+  top: 'calc(0px - var(--safe-top, 0px))',
+  left: 'calc(0px - var(--safe-left, 0px))',
+  right: 'calc(0px - var(--safe-right, 0px))',
+  height: `calc(${COMPACT_BAR_PX}px + var(--safe-top, 0px))`,
+  padding: '0 var(--safe-right, 0px) 0 var(--safe-left, 0px)',
+  paddingTop: 'var(--safe-top, 0px)',
+  boxSizing: 'border-box',
+  borderRadius: 0,
+  borderTop: 'none',
+  borderLeft: 'none',
+  borderRight: 'none',
+  pointerEvents: 'auto',
+  zIndex: 40,
+}
+const cBarRow: CSSProperties = { height: COMPACT_BAR_PX, display: 'flex', alignItems: 'center', gap: 6, padding: '0 6px', boxSizing: 'border-box', minWidth: 0 }
+const cBadgeWrap: CSSProperties = { position: 'relative', flex: '0 1 auto', minWidth: 0 }
+const cBadgeBtn: CSSProperties = {
+  fontFamily: fontStack,
+  color: colors.text,
+  background: 'rgba(255,255,255,0.06)',
+  border: `1px solid ${colors.border}`,
+  borderRadius: 8,
+  minHeight: TOUCH,
+  padding: '0 8px',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'flex-start',
+  justifyContent: 'center',
+  lineHeight: 1.15,
+  cursor: 'pointer',
+  minWidth: 0,
+  textAlign: 'left',
+}
+const cBadgeName: CSSProperties = { fontSize: 11, fontWeight: 700, maxWidth: 74, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+const cBadgeNums: CSSProperties = { fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }
+const cPhaseBox: CSSProperties = { display: 'flex', alignItems: 'center', gap: 5, minWidth: 0, flex: '0 1 auto', whiteSpace: 'nowrap', fontSize: 12 }
+const cBtn: CSSProperties = { ...buttonBase, minHeight: TOUCH, minWidth: TOUCH, padding: '0 10px', fontSize: 13 }
+const cBtnPrimary: CSSProperties = { ...buttonPrimary, minHeight: TOUCH, padding: '0 12px', fontSize: 13 }
+const cPopover: CSSProperties = {
+  ...panel,
+  background: colors.bgSolid,
+  position: 'absolute',
+  top: 'calc(100% + 4px)',
+  left: 0,
+  width: 'min(230px, 50vw)',
+  maxHeight: 'calc(100dvh - 72px)',
+  overflowY: 'auto',
+  overscrollBehavior: 'contain',
+  padding: 10,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 6,
+  zIndex: 3,
+}
+const cMenuPanel: CSSProperties = {
+  ...panel,
+  background: colors.bgSolid,
+  position: 'absolute',
+  top: 'calc(100% + 4px)',
+  right: 0,
+  width: 'min(300px, calc(100vw - 16px))',
+  maxHeight: 'calc(100dvh - 72px)',
+  overflowY: 'auto',
+  overscrollBehavior: 'contain',
+  padding: 6,
+  display: 'grid',
+  gridTemplateColumns: '1fr 1fr',
+  gap: 6,
+  zIndex: 3,
+}
+const cMenuItem: CSSProperties = { ...buttonBase, minHeight: TOUCH, padding: '0 8px', fontSize: 13, textAlign: 'center', whiteSpace: 'normal', lineHeight: 1.15 }
+const cMenuItemActive: CSSProperties = { ...cMenuItem, background: colors.accent, color: colors.accentText, border: `1px solid ${colors.accent}` }
+const cCamera: CSSProperties = {
+  position: 'absolute',
+  top: COMPACT_BAR_PX + 8,
+  right: 6,
+  display: 'grid',
+  gridTemplateColumns: `${TOUCH}px ${TOUCH}px`,
+  gap: 4,
+  pointerEvents: 'auto',
+  zIndex: 25,
+  touchAction: 'manipulation',
+}
+const cCamBtn: CSSProperties = {
+  ...panel,
+  width: TOUCH,
+  height: TOUCH,
+  padding: 0,
+  fontSize: 20,
+  lineHeight: 1,
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderRadius: 8,
+}
+
+const CAMERA_BUTTONS: { id: string; glyph: string; label: string; run: () => void }[] = [
+  { id: 'rot-left', glyph: '↺', label: 'Rotate view left', run: () => cameraNudge.rotate(-30) },
+  { id: 'rot-right', glyph: '↻', label: 'Rotate view right', run: () => cameraNudge.rotate(30) },
+  { id: 'zoom-in', glyph: '+', label: 'Zoom in', run: () => cameraNudge.zoom(1.3) },
+  { id: 'zoom-out', glyph: '−', label: 'Zoom out', run: () => cameraNudge.zoom(1 / 1.3) },
+  { id: 'top-down', glyph: '⊞', label: 'Top-down view', run: () => cameraNudge.topDown() },
+  { id: 'reset', glyph: '⌂', label: 'Reset view', run: () => cameraNudge.reset() },
+]
+
+/** The camera nudge buttons (compact only). Two fingers still do the real camera work; these are the
+ *  one-handed alternative. */
+function CameraButtons() {
+  return (
+    <div style={cCamera} data-testid="camera-buttons">
+      {CAMERA_BUTTONS.map((b) => (
+        <button key={b.id} style={cCamBtn} aria-label={b.label} data-testid={`camera-${b.id}`} onClick={b.run}>
+          {b.glyph}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/** Compact player badge: name + "CP / VP" in two short lines. Tapping opens the VP breakdown and the
+ *  army's special pools below the bar. */
+function CompactBadge({ id, state, open, onToggle }: { id: PlayerId; state: GameState; open: boolean; onToggle: () => void }) {
+  const bundle = useGameStore((s) => s.bundle)
+  const p = state.players[id]
+  const color = id === 'A' ? colors.playerA : colors.playerB
+  const active = state.activePlayer === id
+  const scored = state.mission.scored.filter((row) => row.player === id).sort((a, b) => b.round - a.round)
+  return (
+    <div style={cBadgeWrap}>
+      <button
+        style={{ ...cBadgeBtn, borderColor: active ? color : colors.border }}
+        aria-expanded={open}
+        aria-label={`${p.name} (${id}): ${p.cp} CP, ${p.vp} VP`}
+        data-testid={`hud-badge-${id}`}
+        onClick={onToggle}
+      >
+        <span style={{ ...cBadgeName, color }}>{p.name}</span>
+        <span style={cBadgeNums}>
+          <span data-testid={`hud-cp-${id}`}>CP {p.cp}</span> · <span data-testid={`hud-vp-${id}`}>VP {p.vp}</span>
+        </span>
+      </button>
+      {open && (
+        <div style={{ ...cPopover, left: id === 'A' ? 0 : -80 }} data-testid={`hud-popover-${id}`}>
+          <div style={{ color, fontWeight: 700, fontSize: 13 }}>
+            {p.name} ({id})
+          </div>
+          <MiracleDice dice={(p as { miracle?: { dice?: number[] } }).miracle?.dice} id={id} enabled={hasActsOfFaith(state, id) || hasFatePool(state, id)} fate={hasFatePool(state, id) && !hasActsOfFaith(state, id)} />
+          <PainTokens state={state} id={id} />
+          <CabalPool state={state} id={id} />
+          <div style={{ ...vpBreakdown, width: 'auto', maxHeight: 'none', marginTop: 0 }} data-testid={`hud-vp-breakdown-${id}`}>
+            {scored.length === 0 && <div style={mutedText}>No VP scored yet.</div>}
+            {scored.map((row, i) => (
+              <div key={i} style={vpRow}>
+                <span style={mutedText}>R{row.round} {sourceName(state, bundle, row.ruleId)}</span>
+                <span>{row.amount >= 0 ? '+' : ''}{row.amount}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CompactHud({ state, passAction, thinking, dispatch }: { state: GameState; passAction: Action | null; thinking: boolean; dispatch: (a: Action) => void }) {
+  const sheet = useCompactSheets((s) => s.open)
+  const toggleSheet = useCompactSheets((s) => s.toggle)
+  const closeSheet = useCompactSheets((s) => s.close)
+  const pending = useGameStore((s) => s.pending)
+  const selectedUnitId = useUiStore((s) => s.selectedUnitId)
+  const measureOn = useUiStore((s) => s.measureOn)
+  const losOn = useUiStore((s) => s.losOn)
+  const toggleMeasure = useUiStore((s) => s.toggleMeasure)
+  const toggleLos = useUiStore((s) => s.toggleLos)
+  const togglePainter = useUiStore((s) => s.togglePainter)
+  const focusCamera = useUiStore((s) => s.focusCamera)
+  const battlefieldIndex = useUiStore((s) => s.battlefieldIndex)
+  const cycleBattlefield = useUiStore((s) => s.cycleBattlefield)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [badgeOpen, setBadgeOpen] = useState<PlayerId | null>(null)
+
+  const phaseLabel = PHASES.find((p) => p.id === state.phase)?.label ?? String(state.phase)
+  const activeColor = state.activePlayer === 'A' ? colors.playerA : colors.playerB
+  const stratPlayer = pending?.player ?? state.activePlayer
+
+  const toggleDrawer = (id: SheetId) => {
+    setMenuOpen(false)
+    setBadgeOpen(null)
+    toggleSheet(id)
+  }
+  const afterTool = (fn: () => void) => () => {
+    fn()
+    setMenuOpen(false)
+  }
+  const focusSelected = () => {
+    if (!selectedUnitId) return
+    const models = unitModels(state, selectedUnitId)
+    if (models.length > 0) focusCamera(modelsAnchor(models))
+  }
+
+  const drawerItem = (id: SheetId, label: string, testId: string) => (
+    <button key={id} style={sheet === id ? cMenuItemActive : cMenuItem} data-testid={testId} aria-pressed={sheet === id} onClick={() => toggleDrawer(id)}>
+      {label}
+    </button>
+  )
+
+  return (
+    <>
+      <div style={cBar} data-testid="hud-bar">
+        <div style={cBarRow}>
+          <CompactBadge id="A" state={state} open={badgeOpen === 'A'} onToggle={() => { setMenuOpen(false); closeSheet(); setBadgeOpen((v) => (v === 'A' ? null : 'A')) }} />
+          <CompactBadge id="B" state={state} open={badgeOpen === 'B'} onToggle={() => { setMenuOpen(false); closeSheet(); setBadgeOpen((v) => (v === 'B' ? null : 'B')) }} />
+          <div style={cPhaseBox} data-testid="phase-tracker">
+            <span data-testid="hud-round" style={{ fontWeight: 700 }}>R{state.round}</span>
+            <span data-testid={`phase-chip-${state.phase}`} style={chipActive}>{phaseLabel}</span>
+            <span style={{ color: activeColor, fontWeight: 700 }} aria-label={`Active player ${state.activePlayer}${thinking ? ', thinking' : ''}`}>
+              {state.activePlayer}{thinking ? '…' : ''}
+            </span>
+          </div>
+          <span style={{ flex: '1 1 0', minWidth: 0 }} />
+          <button style={sheet === 'stratagems' ? { ...cBtn, background: colors.accent, color: colors.accentText, border: `1px solid ${colors.accent}` } : cBtn} data-testid="btn-stratagems" aria-pressed={sheet === 'stratagems'} onClick={() => toggleDrawer('stratagems')}>
+            Strat
+          </button>
+          <button style={cBtnPrimary} data-testid="btn-end-phase" disabled={!passAction} onClick={() => passAction && dispatch(passAction)}>
+            End phase
+          </button>
+          <div style={{ position: 'relative', flex: '0 0 auto' }}>
+            <button
+              style={menuOpen ? { ...cBtn, background: colors.accent, color: colors.accentText, border: `1px solid ${colors.accent}` } : cBtn}
+              data-testid="btn-tools-menu"
+              aria-label="Menu"
+              aria-expanded={menuOpen}
+              onClick={() => { setBadgeOpen(null); closeSheet(); setMenuOpen((v) => !v) }}
+            >
+              ⋯
+            </button>
+            {menuOpen && (
+              <div style={cMenuPanel} data-testid="tools-menu-panel">
+                {drawerItem('mission', 'Mission', 'btn-mission')}
+                {drawerItem('log', 'Dice log', 'btn-dice-log')}
+                {drawerItem('feed', 'Event feed', 'btn-event-feed')}
+                {drawerItem('settings', 'Settings', 'btn-settings')}
+                <button style={measureOn ? cMenuItemActive : cMenuItem} data-testid="btn-measure" aria-pressed={measureOn} onClick={afterTool(toggleMeasure)}>
+                  Measure
+                </button>
+                <button style={losOn ? cMenuItemActive : cMenuItem} data-testid="btn-los" aria-pressed={losOn} onClick={afterTool(toggleLos)}>
+                  Line of sight
+                </button>
+                <button style={{ ...cMenuItem, opacity: selectedUnitId ? 1 : 0.5 }} data-testid="btn-focus" disabled={!selectedUnitId} onClick={afterTool(focusSelected)}>
+                  Focus unit
+                </button>
+                <button style={cMenuItem} data-testid="btn-battlefield" onClick={cycleBattlefield}>
+                  Ground: {BATTLEFIELDS[battlefieldIndex].name}
+                </button>
+                <button style={cMenuItem} data-testid="btn-painter" onClick={afterTool(togglePainter)}>
+                  Paint army
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      {sheet === null && <CameraButtons />}
+      <MissionPanel open onClose={closeSheet} />
+    </>
   )
 }

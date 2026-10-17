@@ -18,7 +18,7 @@ import { startSpikeGame } from '../spike/driver'
 import { PerfOverlay } from '../spike/PerfOverlay'
 import { RotatePrompt } from './ui/RotatePrompt'
 import { TouchActionBar } from './ui/TouchActionBar'
-import './ui/formFactor'
+import { useFormFactor } from './ui/formFactor'
 
 // zIndex 10 puts every HUD panel above the board's drei <Html> labels (their zIndexRange is capped at 5).
 // Inset by the device safe areas (notch / home indicator; all 0px on desktop) so HUD panels anchored to the
@@ -49,6 +49,24 @@ const rightRail: CSSProperties = {
   pointerEvents: 'none',
   zIndex: 20,
 }
+
+// Compact (phone) layout: no right rail. The dice log moves into a drawer (it renders itself there) and the
+// dice tray stays on screen as a small panel under the top bar, top-centre: clear of the unit chip
+// (top-left), the camera buttons (top-right), the toasts and the bottom sheet (full width, bottom).
+const compactDiceSlot: CSSProperties = {
+  position: 'absolute',
+  top: 50,
+  left: '50%',
+  width: 240,
+  transform: 'translateX(-50%) scale(0.85)',
+  transformOrigin: 'top center',
+  pointerEvents: 'none',
+  zIndex: 20,
+}
+
+// Full-bleed layer for dialogs whose backdrop must reach the true screen edges: the overlay layer above is
+// inset by the safe areas, so a backdrop inside it would leave notch-width strips. This sits just above it.
+const fullBleedLayer: CSSProperties = { position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 11 }
 
 // e2e/dev hook: exposes the two client stores on `window` so Playwright can drive/inspect the game
 // directly (e.g. dispatch deployment actions, read deployed model positions) instead of simulating
@@ -81,6 +99,7 @@ export function App() {
   const state = useGameStore((s) => s.state)
   const resetAll = useUiStore((s) => s.resetAll)
   const painterOpen = useUiStore((s) => s.painterOpen)
+  const { compact } = useFormFactor()
   const togglePainter = useUiStore((s) => s.togglePainter)
   const painterFactions = state ? [...new Set(Object.values(state.players).map((pl) => pl.faction))].map((id) => ({ id, label: id })) : []
 
@@ -131,10 +150,19 @@ export function App() {
       <div style={overlayLayer}>
         <Hud />
         <UnitCard />
-        <div style={rightRail}>
-          <DiceLog />
-          <DiceTray />
-        </div>
+        {compact ? (
+          <>
+            <DiceLog />
+            <div style={compactDiceSlot}>
+              <DiceTray />
+            </div>
+          </>
+        ) : (
+          <div style={rightRail}>
+            <DiceLog />
+            <DiceTray />
+          </div>
+        )}
         <EventFeed />
         <DiceTableOverlay />
         <StratagemPanel />
@@ -144,8 +172,12 @@ export function App() {
         <VpToast />
         <PhaseBanner />
         <SettingsPanel />
-        {painterOpen && <PainterPanel factions={painterFactions} initialFaction={painterFactions[0]?.id} onClose={togglePainter} />}
       </div>
+      {painterOpen && (
+        <div style={fullBleedLayer}>
+          <PainterPanel factions={painterFactions} initialFaction={painterFactions[0]?.id} onClose={togglePainter} />
+        </div>
+      )}
       <EndScreen onPlayAgain={() => setScreen('start')} />
       <RotatePrompt />
     </div>

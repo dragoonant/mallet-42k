@@ -7,6 +7,7 @@ import { BASE_PRESETS, canonFaction, usePaintStore } from '../figures/paint'
 import { Figure } from '../figures/Figure'
 import { useDataBundle } from '../figures/data'
 import { buttonActive, buttonBase, colors, fontStack, mutedText, panel } from './theme'
+import { useFormFactor } from './formFactor'
 
 export interface PainterFaction {
   id: string
@@ -49,6 +50,30 @@ const title: CSSProperties = { fontWeight: 700, fontSize: 12, textTransform: 'up
 const colourInput: CSSProperties = { width: 56, height: 28, padding: 0, border: `1px solid ${colors.border}`, borderRadius: 6, background: 'none', cursor: 'pointer' }
 const selectStyle: CSSProperties = { ...buttonBase, width: '100%', cursor: 'pointer', background: colors.bgSolid }
 
+// Phones: the card scrolls inside the safe areas, the preview wraps under the controls when the screen is narrow,
+// and every control is at least 44px tall (16px select text so iOS does not zoom on focus).
+const compactBackdrop: CSSProperties = {
+  ...backdrop,
+  position: 'fixed',
+  boxSizing: 'border-box',
+  padding: 'calc(var(--safe-top, 0px) + 8px) calc(var(--safe-right, 0px) + 8px) calc(var(--safe-bottom, 0px) + 8px) calc(var(--safe-left, 0px) + 8px)',
+}
+const compactCard: CSSProperties = {
+  ...card,
+  width: 520,
+  maxWidth: '100%',
+  maxHeight: '100%',
+  boxSizing: 'border-box',
+  overflowY: 'auto',
+  overscrollBehavior: 'contain',
+  touchAction: 'pan-y',
+  flexWrap: 'wrap',
+  padding: 12,
+}
+const compactColour: CSSProperties = { ...colourInput, width: 72, height: 44 }
+const compactButton: CSSProperties = { minHeight: 44 }
+const compactSelect: CSSProperties = { ...selectStyle, minHeight: 44, fontSize: 16 }
+
 export function PainterPanel({ factions, initialFaction, onClose }: { factions: PainterFaction[]; initialFaction?: string; onClose: () => void }) {
   const [factionId, setFactionId] = useState(canonFaction(initialFaction ?? factions[0]?.id ?? 'sm'))
   const paint = usePaintStore((s) => s.byFaction[factionId])
@@ -57,20 +82,23 @@ export function PainterPanel({ factions, initialFaction, onClose }: { factions: 
   const bundle = useDataBundle()
   const scheme = bundle?.factions[factionId]?.paintScheme
   const preview = PREVIEW[factionId] ?? PREVIEW.sm
+  const { compact } = useFormFactor()
+  const sel = compact ? compactSelect : selectStyle
+  const colour = compact ? compactColour : colourInput
   const painted = !!paint && Object.values(paint).some(Boolean)
 
   return (
-    <div style={backdrop} data-testid="painter-panel" onClick={onClose}>
-      <div style={card} onClick={(e) => e.stopPropagation()}>
-        <div style={col}>
+    <div style={compact ? compactBackdrop : backdrop} data-testid="painter-panel" onClick={onClose}>
+      <div style={compact ? compactCard : card} onClick={(e) => e.stopPropagation()}>
+        <div style={compact ? { ...col, minWidth: 230 } : col}>
           <div style={{ ...rowStyle, alignItems: 'baseline' }}>
             <div style={{ fontWeight: 700, fontSize: 16 }}>Paint army</div>
-            <button style={buttonBase} onClick={onClose} data-testid="painter-close">
+            <button style={compact ? { ...buttonBase, ...compactButton, minWidth: 64 } : buttonBase} onClick={onClose} data-testid="painter-close">
               Close
             </button>
           </div>
           {factions.length > 1 && (
-            <select style={selectStyle} value={factionId} onChange={(e) => setFactionId(e.target.value)} data-testid="painter-faction">
+            <select style={sel} value={factionId} onChange={(e) => setFactionId(e.target.value)} data-testid="painter-faction">
               {factions.map((f) => (
                 <option key={f.id} value={f.id}>
                   {bundle?.factions[f.id]?.name ?? f.label}
@@ -81,15 +109,15 @@ export function PainterPanel({ factions, initialFaction, onClose }: { factions: 
           <div style={title}>Colours</div>
           <label style={rowStyle}>
             <span>Major (armour)</span>
-            <input type="color" style={colourInput} value={paint?.major ?? scheme?.primary ?? '#808080'} onChange={(e) => setPaint(factionId, { major: e.target.value })} data-testid="painter-major" />
+            <input type="color" style={colour} value={paint?.major ?? scheme?.primary ?? '#808080'} onChange={(e) => setPaint(factionId, { major: e.target.value })} data-testid="painter-major" />
           </label>
           <label style={rowStyle}>
             <span>Minor (accents)</span>
-            <input type="color" style={colourInput} value={paint?.minor ?? scheme?.secondary ?? '#808080'} onChange={(e) => setPaint(factionId, { minor: e.target.value })} data-testid="painter-minor" />
+            <input type="color" style={colour} value={paint?.minor ?? scheme?.secondary ?? '#808080'} onChange={(e) => setPaint(factionId, { minor: e.target.value })} data-testid="painter-minor" />
           </label>
           <div style={mutedText}>Until you pick a colour the army keeps its stock look. Greys, metals and skin are left alone.</div>
           <div style={title}>Base</div>
-          <select style={selectStyle} value={paint?.base ?? ''} onChange={(e) => setPaint(factionId, { base: e.target.value || undefined })} data-testid="painter-base">
+          <select style={sel} value={paint?.base ?? ''} onChange={(e) => setPaint(factionId, { base: e.target.value || undefined })} data-testid="painter-base">
             <option value="">Stock</option>
             {BASE_PRESETS.map((b) => (
               <option key={b.id} value={b.id}>
@@ -99,13 +127,13 @@ export function PainterPanel({ factions, initialFaction, onClose }: { factions: 
           </select>
           <label style={rowStyle}>
             <span>Rim colour</span>
-            <input type="color" style={colourInput} value={paint?.rim ?? BASE_PRESETS.find((b) => b.id === paint?.base)?.rim ?? '#050505'} onChange={(e) => setPaint(factionId, { rim: e.target.value })} data-testid="painter-rim" />
+            <input type="color" style={colour} value={paint?.rim ?? BASE_PRESETS.find((b) => b.id === paint?.base)?.rim ?? '#050505'} onChange={(e) => setPaint(factionId, { rim: e.target.value })} data-testid="painter-rim" />
           </label>
-          <button style={painted ? buttonActive : buttonBase} disabled={!painted} onClick={() => reset(factionId)} data-testid="painter-reset">
+          <button style={compact ? { ...(painted ? buttonActive : buttonBase), ...compactButton } : painted ? buttonActive : buttonBase} disabled={!painted} onClick={() => reset(factionId)} data-testid="painter-reset">
             Reset to stock
           </button>
         </div>
-        <div style={{ width: 190, height: 260, borderRadius: 8, overflow: 'hidden', background: '#0a0a10', flex: 'none', fontFamily: fontStack }}>
+        <div style={{ width: 190, height: compact ? 200 : 260, margin: compact ? '0 auto' : undefined, borderRadius: 8, overflow: 'hidden', background: '#0a0a10', flex: 'none', fontFamily: fontStack }}>
           <Canvas camera={{ position: [0, 1.4, 7], fov: 38 }}>
             <hemisphereLight intensity={1.0} groundColor="#2a2a34" />
             <directionalLight position={[6, 8, 4]} intensity={1.2} />

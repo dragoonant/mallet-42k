@@ -35,6 +35,8 @@ import { overwatchReach } from './overwatchInfo'
 import { usePresentedStore } from '../presentation/presentedStore'
 import { buttonBase, buttonDanger, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 import { Tooltip } from './Tooltip'
+import { BottomSheet } from './BottomSheet'
+import { useFormFactor } from './formFactor'
 import { diePoolName, multiDiePick, toggleDie } from './fate'
 
 /** The nearest thing worth orienting a move/charge/pile-in/consolidate destination against — an
@@ -1099,6 +1101,16 @@ const deployWrap: CSSProperties = {
   pointerEvents: 'auto',
   zIndex: PROMPT_Z_INDEX,
 }
+// --- compact (phone) variants: used only when useFormFactor().compact, inside the BottomSheet ---
+const TOUCH_MIN = 44
+/** Touch-size a button style: >= 44px tall. */
+const touchBtn = (b: CSSProperties, extra: CSSProperties = {}): CSSProperties => ({ ...b, minHeight: TOUCH_MIN, fontSize: 14, padding: '0 16px', ...extra })
+const rowCompact: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'stretch' }
+const deployRowCompact: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8 }
+const optionListCompact: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap' }
+const optionBtnCompact: CSSProperties = { whiteSpace: 'normal', textAlign: 'left', flex: '1 1 200px', lineHeight: 1.25, padding: '8px 12px', minHeight: TOUCH_MIN, fontSize: 14 }
+/** Pick-to-confirm bar on touch: the tapped choice's name on a wide button, plus a way to back out. */
+const armedChooseBtn: CSSProperties = { flex: '1 1 0', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }
 const heading: CSSProperties = { fontWeight: 700, fontSize: 14, paddingRight: 30 }
 const hint: CSSProperties = { ...mutedText }
 const infoBlock: CSSProperties = { ...mutedText, background: 'rgba(255,255,255,0.04)', borderRadius: 6, padding: '6px 8px' }
@@ -1130,6 +1142,8 @@ const helpCard: CSSProperties = {
   zIndex: 40,
 }
 const helpTitle: CSSProperties = { fontWeight: 700, marginBottom: 4 }
+/** On a phone the help card sits in the sheet's scrolling body instead of floating over the board. */
+const helpCardInline: CSSProperties = { ...helpCard, position: 'static', bottom: 'auto', width: 'auto', pointerEvents: 'auto' }
 
 /** Hover help for one option, shown above the row (the prompt itself is at the bottom of the
  *  screen, so a card below it would be off-screen). */
@@ -1178,9 +1192,9 @@ function MultiDicePick({ pending, poolName, dispatch }: {
   )
 }
 
-function OptionHelp({ help }: { help: PromptHelp }) {
+function OptionHelp({ help, inline = false }: { help: PromptHelp; inline?: boolean }) {
   return (
-    <div style={helpCard} data-testid="option-help" role="tooltip">
+    <div style={inline ? helpCardInline : helpCard} data-testid="option-help" role="tooltip">
       <div style={helpTitle}>{help.title}</div>
       {help.lines.map((line, i) => (
         <div key={i} style={{ color: i === 0 ? colors.text : colors.muted, marginTop: i === 0 ? 0 : 3 }}>
@@ -1300,6 +1314,7 @@ function DecisionPromptBody() {
     hoverModel(null)
     hoverObjective(null)
   }
+  const { compact } = useFormFactor()
   const formationKind = useUiStore((s) => s.formationKind)
   const formationFacing = useUiStore((s) => s.formationFacing)
   const primeFormation = useUiStore((s) => s.primeFormation)
@@ -1320,6 +1335,14 @@ function DecisionPromptBody() {
   }
   useEffect(() => () => { if (helpTimer.current !== null) clearTimeout(helpTimer.current) }, [])
 
+  // Touch has no hover, so a choice is two taps: the first "arms" it (its unit lights up on the board, its
+  // help card shows, its ghost previews), the second — on the same choice, or the Choose button — commits.
+  const [armedId, setArmedId] = useState<string | null>(null)
+  const helpRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (compact && helpFor) helpRef.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [compact, helpFor])
+
   // A hovered option button lights its unit on the board; that highlight must never outlive the button.
   // Unmounting skips onMouseLeave, so clear on unmount, and again whenever the options stop being on
   // screen (opponent's turn, dice still resolving) while the pointer may still be resting on one.
@@ -1330,7 +1353,7 @@ function DecisionPromptBody() {
   useEffect(() => clearBoardHover, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { resetForDecision(); cancelHelp() }, [pending?.id])
+  useEffect(() => { resetForDecision(); cancelHelp(); setArmedId(null) }, [pending?.id])
 
   // A mid-game disembark names exactly one unit: pre-select it so the very next board click places it.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1373,11 +1396,18 @@ function DecisionPromptBody() {
   if (!state || !pending) return null
 
   if (pending.player === botSeat) {
-    return <div style={bannerWrap}>Opponent is thinking…</div>
+    return <div style={compact ? { ...bannerWrap, bottom: 8 } : bannerWrap}>Opponent is thinking…</div>
   }
 
   // The dice that raised this decision haven't finished showing yet — don't offer a choice about them.
   if (presentedSeq < pendingSeq) {
+    if (compact) {
+      return (
+        <BottomSheet testId="prompt" title="Resolving dice…" autoKey={pending.id}>
+          <div style={hint} data-testid="prompt-resolving">Resolving dice…</div>
+        </BottomSheet>
+      )
+    }
     return (
       <div style={wrap} data-testid="prompt">
         <MinimizeButton decisionId={pending.id} />
@@ -1450,6 +1480,13 @@ function DecisionPromptBody() {
     const keepAction: Action | null = pending.kind === 'commandReroll'
       ? passAction
       : ((hasOptions(pending) ? pending.options : []).find((o) => o.id === 'keep')?.action ?? null)
+    if (compact) {
+      return (
+        <BottomSheet testId="prompt" title={KIND_TITLE[pending.kind] ?? 'Re-roll'} autoKey={pending.id}>
+          <RerollTray key={pending.id} state={state} events={events} pending={pending} roll={rerollRoll} keepAction={keepAction} />
+        </BottomSheet>
+      )
+    }
     return (
       <div style={wrap} data-testid="prompt">
         <MinimizeButton decisionId={pending.id} />
@@ -1471,18 +1508,37 @@ function DecisionPromptBody() {
   const disembarkId = soleDisembark && transportService.transportOf(state, soleDisembark) ? soleDisembark : null
   const kindTitleShown = disembarkId ? `Disembark ${groupLabel(state, disembarkId)}` : kindTitle
 
-  return (
+  // --- touch (compact) plumbing: arm / disarm a choice ---
+  const disarm = () => {
+    setArmedId(null)
+    cancelHelp()
+    setPreviewDraft(null)
+    clearBoardHover()
+    useAmbushHover.getState().set(null)
+  }
+  const armOption = (
+    id: string,
+    hasHelp: boolean,
+    withPlacements: Extract<Action, { type: 'moveUnit' | 'chargeMove' | 'pileIn' | 'consolidate' }> | null,
+    hoverTarget: HoverTarget | null,
+  ) => {
+    disarm()
+    setArmedId(id)
+    if (/^pt:/.test(id)) useAmbushHover.getState().set(id)
+    if (hasHelp) setHelpFor(id)
+    if (withPlacements) setPreviewDraft({ decisionId: pending.id, unitId: withPlacements.unitId, anchor: { x: 0, z: 0 }, placements: withPlacements.placements })
+    if (hoverTarget?.kind === 'unit') hoverUnit(hoverTarget.ids)
+    if (hoverTarget?.kind === 'model') hoverModel(hoverTarget.id)
+    if (hoverTarget?.kind === 'objective') hoverObjective(hoverTarget.id)
+  }
+
+  const bodyTop = (
     <>
-      <FormationPicker />
-      <div style={isDeploy ? deployWrap : wrap} data-testid="prompt">
-      <MinimizeButton decisionId={pending.id} />
-      {activeHelp && <OptionHelp help={activeHelp} />}
-      <div style={heading}>{kindTitleShown}</div>
       {chooseOptionInfo && <div style={hint}>{chooseOptionInfo.hint}</div>}
       {multiMiracle && pending.kind === 'chooseOption' && <MultiDicePick key={pending.id} pending={pending} poolName={diePoolName(state, pending.player)} dispatch={dispatch} />}
       {pending.kind === 'chooseOption' && (() => {
         const step = pending.context.data?.code === 'cultAmbush' ? pending.context.data.step : null
-        if (step === 'marker') return <div style={hint} data-testid="cult-ambush-marker-hint">Blue discs on the board are the legal spots. Hover an option to light its spot, or click a disc.</div>
+        if (step === 'marker') return <div style={hint} data-testid="cult-ambush-marker-hint">Blue discs on the board are the legal spots. {compact ? 'Tap an option once to light its spot, or tap a disc.' : 'Hover an option to light its spot, or click a disc.'}</div>
         const mk = step === 'return' ? offeredAmbushMarker(pending, state) : null
         return mk ? <div style={hint} data-testid="cult-ambush-return-hint">Marker offered: the ringed disc at {mk.pos.x.toFixed(1)}, {mk.pos.z.toFixed(1)}.</div> : null
       })()}
@@ -1530,9 +1586,9 @@ function DecisionPromptBody() {
           </div>
           <div>
             {pending.context.attackKind === 'ranged'
-              ? 'Click an enemy (or Choose weapons…) to pick which weapons fire at whom, or use a Target button to fire everything that can reach it at once. '
+              ? `${compact ? 'Tap' : 'Click'} an enemy (or Choose weapons…) to pick which weapons fire at whom, or use a Target button to fire everything that can reach it at once. `
               : 'Every weapon that can see the unit you pick fires at it. '}
-            Hover an option for its weapons, the target&apos;s Toughness and Save, and what each weapon needs to hit and wound.
+            {compact ? 'Tap an option once' : 'Hover an option'} for its weapons, the target&apos;s Toughness and Save, and what each weapon needs to hit and wound.
             {pending.context.engagedWith.length > 0 &&
               ` In Engagement Range of ${pending.context.engagedWith.map((u) => state.units[u]?.name ?? u).join(', ')}.`}
           </div>
@@ -1551,7 +1607,7 @@ function DecisionPromptBody() {
           </div>
           <div>
             Roll 2D6 and move that far; every unit you declare must end up within Engagement Range or the charge fails
-            and the unit does not move. Hover an option for the distance, the roll it needs and the odds.
+            and the unit does not move. {compact ? 'Tap an option once' : 'Hover an option'} for the distance, the roll it needs and the odds.
           </div>
         </div>
       )}
@@ -1603,8 +1659,8 @@ function DecisionPromptBody() {
             </div>
             <div>
               From {state.units[pending.context.attackerUnitId]?.name ?? pending.context.attackerUnitId} against{' '}
-              {state.units[pending.context.targetUnitId]?.name ?? pending.context.targetUnitId}. Choose which model takes it — hover an
-              option to light that figure up on the board.
+              {state.units[pending.context.targetUnitId]?.name ?? pending.context.targetUnitId}. Choose which model takes it — {compact ? 'tap an option once' : 'hover an option'}
+              to light that figure up on the board.
               {pending.context.precision ? ' Precision: an attached character can be picked out.' : ''}
             </div>
           </div>
@@ -1612,11 +1668,11 @@ function DecisionPromptBody() {
       })()}
 
       {pending.kind === 'deployUnit' && (
-        <div style={deployRowVertical}>
+        <div style={compact ? deployRowCompact : deployRowVertical}>
           {(soleDisembark ? [soleDisembark] : pending.context.unitIds).map((uid) => (
             <button
               key={uid}
-              style={{ ...(uid === deployTargetUnitId ? buttonPrimary : buttonBase), flexShrink: 0, width: '100%', textAlign: 'left' }}
+              style={{ ...(uid === deployTargetUnitId ? buttonPrimary : buttonBase), flexShrink: 0, width: compact ? undefined : '100%', textAlign: 'left' }}
               onClick={() => setDeployTarget(uid)}
             >
               {soleDisembark ? groupLabel(state, uid) : state.units[uid]?.name ?? uid}
@@ -1630,7 +1686,7 @@ function DecisionPromptBody() {
             return (
               <Tooltip key={`res-${uid}`} title="Abandon" body="A teleporting unit that is not placed is destroyed." disabled={!abandon}>
                 <button
-                  style={{ ...(abandon ? buttonDanger : buttonBase), flexShrink: 0, width: '100%', textAlign: 'left' }}
+                  style={{ ...(abandon ? buttonDanger : buttonBase), flexShrink: 0, width: compact ? undefined : '100%', textAlign: 'left' }}
                   onClick={() => {
                     if (abandon && !window.confirm(`Abandon ${nm}? It cannot return to Reserves and will be destroyed.`)) return
                     dispatch(reserveAction)
@@ -1663,7 +1719,7 @@ function DecisionPromptBody() {
         const mt = pending.constraints.mustTouch
         return (
           <div style={infoBlock} data-testid="cult-ambush-context">
-            <div>One model must touch the Cult Ambush marker (the disc on the board at {mt.pos.x.toFixed(1)}, {mt.pos.z.toFixed(1)}), and every model must end more than {pending.constraints.minDistanceFromEnemies}&quot; from enemies. Click near the marker, or use the button.</div>
+            <div>One model must touch the Cult Ambush marker (the disc on the board at {mt.pos.x.toFixed(1)}, {mt.pos.z.toFixed(1)}), and every model must end more than {pending.constraints.minDistanceFromEnemies}&quot; from enemies. {compact ? 'Tap' : 'Click'} near the marker, or use the button.</div>
             {auto && (
               <button
                 style={{ ...buttonPrimary, marginTop: 6 }}
@@ -1702,17 +1758,177 @@ function DecisionPromptBody() {
       {bespoke && (
         <div style={hint}>
           {disembarkId
-            ? `Click within 3" of ${state.units[transportService.transportOf(state, disembarkId) ?? '']?.name ?? 'the transport'} to set the unit down${groupUnitIds(state, disembarkId).length > 1 ? ' (its attached Leader lands with it)' : ''}, or pass to keep it aboard.`
+            ? `${compact ? 'Tap' : 'Click'} within 3" of ${state.units[transportService.transportOf(state, disembarkId) ?? '']?.name ?? 'the transport'} to set the unit down${groupUnitIds(state, disembarkId).length > 1 ? ' (its attached Leader lands with it)' : ''}, or pass to keep it aboard.`
             : pending.kind === 'deployUnit'
             ? deployTargetUnitId
-              ? 'Click inside your deployment zone to place the unit.'
-              : 'Pick a unit above, then click inside your zone.'
+              ? `${compact ? 'Tap' : 'Click'} inside your deployment zone to place the unit.`
+              : `Pick a unit above, then ${compact ? 'tap' : 'click'} inside your zone.`
             : approach
-              ? 'Drag a model to move just it (Shift-drag moves them all). A red ring says why it is not allowed.'
-              : 'Click on the board to set a destination — a range ring shows how far the unit can go.'}
+              ? (compact ? 'Drag a model to move just it; switch on Whole unit to move them all. A red ring says why it is not allowed.' : 'Drag a model to move just it (Shift-drag moves them all). A red ring says why it is not allowed.')
+              : `${compact ? 'Tap' : 'Click'} the board to set a destination — a range ring shows how far the unit can go.`}
         </div>
       )}
 
+    </>
+  )
+  const bodyBottom = (
+    <>
+      {(activeDraft || isClampedMovePending(pending)) && <FloorSelector />}
+
+      {!compact && activeDraft && draftValidation && !draftValidation.ok && (
+        <div style={{ ...hint, color: colors.danger }} data-testid="draft-issue">
+          Can&apos;t confirm: {draftValidation.reasons.join(', ')}
+        </div>
+      )}
+
+      {showFallbackList && !weaponPanelOpen && (
+        <div style={compact ? optionListCompact : optionList}>
+          {info && listItems.length > 0 && <div style={compact ? { ...hint, flexBasis: '100%' } : hint}>Or use a suggested placement — {compact ? 'tap one to preview it, tap again to use it' : 'hover one to preview it'}:</div>}
+          {listItems.map((it) => {
+            // moveUnit/chargeMove/pileIn/consolidate options carry their own placements — hovering
+            // one shows a ghost of where it lands (PlacementOverlay), same colour as a real draft.
+            const withPlacements =
+              it.action.type === 'moveUnit' || it.action.type === 'chargeMove' || it.action.type === 'pileIn' || it.action.type === 'consolidate'
+                ? it.action
+                : null
+            const hoverTarget = hoverTargetFor(state, pending, it.action, it.id)
+            // The card itself is rendered at panel level (see activeHelp) so the option row, which
+            // is an overflow:auto scroller, can't clip it.
+            const hasHelp = helpForAction(state, it.action) !== null
+            return (
+              <button
+                key={it.id}
+                data-testid={`prompt-option-${it.id}`}
+                style={compact ? { ...(armedId === it.id ? buttonPrimary : buttonBase), ...optionBtnCompact } : buttonBase}
+                aria-pressed={compact ? armedId === it.id : undefined}
+                onFocus={() => !compact && hasHelp && setHelpFor(it.id)}
+                onBlur={() => { if (!compact) cancelHelp() }}
+                onMouseEnter={() => {
+                  if (compact) return // touch: the first tap arms the choice instead (see onClick)
+                  if (/^pt:/.test(it.id)) useAmbushHover.getState().set(it.id)
+                  if (hasHelp) scheduleHelp(it.id)
+                  if (withPlacements) setPreviewDraft({ decisionId: pending.id, unitId: withPlacements.unitId, anchor: { x: 0, z: 0 }, placements: withPlacements.placements })
+                  if (hoverTarget?.kind === 'unit') hoverUnit(hoverTarget.ids)
+                  if (hoverTarget?.kind === 'model') hoverModel(hoverTarget.id)
+                  if (hoverTarget?.kind === 'objective') hoverObjective(hoverTarget.id)
+                }}
+                onMouseLeave={() => {
+                  if (compact) return
+                  useAmbushHover.getState().set(null)
+                  cancelHelp()
+                  setPreviewDraft(null)
+                  clearBoardHover()
+                }}
+                onClick={() => {
+                  if (compact) {
+                    // Touch has no hover: the first tap on a choice that has something to show (help, a ghost, a unit
+                    // to light) arms it; a second tap on the same choice, or the Choose button, commits it.
+                    const previewable = hasHelp || !!withPlacements || !!hoverTarget || /^pt:/.test(it.id)
+                    if (previewable && armedId !== it.id) {
+                      armOption(it.id, hasHelp, withPlacements, hoverTarget)
+                      return
+                    }
+                    disarm()
+                    dispatch(it.action)
+                    setDraft(null)
+                    return
+                  }
+                  cancelHelp()
+                  setPreviewDraft(null)
+                  clearBoardHover()
+                  dispatch(it.action)
+                  setDraft(null)
+                }}
+              >
+                {it.label}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </>
+  )
+
+  if (compact) {
+    const armedItem = armedId ? (listItems.find((it) => it.id === armedId) ?? null) : null
+    const showChooseWeapons = !!firstShootTarget && !weaponPanelOpen
+    const showPass = !!passAction && !weaponPanelOpen
+    const chooseWeaponsBtn = showChooseWeapons ? (
+      <button style={touchBtn(buttonPrimary)} data-testid="btn-choose-weapons" onClick={() => useUiStore.getState().stageShoot(pending.id, firstShootTarget)}>
+        Choose weapons…
+      </button>
+    ) : null
+    const passBtn = showPass && passAction ? (
+      <button style={touchBtn(buttonBase)} data-testid="btn-pass" onClick={() => dispatch(passAction)}>
+        {PASS_LABEL[pending.kind] ?? 'Pass'}
+      </button>
+    ) : null
+    // Confirm / Cancel for a staged move live in TouchActionBar (bottom centre); the sheet lifts clear of it.
+    const footerRow = approach || activeDraft || chooseWeaponsBtn || passBtn ? (
+      <div style={rowCompact}>
+        {approach && (
+          <button style={touchBtn(buttonBase)} data-testid="btn-auto-approach" onClick={() => setDraft(autoDraft(state, approach, legal))}>
+            {approach.kind === 'pileIn' ? 'Auto pile in' : 'Auto consolidate'}
+          </button>
+        )}
+        {activeDraft && (
+          <button style={touchBtn(buttonBase)} data-testid="btn-reset-formation" onClick={resetDraft}>
+            Reset
+          </button>
+        )}
+        {chooseWeaponsBtn}
+        {passBtn}
+      </div>
+    ) : null
+    const chooseArmed = (item: NonNullable<typeof armedItem>) => { disarm(); dispatch(item.action); setDraft(null) }
+    const armedBar = armedItem ? (
+      <div style={rowCompact}>
+        <button style={touchBtn(buttonBase)} data-testid="btn-armed-back" onClick={disarm}>
+          Back
+        </button>
+        <button style={touchBtn(buttonPrimary, armedChooseBtn)} data-testid="btn-armed-choose" onClick={() => chooseArmed(armedItem)}>
+          Choose: {armedItem.label}
+        </button>
+      </div>
+    ) : null
+    const collapsedPrimary = armedItem ? (
+      <button style={touchBtn(buttonPrimary, { ...armedChooseBtn, flex: '0 1 46%' })} data-testid="btn-armed-choose" onClick={() => chooseArmed(armedItem)}>
+        Choose: {armedItem.label}
+      </button>
+    ) : activeDraft ? null : (chooseWeaponsBtn ?? passBtn)
+    return (
+      <>
+        <FormationPicker />
+        <BottomSheet
+          testId="prompt"
+          title={kindTitleShown}
+          // a decision answered by tapping the board opens tucked away; a staged move collapses itself
+          auto={isDeploy ? !!deployTargetUnitId || !!activeDraft : bespoke || !!activeDraft}
+          autoKey={pending.id}
+          raise={activeDraft ? 90 : 0}
+          summary={collapsedPrimary}
+          footer={armedBar ?? footerRow}
+        >
+          {activeHelp && (
+            <div ref={helpRef}>
+              <OptionHelp help={activeHelp} inline />
+            </div>
+          )}
+          {bodyTop}
+          {bodyBottom}
+        </BottomSheet>
+      </>
+    )
+  }
+
+  return (
+    <>
+      <FormationPicker />
+      <div style={isDeploy ? deployWrap : wrap} data-testid="prompt">
+      <MinimizeButton decisionId={pending.id} />
+      {activeHelp && <OptionHelp help={activeHelp} />}
+      <div style={heading}>{kindTitleShown}</div>
+      {bodyTop}
       <div style={row}>
         {approach && (
           <button style={buttonBase} data-testid="btn-auto-approach" onClick={() => setDraft(autoDraft(state, approach, legal))}>
@@ -1751,63 +1967,7 @@ function DecisionPromptBody() {
         )}
       </div>
 
-      {(activeDraft || isClampedMovePending(pending)) && <FloorSelector />}
-
-      {activeDraft && draftValidation && !draftValidation.ok && (
-        <div style={{ ...hint, color: colors.danger }} data-testid="draft-issue">
-          Can&apos;t confirm: {draftValidation.reasons.join(', ')}
-        </div>
-      )}
-
-      {showFallbackList && !weaponPanelOpen && (
-        <div style={optionList}>
-          {info && listItems.length > 0 && <div style={hint}>Or use a suggested placement — hover one to preview it:</div>}
-          {listItems.map((it) => {
-            // moveUnit/chargeMove/pileIn/consolidate options carry their own placements — hovering
-            // one shows a ghost of where it lands (PlacementOverlay), same colour as a real draft.
-            const withPlacements =
-              it.action.type === 'moveUnit' || it.action.type === 'chargeMove' || it.action.type === 'pileIn' || it.action.type === 'consolidate'
-                ? it.action
-                : null
-            const hoverTarget = hoverTargetFor(state, pending, it.action, it.id)
-            // The card itself is rendered at panel level (see activeHelp) so the option row, which
-            // is an overflow:auto scroller, can't clip it.
-            const hasHelp = helpForAction(state, it.action) !== null
-            return (
-              <button
-                key={it.id}
-                data-testid={`prompt-option-${it.id}`}
-                style={buttonBase}
-                onFocus={() => hasHelp && setHelpFor(it.id)}
-                onBlur={cancelHelp}
-                onMouseEnter={() => {
-                  if (/^pt:/.test(it.id)) useAmbushHover.getState().set(it.id)
-                  if (hasHelp) scheduleHelp(it.id)
-                  if (withPlacements) setPreviewDraft({ decisionId: pending.id, unitId: withPlacements.unitId, anchor: { x: 0, z: 0 }, placements: withPlacements.placements })
-                  if (hoverTarget?.kind === 'unit') hoverUnit(hoverTarget.ids)
-                  if (hoverTarget?.kind === 'model') hoverModel(hoverTarget.id)
-                  if (hoverTarget?.kind === 'objective') hoverObjective(hoverTarget.id)
-                }}
-                onMouseLeave={() => {
-                  useAmbushHover.getState().set(null)
-                  cancelHelp()
-                  setPreviewDraft(null)
-                  clearBoardHover()
-                }}
-                onClick={() => {
-                  cancelHelp()
-                  setPreviewDraft(null)
-                  clearBoardHover()
-                  dispatch(it.action)
-                  setDraft(null)
-                }}
-              >
-                {it.label}
-              </button>
-            )
-          })}
-        </div>
-      )}
+      {bodyBottom}
       </div>
     </>
   )

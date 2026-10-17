@@ -7,6 +7,8 @@ import { useDisplayState, usePresentedStore } from '../presentation/presentedSto
 import { describeRoll } from './labels'
 import { colors, mutedText, panel } from './theme'
 import { Tooltip } from './Tooltip'
+import { useFormFactor } from './formFactor'
+import { CompactDrawer } from './compactSheets'
 
 // Collapsed by default and capped to a handful of rows — expanded, the panel used to cover the
 // board's right edge and part of a deployment corner at 1600x900.
@@ -77,6 +79,7 @@ export function DiceLog() {
   const events = useGameStore((s) => s.events)
   const presentedSeq = usePresentedStore((s) => s.presentedSeq)
   const [collapsed, setCollapsed] = useState(true)
+  const { compact } = useFormFactor()
   if (!state) return null
   // diceLog carries no seq, so derive the visible rolls from the DiceRolled events themselves. A DiceRolled
   // event holds the faces as first rolled; DiceRerolled events (by roll id) say which dice changed, so the
@@ -93,6 +96,23 @@ export function DiceLog() {
     }
   }
   const recent = shown.slice(-40)
+
+  // Compact: a right-edge drawer opened from the Hud menu; newest roll first, the drawer scrolls.
+  if (compact) {
+    return (
+      <CompactDrawer id="log" title={`Dice log${recent.length > 0 ? ` (${recent.length})` : ''}`}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 12 }} data-testid="dice-log">
+          {recent.length === 0 && <div style={mutedText}>No rolls yet.</div>}
+          {[...recent].reverse().map((roll, i) => (
+            <div key={`${roll.id}-${i}`} style={rowStyle} data-testid={`dice-row-${roll.id}`}>
+              <span>{describeRoll(roll, state)}</span>
+              <DiceFaces roll={roll} rerolled={rerolls.get(roll.id)} />
+            </div>
+          ))}
+        </div>
+      </CompactDrawer>
+    )
+  }
 
   return (
     <div style={wrap} data-testid="dice-log">

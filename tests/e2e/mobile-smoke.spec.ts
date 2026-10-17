@@ -38,6 +38,52 @@ test('phone: start, battle, portrait rotate prompt', async ({ page }, testInfo) 
   await page.waitForTimeout(1500) // let first frames (shaders, figure meshes) settle
   await shot('02-battle')
 
+  // (b2) compact HUD: each drawer opens from the top-bar menu and closes again; the decision sheet folds
+  const menu = page.getByTestId('btn-tools-menu')
+  for (const [btn, drawer] of [
+    ['btn-mission', 'drawer-mission'],
+    ['btn-dice-log', 'drawer-log'],
+    ['btn-event-feed', 'drawer-feed'],
+    ['btn-settings', 'drawer-settings'],
+  ] as const) {
+    await menu.click()
+    await page.getByTestId(btn).click()
+    await expect(page.getByTestId(drawer)).toBeVisible({ timeout: 10_000 })
+    await page.waitForTimeout(500) // let the slide-in finish
+    const dbox = (await page.getByTestId(drawer).boundingBox())!
+    expect(dbox.x + dbox.width, `${drawer} stays on screen`).toBeLessThanOrEqual(page.viewportSize()!.width + 1)
+    expect(dbox.width, `${drawer} leaves board room`).toBeLessThanOrEqual(page.viewportSize()!.width * 0.5)
+    if (drawer === 'drawer-mission') await shot('05-drawer')
+    await page.getByTestId(`${drawer}-close`).click()
+    await expect(page.getByTestId(drawer)).toBeHidden({ timeout: 10_000 })
+  }
+  await page.getByTestId('btn-stratagems').click()
+  await expect(page.getByTestId('drawer-stratagems')).toBeVisible({ timeout: 10_000 })
+  await page.getByTestId('drawer-stratagems-close').click()
+  await expect(page.getByTestId('drawer-stratagems')).toBeHidden({ timeout: 10_000 })
+  // the bar buttons are real touch targets
+  for (const id of ['btn-end-phase', 'btn-stratagems', 'btn-tools-menu']) {
+    const box = await page.getByTestId(id).boundingBox()
+    expect(box, id).not.toBeNull()
+    expect(box!.height, id).toBeGreaterThanOrEqual(43.5)
+  }
+
+  const sheet = page.getByTestId('prompt')
+  if (await sheet.count()) {
+    const body = page.getByTestId('prompt-sheet-body')
+    const toggle = page.getByTestId('prompt-sheet-toggle')
+    await expect(sheet).toHaveAttribute('data-collapsed', 'false')
+    await toggle.click()
+    await expect(sheet).toHaveAttribute('data-collapsed', 'true')
+    await expect(body).toBeHidden()
+    await shot('06-sheet-collapsed')
+    await toggle.click()
+    await expect(sheet).toHaveAttribute('data-collapsed', 'false')
+    await expect(body).toBeVisible()
+  } else {
+    await shot('06-sheet-collapsed') // no decision pending right now: the board is unobstructed
+  }
+
   // (c) portrait mid-game -> rotate prompt; landscape again -> gone
   const vp = page.viewportSize()
   expect(vp).not.toBeNull()

@@ -6,6 +6,7 @@ import { useGameStore } from '../store/game'
 import { useDisplayState } from '../presentation/presentedStore'
 import { secondaryScoringIds } from './labels'
 import { buttonBase, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
+import { useFormFactor } from './formFactor'
 
 const overlay: CSSProperties = {
   position: 'fixed',
@@ -27,10 +28,44 @@ const thRound: CSSProperties = { ...th, textAlign: 'left' }
 const td: CSSProperties = { padding: '2px 6px' }
 const tdRound: CSSProperties = { ...td, textAlign: 'left', color: colors.muted }
 
+// Compact (phone landscape, 852x393 / 667x375): the card is a two-column row (result + button | round table),
+// the overlay is a flex box with `margin: auto` on the card so a card taller than the screen scrolls from its
+// top edge instead of being clipped, and everything keeps inside the safe areas.
+const overlayCompact: CSSProperties = {
+  ...overlay,
+  display: 'flex',
+  padding: 'calc(var(--safe-top, 0px) + 8px) calc(var(--safe-right, 0px) + 8px) calc(var(--safe-bottom, 0px) + 8px) calc(var(--safe-left, 0px) + 8px)',
+  boxSizing: 'border-box',
+}
+const cardCompact: CSSProperties = {
+  ...panel,
+  margin: 'auto',
+  width: 'min(720px, 100%)',
+  boxSizing: 'border-box',
+  padding: 14,
+  display: 'flex',
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 16,
+  textAlign: 'center',
+}
+const colLeft: CSSProperties = { flex: '0 0 190px', display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'stretch', minWidth: 0 }
+const colRight: CSSProperties = { flex: '1 1 0', minWidth: 0 }
+const headingCompact: CSSProperties = { margin: 0, fontSize: 19, lineHeight: 1.2 }
+const vpRowCompact: CSSProperties = { ...vpRow, flexDirection: 'column', gap: 2, fontSize: 14 }
+const tableCompact: CSSProperties = { ...table, fontSize: 11 }
+const playAgainCompact: CSSProperties = { ...buttonPrimary, minHeight: 44, width: '100%' }
 const FADE_MS = 400
 const cinematic: CSSProperties = { position: 'fixed', inset: 0, background: '#000', zIndex: 30, cursor: 'pointer', fontFamily: fontStack }
 const cinematicVideo: CSSProperties = { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }
 const skipButton: CSSProperties = { ...buttonBase, position: 'absolute', top: 20, right: 20, background: 'rgba(0,0,0,0.55)' }
+const skipButtonCompact: CSSProperties = {
+  ...skipButton,
+  top: 'calc(var(--safe-top, 0px) + 12px)',
+  right: 'calc(var(--safe-right, 0px) + 12px)',
+  minHeight: 44,
+  minWidth: 72,
+}
 const cinematicTitle: CSSProperties = {
   position: 'absolute',
   left: 0,
@@ -50,6 +85,7 @@ type CinematicPhase = 'video' | 'fading' | 'card'
 /** Full-screen win/lose video shown before the score card. Only mounted while the cinematic is live. */
 function EndCinematic({ kind, fading, onSkip }: { kind: 'victory' | 'defeat'; fading: boolean; onSkip: () => void }) {
   const [shown, setShown] = useState(false)
+  const { compact } = useFormFactor()
   useEffect(() => {
     const id = requestAnimationFrame(() => setShown(true))
     return () => cancelAnimationFrame(id)
@@ -68,7 +104,7 @@ function EndCinematic({ kind, fading, onSkip }: { kind: 'victory' | 'defeat'; fa
       />
       <div style={{ ...cinematicTitle, color: win ? colors.accent : colors.danger, opacity: shown ? 1 : 0, transition: 'opacity 1.2s ease 1s' }}>{win ? 'VICTORY' : 'DEFEAT'}</div>
       <button
-        style={skipButton}
+        style={compact ? skipButtonCompact : skipButton}
         onClick={(e) => {
           e.stopPropagation()
           onSkip()
@@ -109,6 +145,7 @@ export function EndScreen({ onPlayAgain }: { onPlayAgain: () => void }) {
   const opponent = useGameStore((s) => s.opponent)
   const humanSeat = useGameStore((s) => s.humanSeat)
   const botSeat = useGameStore((s) => s.botSeat)
+  const { compact } = useFormFactor()
   // One human against the AI and a decisive result -> cinematic; hot-seat, draws and bot-vs-bot skip it.
   const kind: 'victory' | 'defeat' | null =
     result && result.winner !== 'draw' && opponent === 'bot' && botSeat && botSeat !== humanSeat ? (result.winner === humanSeat ? 'victory' : 'defeat') : null
@@ -132,54 +169,78 @@ export function EndScreen({ onPlayAgain }: { onPlayAgain: () => void }) {
   const secondaryIdsA = secondaryScoringIds(bundle, state, 'A')
   const secondaryIdsB = secondaryScoringIds(bundle, state, 'B')
 
+  const summary = (
+    <>
+      <h2 style={compact ? headingCompact : heading}>{result.winner === 'draw' ? 'Draw' : `Victory: ${state.players[result.winner].name}`}</h2>
+      <p style={mutedText}>
+        {reasonLabel(result.reason)} {roundsLine}.
+      </p>
+      <div style={compact ? vpRowCompact : vpRow}>
+        <span style={{ color: colors.playerA }} data-testid="end-vp-A">
+          A — {result.vp.A} VP
+        </span>
+        <span style={{ color: colors.playerB }} data-testid="end-vp-B">
+          B — {result.vp.B} VP
+        </span>
+      </div>
+    </>
+  )
+
+  const vpTable = (
+    <table style={compact ? tableCompact : table} data-testid="end-vp-table">
+      <thead>
+        <tr>
+          <th style={thRound}>Round</th>
+          <th style={th}>A primary</th>
+          <th style={th}>A secondary</th>
+          <th style={th}>B primary</th>
+          <th style={th}>B secondary</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rounds.map((round) => {
+          const a = roundTotals(state, round, 'A', secondaryIdsA)
+          const b = roundTotals(state, round, 'B', secondaryIdsB)
+          return (
+            <tr key={round}>
+              <td style={tdRound}>{round}</td>
+              <td style={td}>{a.primary}</td>
+              <td style={td}>{a.secondary}</td>
+              <td style={td}>{b.primary}</td>
+              <td style={td}>{b.secondary}</td>
+            </tr>
+          )
+        })}
+      </tbody>
+    </table>
+  )
+
+  const playAgain = (
+    <button style={compact ? playAgainCompact : buttonPrimary} onClick={onPlayAgain}>
+      Play again
+    </button>
+  )
+
   return (
     <>
     {kind && live && <EndCinematic kind={kind} fading={phase === 'fading'} onSkip={skip} />}
-    {(!kind || phase !== 'video') && <div style={overlay} data-testid="end-screen">
-      <div style={card}>
-        <h2 style={heading}>{result.winner === 'draw' ? 'Draw' : `Victory: ${state.players[result.winner].name}`}</h2>
-        <p style={mutedText}>
-          {reasonLabel(result.reason)} {roundsLine}.
-        </p>
-        <div style={vpRow}>
-          <span style={{ color: colors.playerA }} data-testid="end-vp-A">
-            A — {result.vp.A} VP
-          </span>
-          <span style={{ color: colors.playerB }} data-testid="end-vp-B">
-            B — {result.vp.B} VP
-          </span>
-        </div>
-
-        <table style={table} data-testid="end-vp-table">
-          <thead>
-            <tr>
-              <th style={thRound}>Round</th>
-              <th style={th}>A primary</th>
-              <th style={th}>A secondary</th>
-              <th style={th}>B primary</th>
-              <th style={th}>B secondary</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rounds.map((round) => {
-              const a = roundTotals(state, round, 'A', secondaryIdsA)
-              const b = roundTotals(state, round, 'B', secondaryIdsB)
-              return (
-                <tr key={round}>
-                  <td style={tdRound}>{round}</td>
-                  <td style={td}>{a.primary}</td>
-                  <td style={td}>{a.secondary}</td>
-                  <td style={td}>{b.primary}</td>
-                  <td style={td}>{b.secondary}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-
-        <button style={buttonPrimary} onClick={onPlayAgain}>
-          Play again
-        </button>
+    {(!kind || phase !== 'video') && <div style={compact ? overlayCompact : overlay} data-testid="end-screen">
+      <div style={compact ? cardCompact : card}>
+        {compact ? (
+          <>
+            <div style={colLeft}>
+              {summary}
+              {playAgain}
+            </div>
+            <div style={colRight}>{vpTable}</div>
+          </>
+        ) : (
+          <>
+            {summary}
+            {vpTable}
+            {playAgain}
+          </>
+        )}
       </div>
     </div>}
     </>
