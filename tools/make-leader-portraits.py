@@ -28,11 +28,31 @@ LEADERS = {
     "tau-empire": "shasnel-dtano.png",
     # Stand-in until a Winged Prime concept exists.
     "tyranids": "psychophage.png",
+    "adeptus-mechanicus": "enginseer-verask.png",
+    "aeldari": "farseer-iraneth.png",
+    "black-templars": "marshal-siguard.png",
+    "blood-angels": "librarian-marcellos.png",
+    "chaos-daemons": "khharret.png",
+    "dark-angels": "chaplain-mordekai.png",
+    "death-guard": "typhus.png",
+    "deathwatch": "lieutenant-alphion.png",
+    "drukhari": "archon.png",
+    "leagues-of-votann": "kahl-warspeke.png",
+    "space-wolves": "battle-leader-thoryk.png",
+    "thousand-sons": "ahrak-the-time-weaver.png",
+    "world-eaters": "karagar-the-blooded.png",
 }
 
 # Per-faction tweaks: (keep fraction of height, (left, right) fraction of the figure width to keep).
 # The Terror of Vardenghast has a huge wingspan, so only its central body is kept.
-TWEAKS = {"chaos-space-marines": (0.95, (0.30, 0.70))}
+# Wide weapons/staves would shrink these figures, so crop to the body.
+TWEAKS = {
+    "chaos-space-marines": (0.95, (0.30, 0.70)),
+    "blood-angels": (0.75, (0.30, 1.0)),
+    "aeldari": (0.75, (0.20, 0.85)),
+    "drukhari": (0.75, (0.25, 1.0)),
+    "death-guard": (0.75, (0.20, 1.0)),
+}
 
 OUT.mkdir(parents=True, exist_ok=True)
 for fid, name in LEADERS.items():
