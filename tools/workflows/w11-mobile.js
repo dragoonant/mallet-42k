@@ -109,7 +109,7 @@ When useFormFactor().compact: UnitCard (left:12 top:70 width:220) becomes a chip
 Return JSON: ok, summary (<=60 words), files, issues.` },
     ],
     followUp: null,
-    shipExtra: 'Extend tests/e2e/mobile-smoke.spec.ts: in battle, open and close each drawer from the top bar, collapse/expand the decision sheet, and take e2e-out/mobile-<project>-05-drawer.png and -06-sheet-collapsed.png. Also take a desktop screenshot e2e-out/desktop-hud.png in the chromium run and compare it by eye with the layout described in STATUS.md — desktop must be unchanged.',
+    shipExtra: 'Extend tests/e2e/mobile-smoke.spec.ts: in battle, open and close each drawer from the top bar, collapse/expand the decision sheet, and take e2e-out/mobile-<project>-05-drawer.png and -06-sheet-collapsed.png. Also take a desktop screenshot e2e-out/desktop-hud.png in the chromium run and compare it by eye with the layout described in STATUS.md — desktop must be unchanged. Add a two-finger camera check to tests/e2e/mobile-touch.spec.ts (pixel only): CDP Input.dispatchTouchEvent with two touchPoints doing a pinch-out then a twist; assert window.__malletCamera / the camera distance and azimuth changed and that no board selection or move started.',
   },
 }
 
