@@ -96,6 +96,8 @@ Secondaries use the same shape: Wrath of the Emperor = `custom` code `wrathOfThe
 
 Missions may nudge pieces off marker points (R-3.10); the layout is data, not rules.
 
+**CP-3.3** Each mission's first layout (the one the game uses) keeps both deployment zones free of terrain, so every roster has its whole zone to set up in. They are `terrain.cp-01` with pieces moved, still 180° symmetric, every piece ≥ 1.5" from markers and other pieces and ≥ 0.5" from both zones: `terrain.cp-long-edges` (mission 1), `terrain.cp-short-edges` (missions 2, 3, 5, 6), `terrain.cp-diagonal` (mission 4). `terrain.cp-01` stays allowed for every mission (tests use it). Players placing terrain in turns is a later option.
+
 ## 4. Roster: Space Marines — Strike Force Octavius
 
 Source: strike-force-octavius page (Index, June 2023), accessed 2026-09-12. 4 units, 12 models. Faction keyword ADEPTUS ASTARTES; all IMPERIUM, INFANTRY.

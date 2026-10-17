@@ -53,5 +53,5 @@
     { "id": "supply-lines", "code": "supplyLines", "window": "command.start", "params": { "rollThreshold": 4, "cpBonus": 1 } }
   ],
   "victory": { "tie": "draw" },
-  "terrainLayouts": ["terrain.cp-01"]
+  "terrainLayouts": ["terrain.cp-short-edges", "terrain.cp-01"]
 }

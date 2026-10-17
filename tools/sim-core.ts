@@ -113,11 +113,10 @@ export function makeSimSetup(bundle: DataBundle, gameIndex: number, dataVersion:
   if (rb === ra) rb = (rb + 1) % n
   const [p0, p1] = rotate ? [patrols[ra], patrols[rb]] : patrols.length === 2 && !onlyPatrol ? (gameIndex % 2 === 0 ? [patrols[0], patrols[1]] : [patrols[1], patrols[0]]) : wanted[gameIndex % wanted.length]
   const missionIndex = patrols.length === 2 && !onlyPatrol ? gameIndex : gameIndex + Math.floor(gameIndex / wanted.length)
-  // an oversize base (Onager Dunecrawler vs cp-01's 5" strips) starts in Reserves, so every roster plays every mission
   const missionId = MISSIONS[missionIndex % MISSIONS.length]
   return {
     missionId,
-    terrainLayoutId: Object.keys(bundle.terrainLayouts ?? {}).sort()[0] ?? 'terrain.cp-01',
+    terrainLayoutId: bundle.missions[missionId]?.terrainLayouts[0] ?? 'terrain.cp-01',
     players: { A: playerSetup(bundle, p0, 'Bot A', gameIndex % 2 === 0, variants && gameIndex % 2 === 1), B: playerSetup(bundle, p1, 'Bot B', gameIndex % 3 !== 1, variants && gameIndex % 2 === 1) },
     sides: 'rollOff',
     firstTurn: 'rollOff',

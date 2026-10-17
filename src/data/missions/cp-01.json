@@ -40,5 +40,5 @@
     }
   ],
   "victory": { "tie": "draw" },
-  "terrainLayouts": ["terrain.cp-01"]
+  "terrainLayouts": ["terrain.cp-long-edges", "terrain.cp-01"]
 }
