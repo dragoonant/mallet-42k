@@ -621,8 +621,9 @@ function PlayerBadge({ id, state }: { id: PlayerId; state: GameState }) {
   const color = id === 'A' ? colors.playerA : colors.playerB
   const scored = state.mission.scored.filter((row) => row.player === id).sort((a, b) => b.round - a.round)
 
+  // `data-hud-badge` lets App.tsx's right rail (Dice Log + tray) measure the B badge and sit under it.
   return (
-    <div style={badge}>
+    <div style={badge} data-hud-badge={id}>
       <div style={{ color, fontWeight: 700, fontSize: 13 }}>
         {p.name} ({id})
       </div>
