@@ -58,6 +58,9 @@ export function useGlbInstance(slug: string | undefined): Object3D | null {
       invalidate()
     }
     listeners.add(l)
+    // A cached GLB can settle between the render that requested it and this subscription; catch up,
+    // or the figure keeps its procedural stand-in until something else re-renders it.
+    if (cache.get(slug)?.status !== 'loading') l()
     return () => {
       listeners.delete(l)
     }

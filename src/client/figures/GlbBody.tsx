@@ -1,5 +1,6 @@
 // Poses a pre-made GLB figure (origin at base centre, y up, 1 unit = 1 inch, front = +Z — the same
-// facing the procedural figures use, so no extra rotation). The GLB is one rigid mesh, so poses are
+// facing the procedural figures use). `yaw` corrects the few sculpts exported facing another axis
+// (glbModels.ts GLB_YAW); it is set on the private clone, under the pose group. The GLB is one rigid mesh, so poses are
 // whole-body transforms: walk bob, shoot recoil, melee lunge, hit flinch, death topple/fade/sink.
 import { useEffect, useRef } from 'react'
 import type { Group, Object3D } from 'three'
@@ -9,18 +10,19 @@ import { applyGlbPaint } from './glbPaint'
 import { paintKey, type ArmyPaint } from './paint'
 import type { Pose } from './types'
 
-export function GlbBody({ object, pose, seed, faction, paint }: { object: Object3D; pose: Pose; seed: number; faction: string; paint?: ArmyPaint }) {
+export function GlbBody({ object, yaw = 0, pose, seed, faction, paint }: { object: Object3D; yaw?: number; pose: Pose; seed: number; faction: string; paint?: ArmyPaint }) {
   const bodyRef = useRef<Group>(null!)
   const fade = useMaterialFader(bodyRef)
 
   // Put the (shared-resource) clone into the pose group once per instance.
   useEffect(() => {
     const body = bodyRef.current
+    object.rotation.y = yaw
     body.add(object)
     return () => {
       body.remove(object)
     }
-  }, [object])
+  }, [object, yaw])
 
   // Army painter: recolour this instance's materials (clones, never the shared cache); no-op when unpainted.
   const invalidate = useThree((s) => s.invalidate)

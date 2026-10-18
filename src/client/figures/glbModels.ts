@@ -562,6 +562,21 @@ export function glbSlugFor(datasheetId: string, modelId: string | undefined, var
   return slug && ENABLED_GLB_SLUGS.includes(slug) ? slug : undefined
 }
 
+/** Sculpts that were exported facing a different axis than the kit's +Z "front". The figure applies
+ *  this yaw (radians about Y) to the loaded clone so the model faces the engine facing like every other
+ *  figure. Only list slugs that are actually wrong; fix the GLB instead when it is regenerated. */
+const GLB_YAW: Readonly<Record<string, number>> = {
+  // Aeldari gun platform and jetbikes came out nose-to -X (a quarter turn to the left of front).
+  'heavy-weapon-platform': Math.PI / 2,
+  'windrider-catapult': Math.PI / 2,
+  'windrider-scatter': Math.PI / 2,
+}
+
+/** Extra yaw (radians) to apply to a slug's GLB so it faces +Z; 0 for correctly exported sculpts. */
+export function glbYawFor(slug: string | undefined): number {
+  return slug ? (GLB_YAW[slug] ?? 0) : 0
+}
+
 /** Slugs with a second sculpt: half of the model instances (by id hash) use the alternate. */
 const GLB_ALT_SLUG: Readonly<Record<string, string>> = { poxwalker: 'poxwalker-b' }
 
