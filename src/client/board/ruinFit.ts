@@ -17,6 +17,25 @@ export function polygonBounds(polygon: Polygon): Bounds {
   return { minX, maxX, minZ, maxZ, cx: (minX + maxX) / 2, cz: (minZ + maxZ) / 2, w: Math.max(maxX - minX, 0.01), d: Math.max(maxZ - minZ, 0.01) }
 }
 
+/** Bounds in the frame of the footprint's longest edge (`angle` = that edge's direction in the XZ plane, 0 for any
+ *  footprint whose edges already run along the axes). `cx`/`cz` are world coordinates of the box centre. */
+export function orientedBounds(polygon: Polygon): Bounds & { angle: number } {
+  let best = 0, angle = 0
+  for (let i = 0; i < polygon.length; i++) {
+    const a = polygon[i], b = polygon[(i + 1) % polygon.length]
+    const len = Math.hypot(b.x - a.x, b.z - a.z)
+    if (len > best + 1e-9) { best = len; angle = Math.atan2(b.z - a.z, b.x - a.x) }
+  }
+  const quarter = Math.PI / 2
+  const off = Math.abs(angle - Math.round(angle / quarter) * quarter)
+  if (best === 0 || off < 0.01) return { ...polygonBounds(polygon), angle: 0 }
+  const c = Math.cos(angle), s = Math.sin(angle)
+  // into the edge frame: u along the edge, v across it
+  const local = polygon.map((p) => ({ x: p.x * c + p.z * s, z: -p.x * s + p.z * c }))
+  const lb = polygonBounds(local)
+  return { ...lb, cx: lb.cx * c - lb.cz * s, cz: lb.cx * s + lb.cz * c, angle }
+}
+
 export type FitPlan =
   | { shape: 'L'; slug: string; turns: number }
   | { shape: 'rect'; slug: string; flip: boolean }

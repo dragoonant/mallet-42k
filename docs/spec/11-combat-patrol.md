@@ -84,24 +84,20 @@ Secondaries use the same shape: Wrath of the Emperor = `custom` code `wrathOfThe
 | Id | Rule |
 |---|---|
 | CP-3.1 | Guidance from the source: spread terrain evenly so both sides can find cover; enough that a straight line of sight from one edge to the other is not easy; leave lanes for VEHICLES. |
-| CP-3.2 | Default layout `terrain.cp-01` (180° rotationally symmetric about the centre; all pieces > 1" from marker points; matches the "ideal" density of the reference photo — 2 big ruins, 2 small ruins, 2 containers, 2 craters, 2 barricades): |
+| CP-3.2 | The layouts the game plays are real tournament maps: WTC 2025 map pack v2.3, digitised at labrador.dev/40k-layouts, scaled from the 60"×44" tournament table to our 44"×30" board by `tools/terrain/wtc-to-cp.mjs` (source numbers in `tools/terrain/wtc2025-source.json`; re-run the script to regenerate the three data files). Each map is six placed pieces plus their 180° rotated copies (12 pieces), so every layout is rotationally symmetric about the centre. Piece positions scale per axis (x × 44/60, z × 30/44); each piece's own shape (footprint, wall, floor) scales uniformly by 0.7 about its placement point so angles survive. |
 
-| Piece | Category | Footprint (x, z) polygon / centre | Height | Notes |
+| Layout id | Missions | WTC map | Deployment | Piece mix (12 pieces) |
 |---|---|---|---|---|
-| ruin-L1 | RUINS | L-shape: (−8,0) (−2,0) (−2,2) (−6,2) (−6,6) (−8,6) | 6" walls, floor at 3" | walls on the outer L edges; open interior |
-| ruin-L2 | RUINS | rotate ruin-L1 by 180°: (8,0) (2,0) (2,−2) (6,−2) (6,−6) (8,−6) | 6" | |
-| ruin-S1 | RUINS | rect (−19,−14) to (−13,−10) | 4" | in Attacker DZ corner |
-| ruin-S2 | RUINS | rect (13,10) to (19,14) | 4" | |
-| container-1 | HILL (stand-on) | rect (4,−13) to (10,−10) | 3" | |
-| container-2 | HILL | rect (−10,10) to (−4,13) | 3" | |
-| crater-1 | CRATER | circle centre (10,4) r 2.5 | 0.5" | |
-| crater-2 | CRATER | circle centre (−10,−4) r 2.5 | 0.5" | |
-| barricade-1 | BARRICADE | segment (14,−3)→(18,−3), thickness 0.5 | 1.5" | |
-| barricade-2 | BARRICADE | segment (−18,3)→(−14,3) | 1.5" | |
+| `terrain.cp-long-edges` | 1 | Dawn 1 | zones on the two long edges | 4 containers, 4 two-storey ruins, 4 three-storey ruins |
+| `terrain.cp-short-edges` | 2, 3, 5, 6 | Hammer 1 | zones on the two short edges | 2 containers, 4 two-storey ruins, 6 three-storey ruins |
+| `terrain.cp-diagonal` | 4 | Crucible 1 | the two diagonal triangles (the map is drawn so WTC's attacker triangle is our zone A) | 2 containers, 4 two-storey ruins, 6 three-storey ruins |
 
-Missions may nudge pieces off marker points (R-3.10); the layout is data, not rules.
 
-**CP-3.3** Each mission's first layout (the one the game uses) keeps both deployment zones free of terrain, so every roster has its whole zone to set up in. They are `terrain.cp-01` with pieces moved, still 180° symmetric, every piece ≥ 1.5" from markers and other pieces and ≥ 0.5" from both zones: `terrain.cp-long-edges` (mission 1), `terrain.cp-short-edges` (missions 2, 3, 5, 6), `terrain.cp-diagonal` (mission 4). `terrain.cp-01` stays allowed for every mission (tests use it). Players placing terrain in turns is a later option.
+Piece kinds: a WTC container is a `crate` (3" tall, stand-on, 1.75" × 3.5" after scaling); a three-storey ruin is a `ruin` with an L of 6" walls, an upper floor at 3" and an 8.4" × 4.2" obscuring footprint; a two-storey ruin is the same shape with 4" walls and its smaller upper floor at 2". Ruin footprints are rotated rectangles (the engine and renderer handle any polygon). After scaling, a few pieces are nudged (a piece and its 180° partner move together, by the smallest step that works) so that CP-3.3 and CP-3.4 hold; the nudges are listed in the script. `terrain.cp-01` (the original hand-made layout) stays in the data as a second, never-picked entry of each mission's `terrainLayouts` because the engine tests build games from its coordinates; the game always plays the first entry. Missions may nudge pieces off marker points (R-3.10); the layout is data, not rules.
+
+**CP-3.3** Terrain may stand inside the deployment zones (the WTC maps put ruins there). Set-up already copes: a model may only be set up where it could legally end a move, and a VEHICLE or MONSTER without FLY may not start partly inside a ruin footprint (it could never walk out through the walls). Every zone keeps room for the biggest base: the lane test (CP-3.4) starts its model in each zone. Every ruin wall and crate is more than 1" (edge to edge) from every objective marker of every mission that plays the layout; a marker may sit inside a ruin's footprint, which is open ground between the walls (RC-052).
+
+**CP-3.4** Lane rule. L = the smaller side of the largest non-INFANTRY base in any roster plus 0.5" (130 mm round → 5.12" + 0.5" = 5.62"). What blocks a big model is what the terrain module blocks: ruin walls, crates and barricades, plus the board edge. A gap narrower than 0.25" counts as sealed. Every spot where an L-wide base fits must be connected to the rest of the open board by lanes at least L wide, unless a gap under 0.25" seals it off: no choke point where a small unit can squeeze through but a big model cannot. In addition, the largest-base model, set up in each deployment zone outside every ruin footprint, can travel to within objective range of every marker of every mission that plays the layout. Checked by `tests/data/terrainLanes.test.ts`; `npx tsx tools/terrain/check-lanes.ts` prints the report. (A literal "every pair of pieces ≥ L apart or touching" test is not satisfiable with 12 pieces on a 30" board; the passage test keeps its purpose, so it is the rule.)
 
 ## 4. Roster: Space Marines — Strike Force Octavius
 

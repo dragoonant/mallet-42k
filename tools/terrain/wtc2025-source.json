@@ -1,0 +1,50 @@
+{
+  "source": "WTC 2025 map pack v2.3 as digitised by the layout viewer at https://labrador.dev/40k-layouts (accessed 2026-10-23). Board 60x44 inches, SVG coords: x right 0..60, y DOWN 0..44.",
+  "transform": "Each listed piece is one half of the table. World point of a local feature coord (lx,ly): rot=rotation deg; dx=lx*cos(rot)-ly*sin(rot); dy=lx*sin(rot)+ly*cos(rot); world = flip ? (point.x - dx, point.y + dy) : (point.x + dx, point.y + dy). The other half: point' = (60-point.x, 44-point.y), rotation' = rotation-180, same flip, same feature. So every map has 12 pieces and is 180-degree symmetric about (30,22).",
+  "features": {
+    "container": { "note": "WTC2024Container, solid box", "outline": [[0,0],[2.5,0],[2.5,5],[0,5]] },
+    "ruin3": {
+      "note": "WTC2024ThreeStoryRuin. footprint = ruin area; wall = L-shaped wall panel (outer edges of the L stand on footprint-local x-axis and y-axis, inset 0.86); floor = upper-floor L. Real height ~9.5in",
+      "footprint": [[0,0],[12,0],[12,6],[0,6]],
+      "wall": [[0.86,0.86],[9.86,0.86],[9.86,0.98],[0.98,0.98],[0.98,5.86],[0.86,5.86]],
+      "floor": [[0.86,0.86],[9.86,0.86],[9.86,2.15],[2.15,2.15],[2.15,5.86],[0.86,5.86]]
+    },
+    "ruin2": {
+      "note": "WTC2024TwoStoryRuin. Same footprint and L wall as ruin3; wall windows; real height ~5in; smaller upper floor",
+      "footprint": [[0,0],[12,0],[12,6],[0,6]],
+      "wall": [[0.86,0.86],[9.86,0.86],[9.86,0.98],[0.98,0.98],[0.98,5.86],[0.86,5.86]],
+      "floor": [[0.86,0.86],[5.36,0.86],[5.36,2.83],[2.83,2.83],[2.83,5.86],[0.86,5.86]]
+    }
+  },
+  "deployments_60x44_svg": {
+    "hammer-and-anvil": { "attacker": "x 42..60", "defender": "x 0..18" },
+    "dawn-of-war": { "attacker": "y 32..44", "defender": "y 0..12" },
+    "crucible-of-battle": { "attacker": "triangle (0,0)(30,44)(0,44)", "defender": "triangle (30,0)(60,0)(60,44)" }
+  },
+  "layouts_half": {
+    "wtc-2025-hammer-1": [
+      {"f":"container","flip":true,"x":27,"y":0,"rot":0},
+      {"f":"ruin3","flip":false,"x":26,"y":31,"rot":0},
+      {"f":"ruin3","flip":false,"x":18,"y":9.1,"rot":-210},
+      {"f":"ruin2","flip":true,"x":11.8,"y":28.1,"rot":-70},
+      {"f":"ruin3","flip":false,"x":21,"y":29,"rot":90},
+      {"f":"ruin2","flip":true,"x":27.2,"y":21,"rot":-31}
+    ],
+    "wtc-2025-crucible-1": [
+      {"f":"container","flip":false,"x":38,"y":27,"rot":90},
+      {"f":"ruin3","flip":false,"x":25,"y":31,"rot":-114},
+      {"f":"ruin2","flip":true,"x":9.5,"y":13,"rot":229},
+      {"f":"ruin3","flip":false,"x":10.5,"y":31,"rot":48},
+      {"f":"ruin3","flip":false,"x":8.5,"y":14.2,"rot":48},
+      {"f":"ruin2","flip":true,"x":22,"y":11,"rot":195}
+    ],
+    "wtc-2025-dawn-1": [
+      {"f":"container","flip":false,"x":6,"y":5,"rot":0},
+      {"f":"container","flip":true,"x":8.5,"y":5,"rot":90},
+      {"f":"ruin2","flip":true,"x":18,"y":12,"rot":180},
+      {"f":"ruin2","flip":true,"x":16,"y":30,"rot":0},
+      {"f":"ruin3","flip":false,"x":16,"y":21,"rot":0},
+      {"f":"ruin3","flip":false,"x":10,"y":22,"rot":-138}
+    ]
+  }
+}

@@ -451,6 +451,9 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | MISSION-043 | CP-3.2 | layout `terrain.cp-01` loaded with every mission: each piece's footprint > 1" from every marker point; the piece set is invariant under 180° rotation about the origin (each footprint maps onto another's within 0.01") |
 | MISSION-044 | CP-1.5 / R-12.5 | secondary per-instance caps: Display of Might-style secondary fixture with cap 5 and two conditions met → 5 VP once; Wrath of the Emperor twice in the same phase → 2 VP (cap per instance) |
 | MISSION-045 | R-12.6 | both armies wiped out simultaneously (Deadly Demise kills the last models of both sides in round 3) → `battle.end` window, `GameEnded` with `reason: 'tabled'`, winner by VP; only one side wiped → reason `vp` after round 5 (MISSION-030) |
+| MISSION-046 | CP-3.4 | WTC layouts (`terrain.cp-long-edges`, `-short-edges`, `-diagonal`): lane width L = smallest side of the largest non-INFANTRY roster base + 0.5" (130 mm → 5.62"); no choke point — every spot an L-wide base fits is joined to the rest of the open board by lanes ≥ L wide, or sealed by a gap < 0.25" (`tests/data/terrainLanes.test.ts`) |
+| MISSION-047 | CP-3.4 | WTC layouts: the largest-base non-INFANTRY model (set up outside every ruin footprint, inside its zone) can travel on a ≤ 0.25" grid, footprint-inflated by its base, from each deployment zone to within objective range of every marker of every mission that uses the layout |
+| MISSION-048 | CP-3.2, CP-3.3 | WTC layouts: invariant under 180° rotation about the origin (footprints, walls, floors); every ruin wall and crate > 1" from the edge of every objective marker (R-3.10, RC-052; a marker may sit inside a ruin footprint); all terrain stays on the 44×30 board |
 
 ## SIM — headless simulator invariants
 | ID | Ref | Scenario → expected |

@@ -192,6 +192,8 @@ export const SCENARIOS: Record<string, ScenarioBuilder> = {
   'pile-in': pileIn,
   'pile-in-mixed': pileInMixed,
   'terrain-height': terrainHeight,
+  // layout photo: units stay wherever setup left them (nothing is placed); pair with `?mission=<id>` to see each mission's terrain
+  'layout-view': () => {},
 }
 
 /** Builds the scenario's game state positioned in the human's Fight phase, ready for the first decision. */
@@ -204,7 +206,8 @@ export async function buildScenario(name: string, seed = 'scenario', patrolId: s
   const factionPatrols = Object.values(bundle.patrols).filter((p) => p.faction === `faction.${factionKey}` || p.faction === factionKey).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
   const patrol = (patrolId && factionPatrols.find((p) => p.id === patrolId)) || factionPatrols[0]
   if (!patrol) throw new Error(`scenario: no patrol for ${factionKey}`)
-  const mission = Object.values(bundle.missions)[0]
+  const wanted = missionFromUrl()
+  const mission = (wanted && (bundle.missions[wanted] ?? bundle.missions[`mission.${wanted}`])) || Object.values(bundle.missions)[0]
   const player = (): GameSetup['players']['A'] => {
     const enh = patrol.enhancements.find((e) => e.default) ?? patrol.enhancements[0]
     const sec = patrol.secondaries.find((s) => s.default) ?? patrol.secondaries[0]
@@ -276,6 +279,12 @@ export async function buildScenario(name: string, seed = 'scenario', patrolId: s
 export function scenarioFromUrl(): string | null {
   if (typeof window === 'undefined') return null
   return new URLSearchParams(window.location.search).get('scenario')
+}
+
+/** Reads the optional `?mission=<mission id>` (with or without the `mission.` prefix) that picks a scenario's mission; null when absent. */
+export function missionFromUrl(): string | null {
+  if (typeof window === 'undefined') return null
+  return new URLSearchParams(window.location.search).get('mission')
 }
 
 /** Reads the optional `?patrol=<patrol id>` from the URL; null when absent. */

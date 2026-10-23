@@ -4,7 +4,7 @@ import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import type { FloorData, TerrainPieceData, WallData } from '@/data/types'
 import { extrudedPolygonGeometry, polygonBoundingRadius, polygonCentroid, seededUnit, segmentTransform } from './geometry'
-import { fittedScale, polygonBounds, simpleTurns, type Bounds } from './ruinFit'
+import { fittedScale, orientedBounds, polygonBounds, simpleTurns, type Bounds } from './ruinFit'
 import { useRuinModel, useRuinModelSet, type RuinModel, type RuinModelState } from './ruinModels'
 import { planPillars, planWallPanels, panelScale, slabPool, wallBoxes, type KitModel, type KitPanel } from './ruinKit'
 import { CRATER_FLOOR_MAX_HEIGHT, ENGINE_DEFAULT_WALL_THICKNESS, RUIN_KIT_FLOOR_THICKNESS, glbVisualHeight, variantPool } from './terrainCatalog'
@@ -262,7 +262,9 @@ function KitPanelMesh({ panel, model }: { panel: KitPanel; model: RuinModel }) {
 /** Dust/stain decal under and around the footprint plus scattered low rubble, so the ruin sits on the
  *  mat instead of floating on it. Decal never writes depth; rubble stays under 0.4" and off the walls. */
 function RuinGround({ id, dress, footprint, bounds, walls, floors }: { id: string; dress: string; footprint: TerrainPieceData['footprint']; bounds: Bounds; walls: WallData[]; floors: FloorData[] }) {
-  const tex = useMemo(() => ruinDecalTexture(dress, bounds.w, bounds.d), [dress, bounds.w, bounds.d])
+  // the dust decal follows the footprint's own axis, so a ruin standing at an angle gets an angled decal, not a bbox
+  const decal = useMemo(() => orientedBounds(footprint), [footprint])
+  const tex = useMemo(() => ruinDecalTexture(dress, decal.w, decal.d), [dress, decal.w, decal.d])
   const chunks = useMemo(() => scatterRubble(dress, footprint, bounds, walls, floors), [dress, footprint, bounds, walls, floors])
   const mesh = useRef<THREE.InstancedMesh>(null)
   const invalidate = useThree((s) => s.invalidate)
@@ -286,10 +288,12 @@ function RuinGround({ id, dress, footprint, bounds, walls, floors }: { id: strin
   }, [chunks, invalidate])
   return (
     <group>
-      <mesh position={[bounds.cx, 0.02, bounds.cz]} rotation={[-Math.PI / 2, 0, seedUnit(`${dress}:spin`) < 0.5 ? 0 : Math.PI]} renderOrder={1} userData={{ noFade: true }}>
-        <planeGeometry args={[bounds.w + DECAL_MARGIN * 2, bounds.d + DECAL_MARGIN * 2]} />
-        <meshBasicMaterial map={tex} transparent depthWrite={false} polygonOffset polygonOffsetFactor={-2} polygonOffsetUnits={-2} toneMapped={false} />
-      </mesh>
+      <group position={[decal.cx, 0, decal.cz]} rotation={[0, -decal.angle, 0]}>
+        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, seedUnit(`${dress}:spin`) < 0.5 ? 0 : Math.PI]} renderOrder={1} userData={{ noFade: true }}>
+          <planeGeometry args={[decal.w + DECAL_MARGIN * 2, decal.d + DECAL_MARGIN * 2]} />
+          <meshBasicMaterial map={tex} transparent depthWrite={false} polygonOffset polygonOffsetFactor={-2} polygonOffsetUnits={-2} toneMapped={false} />
+        </mesh>
+      </group>
       <instancedMesh key={chunks.length} ref={mesh} args={[rubbleGeometry(), rubbleMaterial(), chunks.length]} castShadow receiveShadow frustumCulled={false} />
     </group>
   )
