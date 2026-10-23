@@ -18,11 +18,16 @@ export const DEPLOY_EDGE_MARGIN_IN = 0.75
 
 export type V2 = { x: number; z: number }
 export type V3 = { x: number; y: number; z: number }
-export interface Cam { tx: number; tz: number; d: number; polar: number }
+export interface Cam { tx: number; tz: number; d: number; polar: number; az?: number; fov?: number }
 
 export function makeCam(): Cam {
   return { tx: 0, tz: 0, d: START_DIST, polar: OVERVIEW_POLAR }
 }
+
+// The app's camera moves (deployment framing, overview tweens, orbit presets), so a hard-coded Cam goes stale. snap()
+// refreshes this from the page's own orbit controls (window.__malletCamera.get(), see CameraRig.tsx) on every call and
+// project() prefers it; the makeCam() default is only the fallback before the first snap.
+let liveCam: Cam | null = null
 
 const dot = (a: V3, b: V3) => a.x * b.x + a.y * b.y + a.z * b.z
 const cross = (a: V3, b: V3): V3 => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x })
@@ -32,8 +37,10 @@ const norm = (a: V3): V3 => {
 }
 
 /** World (inches) -> screen px for the CameraRig's orbit camera (azimuth 0, camera on +z side). */
-export function project(p: V3, cam: Cam, W: number, H: number): { x: number; y: number } {
-  const pos = { x: cam.tx, y: cam.d * Math.cos(cam.polar), z: cam.tz + cam.d * Math.sin(cam.polar) }
+export function project(p: V3, camArg: Cam, W: number, H: number): { x: number; y: number } {
+  const cam = liveCam ?? camArg
+  const az = cam.az ?? 0
+  const pos = { x: cam.tx + cam.d * Math.sin(cam.polar) * Math.sin(az), y: cam.d * Math.cos(cam.polar), z: cam.tz + cam.d * Math.sin(cam.polar) * Math.cos(az) }
   const f = norm({ x: cam.tx - pos.x, y: -pos.y, z: cam.tz - pos.z })
   const r = norm(cross(f, { x: 0, y: 1, z: 0 }))
   const u = cross(r, f)
@@ -41,7 +48,7 @@ export function project(p: V3, cam: Cam, W: number, H: number): { x: number; y: 
   const xc = dot(v, r)
   const yc = dot(v, u)
   const zc = dot(v, f)
-  const t = Math.tan((FOV * Math.PI) / 360)
+  const t = Math.tan(((cam.fov ?? FOV) * Math.PI) / 360)
   const ndcX = xc / (zc * t * (W / H))
   const ndcY = yc / (zc * t)
   return { x: ((ndcX + 1) / 2) * W, y: ((1 - ndcY) / 2) * H }
@@ -70,7 +77,18 @@ export interface Snap {
   zones: { A: V2[]; B: V2[] } | null
 }
 
+/** Reads the page's real camera (see liveCam above); specs with their own snapshot call this from it. */
+export async function refreshCam(page: Page): Promise<void> {
+  const cam = await page.evaluate(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const c = (window as any).__malletCamera?.get?.()
+    return c && typeof c.polar === 'number' && c.polar > 0 ? { tx: c.x, tz: c.z, d: c.distance, polar: c.polar, az: c.azimuth, fov: c.fov } : null
+  })
+  if (cam) liveCam = cam
+}
+
 export async function snap(page: Page): Promise<Snap> {
+  await refreshCam(page)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return page.evaluate(() => {
     const g = (window as any).__mallet.useGameStore.getState()
@@ -338,8 +356,10 @@ export async function answerRerollLikeDecision(page: Page): Promise<string | nul
     await passBtn.click()
     return 'Pass'
   }
-  // No Pass on offer (canPass:false) — take the first real option in the prompt instead, same container.
-  const anyBtn = prompt.getByRole('button').first()
+  // No Pass on offer (canPass:false) — take the first real option in the prompt instead, same container. Never the
+  // panel's own "–" minimise button: clicking it hides the whole prompt (display:none) and leaves the decision
+  // unanswerable, which the stall watchdogs then report as "prompt not visible".
+  const anyBtn = prompt.locator('button:not([data-testid="btn-prompt-minimize"])').first()
   if (await anyBtn.isVisible().catch(() => false)) {
     const label = (await anyBtn.textContent())?.trim() ?? '(unlabelled)'
     await anyBtn.click()
@@ -368,12 +388,14 @@ export async function verifyPromptButtonsClickable(page: Page): Promise<string[]
         covered,
         hitTag: hit?.tagName ?? null,
         hitTestid: hit?.getAttribute('data-testid') ?? null,
+        rect: `${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}x${Math.round(r.height)} of ${window.innerWidth}x${window.innerHeight}`
+          + (r.width === 0 ? ' chain: ' + (() => { const out: string[] = []; for (let e: Element | null = btn; e && out.length < 8; e = e.parentElement) out.push(`${e.tagName}[${e.getAttribute('data-testid') ?? ''}]${getComputedStyle(e).display}/${getComputedStyle(e).visibility}`); return out.join(' < ') })() : ''),
       }
     })
   })
   return results
     .filter((r) => r.covered)
-    .map((r) => `PROMPT BUTTON COVERED: "${r.label}" (${r.testid}) — elementFromPoint hit ${r.hitTag} (${r.hitTestid}) instead`)
+    .map((r) => `PROMPT BUTTON COVERED: "${r.label}" (${r.testid}) — elementFromPoint hit ${r.hitTag} (${r.hitTestid}) instead [button box ${r.rect}]`)
 }
 
 // ---------- game start ----------

@@ -7,6 +7,7 @@ import {
   type GameSetup, type GameState, type PendingDecision, type UnitId,
 } from '../../engine'
 import type { DataBundle } from '../../data/types'
+import { terrainService } from '../../engine/terrain'
 import { loadBundle } from '../../data'
 import { registerDataBundle } from '../../engine'
 import { useGameStore, type NewGameOptions } from '../store/game'
@@ -14,10 +15,10 @@ import { useGameStore, type NewGameOptions } from '../store/game'
 const MM = 25.4
 const SCENARIO_FACTION = 'necrons'
 /** Scenarios that start in another faction / phase than the default (Necrons, Fight). */
-const SCENARIO_FACTIONS: Record<string, string> = { 'floor-picker': 'sm', 'weapon-select': 'sm', 'weapon-select-mixed': 'sm', 'weapon-select-split': 'sm', 'weapon-select-psyker': 'sm' }
+const SCENARIO_FACTIONS: Record<string, string> = { 'floor-picker': 'sm', 'floor-climb': 'sm', 'weapon-select': 'sm', 'weapon-select-mixed': 'sm', 'weapon-select-split': 'sm', 'weapon-select-psyker': 'sm' }
 /** Shooting-phase scenarios: scenario name -> the human (A) unit ref that is activated, so the first prompt is its declareTargets. */
 const SHOOTING_SCENARIOS: Record<string, string> = { 'weapon-select': 'terminator-squad', 'weapon-select-mixed': 'infernus-squad', 'weapon-select-split': 'infernus-squad', 'weapon-select-psyker': 'librarian-tantus' }
-const MOVEMENT_SCENARIOS = new Set(['floor-picker'])
+const MOVEMENT_SCENARIOS = new Set(['floor-picker', 'floor-climb'])
 
 export interface ScenarioInit {
   bundle: DataBundle
@@ -116,26 +117,107 @@ const pileInMixed: ScenarioBuilder = (state) => {
   chargeReady(state, me)
 }
 
+/** Facts a scenario worked out (e.g. where it put a unit on a ruin floor), for e2e specs: `window.__malletScenario`. */
+export const scenarioNotes: Record<string, unknown> = {}
+
+type V2 = { x: number; z: number }
+
+/** Every upper floor on the board, tallest first (the three-storey ruins' 3" floors before the two-storey ones), then board order. */
+function upperFloors(state: GameState): { ruinId: string; polygon: V2[]; height: number }[] {
+  const out: { ruinId: string; polygon: V2[]; height: number }[] = []
+  for (const p of Object.values(state.board.pieces)) {
+    if (p.kind !== 'ruin') continue
+    for (const f of p.floors.filter((q) => q.height > 0)) out.push({ ruinId: p.id, polygon: f.polygon, height: f.height })
+  }
+  return out.sort((a, b) => b.height - a.height)
+}
+
+/** Finds `n` bases of `unitId`'s size in a row (`spacing` apart centre to centre) that all pass the engine's own
+ *  canEndAt on `floor`, as far from the floor's edges and the ruin's walls as the scan can manage (the row is tried at
+ *  every 15 degrees). Returns the row's centre, its unit axis and the n positions, or null if no row fits. */
+function floorRow(state: GameState, unitId: UnitId, floor: { polygon: V2[]; height: number }, n: number, spacing: number): { centre: V2; axis: V2; points: V2[] } | null {
+  const model = state.models[state.units[unitId].models[0]]
+  const xs = floor.polygon.map((q) => q.x), zs = floor.polygon.map((q) => q.z)
+  const fits = (pos: V2, r: number): boolean => terrainService.canEndAt(state, { ...model, base: { shape: 'round', radius: model.base.radius + r } as typeof model.base }, { x: pos.x, y: floor.height, z: pos.z }).ok
+  let best = null as { centre: V2; axis: V2; points: V2[]; slack: number } | null
+  for (let a = 0; a < 180; a += 15) {
+    const axis = { x: Math.cos((a * Math.PI) / 180), z: Math.sin((a * Math.PI) / 180) }
+    for (let x = Math.min(...xs); x <= Math.max(...xs); x += 0.1) {
+      for (let z = Math.min(...zs); z <= Math.max(...zs); z += 0.1) {
+        const points = Array.from({ length: n }, (_, i) => ({ x: x + (i - (n - 1) / 2) * spacing * axis.x, z: z + (i - (n - 1) / 2) * spacing * axis.z }))
+        if (!points.every((q) => fits(q, 0))) continue
+        // slack = how much bigger every base could grow and still fit (coarse, 0.05" steps up to 0.3")
+        let slack = 0
+        while (slack < 0.3 && points.every((q) => fits(q, slack + 0.05))) slack += 0.05
+        if (!best || slack > best.slack) best = { centre: { x, z }, axis, points, slack }
+      }
+    }
+    if (best && best.slack >= 0.3) break
+  }
+  return best && { centre: best.centre, axis: best.axis, points: best.points }
+}
+
+/** Share of probe points (two rings round `c`, 24 directions each) that are open ground for `unitId`'s base. */
+function opennessAround(state: GameState, unitId: UnitId, c: V2): number {
+  const model = state.models[state.units[unitId].models[0]]
+  let free = 0, total = 0
+  for (const r of [1.5, 2.5, 3.5]) {
+    for (let i = 0; i < 24; i++) {
+      const q = { x: c.x + Math.cos((i / 24) * Math.PI * 2) * r, z: c.z + Math.sin((i / 24) * Math.PI * 2) * r }
+      total++
+      if (Math.abs(q.x) < 21 && Math.abs(q.z) < 14 && terrainService.canEndAt(state, model, { x: q.x, y: 0, z: q.z }).ok) free++
+    }
+  }
+  return free / total
+}
+
+/** Ground rows parallel to `axis`, each `offsets` entry inches from `centre` along the axis' normal, whose bases all pass canEndAt; the one with the most open ground around it wins (a unit boxed in by walls
+ *  cannot be dragged anywhere in the e2e specs). */
+function groundRowBeside(state: GameState, unitId: UnitId, centre: V2, axis: V2, n: number, spacing: number, offsets: number[]): { centre: V2; points: V2[]; open: number } {
+  const model = state.models[state.units[unitId].models[0]]
+  const normal = { x: -axis.z, z: axis.x }
+  let best: { centre: V2; points: V2[]; open: number } | null = null as { centre: V2; points: V2[]; open: number } | null
+  for (const d of offsets) {
+    const c = { x: centre.x + normal.x * d, z: centre.z + normal.z * d }
+    const points = Array.from({ length: n }, (_, i) => ({ x: c.x + (i - (n - 1) / 2) * spacing * axis.x, z: c.z + (i - (n - 1) / 2) * spacing * axis.z }))
+    if (!points.every((q) => terrainService.canEndAt(state, model, { x: q.x, y: 0, z: q.z }).ok && Math.abs(q.x) < 21 && Math.abs(q.z) < 14)) continue
+    const open = opennessAround(state, unitId, c)
+    if (!best || open > best.open) best = { centre: c, points, open }
+  }
+  if (!best) throw new Error('scenario: no open ground beside the ruin floor')
+  return best
+}
+
+/** The floor row (tallest floors first) with the most open ground beside it, with that ground row. */
+function findFloorRowWithGround(state: GameState, floorUnit: UnitId, groundUnit: UnitId, n: number, spacing: number, offsets: number[]) {
+  let best: { floor: { polygon: V2[]; height: number }; centre: V2; axis: V2; points: V2[]; ground: { centre: V2; points: V2[]; open: number } } | null = null
+  for (const floor of upperFloors(state)) {
+    const row = floorRow(state, floorUnit, floor, n, spacing)
+    if (!row) continue
+    let ground
+    try { ground = groundRowBeside(state, groundUnit, row.centre, row.axis, n, spacing, offsets) } catch { continue }
+    if (!best || ground.open > best.ground.open) best = { floor, ...row, ground }
+    if (ground.open >= 0.85) break
+  }
+  if (!best) throw new Error('scenario: no ruin upper floor has room for ' + n + ' bases in a row with open ground beside it')
+  return best
+}
+
 // Terrain-height: an INFANTRY unit stands on a ruin's upper floor and an enemy unit stands on the ground just
 // beside it. Uses the first ruin on the board that has an upper floor.
 const terrainHeight: ScenarioBuilder = (state) => {
-  const ruin = Object.values(state.board.pieces).find((p) => p.kind === 'ruin' && p.floors.some((f) => f.height > 0))
-  if (!ruin) throw new Error('terrain-height scenario: no ruin with an upper floor on the board')
-  const floor = [...ruin.floors].filter((f) => f.height > 0).sort((a, b) => a.height - b.height)[0]
-  const c = {
-    x: floor.polygon.reduce((a, q) => a + q.x, 0) / floor.polygon.length,
-    z: floor.polygon.reduce((a, q) => a + q.z, 0) / floor.polygon.length,
-  }
   const me: UnitId = 'A:warriors'
   const foe: UnitId = 'B:warriors'
   keepModels(state, me, 3)
   keepModels(state, foe, 3)
   for (const id of [...state.units[me].models, ...state.units[foe].models]) state.models[id].base = { shape: 'round', radius: dia(32) / 2 }
-  const col = (i: number) => (i - 1) * 1.4
+  const spacing = 1.4
+  const { ground, ...row } = findFloorRowWithGround(state, me, foe, 3, spacing, [3.5, -3.5, 3, -3, 4, -4])
   state.units[me].location = 'board'
-  state.units[me].models.forEach((id, i) => setModelPos(state.models[id], { x: c.x + col(i), y: floor.height, z: c.z }))
+  state.units[me].models.forEach((id, i) => setModelPos(state.models[id], { x: row.points[i].x, y: row.floor.height, z: row.points[i].z }))
   state.units[foe].location = 'board'
-  state.units[foe].models.forEach((id, i) => setModelPos(state.models[id], { x: c.x + col(i), y: 0, z: c.z + 3.5 }))
+  state.units[foe].models.forEach((id, i) => setModelPos(state.models[id], { x: ground.points[i].x, y: 0, z: ground.points[i].z }))
+  scenarioNotes.floorTarget = row.centre
 }
 
 // Space Marines in the Movement phase: 3 models of A's first unit stand on open ground just outside the ruin's upper floor,
@@ -154,6 +236,24 @@ const floorPicker: ScenarioBuilder = (state) => {
   // a single rank along x, already facing +z (into the ruin), tight against the wall: a floor climb eats 3" of the move
   state.units[me.id].location = 'board'
   state.units[me.id].models.forEach((id, i) => setModelPos(state.models[id], { x: midX + (i - 1) * 1.4, y: 0, z: south }, Math.PI / 2))
+}
+
+// Like floor-picker, but laid out for the WTC ruins (rotated, with L-shaped floors): finds a floor row where three bases fit
+// (engine canEndAt), puts the unit in the same rank on open ground ~1.6" beside it and publishes the row's centre as
+// window.__malletScenario.floorTarget (terrain-height e2e).
+const floorClimb: ScenarioBuilder = (state) => {
+  const me = Object.values(state.units).find((u) => u.player === 'A' && u.models.length >= 3 && !u.bodyguardUnitId)
+  if (!me) throw new Error('floor-picker scenario: no A unit with 3+ models')
+  keepModels(state, me.id, 3)
+  for (const id of state.units[me.id].models) state.models[id].base = { shape: 'round', radius: dia(32) / 2 }
+  const spacing = 1.4
+  // a rank parallel to the floor row on open ground ~1.6" beside it (a floor climb eats 3" of the move), facing the row
+  const { ground, ...row } = findFloorRowWithGround(state, me.id, me.id, 3, spacing, [1.6, -1.6, 1.3, -1.3, 1.8, -1.8])
+  const facing = Math.atan2(row.centre.z - ground.centre.z, row.centre.x - ground.centre.x)
+  state.units[me.id].location = 'board'
+  state.units[me.id].models.forEach((id, i) => setModelPos(state.models[id], { x: ground.points[i].x, y: 0, z: ground.points[i].z }, facing))
+  scenarioNotes.floorTarget = row.centre
+  scenarioNotes.floorAxis = row.axis
 }
 
 // Space Marines in the Shooting phase: one A unit (see SHOOTING_SCENARIOS) 8" from two B units on open ground, side by
@@ -189,6 +289,7 @@ export const SCENARIOS: Record<string, ScenarioBuilder> = {
   'weapon-select-mixed': weaponSelect('infernus-squad'),
   'weapon-select-psyker': weaponSelect('librarian-tantus'),
   'floor-picker': floorPicker,
+  'floor-climb': floorClimb,
   'pile-in': pileIn,
   'pile-in-mixed': pileInMixed,
   'terrain-height': terrainHeight,
@@ -222,6 +323,7 @@ export async function buildScenario(name: string, seed = 'scenario', patrolId: s
   }
   const state = createGameState(setup, bundle, seed, ENGINE_VERSION)
   build(state)
+  if (typeof window !== 'undefined') (window as unknown as { __malletScenario?: unknown }).__malletScenario = { ...scenarioNotes }
   state.round = 1
   state.activePlayer = 'A'
   state.firstPlayer = 'A'

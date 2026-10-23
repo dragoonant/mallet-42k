@@ -241,7 +241,7 @@ export function CameraRig({ focusTarget = null, viewFromFar = false, preset = nu
     // e2e/dev hook: lets Playwright re-point the orbit target and camera distance directly (e.g.
     // over a group of just-deployed models) without simulating mouse drags/wheel zooms. This only
     // moves target + distance, preserving whatever azimuth/tilt the camera currently has.
-    const w = window as unknown as { __malletCamera?: { lookAt(x: number, z: number, distanceIn: number): void; get(): { distance: number; azimuth: number; x: number; z: number } }; __malletProject?: (x: number, y: number, z: number) => { x: number; y: number } }
+    const w = window as unknown as { __malletCamera?: { lookAt(x: number, z: number, distanceIn: number): void; get(): { distance: number; azimuth: number; polar: number; fov: number; x: number; z: number } }; __malletProject?: (x: number, y: number, z: number) => { x: number; y: number } }
     // e2e hook: world point -> page pixel
     w.__malletProject = (x, y, z) => {
       camera.updateMatrixWorld()
@@ -252,7 +252,7 @@ export function CameraRig({ focusTarget = null, viewFromFar = false, preset = nu
     w.__malletCamera = {
       get() {
         const c = controls.current
-        return { distance: c ? c.getDistance() : camera.position.length(), azimuth: c ? c.getAzimuthalAngle() : 0, x: c ? c.target.x : 0, z: c ? c.target.z : 0 }
+        return { distance: c ? c.getDistance() : camera.position.length(), azimuth: c ? c.getAzimuthalAngle() : 0, polar: c ? c.getPolarAngle() : 0, fov: (camera as THREE.PerspectiveCamera).fov, x: c ? c.target.x : 0, z: c ? c.target.z : 0 }
       },
       lookAt(x, z, distanceIn) {
         const c = controls.current

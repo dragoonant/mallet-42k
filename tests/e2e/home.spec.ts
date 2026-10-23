@@ -1,15 +1,16 @@
 import { expect, test } from '@playwright/test'
 
-test('home page renders the M0 title overlay', async ({ page }) => {
+// The app opens on the start screen (src/client/ui/StartScreen.tsx): a screen-reader h1 naming the game, the faction
+// pickers and the Start button. The 3D board's canvas only mounts once a game starts (the M0 title overlay this spec
+// used to check is long gone).
+test('home page renders the start screen', async ({ page }) => {
   await page.goto('/')
-  const title = page.getByTestId('title')
-  await expect(title).toHaveText('Mallet 42k — M0')
+  await expect(page.getByTestId('start-screen')).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Mallet 42,000 — SD Assault: Galaxy in Conflict')
+  await expect(page.getByTestId('setup-patrol-A').getByRole('button', { name: 'Space Marines', exact: true })).toBeVisible()
+  await expect(page.getByTestId('start-game')).toBeVisible()
+  await expect(page.locator('canvas')).toHaveCount(0)
 
-  // The 3D scene draws on its own render loop and its first frame includes
-  // shader compilation (drei's Grid), which can take a beat under headless
-  // WebGL — wait for the canvas to exist and give it a moment to paint.
-  await page.waitForSelector('canvas')
   await page.waitForTimeout(800)
-
   await page.screenshot({ path: 'e2e-out/home.png' })
 })

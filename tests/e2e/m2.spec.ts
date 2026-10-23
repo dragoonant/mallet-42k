@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { makeCam, project as sharedProject, refreshCam } from './helpers'
 
 // M2 battlefield tools audit: Measure, Line-of-sight view, and the camera toggles, driven through
 // the real HUD buttons/keys and a real mouse drag on the canvas. window.__mallet is used only to
@@ -22,14 +23,8 @@ const norm = (a: V3): V3 => {
 /** World (inches) -> screen px for CameraRig's initial overview orbit (azimuth 0, camera on +z
  *  side) — only valid before the test touches the top-down/focus toggles. */
 function project(p: V3): { x: number; y: number } {
-  const pos = { x: 0, y: START_DIST * Math.cos(OVERVIEW_POLAR), z: START_DIST * Math.sin(OVERVIEW_POLAR) }
-  const f = norm({ x: -pos.x, y: -pos.y, z: -pos.z })
-  const r = norm(cross(f, { x: 0, y: 1, z: 0 }))
-  const u = cross(r, f)
-  const v = { x: p.x - pos.x, y: p.y - pos.y, z: p.z - pos.z }
-  const t = Math.tan((FOV * Math.PI) / 360)
-  const zc = dot(v, f)
-  return { x: ((dot(v, r) / (zc * t * (W / H)) + 1) / 2) * W, y: ((1 - dot(v, u) / (zc * t)) / 2) * H }
+  // the real camera (refreshed by snap()), not a hard-coded overview: the rig's framing has changed since this was written
+  return sharedProject(p, makeCam(), W, H)
 }
 
 interface Snap {
@@ -39,6 +34,7 @@ interface Snap {
 }
 
 async function snap(page: Page): Promise<Snap> {
+  await refreshCam(page)
   return page.evaluate(() => {
     const g = (window as any).__mallet.useGameStore.getState()
     const s = g.state

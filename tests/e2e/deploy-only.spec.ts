@@ -88,7 +88,8 @@ async function runDeployOnlyBody(page: Page, W: number, H: number, screenshotPat
   // this right away, before any unit is placed, using the mission's own zone polygons (both sides).
   const s0 = await snap(page)
   expect(s0.zones, 'mission exposes deploymentZones').toBeTruthy()
-  const humanSeat = s0.pending?.player ?? 'A'
+  // the store's own human seat: the bot may be first to deploy, so the first pending decision's owner is not necessarily ours
+  const humanSeat = s0.humanSeat
   for (const [label, zone] of Object.entries(s0.zones!) as [string, V2[]][]) {
     const xs = zone.map((p) => p.x)
     const zs = zone.map((p) => p.z)

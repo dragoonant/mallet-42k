@@ -6,6 +6,10 @@ const PORT = Number(process.env.PW_PORT ?? 4173)
 // PW_BASE_URL (e.g. http://localhost:5173/) points the specs at a running dev server instead of the preview build.
 const BASE_URL = process.env.PW_BASE_URL ?? `http://localhost:${PORT}/mallet-42k/`
 
+// PW_CHROMIUM_PATH: run against a preinstalled Chromium whose revision differs from the one Playwright expects.
+const CHROMIUM_PATH = process.env.PW_CHROMIUM_PATH
+const launchOptions = CHROMIUM_PATH ? { executablePath: CHROMIUM_PATH } : undefined
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
@@ -14,6 +18,7 @@ export default defineConfig({
   use: {
     baseURL: BASE_URL,
     trace: 'on-first-retry',
+    launchOptions,
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /mobile-.*\.spec\.ts/ },
