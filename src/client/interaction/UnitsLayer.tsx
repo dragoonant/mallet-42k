@@ -170,6 +170,7 @@ export function UnitsLayer() {
   const unitAction = useCueStore((s) => s.unitAction)
   const modelAction = useCueStore((s) => s.modelAction)
   const modelFacing = useCueStore((s) => s.modelFacing)
+  const fallen = useCueStore((s) => s.fallen)
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const losStatus = useMemo(
@@ -195,7 +196,7 @@ export function UnitsLayer() {
           <group key={unit.id}>
             {unit.models.map((modelId) => {
               const m = state.models[modelId]
-              if (!m) return null
+              if (!m || fallen[modelId]) return null // a fallen model's death plays in DeathGhosts
               const action = modelAction[modelId] ?? unitAction[unit.id]
               const rotationY = modelFacing[modelId] ?? m.facing
               const isHoveredModel = modelId === hoveredModelId

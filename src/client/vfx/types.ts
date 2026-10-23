@@ -24,6 +24,9 @@ export interface VolleyShot {
   to: Vec3Like
   /** true = lands on `to`; false = flies past/near it and strikes the ground beside it. */
   hit: boolean
+  /** Called once when this shot's projectile reaches `to` (a shot thinned out of an oversized volley is
+   *  called when the projectile standing in for it lands). Never called if the vfx layer isn't running. */
+  onImpact?: () => void
 }
 
 export interface VolleyOptions {

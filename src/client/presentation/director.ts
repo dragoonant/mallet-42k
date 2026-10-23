@@ -10,7 +10,7 @@ import type { GameEvent, GameState, Phase, PlayerId } from '@/engine'
 import { unitModels } from '@/engine'
 import type { DataBundle, WeaponData } from '@/data/types'
 import { useGameStore, vpToastFrom } from '../store/game'
-import { catchUpPresented, setPresentedSeq } from './presentedStore'
+import { catchUpPresented, pickDisplaySnapshot, setPresentedSeq, usePresentedStore } from './presentedStore'
 import { modelsAnchor } from '../interaction/geometry'
 import { useCueStore } from './cueStore'
 import { setPresentationIdle } from './idleStore'
@@ -18,7 +18,7 @@ import { usePresentationSettings, type AnimSpeed } from './settings'
 import { announcementHoldMs, clearAnnouncement, holdAnnouncement, type AnnouncementKind } from './announceStore'
 import { playRoll, rerollTrayShown, type RollRequest } from '../dice'
 import { vfx } from '../vfx'
-import { planVolleys } from './volleys'
+import { planVolleys, type StruckModel } from './volleys'
 import { audio, playEventSounds, type SoundLookup } from '../audio'
 import { colors } from '../ui/theme'
 import { dieTarget } from '../ui/eventSummary'
@@ -256,27 +256,194 @@ function deadlyDemiseRequest(state: GameState, e: EventOf<'DeadlyDemiseRolled'>)
   return { label: `${unitLabel(state, e.unitId)} — Deadly Demise`, purpose: 'deadlyDemise', dice: [e.die] }
 }
 
-// ---------- TargetsDeclared: turn the firing/attacking figures and fire vfx ----------
+// ---------- held shooting volley ----------
+//
+// A ranged attack's shots wait for its dice. The hit, wound and save windows play first; then the unit
+// fires, each model the attack struck gets a shot that lands on it, and that model's save shimmer, damage
+// flinch or fall plays the moment its shot lands. Until the volley has played, the presented-seq cursor is
+// held back from any step whose damage is still held, so the board can't drop a model before it is shot.
 
-function playTargetsDeclared(e: EventOf<'TargetsDeclared'>, from: GameState, to: GameState, bundle: DataBundle | null, rest: GameEvent[]): void {
+/** Events held back until the volley lands: what a shot does when it arrives. */
+const HELD_EVENTS = new Set<GameEvent['type']>(['SaveRolled', 'DamageApplied', 'ModelDestroyed', 'UnitDestroyed'])
+
+/** Longest the director waits for a volley's shots to land before playing what's left (vfx layer not
+ *  running, projectile pool full). A volley's own stagger caps at 1.8s plus at most 1.5s of flight. */
+const VOLLEY_WAIT_MAX_MS = 3800
+
+/** How long firing models keep facing their target — the whole volley, not just the recoil. */
+const VOLLEY_FACING_MS = 2600
+
+/** Pause after a volley's last shot lands, before whatever comes next. */
+const VOLLEY_SETTLE_MS = 550
+
+interface HeldVolley {
+  unitId: string
+  /** Cue token for the shoot pose (one per firing, so a second firing in the same sequence replays it). */
+  token: string
+  declared: EventOf<'TargetsDeclared'>[]
+  /** Hit rolls since the last firing (planVolleys reads hits and misses from them). */
+  rolls: GameEvent[]
+  held: GameEvent[]
+  /** A held event changes the board (damage or a death), so the cursor must wait for the volley. */
+  damaging: boolean
+  fired: number
+  /** State from before the sequence: where every target model stood, killed ones included. */
+  from: GameState
+}
+
+/** One landing: the held events a single shot plays when it reaches its model. */
+interface Landing {
+  key: string | null
+  modelId: string | null
+  events: GameEvent[]
+  played: boolean
+}
+
+let heldVolley: HeldVolley | null = null
+
+function attackKey(a: { weaponId: string; targetUnitId: string }): string {
+  return `${a.weaponId}|${a.targetUnitId}`
+}
+
+/** Splits held events into landings: an allocated wound's save with the damage and death it led to, a
+ *  mortal wound with its death, and anything not tied to a shot (a unit-destroyed line) on its own. */
+function landingsOf(events: GameEvent[]): Landing[] {
+  const out: Landing[] = []
+  const latest = new Map<string, Landing>() // last landing per model
+  for (const e of events) {
+    if (e.type === 'SaveRolled') {
+      const l: Landing = { key: attackKey(e.attack), modelId: e.modelId, events: [e], played: false }
+      out.push(l)
+      latest.set(e.modelId, l)
+    } else if (e.type === 'DamageApplied') {
+      const src = 'weaponId' in e.source ? e.source : null
+      const prev = latest.get(e.modelId)
+      const sameShot = prev && src && prev.key === attackKey(src) && !prev.events.some((x) => x.type === 'ModelDestroyed')
+        && (e.mortal ? prev.events.every((x) => x.type === 'DamageApplied' && x.mortal) : prev.events[0].type === 'SaveRolled')
+      if (sameShot) { prev.events.push(e); continue }
+      const l: Landing = { key: src ? attackKey(src) : null, modelId: e.modelId, events: [e], played: false }
+      out.push(l)
+      latest.set(e.modelId, l)
+    } else if (e.type === 'ModelDestroyed') {
+      const prev = latest.get(e.modelId)
+      if (prev) prev.events.push(e)
+      else out.push({ key: null, modelId: e.modelId, events: [e], played: false })
+    } else {
+      out.push({ key: null, modelId: null, events: [e], played: false })
+    }
+  }
+  return out
+}
+
+function playLanding(l: Landing, from: GameState, to: GameState, humanSeat: PlayerId, lookup: SoundLookup): void {
+  if (l.played) return
+  l.played = true
   const cues = useCueStore.getState()
-  const attackerFaction = factionOf(to, e.unitId)
+  for (const e of l.events) {
+    try {
+      playEventSounds(audio, [e], humanSeat, lookup)
+      if (e.type === 'SaveRolled' && e.saved) {
+        const at = modelPoint(from, to, e.modelId)
+        if (at) vfx.save(at)
+      } else if (e.type === 'DamageApplied') {
+        const at = modelPoint(from, to, e.modelId)
+        if (at) {
+          if (e.mortal) vfx.mortal(at)
+          else vfx.hit(at, Math.min(1, e.amount / 3))
+        }
+        cues.setModelAction(e.modelId, 'hit', e.seq, CUE_MS.hit)
+      } else if (e.type === 'ModelDestroyed') {
+        const at = modelPoint(from, to, e.modelId)
+        if (at) vfx.death(at)
+        cues.fell(e.modelId)
+      }
+    } catch (err) {
+      console.warn('[presentation] failed to play landing', e.type, err)
+    }
+  }
+}
 
-  if (e.phase === 'shooting') {
-    // One staggered volley per weapon+target group, a projectile per attack (hit/miss from the attack's own
-    // hit rolls when they are in this batch, else estimated from the weapon's skill — see volleys.ts).
-    for (const v of planVolleys(e, rest, from, to, bundle, attackerFaction)) {
+/** Fires the held volley: the unit's shoot pose and firing sound, one volley per weapon+target, and each
+ *  landing as its shot arrives; resolves once every shot has landed (or the wait cap runs out). Called at
+ *  the end of the attack sequence, or earlier when held damage would otherwise sit behind a decision. */
+async function fireHeldVolley(to: GameState, bundle: DataBundle | null, humanSeat: PlayerId, lookup: SoundLookup): Promise<void> {
+  const h = heldVolley
+  if (!h) return
+  // Taken up front so a failure below can never leave the cursor held.
+  const held = h.held
+  const rolls = h.rolls
+  const fired = h.fired++
+  h.held = []
+  h.rolls = []
+  h.damaging = false
+  const cues = useCueStore.getState()
+  const speed = usePresentationSettings.getState().animSpeed
+  const landings = landingsOf(held)
+  const struck = new Map<string, StruckModel[]>()
+  for (const l of landings) {
+    if (!l.key || !l.modelId) continue
+    const list = struck.get(l.key) ?? []
+    list.push({ modelId: l.modelId, onImpact: () => playLanding(l, h.from, to, humanSeat, lookup) })
+    struck.set(l.key, list)
+  }
+
+  const faction = factionOf(to, h.unitId) || factionOf(h.from, h.unitId)
+  // After the first firing only groups with fresh hit rolls fire again; with no rolls at all (dice not in
+  // the log) the first firing estimates its shots from the weapons instead.
+  const rolledOnly = fired > 0 || rolls.length > 0
+  const volleys = h.declared.flatMap((d) => planVolleys(d, rolls, h.from, to, bundle, faction, { struck, rolledOnly }))
+
+  let pending = 0
+  let allLanded: () => void = () => {}
+  const landed = new Promise<void>((resolve) => { allLanded = resolve })
+  if (volleys.length > 0) {
+    cues.setUnitAction(h.unitId, 'shoot', `${h.token}:${fired}`, CUE_MS.shoot)
+    if (fired === 0) playEventSounds(audio, h.declared, humanSeat, lookup)
+    for (const d of h.declared) {
+      for (const t of d.targets) {
+        const firer = modelPoint(h.from, to, t.modelId)
+        const targetModels = unitModels(to, t.targetUnitId).length > 0 ? unitModels(to, t.targetUnitId) : unitModels(h.from, t.targetUnitId)
+        if (!firer || targetModels.length === 0) continue
+        const anchor = modelsAnchor(targetModels)
+        cues.setModelFacing(t.modelId, bearing(firer, { x: anchor.x, z: anchor.z }), VOLLEY_FACING_MS)
+      }
+    }
+    for (const v of volleys) {
+      for (const s of v.shots) {
+        const own = s.onImpact
+        pending++
+        s.onImpact = () => {
+          own?.()
+          if (--pending === 0) allLanded()
+        }
+      }
       vfx.volley({ family: v.family, shots: v.shots })
     }
-    for (const t of e.targets) {
-      const firer = modelPoint(from, to, t.modelId)
-      const targetModels = unitModels(to, t.targetUnitId)
-      if (!firer || targetModels.length === 0) continue
-      const anchor = modelsAnchor(targetModels)
-      cues.setModelFacing(t.modelId, bearing(firer, { x: anchor.x, z: anchor.z }), CUE_MS.facing)
-    }
-    return
   }
+  if (pending > 0 && speed !== 'instant') await Promise.race([landed, sleep(VOLLEY_WAIT_MAX_MS)])
+  // Whatever hasn't landed yet (no shot aimed at it, a unit-destroyed line, the wait ran out) plays now.
+  for (const l of landings) playLanding(l, h.from, to, humanSeat, lookup)
+  // A beat for the last fall and shimmer to read before the next banner or roll.
+  if (volleys.length > 0 && speed !== 'instant') await sleep(speed === 'fast' ? VOLLEY_SETTLE_MS * 0.35 : VOLLEY_SETTLE_MS)
+}
+
+/** Shows everything held off-board as presented, then lets fallen models go once the board has dropped them. */
+function revealThrough(seq: number): void {
+  setPresentedSeq(seq)
+  pruneFallen()
+}
+
+function pruneFallen(): void {
+  const { snapshots, presentedSeq } = usePresentedStore.getState()
+  const shown = pickDisplaySnapshot(snapshots, presentedSeq)
+  useCueStore.getState().pruneFallen((id) => !!shown?.models[id])
+}
+
+// ---------- TargetsDeclared: turn the attacking figures and fire vfx ----------
+
+function playTargetsDeclared(e: EventOf<'TargetsDeclared'>, from: GameState, to: GameState): void {
+  const cues = useCueStore.getState()
+  const attackerFaction = factionOf(to, e.unitId)
 
   if (e.phase === 'fight') {
     const seenTargets = new Set<string>()
@@ -334,7 +501,6 @@ async function playEvent(
   announcedPhases: Set<Phase>,
   lookup: SoundLookup,
   sounds = true,
-  rest: GameEvent[] = [],
 ): Promise<void> {
   const settings = usePresentationSettings.getState()
   const cues = useCueStore.getState()
@@ -374,13 +540,13 @@ async function playEvent(
       return
     }
 
+    // Melee lunges are per attacking model, cued from TargetsDeclared; a ranged attack's shoot pose waits
+    // for its dice and is cued by fireHeldVolley (playBatch keeps those events from reaching here).
     case 'AttackSequenceStarted':
-      if (event.kind === 'melee') return // melee lunges are per attacking model, cued from TargetsDeclared
-      cues.setUnitAction(event.unitId, 'shoot', event.seq, CUE_MS.shoot)
       return
 
     case 'TargetsDeclared':
-      playTargetsDeclared(event, from, to, bundle, rest)
+      playTargetsDeclared(event, from, to)
       return
 
     // HitRolled / WoundRolled / FeelNoPainRolled / HazardousTested dice are shown by playBatch as
@@ -460,9 +626,27 @@ async function playBatch(from: GameState, to: GameState, events: GameEvent[], an
     const event = events[i]
     const key = rollGroupKey(event)
     const absorbed = grouped.has(i)
+    // A ranged attack's declaration and outcome wait in the held volley (see fireHeldVolley).
+    let deferred = false
     // A presentation glitch (a stale reference in an unusual game state, say) should never take down
     // the rest of the game's presentation for the whole session — the queue keeps going either way.
     try {
+      if (event.type === 'AttackSequenceStarted' && event.kind === 'ranged') {
+        if (heldVolley) await fireHeldVolley(to, bundle, humanSeat, lookup) // a sequence that never closed
+        heldVolley = { unitId: event.unitId, token: `${event.seq}:${i}`, declared: [], rolls: [], held: [], damaging: false, fired: 0, from }
+      } else if (event.type === 'DeadlyDemiseRolled' && heldVolley?.damaging) {
+        await fireHeldVolley(to, bundle, humanSeat, lookup) // the vehicle is shot down before its demise roll
+      }
+      const held = heldVolley
+      if (held) {
+        if (event.type === 'TargetsDeclared') held.declared.push(event)
+        else if (event.type === 'HitRolled') held.rolls.push(event)
+        else if (HELD_EVENTS.has(event.type)) {
+          held.held.push(event)
+          if (event.type === 'DamageApplied' || event.type === 'ModelDestroyed') held.damaging = true
+        }
+        deferred = event.type === 'AttackSequenceStarted' || event.type === 'TargetsDeclared' || HELD_EVENTS.has(event.type)
+      }
       if (key !== null && !absorbed) {
         // Gather every same-key roll left in this attack sequence and show them as one window — a
         // fast-rolled batch shares one roll id; per-attack saves share attacker+weapon+target.
@@ -472,23 +656,42 @@ async function playBatch(from: GameState, to: GameState, events: GameEvent[], an
           if (e.type === 'AttackSequenceStarted' || e.type === 'AttackSequenceEnded') break
           if (rollGroupKey(e) === key) { group.push(e); grouped.add(j) }
         }
-        playEventSounds(audio, [event], humanSeat, lookup)
+        // A held save's clank (or the thud of a failed one) waits for its shot to land.
+        if (!(deferred && event.type === 'SaveRolled')) playEventSounds(audio, [event], humanSeat, lookup)
         const req = usePresentationSettings.getState().diceOn ? groupRequest(to, group) : null
         if (req) await playRoll(req)
       }
-      await playEvent(event, from, to, bundle, humanSeat, announcedPhases, lookup, key === null, event.type === 'TargetsDeclared' ? events.slice(i + 1) : [])
+      if (!deferred) await playEvent(event, from, to, bundle, humanSeat, announcedPhases, lookup, key === null)
+      if (heldVolley && event.type === 'AttackSequenceEnded') {
+        await fireHeldVolley(to, bundle, humanSeat, lookup)
+        heldVolley = null
+      }
     } catch (err) {
       console.warn('[presentation] failed to play event', event.type, err)
     }
     // Engine seq is per *step* (every event of one step() shares it), so the cursor may only reach a
     // seq once that step's last event has played — otherwise its first event would reveal the whole
-    // step's outcome (feed, counters, deaths, prompt) before the rest of its dice are shown.
-    if (i === events.length - 1 || events[i + 1].seq !== event.seq) setPresentedSeq(event.seq)
+    // step's outcome (feed, counters, deaths, prompt) before the rest of its dice are shown. While a
+    // volley holds damage it doesn't move at all; setPresentedSeq(-1) only re-arms the stall net.
+    if (i === events.length - 1 || events[i + 1].seq !== event.seq) {
+      if (heldVolley?.damaging) setPresentedSeq(-1)
+      else revealThrough(event.seq)
+    }
     // Someone (bot or human) is already sitting on a live Command Re-roll offer — skip the decorative
     // pacing gap between events so the batch flushes straight through to the roll they're actually being
     // asked about, instead of making a human re-roll decision wait behind unrelated event pacing.
     const midCommandReroll = useGameStore.getState().pending?.kind === 'commandReroll'
-    if (!absorbed && !midCommandReroll) await sleep(gapFor(event.type, usePresentationSettings.getState().animSpeed))
+    if (!absorbed && !deferred && !midCommandReroll) await sleep(gapFor(event.type, usePresentationSettings.getState().animSpeed))
+  }
+  // The batch ran out mid-attack with damage held: a decision is waiting on it (the defender picking which
+  // model takes the next wound, say), so what's been rolled fires now; later wounds get shots of their own.
+  if (heldVolley?.damaging && events.length > 0) {
+    try {
+      await fireHeldVolley(to, bundle, humanSeat, lookup)
+    } catch (err) {
+      console.warn('[presentation] failed to fire held volley', err)
+    }
+    revealThrough(events[events.length - 1].seq)
   }
 }
 
@@ -510,6 +713,7 @@ export function startDirector(): () => void {
     lastEvent = null
     buffered = []
     bufferedFrom = null
+    heldVolley = null
     announcedPhases.clear()
     catchUpPresented()
     clearAnnouncement()
@@ -557,6 +761,7 @@ export function startDirector(): () => void {
       // this line running.
       if (buffered.length === 0) {
         catchUpPresented()
+        pruneFallen()
         setPresentationIdle(true)
       }
     }
