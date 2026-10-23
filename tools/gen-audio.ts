@@ -40,7 +40,14 @@ interface VoiceItem {
   text: string
 }
 
-type ManifestItem = SfxItem | VoiceItem
+interface MusicItem {
+  id: string
+  kind: 'music'
+  prompt: string
+  lengthMs: number
+}
+
+type ManifestItem = SfxItem | VoiceItem | MusicItem
 
 interface Manifest {
   voice: { voiceId: string; voiceName: string; modelId: string }
@@ -118,6 +125,18 @@ async function generateSfx(key: string, item: SfxItem): Promise<Buffer> {
   })
 }
 
+async function generateMusic(key: string, item: MusicItem): Promise<Buffer> {
+  return withRetry(`music "${item.id}"`, async () => {
+    const res = await fetch('https://api.elevenlabs.io/v1/music?output_format=mp3_44100_128', {
+      method: 'POST',
+      headers: { 'xi-api-key': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: item.prompt, music_length_ms: item.lengthMs, model_id: 'music_v1', force_instrumental: true }),
+    })
+    if (!res.ok) throw new Error(`music "${item.id}" failed: ${res.status} ${await res.text()}`)
+    return Buffer.from(await res.arrayBuffer())
+  })
+}
+
 async function generateVoice(key: string, voiceId: string, modelId: string, item: VoiceItem): Promise<Buffer> {
   return withRetry(`text-to-speech "${item.id}"`, async () => {
     const res = await fetch(
@@ -168,7 +187,9 @@ async function main(): Promise<void> {
       const audio =
         item.kind === 'sfx'
           ? await generateSfx(key, item)
-          : await generateVoice(key, manifest.voice.voiceId, manifest.voice.modelId, item)
+          : item.kind === 'music'
+            ? await generateMusic(key, item)
+            : await generateVoice(key, manifest.voice.voiceId, manifest.voice.modelId, item)
       await writeFile(outPath, audio)
       generated++
 

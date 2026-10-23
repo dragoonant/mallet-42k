@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mallet 42k music stingers</title>
+<style>
+:root{--bg:#14161a;--fg:#e8e6e1;--muted:#9a978f;--card:#1e2127;--accent:#c9a227;--on:#2a2716}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,sans-serif;padding:16px;max-width:720px;margin-inline:auto}
+h1{font-size:1.4rem;margin:.5rem 0}p{color:var(--muted)}a{color:var(--accent)}
+ul{list-style:none;padding:0;margin:0}
+li{background:var(--card);padding:12px;border-radius:8px;margin:8px 0;border:1px solid transparent}
+li.on{border-color:var(--accent);background:var(--on)}
+label.pick{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+label.pick input{width:22px;height:22px;accent-color:var(--accent);flex:none;margin-top:2px}
+.name{font-weight:600}.desc{color:var(--muted);font-size:.9rem}
+audio{width:100%;height:36px;margin-top:8px}
+.bar{position:sticky;top:0;background:var(--bg);padding:8px 0;display:flex;flex-wrap:wrap;gap:12px;align-items:center;z-index:1}
+.bar label{display:flex;gap:6px;align-items:center;cursor:pointer}
+button{background:var(--accent);color:#14161a;border:0;border-radius:6px;padding:8px 14px;font:600 15px system-ui,sans-serif;cursor:pointer}
+#out{flex-basis:100%;color:var(--fg);font-family:ui-monospace,monospace;font-size:.85rem;min-height:1.2em}
+</style></head><body>
+<h1>Music stingers: pick the ones to insert</h1>
+<p>Eight short music cues (12–14 s) proposed to play every few minutes over the battlefield drone. Tick the ones you want in the game, then press <b>Copy my picks</b> and paste the result into chat. Your ticks are remembered on this device. <a href="./">Back to the game</a> · <a href="sounds.html">Sound check</a></p>
+<div class="bar">
+  <label><input type="checkbox" id="drone"> Play the drone underneath</label>
+  <button id="copy">Copy my picks</button>
+  <span id="out"></span>
+</div>
+<ul id="list"></ul>
+<audio id="bed" loop preload="none" src="audio/ambient-battlefield-loop.mp3" hidden></audio>
+<script>
+const STINGERS=[
+ ["cathedral-hymn","Cathedral Hymn","Huge pipe organ under a monastic male choir, swelling to one massive held chord."],
+ ["crusade-drums","Crusade Drums","Pounding war drums and a menacing low-brass motif, ending on a crushing orchestral hit."],
+ ["requiem","Requiem","Low cellos, a lone boy soprano lament and distant tolling bells. Sorrow for the fallen."],
+ ["machine-canticle","Machine Canticle","Forge machinery as the beat, droning chant, cold organ and analog synth. Techno-gothic."],
+ ["warp-rising","Warp Rising","Detuned strings, reversed choir and whispers climbing to an atonal shriek. Corruption."],
+ ["bell-of-the-fallen","Bell of the Fallen","A great bronze bell tolls three times, each answered by a solemn horn chorale."],
+ ["glory-ascendant","Glory Ascendant","Timpani, brass fanfare and choir rising to a defiant major chord. Hard-won triumph."],
+ ["xenos-horizon","Xenos Horizon","Pulsing sub-bass, glassy drones and inhuman throat-singing. Something alien approaches."],
+]
+const KEY="mallet42k.stingerPicks"
+let picks=new Set()
+try{picks=new Set(JSON.parse(localStorage.getItem(KEY)||"[]"))}catch{}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify([...picks]))}catch{}}
+const list=document.getElementById("list")
+for(const [id,name,desc] of STINGERS){
+  const li=document.createElement("li")
+  li.innerHTML=`<label class="pick"><input type="checkbox"><span><span class="name">${name}</span><br><span class="desc">${desc}</span></span></label><audio controls preload="none" src="audio/stinger-${id}.mp3"></audio>`
+  const cb=li.querySelector("input")
+  const sync=()=>li.classList.toggle("on",cb.checked)
+  cb.checked=picks.has(id);sync()
+  cb.addEventListener("change",()=>{cb.checked?picks.add(id):picks.delete(id);save();sync()})
+  list.appendChild(li)
+}
+const bed=document.getElementById("bed"),drone=document.getElementById("drone")
+// The game plays the drone bed quieter than the stingers; this approximates that mix.
+bed.volume=0.6
+drone.addEventListener("change",()=>{drone.checked?bed.play():bed.pause()})
+document.addEventListener("play",e=>{
+  if(e.target===bed)return
+  for(const a of list.querySelectorAll("audio"))if(a!==e.target)a.pause()
+},true)
+document.getElementById("copy").addEventListener("click",async()=>{
+  const chosen=STINGERS.filter(s=>picks.has(s[0])).map(s=>s[1])
+  const text=chosen.length?`Stingers to insert: ${chosen.join(", ")}`:"Stingers to insert: none"
+  const out=document.getElementById("out")
+  try{await navigator.clipboard.writeText(text);out.textContent=`Copied: ${text}`}catch{out.textContent=text}
+})
+</script>
+</body></html>
