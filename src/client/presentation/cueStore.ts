@@ -11,6 +11,13 @@ import type { FigureAction, FigureActionKind } from '../figures'
 export type CueKind = Exclude<FigureActionKind, 'death'>
 
 interface CueState {
+  /** Models shown as destroyed ahead of the presented state: the shot that killed one has landed, but the
+   *  step that removes it isn't presented until the rest of the volley has played. UnitsLayer hides them and
+   *  DeathGhosts plays their fall now. Keyed by modelId; pruned once the display state has dropped them. */
+  fallen: Record<string, true>
+  fell(modelId: string): void
+  /** Drops every fallen entry `stillShown` rejects (a model the display state no longer has). */
+  pruneFallen(stillShown: (modelId: string) => boolean): void
   /** Shoot/melee pose cue for every model in an activated unit, keyed by unitId. */
   unitAction: Record<string, FigureAction>
   /** Hit-flinch cue for the specific model that took damage, keyed by modelId. Takes priority over
@@ -35,6 +42,20 @@ export const useCueStore = create<CueState>((set) => ({
   unitAction: {},
   modelAction: {},
   modelFacing: {},
+  fallen: {},
+
+  fell(modelId) {
+    set((s) => (s.fallen[modelId] ? s : { fallen: { ...s.fallen, [modelId]: true } }))
+  },
+
+  pruneFallen(stillShown) {
+    set((s) => {
+      const ids = Object.keys(s.fallen)
+      const kept = ids.filter(stillShown)
+      if (kept.length === ids.length) return s
+      return { fallen: Object.fromEntries(kept.map((id) => [id, true as const])) }
+    })
+  },
 
   setUnitAction(unitId, kind, token, ms) {
     clearTimeout(unitTimers[unitId])
@@ -81,6 +102,6 @@ export const useCueStore = create<CueState>((set) => ({
     unitTimers = {}
     modelTimers = {}
     facingTimers = {}
-    set({ unitAction: {}, modelAction: {}, modelFacing: {} })
+    set({ unitAction: {}, modelAction: {}, modelFacing: {}, fallen: {} })
   },
 }))

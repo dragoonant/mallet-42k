@@ -204,6 +204,8 @@ class Proj {
   seed = 0
   trailAcc = 0
   lastT = 0
+  /** The caller's landing callback(s) for the shot(s) this projectile stands for, run once at impact. */
+  onImpact: (() => void) | null = null
   readonly strips: THREE.Mesh[] = []
   head: THREE.Sprite | null = null
   glow: THREE.Sprite | null = null
@@ -285,9 +287,14 @@ export class FxEngine {
     const stagger = Math.min(opts.staggerMs ?? fx.staggerMs, 1800 / Math.max(1, n)) / 1000
     for (let i = 0; i < n; i++) {
       // Evenly thin an oversized volley so the hit/miss ratio is kept.
-      const shot = src.length > n ? src[Math.floor((i * src.length) / n)] : src[i]
+      const first = src.length > n ? Math.floor((i * src.length) / n) : i
+      const last = src.length > n ? Math.floor(((i + 1) * src.length) / n) : i + 1
+      const shot = src[first]
       const p = this.projs.find((q) => !q.active)
       if (!p) break
+      // A kept projectile lands for every shot it stands in for, so no caller's impact is dropped.
+      const landed = src.slice(first, last).map((s) => s.onImpact).filter((f): f is () => void => !!f)
+      p.onImpact = landed.length === 0 ? null : () => { for (const f of landed) f() }
       p.fx = fx
       p.colors = this.colors[opts.family]
       p.active = true
@@ -363,6 +370,11 @@ export class FxEngine {
     if (!p.impacted && t >= p.impactT) {
       p.impacted = true
       this.impact(fx.impact, p.toX, p.toY, p.toZ, fx.impactScale, cols.impact, !p.hit, p.fromX, p.fromZ)
+      const landed = p.onImpact
+      p.onImpact = null
+      if (landed) {
+        try { landed() } catch (err) { console.warn('[vfx] volley impact callback failed', err) }
+      }
     }
     if (t >= 1) {
       this.endProj(p)
