@@ -2,10 +2,11 @@
 // impassable areas and end-of-move legality; LoS uses the shared wall/footprint geometry below for rays (los.ts).
 //
 // [interp] heightAt/canEndAt: the data model lets a (x,z) point sit under more than one usable surface (a ruin's
-// ground floor vs. an upper floor at the same footprint). Since heightAt takes no floor argument we treat it as
-// "the highest surface directly reachable at this point" (crate/HILL top, or a ruin's topmost floor) and leave the
-// caller (movement/charge) to pass the exact `pos.y` it wants validated to canEndAt, which checks that specific
-// height against every candidate surface. Craters/barricades never raise the standing height (R-5.7: ≤2" ignored;
+// ground floor vs. an upper floor at the same footprint). heightAt(x,z) with no hint is "the highest surface directly
+// reachable at this point" (crate/HILL top, or a ruin's topmost floor); heightAt(x,z,{near}) / settleY pick the surface
+// nearest an intended height instead, which is what moves that keep their level (charge, pile-in, consolidate) use.
+// The caller passes the exact `pos.y` it wants validated to canEndAt, which checks that specific height against every
+// candidate surface. Craters/barricades never raise the standing height (R-5.7: ≤2" ignored;
 // barricades may be crossed but never stood on top of).
 import { partlyWithinPolygon, pointInPolygon, pointToSegment, whollyWithinPolygon, EPS, type Footprint } from './geometry'
 import { hasKeyword } from './state'
@@ -144,9 +145,30 @@ export function surfaceY(board: { pieces?: Record<string, TerrainPiece> }, _mode
   return 0
 }
 
+// every standing height at (x, z), ascending: always ground (0), plus each crate top and ruin floor whose polygon
+// contains the point (a ruin's ground and upper floors share the footprint, so a point can have several).
+function surfaceHeightsAt(state: GameState, x: number, z: number): number[] {
+  const hs = new Set<number>([0])
+  for (const p of Object.values(state.board.pieces)) {
+    if (p.kind === 'crate' && p.height > 0 && pointInPolygon({ x, z }, p.footprint)) hs.add(p.height)
+    if (p.kind === 'ruin') for (const f of p.floors) if (f.height > 0 && pointInPolygon({ x, z }, f.polygon)) hs.add(f.height)
+  }
+  return [...hs].sort((a, b) => a - b)
+}
+
+// the surface a move that wants to stay near `near` should use: the highest surface at or below it (so ground under an
+// upper floor stays ground, and a model on a floor stays on it), else the lowest one above it
+function pickSurface(heights: number[], near: number): number {
+  let best: number | undefined
+  for (const h of heights) if (h <= near + EPS) best = h
+  return best ?? heights[0]
+}
+
 export interface TerrainService {
-  // surface height under (x, z): 0 on open ground, a floor height inside a ruin, the top of a HILL/container
-  heightAt(state: GameState, x: number, z: number): number
+  // surface height under (x, z). Without `near`: the TOPMOST surface (0 on open ground, a ruin's highest floor, the top
+  // of a HILL/container). With `near` (an intended/starting height): the surface nearest that level — the highest one at
+  // or below it, else the lowest one above — so an end point under a ruin upper floor stays on the ground.
+  heightAt(state: GameState, x: number, z: number, opts?: { near?: number }): number
   // may a model end its move with its base centred at pos? (R-5.7: not mid-climb; barricades never; ruin floors only for
   // INFANTRY/BEAST/FLY; hills only if the base does not overhang)
   canEndAt(state: GameState, model: Model, pos: Vec3): { ok: boolean; reason?: string }
@@ -163,13 +185,10 @@ function canPassWalls(state: GameState, model: Model): boolean {
 }
 
 export const terrainService: TerrainService = {
-  heightAt(state, x, z) {
-    let best = 0
-    for (const p of Object.values(state.board.pieces)) {
-      if (p.kind === 'crate' && p.height > best && pointInPolygon({ x, z }, p.footprint)) best = p.height
-      if (p.kind === 'ruin') for (const f of p.floors) if (f.height > best && pointInPolygon({ x, z }, f.polygon)) best = f.height
-    }
-    return best
+  heightAt(state, x, z, opts) {
+    const hs = surfaceHeightsAt(state, x, z)
+    if (opts?.near === undefined || !Number.isFinite(opts.near)) return hs[hs.length - 1]
+    return pickSurface(hs, opts.near)
   },
   canEndAt(state, model, pos) {
     const fp: Footprint = { pos, facing: model.facing, base: model.base }
@@ -235,6 +254,19 @@ export const terrainService: TerrainService = {
       .filter((p) => (p.kind === 'ruin' || p.kind === 'crater' || p.kind === 'forest') && whollyWithinPolygon(model, p.footprint))
       .map((p) => p.id)
   },
+}
+
+// Standing height for an engine-computed end point of a move that should keep its level (charge, pile-in,
+// consolidation, approach): the surface nearest `near` (normally the model's starting y) at which the model may legally
+// end (canEndAt); when none is legal, the nearest surface anyway so the caller's own canEndAt check rejects it. Falling
+// to a different surface than the nearest is how a model still climbs a crate/floor when the lower spot is blocked; the
+// caller charges |Δy| in its move distance.
+export function settleY(state: GameState, model: Model, x: number, z: number, near: number): number {
+  const hs = surfaceHeightsAt(state, x, z)
+  const first = pickSurface(hs, near)
+  const order = [first, ...hs.filter((h) => h !== first).sort((a, b) => Math.abs(a - near) - Math.abs(b - near) || a - b)]
+  for (const y of order) if (terrainService.canEndAt(state, model, { x, y, z }).ok) return y
+  return first
 }
 
 // Deployment terrain check: a model may only be set up where it could legally end a move (no wall/crate/barricade

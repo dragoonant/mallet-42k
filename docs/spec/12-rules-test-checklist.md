@@ -151,6 +151,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | MOVE-027 | R-5.9 | Krump da Gitz surge move by a Battle-shocked unit → not offered; by unit in ER → not offered; twice in a phase → second not offered |
 | MOVE-027c | R-5.9 | RC-013: a surging unit's models each end as close as possible to the target (per-model push after the rigid translation), still coherent and outside Engagement Range |
 | MOVE-040 | R-5.6 | RC-010: after Desperate Escape casualties the survivors re-submit the Fall Back move (coherency enforced, only tested models may cross enemies); no second roll |
+| MOVE-041 | R-5.7 | `heightAt(x,z)` is the topmost surface; `heightAt(x,z,{near})`/`settleY` pick the highest surface at or below the intended height (ground under a ruin upper floor stays ground, a model on a floor stays on it), else the nearest, and fall to another surface only when `canEndAt` rejects the preferred one **[interp]** |
 | MOVE-028 | CP-5.2 | Tellyporta via `PlayerSetup.enhancementChoice = {unitRef:'boyz-a'}`: Gordrang + Boyz A (`deepStrikeWith` set both ways) in Reserves; Boyz A arrive round 2 without Gordrang → rejected (must arrive together within 3"); `unitRef` naming the Deffkoptas (not BOYZ) or an enemy unit → `createGame` throws `EngineInvariantError` |
 | MOVE-029 | R-5.17 | (transport fixture) unit ends Normal move with all models within 3" of friendly transport → may embark; one model at 3.1" → cannot |
 | MOVE-030 | R-5.18 | (transport fixture) disembark after transport moved → unit cannot move or charge; before → acts normally, cannot Remain Stationary |
@@ -295,6 +296,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | CHARGE-030 | R-8.4 | charge move into a ruin: Term must pass through doorway/walls as INFANTRY → allowed; Dread through wall → path invalid |
 | CHARGE-031 | R-8.4 | failed charge (roll 4, target 6" away): every model's `pos` identical before and after, `ChargeFailed` emitted, unit flagged as having declared (CHARGE-028) |
 | CHARGE-032 | R-8.5 | RC-034: a MONSTER/VEHICLE charger's path through a friendly MONSTER/VEHICLE model is rejected (E_OVERLAP); same rule applies to pile-in/consolidate (FIGHT-*) and is skipped for FLY |
+| CHARGE-033 | R-5.7/R-8.5 | charge end point under a ruin upper floor keeps the charger's starting level: ground charger ends at y 0, a charger on the 2.25" floor ends on that floor (not the topmost floor) |
 
 ## FIGHT — fight phase
 | ID | Ref | Scenario → expected |
@@ -341,6 +343,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | FIGHT-032 | R-9.5 | pile-in over a 2" crate ignored; onto 3" container costs vertical distance |
 | FIGHT-033 | R-9.5 | pile-in path whose segment crosses an enemy base → rejected `E_OVERLAP`; crossing a friendly Boy → allowed |
 | FIGHT-034 | R-9.4 | after melee targets declared: `stratagemWindow` `fight.targetsDeclared` for the targeted unit's owner first (Gene-wrought / Tough as Squig-hide usable, `TargetSpec.state: targetedByAttack` satisfied), then the fighting player; no window before targets are declared |
+| FIGHT-035 | R-9.5 | pile-in/consolidation end point under a ruin upper floor keeps the model's level: ground-level model stays at y 0 |
 
 ## LEAD — leaders, characters
 | ID | Ref | Scenario → expected |

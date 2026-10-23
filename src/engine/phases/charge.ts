@@ -42,7 +42,7 @@ import { surgeOverwatchStep } from '../factions/adeptus-mechanicus'
 import { weaponService } from '../weapons'
 import { defaultOverwatchSelection } from './movement'
 import { targetLegality } from './shooting'
-import { terrainService } from '../terrain'
+import { settleY, terrainService } from '../terrain'
 import { transportService } from '../transports'
 import { crossesBigFriendly, unitMovesThroughModels } from './movement'
 import { pendingReactions, consumeReaction } from '../code-hooks'
@@ -213,7 +213,7 @@ function contactCandidateWithDetour(geo: ChargeGeometry, m: Model, target: Model
 // placement or null. Shared by every strategy `planChargeMove` tries for a model.
 function tryChargePlacement(state: GameState, geo: ChargeGeometry, m: Model, candidate: { point: Vec3; travel: number; path?: Path }, maxDistance: number, placed: ResolvedPlacement[]): ResolvedPlacement | null {
   if (candidate.travel > maxDistance + 1e-3) return null
-  const to = { ...candidate.point, y: terrainService.heightAt(state, candidate.point.x, candidate.point.z) }
+  const to = { ...candidate.point, y: settleY(state, m, candidate.point.x, candidate.point.z, m.pos.y) }
   const basePath = candidate.path ?? [m.pos, candidate.point]
   const path: Path = [...basePath.slice(0, -1), to]
   const travel = pathLength(path)
@@ -433,7 +433,7 @@ function couldReachBaseContact(state: GameState, geo: ChargeGeometry, model: Mod
   for (const t of geo.targetGroups.flat()) {
     const c = contactCandidate(model, t, 0)
     if (c.travel > maxDistance + 1e-3) continue
-    const to = { ...c.point, y: terrainService.heightAt(state, c.point.x, c.point.z) }
+    const to = { ...c.point, y: settleY(state, model, c.point.x, c.point.z, model.pos.y) }
     const travel = dist2D(model.pos, to) + Math.abs(to.y - model.pos.y)
     if (travel > maxDistance + 1e-3) continue
     const fp: Footprint = { pos: to, facing: model.facing, base: model.base }

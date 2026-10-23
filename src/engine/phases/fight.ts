@@ -33,7 +33,7 @@ import { cultAmbushOnMoveEnded } from '../cult-ambush'
 import { leaderService } from '../leaders'
 import { attackService } from '../attack'
 import { deferredDeaths, purgeDeferredDeaths, resolveDeferredDeaths } from '../fight-on-death'
-import { terrainService } from '../terrain'
+import { settleY, terrainService } from '../terrain'
 import { crossesBigFriendly } from './movement'
 import { weaponService } from '../weapons'
 import { pendingReactions, consumeReaction } from '../code-hooks'
@@ -204,7 +204,7 @@ function planApproachEnemy(state: GameState, geo: FightGeometry, maxDistance: nu
   const touchesEnemy = (pl: ResolvedPlacement): boolean => geo.enemies.some((e) => inBaseContact(fpOf(pl), e))
   // legality of one model ending at `to0` (budget, board, overlaps, enemy crossing, terrain); null when illegal
   const tryPlace = (m: Model, to0: Vec3): ResolvedPlacement | null => {
-    const to = { ...to0, y: terrainService.heightAt(state, to0.x, to0.z) }
+    const to = { ...to0, y: settleY(state, m, to0.x, to0.z, m.pos.y) }
     const travel = dist2D(m.pos, to) + Math.abs(to.y - m.pos.y)
     if (travel > maxDistance + 1e-3) return null
     const fp: Footprint = { pos: to, facing: m.facing, base: m.base }
@@ -329,7 +329,7 @@ function planApproachPoint(state: GameState, models: Model[], point: Vec3, other
     const travelWanted = Math.min(d, maxDistance)
     const scale = d > EPS ? travelWanted / d : 0
     let to: Vec3 = { x: m.pos.x + dx * scale, y: m.pos.y, z: m.pos.z + dz * scale }
-    to = { ...to, y: terrainService.heightAt(state, to.x, to.z) }
+    to = { ...to, y: settleY(state, m, to.x, to.z, m.pos.y) }
     const travel = dist2D(m.pos, to) + Math.abs(to.y - m.pos.y)
     const fp: Footprint = { pos: to, facing: m.facing, base: m.base }
     const blockers: Footprint[] = [...placed.map((pl) => ({ pos: pl.to, facing: pl.facing, base: pl.model.base })), ...otherFriendly, ...enemies]
@@ -391,7 +391,7 @@ function couldReachBaseContact(state: GameState, geo: FightGeometry, model: Mode
   for (const t of closest ? [closest] : []) {
     const c = contactPoint(model, t, 0)
     if (c.travel > maxDistance + 1e-3) continue
-    const to = { ...c.point, y: terrainService.heightAt(state, c.point.x, c.point.z) }
+    const to = { ...c.point, y: settleY(state, model, c.point.x, c.point.z, model.pos.y) }
     const travel = dist2D(model.pos, to) + Math.abs(to.y - model.pos.y)
     if (travel > maxDistance + 1e-3) continue
     const fp: Footprint = { pos: to, facing: model.facing, base: model.base }
