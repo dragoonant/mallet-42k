@@ -871,6 +871,54 @@
       "prompt": "A huge two-handed executioner blade cleaving down with a deep whoosh and a heavy crackling power-field impact, a bright ringing finish, no music",
       "durationSeconds": 1.5,
       "promptInfluence": 0.6
+    },
+    {
+      "id": "stinger-cathedral-hymn",
+      "kind": "music",
+      "prompt": "Short orchestral stinger, grim gothic sci-fi war epic. A colossal cathedral pipe organ swells under a deep male monastic choir singing a slow solemn wordless chant in a minor key, rising to one huge sustained chord that rings out into a vast stone hall. Dark, reverent, massive reverb, no drums, ends with a natural decay",
+      "lengthMs": 14000
+    },
+    {
+      "id": "stinger-crusade-drums",
+      "kind": "music",
+      "prompt": "Short cinematic war stinger. Thunderous massed war drums and taiko pound a slow marching rhythm while low brass and trombones blast a menacing three-note motif, building to a single crushing orchestral hit that echoes away. Grim, militaristic, relentless, dark fantasy sci-fi battle, ends cleanly",
+      "lengthMs": 12000
+    },
+    {
+      "id": "stinger-requiem",
+      "kind": "music",
+      "prompt": "Short mournful orchestral stinger. Low sustained cellos and basses in a minor key, a lone pure boy soprano sings a sorrowful wordless lament above them, distant tolling church bells, a sense of endless war and loss. Slow, sparse, cathedral reverb, dark gothic, fades out softly",
+      "lengthMs": 14000
+    },
+    {
+      "id": "stinger-machine-canticle",
+      "kind": "music",
+      "prompt": "Short dark industrial liturgical stinger. Rhythmic clanking forge machinery and hissing pistons form the beat, a low droning male choir chants in monotone over buzzing analog synth and a cold pipe organ, mechanical and religious at once, ominous techno-gothic sci-fi, ends on a deep resonant hum",
+      "lengthMs": 14000
+    },
+    {
+      "id": "stinger-warp-rising",
+      "kind": "music",
+      "prompt": "Short horror stinger for an otherworldly corrupting force. Detuned dissonant strings slide and cluster, a reversed choir swells, eerie whispering textures and a deep sub-bass rumble rise in intensity to a shrieking atonal climax, then cut to a hollow echo. Unsettling, chaotic, dark, no melody",
+      "lengthMs": 12000
+    },
+    {
+      "id": "stinger-bell-of-the-fallen",
+      "kind": "music",
+      "prompt": "Short solemn memorial stinger. A huge deep bronze bell tolls slowly three times, each strike answered by a swelling chorale of low French horns and trombones in a minor key, a muffled timpani roll underneath. Heavy, dignified, grim, gothic war epic, long ringing decay",
+      "lengthMs": 12000
+    },
+    {
+      "id": "stinger-glory-ascendant",
+      "kind": "music",
+      "prompt": "Short heroic orchestral stinger for a hard-won victory in a grim war. Booming timpani and a powerful brass fanfare climb over a full male choir singing a wordless triumphant chant, rising to a bright majestic major chord held with cymbal swell. Epic, defiant, cathedral grandeur, ends cleanly",
+      "lengthMs": 12000
+    },
+    {
+      "id": "stinger-xenos-horizon",
+      "kind": "music",
+      "prompt": "Short eerie alien stinger. Slow pulsing deep sub-bass, cold glassy synth drones, distant metallic scraping and an inhuman low throat-singing drone, strange shimmering high tones, a sense of something vast and hostile approaching from the dark between stars. Tense, ominous, sparse, sci-fi horror, fades into silence",
+      "lengthMs": 14000
     }
   ]
 }
