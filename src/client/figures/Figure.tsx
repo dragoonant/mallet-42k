@@ -14,7 +14,7 @@ import { BODY_KIND, BIPED_CONFIG, VEHICLE_CONFIG, ARTILLERY_CONFIG, HOUND_CONFIG
 import { BaseDisc, BASE_THICKNESS } from './BaseDisc'
 import { GlbBody } from './GlbBody'
 import { GlowAura } from './GlowAura'
-import { glbSlugFor, glbYawFor } from './glbModels'
+import { glbSlugFor } from './glbModels'
 import { useGlbInstance } from './glbLoader'
 import { BipedBody } from './BipedBody'
 import { VehicleBody } from './VehicleBody'
@@ -191,7 +191,7 @@ export const Figure = memo(function Figure({
     <group ref={groupRef} onClick={onClick}>
       <BaseDisc radiusX={base.radiusX} radiusZ={base.radiusZ} colors={colors} selected={selected} highlighted={highlighted} hovered={hovered} glbBody={!!glb} baseStyle={baseStyle} />
       {glowing && <GlowAura height={base.height} radius={Math.max(base.radiusX, base.radiusZ)} />}
-      {glb && <GlbBody object={glb} yaw={glbYawFor(glbSlug)} pose={pose} seed={seedRef.current} faction={faction} paint={paint} />}
+      {glb && <GlbBody object={glb} slug={glbSlug} radiusX={base.radiusX} radiusZ={base.radiusZ} pose={pose} seed={seedRef.current} faction={faction} paint={paint} />}
       {!glb && <group position={[0, BASE_THICKNESS, 0]} scale={[base.height, base.height, base.height]}>
         {bodyKind === 'swarm' ? (
           <SwarmBody colors={colors} pose={pose} seed={seedRef.current} />

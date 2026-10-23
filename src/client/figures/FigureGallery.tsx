@@ -114,7 +114,7 @@ const GALLERY_ENTRIES: GalleryEntry[] = [
   { datasheetId: 'gk.strike-squad', faction: 'grey-knights', label: 'Strike Squad' },
   { datasheetId: 'gk.brotherhood-terminator-squad', faction: 'grey-knights', label: 'Brotherhood Terminators' },
   { datasheetId: 'gk.librarian-aurellios', faction: 'grey-knights', label: 'Librarian Aurellios' },
-  { datasheetId: 'gk.nemesis-dreadknight', faction: 'grey-knights', label: 'Nemesis Dreadknight' },
+  { datasheetId: 'gk.nemesis-dreadknight', faction: 'grey-knights', label: 'Nemesis Dreadknight', modelId: 'dreadknight' },
   { datasheetId: 'da.intercessor-squad', modelId: 'intercessor', faction: 'dark-angels', label: 'Intercessor' },
   { datasheetId: 'da.intercessor-squad', modelId: 'sergeant', faction: 'dark-angels', label: 'Intercessor Sergeant' },
   { datasheetId: 'da.chaplain-mordekai', modelId: 'mordekai', faction: 'dark-angels', label: 'Chaplain Mordekai' },
