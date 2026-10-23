@@ -17,6 +17,10 @@ const outDir = join(here, '..', '..', 'src', 'data', 'terrain')
 const src = JSON.parse(readFileSync(join(here, 'wtc2025-source.json'), 'utf8'))
 
 const GEOM_SCALE = 0.7
+// Upper-floor L arms are widened (walls stay put) so a 40 mm base (1.57") fits wholly on a floor, clear of the wall panel
+// (0.25" thick, base kept 0.125" + radius clear): the source arms scale to ~0.9-1.4". Width is measured from the wall-side edge of the floor, inward. 2.25" leaves ~0.2" of slack each side.
+const FLOOR_ARM_IN = 2.25
+const FLOOR_ARM_LOCAL = FLOOR_ARM_IN / GEOM_SCALE
 const SX = 44 / 60
 const SZ = 30 / 44
 const r3 = (n) => Math.round(n * 1000) / 1000 + 0 // +0 turns -0 into 0
@@ -54,6 +58,13 @@ function localToOurs(piece, half, nudge, zSign, lx, ly) {
 const area = (poly) => poly.reduce((a, p, i) => { const q = poly[(i + 1) % poly.length]; return a + p.x * q.z - q.x * p.z }, 0)
 const ccw = (poly) => (area(poly) < 0 ? [...poly].reverse() : poly)
 
+// L-shaped floor [[x0,y0],[xa,y0],[xa,t],[t,t],[t,yb],[x0,yb]]: keep the outer edges and arm lengths, push the inner
+// edges (t) out so both arms are FLOOR_ARM_LOCAL wide. The floor stays inside the footprint (checked in the CP-3.5 test).
+function widenFloor(f) {
+  const t = f[0][0] + FLOOR_ARM_LOCAL
+  return [f[0], f[1], [f[1][0], f[0][1] + FLOOR_ARM_LOCAL], [t, f[0][1] + FLOOR_ARM_LOCAL], [t, f[4][1]], f[5]]
+}
+
 function build(layout) {
   const half = src.layouts_half[layout.from]
   const pieces = []
@@ -83,7 +94,7 @@ function build(layout) {
           { a: chain[0], b: chain[1], height: kd.height },
           { a: chain[1], b: chain[2], height: kd.height },
         ]
-        piece.floors = [{ polygon: ccw(map(feat.floor)), height: kd.floorHeight }]
+        piece.floors = [{ polygon: ccw(map(widenFloor(feat.floor))), height: kd.floorHeight }]
       } else {
         piece.floors = [{ polygon: footprint, height: kd.height }]
       }

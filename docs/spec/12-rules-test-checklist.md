@@ -454,6 +454,7 @@ expectation is `alias → X` are cross-references only and are skipped by covera
 | MISSION-046 | CP-3.4 | WTC layouts (`terrain.cp-long-edges`, `-short-edges`, `-diagonal`): lane width L = smallest side of the largest non-INFANTRY roster base + 0.5" (130 mm → 5.62"); no choke point — every spot an L-wide base fits is joined to the rest of the open board by lanes ≥ L wide, or sealed by a gap < 0.25" (`tests/data/terrainLanes.test.ts`) |
 | MISSION-047 | CP-3.4 | WTC layouts: the largest-base non-INFANTRY model (set up outside every ruin footprint, inside its zone) can travel on a ≤ 0.25" grid, footprint-inflated by its base, from each deployment zone to within objective range of every marker of every mission that uses the layout |
 | MISSION-048 | CP-3.2, CP-3.3 | WTC layouts: invariant under 180° rotation about the origin (footprints, walls, floors); every ruin wall and crate > 1" from the edge of every objective marker (R-3.10, RC-052; a marker may sit inside a ruin footprint); all terrain stays on the 44×30 board |
+| MISSION-049 | CP-3.5 | WTC layouts: every ruin has an upper-floor spot where a 40 mm base fits wholly on the floor, clear of the walls, with 0.1" to spare (`terrainService.canEndAt`); every floor lies inside its ruin footprint (`tests/data/terrainFloors.test.ts`) |
 
 ## SIM — headless simulator invariants
 | ID | Ref | Scenario → expected |
