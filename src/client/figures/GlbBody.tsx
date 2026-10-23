@@ -1,5 +1,6 @@
 // Poses a pre-made GLB figure (origin at base centre, y up, 1 unit = 1 inch, front = +Z — the same
-// facing the procedural figures use, so no extra rotation). The GLB is one rigid mesh, so poses are
+// facing the procedural figures use). fitGlbToBase corrects sculpts baked at the wrong size or facing
+// (glbModels.ts GLB_FIGURE_ADJUST) on the private clone, under the pose group. The GLB is one rigid mesh, so poses are
 // whole-body transforms: walk bob, shoot recoil, melee lunge, hit flinch, death topple/fade/sink.
 import { useEffect, useRef } from 'react'
 import { Box3, type Group, type Mesh, type Object3D } from 'three'

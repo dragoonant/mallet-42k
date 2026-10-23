@@ -1,13 +1,13 @@
 // One row of status icons per on-board unit, floating above its name tag: a cover shield (blue full / amber partial),
 // the battle-shock bolt, temporary effects (stratagems, buffs, auras) and Advanced / Fell Back / Charged flags.
-// Cover depends on the attacker: with a friendly unit selected during the active Shooting phase, enemies that would
-// get cover against it (LosService.benefitOfCover, first ranged weapon) are flagged; otherwise every enemy that
-// can see a unit is checked.
+// Cover is per model and depends on the attacker: with a friendly unit selected during the active Shooting phase,
+// enemy models that would get cover against all its ranged weapons are marked; otherwise every enemy that can see
+// (and reach) a unit is checked against all its ranged weapons. Covered models also get a small blue ring on the board.
 import { useMemo, useRef, type ReactElement } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
-import { Vector3, type PerspectiveCamera } from 'three'
-import { DEFAULT_SERVICES, type GameState, type UnitId } from '@/engine'
+import { DoubleSide, Vector3, type PerspectiveCamera } from 'three'
+import { DEFAULT_SERVICES, modelStats, type GameState, type Model, type ModelId, type RuntimeWeapon, type UnitId } from '@/engine'
 import { useDisplayState } from '../presentation/presentedStore'
 import { useUiStore, type PlacementDraft } from '../ui/uiStore'
 import { Tooltip } from '../ui/Tooltip'
@@ -18,26 +18,68 @@ import { effectEntries, turnFlagEntries } from './statusIcons'
 
 type CoverKind = 'full' | 'partial'
 
-function firstRanged(state: GameState, unitId: UnitId) {
-  const u = state.units[unitId]
-  if (!u) return null
-  for (const id of u.models) {
-    const w = state.models[id]?.weapons.map((wid) => state.weapons[wid]).find((x) => x && x.kind === 'ranged')
-    if (w) return w
-  }
-  return null
+/** Per-unit cover read-out. `covered` = models drawn with a marker (full: cover from every seeing enemy; partial: from
+ *  at least one), `total` = models considered. Overview mode fills coveredFrom / exposedTo (enemy unit ids); selected
+ *  shooter mode fills `shooter`. */
+export interface UnitCover {
+  kind: CoverKind
+  covered: ModelId[]
+  total: number
+  coveredFrom: UnitId[]
+  exposedTo: UnitId[]
+  shooter?: UnitId
 }
 
-function coveredVs(state: GameState, unitId: UnitId, attackerId: UnitId, weapon: NonNullable<ReturnType<typeof firstRanged>>): boolean {
-  try {
-    return state.units[unitId]!.models.some((id) => state.models[id] && DEFAULT_SERVICES.los.benefitOfCover(state, id, attackerId, weapon))
-  } catch { return false }
+type Weapon = RuntimeWeapon
+
+/** Distinct ranged weapon profiles carried by a unit (one per name/AP/range/abilities, not one per model). */
+function rangedWeapons(state: GameState, unitId: UnitId): Weapon[] {
+  const out = new Map<string, Weapon>()
+  for (const id of state.units[unitId]?.models ?? []) {
+    for (const wid of state.models[id]?.weapons ?? []) {
+      const w = state.weapons[wid]
+      if (w && w.kind === 'ranged') out.set(`${w.name}|${w.range}|${w.AP}|${w.abilities.map((x) => x.ability).join(',')}`, w)
+    }
+  }
+  return [...out.values()]
+}
+
+function liveModels(state: GameState, unitId: UnitId): Model[] {
+  return (state.units[unitId]?.models ?? []).map((id) => state.models[id]).filter((m): m is Model => !!m && m.woundsRemaining > 0)
+}
+
+/** Models of `unitId` with Benefit of Cover against every one of `weapons` (terrain, or a granted cover such as Go to
+ *  Ground / Smokescreen for weapons without Ignores Cover; mirrors attack.ts coverFor). */
+function modelsCoveredVs(state: GameState, unitId: UnitId, attackerId: UnitId, weapons: Weapon[]): ModelId[] {
+  if (weapons.length === 0) return []
+  let granted = false
+  try { granted = !!DEFAULT_SERVICES.hooks.hasBenefitOfCover?.(state, unitId) } catch { /* no granted cover */ }
+  const out: ModelId[] = []
+  for (const m of liveModels(state, unitId)) {
+    try {
+      const ok = weapons.every((w) => {
+        if (DEFAULT_SERVICES.los.benefitOfCover(state, m.id, attackerId, w)) return true
+        if (!granted || w.abilities.some((x) => x.ability === 'IGNORES_COVER')) return false
+        return !(w.AP === 0 && modelStats(state, m).Sv <= 3) // R-3.12
+      })
+      if (ok) out.push(m.id)
+    } catch { /* treat as exposed */ }
+  }
+  return out
 }
 
 function canSee(state: GameState, attackerId: UnitId, targetId: UnitId): boolean {
   try {
     return state.units[attackerId]!.models.some((id) => state.models[id] && DEFAULT_SERVICES.los.unitVisible(state, id, targetId))
   } catch { return false }
+}
+
+// Cheap reach test: closest centre-to-centre gap minus both base radii (a slight over-estimate of reach is fine here).
+function inReach(state: GameState, attackerId: UnitId, targetId: UnitId, range: number): boolean {
+  const a = liveModels(state, attackerId)
+  const t = liveModels(state, targetId)
+  const r = (m: Model) => Math.max(m.base.radius, m.base.radius2 ?? 0)
+  return a.some((x) => t.some((y) => Math.hypot(x.pos.x - y.pos.x, x.pos.z - y.pos.z) - r(x) - r(y) <= range))
 }
 
 function withDraft(state: GameState, draft: PlacementDraft | null, unitId: string | null): GameState {
@@ -50,35 +92,69 @@ function withDraft(state: GameState, draft: PlacementDraft | null, unitId: strin
   return { ...state, models }
 }
 
-function coverUnits(base: GameState, selectedUnitId: string | null, draft: PlacementDraft | null): Map<UnitId, CoverKind> {
-  const out = new Map<UnitId, CoverKind>()
+export function coverUnits(base: GameState, selectedUnitId: string | null, draft: PlacementDraft | null): Map<UnitId, UnitCover> {
+  const out = new Map<UnitId, UnitCover>()
   const state = withDraft(base, draft, selectedUnitId)
   const selected = selectedUnitId ? state.units[selectedUnitId] : undefined
   const shooting = state.phase === 'shooting' && selected && selected.location === 'board' && selected.player === state.activePlayer
   if (shooting && selected) {
-    const weapon = firstRanged(state, selected.id)
-    if (weapon) {
+    const weapons = rangedWeapons(state, selected.id)
+    if (weapons.length > 0) {
       for (const unit of Object.values(state.units)) {
         if (unit.location !== 'board' || unit.player === selected.player) continue
-        if (coveredVs(state, unit.id, selected.id, weapon)) out.set(unit.id, 'full')
+        const covered = modelsCoveredVs(state, unit.id, selected.id, weapons)
+        if (covered.length > 0) out.set(unit.id, { kind: 'full', covered, total: liveModels(state, unit.id).length, coveredFrom: [], exposedTo: [], shooter: selected.id })
       }
       return out
     }
   }
   const onBoard = Object.values(state.units).filter((u) => u.location === 'board')
   for (const unit of onBoard) {
-    let seen = 0
-    let covered = 0
+    const total = liveModels(state, unit.id).length
+    if (total === 0) continue
+    const coveredFrom: UnitId[] = []
+    const exposedTo: UnitId[] = []
+    let all: Set<ModelId> | null = null // covered against every seeing enemy
+    const any = new Set<ModelId>() // covered against at least one
     for (const enemy of onBoard) {
       if (enemy.player === unit.player) continue
-      const weapon = firstRanged(state, enemy.id)
-      if (!weapon || !canSee(state, enemy.id, unit.id)) continue
-      seen++
-      if (coveredVs(state, unit.id, enemy.id, weapon)) covered++
+      const weapons = rangedWeapons(state, enemy.id)
+      if (weapons.length === 0) continue
+      const reach = Math.max(...weapons.map((w) => w.range))
+      if (!inReach(state, enemy.id, unit.id, reach) || !canSee(state, enemy.id, unit.id)) continue
+      const covered = modelsCoveredVs(state, unit.id, enemy.id, weapons)
+      if (covered.length > 0) coveredFrom.push(enemy.id); else exposedTo.push(enemy.id)
+      covered.forEach((id) => any.add(id))
+      all = all ? new Set(covered.filter((id) => all!.has(id))) : new Set(covered)
     }
-    if (seen > 0 && covered > 0) out.set(unit.id, covered === seen ? 'full' : 'partial')
+    if (coveredFrom.length === 0) continue
+    const everywhere = exposedTo.length === 0 && !!all && all.size > 0
+    out.set(unit.id, { kind: everywhere ? 'full' : 'partial', covered: [...(everywhere ? all! : any)], total, coveredFrom, exposedTo })
   }
   return out
+}
+
+function nameList(state: GameState, ids: UnitId[]): string {
+  const names = [...new Set(ids.map((id) => state.units[id]?.name ?? id))]
+  if (names.length <= 1) return names.join('')
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+}
+
+export function coverCopy(state: GameState, c: UnitCover): { title: string; body: string } {
+  const n = c.covered.length
+  if (c.shooter) {
+    return { title: `In cover from ${state.units[c.shooter]?.name ?? 'this unit'}`, body: `${n} of ${c.total} models have cover against this unit's shots.` }
+  }
+  if (c.kind === 'full') {
+    return { title: 'In cover', body: `${n} of ${c.total} models have cover from every enemy that can see this unit. Covered models get +1 to armour saves against shooting; assign wounds to them first.` }
+  }
+  if (c.exposedTo.length === 0) {
+    return { title: 'Cover from some angles', body: `Every enemy that can see this unit is blocked for some of its models, but no model is covered from all of them. ${n} of ${c.total} models have some cover.` }
+  }
+  return {
+    title: 'Cover from some angles',
+    body: `Covered from ${nameList(state, c.coveredFrom)}. Exposed to ${nameList(state, c.exposedTo)}. ${n} of ${c.total} models have some cover.`,
+  }
 }
 
 // Row scale: 1 at the default overview distance (22px icons), growing as the camera zooms in and shrinking as it zooms
@@ -139,6 +215,16 @@ function IconBadge({ icon, compact }: { icon: Icon; compact: boolean }) {
   )
 }
 
+/** Flat ring just outside a covered model's base (same style family as the selection / target rings in board/Rings.tsx). */
+function CoverMarker({ x, y, z, radius, color }: { x: number; y: number; z: number; radius: number; color: string }) {
+  return (
+    <mesh position={[x, y + 0.06, z]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={1}>
+      <ringGeometry args={[radius + 0.14, radius + 0.24, 32, 1]} />
+      <meshBasicMaterial color={color} transparent opacity={0.7} side={DoubleSide} depthWrite={false} toneMapped={false} />
+    </mesh>
+  )
+}
+
 function StatusRow({ id, icons, position }: { id: UnitId; icons: Icon[]; position: [number, number, number] }) {
   const { compact } = useFormFactor()
   const row = useRef<HTMLDivElement>(null)
@@ -181,22 +267,28 @@ export function UnitStatusIcons() {
   const state = useDisplayState()
   const selectedUnitId = useUiStore((s) => s.selectedUnitId)
   const draft = useUiStore((s) => s.draft)
-  const cover = useMemo(() => (state ? coverUnits(state, selectedUnitId, draft) : new Map<UnitId, CoverKind>()), [state, selectedUnitId, draft])
+  const cover = useMemo(() => (state ? coverUnits(state, selectedUnitId, draft) : new Map<UnitId, UnitCover>()), [state, selectedUnitId, draft])
   if (!state) return null
   return (
     <>
+      {[...cover.entries()].map(([unitId, c]) => {
+        const live = draft && draft.unitId === unitId && selectedUnitId === unitId
+        const s = live ? withDraft(state, draft, unitId) : state
+        const tint = c.kind === 'partial' ? AMBER : BLUE
+        return c.covered.map((mid) => {
+          const m = s.models[mid]
+          return m ? <CoverMarker key={mid} x={m.pos.x} y={m.pos.y} z={m.pos.z} radius={Math.max(m.base.radius, m.base.radius2 ?? 0)} color={tint} /> : null
+        })
+      })}
       {Object.values(state.units).filter((u) => u.location === 'board').map((unit) => {
         const live = draft && draft.unitId === unit.id && selectedUnitId === unit.id
         const models = unit.models.map((mid) => (live ? withDraft(state, draft, unit.id) : state).models[mid]).filter((m): m is NonNullable<typeof m> => !!m)
         if (models.length === 0) return null
         const icons: Icon[] = []
-        const kind = cover.get(unit.id)
-        if (kind) {
-          icons.push({
-            testid: `cover-badge-${unit.id}`, kind: 'cover', tint: kind === 'partial' ? AMBER : BLUE, data: { 'data-cover': kind },
-            title: kind === 'partial' ? 'Partial cover' : 'In cover',
-            body: kind === 'partial' ? 'Some attackers that can see this unit are blocked by cover.' : 'Ranged attackers against this unit get a worse result on its armour saves.',
-          })
+        const c = cover.get(unit.id)
+        if (c) {
+          const copy = coverCopy(state, c)
+          icons.push({ testid: `cover-badge-${unit.id}`, kind: 'cover', tint: c.kind === 'partial' ? AMBER : BLUE, data: { 'data-cover': c.kind }, ...copy })
         }
         if (unit.battleShocked) icons.push({ testid: `shock-bolt-${unit.id}`, kind: 'shock', tint: AMBER, pulse: true, title: 'Battle-shocked', body: 'This unit is rattled and cannot hold objectives until it recovers.' })
         for (const e of effectEntries(state, unit)) {

@@ -301,7 +301,11 @@ function scoreDeclareMove(state: GameState, player: PlayerId, action: DeclareMov
   const stats = modelStats(state, models[0])
   const ranged = hasAnyRangedWeapon(state, unitId)
   const melee = hasAnyMeleeWeapon(state, unitId)
-  const heavy = models.some((m) => m.weapons.some((w) => DEFAULT_SERVICES.weapons.hasAbility(DEFAULT_SERVICES.weapons.effectiveWeapon(state, m.id, w), 'HEAVY')))
+  // HEAVY's +1 to hit only pays for the models that actually carry a HEAVY gun. Treating "any model has one" as a
+  // whole-unit trait made a 10-man Crusader squad (two bolt rifles among the chainswords, plus its Marshal) score like
+  // a Heavy Intercessor gunline and Remain Stationary in its deployment corner for the entire battle. Scale the bonus
+  // by the share of models carrying one instead.
+  const heavyShare = models.filter((m) => m.weapons.some((w) => DEFAULT_SERVICES.weapons.hasAbility(DEFAULT_SERVICES.weapons.effectiveWeapon(state, m.id, w), 'HEAVY'))).length / models.length
   // both "am I already sitting somewhere useful" and "how far to the nearest unheld marker" need to know whether
   // holding that marker actually scores anything under the live mission (weight > 1) — otherwise a unit happily
   // parks on / advances toward its own non-scoring home objective instead of a farther one that pays out
@@ -330,13 +334,19 @@ function scoreDeclareMove(state: GameState, player: PlayerId, action: DeclareMov
   // sit uncontested — this was letting Marine gunline squads freeze in place for entire games (never reaching any
   // scored objective) since the flat HEAVY/ranged bonus applied unconditionally.
   const canShootFromHere = ranged && gap <= rangedRange
+  // A unit whose expected melee damage into the nearest enemy beats its expected shooting is the hammer: its job is to
+  // walk toward the enemy every turn, not to camp a fire lane for a couple of pistol shots. Only judged while there is
+  // an enemy to measure against and the unit is not already in Engagement Range (then it is Fall Back vs stay).
+  const meleeLeaning = melee && enemy !== null && gap > ENGAGEMENT_H
+    && unitMeleeDamage(state, unitId, enemy.unitId, {}) > unitRangedDamage(state, unitId, enemy.unitId, {})
   switch (action.moveType) {
     case 'stationary': {
       let s = 1.0
-      if (ranged && heavy && canShootFromHere) s += 2.5
+      if (ranged && canShootFromHere) s += 2.5 * heavyShare
       if (onControlledValuableObjective) s += 1.5
       if (ranged && !melee && canShootFromHere) s += 1.5
       if (!canShootFromHere && !onControlledValuableObjective) s -= 1.5
+      if (meleeLeaning) s -= 1.0
       return s
     }
     case 'normal': {
@@ -344,6 +354,7 @@ function scoreDeclareMove(state: GameState, player: PlayerId, action: DeclareMov
       // nothing by repositioning toward a valuable objective while still able to shoot this turn.
       let s = 2.0
       if (melee && gap > stats.M + ENGAGEMENT_H && gap <= stats.M + 12) s += 1.0
+      else if (meleeLeaning && gap > stats.M + 12) s += 0.5 // still closing: next turn's charge starts from here
       if (nearestUnheldTarget <= stats.M + 6) s += 1.5
       return s
     }
@@ -351,7 +362,8 @@ function scoreDeclareMove(state: GameState, player: PlayerId, action: DeclareMov
       let s = 1.0
       if (nearestUnheldTarget > stats.M && nearestUnheldTarget <= stats.M + 3.5) s += 3.0
       if (melee && gap > stats.M && gap <= stats.M + 10.5) s += 1.5
-      if (ranged) s -= gap <= rangedRange + stats.M ? 3.0 : 0.5 // forfeits shooting this turn
+      // forfeits shooting this turn — which costs a hammer unit little
+      if (ranged) s -= gap <= rangedRange + stats.M ? (meleeLeaning ? 1.0 : 3.0) : 0.5
       return s
     }
     case 'fallBack': {

@@ -1,7 +1,7 @@
 // Top-level screen switch (docs/spec/50-client.md). Start screen until a game exists, then the 3D
 // scene with the HUD/prompt overlays on top; the end screen layers over the (still-rendered) board
 // so the final position stays visible behind it.
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Scene } from './Scene'
 import { useGameStore } from './store/game'
 import { useUiStore } from './ui/uiStore'
@@ -37,10 +37,16 @@ const overlayLayer: CSSProperties = {
 // bottom-centre, i.e. behind the decision prompt — owner playtest: "dice rolls are being done behind
 // the choice box at the bottom of the screen". Stacking them in one flex column (rather than giving
 // the tray a fixed `top`) keeps the tray under the log whether the log is collapsed or expanded.
+// Its `top` is not a constant: the right-hand player badge above it grows with the army's pools (Pain
+// tokens, Cabal points, Miracle dice — a four-line Drukhari badge is taller than a two-line Marine one),
+// and a fixed 70px put the Dice Log over the badge's VP line. `useRightRailTop` measures the badge and
+// keeps the rail just beneath it, so it also drops out of the way when the VP breakdown is open.
+const RIGHT_RAIL_MIN_TOP = 70
+const RIGHT_RAIL_GAP = 8
 const rightRail: CSSProperties = {
   position: 'absolute',
   right: 12,
-  top: 70,
+  top: RIGHT_RAIL_MIN_TOP,
   width: 200,
   display: 'flex',
   flexDirection: 'column',
@@ -48,6 +54,47 @@ const rightRail: CSSProperties = {
   gap: 8,
   pointerEvents: 'none',
   zIndex: 20,
+}
+
+/** Top offset for the right rail: the bottom edge of the right-hand player badge (`data-hud-badge="B"`
+ *  in Hud.tsx) plus a gap, measured against the rail's own containing layer; never above the old
+ *  fixed 70px. Re-measured whenever the badge resizes (pool lines appear, VP breakdown opens) or the
+ *  window does. Falls back to 70px until the badge exists. */
+function useRightRailTop(railRef: { current: HTMLDivElement | null }): number {
+  const [top, setTop] = useState(RIGHT_RAIL_MIN_TOP)
+  useEffect(() => {
+    const rail = railRef.current
+    const badge = document.querySelector<HTMLElement>('[data-hud-badge="B"]')
+    const layer = rail?.offsetParent as HTMLElement | null
+    if (!rail || !badge || !layer) return
+    const measure = () => {
+      const bottom = badge.getBoundingClientRect().bottom - layer.getBoundingClientRect().top
+      setTop(Math.max(RIGHT_RAIL_MIN_TOP, Math.round(bottom + RIGHT_RAIL_GAP)))
+    }
+    measure()
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
+    ro?.observe(badge)
+    window.addEventListener('resize', measure)
+    return () => {
+      ro?.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  })
+  return top
+}
+
+/** Desktop right rail: Dice Log over dice tray, anchored under the right-hand player badge. */
+function RightRail() {
+  const ref = useRef<HTMLDivElement>(null)
+  // Re-render (and so re-find the badge) when a new game swaps the B badge out, or its pools change.
+  useGameStore((s) => s.state?.players.B)
+  const top = useRightRailTop(ref)
+  return (
+    <div ref={ref} style={{ ...rightRail, top }} data-testid="right-rail">
+      <DiceLog />
+      <DiceTray />
+    </div>
+  )
 }
 
 // Compact (phone) layout: no right rail. The dice log moves into a drawer (it renders itself there) and the
@@ -158,10 +205,7 @@ export function App() {
             </div>
           </>
         ) : (
-          <div style={rightRail}>
-            <DiceLog />
-            <DiceTray />
-          </div>
+          <RightRail />
         )}
         <EventFeed />
         <DiceTableOverlay />

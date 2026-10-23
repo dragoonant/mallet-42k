@@ -571,6 +571,10 @@ export const GLB_FIGURE_ADJUST: Readonly<Record<string, { scale?: number; yaw?: 
   'shanus-daskovian': { yaw: -1 },
   'ravager': { yaw: 1 },
   'raider': { scale: 1.4, yaw: 1 },
+  // Aeldari gun platform and jetbikes came out nose-to -X (a quarter turn to the left of front).
+  'heavy-weapon-platform': { yaw: 1 },
+  'windrider-catapult': { yaw: 1 },
+  'windrider-scatter': { yaw: 1 },
 }
 
 export function glbSlugFor(datasheetId: string, modelId: string | undefined, variantKey?: string): string | undefined {
