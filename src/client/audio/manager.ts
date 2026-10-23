@@ -12,7 +12,7 @@
 // This module does not know about GameEvent — see eventSounds.ts for the mapping — so it stays
 // reusable for UI sounds (ui-click/ui-error) too.
 
-import { ALL_SOUND_IDS, LOOPING_SOUNDS, SFX_IDS, VOICE_IDS, MUSIC_IDS, audioUrl, channelFor, type SoundChannel, type SoundId } from './manifest'
+import { ALL_SOUND_IDS, STREAMED_SOUNDS, SFX_IDS, VOICE_IDS, STINGER_IDS, audioUrl, channelFor, type SoundChannel, type SoundId, type StingerId } from './manifest'
 import { DEFAULT_AUDIO_SETTINGS, loadAudioSettings, saveAudioSettings, type AudioSettings } from './settings'
 
 export interface PlayOptions {
@@ -27,6 +27,13 @@ export interface PlayOptions {
 // A single sound id playing more than this many times at once is dropped rather than layered
 // further — this is what turns "20 simultaneous shots" into a few audible instances.
 const MAX_CONCURRENT_PER_ID = 4
+// Music stingers: the first lands 1-2 min after the bed starts, then one every 3-6 min. The bed
+// ducks to DUCK_LEVEL while a stinger plays so the cue reads clearly over the drone.
+const STINGER_FIRST_DELAY_MS: [number, number] = [60_000, 120_000]
+const STINGER_GAP_MS: [number, number] = [180_000, 360_000]
+const STINGER_VOLUME = 0.8
+const DUCK_LEVEL = 0.4
+const DUCK_RAMP_S = 1.5
 // Also floor how often the *same* id can (re)start, independent of concurrency, so a same-frame
 // burst can't spike the mix.
 const MIN_RETRIGGER_MS: Record<SoundChannel, number> = { sfx: 30, voice: 120, music: 0 }
@@ -35,6 +42,10 @@ const DEFAULT_JITTER_CENTS: Record<SoundChannel, number> = { sfx: 25, voice: 0, 
 interface ThrottleState {
   active: number
   lastStart: number
+}
+
+function randomBetween([min, max]: [number, number]): number {
+  return min + Math.random() * (max - min)
 }
 
 function clamp01(n: number): number {
@@ -59,6 +70,11 @@ export class AudioManager {
   private ambientEl: HTMLAudioElement | null = null
   private ambientSource: MediaElementAudioSourceNode | null = null
   private ambientWanted = false
+  private ambientDuck: GainNode | null = null
+
+  private stingerEl: HTMLAudioElement | null = null
+  private stingerTimer: ReturnType<typeof setTimeout> | null = null
+  private lastStinger: StingerId | null = null
 
   /** Attaches one-time listeners so the first click/tap/keypress anywhere unlocks audio. Safe to
    *  call more than once (a no-op after the first). Call this once during app start-up. */
@@ -130,7 +146,7 @@ export class AudioManager {
   }
 
   private async ensureBuffer(id: SoundId): Promise<AudioBuffer | null> {
-    if (LOOPING_SOUNDS.has(id)) return null // the ambient loop streams via <audio>, never decoded
+    if (STREAMED_SOUNDS.has(id)) return null // music streams via <audio>, never decoded
     const cached = this.buffers.get(id)
     if (cached) return cached
     const inFlight = this.loading.get(id)
@@ -162,7 +178,7 @@ export class AudioManager {
   /** Plays a sound. No-ops (silently) before unlock, while a sound is still decoding, or once its
    *  per-id concurrency/retrigger throttle is hit — callers never need to check readiness first. */
   play(id: SoundId, opts: PlayOptions = {}): void {
-    if (LOOPING_SOUNDS.has(id)) return // use setAmbientEnabled for the music loop
+    if (STREAMED_SOUNDS.has(id)) return // music goes through setAmbientEnabled / playStinger
     const channel = channelFor(id)
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
     const state = this.throttle.get(id) ?? { active: 0, lastStart: 0 }
@@ -215,6 +231,7 @@ export class AudioManager {
     this.ambientWanted = enabled
     if (!enabled) {
       this.ambientEl?.pause()
+      this.stopStingers()
       return
     }
     if (this.unlocked) this.startAmbientPlayback()
@@ -226,16 +243,69 @@ export class AudioManager {
     const musicGain = this.channelGains.music
     if (!musicGain) return
     if (!this.ambientEl) {
-      const el = new Audio(audioUrl(MUSIC_IDS[0]))
+      const el = new Audio(audioUrl('ambient-battlefield-loop'))
       el.loop = true
       el.crossOrigin = 'anonymous'
       this.ambientEl = el
       this.ambientSource = this.ctx.createMediaElementSource(el)
-      this.ambientSource.connect(musicGain)
+      this.ambientDuck = this.ctx.createGain()
+      this.ambientSource.connect(this.ambientDuck).connect(musicGain)
     }
     void this.ambientEl.play().catch(() => {
       // autoplay can still be refused in edge cases; the next unlock-triggering gesture retries
     })
+    if (!this.stingerTimer) this.scheduleStinger(randomBetween(STINGER_FIRST_DELAY_MS))
+  }
+
+  // ---------- music stingers ----------
+
+  /** Plays one music stinger now (a random one, never the same twice running, unless `id` is
+   *  given), ducking the ambient bed underneath. No-op before unlock. */
+  playStinger(id?: StingerId): void {
+    if (!this.unlocked || !this.ctx) return
+    const musicGain = this.channelGains.music
+    if (!musicGain) return
+    const pool = STINGER_IDS.filter((s) => s !== this.lastStinger)
+    const pick = id ?? pool[Math.floor(Math.random() * pool.length)]
+    this.lastStinger = pick
+    if (!this.stingerEl) {
+      const el = new Audio()
+      el.crossOrigin = 'anonymous'
+      el.onended = () => this.setDuck(1)
+      const gain = this.ctx.createGain()
+      gain.gain.value = STINGER_VOLUME
+      this.ctx.createMediaElementSource(el).connect(gain).connect(musicGain)
+      this.stingerEl = el
+    }
+    this.stingerEl.src = audioUrl(pick)
+    this.setDuck(DUCK_LEVEL)
+    void this.stingerEl.play().catch(() => this.setDuck(1))
+  }
+
+  private scheduleStinger(delayMs: number): void {
+    if (this.stingerTimer) clearTimeout(this.stingerTimer)
+    this.stingerTimer = setTimeout(() => {
+      this.stingerTimer = null
+      if (!this.ambientWanted) return
+      this.playStinger()
+      this.scheduleStinger(randomBetween(STINGER_GAP_MS))
+    }, delayMs)
+  }
+
+  private stopStingers(): void {
+    if (this.stingerTimer) clearTimeout(this.stingerTimer)
+    this.stingerTimer = null
+    this.stingerEl?.pause()
+    this.setDuck(1)
+  }
+
+  private setDuck(level: number): void {
+    if (!this.ambientDuck || !this.ctx) return
+    const gain = this.ambientDuck.gain
+    const now = this.ctx.currentTime
+    gain.cancelScheduledValues(now)
+    gain.setValueAtTime(gain.value, now)
+    gain.linearRampToValueAtTime(level, now + DUCK_RAMP_S)
   }
 
   // ---------- settings ----------
@@ -276,7 +346,7 @@ export class AudioManager {
  *  does this itself once the context is running. Exposed for callers that want to warm the cache
  *  ahead of unlock (decoding doesn't need a gesture). */
 export function preloadAll(manager: AudioManager): void {
-  manager.preload(ALL_SOUND_IDS.filter((id) => !LOOPING_SOUNDS.has(id)))
+  manager.preload(ALL_SOUND_IDS.filter((id) => !STREAMED_SOUNDS.has(id)))
 }
 
 export { DEFAULT_AUDIO_SETTINGS }

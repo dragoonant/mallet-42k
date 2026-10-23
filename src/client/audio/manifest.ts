@@ -133,14 +133,38 @@ export type VoiceId =
   | 'narr-defeat'
   | 'narr-your-turn'
 
-export type MusicId = 'ambient-battlefield-loop'
+export type StingerId =
+  | 'stinger-cathedral-hymn'
+  | 'stinger-crusade-drums'
+  | 'stinger-requiem'
+  | 'stinger-machine-canticle'
+  | 'stinger-warp-rising'
+  | 'stinger-bell-of-the-fallen'
+  | 'stinger-glory-ascendant'
+  | 'stinger-xenos-horizon'
+
+export type MusicId = 'ambient-battlefield-loop' | StingerId
 
 export type SoundId = SfxId | VoiceId | MusicId
 
 export type SoundChannel = 'sfx' | 'voice' | 'music'
 
-export const MUSIC_IDS: readonly MusicId[] = ['ambient-battlefield-loop']
-export const LOOPING_SOUNDS: ReadonlySet<SoundId> = new Set<SoundId>(MUSIC_IDS)
+/** Short music cues the manager drops over the ambient bed every few minutes (owner-picked 2026-10-22). */
+export const STINGER_IDS: readonly StingerId[] = [
+  'stinger-cathedral-hymn',
+  'stinger-crusade-drums',
+  'stinger-requiem',
+  'stinger-machine-canticle',
+  'stinger-warp-rising',
+  'stinger-bell-of-the-fallen',
+  'stinger-glory-ascendant',
+  'stinger-xenos-horizon',
+]
+
+export const MUSIC_IDS: readonly MusicId[] = ['ambient-battlefield-loop', ...STINGER_IDS]
+export const LOOPING_SOUNDS: ReadonlySet<SoundId> = new Set<SoundId>(['ambient-battlefield-loop'])
+/** Music is streamed through <audio> elements, never decoded into memory. */
+export const STREAMED_SOUNDS: ReadonlySet<SoundId> = new Set<SoundId>(MUSIC_IDS)
 
 export function channelFor(id: SoundId): SoundChannel {
   if ((MUSIC_IDS as readonly string[]).includes(id)) return 'music'

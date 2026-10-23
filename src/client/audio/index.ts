@@ -23,11 +23,13 @@ export {
   SFX_IDS,
   VOICE_IDS,
   MUSIC_IDS,
+  STINGER_IDS,
   LOOPING_SOUNDS,
+  STREAMED_SOUNDS,
   channelFor,
   audioUrl,
 } from './manifest'
-export type { SoundId, SfxId, VoiceId, MusicId, SoundChannel } from './manifest'
+export type { SoundId, SfxId, VoiceId, MusicId, StingerId, SoundChannel } from './manifest'
 export { soundsForEvent, playEventSounds, endGameVoiceLine } from './eventSounds'
 export type { SoundLookup } from './eventSounds'
 export type { EventSound } from './eventSounds'

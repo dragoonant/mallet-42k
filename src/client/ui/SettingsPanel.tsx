@@ -167,7 +167,7 @@ export function SettingsPanel() {
       </label>
       <label style={cCheck}>
         <input style={cBox} type="checkbox" checked={ambientOn} onChange={(e) => setAmbientOn(e.target.checked)} data-testid="settings-ambient-on" />
-        <span>Ambient battlefield sound</span>
+        <span>Ambient battlefield sound &amp; music</span>
       </label>
       <label style={cCheck}>
         <input
