@@ -1069,32 +1069,21 @@ const wrap: CSSProperties = {
   pointerEvents: 'auto',
   zIndex: PROMPT_Z_INDEX,
 }
-// Deployment-only dock: Combat Patrol's own deployment zones (src/data/missions/cp-0*.json) are full-
-// board-width strips hugging the board's near/far edge (§cp-01 zones z in [-15,-10]/[10,15], x the
-// full [-22,22]) — with the default overview camera those strips project to screen bands near the very
-// top and very bottom of the viewport (~26-35%/~59-74% of height at both 1280x720 and 1600x900, same
-// 16:9 aspect ratio, so the percentages hold at either size), leaving the vertical middle of the screen
-// always clear of both players' zones. `wrap`'s bottom-centre placement sits squarely on the near-side
-// strip, which is exactly the zone a deploying player needs to click into — every in-zone click during
-// deployment can end up landing on this DOM panel instead of the canvas underneath it. Docking to the
-// left edge and pinning both `top`/`bottom` (rather than a bottom offset + auto height) gives the panel
-// a fixed box confined to that clear middle band — content that would otherwise grow the panel taller
-// (a long roster, a multi-reason "Can't confirm" line) scrolls inside it instead of pushing the box
-// down into the near-side zone. A plain always-left dock (rather than picking the side away from the
-// zone) is enough here since the zones run the *board's* full width, not screen width — see the
-// comment above `deployRowVertical` for why the dock's own width doesn't matter once its vertical band
-// is clear of both zones.
+// Deployment-only dock: a wide, short strip along the very bottom of the screen (owner playtest
+// 2026-10: the old tall left sidebar ate too much of the board). Combat Patrol's deployment zones
+// (src/data/missions/cp-0*.json) are full-board-width strips hugging the board's near/far edge, which
+// with the overview camera project to bands ending around ~74% of viewport height — so the strip is
+// capped well under a quarter of the height and its roster scrolls inside it rather than growing up
+// into the near-side zone. Left/right insets clear the Stratagems tab (bottom-left) and the event-log
+// drawer tab (right edge).
 const deployWrap: CSSProperties = {
   ...panel,
   position: 'absolute',
-  left: 10,
-  // Sized to its content (roster + hint + Confirm/Reset/Cancel) and centred vertically, so the
-  // action buttons are always visible; only scrolls if it would exceed the viewport.
-  top: '50%',
-  transform: 'translateY(-50%)',
-  maxHeight: 'calc(100% - 20px)',
-  width: 230,
-  padding: '10px 12px',
+  left: 200,
+  right: 56,
+  bottom: 10,
+  maxHeight: '22vh',
+  padding: '8px 12px',
   display: 'flex',
   flexDirection: 'column',
   gap: 6,
@@ -1151,12 +1140,9 @@ function CollapsibleInfo({ testId, head, collapsible, children }: { testId: stri
 }
 const stratList: CSSProperties = { margin: '4px 0 0 16px', padding: 0, fontSize: 11.5 }
 const row: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap' }
-/** The deploy palette (unit chips + Reserves buttons), laid out for the left-docked deployment panel
- *  (`deployWrap`) — a vertical list fits a narrow sidebar far better than a horizontal scroller would.
- *  The dock's own width is unconstrained by the zone strips (they run the board's full width, not just
- *  the panel's column), so this only needs to look good, not dodge anything itself — `deployWrap`'s
- *  pinned top/bottom is what keeps the whole box out of both zones. */
-const deployRowVertical: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6 }
+/** The deploy palette (unit chips + Reserves buttons) as one wrapping row for the bottom strip
+ *  (`deployWrap`); it scrolls inside its own box past two rows so the strip stays short. */
+const deployRowWide: CSSProperties = { display: 'flex', gap: 6, flexWrap: 'wrap', maxHeight: 96, overflowY: 'auto' }
 const optionList: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', maxHeight: 130, overflowY: 'auto' }
 /** How long the pointer has to rest on an option before its help appears — long enough that moving
  *  across the row to the option you want doesn't flash three cards on the way. */
@@ -1736,11 +1722,11 @@ function DecisionPromptBody() {
       })()}
 
       {pending.kind === 'deployUnit' && (
-        <div style={compact ? deployRowCompact : deployRowVertical}>
+        <div style={compact ? deployRowCompact : deployRowWide}>
           {(soleDisembark ? [soleDisembark] : pending.context.unitIds).map((uid) => (
             <button
               key={uid}
-              style={{ ...(uid === deployTargetUnitId ? buttonPrimary : buttonBase), flexShrink: 0, width: compact ? undefined : '100%', textAlign: 'left' }}
+              style={{ ...(uid === deployTargetUnitId ? buttonPrimary : buttonBase), flexShrink: 0, textAlign: 'left' }}
               onClick={() => setDeployTarget(uid)}
             >
               {soleDisembark ? groupLabel(state, uid) : state.units[uid]?.name ?? uid}
@@ -1754,7 +1740,7 @@ function DecisionPromptBody() {
             return (
               <Tooltip key={`res-${uid}`} title="Abandon" body="A teleporting unit that is not placed is destroyed." disabled={!abandon}>
                 <button
-                  style={{ ...(abandon ? buttonDanger : buttonBase), flexShrink: 0, width: compact ? undefined : '100%', textAlign: 'left' }}
+                  style={{ ...(abandon ? buttonDanger : buttonBase), flexShrink: 0, textAlign: 'left' }}
                   onClick={() => {
                     if (abandon && !window.confirm(`Abandon ${nm}? It cannot return to Reserves and will be destroyed.`)) return
                     dispatch(reserveAction)

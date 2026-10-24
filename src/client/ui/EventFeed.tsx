@@ -14,16 +14,42 @@ import { summariseEvents, turnTotals } from './eventSummary'
 import { useFormFactor } from './formFactor'
 import { CompactDrawer } from './compactSheets'
 
+// Desktop/tablet: a drawer docked to the right edge, closed by default so the log never sits over the
+// board — a tab on the edge slides it out and back.
+const drawerWrap: CSSProperties = {
+  position: 'absolute',
+  right: 0,
+  top: '50%',
+  transform: 'translateY(-50%)',
+  display: 'flex',
+  alignItems: 'center',
+  pointerEvents: 'none',
+  zIndex: 15,
+}
+const drawerTab: CSSProperties = {
+  ...panel,
+  pointerEvents: 'auto',
+  cursor: 'pointer',
+  writingMode: 'vertical-rl',
+  padding: '14px 8px',
+  borderRadius: '8px 0 0 8px',
+  borderRight: 'none',
+  color: colors.text,
+  fontWeight: 700,
+  fontSize: 12,
+  letterSpacing: 0.6,
+  textTransform: 'uppercase',
+}
 const wrap: CSSProperties = {
   ...panel,
-  position: 'absolute',
-  right: 12,
-  bottom: 12,
   width: 340,
+  maxHeight: 'calc(100vh - 160px)',
   padding: 10,
   display: 'flex',
   flexDirection: 'column',
   gap: 8,
+  overflowY: 'auto',
+  borderRadius: '8px 0 0 8px',
   pointerEvents: 'auto',
 }
 const heading: CSSProperties = { fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.6, flex: '0 0 auto' }
@@ -60,6 +86,7 @@ export function EventFeed() {
   const [open, setOpen] = useState<Set<string>>(new Set())
   const scrollRef = useRef<HTMLDivElement>(null)
   const stick = useRef(true)
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const { compact } = useFormFactor()
   const events = allEvents.filter((e) => e.seq <= presentedSeq)
   const notes = allNotes.filter((n) => n.afterSeq <= presentedSeq)
@@ -68,7 +95,7 @@ export function EventFeed() {
   useEffect(() => {
     const el = scrollRef.current
     if (el && stick.current) el.scrollTop = el.scrollHeight
-  }, [lineCount, presentedSeq, open])
+  }, [lineCount, presentedSeq, open, drawerOpen])
   if (!state) return null
 
   const scoring = events.map((e) => describeScoring(e, state, bundle)).filter((s): s is string => s !== null).slice(-30)
@@ -160,6 +187,13 @@ export function EventFeed() {
       </CompactDrawer>
     )
   }
-  return <div style={wrap}>{body}</div>
+  return (
+    <div style={drawerWrap}>
+      <button style={drawerTab} data-testid="btn-feed-drawer" aria-expanded={drawerOpen} onClick={() => setDrawerOpen((o) => !o)}>
+        {drawerOpen ? 'Log ▸' : '◂ Log'}
+      </button>
+      {drawerOpen && <div style={wrap} data-testid="feed-drawer">{body}</div>}
+    </div>
+  )
 }
 
