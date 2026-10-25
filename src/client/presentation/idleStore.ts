@@ -19,6 +19,11 @@ export function setPresentationIdle(idle: boolean): void {
   if (usePresentationIdleStore.getState().idle !== idle) usePresentationIdleStore.setState({ idle })
 }
 
+/** React reader of the same flag. */
+export function usePresentationIdle(): boolean {
+  return usePresentationIdleStore((s) => s.idle)
+}
+
 export function isPresentationIdle(): boolean {
   return usePresentationIdleStore.getState().idle
 }

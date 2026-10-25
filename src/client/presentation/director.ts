@@ -10,7 +10,7 @@ import type { GameEvent, GameState, Phase, PlayerId } from '@/engine'
 import { unitModels } from '@/engine'
 import type { DataBundle, WeaponData } from '@/data/types'
 import { useGameStore, vpToastFrom } from '../store/game'
-import { catchUpPresented, pickDisplaySnapshot, setPresentedSeq, usePresentedStore } from './presentedStore'
+import { catchUpPresented, pickDisplaySnapshot, revealUnitsAhead, setPresentedSeq, usePresentedStore } from './presentedStore'
 import { modelsAnchor } from '../interaction/geometry'
 import { useCueStore } from './cueStore'
 import { setPresentationIdle } from './idleStore'
@@ -18,7 +18,7 @@ import { usePresentationSettings, type AnimSpeed } from './settings'
 import { cameraApi, type CameraView } from '../board/cameraApi'
 import { clusterOf, type Cluster, type Pt } from './framing'
 import { closeupViewClear, cinematicOn, closingBeat, damagedUnitOf, shoulderViewClear, shotTimes, speedFactor, type SolidPiece } from './shotCamera'
-import { deployBeats, deployTimes, returnView, visitView, type DeployBeat } from './deployCamera'
+import { deployBeats, deployTimes, returnView, visitFlush, visitView, type DeployBeat } from './deployCamera'
 import { announcementHoldMs, clearAnnouncement, holdAnnouncement, type AnnouncementKind } from './announceStore'
 import { playRoll, rerollTrayShown, type RollRequest } from '../dice'
 import { vfx } from '../vfx'
@@ -388,6 +388,45 @@ function playLanding(l: Landing, from: GameState, to: GameState, humanSeat: Play
 /** Re-arms the presented cursor's stall guard (it would otherwise show results mid-flight): the cursor does not move. */
 const petStall = (): void => setPresentedSeq(-1)
 
+/** Longest the heartbeat keeps the stall guard quiet while the cursor does not move (a presentation that is hung, not playing). */
+export const HEARTBEAT_MAX_MS = 20_000
+
+// Dice windows and volleys that are really playing right now (see startHeartbeat).
+let playing = 0
+let playingSince = 0
+
+/** Runs a dice window or volley, noting that one is playing so the heartbeat covers its long stretch without a step boundary. */
+async function whilePlaying<T>(run: () => Promise<T>): Promise<T> {
+  if (playing++ === 0) playingSince = Date.now()
+  try {
+    return await run()
+  } finally {
+    playing--
+  }
+}
+
+/**
+ * A big volley's dice alone run past the cursor's stall guard (PRESENTED_STALL_MS), and the guard showed the next phase's
+ * chip and prompt mid-volley. While a dice window or volley is actually playing (whilePlaying), this pets the guard once a
+ * second, until the cursor has not moved for HEARTBEAT_MAX_MS. Outside those, and past that cap, the guard is the failsafe
+ * again, so a presentation that hangs can never freeze the game for more than that. Returns the stop function.
+ */
+function startHeartbeat(): () => void {
+  let seen = usePresentedStore.getState().presentedSeq
+  let since = Date.now()
+  let seenPlayingSince = playingSince
+  const id = setInterval(() => {
+    const now = usePresentedStore.getState().presentedSeq
+    if (now !== seen || playingSince !== seenPlayingSince) {
+      seen = now
+      seenPlayingSince = playingSince
+      since = Date.now()
+    }
+    if (playing > 0 && Date.now() - since < HEARTBEAT_MAX_MS) petStall()
+  }, 1000)
+  return () => clearInterval(id)
+}
+
 /** Where a unit's models stand in the first of `states` that has any (killed models are only in the older state). */
 function pointsOf(unitId: string, ...states: GameState[]): Pt[] {
   for (const st of states) {
@@ -600,7 +639,11 @@ function resetCamera(): void {
 /** Fires the held volley: the unit's shoot pose and firing sound, one volley per weapon+target, and each
  *  landing as its shot arrives; resolves once every shot has landed (or the wait cap runs out). Called at
  *  the end of the attack sequence, or earlier when held damage would otherwise sit behind a decision. */
-async function fireHeldVolley(to: GameState, bundle: DataBundle | null, humanSeat: PlayerId, lookup: SoundLookup): Promise<void> {
+function fireHeldVolley(to: GameState, bundle: DataBundle | null, humanSeat: PlayerId, lookup: SoundLookup): Promise<void> {
+  return whilePlaying(() => fireHeldVolleyBody(to, bundle, humanSeat, lookup))
+}
+
+async function fireHeldVolleyBody(to: GameState, bundle: DataBundle | null, humanSeat: PlayerId, lookup: SoundLookup): Promise<void> {
   const h = heldVolley
   if (!h) return
   // Taken up front so a failure below can never leave the cursor held.
@@ -815,11 +858,11 @@ async function playEvent(
       return
 
     case 'ChargeRolled':
-      if (settings.diceOn) await playRoll(chargeRequest(to, event))
+      if (settings.diceOn) await whilePlaying(() => playRoll(chargeRequest(to, event)))
       return
 
     case 'DeadlyDemiseRolled':
-      if (settings.diceOn) await playRoll(deadlyDemiseRequest(to, event))
+      if (settings.diceOn) await whilePlaying(() => playRoll(deadlyDemiseRequest(to, event)))
       return
 
     case 'DamageApplied': {
@@ -866,9 +909,11 @@ async function playEvent(
 
 /** Plays one batch; a shot camera or deployment trip it started always goes back to the player's view before control returns. */
 async function playBatch(from: GameState, to: GameState, events: GameEvent[], announcedPhases: Set<Phase>): Promise<void> {
+  const stopHeartbeat = startHeartbeat()
   try {
     await playBatchBody(from, to, events, announcedPhases)
   } finally {
+    stopHeartbeat()
     try {
       await cineEnd()
     } catch (err) {
@@ -930,7 +975,7 @@ async function playBatchBody(from: GameState, to: GameState, events: GameEvent[]
         // A held save's clank (or the thud of a failed one) waits for its shot to land.
         if (!(deferred && event.type === 'SaveRolled')) playEventSounds(audio, [event], humanSeat, lookup)
         const req = usePresentationSettings.getState().diceOn ? groupRequest(to, group) : null
-        if (req) await playRoll(req)
+        if (req) await whilePlaying(() => playRoll(req))
       }
       if (!deferred) await playEvent(event, from, to, bundle, humanSeat, announcedPhases, lookup, key === null)
       if (heldVolley && event.type === 'AttackSequenceEnded') {
@@ -943,6 +988,22 @@ async function playBatchBody(from: GameState, to: GameState, events: GameEvent[]
       else if (beat?.kind === 'visit') visits.push(beat)
     } catch (err) {
       console.warn('[presentation] failed to play event', event.type, err)
+    }
+    // The bot's last set-up shares its step with what follows (the first-turn roll-off, the phase banner): the visit
+    // plays now, before those, with its units shown ahead of the cursor; the camera is home again when they start.
+    if (visits.length > 0 && visitFlush(events, i) === 'now') {
+      const toVisit = visits
+      visits = []
+      try {
+        await deployVisits(toVisit, () => revealUnitsAhead(toVisit.flatMap((v) => v.unitIds), event.seq))
+      } catch (err) {
+        console.warn('[presentation] deploy visit failed', err)
+      }
+      try {
+        await endTrip()
+      } catch (err) {
+        console.warn('[presentation] deploy camera return failed', err)
+      }
     }
     // Engine seq is per *step* (every event of one step() shares it), so the cursor may only reach a
     // seq once that step's last event has played — otherwise its first event would reveal the whole

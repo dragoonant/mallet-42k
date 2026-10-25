@@ -9,6 +9,7 @@
 // stretching the bar. Tablets with touch keep the original centred bar.
 import { useEffect, type CSSProperties } from 'react'
 import { useGameStore } from '../store/game'
+import { useCaughtUp } from '../presentation/presentedStore'
 import { useUiStore } from './uiStore'
 import { useFormFactor } from './formFactor'
 import { colors, fontStack, panel } from './theme'
@@ -94,11 +95,12 @@ export function TouchActionBar() {
   const state = useGameStore((s) => s.state)
   const pending = useGameStore((s) => s.pending)
   const botSeat = useGameStore((s) => s.botSeat)
+  const caughtUp = useCaughtUp(useGameStore((s) => s.pendingSeq))
   const draft = useUiStore((s) => s.draft)
   const wholeUnit = useWholeUnit((s) => s.on)
   const setWholeUnit = useWholeUnit((s) => s.set)
 
-  const staged = touch && !!state && !!pending && pending.player !== botSeat && !!draft && draft.decisionId === pending.id
+  const staged = touch && caughtUp && !!state && !!pending && pending.player !== botSeat && !!draft && draft.decisionId === pending.id
   // the toggle only means something while a draft is staged; never let it leak into a later decision
   useEffect(() => {
     if (!staged && useWholeUnit.getState().on) useWholeUnit.getState().set(false)

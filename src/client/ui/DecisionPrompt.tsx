@@ -33,7 +33,7 @@ import { groupLabel, groupUnitIds, soleDeployUnit } from '../interaction/embarkG
 import { rerollTrayModel, rollForOffer } from './rerollInfo'
 import { RerollTray } from './RerollTray'
 import { overwatchReach } from './overwatchInfo'
-import { usePresentedStore } from '../presentation/presentedStore'
+import { useCaughtUp } from '../presentation/presentedStore'
 import { buttonBase, buttonDanger, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 import { Tooltip } from './Tooltip'
 import { BottomSheet } from './BottomSheet'
@@ -1317,7 +1317,7 @@ function DecisionPromptBody() {
   const legal = useGameStore((s) => s.legal)
   const events = useGameStore((s) => s.events)
   const pendingSeq = useGameStore((s) => s.pendingSeq)
-  const presentedSeq = usePresentedStore((s) => s.presentedSeq)
+  const caughtUp = useCaughtUp(pendingSeq)
   const botSeat = useGameStore((s) => s.botSeat)
   const dispatch = useGameStore((s) => s.dispatch)
   const draft = useUiStore((s) => s.draft)
@@ -1369,7 +1369,7 @@ function DecisionPromptBody() {
   // A hovered option button lights its unit on the board; that highlight must never outlive the button.
   // Unmounting skips onMouseLeave, so clear on unmount, and again whenever the options stop being on
   // screen (opponent's turn, dice still resolving) while the pointer may still be resting on one.
-  const optionsHidden = !state || !pending || pending.player === botSeat || presentedSeq < pendingSeq
+  const optionsHidden = !state || !pending || pending.player === botSeat || !caughtUp
   useEffect(() => {
     if (optionsHidden) clearBoardHover()
   }, [optionsHidden]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -1453,7 +1453,7 @@ function DecisionPromptBody() {
   }
 
   // The dice that raised this decision haven't finished showing yet — don't offer a choice about them.
-  if (presentedSeq < pendingSeq) {
+  if (!caughtUp) {
     if (compact) {
       return (
         <BottomSheet testId="prompt" title="Resolving dice…" autoKey={pending.id}>

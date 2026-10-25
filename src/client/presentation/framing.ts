@@ -96,3 +96,42 @@ export function insidePolygon(x: number, z: number, poly: readonly { x: number; 
   }
   return inside
 }
+
+/**
+ * Where a ground point (x, z) lands on screen for `view`: normalised device coordinates (+-1 is a screen edge) and its depth
+ * in front of the lens (negative = behind it). Same lens as the board camera (CAMERA_FOV_DEG), so a pose can be checked
+ * for "is this whole footprint in frame" without three.js.
+ */
+export function groundNdc(view: CameraView, x: number, z: number, aspect: number): { x: number; y: number; depth: number } {
+  const fx = view.target[0] - view.position[0]
+  const fy = view.target[1] - view.position[1]
+  const fz = view.target[2] - view.position[2]
+  const fl = Math.hypot(fx, fy, fz) || 1
+  const fwd: [number, number, number] = [fx / fl, fy / fl, fz / fl]
+  const rl = Math.hypot(fwd[2], fwd[0]) || 1
+  const right: [number, number, number] = [-fwd[2] / rl, 0, fwd[0] / rl]
+  const up: [number, number, number] = [
+    right[1] * fwd[2] - right[2] * fwd[1],
+    right[2] * fwd[0] - right[0] * fwd[2],
+    right[0] * fwd[1] - right[1] * fwd[0],
+  ]
+  const d = [x - view.position[0], -view.position[1], z - view.position[2]] as const
+  const depth = d[0] * fwd[0] + d[1] * fwd[1] + d[2] * fwd[2]
+  const t = Math.tan((CAMERA_FOV_DEG / 2) * (Math.PI / 180))
+  const a = Math.max(0.5, aspect)
+  return {
+    x: (d[0] * right[0] + d[1] * right[1] + d[2] * right[2]) / (depth * t * a),
+    y: (d[0] * up[0] + d[1] * up[1] + d[2] * up[2]) / (depth * t),
+    depth,
+  }
+}
+
+/** Is the whole disc (centre x, z; radius) on screen, inside `limitX` / `limitY` of the NDC square (the rest is HUD and breathing room)? */
+export function discInFrame(view: CameraView, x: number, z: number, radius: number, aspect: number, limitX = 0.85, limitY = 0.72): boolean {
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2
+    const p = groundNdc(view, x + Math.cos(a) * radius, z + Math.sin(a) * radius, aspect)
+    if (p.depth <= 0 || Math.abs(p.x) > limitX || Math.abs(p.y) > limitY) return false
+  }
+  return true
+}

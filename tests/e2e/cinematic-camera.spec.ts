@@ -16,6 +16,8 @@ const SHOTS = 'test-results/camera'
 
 type V3 = [number, number, number]
 interface Sample { t: number; p: V3; tg: V3 }
+/** Where the unit under the lens stands on screen at a hold: its models in page pixels, the page size, and how far the unit's centre is from the orbit target (inches). */
+interface Frame { w: number; h: number; dist: number; models: { x: number; y: number }[] }
 interface PageWin {
   __malletCameraView?: () => { position: V3; target: V3 } | null
   __mallet: { useGameStore: { getState(): { state: { units: Record<string, { player: string; location: string; models: string[] }>; models: Record<string, { pos: { x: number; z: number } }> }; botSeat: string | null; events: { type: string }[] } } }
@@ -76,7 +78,7 @@ async function startBotGame(page: Page, seed: string) {
  * itself with a `debugger` pause two frames after each director flight that ends away from `home`, and the screenshot is taken over CDP
  * while it is frozen. window.__malletCameraArrive (board/CameraRig.tsx) reports each flight's end. `names` are the files for the 1st, 2nd... stop.
  */
-async function freezeOnArrivals(page: Page, names: string[], home: V3) {
+async function freezeOnArrivals(page: Page, names: string[], home: V3, settleMs = 0) {
   const cdp = await page.context().newCDPSession(page)
   await cdp.send('Debugger.enable')
   let n = 0
@@ -91,30 +93,56 @@ async function freezeOnArrivals(page: Page, names: string[], home: V3) {
       await cdp.send('Debugger.resume')
     }
   })
-  await page.evaluate(({ count, home }) => {
-    const w = window as unknown as PageWin & { __caught?: { p: V3; tg: V3 }[]; __arrivals?: { arrived: boolean; p: V3; tg: V3 }[]; __malletCameraArrive?: (arrived: boolean) => void }
+  await page.evaluate(({ count, home, settleMs }) => {
+    const w = window as unknown as PageWin & { __caught?: { p: V3; tg: V3; frame?: Frame }[]; __arrivals?: { arrived: boolean; p: V3; tg: V3; t: number }[]; __malletCameraArrive?: (arrived: boolean) => void }
     w.__caught = []
     w.__arrivals = []
     w.__malletCameraArrive = (arrived) => {
       ;(w as unknown as { __lastArrival: number }).__lastArrival = performance.now()
       const at = w.__malletCameraView!()!
       const pose = { p: [...at.position] as V3, tg: [...at.target] as V3 }
-      w.__arrivals!.push({ arrived, ...pose })
+      w.__arrivals!.push({ arrived, ...pose, t: performance.now() })
       const away = Math.hypot(pose.p[0] - home[0], pose.p[1] - home[1], pose.p[2] - home[2]) > 2
       if (!arrived || !away || w.__caught!.length >= count) return
-      w.__caught!.push(pose)
-      // a task later (a pause inside the animation frame would stall the screenshot): the frame that landed the camera is on screen by then
+      const entry: { p: V3; tg: V3; frame?: Frame } = { ...pose }
+      w.__caught!.push(entry)
+      // a task later (a pause inside the animation frame would stall the screenshot): the frame that landed the camera is on screen by then;
+      // settleMs waits further, so a slow software-GL frame has been drawn at the hold point before the page is frozen
       setTimeout(() => {
+        // where the unit under the lens stands on screen: its models, projected through the real camera
+        const g = w.__mallet.useGameStore.getState().state
+        const proj = (window as unknown as { __malletProject?: (x: number, y: number, z: number) => { x: number; y: number } }).__malletProject
+        if (g && proj) {
+          let best: { d: number; models: string[] } | null = null
+          for (const u of Object.values(g.units)) {
+            if (u.location !== 'board') continue
+            const pts = u.models.map((m) => g.models[m]?.pos).filter(Boolean) as { x: number; z: number }[]
+            if (!pts.length) continue
+            const d = Math.hypot(pts.reduce((a, q) => a + q.x, 0) / pts.length - pose.tg[0], pts.reduce((a, q) => a + q.z, 0) / pts.length - pose.tg[2])
+            if (!best || d < best.d) best = { d, models: u.models }
+          }
+          if (best) entry.frame = { w: window.innerWidth, h: window.innerHeight, dist: best.d, models: best.models.map((m) => proj(g.models[m]!.pos.x, 0.8, g.models[m]!.pos.z)) }
+        }
         // eslint-disable-next-line no-debugger
         debugger
-      }, 0)
+      }, settleMs)
     }
-  }, { count: names.length, home })
+  }, { count: names.length, home, settleMs })
   return {
     /** the poses the page was frozen at, in order */
-    frozen: () => page.evaluate(() => (window as unknown as { __caught: { p: V3; tg: V3 }[] }).__caught),
+    frozen: () => page.evaluate(() => (window as unknown as { __caught: { p: V3; tg: V3; frame?: Frame }[] }).__caught),
     /** every director flight's end, in order: where the lens and its target were */
-    arrivals: () => page.evaluate(() => (window as unknown as { __arrivals: { arrived: boolean; p: V3; tg: V3 }[] }).__arrivals),
+    arrivals: () => page.evaluate(() => (window as unknown as { __arrivals: { arrived: boolean; p: V3; tg: V3; t: number }[] }).__arrivals),
+  }
+}
+
+/** A click on the board while the camera is away on a bot visit takes the camera from the director (and the placement misses the zone), so wait until it is home. */
+async function waitCameraHome(page: Page, home: V3, ms = 20_000) {
+  const until = Date.now() + ms
+  while (Date.now() < until) {
+    const v = await getView(page)
+    if (v && dist3(v.p, home) < 1.5) return
+    await page.waitForTimeout(100)
   }
 }
 
@@ -154,6 +182,7 @@ test('(i) bot deployment: the camera visits each unit the bot sets up and return
     const s = await snap(page)
     if (s.phase !== 'setup' && s.phase !== 'deployment') break
     if (s.pending?.kind === 'deployUnit' && s.pending.player === humanSeat) {
+      await waitCameraHome(page, v0.p)
       await deployHumanUnit(page, cam, humanSeat)
       continue
     }
@@ -357,4 +386,241 @@ test('(iv) the bot\'s own volley gets the same shoulder view and close-up, and t
   expect(got.length, 'the bot volley sent the camera away from the player view').toBeGreaterThan(0)
   expect(dist3(end.p, home.p), 'camera back at the player view after the bot volley').toBeLessThan(0.5)
   expect(errors).toEqual([])
+})
+
+// ------------------------------------------------------------------------------------------ HUD vs. presentation
+
+interface HudSample { t: number; livePhase: string; liveRound: number; chip: string | null; prompt: number; resolving: boolean; endDisabled: boolean | null; away: boolean }
+
+/** Samples, every 40ms, what the store says (live) next to what the HUD shows. */
+async function installHudSampler(page: Page, home: V3) {
+  await page.evaluate((home) => {
+    const w = window as unknown as PageWin & { __hud?: HudSample[] }
+    w.__hud = []
+    setInterval(() => {
+      const g = w.__mallet.useGameStore.getState() as unknown as { state: { phase: string; round: number } | null }
+      if (!g.state) return
+      const chips = [...document.querySelectorAll<HTMLElement>('[data-testid^="phase-chip-"]')]
+      const bg = chips.map((c) => getComputedStyle(c).backgroundColor)
+      const counts = new Map<string, number>()
+      for (const b of bg) counts.set(b, (counts.get(b) ?? 0) + 1)
+      const plain = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
+      const active = chips.length > 1 ? chips.find((_, i) => bg[i] !== plain) : chips[0]
+      const v = w.__malletCameraView?.()
+      const end = document.querySelector<HTMLButtonElement>('[data-testid="btn-end-phase"]')
+      w.__hud!.push({
+        t: performance.now(),
+        livePhase: g.state.phase,
+        liveRound: g.state.round,
+        chip: active ? active.getAttribute('data-testid')!.replace('phase-chip-', '') : null,
+        prompt: [...document.querySelectorAll('[data-testid^="prompt-option-"]')].filter((e) => (e as HTMLElement).offsetParent !== null).length,
+        resolving: !!document.querySelector('[data-testid="prompt-resolving"]'),
+        endDisabled: end ? end.disabled : null,
+        away: !!v && Math.hypot(v.position[0] - home[0], v.position[1] - home[1], v.position[2] - home[2]) > 2,
+      })
+    }, 40)
+  }, home)
+}
+
+declare global { interface Window { __hud?: HudSample[] } }
+
+test('(v) during a volley the HUD still shows the Shooting phase and the next phase prompt waits', async ({ page }) => {
+  test.setTimeout(4 * 60_000)
+  mkdirSync(SHOTS, { recursive: true })
+  const errors: string[] = []
+  await openShooting(page, errors)
+  const home = (await getView(page))!
+  await installHudSampler(page, home.p)
+  await installSampler(page)
+  await clickEnemy(page, 'B:terminator-squad')
+  await expect(page.getByTestId('weapon-panel')).toBeVisible()
+  await page.keyboard.press('Enter')
+  let shotTaken = false
+  const start = Date.now()
+  let calm = 0
+  while (Date.now() - start < 90_000) {
+    const s = await page.evaluate(() => {
+      const h = window.__hud!
+      return h[h.length - 1] ?? null
+    })
+    // the volley is in flight while the camera is away from the player's view: grab the HUD there
+    if (s?.away && !shotTaken) {
+      await page.waitForTimeout(400)
+      await page.screenshot({ path: `${SHOTS}/hud-during-volley.png` })
+      shotTaken = true
+    }
+    calm = shotTaken && s && !s.away ? calm + 1 : 0
+    if (calm > 60) break
+    await page.waitForTimeout(25)
+  }
+  // ... and once the presentation has caught up the next phase shows, with its prompt (the game is never left waiting)
+  await expect.poll(() => page.evaluate(() => { const h = window.__hud!; const l = h[h.length - 1]!; return `${l.chip}/${l.prompt > 0 && !l.resolving}` }), { timeout: 30_000 }).toBe('charge/true')
+  const hud = await page.evaluate(() => window.__hud!)
+  const awake = hud.filter((h) => h.away)
+  const timeline = hud.filter((h, i) => i === 0 || `${h.livePhase}|${h.chip}|${h.prompt}|${h.resolving}|${h.endDisabled}|${h.away}` !== `${hud[i - 1]!.livePhase}|${hud[i - 1]!.chip}|${hud[i - 1]!.prompt}|${hud[i - 1]!.resolving}|${hud[i - 1]!.endDisabled}|${hud[i - 1]!.away}`).map((h) => `${Math.round(h.t - hud[0]!.t)} live=${h.livePhase} chip=${h.chip} prompt=${h.prompt} resolving=${h.resolving} endDisabled=${h.endDisabled} away=${h.away}`)
+  console.log(timeline.join('\n'))
+  console.log(JSON.stringify({ n: hud.length, away: awake.length, phases: [...new Set(hud.map((h) => `${h.livePhase}/${h.chip}`))], last: hud[hud.length - 1], errors }, null, 2))
+  expect(shotTaken, 'the camera went out for the volley').toBe(true)
+  expect(awake.length, 'the sampler saw the camera away from the player view').toBeGreaterThan(0)
+  expect(hud.some((h) => h.livePhase !== 'shooting' && h.chip === 'shooting'), 'the engine had moved on while the HUD held the Shooting phase').toBe(true)
+  for (const h of awake) {
+    expect(h.chip, 'phase chip during the volley').toBe('shooting')
+    expect(h.prompt, 'no prompt options during the volley').toBe(0)
+    expect(h.endDisabled, 'End phase is not offered during the volley').toBe(true)
+  }
+  expect(errors).toEqual([])
+})
+
+// ------------------------------------------------------------------------------------------ last deployment visit
+
+interface DeployRun {
+  seed: string
+  sharedWith: string[]
+  /** the very last set-up was the bot's, on the board, and stands apart from its earlier units (so it has a visit of its own) */
+  lastIsOwnVisit: boolean
+  /** when the camera arrived at the very last unit (null: never did), and when it was home again after that */
+  lastUnitVisit: { at: number; homeAt: number | null } | null
+  centres: { unit: string; x: number; z: number }[]
+  visits: { t: number }[]
+  homeAfter: number[]
+  lateVisits: number
+  banner: number
+  frozen: number
+  /** the visited unit on screen at each hold */
+  frames: (Frame | undefined)[]
+  arrivals: string[]
+  errors: string[]
+}
+
+/** One whole deployment against the bot: the human sets up, the bot's units are visited, and the timeline up to the first banner is read back. */
+async function playDeployment(page: Page, seed: string): Promise<DeployRun> {
+  const errors: string[] = []
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 300)) })
+  page.on('pageerror', (e) => errors.push(`pageerror: ${e.message.slice(0, 300)}`))
+  await startBotGame(page, seed)
+  await page.waitForTimeout(3000)
+  const cam = makeCam()
+  const humanSeat = (await snap(page)).humanSeat
+  const v0 = (await getView(page))!
+  const names = Array.from({ length: 12 }, (_, i) => `visit-${i}`)
+  const caught = await freezeOnArrivals(page, names, v0.p, 400)
+  // when the first phase / turn banner shows (nothing is announced during deployment itself)
+  await page.evaluate(() => {
+    const w = window as unknown as { __banner?: number }
+    const id = setInterval(() => {
+      if (document.querySelector('[data-testid="phase-banner"]')) { w.__banner = performance.now(); clearInterval(id) }
+    }, 20)
+  })
+
+  const deadline = Date.now() + 8 * 60_000
+  while (Date.now() < deadline) {
+    const s = await snap(page)
+    if (s.phase !== 'setup' && s.phase !== 'deployment') break
+    if (s.pending?.kind === 'deployUnit' && s.pending.player === humanSeat) {
+      await waitCameraHome(page, v0.p)
+      await deployHumanUnit(page, cam, humanSeat)
+      continue
+    }
+    if (s.pending && s.pending.player !== s.botSeat) {
+      const opt = page.locator('[data-testid^="prompt-option-"]').first()
+      if (await opt.isVisible().catch(() => false)) await opt.click()
+      else if (await page.getByTestId('btn-pass').isVisible().catch(() => false)) await page.getByTestId('btn-pass').click()
+    }
+    await page.waitForTimeout(150)
+  }
+  await page.waitForFunction(() => !!(window as unknown as { __banner?: number }).__banner, null, { timeout: 150_000 })
+  // read where the bot's units were set up now: the banner opens the first command phase, before anything moves
+  const info = await page.evaluate(() => {
+    const w = window as unknown as { __banner: number; __mallet: PageWin['__mallet'] }
+    const g = w.__mallet.useGameStore.getState() as unknown as { botSeat: string; events: { type: string; seq: number; player?: string; unitId?: string; toReserves?: boolean }[]; state: { units: Record<string, { models: string[] }>; models: Record<string, { pos: { x: number; z: number } }> } }
+    const evs = g.events
+    const dep = evs.map((e, i) => ({ e, i })).filter(({ e }) => e.type === 'UnitDeployed')
+    const last = dep[dep.length - 1]
+    const centres = dep
+      .filter(({ e }) => e.player === g.botSeat && !e.toReserves)
+      .map(({ e }) => {
+        const pts = g.state.units[e.unitId!]!.models.map((m) => g.state.models[m]!.pos)
+        return { unit: e.unitId!, x: pts.reduce((a, p) => a + p.x, 0) / pts.length, z: pts.reduce((a, p) => a + p.z, 0) / pts.length }
+      })
+    // the events that share the step of the very last set-up, when that was the bot's
+    const sharedWith = last && last.e.player === g.botSeat ? evs.slice(last.i + 1).filter((e) => e.seq === last.e.seq).map((e) => e.type) : []
+    const lastC = last && last.e.player === g.botSeat && !last.e.toReserves ? centres[centres.length - 1] : undefined
+    const lastIsOwnVisit = !!lastC && lastC.unit === last!.e.unitId && centres.slice(0, -1).every((c) => Math.hypot(c.x - lastC.x, c.z - lastC.z) > 4)
+    return { banner: w.__banner, centres, sharedWith, lastIsOwnVisit, lastC: lastIsOwnVisit ? lastC : null }
+  })
+  // let the whole presentation play out (a late visit would come after the banner): until the camera has been quiet for 12s
+  for (let quietSince = Date.now(), seen = -1, waited = Date.now(); Date.now() - waited < 120_000;) {
+    const n = (await caught.arrivals()).length
+    if (n !== seen) { seen = n; quietSince = Date.now() }
+    if (Date.now() - quietSince > 12_000) break
+    await page.waitForTimeout(500)
+  }
+  const arrivals = await caught.arrivals()
+  const frozen = await caught.frozen()
+  const isVisit = (r: { tg: V3 }) => info.centres.some((c) => Math.hypot(r.tg[0] - c.x, r.tg[2] - c.z) < 3)
+  const visits = arrivals.filter((r) => r.arrived && isVisit(r))
+  const lastVisit = visits[visits.length - 1]
+  const atLast = info.lastC ? arrivals.find((r) => r.arrived && Math.hypot(r.tg[0] - info.lastC!.x, r.tg[2] - info.lastC!.z) < 3) : undefined
+  const lastUnitVisit = atLast ? { at: atLast.t, homeAt: arrivals.find((r) => r.arrived && dist3(r.p, v0.p) < 3 && r.t > atLast.t)?.t ?? null } : null
+  // the last visit's screenshot: the freeze that caught the last arrival on a bot unit
+  const { copyFileSync, existsSync } = await import('node:fs')
+  const lastShot = names.slice(0, frozen.length).reverse().find((n) => existsSync(`${SHOTS}/${n}.png`))
+  if (lastShot) copyFileSync(`${SHOTS}/${lastShot}.png`, `${SHOTS}/last-deploy-visit.png`)
+  return {
+    seed,
+    sharedWith: info.sharedWith,
+    lastIsOwnVisit: info.lastIsOwnVisit,
+    lastUnitVisit,
+    centres: info.centres,
+    visits: visits.map((r) => ({ t: r.t })),
+    homeAfter: lastVisit ? arrivals.filter((r) => r.arrived && dist3(r.p, v0.p) < 3 && r.t > lastVisit.t && r.t < info.banner).map((r) => r.t) : [],
+    lateVisits: visits.filter((r) => r.t > info.banner).length,
+    banner: info.banner,
+    frozen: frozen.length,
+    frames: frozen.map((f) => f.frame),
+    arrivals: arrivals.map((r) => `${Math.round(r.t)} ${r.arrived ? 'ok' : 'cut'} tg=${r.tg.map((n) => n.toFixed(0))} ${isVisit(r) ? 'VISIT' : dist3(r.p, v0.p) < 3 ? 'HOME' : ''}`),
+    errors,
+  }
+}
+
+test('(vi) the last bot deployment is visited and the camera is home before the roll-off and the first phase banner', async ({ context }) => {
+  test.setTimeout(20 * 60_000)
+  mkdirSync(SHOTS, { recursive: true })
+  // The bug needs the bot's last set-up to be a visit of its own and to share its engine step with the turn / phase announcements;
+  // whether it does depends on the bot's army and who wins the roll-off, so seeds are tried until one does (the invariants below
+  // hold for every run either way).
+  let run: DeployRun | null = null
+  let covered = false
+  for (const seed of (process.env.CINE_SEEDS ?? 'cine-deploy-1,cine-deploy-2,cine-deploy-3,cine-deploy-4,cine-deploy-5,cine-deploy-6,cine-deploy-7,cine-deploy-8').split(',')) {
+    const page = await context.newPage()
+    run = await playDeployment(page, seed)
+    await page.close()
+    console.log(JSON.stringify({ ...run, frames: run.frames.map((f) => f && { w: f.w, h: f.h, dist: +f.dist.toFixed(1), models: f.models.map((m) => `${Math.round(m.x)},${Math.round(m.y)}`).join(' ') }), visits: run.visits.length, homeAfter: run.homeAfter.map(Math.round), banner: Math.round(run.banner) }, null, 2))
+    expect(run.centres.length, 'the bot set units up on the board').toBeGreaterThan(0)
+    expect(run.visits.length, 'the camera visited the bot\'s units').toBeGreaterThan(0)
+    expect(run.lateVisits, 'no visit plays after the first banner').toBe(0)
+    expect(run.homeAfter.length, 'the camera was back home before the first phase banner').toBeGreaterThan(0)
+    expect(run.errors).toEqual([])
+    // at every hold the visited unit is under the lens, and all of its models are on screen below the HUD strip
+    expect(run.frames.length, 'a frame was read at every hold').toBe(run.frozen)
+    for (const f of run.frames) {
+      expect(f, 'frame read').toBeTruthy()
+      expect(f!.dist, 'the unit is centred under the lens (inches from the orbit target)').toBeLessThan(1.5)
+      for (const m of f!.models) {
+        expect(m.x, 'model inside the screen (x)').toBeGreaterThan(20)
+        expect(m.x, 'model inside the screen (x)').toBeLessThan(f!.w - 20)
+        expect(m.y, 'model below the HUD strip').toBeGreaterThan(110)
+        expect(m.y, 'model above the screen bottom').toBeLessThan(f!.h - 40)
+      }
+    }
+    if (run.lastIsOwnVisit) {
+      // the bot's very last unit: its visit plays, and the camera is home again, before anything that follows it in the same step
+      expect(run.lastUnitVisit, 'the camera visited the bot\'s last unit').not.toBeNull()
+      expect(run.lastUnitVisit!.at, 'the last unit\'s visit came before the first banner').toBeLessThan(run.banner)
+      expect(run.lastUnitVisit!.homeAt, 'the camera came home after the last visit').not.toBeNull()
+      expect(run.lastUnitVisit!.homeAt!, 'and was home before the first banner').toBeLessThan(run.banner)
+    }
+    if (run.lastIsOwnVisit && run.sharedWith.some((t) => t === 'PhaseStarted' || t === 'TurnStarted')) { covered = true; break }
+  }
+  test.info().annotations.push({ type: 'shared-step case', description: covered ? `covered by seed ${run!.seed}` : 'no seed produced a bot last set-up sharing its step with the announcements' })
 })

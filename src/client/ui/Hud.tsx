@@ -5,7 +5,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { unitModels, type Action, type GameState, type Phase, type PlayerId } from '@/engine'
 import { useGameStore } from '../store/game'
-import { useDisplayState, usePresentedStore } from '../presentation/presentedStore'
+import { useCaughtUp, useDisplayState } from '../presentation/presentedStore'
 import { useUiStore } from './uiStore'
 import { modelsAnchor } from '../interaction/geometry'
 import { isPlacementDecision } from '../interaction/decisions'
@@ -454,7 +454,7 @@ export function Hud() {
   const botSeat = useGameStore((s) => s.botSeat)
   const dispatch = useGameStore((s) => s.dispatch)
   const pendingSeq = useGameStore((s) => s.pendingSeq)
-  const presentedSeq = usePresentedStore((s) => s.presentedSeq)
+  const caughtUp = useCaughtUp(pendingSeq)
   const deployTargetUnitId = useUiStore((s) => s.deployTargetUnitId)
   const [missionOpen, setMissionOpen] = useState(false)
   const { compact } = useFormFactor()
@@ -462,7 +462,7 @@ export function Hud() {
 
   if (!state) return null
   // Same gate as DecisionPrompt: no passing on a decision whose dice are still being shown.
-  const passAction = presentedSeq < pendingSeq ? null : (legal?.find((a) => a.type === 'pass') ?? null)
+  const passAction = !caughtUp ? null : (legal?.find((a) => a.type === 'pass') ?? null)
   const thinking = !!pending && pending.player === botSeat
   if (compact) return <CompactHud state={state} passAction={passAction} thinking={thinking} dispatch={dispatch} />
   const scoringHint = primaryScoringWindowHint(state.mission.data)

@@ -13,7 +13,7 @@ import { Figure, type FigureAction } from '../figures'
 import { requestFrame } from '../figures/anim'
 import { SelectionRing, TargetRing, LosMarker } from '../board'
 import { useGameStore } from '../store/game'
-import { useDisplayState } from '../presentation/presentedStore'
+import { useCaughtUp, useDisplayState } from '../presentation/presentedStore'
 import { useUiStore } from '../ui/uiStore'
 import { useCueStore } from '../presentation'
 import { clickableUnitIds, opensWeaponPanel, unitClickAction } from './decisions'
@@ -154,6 +154,7 @@ const UnitModel = memo(function UnitModel(p: UnitModelProps) {
 export function UnitsLayer() {
   const state = useDisplayState()
   const pending = useGameStore((s) => s.pending)
+  const caughtUp = useCaughtUp(useGameStore((s) => s.pendingSeq))
   const legal = useGameStore((s) => s.legal)
   const botSeat = useGameStore((s) => s.botSeat)
   const dispatch = useGameStore((s) => s.dispatch)
@@ -180,7 +181,7 @@ export function UnitsLayer() {
 
   if (!state) return null
 
-  const interactive = !!pending && pending.player !== botSeat
+  const interactive = caughtUp && !!pending && pending.player !== botSeat
   const clickable = pending ? clickableUnitIds(pending) : new Set<string>()
   const units = Object.values(state.units).filter((u) => u.location === 'board')
 
