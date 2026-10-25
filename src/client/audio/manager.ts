@@ -48,6 +48,9 @@ function randomBetween([min, max]: [number, number]): number {
   return min + Math.random() * (max - min)
 }
 
+/** Events that count as a user activation somewhere (iOS: touchend / pointerup / click; desktop: pointerdown / keydown). */
+const GESTURES = ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'click', 'keydown'] as const
+
 function clamp01(n: number): number {
   return Math.min(1, Math.max(0, n))
 }
@@ -76,20 +79,42 @@ export class AudioManager {
   private stingerTimer: ReturnType<typeof setTimeout> | null = null
   private lastStinger: StingerId | null = null
 
-  /** Attaches one-time listeners so the first click/tap/keypress anywhere unlocks audio. Safe to
+  /** Gestures unlock audio. iOS Safari only lets a touchend / pointerup / click resume an AudioContext (not the
+   *  touchstart / pointerdown that comes first), and suspends it again after a call or a trip to another app, so the
+   *  listeners stay attached for the whole session and every gesture retries whatever is still locked. Safe to
    *  call more than once (a no-op after the first). Call this once during app start-up. */
   attachAutoUnlock(target: EventTarget = typeof window !== 'undefined' ? window : ({} as EventTarget)): void {
     if (this.unlockListenersAttached || typeof window === 'undefined') return
     this.unlockListenersAttached = true
-    const handler = () => {
-      target.removeEventListener('pointerdown', handler)
-      target.removeEventListener('keydown', handler)
-      target.removeEventListener('touchstart', handler)
-      void this.unlock()
+    const handler = () => this.onGesture()
+    for (const type of GESTURES) target.addEventListener(type, handler, { capture: true, passive: true })
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && this.ctx && this.ctx.state !== 'running') void this.ctx.resume().catch(() => {})
+      })
     }
-    target.addEventListener('pointerdown', handler, { once: true })
-    target.addEventListener('keydown', handler, { once: true })
-    target.addEventListener('touchstart', handler, { once: true })
+  }
+
+  /** Runs synchronously inside the gesture: resume() and a silent buffer must start within the user activation. */
+  private onGesture(): void {
+    this.ensureContext()
+    const ctx = this.ctx
+    if (!ctx) return
+    if (ctx.state !== 'running') {
+      try {
+        const blip = ctx.createBufferSource()
+        blip.buffer = ctx.createBuffer(1, 1, 22050)
+        blip.connect(ctx.destination)
+        blip.start(0)
+      } catch {
+        // the resume below is what matters
+      }
+      void ctx.resume().then(() => this.syncUnlocked(), () => {})
+      return
+    }
+    this.syncUnlocked()
+    // the ambient loop or a stinger refused by an earlier autoplay block: a gesture is the moment to retry it
+    if (this.ambientWanted && this.ambientEl?.paused) void this.ambientEl.play().catch(() => {})
   }
 
   /** Creates/resumes the AudioContext and starts the ambient loop if one was requested before
@@ -97,15 +122,21 @@ export class AudioManager {
    *  "tap to enable sound" button can call it directly from a click handler. */
   async unlock(): Promise<void> {
     if (!this.ctx) this.ensureContext()
-    if (this.ctx && this.ctx.state === 'suspended') {
+    if (this.ctx && this.ctx.state !== 'running') {
       try {
         await this.ctx.resume()
       } catch {
         // some browsers reject resume() outside a "fresh" gesture — the next real click will retry
       }
     }
+    this.syncUnlocked()
+  }
+
+  /** Follows the context's state: on the way to running it preloads the short sounds and starts the ambient loop. */
+  private syncUnlocked(): void {
+    const was = this.unlocked
     this.unlocked = this.ctx?.state === 'running'
-    if (this.unlocked) {
+    if (this.unlocked && !was) {
       this.preload(SFX_IDS)
       this.preload(VOICE_IDS)
       if (this.ambientWanted) this.startAmbientPlayback()
@@ -116,7 +147,19 @@ export class AudioManager {
     if (this.ctx || typeof window === 'undefined') return
     const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
     if (!Ctor) return
-    this.ctx = new Ctor()
+    // iOS: the 'playback' session plays through the ring / silent switch (the default session is muted by it)
+    try {
+      const session = (navigator as unknown as { audioSession?: { type: string } }).audioSession
+      if (session) session.type = 'playback'
+    } catch {
+      // not supported: older Safari keeps the default session
+    }
+    try {
+      this.ctx = new Ctor()
+    } catch {
+      return
+    }
+    this.ctx.onstatechange = () => this.syncUnlocked()
     this.masterGain = this.ctx.createGain()
     this.masterGain.connect(this.ctx.destination)
     for (const channel of ['sfx', 'voice', 'music'] as const) {
