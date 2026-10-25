@@ -16,6 +16,7 @@ import { updateMoveHover } from './moveHover'
 import { liftToPlane, nudgeY } from './floors'
 import { snapOversizeDeployPlacements } from './formationValidation'
 import { combinedUnitModels } from './geometry'
+import { beginDeployDrag, canPreviewDeploy, isDeployDragging, liftDeployDrag } from './deployDrag'
 
 const CLICK_MAX_DRAG_IN = 0.4
 
@@ -60,6 +61,13 @@ export function useBoardClick(onClick: (point: { x: number; z: number }) => void
       }
       if (kind === 'move') {
         applyNudge(point)
+        // mouse press-and-drag while placing a deployUnit unit: the formation follows the pointer (touch drags arrive
+        // as 'hover' events instead, see Board.tsx); the lift below stages it
+        const start = down.current
+        if (start && !useUiStore.getState().nudge && canPreviewDeploy() && (isDeployDragging() || Math.hypot(point.x - start.x, point.z - start.z) > CLICK_MAX_DRAG_IN)) {
+          beginDeployDrag()
+          updateMoveHover(point)
+        }
         return
       }
       if (kind === 'down') {
@@ -76,6 +84,13 @@ export function useBoardClick(onClick: (point: { x: number; z: number }) => void
       }
       const start = down.current
       down.current = null
+      if (isDeployDragging()) {
+        // a drag leaves the formation staged as the draft where it was dropped; Confirm in the prompt commits it
+        updateMoveHover(null)
+        useUiStore.getState().selectUnit(null)
+        liftDeployDrag(point)
+        return
+      }
       if (!start) return
       if (Math.hypot(point.x - start.x, point.z - start.z) <= CLICK_MAX_DRAG_IN) onClick(point)
     },

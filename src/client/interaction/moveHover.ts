@@ -8,6 +8,7 @@ import { useGameStore } from '../store/game'
 import { useUiStore } from '../ui/uiStore'
 import { clampMoveDraft, isClampedMovePending } from './moveClamp'
 import { commitStagedDraft } from './commitDraft'
+import { cancelDeployPreview, canPreviewDeploy, isDeployDragging, updateDeployPreview } from './deployDrag'
 
 const HOVER_INTERVAL_MS = 33
 /** A second click this close to the staged destination commits it. */
@@ -21,6 +22,13 @@ function run(point: { x: number; z: number }) {
   lastRun = performance.now()
   const { state, pending, botSeat } = useGameStore.getState()
   const ui = useUiStore.getState()
+  // deployUnit (setup and reserves arrival): the same pointer stream drives the formation preview
+  if (state && pending && pending.kind === 'deployUnit' && pending.player !== botSeat) {
+    if (ui.movePreview) ui.setMovePreview(null)
+    if (canPreviewDeploy()) updateDeployPreview(point)
+    else cancelDeployPreview()
+    return
+  }
   const staged = !!pending && ui.draft?.decisionId === pending.id
   if (!state || !pending || pending.player === botSeat || !isClampedMovePending(pending) || staged || ui.nudge || ui.measureOn) {
     if (ui.movePreview) ui.setMovePreview(null)
@@ -43,6 +51,8 @@ export function updateMoveHover(point: { x: number; z: number } | null): void {
   }
   if (!point) {
     useUiStore.getState().setMovePreview(null)
+    // a finger sliding over a figure fires a pointer-out on the mat mid-drag: that must not drop the formation
+    if (!isDeployDragging()) cancelDeployPreview()
     return
   }
   const wait = HOVER_INTERVAL_MS - (performance.now() - lastRun)

@@ -25,6 +25,7 @@ import { useUiStore, type MeasureLine, type PlacementDraft } from '../ui/uiStore
 import { isMultiTouchActive } from '../board/touchCamera'
 import { isClampedMovePending } from './moveClamp'
 import { updateMoveHover } from './moveHover'
+import { beginDeployDrag, canPreviewDeploy, cancelDeployPreview, isDeployDragging, liftDeployDrag } from './deployDrag'
 
 export const DRAG_PX = 10
 export const LONG_PRESS_MS = 450
@@ -107,10 +108,12 @@ export function groundPointAt(camera: THREE.Camera, el: HTMLElement, clientX: nu
   return ray.ray.intersectPlane(groundPlane, hit) ? { x: hit.x, z: hit.z } : null
 }
 
-/** Whether a ground drag should drive the hover-style move preview (a clamped move is pending for the local player). */
+/** Whether a ground drag should drive the hover-style preview: a clamped move, or a unit being placed by a
+ *  deployUnit decision (setup / reserves arrival), is pending for the local player. */
 export function canPreviewDrag(): boolean {
   const { pending, botSeat } = useGameStore.getState()
   const ui = useUiStore.getState()
+  if (canPreviewDeploy()) return true
   return !!pending && pending.player !== botSeat && isClampedMovePending(pending) && !ui.nudge && !ui.measureOn
 }
 
@@ -118,6 +121,12 @@ export function canPreviewDrag(): boolean {
 export function beginPreviewDrag(g: TouchGesture): void {
   if (g.previewDrag) return
   g.previewDrag = true
+  if (canPreviewDeploy()) {
+    // a deployment drag leaves the staged draft in place (hidden under the live preview) until the lift replaces it,
+    // so cancelling the gesture with a second finger needs no restoring
+    beginDeployDrag()
+    return
+  }
   const ui = useUiStore.getState()
   if (ui.draft) ui.setDraft(null)
 }
@@ -133,6 +142,7 @@ export function cancelOneFinger(): void {
   if (ui.nudge) ui.clearNudge()
   if (ui.draft !== g.preDraft) ui.setDraft(g.preDraft)
   updateMoveHover(null)
+  cancelDeployPreview()
   ui.setMovePreview(null)
   if (ui.measureOn) {
     ui.setMeasureAnchor(g.preMeasureAnchor)
@@ -167,7 +177,7 @@ function longPress(): void {
  * Installs the native listeners for `canvas`. Capture-phase on document/window so they run before
  * react-three-fiber's own handlers for the same event. Returns a cleanup function.
  */
-export function installTouchGestures(canvas: HTMLElement): () => void {
+export function installTouchGestures(canvas: HTMLElement, camera?: THREE.Camera): () => void {
   const onDown = (e: PointerEvent) => {
     if (e.pointerType !== 'touch' || e.target !== canvas) return
     suppressClick = false
@@ -207,6 +217,14 @@ export function installTouchGestures(canvas: HTMLElement): () => void {
       if (g.timer) clearTimeout(g.timer)
       g.timer = null
     }
+    // Placing a unit (setup / reserves arrival): the formation follows the finger from this native stream, not from
+    // react-three-fiber's pointer events, so it keeps following when the fingertip (60px below the formation) slides
+    // off the mat — a zone along the near board edge would otherwise lose the finger exactly where it is needed.
+    if (g.dragged && !g.cancelled && camera && canPreviewDeploy() && !isMultiTouchActive()) {
+      beginPreviewDrag(g)
+      const p = groundPointAt(camera, canvas, g.x, g.y, liftFor(g))
+      if (p) updateMoveHover(p)
+    }
   }
   const onUp = (e: PointerEvent) => {
     const g = gesture
@@ -216,6 +234,15 @@ export function installTouchGestures(canvas: HTMLElement): () => void {
     if (g.timer) clearTimeout(g.timer)
     g.timer = null
     if (e.type === 'pointercancel') cancelOneFinger()
+    else if (!g.cancelled && g.previewDrag && camera && isDeployDragging()) {
+      // the lift stages the formation where it hovers as the draft; it never deploys (Confirm in the prompt commits)
+      const p = groundPointAt(camera, canvas, g.x, g.y, liftFor(g))
+      updateMoveHover(null)
+      useUiStore.getState().selectUnit(null)
+      if (p) liftDeployDrag(p)
+      else cancelDeployPreview()
+      g.previewDrag = false
+    }
     g.ended = true
     if (suppressClick) endSuppressLater()
     // R3F's pointerup handlers run later in this same dispatch; drop the gesture afterwards.

@@ -10,7 +10,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useThree, type ThreeEvent } from '@react-three/fiber'
 import { Html, Line } from '@react-three/drei'
-import { enemyModelsOnBoard, dist2D, type Model, type UnitId } from '@/engine'
+import { DoubleSide } from 'three'
+import { enemyModelsOnBoard, dist2D, type Model, type ModelBase } from '@/engine'
 import { EngagementRing, MoveRangeRing, Ruler } from '../board'
 import { isSpaceHeld } from '../board/cameraModifiers'
 import { useGameStore } from '../store/game'
@@ -23,6 +24,8 @@ import { validateDraft, type CoherencyLink } from './formationValidation'
 import { fightersAfter, isApproachPending, validateApproach } from './approachDraft'
 import { takeWholeUnit } from './touchGesture'
 import { getFormFactor } from '../ui/formFactor'
+import { boundRadius, ellipseGeometry, grabRadius, markerYaw, ringOuter } from './baseMarker'
+import { GhostFigure, ghostSpecs, type GhostSpec } from './GhostFigure'
 
 const OK_COLOR = '#f5d95a'
 const BLOCKED_COLOR = colors.danger
@@ -38,11 +41,8 @@ const FIGHT_COLOR = '#ff9a2e'
  *  an attached leader riding a hair ahead/behind its bodyguard) still reads as one rank. */
 const FRONT_RANK_TOLERANCE_IN = 0.6
 
-/** Slightly bigger than the visible ring so a nudge-drag is easy to grab without needing pixel
- *  precision — invisible, pointer-events only. */
-const GRAB_RADIUS = 0.85
-/** A fingertip is far blurrier than a cursor: the invisible grab disc is bigger on touch screens. */
-const GRAB_RADIUS_TOUCH = 1.25
+/** Width of a base outline ring, inches. */
+const RING_WIDTH_IN = 0.15
 
 function CoherencyLinks({ links }: { links: CoherencyLink[] }) {
   return (
@@ -91,6 +91,50 @@ function FacingChevron({ anchor, facing, aheadIn, color }: { anchor: { x: number
   return <Line points={[left, apex, right]} color={color} lineWidth={2.5} transparent opacity={0.9} />
 }
 
+/** A flat base-shaped marker at `pos`: the base outline (ring just inside its edge) with a translucent fill, drawn at
+ *  the model's real size and shape. Ovals are rotated with the model's facing. `outset` > 0 draws a halo ring that
+ *  many inches beyond the base edge instead (front-rank / fight rings). */
+function BaseMarker({
+  base,
+  pos,
+  facing,
+  color,
+  opacity,
+  fill = 0,
+  outset = 0,
+  width = RING_WIDTH_IN,
+  lift = 0.07,
+}: {
+  base: ModelBase
+  pos: { x: number; y?: number; z: number }
+  facing?: number
+  color: string
+  opacity: number
+  /** opacity of the translucent disc inside the outline (0 = none) */
+  fill?: number
+  outset?: number
+  width?: number
+  lift?: number
+}) {
+  const { rx, rz } = ringOuter(base, outset)
+  const ring = ellipseGeometry(rx, rz, width)
+  const disc = fill > 0 ? ellipseGeometry(rx, rz, 0) : null
+  return (
+    <group position={[pos.x, (pos.y ?? 0) + lift, pos.z]} rotation={[0, markerYaw(facing), 0]}>
+      {disc && (
+        <mesh geometry={disc} position={[0, -0.01, 0]} renderOrder={1}>
+          <meshBasicMaterial color={color} transparent opacity={fill} depthWrite={false} side={DoubleSide} />
+        </mesh>
+      )}
+      <mesh geometry={ring} renderOrder={2}>
+        <meshBasicMaterial color={color} transparent opacity={opacity} depthWrite={false} side={DoubleSide} />
+      </mesh>
+    </group>
+  )
+}
+
+const FALLBACK_BASE: ModelBase = { shape: 'round', radius: 0.6 }
+
 function DraftMarkers({
   placements,
   perModel,
@@ -101,10 +145,12 @@ function DraftMarkers({
   anchor,
   facing,
   fighting,
+  models,
+  figures,
 }: {
   /** Models that would be able to fight from where they stand in this draft — drawn with an orange ring + sword mark. */
   fighting?: ReadonlySet<string>
-  placements: { modelId: string; pos: { x: number; y?: number; z: number } }[]
+  placements: { modelId: string; pos: { x: number; y?: number; z: number }; facing?: number }[]
   perModel?: Record<string, string[]>
   color?: string
   opacity?: number
@@ -115,7 +161,14 @@ function DraftMarkers({
    *  shape) reads as "this way, point/front here" at a glance instead of a flat field of rings. */
   anchor?: { x: number; z: number }
   facing?: number
+  /** The drafted models: their real bases size every marker (round or oval). */
+  models: readonly Model[]
+  /** Figure inputs per model id; when given (not low graphics) each placement also shows a translucent ghost figure. */
+  figures?: Record<string, GhostSpec> | null
 }) {
+  const baseOf = useMemo(() => new Map(models.map((m) => [m.id, m.base])), [models])
+  const modelOf = useMemo(() => new Map(models.map((m) => [m.id, m])), [models])
+  const touch = getFormFactor().touch
   const front = useMemo(() => {
     if (facing === undefined || !anchor || placements.length === 0) return null
     const fx = Math.cos(facing)
@@ -127,39 +180,38 @@ function DraftMarkers({
     }
     return { max, fx, fz }
   }, [placements, anchor, facing])
+  // the chevron has to clear the biggest base in the formation, not the old fixed 0.6" ring
+  const reach = useMemo(() => placements.reduce((r, p) => Math.max(r, boundRadius(baseOf.get(p.modelId) ?? FALLBACK_BASE)), 0), [placements, baseOf])
 
   return (
     <>
-      {front && anchor && facing !== undefined && <FacingChevron anchor={anchor} facing={facing} aheadIn={Math.max(front.max, 0)} color={CHEVRON_COLOR} />}
+      {front && anchor && facing !== undefined && (
+        <FacingChevron anchor={anchor} facing={facing} aheadIn={Math.max(front.max, 0) + Math.max(0, reach - 0.6)} color={CHEVRON_COLOR} />
+      )}
       {placements.map((p) => {
         const blocked = !!perModel?.[p.modelId]?.length
+        const base = baseOf.get(p.modelId) ?? FALLBACK_BASE
+        const model = modelOf.get(p.modelId)
+        const f = p.facing ?? model?.facing ?? 0
+        const y = p.pos.y ?? 0
         const isFrontRank = !!front && (p.pos.x - anchor!.x) * front.fx + (p.pos.z - anchor!.z) * front.fz > front.max - FRONT_RANK_TOLERANCE_IN
+        const spec = figures?.[p.modelId]
         return (
           <group key={p.modelId}>
-            {isFrontRank && !blocked && (
-              <mesh position={[p.pos.x, (p.pos.y ?? 0) + 0.065, p.pos.z]} rotation={[-Math.PI / 2, 0, 0]}>
-                <ringGeometry args={[0.62, 0.74, 24]} />
-                <meshBasicMaterial color={FRONT_RANK_COLOR} transparent opacity={0.55} />
-              </mesh>
-            )}
+            {spec && <GhostFigure spec={spec} modelId={p.modelId} x={p.pos.x} y={y} z={p.pos.z} facing={f} bad={blocked} />}
+            {isFrontRank && !blocked && <BaseMarker base={base} pos={p.pos} facing={f} color={FRONT_RANK_COLOR} opacity={0.55} outset={0.15} width={0.12} lift={0.065} />}
             {fighting?.has(p.modelId) && !blocked && (
               <>
-                <mesh position={[p.pos.x, (p.pos.y ?? 0) + 0.075, p.pos.z]} rotation={[-Math.PI / 2, 0, 0]}>
-                  <ringGeometry args={[0.66, 0.82, 24]} />
-                  <meshBasicMaterial color={FIGHT_COLOR} transparent opacity={0.95} />
-                </mesh>
-                <Html zIndexRange={[5, 0]} position={[p.pos.x, (p.pos.y ?? 0) + 0.9, p.pos.z]} center style={{ pointerEvents: 'none', fontSize: 13, lineHeight: 1, color: FIGHT_COLOR, textShadow: '0 0 3px #000' }}>
+                <BaseMarker base={base} pos={p.pos} facing={f} color={FIGHT_COLOR} opacity={0.95} outset={0.22} width={0.16} lift={0.075} />
+                <Html zIndexRange={[5, 0]} position={[p.pos.x, y + 0.9, p.pos.z]} center style={{ pointerEvents: 'none', fontSize: 13, lineHeight: 1, color: FIGHT_COLOR, textShadow: '0 0 3px #000' }}>
                   ⚔
                 </Html>
               </>
             )}
-            <mesh position={[p.pos.x, (p.pos.y ?? 0) + 0.07, p.pos.z]} rotation={[-Math.PI / 2, 0, 0]}>
-              <ringGeometry args={[0.45, 0.6, 24]} />
-              <meshBasicMaterial color={blocked ? BLOCKED_COLOR : color} transparent opacity={isFrontRank ? Math.min(1, opacity + 0.15) : opacity} />
-            </mesh>
+            <BaseMarker base={base} pos={p.pos} facing={f} color={blocked ? BLOCKED_COLOR : color} opacity={isFrontRank ? Math.min(1, opacity + 0.15) : opacity} fill={blocked ? 0.28 : 0.16} />
             {onModelPointerDown && (
               <mesh
-                position={[p.pos.x, (p.pos.y ?? 0) + 0.07, p.pos.z]}
+                position={[p.pos.x, y + 0.07, p.pos.z]}
                 rotation={[-Math.PI / 2, 0, 0]}
                 onPointerDown={(e) => {
                   e.stopPropagation()
@@ -175,7 +227,8 @@ function DraftMarkers({
                   if (e.pointerType !== 'touch') onHover?.(null)
                 }}
               >
-                <circleGeometry args={[getFormFactor().touch ? GRAB_RADIUS_TOUCH : GRAB_RADIUS, 16]} />
+                {/* never smaller than the base itself, however big the model */}
+                <circleGeometry args={[grabRadius(base, touch), 24]} />
                 {/* transparent+opacity 0 (not visible=false) — R3F skips raycasting on invisible
                     objects, which would silently kill the drag/hover handlers above */}
                 <meshBasicMaterial transparent opacity={0} depthWrite={false} />
@@ -194,6 +247,7 @@ export function PlacementOverlay() {
   const botSeat = useGameStore((s) => s.botSeat)
   const draft = useUiStore((s) => s.draft)
   const previewDraft = useUiStore((s) => s.previewDraft)
+  const deployPreview = useUiStore((s) => s.deployPreview)
   const deployTargetUnitId = useUiStore((s) => s.deployTargetUnitId)
   const startNudge = useUiStore((s) => s.startNudge)
   cameraRef.current = useThree((s) => s.camera).position // useBoardClick lifts nudge drags onto a ruin floor's plane with it
@@ -242,22 +296,27 @@ export function PlacementOverlay() {
   }
 
   if (pending.kind === 'deployUnit') {
-    if (!deployTargetUnitId || activeDraft?.unitId !== deployTargetUnitId) return null
+    // a live pointer/drag preview (deployDrag.ts) stands in for the staged draft while it is up
+    const live = deployPreview && deployPreview.decisionId === pending.id && deployPreview.unitId === deployTargetUnitId ? deployPreview : null
+    const shown = live ?? (activeDraft?.unitId === deployTargetUnitId ? activeDraft : null)
+    if (!deployTargetUnitId || !shown) return null
     const models = combinedUnitModels(state, deployTargetUnitId)
     const exclude = combinedUnitIds(state, deployTargetUnitId)
-    const result = validateDraft(state, models, activeDraft.placements, null, exclude, true)
+    const result = validateDraft(state, models, shown.placements, null, exclude, true)
     return (
       <group>
         <CoherencyLinks links={result.links} />
         <DraftMarkers
-          placements={activeDraft.placements}
+          placements={shown.placements}
           perModel={result.perModel}
-          onModelPointerDown={(e, modelId) => beginNudge(e, modelId, activeDraft.placements)}
+          onModelPointerDown={live ? undefined : (e, modelId) => beginNudge(e, modelId, shown.placements)}
           onHover={setHoveredModelId}
-          anchor={activeDraft.anchor}
-          facing={activeDraft.placements[0]?.facing}
+          anchor={shown.anchor}
+          facing={shown.placements[0]?.facing}
+          models={models}
+          figures={ghostSpecs(state, models)}
         />
-        {hoveredModelId && <ReasonLabel modelId={hoveredModelId} placements={activeDraft.placements} perModel={result.perModel} />}
+        {hoveredModelId && !live && <ReasonLabel modelId={hoveredModelId} placements={shown.placements} perModel={result.perModel} />}
       </group>
     )
   }
@@ -303,6 +362,8 @@ export function PlacementOverlay() {
             anchor={unitDraft.anchor}
             facing={approach ? undefined : unitDraft.placements[0]?.facing}
             fighting={fighting}
+            models={models}
+            figures={ghostSpecs(state, models)}
           />
           {hoveredModelId && result.perModel[hoveredModelId]?.length ? (
             <ReasonLabel modelId={hoveredModelId} placements={unitDraft.placements} perModel={result.perModel} />
@@ -323,6 +384,8 @@ export function PlacementOverlay() {
           opacity={0.5}
           anchor={placementsCentroid(ghost.placements)}
           facing={ghost.placements[0]?.facing}
+          models={models}
+          figures={ghostSpecs(state, models)}
         />
       )}
     </group>

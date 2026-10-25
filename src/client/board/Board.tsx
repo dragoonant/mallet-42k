@@ -9,6 +9,7 @@ import { useUiStore } from '../ui/uiStore'
 import { useGameStore } from '../store/game'
 import { isMultiTouchActive, onMultiTouchStart } from './touchCamera'
 import { handleMoveTap } from '../interaction/touchMoveTap'
+import { canPreviewDeploy } from '../interaction/deployDrag'
 import { beginPreviewDrag, cancelOneFinger, canPreviewDrag, getGesture, groundPointAt, installTouchGestures, liftFor, type TouchGesture } from '../interaction/touchGesture'
 import { SIDE_COLOR, type DeploymentZones, type PlayerId } from './types'
 
@@ -87,17 +88,18 @@ export function Board({ width: widthProp, depth: depthProp, deploymentZones, att
   const defender: PlayerId = attacker === 'A' ? 'B' : 'A'
   const dragging = useRef(false)
   const dom = useThree((s) => s.gl.domElement)
+  const camera = useThree((s) => s.camera)
 
   // Phone layout: one finger belongs to the game (touchGesture.ts tracks it natively); a second finger
   // hands the touches to the camera and cancels whatever the first one was doing.
   useEffect(() => {
-    const off = installTouchGestures(dom)
+    const off = installTouchGestures(dom, camera)
     const offMulti = onMultiTouchStart(cancelOneFinger)
     return () => {
       off()
       offMulti()
     }
-  }, [dom])
+  }, [dom, camera])
 
   const zoneGeometries = useMemo(() => {
     if (!deploymentZones) return null
@@ -130,6 +132,9 @@ export function Board({ width: widthProp, depth: depthProp, deploymentZones, att
       if (!g.dragged) return
       if (ui.measureOn) return onBoardPointer(raw, 'move')
       if (ui.nudge) return onBoardPointer(lifted(), 'move')
+      // placing a unit (setup / reserves): touchGesture.ts drives that preview from the native finger stream, so it also
+      // follows a fingertip that has slid off the mat (the formation rides 60px above the finger)
+      if (canPreviewDeploy()) return
       if (canPreviewDrag()) {
         beginPreviewDrag(g)
         return onBoardPointer(lifted(), 'hover')

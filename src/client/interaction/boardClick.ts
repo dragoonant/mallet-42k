@@ -250,8 +250,12 @@ export function computeBoardClickDraft(
   pending: PendingDecision,
   deployTargetUnitId: string | null,
   point: { x: number; z: number },
+  /** `preview`: a live drag/hover preview, not a commit. Skips the heavy "hunt for an open spot" searches (a click
+   *  still runs them) and never touches the formation picker, so it is cheap enough to run on every pointer move. */
+  opts?: { preview?: boolean },
 ): PlacementDraft | null {
   const ui = useUiStore.getState()
+  const preview = !!opts?.preview
 
   if (pending.kind === 'deployUnit') {
     if (!deployTargetUnitId || !pending.context.unitIds.includes(deployTargetUnitId)) return null
@@ -305,7 +309,15 @@ export function computeBoardClickDraft(
     clamped = { ...clamped, placements: snapOversizeDeployPlacements(state, models, clamped.placements) }
     if (models.length === 1) clamped = { ...clamped, anchor: { x: clamped.placements[0].pos.x, z: clamped.placements[0].pos.z } }
     // Crowded strip: the clamped draft overlaps a unit already deployed — hunt for the nearest spot that really fits.
-    if (!validateDraft(state, models, clamped.placements, null, combinedUnitIds(state, deployTargetUnitId), true).ok) {
+    const clampedOk = validateDraft(state, models, clamped.placements, null, combinedUnitIds(state, deployTargetUnitId), true).ok
+    if (preview && !clampedOk) {
+      // preview: show the clamped spot (red) rather than scanning the whole zone on every pointer move; only a
+      // disembark, whose ring search is cheap and nearly always what a click next to the hull means, is resolved live
+      if (pending.window === 'movement.start') {
+        const near = findDisembarkSpot(state, deployTargetUnitId, models, point, facing, kind)
+        if (near) return { decisionId: pending.id, unitId: deployTargetUnitId, anchor: near.anchor, placements: near.placements }
+      }
+    } else if (!clampedOk) {
       const open = findOpenDeploySpot(state, deployTargetUnitId, models, point, clamped.facing, clamped.kind, pending.context.zone)
       if (open) clamped = open
       else if (state.phase === 'movement') {
@@ -321,8 +333,10 @@ export function computeBoardClickDraft(
         }
       }
     }
-    if (clamped.facing !== facing || ui.formationFacingAuto) ui.setFormationFacing(clamped.facing, true)
-    if (clamped.kind !== kind) ui.setFormationKind(clamped.kind)
+    if (!preview) {
+      if (clamped.facing !== facing || ui.formationFacingAuto) ui.setFormationFacing(clamped.facing, true)
+      if (clamped.kind !== kind) ui.setFormationKind(clamped.kind)
+    }
     return { decisionId: pending.id, unitId: deployTargetUnitId, anchor: clamped.anchor, placements: clamped.placements }
   }
 
