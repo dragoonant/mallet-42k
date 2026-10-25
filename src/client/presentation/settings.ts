@@ -39,10 +39,12 @@ export interface PresentationSettings {
   lowGraphics: boolean
   /** Distant artillery flashes and flares around the board (board/BattlefieldAmbience.tsx). Forced off by lowGraphics. */
   battlefieldAmbience: boolean
+  /** Cinematic camera: a shot flies behind the firing unit and closes on each target, a bot's deployment is visited, then the camera returns to the player's view (presentation/shotCamera.ts, deployCamera.ts). */
+  cinematicCamera: boolean
 }
 
 const STORAGE_KEY = 'mallet42k:presentation-settings'
-const DEFAULTS: PresentationSettings = { animSpeed: 'normal', diceStyle: 'tray', diceOn: true, ambientOn: true, commandRerollSetting: 'onlyWhenItMatters', lowGraphics: false, battlefieldAmbience: true }
+const DEFAULTS: PresentationSettings = { animSpeed: 'normal', diceStyle: 'tray', diceOn: true, ambientOn: true, commandRerollSetting: 'onlyWhenItMatters', lowGraphics: false, battlefieldAmbience: true, cinematicCamera: true }
 
 function isAnimSpeed(v: unknown): v is AnimSpeed {
   return v === 'normal' || v === 'fast' || v === 'instant'
@@ -75,6 +77,7 @@ function load(): PresentationSettings {
       commandRerollSetting: isCommandRerollSetting(parsed.commandRerollSetting) ? parsed.commandRerollSetting : DEFAULTS.commandRerollSetting,
       lowGraphics: parsed.lowGraphics === true,
       battlefieldAmbience: parsed.battlefieldAmbience !== false,
+      cinematicCamera: parsed.cinematicCamera !== false,
     }
   } catch {
     return freshDefaults()
@@ -100,6 +103,7 @@ interface PresentationSettingsStore extends PresentationSettings {
   setCommandRerollSetting(setting: CommandRerollSetting): void
   setLowGraphics(on: boolean): void
   setBattlefieldAmbience(on: boolean): void
+  setCinematicCamera(on: boolean): void
   muteRerolls(mute: RerollMute): void
 }
 
@@ -110,39 +114,44 @@ export const usePresentationSettings = create<PresentationSettingsStore>((set, g
   setAnimSpeed(animSpeed) {
     setDiceSpeed(animSpeed)
     set({ animSpeed })
-    persist({ animSpeed, diceStyle: get().diceStyle, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience: get().battlefieldAmbience })
+    persist({ animSpeed, diceStyle: get().diceStyle, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience: get().battlefieldAmbience, cinematicCamera: get().cinematicCamera })
   },
 
   setDiceStyle(diceStyle) {
     setDiceStyle(diceStyle)
     set({ diceStyle })
-    persist({ animSpeed: get().animSpeed, diceStyle, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience: get().battlefieldAmbience })
+    persist({ animSpeed: get().animSpeed, diceStyle, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience: get().battlefieldAmbience, cinematicCamera: get().cinematicCamera })
   },
 
   setDiceOn(diceOn) {
     set({ diceOn })
-    persist({ animSpeed: get().animSpeed, diceStyle: get().diceStyle, diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience: get().battlefieldAmbience })
+    persist({ animSpeed: get().animSpeed, diceStyle: get().diceStyle, diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience: get().battlefieldAmbience, cinematicCamera: get().cinematicCamera })
   },
 
   setAmbientOn(ambientOn) {
     audio.setAmbientEnabled(ambientOn)
     set({ ambientOn })
-    persist({ animSpeed: get().animSpeed, diceStyle: get().diceStyle, diceOn: get().diceOn, ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience: get().battlefieldAmbience })
+    persist({ animSpeed: get().animSpeed, diceStyle: get().diceStyle, diceOn: get().diceOn, ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience: get().battlefieldAmbience, cinematicCamera: get().cinematicCamera })
   },
 
   setCommandRerollSetting(commandRerollSetting) {
     set({ commandRerollSetting })
-    persist({ animSpeed: get().animSpeed, diceStyle: get().diceStyle, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience: get().battlefieldAmbience })
+    persist({ animSpeed: get().animSpeed, diceStyle: get().diceStyle, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience: get().battlefieldAmbience, cinematicCamera: get().cinematicCamera })
   },
 
   setLowGraphics(lowGraphics) {
     set({ lowGraphics })
-    persist({ animSpeed: get().animSpeed, diceStyle: get().diceStyle, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics, battlefieldAmbience: get().battlefieldAmbience })
+    persist({ animSpeed: get().animSpeed, diceStyle: get().diceStyle, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics, battlefieldAmbience: get().battlefieldAmbience, cinematicCamera: get().cinematicCamera })
   },
 
   setBattlefieldAmbience(battlefieldAmbience) {
     set({ battlefieldAmbience })
-    persist({ animSpeed: get().animSpeed, diceStyle: get().diceStyle, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience })
+    persist({ animSpeed: get().animSpeed, diceStyle: get().diceStyle, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience, cinematicCamera: get().cinematicCamera })
+  },
+
+  setCinematicCamera(cinematicCamera) {
+    set({ cinematicCamera })
+    persist({ animSpeed: get().animSpeed, diceStyle: get().diceStyle, diceOn: get().diceOn, ambientOn: get().ambientOn, commandRerollSetting: get().commandRerollSetting, lowGraphics: get().lowGraphics, battlefieldAmbience: get().battlefieldAmbience, cinematicCamera })
   },
 
   // Not persisted, on purpose — see RerollMute. Pass null to start asking again.

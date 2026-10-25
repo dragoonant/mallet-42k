@@ -15,6 +15,10 @@ import { modelsAnchor } from '../interaction/geometry'
 import { useCueStore } from './cueStore'
 import { setPresentationIdle } from './idleStore'
 import { usePresentationSettings, type AnimSpeed } from './settings'
+import { cameraApi, type CameraView } from '../board/cameraApi'
+import { clusterOf, type Cluster, type Pt } from './framing'
+import { closeupViewClear, cinematicOn, closingBeat, damagedUnitOf, shoulderViewClear, shotTimes, speedFactor, type SolidPiece } from './shotCamera'
+import { deployBeats, deployTimes, returnView, visitView, type DeployBeat } from './deployCamera'
 import { announcementHoldMs, clearAnnouncement, holdAnnouncement, type AnnouncementKind } from './announceStore'
 import { playRoll, rerollTrayShown, type RollRequest } from '../dice'
 import { vfx } from '../vfx'
@@ -335,7 +339,7 @@ function landingsOf(events: GameEvent[]): Landing[] {
   return out
 }
 
-function playLanding(l: Landing, from: GameState, to: GameState, humanSeat: PlayerId, lookup: SoundLookup): void {
+function playLanding(l: Landing, from: GameState, to: GameState, humanSeat: PlayerId, lookup: SoundLookup, onDamage?: (unitId: string) => void): void {
   if (l.played) return
   l.played = true
   const cues = useCueStore.getState()
@@ -361,6 +365,236 @@ function playLanding(l: Landing, from: GameState, to: GameState, humanSeat: Play
       console.warn('[presentation] failed to play landing', e.type, err)
     }
   }
+  // the first landing that gets through on a unit sends the cinematic camera in on it
+  const hurt = damagedUnitOf(l.events)
+  if (hurt && onDamage) {
+    try {
+      onDamage(hurt)
+    } catch (err) {
+      console.warn('[presentation] shot camera close-up failed', err)
+    }
+  }
+}
+
+// ---------- cinematic camera ----------
+//
+// Two beats borrow the camera from the player and give it back (owner setting "Cinematic camera", on by default;
+// skipped at instant speed and in hot-seat; any camera input from the player cancels the rest of the beat):
+//  - a ranged attack (shooting phase and Overwatch): over the shoulder of the whole firing unit while the volley
+//    flies, then a close-up of each target unit when its first damaging shot lands, then back to the player's view
+//  - the bot's deployment: a visit to every unit it sets up (and every reserve unit it brings in later)
+// The camera API (board/cameraApi.ts) does the flying; the pure framing lives in shotCamera.ts and deployCamera.ts.
+
+/** Re-arms the presented cursor's stall guard (it would otherwise show results mid-flight): the cursor does not move. */
+const petStall = (): void => setPresentedSeq(-1)
+
+/** Where a unit's models stand in the first of `states` that has any (killed models are only in the older state). */
+function pointsOf(unitId: string, ...states: GameState[]): Pt[] {
+  for (const st of states) {
+    try {
+      const models = unitModels(st, unitId)
+      if (models.length > 0) return models.map((m) => ({ x: m.pos.x, y: m.pos.y, z: m.pos.z, radius: Math.max(m.base.radius, m.base.radius2 ?? 0) }))
+    } catch {
+      // unknown unit or missing model in this state: try the next
+    }
+  }
+  return []
+}
+
+const currentFactor = (): number => speedFactor(usePresentationSettings.getState().animSpeed)
+
+/** The cinematic camera is allowed to move at all right now. */
+function cameraWanted(): boolean {
+  return cinematicOn(usePresentationSettings.getState().cinematicCamera, currentFactor(), !!cameraApi.current, useGameStore.getState().botSeat !== null)
+}
+
+interface Cine {
+  /** the player's view, taken when the cinematic began */
+  saved: CameraView
+  /** cameraApi.inputCount() then; a different count later means the player took the camera */
+  stamp: number
+  shooters: Cluster
+  targets: Cluster
+  pieces: SolidPiece[]
+  aspect: number
+  /** state from before the attack: close-ups frame the target units where they stood */
+  from: GameState
+  to: GameState
+  /** target units already closed in on during this volley */
+  closedUp: Set<string>
+  /** close-ups waiting for the camera, one after another */
+  chain: Promise<void>
+  waiting: number
+}
+
+let cine: Cine | null = null
+/** The player took the camera during this attack sequence: no more cinematic until it is over. */
+let cineDeclined = false
+/** The player's camera at their last deployment: where a visit to a bot unit returns to. */
+let lastPlayerView: CameraView | null = null
+/** A deployment visit in progress: where to return to, and the input count it started at. */
+let trip: { back: CameraView; stamp: number } | null = null
+
+function cineAlive(): boolean {
+  const c = cine
+  if (!c) return false
+  const cam = cameraApi.current
+  if (!cam || cam.inputCount() !== c.stamp) {
+    cine = null
+    cineDeclined = true
+    return false
+  }
+  return true
+}
+
+/** Flies the cinematic camera; a cancelled flight (the player moved the camera) drops the rest of the cinematic. */
+async function cineFly(view: CameraView, ms: number): Promise<boolean> {
+  const cam = cameraApi.current
+  const c = cine
+  if (!cam || !c || !cineAlive()) return false
+  const arrived = await cam.flyTo(view, ms)
+  petStall()
+  if (!arrived) {
+    if (cine === c) cine = null
+    cineDeclined = true
+    return false
+  }
+  return cineAlive()
+}
+
+/** Sends the camera in on one target unit, after any close-up still under way. */
+function queueCloseup(unitId: string): void {
+  const c = cine
+  if (!c || !cineAlive() || c.closedUp.has(unitId)) return
+  c.closedUp.add(unitId)
+  c.waiting++
+  const times = shotTimes(currentFactor())
+  c.chain = c.chain
+    .then(async () => {
+      const target = clusterOf(pointsOf(unitId, c.from, c.to))
+      const arrived = cine === c && target ? await cineFly(closeupViewClear(c.pieces, c.shooters, target, c.aspect), times.closeup) : false
+      c.waiting--
+      if (arrived && c.waiting > 0) await sleep(times.dwell) // more targets to visit: a beat on this one first
+    })
+    .catch((err) => {
+      c.waiting = Math.max(0, c.waiting - 1)
+      console.warn('[presentation] shot camera close-up failed', err)
+    })
+}
+
+/** Over the shoulder of the firing unit; the first volley of an attack sequence also saves the player's view. */
+async function beginCine(h: HeldVolley, to: GameState): Promise<void> {
+  try {
+    const cam = cameraApi.current
+    if (!cam) return
+    if (!cine) {
+      const shooters = clusterOf(pointsOf(h.unitId, h.from, to))
+      const targetIds = new Set(h.declared.flatMap((d) => d.targets.map((t) => t.targetUnitId)))
+      const targets = clusterOf([...targetIds].flatMap((id) => pointsOf(id, h.from, to)))
+      if (!shooters || !targets) return
+      cine = {
+        saved: cam.getView(),
+        stamp: cam.inputCount(),
+        shooters,
+        targets,
+        pieces: Object.values(to.board?.pieces ?? {}),
+        aspect: cam.aspect(),
+        from: h.from,
+        to,
+        closedUp: new Set(),
+        chain: Promise.resolve(),
+        waiting: 0,
+      }
+    }
+    const c = cine
+    c.closedUp.clear()
+    petStall()
+    await cineFly(shoulderViewClear(c.pieces, c.shooters, c.targets, c.aspect), shotTimes(currentFactor()).shoulder)
+  } catch (err) {
+    console.warn('[presentation] failed to frame the shot', err)
+  }
+}
+
+/** After a volley's last landing: stay on the last target when something got through, else a short hold on the shoulder view. */
+async function holdCine(): Promise<void> {
+  const c = cine
+  if (!c) return
+  try {
+    await c.chain
+    if (!cineAlive()) return
+    const times = shotTimes(currentFactor())
+    await sleep(closingBeat(c.closedUp.size) === 'closeup-hold' ? times.hold : times.beat)
+    petStall()
+    cineAlive() // notices a player who moved the camera during the hold
+  } catch (err) {
+    console.warn('[presentation] shot camera hold failed', err)
+  }
+}
+
+/** Back to the player's view. Safe when no cinematic runs. */
+async function cineEnd(): Promise<void> {
+  const c = cine
+  cine = null
+  cineDeclined = false
+  const cam = cameraApi.current
+  if (!c || !cam || cam.inputCount() !== c.stamp) return
+  petStall()
+  await cam.flyTo(c.saved, shotTimes(currentFactor()).back)
+}
+
+/**
+ * The bot set units up (or brought reserves in): fly to each, hold, and show the step's result as the camera arrives at
+ * the first so the unit appears under the lens. The trip's way back is flown once the batch ends (endTrip).
+ */
+async function deployVisits(visits: Extract<DeployBeat, { kind: 'visit' }>[], reveal: () => void): Promise<void> {
+  let revealed = false
+  const showOnce = (): void => {
+    if (revealed) return
+    revealed = true
+    reveal()
+  }
+  try {
+    const cam = cameraApi.current
+    if (!cam || visits.length === 0) return
+    const times = deployTimes(currentFactor())
+    if (!trip) {
+      const before = cam.getView()
+      // a reserve unit arriving mid-game: the player is looking wherever they were; a set-up unit: their last deployment view
+      trip = { back: visits.some((v) => v.arrival) ? before : returnView(lastPlayerView, cam.homeView(), before), stamp: cam.inputCount() }
+    }
+    for (const v of visits) {
+      if (!trip || cam.inputCount() !== trip.stamp) break
+      const arrived = await cam.flyTo(visitView(cam.getView(), v, cam.aspect()), times.fly)
+      petStall()
+      if (!arrived) {
+        trip = null
+        break
+      }
+      showOnce()
+      await sleep(times.hold)
+      petStall()
+    }
+  } catch (err) {
+    console.warn('[presentation] deploy camera failed', err)
+  } finally {
+    showOnce()
+  }
+}
+
+async function endTrip(): Promise<void> {
+  const t = trip
+  trip = null
+  const cam = cameraApi.current
+  if (!t || !cam || cam.inputCount() !== t.stamp) return
+  petStall()
+  await cam.flyTo(t.back, deployTimes(currentFactor()).fly)
+}
+
+function resetCamera(): void {
+  cine = null
+  cineDeclined = false
+  lastPlayerView = null
+  trip = null
 }
 
 /** Fires the held volley: the unit's shoot pose and firing sound, one volley per weapon+target, and each
@@ -380,10 +614,13 @@ async function fireHeldVolley(to: GameState, bundle: DataBundle | null, humanSea
   const speed = usePresentationSettings.getState().animSpeed
   const landings = landingsOf(held)
   const struck = new Map<string, StruckModel[]>()
+  // set once the shot camera is up: a landing that gets through on a unit sends the camera in on it
+  let onDamage: ((unitId: string) => void) | undefined
+  const landOn = (l: Landing): void => playLanding(l, h.from, to, humanSeat, lookup, onDamage)
   for (const l of landings) {
     if (!l.key || !l.modelId) continue
     const list = struck.get(l.key) ?? []
-    list.push({ modelId: l.modelId, onImpact: () => playLanding(l, h.from, to, humanSeat, lookup) })
+    list.push({ modelId: l.modelId, onImpact: () => landOn(l) })
     struck.set(l.key, list)
   }
 
@@ -396,9 +633,9 @@ async function fireHeldVolley(to: GameState, bundle: DataBundle | null, humanSea
   let pending = 0
   let allLanded: () => void = () => {}
   const landed = new Promise<void>((resolve) => { allLanded = resolve })
+  let camOn = false
   if (volleys.length > 0) {
-    cues.setUnitAction(h.unitId, 'shoot', `${h.token}:${fired}`, CUE_MS.shoot)
-    if (fired === 0) playEventSounds(audio, h.declared, humanSeat, lookup)
+    // the firing models turn to the target first, so they are already facing it while the camera swings round
     for (const d of h.declared) {
       for (const t of d.targets) {
         const firer = modelPoint(h.from, to, t.modelId)
@@ -408,6 +645,15 @@ async function fireHeldVolley(to: GameState, bundle: DataBundle | null, humanSea
         cues.setModelFacing(t.modelId, bearing(firer, { x: anchor.x, z: anchor.z }), VOLLEY_FACING_MS)
       }
     }
+    // The dice have all played by now, so the shoulder view starts with the volley and never covers the dice tray.
+    camOn = !cineDeclined && cameraWanted()
+    if (camOn) {
+      await beginCine(h, to)
+      camOn = cine !== null
+      if (camOn) onDamage = queueCloseup
+    }
+    cues.setUnitAction(h.unitId, 'shoot', `${h.token}:${fired}`, CUE_MS.shoot)
+    if (fired === 0) playEventSounds(audio, h.declared, humanSeat, lookup)
     for (const v of volleys) {
       for (const s of v.shots) {
         const own = s.onImpact
@@ -422,9 +668,10 @@ async function fireHeldVolley(to: GameState, bundle: DataBundle | null, humanSea
   }
   if (pending > 0 && speed !== 'instant') await Promise.race([landed, sleep(VOLLEY_WAIT_MAX_MS)])
   // Whatever hasn't landed yet (no shot aimed at it, a unit-destroyed line, the wait ran out) plays now.
-  for (const l of landings) playLanding(l, h.from, to, humanSeat, lookup)
+  for (const l of landings) landOn(l)
   // A beat for the last fall and shimmer to read before the next banner or roll.
   if (volleys.length > 0 && speed !== 'instant') await sleep(speed === 'fast' ? VOLLEY_SETTLE_MS * 0.35 : VOLLEY_SETTLE_MS)
+  if (camOn) await holdCine()
 }
 
 /** Shows everything held off-board as presented, then lets fallen models go once the board has dropped them. */
@@ -617,9 +864,33 @@ async function playEvent(
 
 // ---------- batch queue ----------
 
+/** Plays one batch; a shot camera or deployment trip it started always goes back to the player's view before control returns. */
 async function playBatch(from: GameState, to: GameState, events: GameEvent[], announcedPhases: Set<Phase>): Promise<void> {
-  const { humanSeat, bundle } = useGameStore.getState()
+  try {
+    await playBatchBody(from, to, events, announcedPhases)
+  } finally {
+    try {
+      await cineEnd()
+    } catch (err) {
+      console.warn('[presentation] shot camera return failed', err)
+    }
+    try {
+      await endTrip()
+    } catch (err) {
+      console.warn('[presentation] deploy camera return failed', err)
+    }
+  }
+}
+
+async function playBatchBody(from: GameState, to: GameState, events: GameEvent[], announcedPhases: Set<Phase>): Promise<void> {
+  const { humanSeat, botSeat, bundle } = useGameStore.getState()
   const lookup = soundLookup(to, bundle)
+  // Deployment beats: the human's own set-up records their view; a bot's set-up (or arrival from reserves) is visited.
+  const beats = new Map<number, DeployBeat>()
+  if (usePresentationSettings.getState().cinematicCamera && cameraApi.current) {
+    for (const b of deployBeats(events, { humanSeat, botSeat, factor: currentFactor(), footprint: (id) => pointsOf(id, to) })) beats.set(b.index, b.beat)
+  }
+  let visits: Extract<DeployBeat, { kind: 'visit' }>[] = []
   // Indices of roll events whose dice already played inside an earlier grouped window.
   const grouped = new Set<number>()
   for (let i = 0; i < events.length; i++) {
@@ -665,7 +936,11 @@ async function playBatch(from: GameState, to: GameState, events: GameEvent[], an
       if (heldVolley && event.type === 'AttackSequenceEnded') {
         await fireHeldVolley(to, bundle, humanSeat, lookup)
         heldVolley = null
+        await cineEnd() // the whole attack is over: back to the player's view, once
       }
+      const beat = beats.get(i)
+      if (beat?.kind === 'record') lastPlayerView = cameraApi.current?.getView() ?? lastPlayerView
+      else if (beat?.kind === 'visit') visits.push(beat)
     } catch (err) {
       console.warn('[presentation] failed to play event', event.type, err)
     }
@@ -674,8 +949,16 @@ async function playBatch(from: GameState, to: GameState, events: GameEvent[], an
     // step's outcome (feed, counters, deaths, prompt) before the rest of its dice are shown. While a
     // volley holds damage it doesn't move at all; setPresentedSeq(-1) only re-arms the stall net.
     if (i === events.length - 1 || events[i + 1].seq !== event.seq) {
-      if (heldVolley?.damaging) setPresentedSeq(-1)
-      else revealThrough(event.seq)
+      const reveal = (): void => {
+        if (heldVolley?.damaging) setPresentedSeq(-1)
+        else revealThrough(event.seq)
+      }
+      if (visits.length > 0) {
+        // the camera flies to the new unit first and the step's result appears as it arrives
+        const toVisit = visits
+        visits = []
+        await deployVisits(toVisit, reveal)
+      } else reveal()
     }
     // Someone (bot or human) is already sitting on a live Command Re-roll offer — skip the decorative
     // pacing gap between events so the batch flushes straight through to the roll they're actually being
@@ -714,6 +997,7 @@ export function startDirector(): () => void {
     buffered = []
     bufferedFrom = null
     heldVolley = null
+    resetCamera()
     announcedPhases.clear()
     catchUpPresented()
     clearAnnouncement()

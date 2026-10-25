@@ -7,6 +7,7 @@ import { useBoardSize } from './Board'
 import { initCameraModifiers, isSpaceHeld } from './cameraModifiers'
 import { installTouchCamera } from './touchCamera'
 import { installTerrainProbe, probeEnabled } from './terrainProbe'
+import { cameraApi, type CameraView } from './cameraApi'
 import {
   cameraPose,
   easeInOut,
@@ -54,6 +55,10 @@ interface Tween {
   toP: THREE.Vector3
   fromT: THREE.Vector3
   toT: THREE.Vector3
+  /** Duration in ms (a preset uses TRANSITION_MS). */
+  ms?: number
+  /** Set by flyTo: told true when the tween arrived, false when something else took the camera first. */
+  done?: (arrived: boolean) => void
 }
 
 /** Orbit camera clamped above the board (never dips below the mat): crisp (no damping), right-drag orbit,
@@ -63,6 +68,22 @@ export function CameraRig({ focusTarget = null, viewFromFar = false, preset = nu
   const controls = useRef<OrbitControlsImpl | null>(null)
   const tween = useRef<Tween | null>(null)
   const keys = useRef(new Set<string>())
+  /** Every write to the tween goes through here, so a running flyTo is told it was cancelled. */
+  const setTween = (next: Tween | null) => {
+    const prev = tween.current
+    tween.current = next
+    if (prev && prev !== next) prev.done?.(false)
+  }
+  const setTweenRef = useRef(setTween)
+  setTweenRef.current = setTween
+  /** Times the player (or a preset request) has taken the camera; the director reads it to know when to keep its hands off. */
+  const inputs = useRef(0)
+  const takeOver = () => {
+    inputs.current++
+    setTweenRef.current(null)
+  }
+  const takeOverRef = useRef(takeOver)
+  takeOverRef.current = takeOver
   const { camera, gl, scene } = useThree()
   useEffect(() => (probeEnabled() ? installTerrainProbe(scene) : undefined), [scene])
   const invalidate = useThree((s) => s.invalidate)
@@ -79,13 +100,14 @@ export function CameraRig({ focusTarget = null, viewFromFar = false, preset = nu
     const c = controls.current
     if (!c) return
     const pose = cameraPose(id, boardRef.current, focus, appliedFar.current ? -1 : 1)
-    tween.current = {
+    inputs.current++
+    setTweenRef.current({
       t0: performance.now(),
       fromP: camera.position.clone(),
       toP: new THREE.Vector3(...pose.position),
       fromT: c.target.clone(),
       toT: new THREE.Vector3(...pose.target),
-    }
+    })
     invalidate()
   }
   const startTweenRef = useRef(startTween)
@@ -129,9 +151,7 @@ export function CameraRig({ focusTarget = null, viewFromFar = false, preset = nu
   useEffect(() => {
     const c = controls.current
     if (!c) return undefined
-    const onStart = () => {
-      tween.current = null
-    }
+    const onStart = () => takeOverRef.current()
     c.addEventListener('start', onStart)
     return () => c.removeEventListener('start', onStart)
   }, [])
@@ -151,7 +171,7 @@ export function CameraRig({ focusTarget = null, viewFromFar = false, preset = nu
     const c = controls.current
     if (!c || appliedFar.current === viewFromFar) return
     appliedFar.current = viewFromFar
-    tween.current = null
+    takeOverRef.current()
     camera.position.set(-camera.position.x, camera.position.y, -camera.position.z)
     c.target.set(-c.target.x, 0, -c.target.z)
     c.update()
@@ -179,9 +199,7 @@ export function CameraRig({ focusTarget = null, viewFromFar = false, preset = nu
       },
       // No polar easing any more: tilts apply immediately.
       setPolarGoal: () => {},
-      cancelFocus: () => {
-        tween.current = null
-      },
+      cancelFocus: () => takeOverRef.current(),
       overviewPolar,
       topDownPolar: TOP_DOWN_POLAR,
       getViewFromFar: () => appliedFar.current,
@@ -219,7 +237,7 @@ export function CameraRig({ focusTarget = null, viewFromFar = false, preset = nu
       const k = e.key.toLowerCase()
       if (k in PAN_KEYS) {
         keys.current.add(k)
-        tween.current = null
+        takeOverRef.current()
         invalidate()
       }
     }
@@ -257,7 +275,7 @@ export function CameraRig({ focusTarget = null, viewFromFar = false, preset = nu
       lookAt(x, z, distanceIn) {
         const c = controls.current
         if (!c) return
-        tween.current = null
+        takeOverRef.current()
         const dir = camera.position.clone().sub(c.target)
         dir.y = Math.max(dir.y, 0.1) // avoid a degenerate (near-zero) direction when already ~overhead
         dir.normalize().multiplyScalar(THREE.MathUtils.clamp(distanceIn, MIN_CAMERA_DISTANCE, maxDistanceFor(boardRef.current)))
@@ -273,6 +291,58 @@ export function CameraRig({ focusTarget = null, viewFromFar = false, preset = nu
     }
   }, [camera, gl, invalidate])
 
+  // Imperative surface for the presentation director (cinematic shooting camera, deployment visits).
+  useEffect(() => {
+    // e2e hook: read-only exact camera pose (lens position + orbit target) for the cinematic-camera spec
+    const hookWin = window as unknown as { __malletCameraView?: () => CameraView | null; __malletCameraArrive?: (arrived: boolean) => void }
+    hookWin.__malletCameraView = () => cameraApi.current?.getView() ?? null
+    cameraApi.current = {
+      getView() {
+        const t = controls.current?.target ?? new THREE.Vector3()
+        return { position: [camera.position.x, camera.position.y, camera.position.z], target: [t.x, t.y, t.z] }
+      },
+      flyTo(view, ms) {
+        const c = controls.current
+        if (!c) return Promise.resolve(false)
+        return new Promise<boolean>((resolve) => {
+          const toP = new THREE.Vector3(...view.position)
+          const toT = new THREE.Vector3(...view.target)
+          const dur = Math.max(1, ms)
+          let settled = false
+          let guard: ReturnType<typeof setTimeout> | null = null
+          const finish = (arrived: boolean) => {
+            if (settled) return
+            settled = true
+            if (guard !== null) clearTimeout(guard)
+            hookWin.__malletCameraArrive?.(arrived) // e2e hook: a flight ended
+            resolve(arrived)
+          }
+          const tw: Tween = { t0: performance.now(), fromP: camera.position.clone(), toP, fromT: c.target.clone(), toT, ms: dur, done: finish }
+          setTweenRef.current(tw)
+          // A hidden tab stops animation frames: land the tween anyway so the presentation never waits on it.
+          guard = setTimeout(() => {
+            if (settled || tween.current !== tw) return
+            camera.position.copy(toP)
+            c.target.copy(toT)
+            c.update()
+            tween.current = null
+            finish(true)
+            invalidate()
+          }, dur + 800)
+          invalidate()
+        })
+      },
+      inputCount: () => inputs.current,
+      homeView: () => cameraPose('edgeA', boardRef.current, undefined, appliedFar.current ? -1 : 1),
+      aspect: () => (camera as THREE.PerspectiveCamera).aspect || 1.6,
+    }
+    return () => {
+      setTweenRef.current(null)
+      cameraApi.current = null
+      delete hookWin.__malletCameraView
+    }
+  }, [camera, invalidate])
+
   const fwd = useRef(new THREE.Vector3())
   const right = useRef(new THREE.Vector3())
   const move = useRef(new THREE.Vector3())
@@ -282,11 +352,14 @@ export function CameraRig({ focusTarget = null, viewFromFar = false, preset = nu
 
     const tw = tween.current
     if (tw) {
-      const f = Math.min(1, (performance.now() - tw.t0) / TRANSITION_MS)
+      const f = Math.min(1, (performance.now() - tw.t0) / (tw.ms ?? TRANSITION_MS))
       const e = easeInOut(f)
       camera.position.lerpVectors(tw.fromP, tw.toP, e)
       c.target.lerpVectors(tw.fromT, tw.toT, e)
-      if (f >= 1) tween.current = null
+      if (f >= 1) {
+        tween.current = null
+        tw.done?.(true)
+      }
       state.invalidate()
     }
 

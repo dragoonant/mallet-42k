@@ -83,6 +83,8 @@ export function SettingsPanel() {
   const setLowGraphics = usePresentationSettings((s) => s.setLowGraphics)
   const battlefieldAmbience = usePresentationSettings((s) => s.battlefieldAmbience)
   const setBattlefieldAmbience = usePresentationSettings((s) => s.setBattlefieldAmbience)
+  const cinematicCamera = usePresentationSettings((s) => s.cinematicCamera)
+  const setCinematicCamera = usePresentationSettings((s) => s.setCinematicCamera)
   const setAnimSpeed = usePresentationSettings((s) => s.setAnimSpeed)
   const setDiceOn = usePresentationSettings((s) => s.setDiceOn)
   const setAmbientOn = usePresentationSettings((s) => s.setAmbientOn)
@@ -178,6 +180,16 @@ export function SettingsPanel() {
           data-testid="settings-battlefield-ambience"
         />
         <span>Battlefield ambience (distant artillery and flares)</span>
+      </label>
+      <label style={cCheck}>
+        <input
+          style={cBox}
+          type="checkbox"
+          checked={cinematicCamera}
+          onChange={(e) => setCinematicCamera(e.target.checked)}
+          data-testid="settings-cinematic-camera"
+        />
+        <span>Cinematic camera (shots and the opponent's set-up)</span>
       </label>
       <label style={cCheck}>
         <input style={cBox} type="checkbox" checked={lowGraphics} onChange={(e) => setLowGraphics(e.target.checked)} data-testid="settings-low-graphics" />
