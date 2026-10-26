@@ -7,7 +7,7 @@ import {
   diceExprMean,
   legalActions as engineLegalActions,
   load as engineLoad,
-  save as engineSave,
+  ENGINE_VERSION,
   step,
   registerDataBundle,
   view as engineView,
@@ -21,7 +21,6 @@ import {
   type PlayerId,
   type PlayerSetup,
   type RejectionCode,
-  type SaveFile,
   type DiceRoll,
   type Unit,
   type Vec3,
@@ -36,6 +35,8 @@ import { sourceName } from '../ui/labels'
 // import cycle: the barrel re-exports director.ts, which itself imports this store.
 import { waitForPresentationIdle } from '../presentation/idleStore'
 import { pushSnapshot, resetPresentation, usePresentedStore } from '../presentation/presentedStore'
+import { usePaintStore } from '../figures/paint'
+import { SAVE_DISCARDED_MESSAGE, clearSave, persistAfterAction, readSave, type SaveEnvelope } from './saveGame'
 import { rerollMuteActive, usePresentationSettings, type CommandRerollSetting, type RerollMute } from '../presentation/settings'
 import { critWouldPay, dieOutcomes, offerIndexes, rollForOffer } from '../ui/rerollInfo'
 import { isAnnouncementHolding } from '../presentation/announceStore'
@@ -408,8 +409,14 @@ export interface GameStore {
   dispatch(action: Action): void
   clearToast(): void
   clearVpToast(): void
-  saveToLocalStorage(key?: string): void
-  loadFromLocalStorage(key?: string): void
+  /** Start-screen message after a stored game was discarded (null when there is nothing to say). */
+  saveNotice: string | null
+  dismissSaveNotice(): void
+  /** The continuable stored game, or null. A stored game that cannot even be parsed is discarded here (with saveNotice set). */
+  inspectSave(): SaveEnvelope | null
+  /** Rebuilds the stored game by replaying it (exact hash check) and opens it on the current board. False = nothing restored;
+   *  when the save was bad it has been discarded and saveNotice is set. */
+  continueSavedGame(): Promise<boolean>
 }
 
 const EVENT_LOG_LIMIT = 2000
@@ -512,6 +519,8 @@ function shouldSkipCommandReroll(setting: CommandRerollSetting, mute: RerollMute
 // Bot scheduling lives outside reactive state (timer handles/decider instances aren't state); reset on every newGame.
 let botTimer: ReturnType<typeof setTimeout> | null = null
 let botDecider: Decider | null = null
+// Autosave only games that can be rebuilt from setup + actions (newGame / a restored save), not dev scenario positions.
+let autosaveOn = false
 // Generic progress watchdog (see NO_PROGRESS_WARN_MS above) — its own timer handle and "have we already
 // warned about the current decision" bookkeeping, reset on every newGame like the bot scheduling above.
 let progressWatchdogTimer: ReturnType<typeof setInterval> | null = null
@@ -792,8 +801,19 @@ export const useGameStore = create<GameStore>()((set, get) => {
       toast: result.rejection ? { id: Date.now(), text: result.rejection.reason, code: result.rejection.code } : s.toast,
       // vpToast is raised by the presentation director when the VpScored event actually plays.
     }))
+    if (dispatched && !result.rejection) autosave(result.state)
     scheduleBotIfNeeded()
     scheduleAutoAnswer()
+  }
+
+  // One game in progress per browser, written after every accepted action (src/client/store/saveGame.ts). A finished game
+  // clears the save. Serialises once per action; storage failures are swallowed inside writeEnvelope.
+  function autosave(state: GameState): void {
+    if (!autosaveOn) return
+    const { opponent, difficulty, humanSeat } = get()
+    if (!opponent) return
+    const bySeat = usePaintStore.getState().bySeat
+    persistAfterAction(state, { opponent, difficulty, humanSeat, paint: bySeat.A || bySeat.B ? { ...(bySeat.A ? { A: bySeat.A } : {}), ...(bySeat.B ? { B: bySeat.B } : {}) } : undefined })
   }
 
   return {
@@ -815,6 +835,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
     difficulty: null,
     loading: false,
     error: null,
+    saveNotice: null,
 
     async newGame(opts) {
       clearBotTimer()
@@ -855,7 +876,11 @@ export const useGameStore = create<GameStore>()((set, get) => {
           difficulty: botSeat ? difficulty : null,
           loading: false,
           error: null,
+          saveNotice: null,
         })
+        // The new game replaces whatever was saved (the start screen asked first); its own save begins at its first accepted action.
+        autosaveOn = true
+        clearSave()
         scheduleBotIfNeeded()
         scheduleAutoAnswer()
         startProgressWatchdog()
@@ -866,6 +891,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
     },
 
     startFromState(init, opts) {
+      autosaveOn = false // dev/QA positions are not rebuilt from setup + actions, so they cannot be saved
       clearBotTimer()
       clearProgressWatchdog()
       usePresentationSettings.getState().muteRerolls(null)
@@ -902,45 +928,91 @@ export const useGameStore = create<GameStore>()((set, get) => {
       set({ vpToast: null })
     },
 
-    saveToLocalStorage(key = 'mallet42k:save') {
-      const { state } = get()
-      if (!state || typeof localStorage === 'undefined') return
-      try {
-        const file: SaveFile = engineSave(state)
-        localStorage.setItem(key, JSON.stringify(file))
-      } catch {
-        // best-effort only (quota, private browsing, no storage) — nothing to surface to the player here
-      }
+    dismissSaveNotice() {
+      set({ saveNotice: null })
     },
 
-    loadFromLocalStorage(key = 'mallet42k:save') {
-      if (typeof localStorage === 'undefined') return
+    inspectSave() {
+      const r = readSave()
+      if (r.status === 'ok') return r.envelope
+      if (r.status === 'invalid') {
+        clearSave()
+        set({ saveNotice: SAVE_DISCARDED_MESSAGE })
+      }
+      return null
+    },
+
+    async continueSavedGame() {
+      const r = readSave()
+      if (r.status === 'none') return false
+      const discard = () => {
+        clearSave()
+        set({ loading: false, saveNotice: SAVE_DISCARDED_MESSAGE })
+        return false
+      }
+      if (r.status === 'invalid') return discard()
+      const { envelope } = r
+      set({ loading: true, error: null, saveNotice: null })
+      let bundle: DataBundle
       try {
-        const raw = localStorage.getItem(key)
-        if (!raw) return
-        const file = JSON.parse(raw) as SaveFile
-        const { bundle } = get()
+        bundle = await loadBundle()
+      } catch (err) {
+        // The game data itself would not load (offline, deploy in progress): not the save's fault, so keep it.
+        set({ loading: false, error: err instanceof Error ? err.message : String(err) })
+        return false
+      }
+      try {
+        registerDataBundle(bundle)
+        let result
+        try {
+          result = engineLoad(envelope.file, bundle)
+        } catch (err) {
+          // A different engine major is refused up front; the hash check is what decides whether the save still replays exactly.
+          const code = (err as { details?: { code?: string } }).details?.code
+          if (code !== 'E_VERSION') throw err
+          result = engineLoad({ ...envelope.file, engineVersion: ENGINE_VERSION }, bundle)
+        }
+        const { meta } = envelope
         clearBotTimer()
         clearProgressWatchdog()
-        const result = engineLoad(file, bundle ?? undefined)
-        // Next step's events will carry log.length, so everything up to log.length - 1 counts as shown.
+        usePresentationSettings.getState().muteRerolls(null)
+        const botSeat: PlayerId | null = meta.opponent === 'bot' ? (meta.humanSeat === 'A' ? 'B' : 'A') : null
+        const difficulty = meta.difficulty ?? DEFAULT_AI_DIFFICULTY
+        botDecider = botSeat ? makeBotDecider(difficulty, `${envelope.file.seed}:ai:${botSeat}`) : null
+        for (const seat of ['A', 'B'] as const) usePaintStore.getState().setSeatPaint(seat, meta.paint?.[seat])
+        // The board opens on the current position: everything up to the head counts as already shown (no replay of dice,
+        // volleys, banners or camera flights). The next step's events carry log.length.
         const headSeq = result.state.log.length - 1
         resetPresentation(headSeq, result.state)
+        autosaveOn = true
         set({
-          setup: file.setup,
+          bundle,
+          setup: envelope.file.setup,
           state: result.state,
           pending: result.pending,
           pendingSeq: headSeq,
           legal: result.pending ? engineLegalActions(result.state, result.pending) : null,
           events: [],
           diceLog: [],
+          actionLog: [],
           notes: [],
+          toast: null,
+          vpToast: null,
+          opponent: meta.opponent,
+          humanSeat: meta.humanSeat,
+          botSeat,
+          difficulty: botSeat ? difficulty : null,
+          loading: false,
+          error: null,
+          saveNotice: null,
         })
         scheduleBotIfNeeded()
         scheduleAutoAnswer()
         startProgressWatchdog()
+        return true
       } catch {
-        // corrupt/missing save — leave the current game running
+        // Replay rejected, hash differs, or the data the save names is gone: it cannot be continued exactly.
+        return discard()
       }
     },
   }

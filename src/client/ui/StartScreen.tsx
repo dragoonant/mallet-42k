@@ -7,9 +7,10 @@ import { loadBundle } from '../../data'
 import type { DataBundle } from '../../data/types'
 import { AI_DIFFICULTY_OPTIONS, DEFAULT_AI_DIFFICULTY, resolveFactionId, patrolsForFaction, resolvePatrol, splittablePatrolRefs, patrolUnitChoices, embarkOptions, RANDOM_UNIT_CHOICE, useGameStore, type AiDifficulty, type FactionKey, type OpponentKind } from '../store/game'
 import { primaryScoringSummary } from './labels'
+import { phaseLabel, relativeTime, shouldConfirmReplace, type SaveEnvelope } from '../store/saveGame'
 import { randomArmyPaint, usePaintStore } from '../figures/paint'
 import { PainterPanel } from './PainterPanel'
-import { buttonActive, buttonBase, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
+import { buttonActive, buttonBase, buttonDanger, buttonPrimary, colors, fontStack, mutedText, panel } from './theme'
 
 // Own-words one-liners per faction id. A faction with no entry here still appears (name only), so a new
 // faction in the data bundle is selectable before anyone writes it a blurb.
@@ -142,6 +143,9 @@ function FactionCard({ id, name, active, onPick }: { id: string; name: string; a
   )
 }
 
+const saveCard: CSSProperties = { flex: 'none', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', padding: '10px 14px', borderRadius: 6, border: `1px solid ${colors.accent}`, background: 'rgba(255,255,255,0.05)' }
+const noticeText: CSSProperties = { flex: 'none', margin: 0, padding: '8px 12px', borderRadius: 6, border: `1px solid ${colors.border}`, background: 'rgba(255,255,255,0.05)', fontSize: 13, display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between' }
+const confirmBackdrop: CSSProperties = { position: 'fixed', inset: 0, zIndex: 20, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }
 const errorText: CSSProperties = { color: colors.danger, fontSize: 13 }
 const missionBlurb: CSSProperties = { ...mutedText, marginTop: -6, fontSize: 12 }
 const missionList: CSSProperties = { margin: '2px 0 0', paddingLeft: 16, fontSize: 11.5, color: colors.muted }
@@ -164,6 +168,23 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
   const [splitA, setSplitA] = useState(false)
   const [splitB, setSplitB] = useState(false)
   const [ready, setReady] = useState(skipIntro)
+  // The game saved on this device (autosaved after every action), if it can still be continued.
+  const [saved, setSaved] = useState<SaveEnvelope | null>(null)
+  const [confirmReplace, setConfirmReplace] = useState(false)
+  const saveNotice = useGameStore((s) => s.saveNotice)
+  const dismissSaveNotice = useGameStore((s) => s.dismissSaveNotice)
+  const inspectSave = useGameStore((s) => s.inspectSave)
+  const continueSavedGame = useGameStore((s) => s.continueSavedGame)
+
+  useEffect(() => {
+    setSaved(inspectSave())
+  }, [inspectSave])
+
+  const resume = async () => {
+    const ok = await continueSavedGame()
+    if (ok) onStarted()
+    else setSaved(null) // bad saves were discarded by the store (the notice explains); a data-load failure keeps it
+  }
 
   useEffect(() => {
     if (ready) return
@@ -276,7 +297,14 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
   }
   const canSplitB = !!bundle && opponent === 'hotseat' && !!opponentFaction && splittablePatrolRefs(bundle, opponentFaction, opponentPatrolId || undefined).length > 0
 
+  // Starting over an existing save asks first (the start button opens the question; "Start new game" runs start()).
+  const requestStart = () => {
+    if (shouldConfirmReplace()) setConfirmReplace(true)
+    else void start()
+  }
+
   const start = async () => {
+    setConfirmReplace(false)
     const randomFaction = factions.length ? factions[Math.floor(Math.random() * factions.length)].id : undefined
     const oppFactionId = opponentFaction || randomFaction
     // Automatic opponent: a random patrol of the (chosen or random) faction.
@@ -314,6 +342,29 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
       <h1 style={srOnly}>Mallet 42,000 — SD Assault: Galaxy in Conflict</h1>
       <div className="ss-scrim" />
       <div className="ss-card" style={card}>
+        {saveNotice && (
+          <p style={noticeText} data-testid="save-notice" role="status">
+            <span>{saveNotice}</span>
+            <button style={buttonBase} onClick={dismissSaveNotice}>OK</button>
+          </p>
+        )}
+        {saved && (
+          <div style={saveCard} data-testid="continue-card">
+            <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+              <div style={{ fontWeight: 600 }} data-testid="continue-factions">{saved.meta.factions.A} vs {saved.meta.factions.B}</div>
+              <div style={mutedText} data-testid="continue-detail">
+                {saved.meta.phase === 'ended' ? 'Finished' : `Round ${saved.meta.round} · ${phaseLabel(saved.meta.phase)}`} ·{' '}
+                {saved.meta.opponent === 'bot'
+                  ? `vs bot${saved.meta.difficulty ? ` (${AI_DIFFICULTY_OPTIONS.find((d) => d.key === saved.meta.difficulty)?.label ?? saved.meta.difficulty})` : ''}`
+                  : 'hot-seat'}
+              </div>
+              <div style={mutedText} data-testid="continue-time">Last played {relativeTime(saved.savedAt)}</div>
+            </div>
+            <button style={{ ...buttonPrimary, padding: '10px 18px' }} data-testid="continue-game" disabled={loading} onClick={() => void resume()}>
+              {loading ? 'Loading…' : 'Continue'}
+            </button>
+          </div>
+        )}
         <div className="ss-grid">
         <div className="ss-col">
 
@@ -453,11 +504,25 @@ export function StartScreen({ onStarted }: { onStarted: () => void }) {
           <button style={{ ...buttonBase, padding: '12px 16px' }} data-testid="open-painter" onClick={() => setPainting(true)}>
             Paint army
           </button>
-          <button style={{ ...buttonPrimary, flex: 1, padding: '12px 16px', fontSize: 15 }} data-testid="start-game" disabled={loading} onClick={() => void start()}>
+          <button style={{ ...buttonPrimary, flex: 1, padding: '12px 16px', fontSize: 15 }} data-testid="start-game" disabled={loading} onClick={requestStart}>
             {loading ? 'Loading…' : 'Start Battle'}
           </button>
         </div>
       </div>
+      {confirmReplace && (
+        <div style={confirmBackdrop} data-testid="replace-save-confirm" role="alertdialog" aria-modal="true" aria-label="Replace saved game">
+          <div style={{ ...card, maxWidth: 420 }}>
+            <strong>Start a new game?</strong>
+            <p style={{ margin: 0, fontSize: 13 }}>
+              You have a game in progress{saved ? ` (${saved.meta.factions.A} vs ${saved.meta.factions.B}, round ${saved.meta.round})` : ''}. Starting a new battle replaces it, and the old one cannot be brought back.
+            </p>
+            <div style={row}>
+              <button style={{ ...buttonPrimary, flex: 1 }} data-testid="replace-save-keep" onClick={() => setConfirmReplace(false)}>Keep my saved game</button>
+              <button style={{ ...buttonDanger, flex: 1 }} data-testid="replace-save-confirm-start" onClick={() => void start()}>Start new game</button>
+            </div>
+          </div>
+        </div>
+      )}
       {painting && <PainterPanel factions={factions} initialFaction={factionId} onClose={() => setPainting(false)} />}
     </div>
   )
