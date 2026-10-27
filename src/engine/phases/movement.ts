@@ -1099,6 +1099,7 @@ function doMove(ctx: EngineContext): 'pending' | 'select' {
   const windowUnit = readMark(s, 'mv:windowUnit')
   if (windowUnit !== null) {
     if (ctx.window('movement.unitMoved', windowUnit, ctx.order.active(), { unitId: windowUnit })) return 'pending'
+    if (drainOverwatch(ctx, windowUnit) === 'pending') return 'pending'
     if (offerEmbark(ctx, windowUnit)) return 'pending'
     writeMark(s, 'mv:windowUnit', null)
     return 'select'
@@ -1221,6 +1222,8 @@ function doMove(ctx: EngineContext): 'pending' | 'select' {
   finishUnit(s, unitId, groupIds)
   writeMark(s, 'mv:windowUnit', unitId)
   if (ctx.window('movement.unitMoved', unitId, ctx.order.active(), { unitId })) return 'pending'
+  // Fire Overwatch used as the move ended resolves here, before Embark (it was only ever drained at moveStarted)
+  if (drainOverwatch(ctx, unitId) === 'pending') return 'pending'
   if (offerEmbark(ctx, unitId)) return 'pending'
   writeMark(s, 'mv:windowUnit', null)
   return 'select'
