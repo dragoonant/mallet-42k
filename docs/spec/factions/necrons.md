@@ -188,15 +188,15 @@ Same list as the `NEC` section of 12-rules-test-checklist.
 
 Heights follow 30-figures (infantry H 1.1, heavy 1.3, vehicles compressed); bases are rules-true.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `overlord-amonhotekh` | `nec.overlord-amonhotekh/overlord` | 1 | 1.3 | 40 mm | A chibi skeletal android noble in tarnished gold and dark gunmetal, oversized skull-like faceplate with glowing green eyes, tall crested headpiece, flowing tattered cloak, a long bow-shaped energy launcher in one hand and a curved glowing blade on the other arm. |
-| `necron-warrior-flayer` | `nec.necron-warriors/warrior-flayer` | 5 | 1.1 | 32 mm | A chibi gaunt metal skeleton soldier in dark gunmetal with ribbed limbs and a big round skull head with green eye-slits, holding a long rifle with a glowing green tube and an axe-blade under the barrel. |
-| `necron-warrior-reaper` | `nec.necron-warriors/warrior-reaper` | 5 | 1.1 | 32 mm | Same chibi metal skeleton soldier, gripping a short, chunky twin-tube carbine with a wide glowing green muzzle held at the hip. |
-| `skorpekh-destroyer` | `nec.skorpekh-destroyers/destroyer` | 3 | 1.6 | 50 mm | A chibi hunched android killer on three long blade-tipped legs, gunmetal body with green-lit spine, two arms ending in oversized curved glowing scythe blades, eyeless grinning head. |
-| `plasmacyte` | accessory on one Skorpekh base | 1 (decorative) | 0.5 | — | A tiny chibi floating spider-like construct with a glowing green orb body and thin dangling legs, hovering beside the destroyer. |
-| `scarab-swarm` | `nec.canoptek-scarab-swarms/swarm` | 3 | 0.4 | 40 mm | Three or four round chibi beetle drones in gunmetal and gold clustered on one base, each with a single bright green eye and short pincers. |
-| `canoptek-doomstalker` | `nec.canoptek-doomstalker/doomstalker` | 1 | 3.0 | 90 mm | A chibi four-legged spider walker in gunmetal and gold with a tall arched back, a huge single glowing green cannon slung under its body, a small twin rifle at the front and bright green eye lenses. |
+| `overlord-amonhotekh` | `nec.overlord-amonhotekh/overlord` | 1 | 1.3 | 40 mm | A skeletal android noble in tarnished gold and dark gunmetal, oversized skull-like faceplate with glowing green eyes, tall crested headpiece, flowing tattered cloak, a long bow-shaped energy launcher in one hand and a curved glowing blade on the other arm. |
+| `necron-warrior-flayer` | `nec.necron-warriors/warrior-flayer` | 5 | 1.1 | 32 mm | A gaunt metal skeleton soldier in dark gunmetal with ribbed limbs and a big round skull head with green eye-slits, holding a long rifle with a glowing green tube and an axe-blade under the barrel. |
+| `necron-warrior-reaper` | `nec.necron-warriors/warrior-reaper` | 5 | 1.1 | 32 mm | Same metal skeleton soldier, gripping a short, chunky twin-tube carbine with a wide glowing green muzzle held at the hip. |
+| `skorpekh-destroyer` | `nec.skorpekh-destroyers/destroyer` | 3 | 1.6 | 50 mm | A hunched android killer on three long blade-tipped legs, gunmetal body with green-lit spine, two arms ending in oversized curved glowing scythe blades, eyeless grinning head. |
+| `plasmacyte` | accessory on one Skorpekh base | 1 (decorative) | 0.5 | — | A tiny floating spider-like construct with a glowing green orb body and thin dangling legs, hovering beside the destroyer. |
+| `scarab-swarm` | `nec.canoptek-scarab-swarms/swarm` | 3 | 0.4 | 40 mm | Three or four round beetle drones in gunmetal and gold clustered on one base, each with a single bright green eye and short pincers. |
+| `canoptek-doomstalker` | `nec.canoptek-doomstalker/doomstalker` | 1 | 3.0 | 90 mm | A four-legged spider walker in gunmetal and gold with a tall arched back, a huge single glowing green cannon slung under its body, a small twin rifle at the front and bright green eye lenses. |
 
 ## 10. Other Necrons patrols (appendix)
 

@@ -290,24 +290,24 @@ Same list as the `AST` section of 12-rules-test-checklist.
 
 Heights follow 30-figures (infantry H 1.1, artillery and walkers compressed); bases are rules-true.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `karsk-commander` | `am.command-squad-karsk/karsk` | 1 | 1.15 | 28 mm | A chibi human officer in a long olive-drab greatcoat and peaked cap with a big square chin, brass buttons and a red sash, pointing a chunky glowing-blue pistol forward and holding a short broad sword. |
-| `cadian-veteran-fist` | `am.command-squad-karsk/veteran` (fist) | 1 | 1.1 | 28 mm | A chibi helmeted soldier in tan fatigues and olive flak plates with an oversized grey armoured gauntlet on one arm and a small pistol in the other hand. |
-| `cadian-veteran-lasgun` | `am.command-squad-karsk/veteran` | 1 | 1.1 | 28 mm | A chibi helmeted soldier in tan fatigues and olive flak plates holding a long boxy brown rifle across the chest, goggles pushed up on the helmet. |
-| `cadian-veteran-medic` | `am.command-squad-karsk/veteran-medic` | 1 | 1.1 | 28 mm | The same chibi soldier with the rifle slung, a white armband and a white shoulder satchel, holding up a chunky injector tool. |
-| `cadian-veteran-standard` | `am.command-squad-karsk/veteran-standard` | 1 | 1.1 | 28 mm | The same chibi soldier carrying a tall pole with a square dark-green banner edged in gold, rifle slung on the back. |
-| `shock-sergeant-chainsword` | `am.cadian-shock-troops/sergeant` (shock-a) | 1 | 1.1 | 25 mm | A chibi helmeted squad leader in olive armour with a small pistol raised and a toothed motor-blade sword, a red stripe across the helmet. |
-| `shock-sergeant-autogun` | `am.cadian-shock-troops/sergeant` (shock-b) | 1 | 1.1 | 25 mm | The same chibi squad leader cradling a stubby rifle with a big round drum magazine underneath. |
-| `shock-trooper-lasgun` | `am.cadian-shock-troops/trooper` | 13 | 1.1 | 25 mm | A chibi round-helmeted infantryman in olive flak armour and tan trousers aiming a long boxy brown rifle. |
+| `karsk-commander` | `am.command-squad-karsk/karsk` | 1 | 1.15 | 28 mm | A human officer in a long olive-drab greatcoat and peaked cap with a big square chin, brass buttons and a red sash, pointing a chunky glowing-blue pistol forward and holding a short broad sword. |
+| `cadian-veteran-fist` | `am.command-squad-karsk/veteran` (fist) | 1 | 1.1 | 28 mm | A helmeted soldier in tan fatigues and olive flak plates with an oversized grey armoured gauntlet on one arm and a small pistol in the other hand. |
+| `cadian-veteran-lasgun` | `am.command-squad-karsk/veteran` | 1 | 1.1 | 28 mm | A helmeted soldier in tan fatigues and olive flak plates holding a long boxy brown rifle across the chest, goggles pushed up on the helmet. |
+| `cadian-veteran-medic` | `am.command-squad-karsk/veteran-medic` | 1 | 1.1 | 28 mm | The same soldier with the rifle slung, a white armband and a white shoulder satchel, holding up a chunky injector tool. |
+| `cadian-veteran-standard` | `am.command-squad-karsk/veteran-standard` | 1 | 1.1 | 28 mm | The same soldier carrying a tall pole with a square dark-green banner edged in gold, rifle slung on the back. |
+| `shock-sergeant-chainsword` | `am.cadian-shock-troops/sergeant` (shock-a) | 1 | 1.1 | 25 mm | A helmeted squad leader in olive armour with a small pistol raised and a toothed motor-blade sword, a red stripe across the helmet. |
+| `shock-sergeant-autogun` | `am.cadian-shock-troops/sergeant` (shock-b) | 1 | 1.1 | 25 mm | The same squad leader cradling a short rifle with a big round drum magazine underneath. |
+| `shock-trooper-lasgun` | `am.cadian-shock-troops/trooper` | 13 | 1.1 | 25 mm | A round-helmeted infantryman in olive flak armour and tan trousers aiming a long boxy brown rifle. |
 | `shock-trooper-vox` | `am.cadian-shock-troops/trooper` (vox) | 1 | 1.1 | 25 mm | The lasgun trooper with a big boxy radio backpack and a tall whip antenna, holding a handset to one ear. |
-| `shock-trooper-flamer` | `am.cadian-shock-troops/trooper` (flamer) | 1 | 1.1 | 25 mm | The chibi trooper with a fat short-nozzled weapon and twin fuel canisters on the back, a tiny pilot flame at the tip. |
-| `shock-trooper-melta` | `am.cadian-shock-troops/trooper` (meltagun) | 1 | 1.1 | 25 mm | The chibi trooper with a stubby wide-muzzled heat gun glowing orange, held at the hip. |
-| `shock-trooper-grenade` | `am.cadian-shock-troops/trooper` (grenade launcher) | 1 | 1.1 | 25 mm | The chibi trooper with a short fat-barrelled launcher and a bandolier of round shells across the chest. |
-| `shock-trooper-plasma` | `am.cadian-shock-troops/trooper` (plasma gun) | 1 | 1.1 | 25 mm | The chibi trooper with a bulky rifle wrapped in coils glowing bright blue and a vented cylinder on top. |
-| `ordnance-bombast` | `am.field-ordnance-battery/gun` (bombast) | 1 | 1.4 | 100 mm | A squat chibi wheeled field cannon in olive green with a thick short barrel tilted upward, a gun shield, and two tiny helmeted crew loading a fat shell. |
-| `ordnance-malleus` | `am.field-ordnance-battery/gun` (malleus) | 1 | 1.4 | 100 mm | A chibi wheeled rack of stacked rocket tubes in olive green with red-tipped rockets, a gun shield, and two tiny helmeted crew aiming it. |
-| `armoured-sentinel` | `am.armoured-sentinels/sentinel` | 1 | 2.6 | 80 mm | A chibi two-legged boxy walker in olive green with backward-bending legs, an enclosed armoured cab with a narrow visor slit, a fat glowing-blue cannon under the cab and a single rocket pod on top. |
+| `shock-trooper-flamer` | `am.cadian-shock-troops/trooper` (flamer) | 1 | 1.1 | 25 mm | The trooper with a fat short-nozzled weapon and twin fuel canisters on the back, a tiny pilot flame at the tip. |
+| `shock-trooper-melta` | `am.cadian-shock-troops/trooper` (meltagun) | 1 | 1.1 | 25 mm | The trooper with a short wide-muzzled heat gun glowing orange, held at the hip. |
+| `shock-trooper-grenade` | `am.cadian-shock-troops/trooper` (grenade launcher) | 1 | 1.1 | 25 mm | The trooper with a short fat-barrelled launcher and a bandolier of round shells across the chest. |
+| `shock-trooper-plasma` | `am.cadian-shock-troops/trooper` (plasma gun) | 1 | 1.1 | 25 mm | The trooper with a bulky rifle wrapped in coils glowing bright blue and a vented cylinder on top. |
+| `ordnance-bombast` | `am.field-ordnance-battery/gun` (bombast) | 1 | 1.4 | 100 mm | A squat wheeled field cannon in olive green with a thick short barrel tilted upward, a gun shield, and two tiny helmeted crew loading a fat shell. |
+| `ordnance-malleus` | `am.field-ordnance-battery/gun` (malleus) | 1 | 1.4 | 100 mm | A wheeled rack of stacked rocket tubes in olive green with red-tipped rockets, a gun shield, and two tiny helmeted crew aiming it. |
+| `armoured-sentinel` | `am.armoured-sentinels/sentinel` | 1 | 2.6 | 80 mm | A two-legged boxy walker in olive green with backward-bending legs, an enclosed armoured cab with a narrow visor slit, a fat glowing-blue cannon under the cab and a single rocket pod on top. |
 
 ## 10. Other Astra Militarum patrols (appendix)
 

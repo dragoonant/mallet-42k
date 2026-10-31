@@ -161,7 +161,7 @@ export function AdmWeapon({ shape, colors }: { shape: WeaponShape; colors: Paint
         </group>
       )
     case 'plasma-caliver':
-      // Stubby barrel wrapped in a glowing blue coil, a fat power cell on top.
+      // Short barrel wrapped in a glowing blue coil, a fat power cell on top.
       return (
         <group scale={1.4}>
           <Barrel length={0.3} radius={0.026} color={colors.metal} />

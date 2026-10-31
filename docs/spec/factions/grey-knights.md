@@ -270,16 +270,16 @@ AI note (40-ai, not engine): decline Teleport Assault when the battle ends befor
 
 Heights follow 30-figures (infantry H 1.1, Terminator 1.3, vehicles/walkers compressed); bases are rules-true.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `librarian-aurellios` | `gk.librarian-aurellios/librarian` | 1 | 1.3 | 40 mm | A chibi armoured psychic knight in bulky polished silver plate with a tall psychic hood rising behind the head like a fan of cables, deep blue scholar's robes under the armour, a glowing blue-white rune staff-sword in one hand and crackling lightning around the other fist. |
-| `gk-terminator-justicar` | `gk.brotherhood-terminator-squad/justicar` | 1 | 1.3 | 40 mm | A chibi hulking silver-armoured knight with huge rounded shoulder plates, a red tabard and a small parchment seal, bare-headed with a stern face and topknot, a wrist-mounted twin gun and a long glowing halberd. |
-| `gk-terminator` | `gk.brotherhood-terminator-squad/terminator` | 3 | 1.3 | 40 mm | A chibi hulking knight in gleaming silver plate with an enclosed visor helmet glowing blue, a red cloth tabard, a twin gun on one wrist and a long blue-edged halberd held two-handed. |
-| `gk-terminator-psycannon` | `gk.brotherhood-terminator-squad/psycannon` | 1 | 1.3 | 40 mm | The same chibi silver heavy knight carrying a long, chunky multi-barrel cannon with glowing blue coils along it, halberd slung on the back. |
-| `strike-justicar` | `gk.strike-squad/justicar` | 1 | 1.1 | 32 mm | A chibi slim silver-armoured knight with a bare stern head and short cape, red tabard, a compact twin gun on the wrist and a glowing blue-bladed sword raised high. |
-| `strike-knight` | `gk.strike-squad/knight` | 3 | 1.1 | 32 mm | A chibi silver power-armoured knight with a round visored helmet glowing blue, red tabard, a wrist-mounted twin gun and a long blue-edged halberd. |
-| `strike-psilencer` | `gk.strike-squad/psilencer` | 1 | 1.1 | 32 mm | The same chibi silver knight braced behind a long slim rotary-barrel gun that glows pale blue along its length. |
-| `nemesis-dreadknight` | `gk.nemesis-dreadknight/dreadknight` | 1 | 2.6 | 120×92 mm oval | A chibi towering silver battle-frame walker with stubby powerful legs, a small armoured pilot seated in its chest cradle, a huge glowing blue greatsword in one giant fist and a shoulder-mounted heavy cannon with blue energy coils, red cloth banners hanging from the waist. |
+| `librarian-aurellios` | `gk.librarian-aurellios/librarian` | 1 | 1.3 | 40 mm | A armoured psychic knight in bulky polished silver plate with a tall psychic hood rising behind the head like a fan of cables, deep blue scholar's robes under the armour, a glowing blue-white rune staff-sword in one hand and crackling lightning around the other fist. |
+| `gk-terminator-justicar` | `gk.brotherhood-terminator-squad/justicar` | 1 | 1.3 | 40 mm | A hulking silver-armoured knight with huge rounded shoulder plates, a red tabard and a small parchment seal, bare-headed with a stern face and topknot, a wrist-mounted twin gun and a long glowing halberd. |
+| `gk-terminator` | `gk.brotherhood-terminator-squad/terminator` | 3 | 1.3 | 40 mm | A hulking knight in gleaming silver plate with an enclosed visor helmet glowing blue, a red cloth tabard, a twin gun on one wrist and a long blue-edged halberd held two-handed. |
+| `gk-terminator-psycannon` | `gk.brotherhood-terminator-squad/psycannon` | 1 | 1.3 | 40 mm | The same silver heavy knight carrying a long, chunky multi-barrel cannon with glowing blue coils along it, halberd slung on the back. |
+| `strike-justicar` | `gk.strike-squad/justicar` | 1 | 1.1 | 32 mm | A slim silver-armoured knight with a bare stern head and short cape, red tabard, a compact twin gun on the wrist and a glowing blue-bladed sword raised high. |
+| `strike-knight` | `gk.strike-squad/knight` | 3 | 1.1 | 32 mm | A silver power-armoured knight with a round visored helmet glowing blue, red tabard, a wrist-mounted twin gun and a long blue-edged halberd. |
+| `strike-psilencer` | `gk.strike-squad/psilencer` | 1 | 1.1 | 32 mm | The same silver knight braced behind a long slim rotary-barrel gun that glows pale blue along its length. |
+| `nemesis-dreadknight` | `gk.nemesis-dreadknight/dreadknight` | 1 | 2.6 | 120×92 mm oval | A towering silver battle-frame walker with short powerful legs, a small armoured pilot seated in its chest cradle, a huge glowing blue greatsword in one giant fist and a shoulder-mounted heavy cannon with blue energy coils, red cloth banners hanging from the waist. |
 
 ## 10. Other Grey Knights patrols (appendix)
 

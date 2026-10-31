@@ -279,19 +279,19 @@ This is the same list as the `WOR` section of 12-rules-test-checklist.
 Heights follow 30-figures (infantry H 1.1, heavier models up to 1.3; the mounted model is compressed). Bases match
 the rules.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `karagar-the-blooded` | `we.karagar-the-blooded/karagar` | 1 | 1.9 | 90 × 52 mm oval | A chibi armoured warlord in deep crimson plate with dull brass trim and a horned crested helm, riding a squat brass-plated mechanical bull-beast with a single huge bladed horn and glowing ember eyes, a roaring chain-sword raised high and a small pistol at the hip. |
-| `berzerker-champion` | `we.khorne-berzerkers/champion` | 1 | 1.2 | 32 mm | A chibi hulking crimson-armoured berserker with blackened steel pauldrons, a tall crested helm with a snarling grille, a stubby glowing-blue pistol in one hand and a toothed chain-sword in the other, a short bone-white trophy cape. |
-| `berzerker-plasma` | `we.khorne-berzerkers/plasma` | 1 | 1.1 | 32 mm | A chibi crimson-armoured berserker in mid-roar with brass edging and pipes running from the helm to the backpack, holding a glowing-blue pistol and a toothed chain-sword. |
-| `berzerker-icon` | `we.khorne-berzerkers/icon` | 1 | 1.1 | 32 mm | The same chibi crimson berserker with a chain-sword, a glowing-blue pistol and a tall brass banner pole on its back topped with an original spiky skull-and-blade icon. |
-| `berzerker-eviscerator` | `we.khorne-berzerkers/eviscerator` | 2 | 1.1 | 32 mm | The same chibi crimson berserker swinging an oversized two-handed chain-cleaver with heavy teeth, a small pistol holstered on the thigh. |
-| `berzerker` | `we.khorne-berzerkers/chainblade` | 5 | 1.1 | 32 mm | A chibi stocky crimson power-armoured berserker with blackened steel shoulders, brass trim and a grilled helm, charging with a chunky pistol in one hand and a toothed chain-sword in the other. |
-| `jakhal-pack-leader` | `we.jakhals/pack-leader` | 1 | 1.05 | 28 mm | A chibi wiry human brute with a red-painted iron half-mask and a mohawk-like crest, crimson rags and brass-studded straps, twin small chain-blades and an autopistol on the belt. |
-| `jakhal-dishonoured` | `we.jakhals/dishonoured` | 1 | 1.3 | 40 mm | A chibi oversized mutant hulk in torn crimson rags with a heavy iron collar and a cage-like iron mask, dragging a huge spiked club-hammer in both hands. |
-| `jakhal-mauler` | `we.jakhals/mauler` | 1 | 1.0 | 28 mm | A chibi scrawny masked human raider in crimson rags and leather straps, gripping a long heavy chain-axe with both hands, an autopistol at the hip. |
-| `jakhal-icon` | `we.jakhals/icon` | 1 | 1.0 | 28 mm | The same chibi masked human raider carrying a crooked scrap-iron banner pole topped with an original jagged skull icon, a small chain-blade in the free hand. |
-| `jakhal` | `we.jakhals/jakhal` | 6 | 1.0 | 28 mm | A chibi scrawny human raider in a crude iron face-mask, patched crimson rags and brass-studded harness, an autopistol in one hand and a short chain-blade in the other. |
+| `karagar-the-blooded` | `we.karagar-the-blooded/karagar` | 1 | 1.9 | 90 × 52 mm oval | A armoured warlord in deep crimson plate with dull brass trim and a horned crested helm, riding a squat brass-plated mechanical bull-beast with a single huge bladed horn and glowing ember eyes, a roaring chain-sword raised high and a small pistol at the hip. |
+| `berzerker-champion` | `we.khorne-berzerkers/champion` | 1 | 1.2 | 32 mm | A hulking crimson-armoured berserker with blackened steel pauldrons, a tall crested helm with a snarling grille, a short glowing-blue pistol in one hand and a toothed chain-sword in the other, a short bone-white trophy cape. |
+| `berzerker-plasma` | `we.khorne-berzerkers/plasma` | 1 | 1.1 | 32 mm | A crimson-armoured berserker in mid-roar with brass edging and pipes running from the helm to the backpack, holding a glowing-blue pistol and a toothed chain-sword. |
+| `berzerker-icon` | `we.khorne-berzerkers/icon` | 1 | 1.1 | 32 mm | The same crimson berserker with a chain-sword, a glowing-blue pistol and a tall brass banner pole on its back topped with an original spiky skull-and-blade icon. |
+| `berzerker-eviscerator` | `we.khorne-berzerkers/eviscerator` | 2 | 1.1 | 32 mm | The same crimson berserker swinging an oversized two-handed chain-cleaver with heavy teeth, a small pistol holstered on the thigh. |
+| `berzerker` | `we.khorne-berzerkers/chainblade` | 5 | 1.1 | 32 mm | A stocky crimson power-armoured berserker with blackened steel shoulders, brass trim and a grilled helm, charging with a chunky pistol in one hand and a toothed chain-sword in the other. |
+| `jakhal-pack-leader` | `we.jakhals/pack-leader` | 1 | 1.05 | 28 mm | A wiry human brute with a red-painted iron half-mask and a mohawk-like crest, crimson rags and brass-studded straps, twin small chain-blades and an autopistol on the belt. |
+| `jakhal-dishonoured` | `we.jakhals/dishonoured` | 1 | 1.3 | 40 mm | A oversized mutant hulk in torn crimson rags with a heavy iron collar and a cage-like iron mask, dragging a huge spiked club-hammer in both hands. |
+| `jakhal-mauler` | `we.jakhals/mauler` | 1 | 1.0 | 28 mm | A scrawny masked human raider in crimson rags and leather straps, gripping a long heavy chain-axe with both hands, an autopistol at the hip. |
+| `jakhal-icon` | `we.jakhals/icon` | 1 | 1.0 | 28 mm | The same masked human raider carrying a crooked scrap-iron banner pole topped with an original jagged skull icon, a small chain-blade in the free hand. |
+| `jakhal` | `we.jakhals/jakhal` | 6 | 1.0 | 28 mm | A scrawny human raider in a crude iron face-mask, patched crimson rags and brass-studded harness, an autopistol in one hand and a short chain-blade in the other. |
 
 ## 10. Other World Eaters patrols (appendix)
 

@@ -1,15 +1,14 @@
 # Unit concept images (input for Hunyuan3D 2.1)
 
 Generated in Gemini (owner's account, Flash image model), one chat per faction so style stays consistent.
-Style: "master grade SD" (Gundam SD kit proportions, super deformed, not chibi), full body, front
+Style: house figure style (docs/FIGURE-STYLE.md), full body, front
 three-quarter view, plain round black base, plain white background, no shadows, no text.
 File name = GLB slug in `src/client/figures/glbModels.ts`.
 
-## Necrons (chat: "Necron Warrior SD Model Prompt")
+## Necrons (first Gemini chat for Necrons)
 
-1. `necron-warrior` — Generate an image of a Warhammer 40k Necron Warrior holding a gauss flayer, in master
-   grade SD (super deformed) style proportions like a Gundam SD model kit, not chibi: about 3 heads tall,
-   slightly oversized head and limbs, but crisp hard-surface model-kit detail. Full body, neutral standing
+1. `necron-warrior` — Generate an image of a Warhammer 40k Necron Warrior holding a gauss flayer, in the
+   house figure style (docs/FIGURE-STYLE.md): crisp hard-surface model-kit detail. Full body, neutral standing
    pose, front three-quarter view, standing on a plain round black base. No background (plain white), even
    soft lighting, no shadows, no text.
 2. `necron-overlord` — Same style, proportions, framing, base and plain white background: now a Necron
@@ -21,10 +20,10 @@ File name = GLB slug in `src/client/figures/glbModels.ts`.
    body, big glowing green doomsday blaster on the front, small sensor head.
 5. `canoptek-scarab` — … a cluster of five chunky beetle-like scarab robots piled together on one base.
 
-## SD figures v2 (2026-10, Gemini) — all factions except Necrons
+## Figures v2 (2026-10, Gemini) — all factions except Necrons
 
-Shared style suffix for every image below: *noticeably oversized head (about a third of total height), short
-compact torso, short sturdy legs, oversized hands and weapons, like a master grade SD Gundam kit, not chibi.
+Shared style suffix for every image below: *house figure style (docs/FIGURE-STYLE.md; attach
+`docs/figure-style-reference.jpg` to the first message of each chat).
 Full body, front three-quarter view, plain round black base, plain white background, no shadows, no text.*
 Each image is the Nth reply in that faction's Gemini chat (listed in `docs/HANDOFF-sd-figures-v2.md`).
 These replace the v1 Space Marine and Ork concepts (v1 GLBs archived in `art/archive/models-v1/`).
@@ -60,27 +59,27 @@ cap, power sword · `cadian-veteran` plasma gun, vox pack · `cadian-medic` red-
 `cadian-standard-bearer` tall regimental banner · `bombast-field-gun` wheeled field gun with two crew ·
 `malleus-rocket-battery` wheeled rocket battery with crew · `armoured-sentinel` two-legged enclosed walker.
 
-### Grey Knights (MGSD, 2026-10-05)
-MGSD proportions; variants made by editing a clean base image in Gemini.
+### Grey Knights (2026-10-05)
+House figure style (docs/FIGURE-STYLE.md); variants made by editing a clean base image in Gemini.
 `librarian-aurellios` psyker Librarian, force weapon · `gk-terminator-justicar` Terminator squad leader, halberd ·
 `gk-terminator` Terminator with storm bolter and halberd · `gk-terminator-psycannon` Terminator with psycannon ·
 `strike-justicar` Strike Squad leader · `strike-knight` Strike Knight, storm bolter and sword ·
 `strike-psilencer` Strike Knight with psilencer · `nemesis-dreadknight` large walker-armour Dreadknight.
 
-### T'au Empire (MGSD, 2026-10-05)
-MGSD proportions; variants made by editing a clean base image in Gemini.
+### T'au Empire (2026-10-05)
+House figure style (docs/FIGURE-STYLE.md); variants made by editing a clean base image in Gemini.
 `aun-shar` Ethereal, robes and honour blade · `shasnel-dtano` Fireblade with markerlight · `fire-warrior-rifle` pulse rifle trooper ·
 `fire-warrior-carbine` pulse carbine trooper · `fire-warrior-shasui` Shas'ui team leader · `stealth-shasvre` Stealth suit leader ·
 `stealth-shasui` Stealth suit with burst cannon · `ghostkeel` large stealth battlesuit.
 
-### Genestealer Cults (MGSD, 2026-10-05)
-MGSD proportions; variants made by editing a clean base image in Gemini. Acolytes intentionally have three arms.
+### Genestealer Cults (2026-10-05)
+House figure style (docs/FIGURE-STYLE.md); variants made by editing a clean base image in Gemini. Acolytes intentionally have three arms.
 `magus-veridielle` psychic priestess · `neophyte-leader` miner-militia sergeant · `neophyte-firearm` rifle worker ·
 `neophyte-icon` icon bearer · `neophyte-stubber` heavy stubber · `neophyte-seismic` seismic cannon · `neophyte-webber` webber ·
 `acolyte-leader` hybrid leader · `acolyte-hybrid` hybrid with extra arm · `acolyte-demolitions` demolition charges ·
-`acolyte-mining-tool` mining tool · `aberrant-hypermorph` hulking brute leader · `aberrant` hulking brute · `goliath-rockgrinder` stubby mining vehicle.
+`acolyte-mining-tool` mining tool · `aberrant-hypermorph` hulking brute leader · `aberrant` hulking brute · `goliath-rockgrinder` short mining vehicle.
 
-### Adeptus Custodes (MGSD, 2026-10-05)
-MGSD proportions; variants made by editing a clean base image in Gemini.
+### Adeptus Custodes (2026-10-05)
+House figure style (docs/FIGURE-STYLE.md); variants made by editing a clean base image in Gemini.
 `shield-captain-tyvan` crested golden captain with shield and sword · `custodian-guard-spear` guardian spear · `custodian-guard-vexilla` standard bearer ·
 `custodian-guard-shield` sentinel blade and shield · `prosecutor` masked bronze rifle warrior · `vigilator` bronze greatsword warrior · `vertus-praetor` lancer on a jetbike.

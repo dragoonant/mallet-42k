@@ -1,4 +1,4 @@
-// Public entry point: one datasheet's SD figure, procedurally built and posed. Rendering-only —
+// Public entry point: one datasheet's figure, procedurally built and posed. Rendering-only —
 // the engine never imports this and never sees anything drawn here, only the Model.base/height
 // numbers this reads from src/data (docs/spec/30-figures.md, top of file). See index.ts for the
 // full per-model API contract this exposes to the wiring layer.

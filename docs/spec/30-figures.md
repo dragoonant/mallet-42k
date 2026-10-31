@@ -1,4 +1,4 @@
-# 30 — SD figure kit
+# 30 — Figure kit
 
 Rendering-only. Nothing here affects rules; the engine sees only `base` and `height` (00-architecture §7).
 Code lives in `src/assets/` (kits, parts, materials, animation) and is consumed by `src/client/` only.
@@ -7,7 +7,7 @@ Code lives in `src/assets/` (kits, parts, materials, animation) and is consumed 
 
 | Item | Value |
 |---|---|
-| Proportion | ~2.5 heads tall; head ≈ 40% of height, torso 30%, legs 30%; hands and weapons oversized ×1.4 |
+| Proportion | House figure style (docs/FIGURE-STYLE.md); the procedural kit uses head ≈ 40% of height, torso 30%, legs 30%; hands and weapons oversized ×1.4 |
 | World scale | 1 unit = 1 inch. Infantry figure height `H = 1.1` (head top to sole, not counting base) |
 | Base | Rules-true diameter (§7); base disc thickness 0.12, figure stands on top |
 | Heavy infantry | H = 1.3 (Terminator, Nob, Mega-armour) |

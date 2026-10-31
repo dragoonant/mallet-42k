@@ -1,6 +1,6 @@
 # Mallet 42k
 
-A browser-based 3D tabletop wargame with Super Deformed (chibi-proportioned) miniatures,
+A browser-based 3D tabletop wargame with miniatures in a heavy, detailed figure style (docs/FIGURE-STYLE.md),
 built for one small-scale scenario format first and scaling up from there. You play against
 an AI opponent, moving and fighting units on a grid-measured battlefield with the same kind of
 phase structure, dice-based resolution, and army-building rules that fans of tabletop

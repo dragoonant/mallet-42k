@@ -25,7 +25,7 @@ function fire(family: VfxFamily): void {
 }
 
 function Figure({ x, z, color, face }: { x: number; z: number; color: string; face: number }) {
-  // chunky chibi stand-in: stubby body, huge head
+  // chunky stand-in: short body, large head
   return (
     <group position={[x, 0, z]} rotation={[0, face, 0]}>
       <mesh position={[0, 0.35, 0]}><cylinderGeometry args={[0.38, 0.45, 0.7, 12]} /><meshStandardMaterial color={color} /></mesh>

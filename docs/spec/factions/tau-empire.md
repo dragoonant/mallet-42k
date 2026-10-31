@@ -298,17 +298,17 @@ Same list as the `TAU` section of 12-rules-test-checklist.
 
 Heights follow 30-figures (infantry H 1.1, heavy 1.3, vehicles compressed); bases are rules-true.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `aun-shar` | `tau.aun-shar/aun-shar` | 1 | 1.1 | 25 mm | A chibi serene alien priest with blue-grey skin and a tall topknot, flowing bone-and-teal layered robes, holding a long ceremonial staff, standing on a small hovering disc-drone with a sensor-blue glow underneath. |
-| `shasnel-dtano` | `tau.shasnel-dtano/fireblade` | 1 | 1.0 | 25 mm | A chibi veteran alien soldier in bone-coloured plated armour with a teal sash, wide flat helmet pushed back to show a scarred face, holding a long sleek rifle with a glowing blue sight. |
-| `fire-warrior-rifle` | `tau.strike-team/fire-warrior-rifle` | 5 | 1.0 | 25 mm | A chibi alien trooper in rounded bone-ceramic armour with teal shoulder pads, a smooth domed helmet with a single blue lens strip, holding a long boxy rifle. |
-| `fire-warrior-carbine` | `tau.strike-team/fire-warrior-carbine` | 4 | 1.0 | 25 mm | Same chibi alien trooper holding a short chunky carbine with an under-barrel grip, small pistol on the hip. |
-| `fire-warrior-shasui` | `tau.strike-team/shasui` | 1 | 1.0 | 25 mm | Same chibi trooper with orange-striped helmet crest and a tall antenna, carbine in hand, a small saucer drone hovering at the shoulder. |
-| `support-turret` | accessory on the Shas'ui base (shown only while DS8 is active) | 1 (decorative) | 0.4 | — | A tiny chibi tripod turret with a twin missile pod painted bone and teal, blue targeting light on top. |
-| `stealth-shasvre` | `tau.stealth-battlesuits/shasvre` | 1 | 1.3 | 32 mm | A chibi sleek armoured suit with a hunched wedge-shaped head and glowing blue visor, dark teal panels with shimmering half-transparent edges, a stubby heat-gun on one forearm and a tiny drone on the back. |
-| `stealth-shasui` | `tau.stealth-battlesuits/shasui` | 2 | 1.3 | 32 mm | Same chibi stealth suit with a rotary multi-barrel gun on the right arm and orange trim. |
-| `ghostkeel` | `tau.ghostkeel/ghostkeel` | 1 | 3.0 | 105×70 mm oval | A chibi tall long-legged walker suit with a forward-slung armoured cockpit, angular shoulder plates in bone and teal with shimmer-cloak panels, a long ribbed rapid-fire cannon on one arm and twin stubby heat-guns under the chest. |
+| `aun-shar` | `tau.aun-shar/aun-shar` | 1 | 1.1 | 25 mm | A serene alien priest with blue-grey skin and a tall topknot, flowing bone-and-teal layered robes, holding a long ceremonial staff, standing on a small hovering disc-drone with a sensor-blue glow underneath. |
+| `shasnel-dtano` | `tau.shasnel-dtano/fireblade` | 1 | 1.0 | 25 mm | A veteran alien soldier in bone-coloured plated armour with a teal sash, wide flat helmet pushed back to show a scarred face, holding a long sleek rifle with a glowing blue sight. |
+| `fire-warrior-rifle` | `tau.strike-team/fire-warrior-rifle` | 5 | 1.0 | 25 mm | A alien trooper in rounded bone-ceramic armour with teal shoulder pads, a smooth domed helmet with a single blue lens strip, holding a long boxy rifle. |
+| `fire-warrior-carbine` | `tau.strike-team/fire-warrior-carbine` | 4 | 1.0 | 25 mm | Same alien trooper holding a short chunky carbine with an under-barrel grip, small pistol on the hip. |
+| `fire-warrior-shasui` | `tau.strike-team/shasui` | 1 | 1.0 | 25 mm | Same trooper with orange-striped helmet crest and a tall antenna, carbine in hand, a small saucer drone hovering at the shoulder. |
+| `support-turret` | accessory on the Shas'ui base (shown only while DS8 is active) | 1 (decorative) | 0.4 | — | A tiny tripod turret with a twin missile pod painted bone and teal, blue targeting light on top. |
+| `stealth-shasvre` | `tau.stealth-battlesuits/shasvre` | 1 | 1.3 | 32 mm | A sleek armoured suit with a hunched wedge-shaped head and glowing blue visor, dark teal panels with shimmering half-transparent edges, a short heat-gun on one forearm and a tiny drone on the back. |
+| `stealth-shasui` | `tau.stealth-battlesuits/shasui` | 2 | 1.3 | 32 mm | Same stealth suit with a rotary multi-barrel gun on the right arm and orange trim. |
+| `ghostkeel` | `tau.ghostkeel/ghostkeel` | 1 | 3.0 | 105×70 mm oval | A tall long-legged walker suit with a forward-slung armoured cockpit, angular shoulder plates in bone and teal with shimmer-cloak panels, a long ribbed rapid-fire cannon on one arm and twin short heat-guns under the chest. |
 
 ## 10. Other T'au Empire patrols (appendix)
 

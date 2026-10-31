@@ -222,18 +222,18 @@ and data tests in `tests/data/orks-morgrim-s-butchas.test.ts`.
 
 ## 9. Figures
 
-Heights follow 30-figures (MGSD proportions: about 2.5 heads, a huge head, stubby legs; infantry about H 1.1, heavy
+Heights follow 30-figures (house figure style, docs/FIGURE-STYLE.md; infantry about H 1.1, heavy
 about 1.3). Bases are rules-true. Colours follow the Orks paint scheme (green skin, rust red, brass trim) with this
 patrol's own bone-and-hide trophies.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `beastboss-morgrim` | `ork.beastboss-morgrim/beastboss` | 1 | 1.45 | 50 mm | A chibi hulking green-skinned brute chieftain in rust-red plate scraps under a huge horned beast-skull helmet with a furry pelt cloak, swinging an oversized jagged bone-and-iron cleaver in one fist and a big brass crushing claw on the other arm. |
-| `beast-snagga-boy` | `ork.beast-snagga-boyz/boy-choppa` | 16 | 1.1 | 32 mm | A chibi stocky green brute with a tusked underbite, bone necklaces and a hide loincloth, waving a crude chunky cleaver and a stubby brass-banded pistol. |
-| `beast-snagga-thump-gun` | `ork.beast-snagga-boyz/boy-thump-gun` | 2 | 1.1 | 32 mm | The same chibi tusked green brute hefting a fat short-barrelled drum grenade launcher with a rust-red muzzle, wearing a fur pelt over one shoulder. |
-| `beast-snagga-nob` | `ork.beast-snagga-boyz/nob` | 2 | 1.25 | 32 mm | A bigger chibi green brute boss wearing a toothy animal-jaw helmet, with a big brass mechanical snapping pincer on one arm and a stubby pistol in the other hand. |
-| `squighog-boy` | `ork.squighog-boyz/squighog-boy` | 3 | 1.7 | 75 × 42 mm oval | A chibi green rider on a round tusked red-orange beast with a huge toothy mouth and tiny legs, holding a long barbed spear, with a little goblin sidekick on the saddle waving a tiny gun. |
-| `nob-on-smasha-squig` | `ork.squighog-boyz/nob-smasha-squig` | 1 | 1.9 | 90 × 52 mm oval | A chibi armoured green boss riding an even larger spiky red-orange tusked beast in a brass muzzle cage, raising a heavy jagged cleaver over its horned helmet. |
+| `beastboss-morgrim` | `ork.beastboss-morgrim/beastboss` | 1 | 1.45 | 50 mm | A hulking green-skinned brute chieftain in rust-red plate scraps under a huge horned beast-skull helmet with a furry pelt cloak, swinging an oversized jagged bone-and-iron cleaver in one fist and a big brass crushing claw on the other arm. |
+| `beast-snagga-boy` | `ork.beast-snagga-boyz/boy-choppa` | 16 | 1.1 | 32 mm | A stocky green brute with a tusked underbite, bone necklaces and a hide loincloth, waving a crude chunky cleaver and a short brass-banded pistol. |
+| `beast-snagga-thump-gun` | `ork.beast-snagga-boyz/boy-thump-gun` | 2 | 1.1 | 32 mm | The same tusked green brute hefting a fat short-barrelled drum grenade launcher with a rust-red muzzle, wearing a fur pelt over one shoulder. |
+| `beast-snagga-nob` | `ork.beast-snagga-boyz/nob` | 2 | 1.25 | 32 mm | A bigger green brute boss wearing a toothy animal-jaw helmet, with a big brass mechanical snapping pincer on one arm and a short pistol in the other hand. |
+| `squighog-boy` | `ork.squighog-boyz/squighog-boy` | 3 | 1.7 | 75 × 42 mm oval | A green rider on a round tusked red-orange beast with a huge toothy mouth and very short legs, holding a long barbed spear, with a little goblin sidekick on the saddle waving a tiny gun. |
+| `nob-on-smasha-squig` | `ork.squighog-boyz/nob-smasha-squig` | 1 | 1.9 | 90 × 52 mm oval | A armoured green boss riding an even larger spiky red-orange tusked beast in a brass muzzle cage, raising a heavy jagged cleaver over its horned helmet. |
 
 ## 10. Other Orks patrols (appendix)
 

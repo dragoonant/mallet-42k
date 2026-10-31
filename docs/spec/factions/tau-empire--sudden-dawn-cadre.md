@@ -307,15 +307,15 @@ Same list as the `SDC` section of 12-rules-test-checklist. Engine/data tests: `t
 Heights follow 30-figures (infantry H ~1.0–1.1, battlesuits taller, vehicles compressed); bases are rules-true. Paint
 scheme: the faction's existing one (bone `#d8cdb2`, deep teal `#2e6a86`, signal orange `#d9762b`, sensor blue glow).
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `commander-cloudspear` | `tau.commander-cloudspear/cloudspear` | 1 | 1.8 | 60 mm | A chibi chunky armoured battlesuit with a broad wedge head and a single glowing blue visor slit, bone-and-teal plates with orange command stripes, a stubby wide-mouthed launcher on one shoulder and a long glowing rifle on one arm, two tiny saucer drones with shimmering shield discs hovering beside it. |
-| `pathfinder-shasui` | `tau.pathfinder-team/shasui` | 1 | 1.0 | 25 mm | A chibi alien scout in light bone armour with a teal hooded cloak, a sleek helmet with a tall sensor antenna and orange stripe, short carbine in hand, a small humming drone with a violet grav ring floating at the shoulder. |
-| `pathfinder-carbine` | `tau.pathfinder-team/pathfinder-carbine` | 6 | 1.0 | 25 mm | A chibi alien scout in light bone armour with a teal hooded cloak and a rangefinder eyepiece on a smooth helmet, holding a short chunky carbine. |
-| `pathfinder-rail` | `tau.pathfinder-team/pathfinder-rail` | 3 | 1.0 | 25 mm | The same chibi cloaked scout kneeling slightly, carrying a very long slim rifle with a glowing blue coil running along the barrel. |
-| `breacher-shasui` | `tau.breacher-team/shasui` | 1 | 1.0 | 25 mm | A chibi alien trooper in heavier rounded bone armour with teal shoulder pads, a domed helmet with an orange crest, holding a short fat-barrelled shotgun-like blaster with a wide muzzle. |
-| `breacher` | `tau.breacher-team/breacher` | 9 | 1.0 | 25 mm | The same chibi armoured trooper without the crest, short wide-muzzled blaster held low at the hip, small pistol on the belt. |
-| `devilfish` | `tau.devilfish/devilfish` | 1 | 1.8 (hull ~4.0 long, compressed) | 60 mm round flying base | A chibi rounded hover-transport shaped like a smooth flat fish, bone hull with teal panels and orange nose stripe, two stubby engine pods at the back, a short rotary cannon under the chin, a rear ramp hatch, floating on a clear stem with a sensor-blue glow beneath. |
+| `commander-cloudspear` | `tau.commander-cloudspear/cloudspear` | 1 | 1.8 | 60 mm | A chunky armoured battlesuit with a broad wedge head and a single glowing blue visor slit, bone-and-teal plates with orange command stripes, a short wide-mouthed launcher on one shoulder and a long glowing rifle on one arm, two tiny saucer drones with shimmering shield discs hovering beside it. |
+| `pathfinder-shasui` | `tau.pathfinder-team/shasui` | 1 | 1.0 | 25 mm | A alien scout in light bone armour with a teal hooded cloak, a sleek helmet with a tall sensor antenna and orange stripe, short carbine in hand, a small humming drone with a violet grav ring floating at the shoulder. |
+| `pathfinder-carbine` | `tau.pathfinder-team/pathfinder-carbine` | 6 | 1.0 | 25 mm | A alien scout in light bone armour with a teal hooded cloak and a rangefinder eyepiece on a smooth helmet, holding a short chunky carbine. |
+| `pathfinder-rail` | `tau.pathfinder-team/pathfinder-rail` | 3 | 1.0 | 25 mm | The same cloaked scout kneeling slightly, carrying a very long slim rifle with a glowing blue coil running along the barrel. |
+| `breacher-shasui` | `tau.breacher-team/shasui` | 1 | 1.0 | 25 mm | A alien trooper in heavier rounded bone armour with teal shoulder pads, a domed helmet with an orange crest, holding a short fat-barrelled shotgun-like blaster with a wide muzzle. |
+| `breacher` | `tau.breacher-team/breacher` | 9 | 1.0 | 25 mm | The same armoured trooper without the crest, short wide-muzzled blaster held low at the hip, small pistol on the belt. |
+| `devilfish` | `tau.devilfish/devilfish` | 1 | 1.8 (hull ~4.0 long, compressed) | 60 mm round flying base | A rounded hover-transport shaped like a smooth flat fish, bone hull with teal panels and orange nose stripe, two short engine pods at the back, a short rotary cannon under the chin, a rear ramp hatch, floating on a clear stem with a sensor-blue glow beneath. |
 
 ## 10. Other T'au Empire patrols (appendix)
 

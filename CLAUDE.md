@@ -30,10 +30,11 @@ workflows) → `STATUS.md` (what exists) → `PLAN.md` (scope, decisions, milest
   `STATUS.md` unless told to, never runs `git commit`/`npm install` unless told to.
 - No native browser tooltips (`title=` on HTML/SVG elements). Hover/focus help uses the shared styled
   tooltip in `src/client/ui/Tooltip.tsx`; `tests/client/noNativeTooltips.test.ts` enforces it.
+- Figure prompts follow docs/FIGURE-STYLE.md; never use the banned style words listed there.
 - Commit messages: `M<n>: <what>` + blank line + the Co-Authored-By line for the current model.
   Pushing to `main` after each stage is pre-approved by the owner. Pages deploys from `main`.
 
 ## IP rule
 Mechanics are ported 1:1 from Warhammer 40k 10th edition Combat Patrol. All prose (ability text,
 lore, UI copy, docs) is written in our own words — never copy Games Workshop text. Unit/weapon/ability
-names may match. Figures are original SD designs, not copies of GW sculpts.
+names may match. Figures are original designs in the house figure style (docs/FIGURE-STYLE.md), not copies of GW sculpts.

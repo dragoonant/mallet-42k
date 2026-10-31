@@ -250,13 +250,13 @@ kits**: datasheet `figure` uses `{archetype:'infantry', kit:'sm-tacticus'}` (Mor
 from the `dark-angels` faction `paintScheme` (deep green `#1f3b2a`, bone `#d9cfb4`, dark red trim `#8e1b1b`) and
 per-model parts (hood, robe tabard). GLB models are new slugs for the 3D pipeline. No chapter icons or logos.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `chaplain-mordekai` | `da.chaplain-mordekai/mordekai` | 1 | 1.2 | 40 mm | A chibi battle-priest in gloss-black power armour with bone-white trim, a pale skull-faced helmet with glowing red eyes, a long bone-coloured robe skirt, a winged golden mace raised high and a chunky ornate pistol in the other hand. |
-| `intercessor-sergeant` | `da.intercessor-squad/sergeant` | 1 | 1.15 | 32 mm | A chibi armoured veteran in deep-green plate with a short bone-coloured robe tabard and red helmet stripe, a glowing blue-edged sword held forward and a stubby pistol at the hip. |
-| `intercessor` | `da.intercessor-squad/intercessor` | 4 | 1.1 | 32 mm | A chibi armoured soldier in rounded deep-green plate with bone-white shoulder rims and green eye-lenses, holding a long chunky rifle across the chest. |
-| `inceptor` | `da.inceptor-squad/inceptor` | 3 | 1.3 | 40 mm | A chibi heavy trooper in extra-bulky deep-green armour with a big twin-thruster jump pack blasting orange flame, a heavy compact gun in each fist and a squat helmet sunk between huge pauldrons. |
-| `redemptor-dreadnought` | `da.redemptor-dreadnought/redemptor` | 1 | 2.8 | 90 mm | A chibi hulking walker with a boxy deep-green armoured body and bone trim, a tiny sarcophagus front plate, one arm a fat blue-glowing plasma cannon, the other a giant clawed fist with a spinning multi-barrel gun under it, and a small rocket pod on one shoulder. |
+| `chaplain-mordekai` | `da.chaplain-mordekai/mordekai` | 1 | 1.2 | 40 mm | A battle-priest in gloss-black power armour with bone-white trim, a pale skull-faced helmet with glowing red eyes, a long bone-coloured robe skirt, a winged golden mace raised high and a chunky ornate pistol in the other hand. |
+| `intercessor-sergeant` | `da.intercessor-squad/sergeant` | 1 | 1.15 | 32 mm | A armoured veteran in deep-green plate with a short bone-coloured robe tabard and red helmet stripe, a glowing blue-edged sword held forward and a short pistol at the hip. |
+| `intercessor` | `da.intercessor-squad/intercessor` | 4 | 1.1 | 32 mm | A armoured soldier in rounded deep-green plate with bone-white shoulder rims and green eye-lenses, holding a long chunky rifle across the chest. |
+| `inceptor` | `da.inceptor-squad/inceptor` | 3 | 1.3 | 40 mm | A heavy trooper in extra-bulky deep-green armour with a big twin-thruster jump pack blasting orange flame, a heavy compact gun in each fist and a squat helmet sunk between huge pauldrons. |
+| `redemptor-dreadnought` | `da.redemptor-dreadnought/redemptor` | 1 | 2.8 | 90 mm | A hulking walker with a boxy deep-green armoured body and bone trim, a tiny sarcophagus front plate, one arm a fat blue-glowing plasma cannon, the other a giant clawed fist with a spinning multi-barrel gun under it, and a small rocket pod on one shoulder. |
 
 ## 10. Other Dark Angels patrols (appendix)
 

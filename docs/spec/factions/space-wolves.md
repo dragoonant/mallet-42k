@@ -244,13 +244,13 @@ system resolves colours by faction id, and `space-wolves` is already canonical, 
 emblem or other logo. GLB slugs carry a `sw-` prefix wherever a unit name could later collide with an SM patrol
 (Intercessors, Reivers, Invictor), because Hunyuan GLBs bake their colours. GLB keys = `<datasheet id>/<modelId>`.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `battle-leader-thoryk` | `sw.battle-leader-thoryk/thoryk` | 1 | 1.2 | 40 mm | A chibi veteran warrior in blue-grey power armour with yellow shoulder rims, a shaggy grey fur cloak over his shoulders, a bare head with a wild braided red beard, a short bolt rifle in one hand and a glowing blue power sword in the other. |
-| `sw-intercessor-sergeant` | `sw.intercessor-squad/sergeant` | 1 | 1.1 | 32 mm | A chibi armoured squad leader in blue-grey plate with a red helmet stripe and a small fur pelt on one shoulder, a pistol raised in one hand and a toothed chainsword in the other. |
-| `sw-intercessor` | `sw.intercessor-squad/intercessor` | 9 | 1.1 | 32 mm | A chibi armoured trooper in rounded blue-grey plate with yellow knee guards and green eye-lenses, a chunky bolt rifle held across the chest and a bone talisman hanging from the belt. |
-| `sw-reiver` | `sw.reiver-squad/reiver` | 5 | 1.1 | 32 mm | A chibi raider in light blue-grey armour with a pale bone-white skull-shaped faceplate, a short grav-chute pack on the back, a combat knife in one hand and a stubby pistol in the other. |
-| `sw-invictor` | `sw.invictor-tactical-warsuit/invictor` | 1 | 2.4 | 90 mm | A chibi squat two-legged war walker in blue-grey plate with yellow hazard edging and an open cockpit showing a tiny helmeted pilot, a huge clawed fist on one arm, a twin autocannon on the other and a small grenade launcher on the shoulder. |
+| `battle-leader-thoryk` | `sw.battle-leader-thoryk/thoryk` | 1 | 1.2 | 40 mm | A veteran warrior in blue-grey power armour with yellow shoulder rims, a shaggy grey fur cloak over his shoulders, a bare head with a wild braided red beard, a short bolt rifle in one hand and a glowing blue power sword in the other. |
+| `sw-intercessor-sergeant` | `sw.intercessor-squad/sergeant` | 1 | 1.1 | 32 mm | A armoured squad leader in blue-grey plate with a red helmet stripe and a small fur pelt on one shoulder, a pistol raised in one hand and a toothed chainsword in the other. |
+| `sw-intercessor` | `sw.intercessor-squad/intercessor` | 9 | 1.1 | 32 mm | A armoured trooper in rounded blue-grey plate with yellow knee guards and green eye-lenses, a chunky bolt rifle held across the chest and a bone talisman hanging from the belt. |
+| `sw-reiver` | `sw.reiver-squad/reiver` | 5 | 1.1 | 32 mm | A raider in light blue-grey armour with a pale bone-white skull-shaped faceplate, a short grav-chute pack on the back, a combat knife in one hand and a short pistol in the other. |
+| `sw-invictor` | `sw.invictor-tactical-warsuit/invictor` | 1 | 2.4 | 90 mm | A squat two-legged war walker in blue-grey plate with yellow hazard edging and an open cockpit showing a tiny helmeted pilot, a huge clawed fist on one arm, a twin autocannon on the other and a small grenade launcher on the shoulder. |
 
 ## 10. Other Space Wolves patrols (appendix)
 

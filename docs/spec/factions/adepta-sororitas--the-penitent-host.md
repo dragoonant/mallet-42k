@@ -269,17 +269,17 @@ the PEN Battle Sisters reuse `battle-sister`, `battle-sister-flamer`, `battle-si
 `arco-flagellant` (adepta-sororitas.md §9). Faction palette: near-black armour, bone cloth, crimson trim, brass metal.
 No real-world or GW iconography.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `canoness-ellyrine` | `ade.canoness-ellyrine/canoness` | 1 | 1.2 | 32 mm | A chibi battle-nun commander in black plate with brass trim and a flowing crimson cloak, long dark braid, a tall brass rod topped with a winged ornament in one hand, a stubby glowing-blue plasma pistol in the other and a straight sword at her hip. |
-| `battle-sister-superior-chainsword` | `ade.pen.battle-sisters-squad/superior` | 1 | 1.1 | 32 mm | The chibi armoured sister in black plate and bone tabard with a short white bob and a crimson sash, a boxy rifle slung on her back and a chunky toothed chainsword raised overhead. |
-| `battle-sister-storm-bolter` | `ade.pen.battle-sisters-squad/sister-storm-bolter` | 1 | 1.1 | 32 mm | The chibi armoured sister bracing an ornate double-barrelled brass-chased rifle with a drum magazine against her hip. |
-| `seraphim-superior` | `ade.seraphim-squad/superior` | 1 | 1.2 | 32 mm | A chibi airborne sister in black plate with a white bob, a backpack of two upturned brass thruster nozzles with short feathered fins, a plasma pistol in one hand and a glowing straight sword in the other. |
-| `seraphim` | `ade.seraphim-squad/seraphim` | 4 | 1.2 | 32 mm | A chibi airborne sister in black plate with a bone tabard, twin-nozzle brass thruster pack with little fin-wings, a chunky pistol held out in each hand. |
-| `repentia-superior` | `ade.repentia-squad/superior` | 1 | 1.1 | 28 mm | A chibi stern overseer in a long black robe and crimson cowl over light armour, holding a pistol in one hand and a bundle of three crackling purple whip cords in the other. |
-| `sister-repentia` | `ade.repentia-squad/repentia` | 4 | 1.1 | 28 mm | A chibi barefoot penitent in a ragged crimson shift and bandage wraps, cropped hair under a red hood, swinging an oversized two-handed chain-blade almost as tall as she is. |
-| `penitent-engine` | `ade.penitent-engine/engine` | 1 | 2.0 | 50 mm | A chibi hunched two-legged walker frame of dark iron with brass rivets, a small bound figure strapped in a crimson-draped cage at its chest, two long spinning saw-blade arms and a pair of stubby flame nozzles on the shoulders. |
-| `sororitas-rhino` | `ade.sororitas-rhino/rhino` | 1 | 1.6 | hull ≈ 120 × 75 mm | A chibi chunky boxy tracked carrier in black armour with bone-coloured panels and crimson trim, a rounded hatch with a stubby twin-barrel gun on top, small smoke launchers on the front corners and a little brass spire ornament on the roof. |
+| `canoness-ellyrine` | `ade.canoness-ellyrine/canoness` | 1 | 1.2 | 32 mm | A battle-nun commander in black plate with brass trim and a flowing crimson cloak, long dark braid, a tall brass rod topped with a winged ornament in one hand, a short glowing-blue plasma pistol in the other and a straight sword at her hip. |
+| `battle-sister-superior-chainsword` | `ade.pen.battle-sisters-squad/superior` | 1 | 1.1 | 32 mm | The armoured sister in black plate and bone tabard with a short white bob and a crimson sash, a boxy rifle slung on her back and a chunky toothed chainsword raised overhead. |
+| `battle-sister-storm-bolter` | `ade.pen.battle-sisters-squad/sister-storm-bolter` | 1 | 1.1 | 32 mm | The armoured sister bracing an ornate double-barrelled brass-chased rifle with a drum magazine against her hip. |
+| `seraphim-superior` | `ade.seraphim-squad/superior` | 1 | 1.2 | 32 mm | A airborne sister in black plate with a white bob, a backpack of two upturned brass thruster nozzles with short feathered fins, a plasma pistol in one hand and a glowing straight sword in the other. |
+| `seraphim` | `ade.seraphim-squad/seraphim` | 4 | 1.2 | 32 mm | A airborne sister in black plate with a bone tabard, twin-nozzle brass thruster pack with little fin-wings, a chunky pistol held out in each hand. |
+| `repentia-superior` | `ade.repentia-squad/superior` | 1 | 1.1 | 28 mm | A stern overseer in a long black robe and crimson cowl over light armour, holding a pistol in one hand and a bundle of three crackling purple whip cords in the other. |
+| `sister-repentia` | `ade.repentia-squad/repentia` | 4 | 1.1 | 28 mm | A barefoot penitent in a ragged crimson shift and bandage wraps, cropped hair under a red hood, swinging an oversized two-handed chain-blade almost as tall as she is. |
+| `penitent-engine` | `ade.penitent-engine/engine` | 1 | 2.0 | 50 mm | A hunched two-legged walker frame of dark iron with brass rivets, a small bound figure strapped in a crimson-draped cage at its chest, two long spinning saw-blade arms and a pair of short flame nozzles on the shoulders. |
+| `sororitas-rhino` | `ade.sororitas-rhino/rhino` | 1 | 1.6 | hull ≈ 120 × 75 mm | A chunky boxy tracked carrier in black armour with bone-coloured panels and crimson trim, a rounded hatch with a short twin-barrel gun on top, small smoke launchers on the front corners and a little brass spire ornament on the roof. |
 
 ## 10. Other Adepta Sororitas patrols (appendix)
 

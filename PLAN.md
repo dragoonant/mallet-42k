@@ -1,6 +1,6 @@
 # Mallet 42k — Development Plan
 
-Fan game: 3D Warhammer 40k (10th edition rules, 1:1 mechanics) with Super Deformed (SD) figures.
+Fan game: 3D Warhammer 40k (10th edition rules, 1:1 mechanics) with figures in the house figure style (docs/FIGURE-STYLE.md).
 Player vs AI first, multiplayer later. Hosted on GitHub Pages.
 
 ## Decisions
@@ -9,7 +9,7 @@ Player vs AI first, multiplayer later. Hosted on GitHub Pages.
 | Rules | 10th edition, mechanics ported 1:1 (rules/datasheet text written in our own words) |
 | Factions | Space Marines vs Orks |
 | First target | Combat Patrol (fixed small forces), scale to 1000/2000 pts later |
-| Models | Phase A: procedural SD figures in code. Phase B: AI-generated (Meshy/Tripo API) + Blender cleanup, glTF |
+| Models | Phase A: procedural figures in code. Phase B: AI-generated (Meshy/Tripo API) + Blender cleanup, glTF |
 | Stack | Vite + TypeScript + React Three Fiber (Three.js), Vitest, GitHub Actions → Pages |
 | Opponent | AI first; multiplayer via action-log sync later |
 
@@ -34,8 +34,8 @@ replays, undo, bug repro and later lockstep multiplayer; AI is just another play
 - Stratagems: event bus with interrupt windows (human or AI can respond)
 - Missions: deployment maps, objectives, OC control, primary/secondary scoring
 
-## SD figure system
-- Proportions ~2.5 heads; skeletons per archetype: Infantry, Heavy, Monster, Vehicle
+## Figure system
+- Proportions follow the house figure style (docs/FIGURE-STYLE.md); skeletons per archetype: Infantry, Heavy, Monster, Vehicle
 - Modular slots: head, torso, backpack, L arm/weapon, R arm/weapon, pauldrons, base
 - Paint via shader masks (primary / secondary / trim / decal) → one mesh, many schemes
 - Shared animations per skeleton: idle, walk, shoot, melee, hit, death
@@ -55,7 +55,7 @@ Difficulty = scoring noise + lookahead depth.
 | M0 | Skeleton | Vite+TS+R3F app deploys to GitHub Pages via Actions |
 | M1 | Engine core | Units, measurement, seeded dice, full shooting sequence, unit tests |
 | M2 | Battlefield | 44"×30" Combat Patrol board, ruins, camera, selection, measure tool, LoS visualization |
-| M3 | Procedural SD kit | Marine + Ork boy figures, slot system, shader paint, basic animation |
+| M3 | Procedural figure kit | Marine + Ork boy figures, slot system, shader paint, basic animation |
 | M4 | Turn loop | All 5 phases playable hotseat, Combat Patrol forces |
 | M5 | AI tier 1 | Complete game vs AI |
 | M6 | Missions & stratagems | Scoring, CP, core stratagems, end-of-game screen |
@@ -102,7 +102,7 @@ Difficulty = scoring noise + lookahead depth.
 | W0 | Repo wiring, Vite/TS/R3F/Vitest/Playwright, Actions→Pages, contracts + specs + JSON schemas | 1–2 | 0.3M |
 | W1 | Rules engine: 7 modules × (implement → adversarial verify → fix) + headless sim | ~14 | 2.5M |
 | W2 | Combat Patrol data: SM + Ork datasheets, weapons, abilities, 6 stratagems + 3 enhancements each, CP missions | ~6 | 0.8M |
-| W3 | Client: board/terrain, camera, procedural SD kit, state→scene binding, interaction, UI, hotseat | ~12 | 2.5M |
+| W3 | Client: board/terrain, camera, procedural figure kit, state→scene binding, interaction, UI, hotseat | ~12 | 2.5M |
 | W4 | AI: expected-damage math, per-phase utility deciders, role planner, Monte Carlo charges, difficulty, tuning harness | ~6 | 1.2M |
 | W5 | QA: sim fuzz + E2E playthrough + rules-fidelity audit, loop-until-dry (max 2 dry rounds), final deploy | ~10 | 1.5M |
 | — | Main-loop overhead | | 0.5M |
@@ -124,8 +124,8 @@ F. ability-hook system, stratagem interrupt windows, CP economy, missions (deplo
 G. headless simulator — random-legal-move bot, N games, invariant checks (no NaN, wounds ≥ 0, games end)
 
 ## W3 client modules
-1. Board 44"×30", SD-style ruins/crates, lighting, orbit camera, picking
-2. Procedural SD figure kit: skeleton + slots, Marine + Ork parts, weapons, shader paint scheme,
+1. Board 44"×30", stylised ruins/crates, lighting, orbit camera, picking
+2. Procedural figure kit: skeleton + slots, Marine + Ork parts, weapons, shader paint scheme,
    procedural animation (idle / walk / shoot / melee / death)
 3. State→scene binding with instancing
 4. Interaction: select, move with range preview + legality, measure tool, LoS visualizer, target picking

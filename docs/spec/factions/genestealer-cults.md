@@ -277,22 +277,22 @@ Heights follow 30-figures (infantry H 1.1, heavy 1.3, vehicles compressed); base
 each held item exactly once — single weapon per hand, **one stave only** for the Magus (image QC: generated concepts
 have shown duplicated staves).
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `magus-veridielle` | `gsc.magus-veridielle/magus` | 1 | 1.2 | 32 mm | A chibi pale-skinned psychic priestess with a high bald domed head, faint violet veins and glowing violet eyes, in long deep-violet robes with mustard trim, holding exactly one tall carved bone stave in her right hand and a small pistol in her left. |
-| `neophyte-leader` | `gsc.neophyte-hybrids/leader` | 2 | 1.1 | 25 mm | A chibi miner-militia sergeant in mustard overalls and a rust-red bandana, slightly ridged violet-tinged brow, one sturdy pistol raised and a single short glowing power blade in the other hand. |
-| `neophyte-firearm` | `gsc.neophyte-hybrids/hybrid` | 10 | 1.1 | 25 mm | A chibi grim mine worker in mustard overalls, steel helmet with goggles and a violet sash, holding one compact rifle at the ready. |
-| `neophyte-icon` | `gsc.neophyte-hybrids/icon` | 2 | 1.1 | 25 mm | The same chibi mine worker with one rifle slung on the back, holding up a single tall pole topped by an original three-pronged violet claw emblem. |
-| `neophyte-stubber` | `gsc.neophyte-hybrids/heavy-stubber` | 2 | 1.1 | 25 mm | A chibi mine worker in mustard overalls bracing one oversized belt-fed machine gun at the hip, ammo belt across the chest. |
-| `neophyte-seismic` | `gsc.neophyte-hybrids/seismic-cannon` | 2 | 1.1 | 25 mm | A chibi mine worker hefting one bulky drill-like cannon with a ribbed rust-red barrel and humming yellow coils. |
-| `neophyte-webber` | `gsc.neophyte-hybrids/webber` | 2 | 1.1 | 25 mm | A chibi mine worker aiming one stubby wide-nozzled sprayer gun with a glass tank of glossy white goo on top. |
-| `acolyte-leader` | `gsc.acolyte-hybrids/leader` | 1 | 1.1 | 32 mm | A chibi hunched hybrid with violet skin, a ridged bald head and three arms, wearing a torn mustard work vest, gripping one curved bone-hilted blade and one hooked claw, with a pistol holstered. |
-| `acolyte-hybrid` | `gsc.acolyte-hybrids/hybrid` | 2 | 1.1 | 32 mm | A chibi hunched violet-skinned hybrid with an extra clawed arm, mustard vest and rust-red wrist wraps, holding one pistol and one curved knife. |
-| `acolyte-demolitions` | `gsc.acolyte-hybrids/demolitions` | 1 | 1.1 | 32 mm | A chibi violet-skinned hybrid hugging one bundle of red-and-yellow striped mining charges with a blinking fuse, a short claw on its third arm. |
-| `acolyte-mining-tool` | `gsc.acolyte-hybrids/mining-tool` | 1 | 1.2 | 32 mm | A chibi broad violet-skinned hybrid swinging one massive two-handed rock drill with a steel bit and yellow hazard stripes. |
-| `aberrant-hypermorph` | `gsc.aberrants/hypermorph` | 1 | 1.4 | 32 mm | A chibi hulking brute with a tiny head, lumpy violet hide, iron-plated shoulders and a long whip-like bony tail, gripping one huge rust-red sledgehammer. |
-| `aberrant` | `gsc.aberrants/aberrant` | 4 | 1.3 | 32 mm | A chibi hulking violet-skinned brute in a torn mustard apron with steel shoulder pads, holding one heavy glowing power pickaxe in both hands. |
-| `goliath-rockgrinder` | `gsc.goliath-rockgrinder/rockgrinder` | 1 | 2.0 | ≈150 × 90 mm oval hull | A chibi stubby mining truck in mustard yellow with violet panels and rust streaks, a giant spinning drill-drum blade on the front, an open cab with a mounted machine gun, a flame nozzle and a crate of striped charges on the back. |
+| `magus-veridielle` | `gsc.magus-veridielle/magus` | 1 | 1.2 | 32 mm | A pale-skinned psychic priestess with a high bald domed head, faint violet veins and glowing violet eyes, in long deep-violet robes with mustard trim, holding exactly one tall carved bone stave in her right hand and a small pistol in her left. |
+| `neophyte-leader` | `gsc.neophyte-hybrids/leader` | 2 | 1.1 | 25 mm | A miner-militia sergeant in mustard overalls and a rust-red bandana, slightly ridged violet-tinged brow, one sturdy pistol raised and a single short glowing power blade in the other hand. |
+| `neophyte-firearm` | `gsc.neophyte-hybrids/hybrid` | 10 | 1.1 | 25 mm | A grim mine worker in mustard overalls, steel helmet with goggles and a violet sash, holding one compact rifle at the ready. |
+| `neophyte-icon` | `gsc.neophyte-hybrids/icon` | 2 | 1.1 | 25 mm | The same mine worker with one rifle slung on the back, holding up a single tall pole topped by an original three-pronged violet claw emblem. |
+| `neophyte-stubber` | `gsc.neophyte-hybrids/heavy-stubber` | 2 | 1.1 | 25 mm | A mine worker in mustard overalls bracing one oversized belt-fed machine gun at the hip, ammo belt across the chest. |
+| `neophyte-seismic` | `gsc.neophyte-hybrids/seismic-cannon` | 2 | 1.1 | 25 mm | A mine worker hefting one bulky drill-like cannon with a ribbed rust-red barrel and humming yellow coils. |
+| `neophyte-webber` | `gsc.neophyte-hybrids/webber` | 2 | 1.1 | 25 mm | A mine worker aiming one short wide-nozzled sprayer gun with a glass tank of glossy white goo on top. |
+| `acolyte-leader` | `gsc.acolyte-hybrids/leader` | 1 | 1.1 | 32 mm | A hunched hybrid with violet skin, a ridged bald head and three arms, wearing a torn mustard work vest, gripping one curved bone-hilted blade and one hooked claw, with a pistol holstered. |
+| `acolyte-hybrid` | `gsc.acolyte-hybrids/hybrid` | 2 | 1.1 | 32 mm | A hunched violet-skinned hybrid with an extra clawed arm, mustard vest and rust-red wrist wraps, holding one pistol and one curved knife. |
+| `acolyte-demolitions` | `gsc.acolyte-hybrids/demolitions` | 1 | 1.1 | 32 mm | A violet-skinned hybrid hugging one bundle of red-and-yellow striped mining charges with a blinking fuse, a short claw on its third arm. |
+| `acolyte-mining-tool` | `gsc.acolyte-hybrids/mining-tool` | 1 | 1.2 | 32 mm | A broad violet-skinned hybrid swinging one massive two-handed rock drill with a steel bit and yellow hazard stripes. |
+| `aberrant-hypermorph` | `gsc.aberrants/hypermorph` | 1 | 1.4 | 32 mm | A hulking brute with a tiny head, lumpy violet hide, iron-plated shoulders and a long whip-like bony tail, gripping one huge rust-red sledgehammer. |
+| `aberrant` | `gsc.aberrants/aberrant` | 4 | 1.3 | 32 mm | A hulking violet-skinned brute in a torn mustard apron with steel shoulder pads, holding one heavy glowing power pickaxe in both hands. |
+| `goliath-rockgrinder` | `gsc.goliath-rockgrinder/rockgrinder` | 1 | 2.0 | ≈150 × 90 mm oval hull | A short mining truck in mustard yellow with violet panels and rust streaks, a giant spinning drill-drum blade on the front, an open cab with a mounted machine gun, a flame nozzle and a crate of striped charges on the back. |
 
 ## 10. Other Genestealer Cults patrols (appendix)
 

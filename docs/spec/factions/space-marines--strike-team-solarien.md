@@ -253,14 +253,14 @@ data tests: `tests/data/space-marines-strike-team-solarien.test.ts`.
 Heights follow 30-figures (infantry H 1.1); bases rules-true. Colours from the existing SM paint scheme (deep blue
 `#1b3a6b`, gold `#c9a227`) with dark-grey Phobos cloaks; no chapter icons or logos.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `lieutenant-solarien` | `sm.lieutenant-solarien/solarien` | 1 | 1.2 | 40 mm | A chibi lightly armoured scout officer in deep-blue plate with gold trim, a hooded dark-grey camouflage cloak, a bare head with short hair and a visor pushed up, a long scoped carbine slung over one shoulder and twin short blades crossed at the back. |
-| `librarian-xarius` | `sm.librarian-xarius/xarius` | 1 | 1.2 | 40 mm | A chibi psychic warrior in sleek deep-blue armour with a pale-blue psychic hood frame behind the head, a tattered dark-grey hooded cloak, a glowing blue-white force blade in one hand and crackling blue light in the other. |
-| `infiltrator-leader` | `sm.infiltrator-squad/leader` | 1 | 1.1 | 32 mm | A chibi stealth trooper in streamlined deep-blue armour with a smooth faceplate helmet and a short antenna, a compact boxy carbine held ready and a small sensor pack on the back. |
-| `infiltrator` | `sm.infiltrator-squad/infiltrator` | 9 | 1.1 | 32 mm | A chibi stealth trooper in streamlined deep-blue armour with a smooth faceplate helmet with green eye-lenses, a compact boxy carbine with a long scope, and a slim backpack with a short aerial. |
-| `suppressor-leader` | `sm.suppressor-squad/leader` | 1 | 1.2 | 40 mm | A chibi jump-pack trooper in deep-blue armour with gold edging, a squat twin-thruster pack, and a long-barrelled rapid-fire cannon braced at the hip, with a short sensor fin on the helmet. |
-| `suppressor` | `sm.suppressor-squad/suppressor` | 2 | 1.2 | 40 mm | A chibi jump-pack trooper in deep-blue armour with a squat twin-thruster pack glowing orange, a long-barrelled rapid-fire cannon braced at the hip, and a round helmet with green lenses. |
+| `lieutenant-solarien` | `sm.lieutenant-solarien/solarien` | 1 | 1.2 | 40 mm | A lightly armoured scout officer in deep-blue plate with gold trim, a hooded dark-grey camouflage cloak, a bare head with short hair and a visor pushed up, a long scoped carbine slung over one shoulder and twin short blades crossed at the back. |
+| `librarian-xarius` | `sm.librarian-xarius/xarius` | 1 | 1.2 | 40 mm | A psychic warrior in sleek deep-blue armour with a pale-blue psychic hood frame behind the head, a tattered dark-grey hooded cloak, a glowing blue-white force blade in one hand and crackling blue light in the other. |
+| `infiltrator-leader` | `sm.infiltrator-squad/leader` | 1 | 1.1 | 32 mm | A stealth trooper in streamlined deep-blue armour with a smooth faceplate helmet and a short antenna, a compact boxy carbine held ready and a small sensor pack on the back. |
+| `infiltrator` | `sm.infiltrator-squad/infiltrator` | 9 | 1.1 | 32 mm | A stealth trooper in streamlined deep-blue armour with a smooth faceplate helmet with green eye-lenses, a compact boxy carbine with a long scope, and a slim backpack with a short aerial. |
+| `suppressor-leader` | `sm.suppressor-squad/leader` | 1 | 1.2 | 40 mm | A jump-pack trooper in deep-blue armour with gold edging, a squat twin-thruster pack, and a long-barrelled rapid-fire cannon braced at the hip, with a short sensor fin on the helmet. |
+| `suppressor` | `sm.suppressor-squad/suppressor` | 2 | 1.2 | 40 mm | A jump-pack trooper in deep-blue armour with a squat twin-thruster pack glowing orange, a long-barrelled rapid-fire cannon braced at the hip, and a round helmet with green lenses. |
 
 ## 10. Other Space Marines patrols (appendix)
 

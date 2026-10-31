@@ -260,12 +260,12 @@ much wider). Bases are rules-true. Original designs, no heraldry or logos.
 The TGB Custodian Guard (`cus.custodian-guard-tgb/guard`, 3 models) reuses the existing `custodian-guard-shield` figure
 (sentinel blade + shield) — no new figure.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `tristraen` | `cus.tristraen/champion` | 1 | 1.45 | 40 mm | A chibi gold-armoured duellist with a smooth tall-crested helmet and a long crimson plume, a short crimson cape, and three different swords: a broad heavy blade in one hand, a slim fast blade in the other and a third long blade sheathed across the back. |
-| `custodian-warden-axe` | `cus.custodian-wardens/axe` | 1 | 1.4 | 40 mm | A chibi gold-armoured sentinel with a high crested helmet and dark crimson robes hanging below the waist, holding a long-hafted golden war-axe with a broad crescent blade and a gun barrel along the haft. |
-| `custodian-warden-spear` | `cus.custodian-wardens/spear` | 2 | 1.4 | 40 mm | The same chibi robed golden sentinel holding a very long spear tipped with a broad leaf-shaped blade and a gun barrel set into the haft. |
-| `allarus-custodian` | `cus.allarus-custodians/allarus` | 2 | 1.5 | 40 mm | A chibi hulking warrior in very thick rounded gold armour with massive shoulder plates, a small crested helmet sunk between them, a short grenade launcher on the wrist and a long bladed spear held upright, crimson tabard at the waist. |
+| `tristraen` | `cus.tristraen/champion` | 1 | 1.45 | 40 mm | A gold-armoured duellist with a smooth tall-crested helmet and a long crimson plume, a short crimson cape, and three different swords: a broad heavy blade in one hand, a slim fast blade in the other and a third long blade sheathed across the back. |
+| `custodian-warden-axe` | `cus.custodian-wardens/axe` | 1 | 1.4 | 40 mm | A gold-armoured sentinel with a high crested helmet and dark crimson robes hanging below the waist, holding a long-hafted golden war-axe with a broad crescent blade and a gun barrel along the haft. |
+| `custodian-warden-spear` | `cus.custodian-wardens/spear` | 2 | 1.4 | 40 mm | The same robed golden sentinel holding a very long spear tipped with a broad leaf-shaped blade and a gun barrel set into the haft. |
+| `allarus-custodian` | `cus.allarus-custodians/allarus` | 2 | 1.5 | 40 mm | A hulking warrior in very thick rounded gold armour with massive shoulder plates, a small crested helmet sunk between them, a short grenade launcher on the wrist and a long bladed spear held upright, crimson tabard at the waist. |
 
 ## 10. Other Adeptus Custodes patrols (appendix)
 

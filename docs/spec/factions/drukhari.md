@@ -294,17 +294,17 @@ Heights follow 30-figures (infantry ≈ 1.1", true-scale to 28 mm); bases rules-
 `{archetype:'infantry', kit:'generic-infantry'}`, vehicles `{archetype:'vehicle', kit:'generic-vehicle'}` until GLBs
 exist. Paint: dark teal-black armour `#1d2a2e`, jade `#3fae9a`, deep wine `#7a1f3d`, pale steel. No logos or glyphs.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `archon` | `drk.archon/archon` | 1 | 1.2 | 25 mm | A chibi slender tyrant-lord in spiky dark teal-black armour with a tall crested helm, a long flowing wine-red cape, a curved hooked sword in one hand, a small needle pistol in the other, and a faint shimmering dark aura bubble around him. |
-| `kabalite-sybarite` | `drk.kabalite-warriors/sybarite` | 1 | 1.15 | 25 mm | A chibi lean raider-captain in segmented teal-black plate with jade trim, a flared crested helmet, a short wicked blade raised and a slim pistol at the hip. |
-| `kabalite-warrior` | `drk.kabalite-warriors/warrior` | 7 | 1.1 | 25 mm | A chibi lean pirate-soldier in spiky teal-black armour with jade panels and a pointed visor helmet, holding a long thin bladed rifle with a glowing green crystal along the barrel. |
-| `kabalite-shredder` | `drk.kabalite-warriors/shredder-warrior` | 1 | 1.1 | 25 mm | The same chibi pirate-soldier holding a stubby wide-mouthed net-launcher gun with a coiled jade-wire drum. |
-| `kabalite-splinter-cannon` | `drk.kabalite-warriors/cannon-warrior` | 1 | 1.1 | 25 mm | The same chibi pirate-soldier bracing a long heavy multi-barrel needle cannon with jade crystal coils on his hip. |
-| `incubi-klaivex` | `drk.incubi/klaivex` | 1 | 1.2 | 28 mm | A chibi grim temple-warrior in heavy layered dark armour with a tall crested topknot helm and wine-red tabard, wielding a pair of long curved blades crossed in front. |
-| `incubus` | `drk.incubi/incubus` | 4 | 1.15 | 28 mm | A chibi grim temple-warrior in heavy layered dark armour with a horned crested helm and wine-red tabard, gripping a huge two-handed curved greatblade. |
-| `raider` | `drk.raider/raider` | 1 | 2.3 | 60 mm flying base | A chibi sleek knife-shaped open-deck skiff with swept teal-black hull, jade sail fins, hooked blade-vanes along the prow, a long thin cannon on the front, hovering on a slim stand. |
-| `ravager` | `drk.ravager/ravager` | 1 | 2.4 | hull oval 170 × 90 mm | A chibi sleek knife-shaped gunboat with a teal-black hull, jade fins and wine-red trim, three long thin cannons on swivel mounts along an open deck, spiked keel blades, hovering on a slim stand. |
+| `archon` | `drk.archon/archon` | 1 | 1.2 | 25 mm | A slender tyrant-lord in spiky dark teal-black armour with a tall crested helm, a long flowing wine-red cape, a curved hooked sword in one hand, a small needle pistol in the other, and a faint shimmering dark aura bubble around him. |
+| `kabalite-sybarite` | `drk.kabalite-warriors/sybarite` | 1 | 1.15 | 25 mm | A lean raider-captain in segmented teal-black plate with jade trim, a flared crested helmet, a short wicked blade raised and a slim pistol at the hip. |
+| `kabalite-warrior` | `drk.kabalite-warriors/warrior` | 7 | 1.1 | 25 mm | A lean pirate-soldier in spiky teal-black armour with jade panels and a pointed visor helmet, holding a long thin bladed rifle with a glowing green crystal along the barrel. |
+| `kabalite-shredder` | `drk.kabalite-warriors/shredder-warrior` | 1 | 1.1 | 25 mm | The same pirate-soldier holding a short wide-mouthed net-launcher gun with a coiled jade-wire drum. |
+| `kabalite-splinter-cannon` | `drk.kabalite-warriors/cannon-warrior` | 1 | 1.1 | 25 mm | The same pirate-soldier bracing a long heavy multi-barrel needle cannon with jade crystal coils on his hip. |
+| `incubi-klaivex` | `drk.incubi/klaivex` | 1 | 1.2 | 28 mm | A grim temple-warrior in heavy layered dark armour with a tall crested topknot helm and wine-red tabard, wielding a pair of long curved blades crossed in front. |
+| `incubus` | `drk.incubi/incubus` | 4 | 1.15 | 28 mm | A grim temple-warrior in heavy layered dark armour with a horned crested helm and wine-red tabard, gripping a huge two-handed curved greatblade. |
+| `raider` | `drk.raider/raider` | 1 | 2.3 | 60 mm flying base | A sleek knife-shaped open-deck skiff with swept teal-black hull, jade sail fins, hooked blade-vanes along the prow, a long thin cannon on the front, hovering on a slim stand. |
+| `ravager` | `drk.ravager/ravager` | 1 | 2.4 | hull oval 170 × 90 mm | A sleek knife-shaped gunboat with a teal-black hull, jade fins and wine-red trim, three long thin cannons on swivel mounts along an open deck, spiked keel blades, hovering on a slim stand. |
 
 ## 10. Other Drukhari patrols (appendix)
 

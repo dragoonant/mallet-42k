@@ -1,5 +1,5 @@
 // Death Guard in the client: selectable on either seat, every datasheet/model resolves to its own procedural kit
-// (each also has an SD figure GLB, Poxwalkers alternating two sculpts), and the plague weapons voice as intended.
+// (each also has a figure GLB, Poxwalkers alternating two sculpts), and the plague weapons voice as intended.
 import { describe, expect, it } from 'vitest'
 import { loadBundle } from '../../src/data'
 import { useGameStore } from '../../src/client/store/game'

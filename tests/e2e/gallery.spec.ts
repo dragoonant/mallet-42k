@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-// M3 figure gallery (?gallery) screenshots — visual QA for the procedural SD figure kit
+// M3 figure gallery (?gallery) screenshots — visual QA for the procedural figure kit
 // (src/client/figures), which the rest of the app never renders standalone. Not a rules test
 // (see tests/engine for those); this only confirms the kit looks right and is reachable.
 

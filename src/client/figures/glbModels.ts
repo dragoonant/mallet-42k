@@ -319,7 +319,7 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'am.field-ordnance-battery/gun-malleus': 'malleus-rocket-battery',
   'am.armoured-sentinels/sentinel': 'armoured-sentinel',
 
-  // Dark Angels (MGSD GLBs). Inceptor sergeants share the Inceptor figure; the Vengeful Brethren Intercessors reuse the Intercessor figure.
+  // Dark Angels (GLBs). Inceptor sergeants share the Inceptor figure; the Vengeful Brethren Intercessors reuse the Intercessor figure.
   'da.chaplain-mordekai/mordekai': 'chaplain-mordekai',
   'da.intercessor-squad/sergeant': 'da-intercessor-sergeant',
   'da.intercessor-squad/intercessor': 'da-intercessor',
@@ -330,7 +330,7 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'da.hellblaster-squad/hellblaster': 'da-hellblaster',
   'da.bladeguard-veteran-squad/bladeguard': 'da-bladeguard-veteran',
 
-  // Black Templars (MGSD GLBs).
+  // Black Templars (GLBs).
   'bt.intercessor-squad/intercessor': 'bt-intercessor',
   'bt.primaris-crusader-squad/sword-brother': 'crusader-sword-brother',
   'bt.primaris-crusader-squad/initiate-chainsword': 'crusader-initiate-chainsword',
@@ -341,7 +341,7 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'bt.marshal-siguard/siguard': 'marshal-siguard',
   'bt.impulsor/impulsor': 'bt-impulsor',
 
-  // Blood Angels, Space Wolves and Deathwatch (MGSD GLBs). Incursor mine carriers share the Incursor figure.
+  // Blood Angels, Space Wolves and Deathwatch (GLBs). Incursor mine carriers share the Incursor figure.
   'ba.librarian-marcellos/marcellos': 'librarian-marcellos',
   'ba.intercessor-squad/sergeant': 'ba-intercessor-sergeant',
   'ba.intercessor-squad/intercessor': 'ba-intercessor',
@@ -362,7 +362,7 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'dw.intercessor-squad/grenadier': 'dw-intercessor-grenadier',
   'dw.aggressor-squad/aggressor': 'dw-aggressor',
 
-  // Grey Knights (MGSD GLBs).
+  // Grey Knights (GLBs).
   'gk.librarian-aurellios/librarian': 'librarian-aurellios',
   'gk.brotherhood-terminator-squad/justicar': 'gk-terminator-justicar',
   'gk.brotherhood-terminator-squad/terminator': 'gk-terminator',
@@ -372,7 +372,7 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'gk.strike-squad/psilencer': 'strike-psilencer',
   'gk.nemesis-dreadknight/dreadknight': 'nemesis-dreadknight',
 
-  // T'au Empire (MGSD GLBs).
+  // T'au Empire (GLBs).
   'tau.aun-shar/aun-shar': 'aun-shar',
   'tau.shasnel-dtano/fireblade': 'shasnel-dtano',
   'tau.strike-team/fire-warrior-rifle': 'fire-warrior-rifle',
@@ -382,7 +382,7 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'tau.stealth-battlesuits/shasui': 'stealth-shasui',
   'tau.ghostkeel/ghostkeel': 'ghostkeel',
 
-  // Genestealer Cults (MGSD GLBs).
+  // Genestealer Cults (GLBs).
   'gsc.magus-veridielle/magus': 'magus-veridielle',
   'gsc.neophyte-hybrids/leader': 'neophyte-leader',
   'gsc.neophyte-hybrids/hybrid': 'neophyte-firearm',
@@ -398,7 +398,7 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'gsc.aberrants/aberrant': 'aberrant',
   'gsc.goliath-rockgrinder/rockgrinder': 'goliath-rockgrinder',
 
-  // Adeptus Custodes (MGSD GLBs).
+  // Adeptus Custodes (GLBs).
   'cus.shield-captain-tyvan/captain': 'shield-captain-tyvan',
   'cus.custodian-guard/spear': 'custodian-guard-spear',
   'cus.custodian-guard/vexilla': 'custodian-guard-vexilla',
@@ -408,7 +408,7 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'cus.prosecutors/prosecutor': 'prosecutor',
   'cus.vigilators/vigilator': 'vigilator',
 
-  // Wave 1 patrols (MGSD GLBs): Strike Team Solarien, Morgrim's Butchas, Dark Zealots.
+  // Wave 1 patrols (GLBs): Strike Team Solarien, Morgrim's Butchas, Dark Zealots.
   'sm.lieutenant-solarien/solarien': 'lieutenant-solarien',
   'sm.librarian-xarius/xarius': 'librarian-xarius',
   'sm.infiltrator-squad/infiltrator': 'infiltrator',
@@ -428,7 +428,7 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'csm.havocs/reaper-chaincannon': 'havoc-reaper-chaincannon',
   'csm.helbrute/helbrute': 'helbrute',
 
-  // Wave 1 patrols (MGSD GLBs): Tristraen's Gilded Blades, The Penitent Host, Claw of Ascension.
+  // Wave 1 patrols (GLBs): Tristraen's Gilded Blades, The Penitent Host, Claw of Ascension.
   'cus.tristraen/champion': 'tristraen',
   'cus.custodian-wardens/axe': 'custodian-warden-axe',
   'cus.custodian-wardens/spear': 'custodian-warden-spear',
@@ -455,7 +455,7 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'gsc.atalan-jackals/wolfquad': 'atalan-wolfquad',
   'gsc.achilles-ridgerunner/ridgerunner': 'achilles-ridgerunner',
 
-  // Wave 1 patrols (MGSD GLBs): T'au Sudden Dawn Cadre. The Cloudspear's drones are part of the battlesuit model.
+  // Wave 1 patrols (GLBs): T'au Sudden Dawn Cadre. The Cloudspear's drones are part of the battlesuit model.
   'tau.commander-cloudspear/cloudspear': 'commander-cloudspear',
   'tau.pathfinder-team/shasui': 'pathfinder-shasui',
   'tau.pathfinder-team/pathfinder-carbine': 'pathfinder-carbine',
@@ -464,7 +464,7 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'tau.breacher-team/breacher': 'breacher',
   'tau.devilfish/devilfish': 'devilfish',
 
-  // Drukhari (MGSD GLBs).
+  // Drukhari (GLBs).
   'drk.archon/archon': 'archon',
   'drk.kabalite-warriors/sybarite': 'kabalite-sybarite',
   'drk.kabalite-warriors/warrior': 'kabalite-warrior',
@@ -475,7 +475,7 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'drk.raider/raider': 'raider',
   'drk.ravager/ravager': 'ravager',
 
-  // Adeptus Mechanicus Purge Corps Deltic-9 and Maniple Verask-Alpha (MGSD GLBs).
+  // Adeptus Mechanicus Purge Corps Deltic-9 and Maniple Verask-Alpha (GLBs).
   'adm.manipulus-skand/skand': 'manipulus-skand',
   'adm.skitarii-vanguard/alpha': 'skitarii-vanguard-alpha',
   'adm.skitarii-vanguard/arc-rifle': 'skitarii-vanguard-arc-rifle',
@@ -496,7 +496,7 @@ export const GLB_SLUG_BY_MODEL: Readonly<Record<string, string>> = {
   'adm.kataphron-destroyers/plasma': 'kataphron-destroyer-plasma',
   'adm.onager-dunecrawler/dunecrawler': 'onager-dunecrawler',
 
-  // Wave 2 patrols (MGSD GLBs). Riders/vehicles render at baked GLB scale; icon/musician/plasma variants share a base slug.
+  // Wave 2 patrols (GLBs). Riders/vehicles render at baked GLB scale; icon/musician/plasma variants share a base slug.
   'ael.farseer-iraneth/farseer': 'farseer-iraneth',
   'ael.guardian-defenders/guardian-defender': 'guardian-defender',
   'ael.guardian-defenders/heavy-weapon-platform': 'heavy-weapon-platform',

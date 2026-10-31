@@ -311,22 +311,22 @@ data tests: `tests/data/chaos-daemons.test.ts`.
 
 ## 9. Figures
 
-Heights follow 30-figures (infantry ≈ 1.1", true-scale to 28 mm; daemons a little taller); bases rules-true. True MGSD
-proportions (≈2.5 heads, huge head, stubby legs). Paint: deep blood-red skin `#8e1a14`, soot-black horns and hide
+Heights follow 30-figures (infantry ≈ 1.1", true-scale to 28 mm; daemons a little taller); bases rules-true. House figure
+style (docs/FIGURE-STYLE.md). Paint: deep blood-red skin `#8e1a14`, soot-black horns and hide
 `#2b1d18`, dull brass `#b8862b`, iron-grey blades. No logos, glyphs or skull runes. Kits until GLBs exist: infantry
 `{archetype:'infantry', kit:'generic-infantry'}`, cavalry/beasts `{archetype:'monster', kit:'generic-monster'}`.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `khharret` | `cdm.khharret-the-butcher/khharret` | 1 | 1.6 | 40 mm | A chibi hulking red-skinned daemon champion with a huge horned head, burning eyes, a brass-plated collar and shoulder guard, a ragged black loincloth, swinging an oversized jagged brass greatblade dripping glossy red. |
-| `bloodletter` | `cdm.bloodletters/bloodletter` | 8 | 1.3 | 32 mm | A chibi wiry red-skinned daemon with a big snarling head, two long swept-back black horns, a lashing tail and bone-spur elbows, gripping a long black-and-brass hooked sword. |
-| `bloodletter-icon` | `cdm.bloodletters/bloodletter-icon` | 1 | 1.5 | 32 mm | The same chibi red horned daemon holding its hooked sword and a tall brass pole topped with a plain horned brass crest and a tattered dark-red banner (no symbols). |
-| `bloodletter-musician` | `cdm.bloodletters/bloodletter-musician` | 1 | 1.3 | 32 mm | The same chibi red horned daemon with its hooked sword and a curled brass war-horn raised to its fanged mouth. |
-| `bloodcrusher` | `cdm.bloodcrushers/bloodcrusher` | 1 | 2.0 | oval 90 × 52 mm | A chibi red horned daemon rider with a hooked sword astride a squat armoured brass-and-black bull-beast with a huge horned head, a single heavy bladed horn and stubby pillar legs. |
-| `bloodcrusher-icon` | `cdm.bloodcrushers/bloodcrusher-icon` | 1 | 2.3 | oval 90 × 52 mm | The same chibi daemon rider on its brass bull-beast, also holding a tall pole with a plain horned brass crest and a ragged dark-red banner. |
-| `bloodcrusher-musician` | `cdm.bloodcrushers/bloodcrusher-musician` | 1 | 2.0 | oval 90 × 52 mm | The same chibi daemon rider on its brass bull-beast, blowing a curled brass horn with its sword held low. |
-| `flesh-hound` | `cdm.flesh-hounds/flesh-hound` | 4 | 0.9 | oval 60 × 35 mm | A chibi pouncing hound-daemon with crimson scaly hide, a giant fanged head with a black bony crest, a thick brass collar, a spiked spine and a stubby whipping tail. |
-| `gore-hound` | `cdm.flesh-hounds/gore-hound` | 1 | 1.0 | oval 60 × 35 mm | A bigger chibi crimson hound-daemon with a heavier black horn crest and brass collar, jaws wide open breathing a cone of orange-red flame. |
+| `khharret` | `cdm.khharret-the-butcher/khharret` | 1 | 1.6 | 40 mm | A hulking red-skinned daemon champion with a huge horned head, burning eyes, a brass-plated collar and shoulder guard, a ragged black loincloth, swinging an oversized jagged brass greatblade dripping glossy red. |
+| `bloodletter` | `cdm.bloodletters/bloodletter` | 8 | 1.3 | 32 mm | A wiry red-skinned daemon with a big snarling head, two long swept-back black horns, a lashing tail and bone-spur elbows, gripping a long black-and-brass hooked sword. |
+| `bloodletter-icon` | `cdm.bloodletters/bloodletter-icon` | 1 | 1.5 | 32 mm | The same red horned daemon holding its hooked sword and a tall brass pole topped with a plain horned brass crest and a tattered dark-red banner (no symbols). |
+| `bloodletter-musician` | `cdm.bloodletters/bloodletter-musician` | 1 | 1.3 | 32 mm | The same red horned daemon with its hooked sword and a curled brass war-horn raised to its fanged mouth. |
+| `bloodcrusher` | `cdm.bloodcrushers/bloodcrusher` | 1 | 2.0 | oval 90 × 52 mm | A red horned daemon rider with a hooked sword astride a squat armoured brass-and-black bull-beast with a huge horned head, a single heavy bladed horn and short pillar legs. |
+| `bloodcrusher-icon` | `cdm.bloodcrushers/bloodcrusher-icon` | 1 | 2.3 | oval 90 × 52 mm | The same daemon rider on its brass bull-beast, also holding a tall pole with a plain horned brass crest and a ragged dark-red banner. |
+| `bloodcrusher-musician` | `cdm.bloodcrushers/bloodcrusher-musician` | 1 | 2.0 | oval 90 × 52 mm | The same daemon rider on its brass bull-beast, blowing a curled brass horn with its sword held low. |
+| `flesh-hound` | `cdm.flesh-hounds/flesh-hound` | 4 | 0.9 | oval 60 × 35 mm | A pouncing hound-daemon with crimson scaly hide, a giant fanged head with a black bony crest, a thick brass collar, a spiked spine and a short whipping tail. |
+| `gore-hound` | `cdm.flesh-hounds/gore-hound` | 1 | 1.0 | oval 60 × 35 mm | A bigger crimson hound-daemon with a heavier black horn crest and brass collar, jaws wide open breathing a cone of orange-red flame. |
 
 ## 10. Other Chaos Daemons patrols (appendix)
 

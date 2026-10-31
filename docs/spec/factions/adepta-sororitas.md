@@ -270,16 +270,16 @@ Same list as the `ADE` section of 12-rules-test-checklist.
 Heights follow 30-figures (infantry H 1.1, character 1.2); bases are rules-true. No real-world or GW iconography —
 plain original shapes where a decal is wanted.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `canoness-adalya` | `ade.canoness-adalya/canoness` | 1 | 1.2 | 32 mm | A chibi battle-nun commander in ornate black plate with brass trim and a long crimson cloak, short white bob haircut, a glowing halo-disc behind her head, a chunky ornate rifle in one hand and a toothed chainsword raised in the other, a short rod clipped to her belt. |
-| `battle-sister-superior` | `ade.battle-sisters-squad/superior` | 1 | 1.1 | 32 mm | A chibi armoured sister in black plate with a bone-white tabard and crimson trim, white bob hair, a bulky two-barrel rifle in one hand and a glowing straight sword in the other. |
-| `battle-sister-flamer` | `ade.battle-sisters-squad/sister-flamer` | 1 | 1.1 | 32 mm | The same chibi armoured sister holding a stubby flamethrower with a small pilot flame and a fuel canister at the hip. |
-| `battle-sister-heavy-flamer` | `ade.battle-sisters-squad/sister-heavy-flamer` | 1 | 1.1 | 32 mm | The same chibi armoured sister bracing an oversized flamethrower with twin fuel tanks on her back and a wide nozzle. |
-| `battle-sister-simulacrum` | `ade.battle-sisters-squad/sister-simulacrum` | 1 | 1.4 | 32 mm | The same chibi armoured sister with a rifle and a tall brass banner pole on her back topped by a winged ornament and hanging crimson streamers. |
-| `battle-sister` | `ade.battle-sisters-squad/sister` | 6 | 1.1 | 32 mm | A chibi armoured sister in black plate with a bone-white tabard and crimson trim, white bob hair, holding a chunky boxy rifle across her chest, a pistol holstered on her thigh. |
-| `celestian-sacresant` | `ade.celestian-sacresants/sacresant` | 5 | 1.1 | 32 mm | A chibi heavily armoured guardian sister in black and brass plate with a hooded crimson mantle, a large rounded tower shield on one arm and a flanged brass mace in the other hand. |
-| `arco-flagellant` | `ade.arco-flagellants/arco` | 10 | 1.1 | 25 mm | A chibi wiry hunched figure in a ragged crimson loincloth with pale stitched skin, a brass hood-mask over the eyes, and both forearms replaced by long segmented metal whips with spiked tips. |
+| `canoness-adalya` | `ade.canoness-adalya/canoness` | 1 | 1.2 | 32 mm | A battle-nun commander in ornate black plate with brass trim and a long crimson cloak, short white bob haircut, a glowing halo-disc behind her head, a chunky ornate rifle in one hand and a toothed chainsword raised in the other, a short rod clipped to her belt. |
+| `battle-sister-superior` | `ade.battle-sisters-squad/superior` | 1 | 1.1 | 32 mm | A armoured sister in black plate with a bone-white tabard and crimson trim, white bob hair, a bulky two-barrel rifle in one hand and a glowing straight sword in the other. |
+| `battle-sister-flamer` | `ade.battle-sisters-squad/sister-flamer` | 1 | 1.1 | 32 mm | The same armoured sister holding a short flamethrower with a small pilot flame and a fuel canister at the hip. |
+| `battle-sister-heavy-flamer` | `ade.battle-sisters-squad/sister-heavy-flamer` | 1 | 1.1 | 32 mm | The same armoured sister bracing an oversized flamethrower with twin fuel tanks on her back and a wide nozzle. |
+| `battle-sister-simulacrum` | `ade.battle-sisters-squad/sister-simulacrum` | 1 | 1.4 | 32 mm | The same armoured sister with a rifle and a tall brass banner pole on her back topped by a winged ornament and hanging crimson streamers. |
+| `battle-sister` | `ade.battle-sisters-squad/sister` | 6 | 1.1 | 32 mm | A armoured sister in black plate with a bone-white tabard and crimson trim, white bob hair, holding a chunky boxy rifle across her chest, a pistol holstered on her thigh. |
+| `celestian-sacresant` | `ade.celestian-sacresants/sacresant` | 5 | 1.1 | 32 mm | A heavily armoured guardian sister in black and brass plate with a hooded crimson mantle, a large rounded tower shield on one arm and a flanged brass mace in the other hand. |
+| `arco-flagellant` | `ade.arco-flagellants/arco` | 10 | 1.1 | 25 mm | A wiry hunched figure in a ragged crimson loincloth with pale stitched skin, a brass hood-mask over the eyes, and both forearms replaced by long segmented metal whips with spiked tips. |
 
 ## 10. Other Adepta Sororitas patrols (appendix)
 

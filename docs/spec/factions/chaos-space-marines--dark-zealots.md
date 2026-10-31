@@ -232,24 +232,24 @@ data: `tests/data/chaos-space-marines-dark-zealots.test.ts`.
 
 ## 9. Figures
 
-Heights follow 30-figures (infantry ~1.1, heavy infantry ~1.2, walkers by hull); bases are rules-true. Style: true
-MGSD chibi (~2.5 heads, huge head, stubby legs), faction palette blue-black / dried crimson / old brass / warp-violet
+Heights follow 30-figures (infantry ~1.1, heavy infantry ~1.2, walkers by hull); bases are rules-true. Style: house
+figure style (docs/FIGURE-STYLE.md), faction palette blue-black / dried crimson / old brass / warp-violet
 glow; original designs, no logos or real-world faction iconography. The four Legionary variants shared with
 Zarkan's patrol reuse existing slugs (`legionary-champion`, `legionary-boltgun` ×4, `legionary-heavy-bolter`,
 `legionary-melta`) under model keys `csm.legionaries-dz/<modelId>`.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `ghallaron` | `csm.ghallaron-the-pious/ghallaron` | 1 | 1.2 | 40 mm | A chibi armoured preacher in blue-black plate draped with long crimson vestments covered in scribbled brass-script scrolls, a tall crested helm with a glowing violet visor, a book chained to the hip and a heavy spiked mace-staff topped with a burning brass brazier. |
-| `dark-disciple` | `csm.ghallaron-the-pious/disciple` | 2 | 0.85 | 25 mm | A chibi hunched robed acolyte in ragged crimson cloth with a blank brass face mask, iron chains wound around the arms and a small hooked knife. |
-| `legionary-chainsword` | `csm.legionaries-dz/chainsword` | 2 | 1.1 | 32 mm | A chibi spiky power-armoured warrior in blue-black plate with brass edging, a grille-mouthed helm with red eye-lenses, a bolt pistol raised in one hand and a chunky toothed chainsword in the other. |
-| `legionary-icon` | `csm.legionaries-dz/icon` | 1 | 1.1 | 32 mm | Same chibi blue-black warrior holding a tall pole topped with a jagged brass sunburst sigil trailing tattered crimson ribbons, a chainsword at the other hand. |
-| `havoc-champion` | `csm.havocs/champion` | 1 | 1.2 | 40 mm | A chibi bulky armoured gunner-leader in blue-black and brass with a horned crest helm, a plasma rifle with violet-glowing coils and a toothed chainsword. |
-| `havoc-heavy-bolter` | `csm.havocs/heavy-bolter` | 1 | 1.2 | 40 mm | A chibi heavy-armoured blue-black warrior with a squat brass ammunition backpack feeding a belt into an oversized drum-fed gun held at the hip. |
-| `havoc-lascannon` | `csm.havocs/lascannon` | 1 | 1.2 | 40 mm | Same chibi heavy-armoured warrior shouldering a long slim cannon with a red-glowing lens tip and a cable running to a battery pack. |
-| `havoc-missile-launcher` | `csm.havocs/missile-launcher` | 1 | 1.2 | 40 mm | Same chibi heavy-armoured warrior with a boxy tube launcher on the shoulder and a rack of crimson-tipped rockets on the backpack. |
-| `havoc-reaper-chaincannon` | `csm.havocs/reaper-chaincannon` | 1 | 1.2 | 40 mm | Same chibi heavy-armoured warrior hugging a stubby multi-barrel rotary gun with spiked brass cowling and a long looping ammo belt. |
-| `helbrute` | `csm.helbrute/helbrute` | 1 | 2.2 | 60 mm | A chibi hunched stompy walker in blue-black plate with a fleshy crimson torso bursting through cracked armour, a tiny glowing violet eye-slit, one arm a fat plasma cannon with violet coils and the other a huge brass-studded hammer. |
+| `ghallaron` | `csm.ghallaron-the-pious/ghallaron` | 1 | 1.2 | 40 mm | A armoured preacher in blue-black plate draped with long crimson vestments covered in scribbled brass-script scrolls, a tall crested helm with a glowing violet visor, a book chained to the hip and a heavy spiked mace-staff topped with a burning brass brazier. |
+| `dark-disciple` | `csm.ghallaron-the-pious/disciple` | 2 | 0.85 | 25 mm | A hunched robed acolyte in ragged crimson cloth with a blank brass face mask, iron chains wound around the arms and a small hooked knife. |
+| `legionary-chainsword` | `csm.legionaries-dz/chainsword` | 2 | 1.1 | 32 mm | A spiky power-armoured warrior in blue-black plate with brass edging, a grille-mouthed helm with red eye-lenses, a bolt pistol raised in one hand and a chunky toothed chainsword in the other. |
+| `legionary-icon` | `csm.legionaries-dz/icon` | 1 | 1.1 | 32 mm | Same blue-black warrior holding a tall pole topped with a jagged brass sunburst sigil trailing tattered crimson ribbons, a chainsword at the other hand. |
+| `havoc-champion` | `csm.havocs/champion` | 1 | 1.2 | 40 mm | A bulky armoured gunner-leader in blue-black and brass with a horned crest helm, a plasma rifle with violet-glowing coils and a toothed chainsword. |
+| `havoc-heavy-bolter` | `csm.havocs/heavy-bolter` | 1 | 1.2 | 40 mm | A heavy-armoured blue-black warrior with a squat brass ammunition backpack feeding a belt into an oversized drum-fed gun held at the hip. |
+| `havoc-lascannon` | `csm.havocs/lascannon` | 1 | 1.2 | 40 mm | Same heavy-armoured warrior shouldering a long slim cannon with a red-glowing lens tip and a cable running to a battery pack. |
+| `havoc-missile-launcher` | `csm.havocs/missile-launcher` | 1 | 1.2 | 40 mm | Same heavy-armoured warrior with a boxy tube launcher on the shoulder and a rack of crimson-tipped rockets on the backpack. |
+| `havoc-reaper-chaincannon` | `csm.havocs/reaper-chaincannon` | 1 | 1.2 | 40 mm | Same heavy-armoured warrior hugging a short multi-barrel rotary gun with spiked brass cowling and a long looping ammo belt. |
+| `helbrute` | `csm.helbrute/helbrute` | 1 | 2.2 | 60 mm | A hunched stompy walker in blue-black plate with a fleshy crimson torso bursting through cracked armour, a tiny glowing violet eye-slit, one arm a fat plasma cannon with violet coils and the other a huge brass-studded hammer. |
 
 ## 10. Other Chaos Space Marines patrols (appendix)
 

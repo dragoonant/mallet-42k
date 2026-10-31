@@ -1,5 +1,5 @@
 // Tyranid-only body dressing for the shared biped rig (BipedBody.tsx): the three head shapes, plus the
-// optional tail, dorsal spines, wings and second arm pair a kit's BipedConfig can switch on. Original SD
+// optional tail, dorsal spines, wings and second arm pair a kit's BipedConfig can switch on. Original
 // shapes built from the same primitive set as every other kit; nothing here carries rules.
 import { GBox, GCone, GCapsule, GSphere, StdMat } from './shared'
 import type { BipedConfig, PaintColors } from './types'

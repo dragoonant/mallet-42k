@@ -368,7 +368,7 @@ describe('adeptus mechanicus figures', () => {
         if (BODY_KIND[kit] === 'hound') expect(HOUND_CONFIG[kit], kit).toBeDefined()
       })
 
-      // Every Adeptus Mechanicus unit has an SD figure GLB.
+      // Every Adeptus Mechanicus unit has a figure GLB.
       it(`${ds.id}/${m.modelId} uses its enabled SD figure GLB`, () => {
         expect(glbSlugFor(ds.id, m.modelId)).toBeDefined()
       })

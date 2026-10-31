@@ -274,14 +274,14 @@ Same list as the `THO` section of 12-rules-test-checklist.
 
 Heights follow 30-figures (infantry H 1.1, heavy 1.3); bases are rules-true. All designs original; no legion icons.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `ahrak-the-time-weaver` | `ths.ahrak-the-time-weaver/ahrak` | 1 | 1.25 | 40 mm | A chibi armoured sorcerer in lapis-blue plate with ornate gold trim, a tall crested helm with a cobra-hood shape and glowing cyan eye slits, a flowing parchment-coloured robe, an hourglass charm at the belt, a short pistol in one hand and a glowing staff-blade in the other with swirling cyan warp ribbons. |
-| `scarab-occult-sorcerer` | `ths.scarab-occult-terminators/sorcerer` | 1 | 1.35 | 40 mm | A chibi bulky terminator-armoured sorcerer in lapis blue and gold with a high fan-shaped crest and a draped parchment tabard, a curved sickle-sword at the hip, one gauntlet crackling with cyan flame and a tall staff-blade in the other. |
-| `scarab-occult-combi` | `ths.scarab-occult-terminators/combi` | 2 | 1.3 | 40 mm | A chibi hulking terminator in lapis-blue armour edged in gold, a tall plumed helm with a narrow cyan visor, a twin-barrel wrist gun on one arm and a curved khopesh sword in the other hand. |
-| `scarab-occult-soulreaper` | `ths.scarab-occult-terminators/soulreaper` | 1 | 1.3 | 40 mm | Same chibi lapis-and-gold terminator bracing a chunky rotary multi-barrel cannon with glowing cyan barrel tips, khopesh slung at the hip. |
-| `scarab-occult-hellfyre` | `ths.scarab-occult-terminators/hellfyre` | 1 | 1.3 | 40 mm | Same chibi lapis-and-gold terminator with a boxy shoulder-mounted missile pod of four tubes, a twin-barrel wrist gun and a curved khopesh. |
-| `tzaangor` | `ths.tzaangors/tzaangor` | 20 | 1.2 | 32 mm | A chibi bird-headed beastman with a curved beak, swept-back horns and pale blue-violet skin, a gold-trimmed blue loincloth and leather harness, a small pistol in one hand and a chunky chain-blade in the other, standing on digitigrade legs. |
+| `ahrak-the-time-weaver` | `ths.ahrak-the-time-weaver/ahrak` | 1 | 1.25 | 40 mm | A armoured sorcerer in lapis-blue plate with ornate gold trim, a tall crested helm with a cobra-hood shape and glowing cyan eye slits, a flowing parchment-coloured robe, an hourglass charm at the belt, a short pistol in one hand and a glowing staff-blade in the other with swirling cyan warp ribbons. |
+| `scarab-occult-sorcerer` | `ths.scarab-occult-terminators/sorcerer` | 1 | 1.35 | 40 mm | A bulky terminator-armoured sorcerer in lapis blue and gold with a high fan-shaped crest and a draped parchment tabard, a curved sickle-sword at the hip, one gauntlet crackling with cyan flame and a tall staff-blade in the other. |
+| `scarab-occult-combi` | `ths.scarab-occult-terminators/combi` | 2 | 1.3 | 40 mm | A hulking terminator in lapis-blue armour edged in gold, a tall plumed helm with a narrow cyan visor, a twin-barrel wrist gun on one arm and a curved khopesh sword in the other hand. |
+| `scarab-occult-soulreaper` | `ths.scarab-occult-terminators/soulreaper` | 1 | 1.3 | 40 mm | Same lapis-and-gold terminator bracing a chunky rotary multi-barrel cannon with glowing cyan barrel tips, khopesh slung at the hip. |
+| `scarab-occult-hellfyre` | `ths.scarab-occult-terminators/hellfyre` | 1 | 1.3 | 40 mm | Same lapis-and-gold terminator with a boxy shoulder-mounted missile pod of four tubes, a twin-barrel wrist gun and a curved khopesh. |
+| `tzaangor` | `ths.tzaangors/tzaangor` | 20 | 1.2 | 32 mm | A bird-headed beastman with a curved beak, swept-back horns and pale blue-violet skin, a gold-trimmed blue loincloth and leather harness, a small pistol in one hand and a chunky chain-blade in the other, standing on digitigrade legs. |
 
 ## 10. Other Thousand Sons patrols (appendix)
 

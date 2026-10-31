@@ -319,12 +319,12 @@ logos. The Intercessors reuse the Mordekai build's `intercessor` GLB (same loado
 card), so only three new slugs are needed. Per owner instruction (2026-10-16), all GLBs for this patrol are generated
 on **Alteisen** (`ssh alteisen`, E:\AI pipeline), not on the local GPU.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `master-zacharial` | `da.master-zacharial/zacharial` | 1 | 1.35 | 40 mm | A chibi commander in extra-bulky deep-green heavy armour with a long bone-white robe skirt and a dark red cape, bare stern face with a short grey beard, a huge crackling power gauntlet with built-in twin gun barrels on one arm and a toothed chainsword raised in the other. |
+| `master-zacharial` | `da.master-zacharial/zacharial` | 1 | 1.35 | 40 mm | A commander in extra-bulky deep-green heavy armour with a long bone-white robe skirt and a dark red cape, bare stern face with a short grey beard, a huge crackling power gauntlet with built-in twin gun barrels on one arm and a toothed chainsword raised in the other. |
 | `intercessor` (reuse) | `da.vb.intercessor-squad/intercessor` | 10 | 1.1 | 32 mm | (existing Mordekai's Judgement slug) |
-| `hellblaster` | `da.hellblaster-squad/hellblaster` | 5 | 1.1 | 32 mm | A chibi armoured soldier in rounded deep-green plate with bone shoulder rims, holding a chunky rifle with a glowing blue coil chamber and a thick cable running to a small backpack canister. |
-| `bladeguard-veteran` | `da.bladeguard-veteran-squad/bladeguard` | 3 | 1.15 | 40 mm | A chibi veteran knight in ornate deep-green armour with a bone-coloured hooded tabard, a tall rectangular storm shield on one arm and a blue-glowing broadsword held high, a stubby pistol on the hip. |
+| `hellblaster` | `da.hellblaster-squad/hellblaster` | 5 | 1.1 | 32 mm | A armoured soldier in rounded deep-green plate with bone shoulder rims, holding a chunky rifle with a glowing blue coil chamber and a thick cable running to a small backpack canister. |
+| `bladeguard-veteran` | `da.bladeguard-veteran-squad/bladeguard` | 3 | 1.15 | 40 mm | A veteran knight in ornate deep-green armour with a bone-coloured hooded tabard, a tall rectangular storm shield on one arm and a blue-glowing broadsword held high, a short pistol on the hip. |
 
 ## 10. Other Dark Angels patrols (appendix)
 

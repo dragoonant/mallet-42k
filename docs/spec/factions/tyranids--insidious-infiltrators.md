@@ -285,10 +285,10 @@ Heights follow 30-figures (infantry H 1.1, heavy 1.3; tall lanky hunters a littl
 reuse the existing `tyr-leaper` kit (`tyr.von-ryans-leapers-inf` → `tyr-leaper` in `src/client/figures/data.ts`); only
 the two new units need figures. Colours follow the faction scheme (bone carapace, violet hide, crimson trim, green glow).
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `deaths-shadow` | `tyr.deaths-shadow/neurolictor` (kit `tyr-neurolictor`, archetype heavy) | 1 | 1.5 | 50 mm | A chibi lanky stalking alien with a hunched bone-white back, violet mottled skin, an oversized swollen head crowned by glowing green brain-like lobes trailing wispy psychic tendrils, and two long jointed claw arms tucked like a mantis. |
-| `lictor` | `tyr.lictor/lictor` (kit `tyr-lictor`, archetype heavy) | 1 | 1.6 | 50 mm | A chibi tall ambush-hunter alien crouched on digitigrade legs, with a chameleon-patterned violet-and-bone hide, two huge scything upper talons raised over its head, smaller grasping claws, and a cluster of crimson feeding tendrils around its fanged jaw. |
+| `deaths-shadow` | `tyr.deaths-shadow/neurolictor` (kit `tyr-neurolictor`, archetype heavy) | 1 | 1.5 | 50 mm | A lanky stalking alien with a hunched bone-white back, violet mottled skin, an oversized swollen head crowned by glowing green brain-like lobes trailing wispy psychic tendrils, and two long jointed claw arms tucked like a mantis. |
+| `lictor` | `tyr.lictor/lictor` (kit `tyr-lictor`, archetype heavy) | 1 | 1.6 | 50 mm | A tall ambush-hunter alien crouched on digitigrade legs, with a chameleon-patterned violet-and-bone hide, two huge scything upper talons raised over its head, smaller grasping claws, and a cluster of crimson feeding tendrils around its fanged jaw. |
 
 ## 10. Other Tyranids patrols (appendix)
 

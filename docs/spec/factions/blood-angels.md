@@ -232,15 +232,15 @@ Gravis silhouette), `ba.impulsor` → `generic-vehicle`, until the GLBs below la
 `#c9a227`, black `#1a1a1a`), so a shared kit renders red. Heights follow 30-figures (infantry H ≈ 1.1–1.3"); bases
 rules-true. No chapter icons, blood-drop emblems or logos.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `librarian-marcellos` | `ba.librarian-marcellos/marcellos` | 1 | 1.2 | 40 mm | A chibi psychic warrior in crimson power armour with gold trim and a pale-blue armoured hood frame rising behind a bare-headed, stern young face, a glowing blue force sword in one hand and a small pistol at the hip. |
-| `intercessor-sergeant` | `ba.intercessor-squad/sergeant` | 1 | 1.1 | 32 mm | A chibi armoured soldier in rounded crimson plate with gold-edged shoulder pads and a black-trimmed helmet with a short crest, revving a toothed chainsword in one hand and holding a pistol in the other. |
-| `intercessor` | `ba.intercessor-squad/intercessor` | 4 | 1.1 | 32 mm | A chibi armoured soldier in rounded crimson plate with black gauntlets and a smooth helmet with green eye-lenses, holding a long, chunky rifle across the chest. |
-| `incursor-sergeant` | `ba.incursor-squad/sergeant` | 1 | 1.1 | 32 mm | A chibi scout trooper in slim crimson armour with a wide multi-lens visor helmet and a tall antenna, a compact carbine raised and two short blades on the thighs. |
-| `incursor` | `ba.incursor-squad/incursor` + `/incursor-haywire` | 4 (one with a disc mine on the belt) | 1.1 | 32 mm | A chibi scout trooper in slim crimson armour with a wide glowing visor helmet, a compact carbine with a boxy sight, and short blades on the thighs; the mine variant carries a flat round device clipped to the belt. |
-| `aggressor` | `ba.aggressor-squad/aggressor` | 3 | 1.3 | 40 mm | A chibi hulking heavy-armour trooper in oversized crimson plate with a small head sunk between massive shoulders, huge black gauntlets fitted with stubby flame nozzles, and a squat backpack with fuel tanks. |
-| `impulsor` | `ba.impulsor/impulsor` | 1 | 2.4 | 100 mm (hover hull) | A chibi rounded hover-transport in crimson armour plates with gold trim, an open-topped rear deck with grab rails, a stubby missile pod on a short mast, two small guns at the front corners and glowing blue anti-grav pads underneath. |
+| `librarian-marcellos` | `ba.librarian-marcellos/marcellos` | 1 | 1.2 | 40 mm | A psychic warrior in crimson power armour with gold trim and a pale-blue armoured hood frame rising behind a bare-headed, stern young face, a glowing blue force sword in one hand and a small pistol at the hip. |
+| `intercessor-sergeant` | `ba.intercessor-squad/sergeant` | 1 | 1.1 | 32 mm | A armoured soldier in rounded crimson plate with gold-edged shoulder pads and a black-trimmed helmet with a short crest, revving a toothed chainsword in one hand and holding a pistol in the other. |
+| `intercessor` | `ba.intercessor-squad/intercessor` | 4 | 1.1 | 32 mm | A armoured soldier in rounded crimson plate with black gauntlets and a smooth helmet with green eye-lenses, holding a long, chunky rifle across the chest. |
+| `incursor-sergeant` | `ba.incursor-squad/sergeant` | 1 | 1.1 | 32 mm | A scout trooper in slim crimson armour with a wide multi-lens visor helmet and a tall antenna, a compact carbine raised and two short blades on the thighs. |
+| `incursor` | `ba.incursor-squad/incursor` + `/incursor-haywire` | 4 (one with a disc mine on the belt) | 1.1 | 32 mm | A scout trooper in slim crimson armour with a wide glowing visor helmet, a compact carbine with a boxy sight, and short blades on the thighs; the mine variant carries a flat round device clipped to the belt. |
+| `aggressor` | `ba.aggressor-squad/aggressor` | 3 | 1.3 | 40 mm | A hulking heavy-armour trooper in oversized crimson plate with a small head sunk between massive shoulders, huge black gauntlets fitted with short flame nozzles, and a squat backpack with fuel tanks. |
+| `impulsor` | `ba.impulsor/impulsor` | 1 | 2.4 | 100 mm (hover hull) | A rounded hover-transport in crimson armour plates with gold trim, an open-topped rear deck with grab rails, a short missile pod on a short mast, two small guns at the front corners and glowing blue anti-grav pads underneath. |
 
 ## 10. Other Blood Angels patrols (appendix)
 

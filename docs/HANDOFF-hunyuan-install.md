@@ -32,7 +32,7 @@ re-download through the HF cache.
 - `picks.json`: `{slug: seed number | "absolute path to image"}`. That's either the chosen SDXL candidate or an
   external concept image (e.g. Gemini PNGs in the repo's `art/unit-concepts/`). Env var `PICKS` picks another file.
 - **Write both without a UTF-8 BOM.** PowerShell 5.1 `Out-File` adds one and Python's json.load then fails.
-- `refs\librarian.webp`: the owner's reference for the house SD look (IP-Adapter style image).
+- `refs\librarian.webp`: the owner's reference for the house figure style (docs/FIGURE-STYLE.md) (IP-Adapter style image).
 - `outputs\<slug>\`: per-figure working folder: `concepts\s<seed>.png` + `sheet.png`, `cutout.png`,
   `shape.glb`, `textured.glb`, `final.glb`, `final_front/side/back.png`, `final_sheet.png`.
   `outputs\final_contact_<n>.png` is a sheet of 6 figures per image.

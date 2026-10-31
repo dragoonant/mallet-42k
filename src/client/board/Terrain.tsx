@@ -19,7 +19,7 @@ import {
   useTiledPBR,
 } from './terrainAssets'
 
-// Chunky stylised-SD palette per terrain kind. Purely presentational — LoS/cover come from the engine.
+// Chunky stylised palette per terrain kind. Purely presentational — LoS/cover come from the engine.
 // Kinds without their own texture (barricade uses a glTF model, crater is built from rock models,
 // 'wall'/'forest' are untextured fallbacks) keep a flat tint; textured kinds use a near-white tint
 // below (BRICK_TINT etc.) so the PBR map's own color shows through instead of being multiplied dark.

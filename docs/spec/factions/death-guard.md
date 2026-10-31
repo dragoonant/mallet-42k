@@ -248,16 +248,16 @@ Same list as the `DTG` section of 12-rules-test-checklist.
 
 Heights follow 30-figures (infantry H 1.1, heavy 1.3); bases are rules-true.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `typhus` | `dg.typhus/typhus` | 1 | 1.4 | 50 mm | A chibi hulking plague lord in bloated olive-green heavy armour with rusted bronze trim, a single tall horn on a hooded helm, a cracked chimney-like vent on his back trailing a cloud of tiny buzzing flies, holding a huge two-handed scythe. |
-| `folgoth-grelch` | `dg.folgoth-grelch/grelch` | 1 | 1.15 | 40 mm | A chibi pot-bellied plague alchemist in grimy olive-green armour with a tarnished brass rebreather mask, a bandolier of glowing green glass grenades across the chest, a syringe pistol in one hand and a short rusty knife in the other. |
-| `plague-champion` | `dg.plague-marines/champion` | 1 | 1.15 | 32 mm | A chibi swollen armoured warrior in faded olive-green plate with rust-bronze edging, a one-horned helm with a single round eye-lens, a rifle at the hip and a heavy cleaver-headed axe raised overhead. |
-| `plague-marine-spewer` | `dg.plague-marines/spewer` | 1 | 1.15 | 32 mm | Same chibi olive-green plague warrior lugging a stubby wide-nozzled sprayer fed by a sloshing green tank on the back, dripping sickly green liquid. |
-| `plague-marine-blight-launcher` | `dg.plague-marines/blight-launcher` | 1 | 1.15 | 32 mm | Same chibi olive-green plague warrior shouldering a short fat-barrelled launcher with a drum magazine of glowing green shells. |
-| `plague-marine` | `dg.plague-marines/boltgun` | 4 | 1.15 | 32 mm | A chibi bulky plague warrior in pitted olive-green armour with rust patches, a round-bellied torso, a dented helm with a breathing tube, holding a chunky rusted rifle with a small knife at the belt. |
-| `poxwalker` | `dg.poxwalkers/poxwalker` | 30 (two variants, 15 each) | 1.0 | 25 mm | A chibi shambling zombie-like mutant in torn grey-green work clothes, pale greenish skin, a small horn sprouting from the forehead, slack jaw and arms forward, gripping a rusty wrench or a broken pipe. |
-| `poxwalker-b` | `dg.poxwalkers/poxwalker` (variant) | (see above) | 1.0 | 25 mm | Same chibi shambling mutant with a hunched back and ragged hood, one arm swollen and blotchy, dragging a cracked shovel. |
+| `typhus` | `dg.typhus/typhus` | 1 | 1.4 | 50 mm | A hulking plague lord in bloated olive-green heavy armour with rusted bronze trim, a single tall horn on a hooded helm, a cracked chimney-like vent on his back trailing a cloud of tiny buzzing flies, holding a huge two-handed scythe. |
+| `folgoth-grelch` | `dg.folgoth-grelch/grelch` | 1 | 1.15 | 40 mm | A pot-bellied plague alchemist in grimy olive-green armour with a tarnished brass rebreather mask, a bandolier of glowing green glass grenades across the chest, a syringe pistol in one hand and a short rusty knife in the other. |
+| `plague-champion` | `dg.plague-marines/champion` | 1 | 1.15 | 32 mm | A swollen armoured warrior in faded olive-green plate with rust-bronze edging, a one-horned helm with a single round eye-lens, a rifle at the hip and a heavy cleaver-headed axe raised overhead. |
+| `plague-marine-spewer` | `dg.plague-marines/spewer` | 1 | 1.15 | 32 mm | Same olive-green plague warrior lugging a short wide-nozzled sprayer fed by a sloshing green tank on the back, dripping sickly green liquid. |
+| `plague-marine-blight-launcher` | `dg.plague-marines/blight-launcher` | 1 | 1.15 | 32 mm | Same olive-green plague warrior shouldering a short fat-barrelled launcher with a drum magazine of glowing green shells. |
+| `plague-marine` | `dg.plague-marines/boltgun` | 4 | 1.15 | 32 mm | A bulky plague warrior in pitted olive-green armour with rust patches, a round-bellied torso, a dented helm with a breathing tube, holding a chunky rusted rifle with a small knife at the belt. |
+| `poxwalker` | `dg.poxwalkers/poxwalker` | 30 (two variants, 15 each) | 1.0 | 25 mm | A shambling zombie-like mutant in torn grey-green work clothes, pale greenish skin, a small horn sprouting from the forehead, slack jaw and arms forward, gripping a rusty wrench or a broken pipe. |
+| `poxwalker-b` | `dg.poxwalkers/poxwalker` (variant) | (see above) | 1.0 | 25 mm | Same shambling mutant with a hunched back and ragged hood, one arm swollen and blotchy, dragging a cracked shovel. |
 
 ## 10. Other Death Guard patrols (appendix)
 

@@ -129,7 +129,7 @@ const VALID_POSES: Pose[] = ['idle', 'walk', 'shoot', 'melee', 'death']
 
 /** Dev/QA-only view: `?gallery` (optionally `&pose=<idle|walk|shoot|melee|death>` and
  *  `&faction=<sm|ork|necrons|astra-militarum>`) renders every figure archetype in a row instead of the normal app, so the
- *  procedural SD figure kit (src/client/figures) can be eyeballed without starting a game. */
+ *  procedural figure kit (src/client/figures) can be eyeballed without starting a game. */
 function useGalleryQuery(): { active: boolean; pose?: Pose; faction?: string } {
   if (typeof window === 'undefined') return { active: false }
   const params = new URLSearchParams(window.location.search)

@@ -306,13 +306,13 @@ Same list as the `TYR` section of 12-rules-test-checklist.
 
 Heights follow 30-figures (infantry H 1.1, heavy 1.3, monsters compressed); bases are rules-true.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `terror-of-vardenghast` | `tyr.terror-of-vardenghast/prime` | 1 | 1.6 | 50 mm | A chibi winged insectoid alien warrior with a bone-white armoured carapace over violet hide, large leathery bat-like wings, a crested elongated head with glowing green eyes, and four scything bone talons raised to strike. |
-| `psychophage` | `tyr.psychophage/psychophage` | 1 | 2.4 | 120 × 92 mm oval | A chibi squat six-legged alien beast with a bulbous bone-plated back, a huge round maw ringed with writhing violet tentacles leaking green mist, and stubby clawed forelimbs. |
-| `termagant` | `tyr.termagants/termagant` | 20 | 0.9 | 28 mm | A small chibi hunched alien gunner on two backward-bent legs with a bone-white shell, violet skin and a long tail, clutching a fleshy organic rifle with a crimson muzzle. |
-| `barbgaunt` | `tyr.barbgaunts/barbgaunt` | 5 | 1.0 | 40 mm | A chibi stocky alien creature with a heavier bone carapace and violet hide, hauling a large two-handed spiny bio-mortar with a crimson tube and glowing green sacs. |
-| `von-ryans-leaper` | `tyr.von-ryans-leapers/leaper` | 3 | 1.3 | 40 mm | A chibi crouched alien ambusher with long spring-loaded hind legs, a sleek violet body with a bone-plated spine, a narrow eyeless head, and two pairs of long sickle claws. |
+| `terror-of-vardenghast` | `tyr.terror-of-vardenghast/prime` | 1 | 1.6 | 50 mm | A winged insectoid alien warrior with a bone-white armoured carapace over violet hide, large leathery bat-like wings, a crested elongated head with glowing green eyes, and four scything bone talons raised to strike. |
+| `psychophage` | `tyr.psychophage/psychophage` | 1 | 2.4 | 120 × 92 mm oval | A squat six-legged alien beast with a bulbous bone-plated back, a huge round maw ringed with writhing violet tentacles leaking green mist, and short clawed forelimbs. |
+| `termagant` | `tyr.termagants/termagant` | 20 | 0.9 | 28 mm | A small hunched alien gunner on two backward-bent legs with a bone-white shell, violet skin and a long tail, clutching a fleshy organic rifle with a crimson muzzle. |
+| `barbgaunt` | `tyr.barbgaunts/barbgaunt` | 5 | 1.0 | 40 mm | A stocky alien creature with a heavier bone carapace and violet hide, hauling a large two-handed spiny bio-mortar with a crimson tube and glowing green sacs. |
+| `von-ryans-leaper` | `tyr.von-ryans-leapers/leaper` | 3 | 1.3 | 40 mm | A crouched alien ambusher with long spring-loaded hind legs, a sleek violet body with a bone-plated spine, a narrow eyeless head, and two pairs of long sickle claws. |
 
 ## 10. Other Tyranids patrols (appendix)
 

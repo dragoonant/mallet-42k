@@ -272,14 +272,14 @@ Heights follow 30-figures (infantry H 1.1; characters a little taller; Gravis bu
 from the proposed Deathwatch paint scheme: gloss black armour `#17181b`, silver `#b9bec4` on the left shoulder and arm,
 pale-grey trim; no chapter icons, skulls-with-wings or other logos.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `lieutenant-alphion` | `dw.lieutenant-alphion/alphion` | 1 | 1.2 | 40 mm | A chibi armoured officer in gloss-black plate with one silver shoulder and forearm, a short dark-red cloak, bare head with a stern jaw and cropped grey hair, a glowing blue-edged sword raised in one hand and a stubby pistol in the other. |
-| `apothecary-krenn` | `dw.apothecary-krenn/krenn` | 1 | 1.2 | 40 mm | A chibi field medic in gloss-black armour with a white helmet and one silver arm, a bulky gauntlet with a fold-out syringe and saw, a long-barrelled pistol on the hip and small sample vials on the belt. |
-| `dw-intercessor-sergeant` | `dw.intercessor-squad/sergeant` | 1 | 1.1 | 32 mm | A chibi heavily armoured trooper in gloss-black plate with a silver left shoulder and a white-striped helmet crest, holding a chunky long rifle across the chest, with a pistol holstered on the thigh. |
-| `dw-intercessor` | `dw.intercessor-squad/intercessor` | 7 | 1.1 | 32 mm | A chibi heavily armoured trooper in gloss-black plate with a silver left shoulder and arm, a rounded helmet with green eye-lenses, and a chunky long rifle held ready. |
-| `dw-intercessor-grenadier` | `dw.intercessor-squad/grenadier` | 2 | 1.1 | 32 mm | A chibi heavily armoured trooper in gloss-black plate with a silver left arm, carrying a chunky rifle with a fat drum-fed launcher tube slung underneath and spare round shells on the belt. |
-| `aggressor` | `dw.aggressor-squad/aggressor` | 3 | 1.3 | 40 mm | A chibi hulking walking-tank trooper in thick gloss-black armour with a sunken helmet between huge shoulders, one silver pauldron, and two oversized fists with flamer nozzles on the knuckles and a glowing pilot light. |
+| `lieutenant-alphion` | `dw.lieutenant-alphion/alphion` | 1 | 1.2 | 40 mm | A armoured officer in gloss-black plate with one silver shoulder and forearm, a short dark-red cloak, bare head with a stern jaw and cropped grey hair, a glowing blue-edged sword raised in one hand and a short pistol in the other. |
+| `apothecary-krenn` | `dw.apothecary-krenn/krenn` | 1 | 1.2 | 40 mm | A field medic in gloss-black armour with a white helmet and one silver arm, a bulky gauntlet with a fold-out syringe and saw, a long-barrelled pistol on the hip and small sample vials on the belt. |
+| `dw-intercessor-sergeant` | `dw.intercessor-squad/sergeant` | 1 | 1.1 | 32 mm | A heavily armoured trooper in gloss-black plate with a silver left shoulder and a white-striped helmet crest, holding a chunky long rifle across the chest, with a pistol holstered on the thigh. |
+| `dw-intercessor` | `dw.intercessor-squad/intercessor` | 7 | 1.1 | 32 mm | A heavily armoured trooper in gloss-black plate with a silver left shoulder and arm, a rounded helmet with green eye-lenses, and a chunky long rifle held ready. |
+| `dw-intercessor-grenadier` | `dw.intercessor-squad/grenadier` | 2 | 1.1 | 32 mm | A heavily armoured trooper in gloss-black plate with a silver left arm, carrying a chunky rifle with a fat drum-fed launcher tube slung underneath and spare round shells on the belt. |
+| `aggressor` | `dw.aggressor-squad/aggressor` | 3 | 1.3 | 40 mm | A hulking walking-tank trooper in thick gloss-black armour with a sunken helmet between huge shoulders, one silver pauldron, and two oversized fists with flamer nozzles on the knuckles and a glowing pilot light. |
 
 ## 10. Other Deathwatch patrols (appendix)
 

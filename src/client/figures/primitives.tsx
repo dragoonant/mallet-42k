@@ -9,7 +9,7 @@ import { THS_WEAPONS, ThsWeapon } from './thsParts'
 import { DAEMON_WEAPONS, DaemonWeapon } from './daemonParts'
 import type { PaintColors, WeaponShape } from './types'
 
-/** A big, slightly-flattened sphere — the chibi head blob every kit head shape starts from. */
+/** A big, slightly-flattened sphere — the head blob every kit head shape starts from. */
 export function HeadBlob({ radius, color }: { radius: number; color: string }) {
   return (
     <mesh position={[0, 0, 0]} scale={[1, 0.92, 1.05]}>
@@ -19,7 +19,7 @@ export function HeadBlob({ radius, color }: { radius: number; color: string }) {
   )
 }
 
-/** A stubby capsule limb segment, pivoted at its top (the group this is placed in is the joint). */
+/** A short capsule limb segment, pivoted at its top (the group this is placed in is the joint). */
 export function LimbSegment({ length, radius, color, metalness = 0 }: { length: number; radius: number; color: string; metalness?: number }) {
   const capLen = Math.max(length - radius * 2, radius * 0.5)
   return (
@@ -459,7 +459,7 @@ export function WeaponMesh({ shape, colors, hand }: { shape: WeaponShape; colors
       )
     case 'flamer':
     case 'heavy-flamer': {
-      // Sister's flamer: a stubby nozzle over a fuel canister, with a small pilot flame at the tip. The heavy
+      // Sister's flamer: a short nozzle over a fuel canister, with a small pilot flame at the tip. The heavy
       // version is bigger, with a wide nozzle and twin tanks.
       const heavy = shape === 'heavy-flamer'
       return (
@@ -637,7 +637,7 @@ export function WeaponMesh({ shape, colors, hand }: { shape: WeaponShape; colors
         </group>
       )
     case 'burst-cannon':
-      // Three stubby bound barrels and a boxy ammo feed.
+      // Three short bound barrels and a boxy ammo feed.
       return (
         <group scale={1.5}>
           {[-0.03, 0, 0.03].map((x) => (
@@ -827,7 +827,7 @@ export function WeaponMesh({ shape, colors, hand }: { shape: WeaponShape; colors
         </group>
       )
     case 'shredder':
-      // Stubby gun with a wide flared bell that sprays shards.
+      // Short gun with a wide flared bell that sprays shards.
       return (
         <group scale={1.4}>
           <mesh position={[0, 0, 0.0]}>

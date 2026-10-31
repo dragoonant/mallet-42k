@@ -266,15 +266,15 @@ wound on 5+/6+, otherwise Dacatarai. Overawing Magnificence — use when the fre
 Heights follow 30-figures (infantry H 1.1; Custodes are a head taller than Space Marines, so H 1.35–1.45; bikes compressed);
 bases are rules-true. All designs are original — no heraldry or logos.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `shield-captain-tyvan` | `cus.shield-captain-tyvan/captain` | 1 | 1.45 | 40 mm | A chibi towering warrior in ornate polished gold armour with a tall crimson horsehair crest on a smooth-faced helmet, a flowing crimson cloak, a round gilded shield on one arm and a short broad sword with a pistol barrel set in its guard. |
-| `custodian-guard-spear` | `cus.custodian-guard/spear` | 2 | 1.4 | 40 mm | A chibi tall golden-armoured guardian with a crested high helmet, crimson tabard and a very long spear that ends in a broad axe-like blade with a gun barrel built into the haft. |
-| `custodian-guard-vexilla` | `cus.custodian-guard/vexilla` | 1 | 1.4 | 40 mm | The same chibi golden guardian holding a tall standard pole topped with a winged golden sunburst and a hanging crimson banner, a round shield on the other arm and a slim dagger at the hip. |
-| `custodian-guard-shield` | `cus.custodian-guard/blade` | 1 | 1.4 | 40 mm | The same chibi golden guardian with a round gilded shield raised and a short broad sword with an under-barrel pistol, crimson cloak behind. |
-| `vertus-praetor` | `cus.vertus-praetors/praetor` | 1 | 1.7 | 75×42 mm oval | A chibi gold-armoured rider crouched on a sleek hovering gold jetbike with swept wings and twin bolt guns on the nose, holding a long lance couched forward, crimson pennant streaming. |
-| `prosecutor` | `cus.prosecutors/prosecutor` | 5 (1 may be a cosmetic leader variant with a taller crest) | 1.1 | 32 mm | A chibi slim woman warrior in burnished bronze plate with a high crimson-plumed helmet and a face-covering mask, crimson half-cape, holding a chunky rifle. |
-| `vigilator` | `cus.vigilators/vigilator` | 5 (1 may be a cosmetic leader variant) | 1.1 | 32 mm | A chibi slim woman warrior in burnished bronze plate with a crimson-plumed helmet and masked face, swinging an oversized two-handed executioner's greatsword with a pale steel edge. |
+| `shield-captain-tyvan` | `cus.shield-captain-tyvan/captain` | 1 | 1.45 | 40 mm | A towering warrior in ornate polished gold armour with a tall crimson horsehair crest on a smooth-faced helmet, a flowing crimson cloak, a round gilded shield on one arm and a short broad sword with a pistol barrel set in its guard. |
+| `custodian-guard-spear` | `cus.custodian-guard/spear` | 2 | 1.4 | 40 mm | A tall golden-armoured guardian with a crested high helmet, crimson tabard and a very long spear that ends in a broad axe-like blade with a gun barrel built into the haft. |
+| `custodian-guard-vexilla` | `cus.custodian-guard/vexilla` | 1 | 1.4 | 40 mm | The same golden guardian holding a tall standard pole topped with a winged golden sunburst and a hanging crimson banner, a round shield on the other arm and a slim dagger at the hip. |
+| `custodian-guard-shield` | `cus.custodian-guard/blade` | 1 | 1.4 | 40 mm | The same golden guardian with a round gilded shield raised and a short broad sword with an under-barrel pistol, crimson cloak behind. |
+| `vertus-praetor` | `cus.vertus-praetors/praetor` | 1 | 1.7 | 75×42 mm oval | A gold-armoured rider crouched on a sleek hovering gold jetbike with swept wings and twin bolt guns on the nose, holding a long lance couched forward, crimson pennant streaming. |
+| `prosecutor` | `cus.prosecutors/prosecutor` | 5 (1 may be a cosmetic leader variant with a taller crest) | 1.1 | 32 mm | A slim woman warrior in burnished bronze plate with a high crimson-plumed helmet and a face-covering mask, crimson half-cape, holding a chunky rifle. |
+| `vigilator` | `cus.vigilators/vigilator` | 5 (1 may be a cosmetic leader variant) | 1.1 | 32 mm | A slim woman warrior in burnished bronze plate with a crimson-plumed helmet and masked face, swinging an oversized two-handed executioner's greatsword with a pale steel edge. |
 
 ## 10. Other Adeptus Custodes patrols (appendix)
 

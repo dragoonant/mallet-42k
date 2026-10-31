@@ -1,6 +1,6 @@
 // Chaos Daemons (Khorne) dressing for the procedural figure kit: the horned Bloodletter and Bloodmaster heads, the
 // hellblade / blood-blade / war-horn / icon weapons, tail and bat wings for the biped rig, and the Flesh Hound and
-// Juggernaut heads and flanks for the beast rig (HoundBody). Original SD shapes from the shared primitive set; colours
+// Juggernaut heads and flanks for the beast rig (HoundBody). Original shapes from the shared primitive set; colours
 // all come from the faction paintScheme (blood-red primary, dark secondary, brass trim, steel metal, bone decal) so a
 // repaint recolours every part. Weapons point along +Z from a hand at the local origin.
 import { GBox, GCone, GCylinder, GSphere, StdMat } from './shared'

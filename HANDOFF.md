@@ -5,14 +5,14 @@ Written 2026-09-13 by a Fable 5.1 session after the owner switched to Opus for c
 wholesale — agents read the sections their prompts name.
 
 ## Owner decisions (already made — do not re-ask)
-- 10th edition rules, 1:1 mechanics; own-words prose; original SD figures. See `PLAN.md`.
+- 10th edition rules, 1:1 mechanics; own-words prose; original figures in the house figure style (docs/FIGURE-STYLE.md). See `PLAN.md`.
 - Factions: Space Marines **Strike Force Octavius** vs Orks **Gordrang's Gitstompas** (Combat Patrol).
-- Player vs AI first; multiplayer later. Procedural SD figures first (Phase A), Meshy/Tripo later.
+- Player vs AI first; multiplayer later. Procedural figures first (Phase A), Meshy/Tripo later.
 - Repo `dragoonant/mallet-42k` (public), code at `~/dev/mallet-42k`, Pages deploys from `main`:
   https://dragoonant.github.io/mallet-42k/ . Pushing to `main` after each stage is pre-approved.
 - Rules/stat reference: wahapedia.ru via WebFetch (stats aren't copyrightable; we write our own text).
 - Check-ins: a screenshot per milestone; the only approval stop is the **M3 figure look** (before
-  the SD style spreads to every unit). Otherwise keep going unless blocked.
+  the figure style spreads to every unit). Otherwise keep going unless blocked.
 - Implementation on Sonnet subagents; verification/spec on the session model. Ultracode is **off**
   for cost reasons: run workflows one stage at a time, ≤8 agents each.
 
@@ -68,7 +68,7 @@ Workflow `resumeFromRunId` only works in the same session.
 | 2 | `w1-stage.js` | `{stage:'systems', attribution}` | ≤10 | attack ∥ command+movement ∥ setup/objectives/missions |
 | 3 | `w1-stage.js` | `{stage:'phases', attribution}` | ≤7 | shooting ∥ charge+fight |
 | 4 | `w1-stage.js` | `{stage:'integration', attribution}` | 3–4 | full suite green, `tools/sim.ts` headless games, full-game tests, whole-engine audit + fixes. **= M1/M4 engine done.** |
-| 5 | W3 client (write it; see below) | | 2 runs | board/terrain + procedural SD figure kit → **stop for owner's figure veto (M3)** → binding, interaction, UI, hotseat |
+| 5 | W3 client (write it; see below) | | 2 runs | board/terrain + procedural figure kit → **stop for owner's figure veto (M3)** → binding, interaction, UI, hotseat |
 | 6 | W4 AI (write it) | | ≤6 | expected-damage math, per-phase utility deciders, role planner, Monte Carlo charges, difficulty, tuning harness (AI beats random bot ≥95%) |
 | 7 | W5 QA (write it) | | ≤10 | Playwright playthrough vs AI, sim fuzz, rules-fidelity audit, loop-until-dry (max 2 dry rounds), deploy, screenshots to owner. **= M5.** |
 | ✅ | `w11-mobile.js` | `{stage, root, branch, attribution}` | ≤8 | M11 phone support, one stage per run; stage = shell, touch, hud, polish, polish2 (all done). Ships to main itself. |
@@ -82,7 +82,7 @@ Workflow `resumeFromRunId` only works in the same session.
 
 ## Writing W3/W4/W5 (keep the same shape as `w1-stage.js`)
 - Same `COMMON`, `RESULT`/`VERDICT` schemas, `build()` loop (Sonnet implements → session-model verifies → ≤2 fixes → Sonnet commits).
-- W3 module specs: `docs/spec/50-client.md` (scene, binding, interaction, UI, data-testid hooks) and `30-figures.md` (SD kit: slots, skeletons, paint masks, animation clips). Stage A: `src/client/board/*` (44×30 board, SD-style ruins from `src/data/terrain`, lighting, orbit camera, picking) ∥ `src/client/figures/*` (procedural kit: Marine/Terminator/Ork Boy/Deffkopta/Deff Dread/Warboss/Captain/Librarian parts, shader paint from `faction.paintScheme`, idle/walk/shoot/melee/death). Verify with Playwright screenshots (`npm run e2e`), then **SendUserFile the screenshots and stop** for the figure veto. Stage B: engine binding (zustand store fed by `step()` events), per-phase interaction, decision prompts (every `PendingDecision` kind), dice log, HUD, stratagem prompts, end screen, hotseat.
+- W3 module specs: `docs/spec/50-client.md` (scene, binding, interaction, UI, data-testid hooks) and `30-figures.md` (figure kit: slots, skeletons, paint masks, animation clips). Stage A: `src/client/board/*` (44×30 board, stylised ruins from `src/data/terrain`, lighting, orbit camera, picking) ∥ `src/client/figures/*` (procedural kit: Marine/Terminator/Ork Boy/Deffkopta/Deff Dread/Warboss/Captain/Librarian parts, shader paint from `faction.paintScheme`, idle/walk/shoot/melee/death). Verify with Playwright screenshots (`npm run e2e`), then **SendUserFile the screenshots and stop** for the figure veto. Stage B: engine binding (zustand store fed by `step()` events), per-phase interaction, decision prompts (every `PendingDecision` kind), dice log, HUD, stratagem prompts, end screen, hotseat.
 - W4: `docs/spec/40-ai.md`; AI implements `Decider` (`src/engine/decider.ts`); tune with `tools/sim.ts` (AI vs random bot, AI vs AI).
 - W5: E2E full game vs AI in the browser, `npm run sim -- --games 500`, checklist coverage ≥95%, final deploy, screenshots.
 

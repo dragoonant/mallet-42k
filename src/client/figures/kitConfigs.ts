@@ -1164,7 +1164,7 @@ export const BIPED_CONFIG: Partial<Record<KitId, BipedConfig>> = {
     limbColor: 'primary',
   },
   // Leagues of Votann: short, broad Kin in slate-teal plate (primary) with brass trim, cream braided beards and amber glow
-  // (secondary). Arms take the plate colour; bulk runs wide because the legs stay stubby.
+  // (secondary). Arms take the plate colour; bulk runs wide because the legs stay short.
   'lov-hearthkyn': {
     headShape: 'kin-helm',
     rightWeapon: 'ion-blaster',

@@ -1,4 +1,4 @@
-// Rendering-only types for the procedural SD figure kit (docs/spec/30-figures.md). Nothing here
+// Rendering-only types for the procedural figure kit (docs/spec/30-figures.md). Nothing here
 // is read by the engine; the engine only ever sees `base` (mm) and `height` on its own Model type.
 
 /** Animation clip driving procedural transforms (30-figures.md §5, Phase A: code-defined, no glTF).

@@ -1,5 +1,5 @@
 // World Eaters dressing for the shared biped rig (BipedBody.tsx): brass horns on the helm, and the armoured
-// Juggernaut that Karagar rides. Original SD shapes from the same primitive set as every other kit; nothing here
+// Juggernaut that Karagar rides. Original shapes from the same primitive set as every other kit; nothing here
 // carries rules.
 import { GBox, GCone, StdMat } from './shared'
 import type { PaintColors } from './types'
@@ -18,7 +18,7 @@ export function HornPair({ colors, radius }: { colors: PaintColors; radius: numb
   )
 }
 
-/** A blood-red armoured beast under the rider: a slab body, four stubby legs, a lowered armoured head with a
+/** A blood-red armoured beast under the rider: a slab body, four short legs, a lowered armoured head with a
  *  forward-curving horn and a brass-ringed collar. The rider's own legs vanish inside the barrel. */
 export function Juggernaut({ colors, bulk }: { colors: PaintColors; bulk: number }) {
   const w = 0.36 * Math.min(bulk, 1.7)

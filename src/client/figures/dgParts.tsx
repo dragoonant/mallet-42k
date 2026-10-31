@@ -108,7 +108,7 @@ export const DG_WEAPONS: ReadonlySet<string> = new Set<DgWeaponShape>(['blight-l
 export function DgWeapon({ shape, colors }: { shape: WeaponShape; colors: PaintColors }) {
   switch (shape as DgWeaponShape) {
     case 'blight-launcher':
-      // A fat rusty tube with a green-lit canister bulging under it and a stubby brass muzzle ring.
+      // A fat rusty tube with a green-lit canister bulging under it and a short brass muzzle ring.
       return (
         <group scale={1.4}>
           <mesh position={[0, 0, 0.18]} rotation={[Math.PI / 2, 0, 0]}>

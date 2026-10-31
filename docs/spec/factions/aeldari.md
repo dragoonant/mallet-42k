@@ -270,14 +270,14 @@ Same list as the `AEL` section of 12-rules-test-checklist.
 
 Heights follow 30-figures (infantry H ≈ 1.1, mounted/heavy taller, monsters compressed); bases are rules-true.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `farseer-iraneth` | `ael.farseer-iraneth/farseer` | 1 | 1.1 | 25 mm | A chibi slender seer in a tall crested helm with a smooth faceplate, long flowing pearl-and-jade robes over sleek armour, glowing green gems on the chest, one hand raised crackling with storm light, the other holding a long leaf-bladed spear. |
-| `guardian-defender` | `ael.guardian-defenders/guardian-defender` | 10 | 1.0 | 28 mm | A chibi lithe alien trooper in pearl-white ridged armour with jade shoulder plates, a tall domed helmet with a narrow eye slit and a short crest, holding a compact curved disc-throwing rifle. |
-| `heavy-weapon-platform` | `ael.guardian-defenders/heavy-weapon-platform` | 1 | 0.9 | 40 mm | A chibi small floating anti-grav sled in pearl and jade with a slim swept-back cannon that glows pale green at the muzzle, a tiny gem-studded control fin at the back. |
-| `windrider-catapult` | `ael.windriders/windrider-catapult` | 4 | 1.4 | 32 mm flying | A chibi rider in a crested helm hunched low over a sleek pointed jetbike with swept wings, pearl hull with jade stripes, twin short disc-throwers under the nose, mounted on a clear flying stand. |
-| `windrider-scatter` | `ael.windriders/windrider-scatter` | 2 | 1.4 | 32 mm flying | Same chibi jetbike rider with a long multi-lens laser cannon slung under the nose and gold trim on the wings. |
-| `wraithlord` | `ael.wraithlord/wraithlord` | 1 | 2.8 | 60 mm | A chibi towering bone-white construct with long elegant limbs, a small elongated faceless head with a glowing green gem, a long curved glaive in one hand, a slender lance cannon on one shoulder and two small disc-throwers on the forearms. |
+| `farseer-iraneth` | `ael.farseer-iraneth/farseer` | 1 | 1.1 | 25 mm | A slender seer in a tall crested helm with a smooth faceplate, long flowing pearl-and-jade robes over sleek armour, glowing green gems on the chest, one hand raised crackling with storm light, the other holding a long leaf-bladed spear. |
+| `guardian-defender` | `ael.guardian-defenders/guardian-defender` | 10 | 1.0 | 28 mm | A lithe alien trooper in pearl-white ridged armour with jade shoulder plates, a tall domed helmet with a narrow eye slit and a short crest, holding a compact curved disc-throwing rifle. |
+| `heavy-weapon-platform` | `ael.guardian-defenders/heavy-weapon-platform` | 1 | 0.9 | 40 mm | A small floating anti-grav sled in pearl and jade with a slim swept-back cannon that glows pale green at the muzzle, a tiny gem-studded control fin at the back. |
+| `windrider-catapult` | `ael.windriders/windrider-catapult` | 4 | 1.4 | 32 mm flying | A rider in a crested helm hunched low over a sleek pointed jetbike with swept wings, pearl hull with jade stripes, twin short disc-throwers under the nose, mounted on a clear flying stand. |
+| `windrider-scatter` | `ael.windriders/windrider-scatter` | 2 | 1.4 | 32 mm flying | Same jetbike rider with a long multi-lens laser cannon slung under the nose and gold trim on the wings. |
+| `wraithlord` | `ael.wraithlord/wraithlord` | 1 | 2.8 | 60 mm | A towering bone-white construct with long elegant limbs, a small elongated faceless head with a glowing green gem, a long curved glaive in one hand, a slender lance cannon on one shoulder and two small disc-throwers on the forearms. |
 
 ## 10. Other Aeldari patrols (appendix)
 

@@ -263,16 +263,16 @@ Same list as the `CHA` section of 12-rules-test-checklist.
 
 Heights follow 30-figures (infantry H 1.1, heavy 1.3); bases are rules-true.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `aranis-zarkan` | `csm.aranis-zarkan/zarkan` | 1 | 1.25 | 40 mm | A chibi armoured sorcerer in blue-black plate with brass trim, a tall horned helm with a glowing violet visor, a ragged crimson robe over the armour, a long staff topped by a caged glowing violet skull and a curved ritual dagger at the belt. |
-| `possessed` | `csm.possessed/possessed` | 5 | 1.4 | 40 mm | A chibi hulking mutated warrior bursting out of blue-black armour, one arm swollen into a huge claw, spiky tentacles and bony horns sprouting from the shoulders, crimson flesh and a wide fanged grin under a cracked helm. |
-| `legionary-champion` | `csm.legionaries/champion` | 1 | 1.15 | 32 mm | A chibi spiky-armoured warrior in blue-black and brass with a horned crested helm and a crimson cape, a short plasma pistol with a violet glow in one hand and a jagged glowing sword in the other. |
-| `legionary-boltgun` | `csm.legionaries/boltgun` | 7 | 1.1 | 32 mm | A chibi power-armoured warrior in blue-black plate with brass edging, spiked shoulder pads, a helm with a grille mouth and red eye-lenses, holding a chunky rifle across the chest. |
-| `legionary-heavy-bolter` | `csm.legionaries/heavy-bolter` | 1 | 1.1 | 32 mm | Same chibi blue-black warrior bracing an oversized drum-fed heavy gun at the hip with an ammo belt looping to a backpack. |
-| `legionary-melta` | `csm.legionaries/meltagun` | 1 | 1.1 | 32 mm | Same chibi blue-black warrior holding a stubby wide-barrelled heat gun with a glowing orange muzzle and coolant fins. |
-| `cultist-champion` | `csm.cultist-mob/champion` | 1 | 1.0 | 25 mm | A chibi human zealot in a hooded crimson robe with scrap-metal shoulder plates and a brass face mask, a pistol in one hand and a heavy cleaver in the other. |
-| `cultist` | `csm.cultist-mob/cultist` | 9 | 1.0 | 25 mm | A chibi ragged human cultist with a rough cloth hood, patched crimson rags and leather straps, a small pistol in one hand and a crude jagged blade in the other. |
+| `aranis-zarkan` | `csm.aranis-zarkan/zarkan` | 1 | 1.25 | 40 mm | A armoured sorcerer in blue-black plate with brass trim, a tall horned helm with a glowing violet visor, a ragged crimson robe over the armour, a long staff topped by a caged glowing violet skull and a curved ritual dagger at the belt. |
+| `possessed` | `csm.possessed/possessed` | 5 | 1.4 | 40 mm | A hulking mutated warrior bursting out of blue-black armour, one arm swollen into a huge claw, spiky tentacles and bony horns sprouting from the shoulders, crimson flesh and a wide fanged grin under a cracked helm. |
+| `legionary-champion` | `csm.legionaries/champion` | 1 | 1.15 | 32 mm | A spiky-armoured warrior in blue-black and brass with a horned crested helm and a crimson cape, a short plasma pistol with a violet glow in one hand and a jagged glowing sword in the other. |
+| `legionary-boltgun` | `csm.legionaries/boltgun` | 7 | 1.1 | 32 mm | A power-armoured warrior in blue-black plate with brass edging, spiked shoulder pads, a helm with a grille mouth and red eye-lenses, holding a chunky rifle across the chest. |
+| `legionary-heavy-bolter` | `csm.legionaries/heavy-bolter` | 1 | 1.1 | 32 mm | Same blue-black warrior bracing an oversized drum-fed heavy gun at the hip with an ammo belt looping to a backpack. |
+| `legionary-melta` | `csm.legionaries/meltagun` | 1 | 1.1 | 32 mm | Same blue-black warrior holding a short wide-barrelled heat gun with a glowing orange muzzle and coolant fins. |
+| `cultist-champion` | `csm.cultist-mob/champion` | 1 | 1.0 | 25 mm | A human zealot in a hooded crimson robe with scrap-metal shoulder plates and a brass face mask, a pistol in one hand and a heavy cleaver in the other. |
+| `cultist` | `csm.cultist-mob/cultist` | 9 | 1.0 | 25 mm | A ragged human cultist with a rough cloth hood, patched crimson rags and leather straps, a small pistol in one hand and a crude jagged blade in the other. |
 
 ## 10. Other Chaos Space Marines patrols (appendix)
 

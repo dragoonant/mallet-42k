@@ -269,16 +269,16 @@ Heights follow 30-figures (infantry H 1.1, mounted ≈1.3–1.5, vehicles compre
 names each held item exactly once (one weapon per hand). Existing GSC look: mustard work overalls, violet-skinned hybrid
 features, rust-red trim, worn steel.
 
-| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (chibi/SD, original) |
+| Slug | Unit / model key | Models needed | Height (in) | Base | Visual prompt (house figure style, original; see docs/FIGURE-STYLE.md) |
 |---|---|---|---|---|---|
-| `shanus-daskovian` | `gsc.shanus-daskovian/shanus` | 1 | 1.5 | 60 × 35 mm oval | A chibi cult outrider chief with a slightly ridged violet-tinged brow and long dark coat, riding a chunky mustard-yellow three-wheeled mining bike with rust-red mudguards, holding exactly one long scoped rifle across the handlebars, a small pistol holstered on the hip. |
-| `metamorph-leader` | `gsc.hybrid-metamorphs/leader` | 2 | 1.2 | 32 mm | A chibi hunched violet-skinned hybrid boss in a torn mustard vest, one arm ending in a huge curved bony talon and the other holding a single small pistol, a ridged bald head and fierce yellow eyes. |
-| `metamorph-mutant` | `gsc.hybrid-metamorphs/mutant` | 2 | 1.2 | 32 mm | A chibi violet-skinned hybrid with one massive crab-like claw arm and one long whipping tentacle arm, mustard work trousers and rust-red wrist wraps, no gun. |
-| `metamorph-flamer` | `gsc.hybrid-metamorphs/flamer` | 6 | 1.2 | 32 mm | A chibi violet-skinned hybrid with one oversized bony talon arm and, in the other hand, a single stubby flame pistol with a small glowing pilot light, mustard vest and steel knee pads. |
-| `atalan-jackal` | `gsc.atalan-jackals/rider` | 3 | 1.4 | 60 × 35 mm oval | A chibi goggled raider in a mustard duster and rust-red scarf hunched over a rugged dirt bike with knobbly tyres and violet tank panels, one hand on the bars and the other holding a single short club. |
-| `atalan-jackal-power` | `gsc.atalan-jackals/power-rider` | 1 | 1.4 | 60 × 35 mm oval | The same chibi raider on a rugged violet-and-mustard dirt bike, swinging a single crackling blue-edged power cleaver over the front wheel. |
-| `atalan-wolfquad` | `gsc.atalan-jackals/wolfquad` | 1 | 1.5 | 60 mm | A chibi raider driving a squat four-wheeled quad bike in mustard yellow with violet panels, a heavy mining laser with a glowing red lens mounted on the rear rack and a short club clipped to the side. |
-| `achilles-ridgerunner` | `gsc.achilles-ridgerunner/ridgerunner` | 1 | 1.9 | 120 × 92 mm oval | A chibi open-topped four-wheeled scout buggy with huge suspension springs and fat off-road tyres in mustard yellow and violet, a rack of three chunky missile tubes on the back and a twin-barrelled machine gun on a pintle, a goggled driver at the wheel. |
+| `shanus-daskovian` | `gsc.shanus-daskovian/shanus` | 1 | 1.5 | 60 × 35 mm oval | A cult outrider chief with a slightly ridged violet-tinged brow and long dark coat, riding a chunky mustard-yellow three-wheeled mining bike with rust-red mudguards, holding exactly one long scoped rifle across the handlebars, a small pistol holstered on the hip. |
+| `metamorph-leader` | `gsc.hybrid-metamorphs/leader` | 2 | 1.2 | 32 mm | A hunched violet-skinned hybrid boss in a torn mustard vest, one arm ending in a huge curved bony talon and the other holding a single small pistol, a ridged bald head and fierce yellow eyes. |
+| `metamorph-mutant` | `gsc.hybrid-metamorphs/mutant` | 2 | 1.2 | 32 mm | A violet-skinned hybrid with one massive crab-like claw arm and one long whipping tentacle arm, mustard work trousers and rust-red wrist wraps, no gun. |
+| `metamorph-flamer` | `gsc.hybrid-metamorphs/flamer` | 6 | 1.2 | 32 mm | A violet-skinned hybrid with one oversized bony talon arm and, in the other hand, a single short flame pistol with a small glowing pilot light, mustard vest and steel knee pads. |
+| `atalan-jackal` | `gsc.atalan-jackals/rider` | 3 | 1.4 | 60 × 35 mm oval | A goggled raider in a mustard duster and rust-red scarf hunched over a rugged dirt bike with knobbly tyres and violet tank panels, one hand on the bars and the other holding a single short club. |
+| `atalan-jackal-power` | `gsc.atalan-jackals/power-rider` | 1 | 1.4 | 60 × 35 mm oval | The same raider on a rugged violet-and-mustard dirt bike, swinging a single crackling blue-edged power cleaver over the front wheel. |
+| `atalan-wolfquad` | `gsc.atalan-jackals/wolfquad` | 1 | 1.5 | 60 mm | A raider driving a squat four-wheeled quad bike in mustard yellow with violet panels, a heavy mining laser with a glowing red lens mounted on the rear rack and a short club clipped to the side. |
+| `achilles-ridgerunner` | `gsc.achilles-ridgerunner/ridgerunner` | 1 | 1.9 | 120 × 92 mm oval | A open-topped four-wheeled scout buggy with huge suspension springs and fat off-road tyres in mustard yellow and violet, a rack of three chunky missile tubes on the back and a twin-barrelled machine gun on a pintle, a goggled driver at the wheel. |
 
 ## 10. Other Genestealer Cults patrols (appendix)
 

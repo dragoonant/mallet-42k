@@ -1,6 +1,6 @@
-# Handoff: SD figure models v2 (all factions)
+# Handoff: figure models v2 (all factions)
 
-Owner's request (2026-10-04): new master grade SD concept images, made in Google Gemini, for every army except
+Owner's request (2026-10-04): new concept images in the house figure style (docs/FIGURE-STYLE.md), made in Google Gemini, for every army except
 the Necrons (already done). That includes the Space Marines and Orks, which get replaced. Turn each image into a
 Hunyuan3D model, wire the models into the game, and archive the old Space Marine and Ork GLBs. **Do all of it on
 the Windows PC (the one with the GPU). Do not route anything through the owner's Mac or its Claude session.**
@@ -29,9 +29,8 @@ Gemini picture N is the Nth `model-response` element on the page.
 Slugs match `GLB_SLUG_BY_MODEL` in `src/client/figures/glbModels.ts`. Nobody has looked at cultist (CSM #7) or
 armoured-sentinel (AM #9) yet, so check them first. If an image is unusable (two figures, cropped, a base that
 isn't round), regenerate it in the same chat with "Same style... exactly ONE single figure, centred...". The
-prompt wording that gives MG SD proportions: *"noticeably oversized head (about a third of total height), short
-compact torso, short sturdy legs, oversized hands and weapons, like a master grade SD Gundam kit, not chibi.
-Full body, front three-quarter view, plain round black base, plain white background, no shadows, no text."*
+prompt wording and proportions are in `docs/FIGURE-STYLE.md` (use that recipe, and attach
+`docs/figure-style-reference.jpg` to the first message of each chat); do not write style labels into prompts.
 
 ### Getting the image files (Gemini gotchas, learned the hard way)
 - **Gemini's "Download full size image" button is unreliable.** Clicks from page scripts and `ref` clicks do
@@ -85,7 +84,7 @@ Do one faction per batch (≤9 models): finalize, wire, commit, push, then start
   already listed.
 - Commit the concept PNGs too (`art/unit-concepts/`), and add a section per faction to
   `art/unit-concepts/PROMPTS.md`.
-- `npm run typecheck`, then commit `M10: <faction> SD figures v2` with the Co-Authored-By line, then push to
+- `npm run typecheck`, then commit `M10: <faction> figures v2` with the Co-Authored-By line, then push to
   `main` (pre-approved by the owner). Pages deploys from `main`.
 - Send the owner the contact sheets.
 
