@@ -9,8 +9,7 @@ import { useUiStore } from '../ui/uiStore'
 import { useGameStore } from '../store/game'
 import { isMultiTouchActive, onMultiTouchStart } from './touchCamera'
 import { handleMoveTap } from '../interaction/touchMoveTap'
-import { canPreviewDeploy } from '../interaction/deployDrag'
-import { beginPreviewDrag, cancelOneFinger, canPreviewDrag, getGesture, groundPointAt, installTouchGestures, liftFor, type TouchGesture } from '../interaction/touchGesture'
+import { beginPreviewDrag, cancelOneFinger, getGesture, groundPointAt, installTouchGestures, liftFor, type TouchGesture } from '../interaction/touchGesture'
 import { SIDE_COLOR, type DeploymentZones, type PlayerId } from './types'
 
 export const BOARD_WIDTH_IN = 44
@@ -134,8 +133,9 @@ export function Board({ width: widthProp, depth: depthProp, deploymentZones, att
       if (ui.nudge) return onBoardPointer(lifted(), 'move')
       // placing a unit (setup / reserves): touchGesture.ts drives that preview from the native finger stream, so it also
       // follows a fingertip that has slid off the mat (the formation rides 60px above the finger)
-      if (canPreviewDeploy()) return
-      if (canPreviewDrag()) {
+      if (g.intent === 'deploy-preview') return
+      // a drag that landed inside the move range previews the move; any other drag is a camera pan (touchGesture.ts)
+      if (g.intent === 'move-preview') {
         beginPreviewDrag(g)
         return onBoardPointer(lifted(), 'hover')
       }

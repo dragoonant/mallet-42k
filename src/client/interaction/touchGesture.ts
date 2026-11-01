@@ -1,15 +1,26 @@
 // One-finger touch gesture state for the board (M11 phone support). Mouse and pen input never touch this
 // file's state, so desktop behaviour is unchanged.
 //
-// Rule of the phone layout: one finger always belongs to the game (tap = click, drag a model, drag to
-// measure, press-and-hold for unit info); the camera only moves with TWO fingers (board/touchCamera.ts).
+// Rule of the phone layout, one finger: a tap is a click (select, activate, stage a move) and press-and-hold opens
+// unit info; neither nudges the camera. Once the finger leaves the tap slop (DRAG_PX) the drag is decided ONCE, from where
+// it landed (dragIntent.ts):
+//   - a model or ghost the player can drag (a nudge is running)  -> it drags that model, as before
+//   - a unit is being placed (deployment, reserves, deep strike, disembark) and the finger landed inside the allowed
+//     placement area                                              -> the formation follows the finger as a live preview
+//   - a clamped move is being planned and the finger landed inside the unit's move range
+//                                                                 -> the move previews under the finger
+//   - the measure tool is open                                    -> it measures
+//   - anything else                                               -> it PANS the board (touchCamera.ts oneFingerPan:
+//     the ground under the finger stays under the finger); the click that ends a pan is swallowed there
+// Two fingers belong to the camera (pinch, twist, tilt, midpoint pan; board/touchCamera.ts) and cancel any one-finger gesture.
 //
 // How it fits together:
 //   - Board.tsx installs native pointer listeners (installTouchGestures) that run BEFORE react-three-fiber
 //     sees the same event, so the gesture (start point, drag latch, long-press timer) is known by the time
 //     any R3F handler runs. R3F handlers that stop propagation (a ghost marker's pointerdown) therefore
-//     cannot hide a touch from the gesture tracker.
-//   - Board.tsx's touch branch reads the gesture to decide what a move/up means (hover-style move preview,
+//     cannot hide a touch from the gesture tracker. The intent is decided on the first move past the slop, i.e. after the
+//     landing pointerdown has been through R3F (so `ui.nudge` and `pressUnitId` are known).
+//   - Board.tsx's touch branch reads the gesture (`intent`) to decide what a move/up means (hover-style move preview,
 //     nudge with a lifted point, measure, or nothing) and forwards plain onBoardPointer events.
 //   - UnitsLayer reports which unit is under the finger (pressUnit) so a long press can open its card.
 //   - A second finger landing (touchCamera.onMultiTouchStart) calls cancelOneFinger(), which restores the
@@ -22,12 +33,13 @@ import * as THREE from 'three'
 import { create } from 'zustand'
 import { useGameStore } from '../store/game'
 import { useUiStore, type MeasureLine, type PlacementDraft } from '../ui/uiStore'
-import { isMultiTouchActive } from '../board/touchCamera'
+import { isMultiTouchActive, oneFingerPan } from '../board/touchCamera'
 import { isClampedMovePending } from './moveClamp'
 import { updateMoveHover } from './moveHover'
+import { AREA_MARGIN_IN, DRAG_PX, dragStartsInArea, oneFingerDragIntent, pointInDeployArea, pointInMoveRange, type DragIntent } from './dragIntent'
 import { beginDeployDrag, canPreviewDeploy, cancelDeployPreview, isDeployDragging, liftDeployDrag } from './deployDrag'
 
-export const DRAG_PX = 10
+export { DRAG_PX }
 export const LONG_PRESS_MS = 450
 export const LIFT_PX = 60
 const LIFT_EASE_PX = 30
@@ -47,6 +59,10 @@ export interface TouchGesture {
   pressUnitId: string | null
   /** first board point R3F reported for this gesture */
   downPoint: { x: number; z: number } | null
+  /** what the drag does, decided once when it leaves the tap slop ('tap' until then) */
+  intent: DragIntent
+  /** the drag is panning the camera */
+  panning: boolean
   /** a ground drag is driving the live move preview */
   previewDrag: boolean
   preDraft: PlacementDraft | null
@@ -115,6 +131,28 @@ export function canPreviewDrag(): boolean {
   const ui = useUiStore.getState()
   if (canPreviewDeploy()) return true
   return !!pending && pending.player !== botSeat && isClampedMovePending(pending) && !ui.nudge && !ui.measureOn
+}
+
+/** Decides what a drag that has just left the tap slop does, from where the finger landed (see dragIntent.ts). */
+function decideIntent(g: TouchGesture, canvas: HTMLElement, camera?: THREE.Camera): DragIntent {
+  const { state, pending } = useGameStore.getState()
+  const ui = useUiStore.getState()
+  const deployOpen = canPreviewDeploy()
+  const moveOpen = !deployOpen && canPreviewDrag()
+  // the preview is drawn LIFT_PX above the fingertip, so the lifted point counts as the start too (dragIntent.ts)
+  const live = !!camera && !!state && !!pending && (deployOpen || moveOpen)
+  const finger = live ? groundPointAt(camera!, canvas, g.startX, g.startY, 0) : null
+  const lifted = live ? groundPointAt(camera!, canvas, g.startX, g.startY, LIFT_PX) : null
+  return oneFingerDragIntent({
+    movedPx: Math.hypot(g.x - g.startX, g.y - g.startY),
+    slopPx: DRAG_PX,
+    measureOn: ui.measureOn,
+    onDraggable: !!ui.nudge,
+    deployOpen,
+    inDeployArea: !!state && !!pending && dragStartsInArea(finger, lifted, (p) => pointInDeployArea(state, pending, ui.deployTargetUnitId, p, AREA_MARGIN_IN)),
+    moveOpen,
+    inMoveRange: !!state && !!pending && dragStartsInArea(finger, lifted, (p) => pointInMoveRange(state, pending, p, AREA_MARGIN_IN)),
+  })
 }
 
 /** First move of a ground drag that previews a move: a staged draft is lifted out so the preview can show again. */
@@ -198,6 +236,8 @@ export function installTouchGestures(canvas: HTMLElement, camera?: THREE.Camera)
       ended: false,
       pressUnitId: null,
       downPoint: null,
+      intent: 'tap',
+      panning: false,
       previewDrag: false,
       preDraft: ui.draft,
       preMeasureLine: ui.measureLine,
@@ -216,11 +256,22 @@ export function installTouchGestures(canvas: HTMLElement, camera?: THREE.Camera)
       g.dragged = true
       if (g.timer) clearTimeout(g.timer)
       g.timer = null
+      if (!g.cancelled && !isMultiTouchActive()) {
+        g.intent = decideIntent(g, canvas, camera)
+        if (g.intent === 'pan') {
+          g.panning = true
+          // anchored where the finger landed, so the ground point under it stays under it (one catch-up step of ~DRAG_PX)
+          oneFingerPan.begin(g.startX, g.startY)
+          oneFingerPan.move(g.x, g.y)
+        }
+      }
+    } else if (g.panning && !g.cancelled && !isMultiTouchActive()) {
+      oneFingerPan.move(g.x, g.y)
     }
     // Placing a unit (setup / reserves arrival): the formation follows the finger from this native stream, not from
     // react-three-fiber's pointer events, so it keeps following when the fingertip (60px below the formation) slides
     // off the mat — a zone along the near board edge would otherwise lose the finger exactly where it is needed.
-    if (g.dragged && !g.cancelled && camera && canPreviewDeploy() && !isMultiTouchActive()) {
+    if (g.dragged && !g.cancelled && camera && g.intent === 'deploy-preview' && !isMultiTouchActive()) {
       beginPreviewDrag(g)
       const p = groundPointAt(camera, canvas, g.x, g.y, liftFor(g))
       if (p) updateMoveHover(p)
@@ -233,6 +284,10 @@ export function installTouchGestures(canvas: HTMLElement, camera?: THREE.Camera)
     g.y = e.clientY
     if (g.timer) clearTimeout(g.timer)
     g.timer = null
+    if (g.panning) {
+      g.panning = false
+      oneFingerPan.end()
+    }
     if (e.type === 'pointercancel') cancelOneFinger()
     else if (!g.cancelled && g.previewDrag && camera && isDeployDragging()) {
       // the lift stages the formation where it hovers as the draft; it never deploys (Confirm in the prompt commits)

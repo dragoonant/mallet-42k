@@ -1,11 +1,18 @@
-// Two-finger touch camera for the phone layout (M11). One finger always belongs to the game (tap to
-// select, drag models, drag to measure); the camera only ever moves with TWO fingers. Mouse and pen
-// input are ignored completely, so desktop behaviour is unchanged.
+// Touch camera for the phone layout (M11). Mouse and pen input are ignored completely, so desktop behaviour is unchanged.
 //
-// Gestures (all anchored so the ground point under the fingers stays under the fingers):
+// ONE finger: a tap still selects / clicks and a long press still opens unit info (touchGesture.ts); neither moves the
+// camera, because a finger that stays inside the tap slop (DRAG_PX) is a tap. Past the slop touchGesture.ts decides what
+// the drag is (dragIntent.ts): a model or ghost being dragged, a deploy or move preview (the drag started inside the
+// placement area / move range), or the measure tool keep the finger; every other drag PANS the board, which is
+// the oneFingerPan API below: the ground point under the finger stays under the finger, the orbit target is clamped to the
+// board, and any pan cancels a cinematic camera flight (cancelFocus -> the rig's takeOver, which cameraApi.inputCount counts).
+// The click that ends a pan or a two-finger gesture is swallowed (capture phase) so it never selects anything.
+//
+// TWO fingers (all anchored so the ground point under the fingers stays under the fingers):
 //   pinch            dolly toward the pinch midpoint (clamped to the controls' min/max distance)
 //   midpoint drag    pan on the ground plane (y = 0); the orbit target is clamped to the board
-//   twist            rotate the azimuth (the board turns with the fingers)
+//   twist            rotate the azimuth (the board turns with the fingers); a dead zone of TWIST_DEADZONE radians must be
+//                    twisted first, so a pinch or a pan never wobbles the view; once it is passed the twist follows exactly
 //   side-by-side fingers dragged straight up/down, with no pinch or twist: tilt the polar angle
 //     within the controls' polar limits (decided in the first few pixels, then latched for the gesture)
 //
@@ -17,6 +24,9 @@
 //   onMultiTouchStart(cb: () => void): () => void
 //       cb fires the moment a second finger lands (before any camera motion) so a board interaction
 //       can cancel its one-finger gesture. Returns an unsubscribe function.
+//   oneFingerPan = { begin(x, y), move(x, y), end() }
+//       the one-finger pan, driven by touchGesture.ts once it has decided the drag is a pan. Client px; no-ops until the
+//       CameraRig has installed the handler. end() arms the click swallow.
 //   cameraNudge = { rotate(deg), zoom(factor), topDown(), reset() }
 //       imperative camera moves for on-screen buttons. rotate(deg): positive turns the board clockwise
 //       as seen from above (same as a clockwise twist). zoom(factor): >1 zooms in, <1 zooms out, clamped
@@ -49,6 +59,10 @@ export interface TouchCameraOptions {
 
 const TILT_RAD_PER_PX = 0.005
 const DECIDE_PX = 6
+/** radians the two fingers must twist before the turn engages (about 7 degrees) */
+export const TWIST_DEADZONE = 0.12
+/** how long after a pan / multi-touch gesture a click on the canvas is still the tail of that gesture (ms) */
+const CLICK_SWALLOW_MS = 600
 const MIN_FINGER_GAP = 8
 const Y_AXIS = new THREE.Vector3(0, 1, 0)
 
@@ -73,12 +87,28 @@ export function onMultiTouchStart(cb: () => void): () => void {
 }
 
 interface Installed {
+  panBegin(x: number, y: number): void
+  panMove(x: number, y: number): void
+  panEnd(): void
   rotate(deg: number): void
   zoom(factor: number): void
   topDown(): void
   reset(): void
 }
 let installed: Installed | null = null
+
+/** One-finger pan of the board (see header). touchGesture.ts calls it once a drag has been decided to be a pan. */
+export const oneFingerPan = {
+  begin(x: number, y: number): void {
+    installed?.panBegin(x, y)
+  },
+  move(x: number, y: number): void {
+    installed?.panMove(x, y)
+  },
+  end(): void {
+    installed?.panEnd()
+  },
+}
 
 export const cameraNudge = {
   rotate(deg: number): void {
@@ -124,6 +154,8 @@ export function installTouchCamera(opts: TouchCameraOptions): () => void {
   let sepX = 0
   let sepY = 0
   let mode: 0 | 1 | 2 = 0 // 0 undecided, 1 pan/zoom/rotate, 2 tilt
+  let twistPending = 0
+  let twistEngaged = false
   let rectL = 0
   let rectT = 0
   let rectW = 1
@@ -163,6 +195,8 @@ export function installTouchCamera(opts: TouchCameraOptions): () => void {
     sepX = g.dx
     sepY = g.dy
     mode = 0
+    twistPending = 0
+    twistEngaged = false
     hasBaseline = true
   }
 
@@ -233,7 +267,16 @@ export function installTouchCamera(opts: TouchCameraOptions): () => void {
     } else {
       const anchored = groundAt(pmx, pmy, vA)
       applyDistanceFactor(vOff, pd / g.d)
-      vOff.applyAxisAngle(Y_AXIS, wrapPi(g.a - pa))
+      // twist: nothing turns until the accumulated twist leaves the dead zone, then it follows the fingers exactly
+      let turn = wrapPi(g.a - pa)
+      if (!twistEngaged) {
+        twistPending += turn
+        if (Math.abs(twistPending) >= TWIST_DEADZONE) {
+          twistEngaged = true
+          turn = twistPending
+        } else turn = 0
+      }
+      vOff.applyAxisAngle(Y_AXIS, turn)
       camera.position.copy(target).add(vOff)
       camera.lookAt(target)
       camera.updateMatrixWorld()
@@ -254,17 +297,82 @@ export function installTouchCamera(opts: TouchCameraOptions): () => void {
     pa = g.a
   }
 
+  // ---- one-finger pan (driven by touchGesture.ts) and the click swallow ----
+  let swallowClick = false
+  let swallowTimer: ReturnType<typeof setTimeout> | null = null
+  const armSwallow = () => {
+    swallowClick = true
+    if (swallowTimer) clearTimeout(swallowTimer)
+    swallowTimer = setTimeout(() => {
+      swallowClick = false
+      swallowTimer = null
+    }, CLICK_SWALLOW_MS)
+  }
+  const disarmSwallow = () => {
+    swallowClick = false
+    if (swallowTimer) clearTimeout(swallowTimer)
+    swallowTimer = null
+  }
+  let panning = false
+  let panX = 0
+  let panY = 0
+  const refreshRect = () => {
+    const r = dom.getBoundingClientRect()
+    rectL = r.left
+    rectT = r.top
+    rectW = Math.max(r.width, 1)
+    rectH = Math.max(r.height, 1)
+  }
+  const panBegin = (x: number, y: number) => {
+    if (multiActive) return
+    refreshRect()
+    cancelFocus() // player input: a cinematic flight in progress hands the camera back
+    panning = true
+    panX = x
+    panY = y
+  }
+  const panMove = (x: number, y: number) => {
+    if (!panning || multiActive) return
+    camera.updateMatrixWorld()
+    const target = controls.target
+    if (groundAt(panX, panY, vA) && groundAt(x, y, vB)) {
+      vB.set(target.x + vA.x - vB.x, 0, target.z + vA.z - vB.z)
+      clampTarget(vB)
+      const sx = vB.x - target.x
+      const sz = vB.z - target.z
+      target.set(vB.x, 0, vB.z)
+      camera.position.x += sx
+      camera.position.z += sz
+      commit()
+    }
+    panX = x
+    panY = y
+  }
+  const panEnd = () => {
+    if (!panning) return
+    panning = false
+    armSwallow() // the click that ends a pan must not select anything
+  }
+  const onClickCapture = (e: MouseEvent) => {
+    if (!swallowClick || e.target !== dom) return
+    disarmSwallow()
+    e.stopImmediatePropagation()
+    e.preventDefault()
+  }
+
   const slotOf = (id: number) => (ids[0] === id ? 0 : ids[1] === id ? 1 : -1)
 
   const onDown = (e: PointerEvent) => {
     if (e.pointerType !== 'touch' || e.target !== dom) return
     const slot = ids[0] === -1 ? 0 : ids[1] === -1 ? 1 : -1
     if (slot < 0) return
+    if (count === 0) disarmSwallow()
     ids[slot] = e.pointerId
     xs[slot] = e.clientX
     ys[slot] = e.clientY
     count++
     if (count === 2) {
+      panning = false // a second finger hands the touches to the two-finger gestures
       multiActive = true
       cancelFocus()
       beginBaseline()
@@ -288,7 +396,10 @@ export function installTouchCamera(opts: TouchCameraOptions): () => void {
     ids[s] = -1
     count--
     hasBaseline = false
-    if (count === 0) multiActive = false
+    if (count === 0) {
+      if (multiActive) armSwallow() // the click after a two-finger gesture is not a tap
+      multiActive = false
+    }
   }
 
   const reset2 = () => {
@@ -296,6 +407,8 @@ export function installTouchCamera(opts: TouchCameraOptions): () => void {
     count = 0
     hasBaseline = false
     multiActive = false
+    panning = false
+    disarmSwallow()
   }
 
   const capture = { capture: true } as const
@@ -304,6 +417,7 @@ export function installTouchCamera(opts: TouchCameraOptions): () => void {
   window.addEventListener('pointerup', onUp, capture)
   window.addEventListener('pointercancel', onUp, capture)
   window.addEventListener('blur', reset2)
+  window.addEventListener('click', onClickCapture, capture)
 
   // ---- imperative nudges (buttons) ----
   const nudge = (fn: (off: THREE.Vector3) => void) => {
@@ -315,6 +429,9 @@ export function installTouchCamera(opts: TouchCameraOptions): () => void {
     commit()
   }
   installed = {
+    panBegin,
+    panMove,
+    panEnd,
     rotate(deg) {
       nudge((o) => {
         o.applyAxisAngle(Y_AXIS, THREE.MathUtils.degToRad(deg))
@@ -349,6 +466,7 @@ export function installTouchCamera(opts: TouchCameraOptions): () => void {
     window.removeEventListener('pointerup', onUp, capture)
     window.removeEventListener('pointercancel', onUp, capture)
     window.removeEventListener('blur', reset2)
+    window.removeEventListener('click', onClickCapture, capture)
     installed = null
     reset2()
   }
